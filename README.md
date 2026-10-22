@@ -18,7 +18,7 @@ check 执行严格 TypeScript 编译、回归测试、已绑定的原 Gherkin �
 
 ## 代码位置
 
-默认配置包含 5 个群成员：方案师 `A`、核查员 `B`、`builder-1`、`builder-2`、`builder-3`。三个 Builder 均负责实现、修改与验证，默认继承主模型并支持技能搜索；角色说明、工具权限和模型分配都在 `team.config.ts` 中调整。后台促进者独立运行，不计入这 5 个成员。所有成员共用任务预算，协作仍按当前状态机顺序调度。
+默认配置包含 5 个群成员：方案师 `A`、核查员 `B`、`builder-1`、`builder-2`、`builder-3`。三个 Builder 均负责实现、修改与验证，默认继承主模型并支持技能搜索；角色说明和工具权限在 `team.config.ts` 中调整，模型分配在 `.env` 中调整。后台促进者独立运行，不计入这 5 个成员。所有成员共用任务预算，协作仍按当前状态机顺序调度。
 
 | 文件 | 职责 |
 | --- | --- |
@@ -28,6 +28,8 @@ check 执行严格 TypeScript 编译、回归测试、已绑定的原 Gherkin �
 | src/runner.ts | 提交后执行外部操作，将结果转为受校验事件 |
 | src/model-adapter.ts | 第三方模型 HTTP 调用、结构化输出与技能搜索循环 |
 | src/model-config.ts | 模型分配、固定执行配置与恢复兼容检查 |
+| src/model-env.ts | 自动加载 .env、模型默认值与成员覆盖项 |
+| .env.example | 模型服务、密钥和各 Bot 模型的配置示例 |
 | src/types.ts | 任务、消息、协助、黑板、预算、事件与配置契约 |
 | team.config.ts | 示例角色、工具权限与有限额度 |
 | features/ | 原始中文 Gherkin 基线，未修改需求以迁就实现 |
@@ -68,42 +70,63 @@ coordinating 与 stopping 是内部控制状态。结束结果单独记录 compl
 
 ## 第三方模型配置
 
-在 `team.config.ts` 的 `models.services` 中填写服务信息，修改文件中的占位地址及模型名即可接入 OpenAI 兼容的 Chat Completions 服务。`baseUrl` 是 API 根地址，例如以 `/v1` 或 `/compatible-mode/v1` 结尾；适配器会拼接 `/chat/completions`。原生 Anthropic、Gemini 协议需另接适配器，或通过兼容网关访问。
+模型服务统一在项目根目录的 `.env` 中配置，启动时自动读取，无需修改 TypeScript。先复制示例文件：
 
-```typescript
-models: {
-  default: 'primary',
-  facilitator: 'fast',
-  check: 'primary',
-  services: {
-    primary: {
-      baseUrl: 'https://your-provider.example/v1',
-      model: 'YOUR_MAIN_MODEL',
-      apiKeyEnv: 'MODEL_API_KEY',
-      jsonMode: true,
-      maxTokens: 8192,
-    },
-    fast: {
-      baseUrl: 'https://another-provider.example/v1',
-      model: 'YOUR_FAST_MODEL',
-      apiKeyEnv: 'FAST_MODEL_API_KEY',
-      extraBody: { enable_thinking: false }, // 仅在供应商支持时配置。
-    },
-  },
-}
+```sh
+cp .env.example .env
 ```
 
-Bot 的可选 `model: 'fast'` 指向一个服务定义，省略时使用 `models.default`。促进者使用 `models.facilitator`，完成检查优先使用 `models.check`，再回退到促进者或默认模型。本地无鉴权服务可以省略 `apiKeyEnv`。密钥值仅在请求时从环境变量读取，不写进配置文件、任务快照或模型输入。
+填写默认服务，以及需要单独指定模型的成员：
 
-服务还可配置 `temperature`、`maxTokens`、`jsonMode` 和 `extraBody`。不支持 `response_format` 的服务设置 `jsonMode: false`，仍需按提示返回 JSON。`extraBody` 支持供应商扩展参数，但不能覆盖模型、消息、流式开关或执行协议。当前使用非流式文本请求，不包含图片、多模态输入或原生工具调用。
+```dotenv
+# 默认连接，所有未覆盖的字段使用这一组值。
+MODEL_BASE_URL=https://your-provider.example/v1
+MODEL_NAME=YOUR_DEFAULT_MODEL
+MODEL_API_KEY=your-key
+MODEL_JSON_MODE=true
 
-完成配置并在运行环境中设置对应密钥后，可执行：
+# 5 个 Bot 可以各用不同模型。
+A_MODEL_NAME=YOUR_PLANNER_MODEL
+B_MODEL_NAME=YOUR_REVIEW_MODEL
+BUILDER_1_MODEL_NAME=YOUR_BUILDER_1_MODEL
+BUILDER_2_MODEL_NAME=YOUR_BUILDER_2_MODEL
+BUILDER_3_MODEL_NAME=YOUR_BUILDER_3_MODEL
+
+# Builder 3 使用另一家服务时，还需填写其地址及独立密钥。
+BUILDER_3_MODEL_BASE_URL=https://another-provider.example/v1
+BUILDER_3_MODEL_API_KEY=another-key
+
+# 促进者和完成检查也可单独选择模型。
+FACILITATOR_MODEL_NAME=YOUR_FACILITATOR_MODEL
+CHECK_MODEL_NAME=YOUR_CHECK_MODEL
+```
+
+地址和模型 ID 均为占位示例，需替换为供应商实际值。`baseUrl` 对应的变量是 API 根地址，例如以 `/v1` 或 `/compatible-mode/v1` 结尾；适配器会拼接 `/chat/completions`。支持 OpenAI 兼容的 Chat Completions 服务，原生 Anthropic、Gemini 协议需另接适配器，或通过兼容网关访问。
+
+默认前缀为 `MODEL`；成员前缀为 `A_MODEL`、`B_MODEL`、`BUILDER_1_MODEL`、`BUILDER_2_MODEL`、`BUILDER_3_MODEL`，后台前缀为 `FACILITATOR_MODEL`、`CHECK_MODEL`。每组都支持以下后缀：
+
+| 后缀 | 示例 | 含义 |
+| --- | --- | --- |
+| `BASE_URL` | `A_MODEL_BASE_URL` | API 根地址 |
+| `NAME` | `A_MODEL_NAME` | 真实模型 ID |
+| `API_KEY` | `A_MODEL_API_KEY` | 该角色使用的密钥 |
+| `NO_AUTH` | `MODEL_NO_AUTH=true` | 明确使用无鉴权服务 |
+| `JSON_MODE` | `B_MODEL_JSON_MODE=false` | 是否发送 JSON 输出格式参数 |
+| `TEMPERATURE` | `MODEL_TEMPERATURE=0.2` | 温度 |
+| `MAX_TOKENS` | `MODEL_MAX_TOKENS=8192` | 单次输出 Token 上限 |
+| `EXTRA_BODY` | `MODEL_EXTRA_BODY={"enable_thinking":false}` | 供应商扩展 JSON 参数 |
+
+空白的成员配置继承默认值；完成检查未单独配置时，继承促进者的模型选择。同一地址可以共用默认密钥，修改为另一地址后必须设置对应角色的密钥，或明确设置该角色的 `NO_AUTH=true`，不会把默认服务的密钥转发到新地址。布尔项使用 `true` 或 `false`。
+
+已有进程环境变量优先于 `.env`。修改文件后重启生效，不会热切换正在执行的任务。`.env` 和 `.env.*` 已被 Git 忽略，仓库仅提交 `.env.example`；任务快照仅保留密钥变量名，不保存密钥值。完全不配置模型时，离线测试和受控演示仍可运行。
+
+配置完成后运行真实模型：
 
 ```sh
 npm run model:run -- "为这个目标给出方案，必要时向核查员求助"
 ```
 
-此命令调用配置的真实模型，每次新建一个演示群，将任务保存在 `team.sqlite`，支持 Ctrl+C 停止。缺少密钥时不会发送请求。它使用默认 Bot；群聊界面仍需后续接入。宿主接入方式如下：
+此命令每次新建一个演示群，将任务保存在 `team.sqlite`，支持 Ctrl+C 停止。缺少必需密钥时不会发送请求。它使用默认 Bot；群聊界面仍需后续接入。宿主接入方式如下：
 
 ```typescript
 const runner = new WorkRunner(engine, new OpenAICompatibleAdapter(config));
@@ -112,7 +135,7 @@ await runner.runOne(roomId, taskId);
 
 首次模型请求使用领取工作时预留的额度；技能搜索和后续模型请求分别再扣一次额度。HTTP 408、429、5xx 和网络故障使用任务级有限重试；鉴权失败、格式错误和截断回答进入等待人类，不自动切换服务。操作超时覆盖模型及技能搜索循环。模型和服务配置固定在任务操作上，恢复时发现服务或路由变化会暂停，避免静默换模型重放。
 
-模型适配器已支持文本交付、求助、促进者决策、完成检查和技能搜索。现有 `read`、`writeArtifact` 等通用工具由额外的 `WorkAdapter` 接入，不能把模型声称生成了文件当作已持久化的产物。
+模型适配器支持文本交付、求助、促进者决策、完成检查和技能搜索。现有 `read`、`writeArtifact` 等通用工具由额外的 `WorkAdapter` 接入，不能把模型声称生成了文件当作已持久化的产物。
 
 ```typescript
 const engine = new TeamEngine(new SqliteStore('team.sqlite'), config);

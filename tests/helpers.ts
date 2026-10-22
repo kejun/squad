@@ -1,5 +1,6 @@
 import { TeamEngine, MemoryStore, type TaskEvent, type TeamConfig, type Store, type WorkKind } from '../src/index.js';
-import { config as baseline } from '../team.config.js';
+import { createTeamConfig } from '../team.config.js';
+const baseline = createTeamConfig({});
 
 export type EventBody = TaskEvent extends infer E ? E extends TaskEvent ? Omit<E, 'id' | 'at'> & { id?: string; at?: number } : never : never;
 export const configuration = (change?: Partial<TeamConfig['limits']>): TeamConfig => ({ ...structuredClone(baseline), limits: { ...baseline.limits, ...change } });

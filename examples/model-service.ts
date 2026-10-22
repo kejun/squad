@@ -7,12 +7,13 @@ if (!text) {
   console.error('Usage: npm run model:run -- "task for the configured default bot"');
   process.exit(2);
 }
+const adapter = new OpenAICompatibleAdapter(config);
 const store = new SqliteStore('team.sqlite');
 const engine = new TeamEngine(store, config);
 const roomId = `model-demo:${randomUUID()}`;
 const started = engine.submit(roomId, { id: randomUUID(), text });
 const taskId = started.taskId!;
-const runner = new WorkRunner(engine, new OpenAICompatibleAdapter(config));
+const runner = new WorkRunner(engine, adapter);
 let cancellation: Promise<boolean> | undefined;
 const stop = () => {
   engine.send(roomId, taskId, { type: 'STOP', id: randomUUID(), at: Date.now() });
