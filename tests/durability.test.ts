@@ -83,7 +83,7 @@ describe('durable transaction contracts', () => {
     expect(h.view().phase).toBe('waitingHuman'); expect(h.engine.pending(h.room, h.task)).toEqual([]);
   });
   it('[BT_E02] passive supervision recovers staged helper results exactly once', () => {
-    const h = new Harness(); h.now = 60000; h.engine.tick(h.room);
+    const h = new Harness(); h.now = h.config.limits.progressIntervalMs; h.engine.tick(h.room);
     h.event({ type: 'COORDINATE', decision: { action: 'assist', target: 'B', question: 'verify', expected: 'source', reason: 'blocked path' } });
     h.reopen(); const requestId = h.context().assists[0]!.id;
     h.event({ type: 'RECORD_RESULT', requestId, resultId: 'R1', answer: 'official source', status: 'success' }); h.reopen();

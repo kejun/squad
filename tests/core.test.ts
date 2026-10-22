@@ -142,7 +142,9 @@ describe('supervision and shared record', () => {
   it('[BT_O05] repeated Chinese errors are retained and trigger a check', () => {
     const h = new Harness();
     const signal = { type: 'FAILURE_SIGNAL' as const, operation: '读取', parameters: '同一参数', resource: '来源', error: '无法访问', result: '没有新资料' };
-    h.event(signal); h.event(signal); expect(h.view().phase).toBe('coordinating');
+    for (let i = 1; i < h.config.limits.repeatThreshold; i++) h.event(signal);
+    expect(h.view().phase).toBe('running');
+    h.event(signal); expect(h.view().phase).toBe('coordinating');
     expect(h.context().repeat.fingerprint).toContain('无法访问');
   });
   it('[BT_O06] duplicate supervision events do not invoke another check', () => {
