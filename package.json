@@ -1,0 +1,30 @@
+{
+  "name": "bot-team-xstate",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "XState execution core for Bot Team v0.4",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node scripts/test.mjs",
+    "demo": "node --import tsx examples/collaboration.ts",
+    "coverage:specs": "node --import tsx scripts/spec-coverage.ts",
+    "test:bdd": "node scripts/run-bdd.mjs",
+    "check": "node scripts/check.mjs"
+  },
+  "dependencies": {
+    "xstate": "5.33.3"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "13.3.0",
+    "@cucumber/gherkin": "42.0.1",
+    "@cucumber/messages": "34.2.1",
+    "@types/node": "24.19.2",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}
