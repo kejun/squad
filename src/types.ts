@@ -5,6 +5,7 @@ export interface Limits {
 }
 export interface TeamConfig {
   version: string; toolVersion: string; defaultBot: string; bots: Bot[]; limits: Limits;
+  skillSearch?: { enabled: boolean };
 }
 export interface Fence { epoch: number; goalVersion: number }
 export interface Goal { text: string; constraints: string[]; criteria: string[]; requiredArtifacts: number }
@@ -91,6 +92,7 @@ export type TaskEvent = Envelope & (
 
 export function validateConfig(config: TeamConfig): void {
   if (!config.version || !config.toolVersion || !config.bots.length) throw new Error('Invalid team configuration');
+  if (config.skillSearch !== undefined && (!config.skillSearch || typeof config.skillSearch.enabled !== 'boolean')) throw new Error('Invalid skill search configuration');
   const ids = config.bots.map(b => b.id);
   if (ids.some(id => !id || id === 'user' || id === 'facilitator') || new Set(ids).size !== ids.length || !ids.includes(config.defaultBot)) throw new Error('Invalid bot identities');
   for (const key of ['ordinary', 'checks', 'assists', 'replans', 'retries', 'workTimeoutMs', 'progressIntervalMs', 'repeatThreshold'] as const) {

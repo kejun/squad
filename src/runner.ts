@@ -1,5 +1,6 @@
 import type { TeamEngine } from './engine.js';
 import type { Decision, Intent, TaskEvent } from './types.js';
+import { findSkills, type FoundSkill, type SkillSearchTransport } from './skills.js';
 
 export type WorkOutput =
   | { type: 'help'; requestId: string; target: string; question: string; expected: string; refs?: string[] }
@@ -18,6 +19,8 @@ export interface WorkAdapter {
 export interface WorkScope {
   /** The first request is reserved on claim; call before each additional model/tool request. */
   authorizeAdditionalRequest(requestId: string): void;
+  /** Available to every member by default; each search reserves one execution unit. */
+  findSkills(query: string): Promise<FoundSkill[]>;
 }
 
 export class WorkFailure extends Error {
@@ -43,7 +46,8 @@ function validOutput(value: unknown): value is WorkOutput {
 /** Host driver: persisted claim precedes every adapter call. No XState entry action starts I/O. */
 export class WorkRunner {
   private controllers = new Map<string, AbortController>();
-  constructor(readonly engine: TeamEngine, private readonly adapter: WorkAdapter, private readonly clock: () => number = Date.now) {}
+  constructor(readonly engine: TeamEngine, private readonly adapter: WorkAdapter, private readonly clock: () => number = Date.now,
+    private readonly skillSearchTransport: SkillSearchTransport = globalThis.fetch) {}
   async runOne(roomId: string, taskId: string): Promise<boolean> {
     if (this.engine.flushResults(roomId, taskId)) return true;
     const pending = this.engine.pending(roomId, taskId)[0];
@@ -66,9 +70,17 @@ export class WorkRunner {
     const controller = new AbortController();
     this.controllers.set(work.id, controller);
     let output: WorkOutput;
+    let skillSearchSequence = 0;
     const scope: WorkScope = { authorizeAdditionalRequest: requestId => {
       const response = this.engine.send(roomId, taskId, { type: 'CONSUME', intentId: work.id, id: `request:${work.id}:${work.attempt}:${requestId}`, at: this.clock(), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       if (!response.ok) throw new WorkFailure(response.code);
+    }, findSkills: async query => {
+      const current = this.engine.view(roomId, taskId)!.context;
+      if (this.engine.config.skillSearch?.enabled === false || current.config.skillSearch?.enabled === false) throw new WorkFailure('SKILL_SEARCH_DISABLED');
+      if (!['owner', 'assistance', 'facilitator'].includes(work.kind)) throw new WorkFailure('SKILL_SEARCH_NOT_ALLOWED');
+      if (typeof query !== 'string' || !query.trim()) throw new WorkFailure('INVALID_SKILL_QUERY');
+      scope.authorizeAdditionalRequest(`findSkills:${++skillSearchSequence}`);
+      return findSkills(query, controller.signal, this.skillSearchTransport);
     } };
     try {
       scope.authorizeAdditionalRequest('__initial_reserved_request__');

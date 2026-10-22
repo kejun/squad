@@ -10,6 +10,7 @@ const remainingInflight = (c: TaskContext, e: TaskEvent) => inflight(c).filter(i
 const activeHelp = (c: TaskContext) => c.assists.find(h => h.epoch === c.epoch && ['pending', 'running', 'answered'].includes(h.status));
 const hasOrdinary = (c: TaskContext) => c.usage.ordinary < c.config.limits.ordinary;
 const isBot = (c: TaskContext, id: string) => c.config.bots.some(b => b.id === id);
+const capabilities = (c: TaskContext) => ({ findSkills: c.config.skillSearch?.enabled !== false });
 
 function message(c: TaskContext, e: TaskEvent, author: string, text: string, kind: TaskContext['messages'][number]['kind'], extra: Partial<TaskContext['messages'][number]> = {}) {
   c.messages.push({ id: `${c.taskId}:message:${c.nextSeq++}`, taskId: c.taskId, at: e.at, author, text, kind, ...extra });
@@ -42,14 +43,14 @@ function owner(c: TaskContext, e: TaskEvent, payload: Record<string, unknown> = 
   for (const i of c.intents) if (i.kind === 'owner' && i.status === 'pending') i.status = 'cancelled';
   intent(c, e.at, 'owner', c.owner, { ...payload, goal: c.goal, inputs: c.inputs.filter(n => n.applied),
     board: c.board, artifacts: c.artifacts, messages: c.messages,
-    roster: c.config.bots.map(b => ({ id: b.id, name: b.name, instructions: b.instructions, tools: b.tools })) });
+    capabilities: capabilities(c), roster: c.config.bots.map(b => ({ id: b.id, name: b.name, instructions: b.instructions, tools: b.tools })) });
   c.nextCheckAt = e.at + c.config.limits.progressIntervalMs;
 }
 function coordinate(c: TaskContext, e: TaskEvent, reason: string) {
   cancelWork(c, e);
   c.reason = reason;
   c.deferredCoordination = false;
-  intent(c, e.at, 'facilitator', 'facilitator', { reason, goal: c.goal });
+  intent(c, e.at, 'facilitator', 'facilitator', { reason, goal: c.goal, capabilities: capabilities(c) });
   c.nextCheckAt = e.at + c.config.limits.progressIntervalMs;
 }
 function helpProblem(c: TaskContext, caller: string, target: string, question: string, expected: string, requiredTools: string[] = []): string | null {
@@ -68,7 +69,7 @@ function startHelp(c: TaskContext, e: TaskEvent, id: string, target: string, que
   const item: Assistance = { id, target, question, expected, refs, ...fence(c), status: 'pending', consumed: false };
   c.assists.push(item); c.usage.assists++;
   intent(c, e.at, 'assistance', target, { requestId: id, question, expected, refs, requiredTools, goal: c.goal, board: c.board,
-    artifacts: c.artifacts.filter(a => refs.includes(a.id)), instructions: c.config.bots.find(b => b.id === target)?.instructions ?? '' });
+    artifacts: c.artifacts.filter(a => refs.includes(a.id)), instructions: c.config.bots.find(b => b.id === target)?.instructions ?? '', capabilities: capabilities(c) });
   message(c, e, system ? 'facilitator' : c.owner, system ? `已为 ${c.owner} 安排 ${target} 协助：${question}` : question, system ? 'notice' : 'help', { requestId: id, recipient: target });
   c.reason = `Waiting for ${target}: ${id}`;
 }
@@ -334,6 +335,8 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'RECOVER': {
       const issue = recoveryIssue(c, e.config);
       c.config.bots = e.config.bots; // Current permissions always win.
+      c.config.skillSearch = { enabled: e.config.skillSearch?.enabled !== false };
+      for (const work of c.intents.filter(i => i.status === 'pending' && ['owner', 'assistance', 'facilitator'].includes(i.kind))) work.payload.capabilities = capabilities(c);
       if (issue) { cancelWork(c, e); c.reason = issue; reject(c, 'INCOMPATIBLE_EXECUTION'); break; }
       for (const work of c.intents.filter(i => i.status === 'inflight' && i.kind !== 'cancel')) {
         if (work.replay === 'unsafe') { work.status = 'uncertain'; c.reason = 'Reconcile uncertain external result'; }

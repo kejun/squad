@@ -58,6 +58,10 @@ coordinating 与 stopping 是内部控制状态。结束结果单独记录 compl
 
 ## 接入接口
 
+默认向负责人、协助成员和后台促进者提供 `find skills` 技能搜索，配置入口为 `team.config.ts` 的 `skillSearch.enabled`，省略时也默认开启。适配器从工作输入的 `capabilities.findSkills` 发现能力，通过 `await scope.findSkills('react testing')` 搜索，返回技能名称、来源、安装量及链接。每次搜索额外消耗一次普通额度，并沿用当前任务的轮次、停止和取消控制。搜索失败会报错，不会伪装成零结果；找到技能后是否采用由任务上下文决定。
+
+查询直接使用 Vercel Skills CLI 相同的 `https://skills.sh/api/search` 接口；当前实现提供搜索，不执行安装。真实模型适配器需把 `scope.findSkills` 暴露给模型作为工具。可在构造 `WorkRunner` 时通过第四参数注入搜索传输，供离线验证使用。
+
 ```typescript
 const engine = new TeamEngine(new SqliteStore('team.sqlite'), config);
 const start = engine.submit('room1', {
