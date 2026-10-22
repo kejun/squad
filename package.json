@@ -11,6 +11,7 @@
     "build": "tsc -p tsconfig.json",
     "test": "node scripts/test.mjs",
     "demo": "node --import tsx examples/collaboration.ts",
+    "model:run": "node --import tsx examples/model-service.ts",
     "coverage:specs": "node --import tsx scripts/spec-coverage.ts",
     "test:bdd": "node scripts/run-bdd.mjs",
     "check": "node scripts/check.mjs"

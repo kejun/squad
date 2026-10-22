@@ -1,5 +1,6 @@
 import { assign, initialTransition, setup, transition, type SnapshotFrom } from 'xstate';
 import type { Assistance, BoardEntry, Decision, Intent, Phase, TaskContext, TaskEvent, TaskInput } from './types.js';
+import { modelSignature, resolveModel } from './model-config.js';
 
 const ok = (c: TaskContext, detail = 'applied') => { c.reply = { ok: true, code: 'OK', detail }; };
 const reject = (c: TaskContext, code: string) => { c.reply = { ok: false, code, detail: code }; };
@@ -19,6 +20,8 @@ function intent(c: TaskContext, at: number, kind: Intent['kind'], target: string
   const item: Intent = { id: `${c.taskId}:E${c.epoch}:${kind}:${c.nextSeq++}`, kind, target, payload,
     ...fence(c), status: 'pending', replay, attempt: 0, deadline: at + c.config.limits.workTimeoutMs,
     bucket: kind === 'check' ? 'checks' : kind === 'cancel' ? 'none' : 'ordinary', requestCount: 0 };
+  const model = resolveModel(c.config, kind, target);
+  if (model) item.model = model;
   c.intents.push(item);
   return item;
 }
@@ -50,7 +53,8 @@ function coordinate(c: TaskContext, e: TaskEvent, reason: string) {
   cancelWork(c, e);
   c.reason = reason;
   c.deferredCoordination = false;
-  intent(c, e.at, 'facilitator', 'facilitator', { reason, goal: c.goal, capabilities: capabilities(c) });
+  intent(c, e.at, 'facilitator', 'facilitator', { reason, goal: c.goal, board: c.board, artifacts: c.artifacts,
+    messages: c.messages, roster: c.config.bots, usage: c.usage, limits: c.config.limits, capabilities: capabilities(c) });
   c.nextCheckAt = e.at + c.config.limits.progressIntervalMs;
 }
 function helpProblem(c: TaskContext, caller: string, target: string, question: string, expected: string, requiredTools: string[] = []): string | null {
@@ -87,8 +91,10 @@ function completeProblem(c: TaskContext): string | null {
 }
 function recoveryIssue(c: TaskContext, config: TaskContext['config']): string | null {
   if (c.config.version !== config.version || c.config.toolVersion !== config.toolVersion) return 'Execution version incompatible';
+  if (modelSignature(c.config.models) !== modelSignature(config.models)) return 'Model configuration changed';
   if (!config.bots.some(b => b.id === c.owner)) return 'Execution member unavailable';
   for (const i of c.intents.filter(i => ['pending', 'inflight'].includes(i.status))) {
+    if (modelSignature(i.model) !== modelSignature(resolveModel(config, i.kind, i.target))) return 'Model configuration changed';
     if (['owner', 'assistance', 'tool'].includes(i.kind) && !config.bots.some(b => b.id === i.target)) return 'Execution member unavailable';
     const tools = config.bots.find(b => b.id === i.target)?.tools ?? [];
     if (i.kind === 'tool' && !tools.includes(String(i.payload.tool))) return 'Tool permission revoked';
@@ -163,7 +169,7 @@ function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     }
     case 'HANDOFF': return !isBot(c, e.owner) ? 'UNKNOWN_BOT' : inflight(c).length ? 'WAIT_FOR_BOUNDARY' : null;
     case 'CONTINUE': {
-      if (['Execution version incompatible', 'Tool permission revoked', 'Execution member unavailable'].includes(c.reason)) return 'INCOMPATIBLE_EXECUTION';
+      if (['Execution version incompatible', 'Tool permission revoked', 'Execution member unavailable', 'Model configuration changed'].includes(c.reason)) return 'INCOMPATIBLE_EXECUTION';
       if (inflight(c).length || c.intents.some(i => i.status === 'uncertain')) return 'UNRESOLVED_WORK';
       if (!isBot(c, c.owner)) return 'OWNER_UNAVAILABLE';
       if (e.extraOrdinary !== undefined && (!Number.isSafeInteger(e.extraOrdinary) || e.extraOrdinary <= 0)) return 'INVALID_BUDGET';
@@ -258,7 +264,7 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'HANDOFF': cancelWork(c, e); c.owner = e.owner; message(c, e, 'facilitator', `任务交接给 ${e.owner}`, 'notice'); owner(c, e, { handoff: true, boardRefs: c.board.map(b => b.id) }); break;
     case 'DELIVER':
       cancelWork(c, e); c.candidate = { text: e.text, artifactIds: e.artifactIds, goalVersion: c.goalVersion };
-      intent(c, e.at, 'check', 'facilitator', { candidate: c.candidate, goal: c.goal, deterministicGap: completeProblem(c) });
+      intent(c, e.at, 'check', 'facilitator', { candidate: c.candidate, goal: c.goal, artifacts: c.artifacts, board: c.board, deterministicGap: completeProblem(c) });
       break;
     case 'CHECK_RESULT':
       c.consumedResults.push(e.resultId);

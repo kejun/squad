@@ -20,13 +20,13 @@ export interface WorkScope {
   /** The first request is reserved on claim; call before each additional model/tool request. */
   authorizeAdditionalRequest(requestId: string): void;
   /** Available to every member by default; each search reserves one execution unit. */
-  findSkills(query: string): Promise<FoundSkill[]>;
+  findSkills(query: string, signal?: AbortSignal): Promise<FoundSkill[]>;
 }
 
 export class WorkFailure extends Error {
   constructor(message: string, readonly transient = false, readonly resultUncertain = false) { super(message); }
 }
-function validOutput(value: unknown): value is WorkOutput {
+export function validWorkOutput(value: unknown): value is WorkOutput {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
   const strings = (a: unknown): a is string[] => Array.isArray(a) && a.every(x => typeof x === 'string');
@@ -74,13 +74,14 @@ export class WorkRunner {
     const scope: WorkScope = { authorizeAdditionalRequest: requestId => {
       const response = this.engine.send(roomId, taskId, { type: 'CONSUME', intentId: work.id, id: `request:${work.id}:${work.attempt}:${requestId}`, at: this.clock(), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       if (!response.ok) throw new WorkFailure(response.code);
-    }, findSkills: async query => {
+    }, findSkills: async (query, signal) => {
       const current = this.engine.view(roomId, taskId)!.context;
       if (this.engine.config.skillSearch?.enabled === false || current.config.skillSearch?.enabled === false) throw new WorkFailure('SKILL_SEARCH_DISABLED');
       if (!['owner', 'assistance', 'facilitator'].includes(work.kind)) throw new WorkFailure('SKILL_SEARCH_NOT_ALLOWED');
       if (typeof query !== 'string' || !query.trim()) throw new WorkFailure('INVALID_SKILL_QUERY');
+      signal?.throwIfAborted();
       scope.authorizeAdditionalRequest(`findSkills:${++skillSearchSequence}`);
-      return findSkills(query, controller.signal, this.skillSearchTransport);
+      return findSkills(query, signal ? AbortSignal.any([controller.signal, signal]) : controller.signal, this.skillSearchTransport);
     } };
     try {
       scope.authorizeAdditionalRequest('__initial_reserved_request__');
@@ -102,7 +103,7 @@ export class WorkRunner {
     const allowed: Record<Intent['kind'], WorkOutput['type'][]> = {
       owner: ['help', 'answer', 'deliver', 'blocked', 'askUser'], assistance: ['answer'], facilitator: ['decision'], check: ['check'], tool: ['settled'], cancel: ['settled'],
     };
-    if (!validOutput(output) || !allowed[work.kind].includes(output.type)) {
+    if (!validWorkOutput(output) || !allowed[work.kind].includes(output.type)) {
       this.engine.send(roomId, taskId, { ...base, id: `${base.id}:invalid`, type: 'WORK_FAILED', intentId: work.id, reason: 'Invalid worker output', transient: false });
       return true;
     }
