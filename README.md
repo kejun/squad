@@ -89,7 +89,10 @@ stateDiagram-v2
     checking --> waitingHuman: 不可重试故障
     running --> running: 用户补充在安全边界生效
     running --> running: HANDOFF / 记录原负责人及新负责人和交接依据
-    waitingAssistance --> running: 用户补充在安全边界生效
+    waitingAssistance --> running: 有效结果消费并合并用户补充 / 安排负责人续办
+    running --> waitingAssistance: RETRY_ASSISTANCE / 原协助可重试且预算足够
+    waitingHuman --> waitingAssistance: RETRY_ASSISTANCE / 在途与未知结果已结算
+    ended --> waitingAssistance: 明确重试原协助 / 新轮次且保留负责人
     coordinating --> running: 用户补充在安全边界生效
     checking --> running: 用户补充在安全边界生效
     waitingHuman --> running: 用户补充生效 / 明确 CONTINUE
@@ -107,7 +110,9 @@ stateDiagram-v2
 
 coordinating 与 stopping 是内部控制状态。结束结果单独记录 complete、partial、failed 或 stopped，方便界面区分成功、缺口和取消。用户补充必须等在途工作结算后才应用；若仍有评审，则重新进入 coordinating 组织本轮评审。普通额度耗尽通过 EXHAUSTED 结束，恢复时配置不兼容或外部结果不确定则进入 waitingHuman；安全恢复保留当前任务状态并接续操作。
 
-不能只核对这张顶层图：评审队列的状态保存在上下文中，外部调用和网页交互也各有边界。对应的[细化状态图](docs/state-diagrams.md)包含成员评审、操作领取与回传、默认网页工具、群历史与消息路由，以及网页展示流程。网页工具沿用当前 owner / assistance / facilitator 意图和 CONSUME 预算事件，不新增顶层任务状态；开关、期限和版本由状态机守卫检查。新增、删除或调整功能时，必须按照 [AGENTS.md](AGENTS.md) **先写 Gherkin 场景，再更新状态图与 XState，最后完成具体实现**。
+不能只核对这张顶层图：评审队列的状态保存在上下文中，外部调用和网页交互也各有边界。对应的[细化状态图](docs/state-diagrams.md)包含协助重试与交接、成员评审、操作领取与回传、默认网页工具、群历史与消息路由，以及网页展示流程。网页工具沿用当前 owner / assistance / facilitator 意图和 CONSUME 预算事件，不新增顶层任务状态；开关、期限和版本由状态机守卫检查。新增、删除或调整功能时，必须按照 [AGENTS.md](AGENTS.md) **先写 Gherkin 场景，再更新状态图与 XState，最后完成具体实现**。
+
+协助重试与交接（BT_H10–BT_H20、BT_U16）：`RETRY_ASSISTANCE` 显式指定原任务和原协助，保留目标与负责人，用新的请求 ID 和 `retryOf` 关联原尝试。直接用户输入的“B 重试”或“@B 重试”仅在当前任务（无活动任务时为最近任务）中唯一匹配时生效；歧义返回提示并由用户选择协助入口，不创建新任务。已保存且仍有效的结果直接消费。普通协助交接在同一转换中消费结果、应用补充并安排一次负责人续办；成员评审有补充时仍按原规则重新组织。停止后的重试必须由用户明确发起并开启新轮次，历史目标版本、在途或未知结果、撤销的权限与执行预算均须校验。重试不重置消耗，并为 B 的执行和 A 的续办保留至少两次普通请求。
 
 品牌展示（BT_U14）沿用[网页交互](docs/state-diagrams.md#网页交互)中的连接、消息与详情状态。侧栏、欢迎区与浏览器图标共享随应用提供的 SVG，仅更新静态展示，不产生业务事件，无需改动 XState。
 

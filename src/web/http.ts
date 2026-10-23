@@ -92,7 +92,7 @@ export function createWebServer(
             throw new WebError(400, "成员格式不正确。");
           if (
             data.intent !== undefined &&
-            !["new", "supplement", "decision", "continue"].includes(
+            !["new", "supplement", "decision", "continue", "retry"].includes(
               String(data.intent),
             )
           )
@@ -102,6 +102,8 @@ export function createWebServer(
             typeof data.replyToTaskId !== "string"
           )
             throw new WebError(400, "任务标识不正确。");
+          if (data.retryAssistanceId !== undefined && (typeof data.retryAssistanceId !== "string" || !data.retryAssistanceId || data.retryAssistanceId.length > 512))
+            throw new WebError(400, "协助标识不正确。");
           const input: Submission = {
             id: data.id,
             text: data.text,
@@ -112,6 +114,7 @@ export function createWebServer(
             ...(typeof data.replyToTaskId === "string"
               ? { replyToTaskId: data.replyToTaskId }
               : {}),
+            ...(typeof data.retryAssistanceId === "string" ? { retryAssistanceId: data.retryAssistanceId } : {}),
           };
           return json(res, service.submit(roomId, input));
         }

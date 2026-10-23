@@ -2221,3 +2221,24 @@ svg {
     scroll-behavior: auto !important;
   }
 }
+.assistance-retry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--text-muted, #71717a);
+  font-size: 12px;
+}
+.retry-assistance-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: 1px solid var(--border, #e4e4e7);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.retry-assistance-button:disabled { opacity: 0.55; cursor: default; }

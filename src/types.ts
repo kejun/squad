@@ -38,6 +38,7 @@ export interface Assistance extends Fence {
   status: 'pending' | 'running' | 'answered' | 'success' | 'partial' | 'failed' | 'timeout' | 'cancelled';
   resultId?: string; answer?: string; consumed: boolean;
   reviewId?: string;
+  requestedBy?: string; requiredTools?: string[]; retryOf?: string;
 }
 export type WorkKind = 'owner' | 'assistance' | 'facilitator' | 'check' | 'cancel' | 'tool';
 export interface Intent extends Fence {
@@ -92,6 +93,7 @@ export type TaskEvent = Envelope & (
   | { type: 'HELP'; requestId: string; caller: string; target: string; question: string; expected: string; refs?: string[]; requiredTools?: string[] }
   | { type: 'HELP_RESULT'; requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string }
   | { type: 'RECORD_RESULT'; requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string }
+  | { type: 'RETRY_ASSISTANCE'; requestId: string; text: string; config?: TeamConfig }
   | { type: 'BLOCKED'; reason: string }
   | { type: 'COORDINATE'; decision: Decision }
   | { type: 'USER_INPUT'; text: string; goal?: Goal; decision?: boolean; history?: ConversationHistory; reviewTargets?: string[] }

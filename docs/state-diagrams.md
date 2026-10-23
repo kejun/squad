@@ -2,6 +2,43 @@
 
 本文件与 README 的「状态模型」共同描述当前功能。顶层任务状态由 `src/task.machine.ts` 管理；下图分别标明上下文状态、操作状态和界面状态，不能将后两者误认为新增的 XState 顶层状态。
 
+## 协助重试与结果交接
+
+对应 BT_H10–BT_H20、BT_U16；复用 running、waitingAssistance、waitingHuman、ended 顶层状态。以下为协助上下文及提交边界。原负责人保持任务所有权；网页仅提交命令，不直接调用成员。
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: HELP / 保存问题、预期、权限和负责人
+    pending --> running: CLAIM / 预算及版本有效
+    running --> answered: RECORD_RESULT / 保存结果并释放执行操作
+    answered --> settled: HELP_RESULT / 原子消费、合并补充、安排负责人
+    running --> interrupted: 失败、超时或停止 / 保留原尝试
+    interrupted --> pending: 明确 RETRY_ASSISTANCE / 新 ID 关联 retryOf
+    answered --> settled: 明确重试 / 复用已保存有效结果
+    interrupted --> interrupted: 目标过期、额度不足、在途或未知结果 / 拒绝
+    answered --> archived: STOP 或版本过期 / 禁止推进
+    pending --> pending: 安全恢复 / 接续已保存意图
+    answered --> settled: 重启 / 补消费并只安排一次负责人
+```
+
+- 未结算的协助及有效待消费结果阻止用户补充抢先触发 BOUNDARY。读取和消费结果使用同一事务；普通结果消费、输入应用、负责人意图和“结果已交给负责人”的提示一起持久化。临时状态不允许消费时保留结果，不写永久拒绝回执；只有已停止、版本过期、已结算或重复结果可归档。
+- 手动重试创建新协助 ID 和独立执行意图，记录 `retryOf`、原负责人和所需权限；保留失败记录，消耗重试及求助额度，并为负责人保留一次普通请求。核查额外请求、自动重试和恢复领取都不能使用该保留额度，触限按失败结算并交回负责人。停止或结束的任务在明确重试时才开启新 epoch；目标版本变化拒绝沿用旧问题。未结算的外部请求必须先结算，不能并发重放。
+- 成员评审重试保留同轮其他成员结果，只重试选中成员；结果返回后接续未完成队列或负责人汇总，并重新计算失败缺口。属于旧评审轮次的协助不能用于恢复当前评审。
+- WorkRunner 只执行通过 CLAIM 的持久化意图；重试与结果交接均由 XState 产生。失败和超时仍回到原负责人；停止、旧请求迟到及重复提交不能产生额外推进。
+
+```mermaid
+stateDiagram-v2
+    [*] --> available: 快照提供可重试协助
+    available --> submitting: 点击原协助重试 / taskId + requestId
+    submitting --> available: 请求拒绝 / 显示具体原因
+    submitting --> waiting: 保存成功 / 等待成员结果
+    waiting --> resumed: 结果已交接 / 展示负责人续办提示
+    available --> disabled: 在途、断线、过期或预算不足
+    disabled --> available: 快照更新且守卫允许
+```
+
+“B 重试”只解析直接用户的完整重试指令；引用、历史、模型输出和任意包含该词的句子均不获得重试权限。路由保留原协助的成员身份，成员撤销后仍识别命令并由权限守卫拒绝。只有一个候选时提交同一命令；多个候选或没有候选时给出明确原因，用户可使用关联原协助的入口。事务保存失败回滚消息、意图和回执，禁止宣称重试成功或发起外部操作。
+
 ## 成员评审
 
 对应 `TaskContext.review.status`。目标成员只由直接用户请求确定，促进者不能替换名单，也不能用 continue、assist、replan 或 finish 跳过待组织的评审。
@@ -30,7 +67,7 @@ stateDiagram-v2
 - `complete` 表示评审轮次结算，任务是否成功仍以 `outcome` 为准；成员失败、超时或队列未收齐会标记缺口，最终为 partial。
 - 评审组织与收集阶段必须保留一次普通请求供负责人汇总。首次领取、额外模型请求、技能搜索、重试与恢复重新领取都检查这条限制；首次模型请求已由领取预占，不重复扣款。触及保留额度的成员操作按失败结算，推进汇总，不能直接耗尽该额度或继续重试。
 - 完成检查使用独立 checks 额度；若用户配置的总额度连组织和汇总都不足，或停止、故障、检查额度不足，则可直接结束或等待用户，不能承诺完成汇总。
-- 结果必须先 RECORD_RESULT 持久化，再以 HELP_RESULT 消费；结果 ID 防止重复消费，epoch/goalVersion 隔离迟到结果。配置撤销成员或权限时暂停恢复。初次评审直接进入组织阶段，避免负责人先回答一次才拉人。
+- 结果必须先 RECORD_RESULT 持久化，再以 HELP_RESULT 消费；结果 ID 防止重复消费，epoch/goalVersion 隔离迟到结果。用户补充在 HELP_RESULT 消费边界应用，已保存的成员意见保留为重新组织的上下文。配置撤销成员或权限时暂停恢复。初次评审直接进入组织阶段，避免负责人先回答一次才拉人。
 
 ## 外部执行操作
 

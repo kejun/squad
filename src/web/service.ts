@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { TeamEngine, type Submission } from "../engine.js";
+import { assistanceRetryProblem } from "../task.machine.js";
+import { retryableAssistance, retryProblemText } from "../assistance-retry.js";
 import { OpenAICompatibleAdapter } from "../model-adapter.js";
 import { resolveModel } from "../model-config.js";
 import {
@@ -136,6 +138,12 @@ export class WebService {
         artifacts: c.artifacts,
         board: c.board,
         trace: c.trace,
+        assists: c.assists.filter(retryableAssistance).map((help) => {
+          const problem = stored.activeTaskId && stored.activeTaskId !== taskId
+            ? "ROOM_BUSY" : assistanceRetryProblem(c, help.id, this.config);
+          return { id: help.id, taskId, target: help.target, retryable: problem === null,
+            reason: problem ? retryProblemText(problem) : "" };
+        }),
         ...(c.review
           ? {
               review: {

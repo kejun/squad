@@ -182,7 +182,8 @@ describe('configuration and driver', () => {
     } }, () => h.now);
     for (let n = 0; n < 10 && await runner.runOne(h.room, h.task); n++) { /* bounded host loop */ }
     expect(h.context().outcome).toBe('complete'); expect(kinds).toEqual(['owner', 'assistance', 'owner', 'check']);
-    expect(h.context().messages.map(m => m.kind)).toEqual(['user', 'help', 'answer', 'final']);
+    expect(h.context().messages.map(m => m.kind)).toEqual(['user', 'help', 'answer', 'notice', 'final']);
+    expect(h.context().messages[3]!.text).toContain('核查结果已交给 A');
   });
   it('invalid worker output cannot strand an unconsumed helper', async () => {
     const h = new Harness(); h.help();

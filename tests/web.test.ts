@@ -7,7 +7,8 @@ import { createTeamConfig } from "../team.config.js";
 import { WebService } from "../src/web/service.js";
 import { createWebServer } from "../src/web/http.js";
 import type { RoomSnapshot, WebRoom } from "../src/web/contracts.js";
-import type { WorkAdapter } from "../src/runner.js";
+import { WorkFailure, type WorkAdapter } from "../src/runner.js";
+import { assistanceRetrySubmission } from "../web/src/AssistanceRetry.js";
 
 const cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -56,6 +57,43 @@ async function until<T>(get: () => T, test: (value: T) => boolean): Promise<T> {
   throw new Error("Expected host state was not reached");
 }
 describe("Web host and HTTP boundary", () => {
+  it.each(["button", "B 重试"])("[BT_H11] [BT_U16] resumes A after B retry through HTTP (%s)", async (entry) => {
+    const calls: string[] = []; let ownerCalls = 0; let helperCalls = 0;
+    const app = await host({ execute: async (work) => {
+      calls.push(`${work.kind}:${work.target}`);
+      if (work.kind === "assistance") {
+        if (++helperCalls === 1) throw new WorkFailure("核查中断");
+        return { type: "answer", text: "核查已恢复，结论有依据" };
+      }
+      if (work.kind === "check") return { type: "check", passed: true, gaps: [] };
+      if (++ownerCalls === 1) return { type: "help", requestId: "H1", target: "B", question: "核查方案", expected: "依据" };
+      if (ownerCalls === 2) return { type: "askUser", question: "核查中断，请重试 B" };
+      expect(work.target).toBe("A"); expect(work.payload.answer).toBe("核查已恢复，结论有依据");
+      expect(work.payload.requiresAssessment).toBe(true);
+      return { type: "deliver", text: "A 根据 B 的核查完成方案", artifactIds: [] };
+    } });
+    const room = (await app.request<WebRoom>("/api/rooms", { title: "协助重试" })).data;
+    const route = `/api/rooms/${room.id}`;
+    const first = await app.request<{ taskId: string }>(`${route}/messages`, { id: "first", text: "请做方案" });
+    expect(first.status).toBe(200);
+    await until(() => app.service.snapshot(room.id), value => value.tasks[0]?.phase === "waitingHuman");
+    const snapshot = (await app.request<RoomSnapshot>(route)).data;
+    const help = snapshot.tasks[0]!.assists![0]!;
+    expect(help.retryable).toBe(true); expect(help.taskId).toBe(first.data.taskId);
+    const malformed = await app.request(`${route}/messages`, { id: "bad-retry", text: "重试", intent: "retry" });
+    expect(malformed.status).toBe(409);
+    const command = entry === "button" ? assistanceRetrySubmission(help, "retry")
+      : { id: "retry", text: entry, intent: "decision", replyToTaskId: help.taskId };
+    const retried = await app.request<{ taskId: string }>(`${route}/messages`, command);
+    expect(retried.status).toBe(200); expect(retried.data.taskId).toBe(first.data.taskId);
+    const done = await until(() => app.service.snapshot(room.id), value => value.tasks[0]?.outcome === "complete");
+    expect(done.tasks).toHaveLength(1); expect(done.tasks[0]!.owner).toBe("A");
+    expect(done.messages.at(-1)!.text).toBe("A 根据 B 的核查完成方案");
+    expect(done.messages.filter(m => m.author === "facilitator" && m.text.includes("核查结果已交给 A"))).toHaveLength(1);
+    expect(calls).toEqual(["owner:A", "assistance:B", "owner:A", "assistance:B", "owner:A", "check:facilitator"]);
+    const duplicate = await app.request<{ duplicate: boolean }>(`${route}/messages`, command);
+    expect(duplicate.status).toBe(200); expect(duplicate.data.duplicate).toBe(true); expect(helperCalls).toBe(2);
+  });
   it("routes a selected member, returns actual execution records and preserves rooms/messages after reopening", async () => {
     const calls: string[] = [];
     const sessions: (string | undefined)[] = [];

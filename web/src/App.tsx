@@ -32,7 +32,8 @@ import {
   X,
 } from "lucide-react";
 import type { Message } from "../../src/types";
-import type { WebAgent } from "../../src/web/contracts";
+import type { WebAgent, WebAssistance } from "../../src/web/contracts";
+import { AssistanceRetry, assistanceRetrySubmission } from "./AssistanceRetry";
 import { api, useWorkspace } from "./api";
 import { Details } from "./Details";
 import { Logo } from "./Logo";
@@ -150,6 +151,18 @@ export function App() {
     window.addEventListener("keydown", onShortcut);
     return () => window.removeEventListener("keydown", onShortcut);
   }, [connected, createRoom, setError]);
+  const retryAssistance = async (help: WebAssistance) => {
+    if (sending || !connected || !roomId || !help.retryable) return;
+    setSending(true);
+    setError("");
+    try {
+      await api(`/rooms/${roomId}/messages`, assistanceRetrySubmission(help, crypto.randomUUID()));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "重试失败，请稍后再试。");
+    } finally {
+      setSending(false);
+    }
+  };
   const send = async (continueTask = false) => {
     if (sending || !connected || (!text.trim() && !continueTask)) return;
     setSending(true);
@@ -570,6 +583,10 @@ export function App() {
                     (agent) => agent.id === message.author,
                   );
                   const isUser = message.kind === "user";
+                  const help = (message.kind === "help" || message.kind === "notice")
+                    ? snapshot?.tasks.find((item) => item.id === message.taskId)?.assists?.find(
+                      (item) => item.id === message.requestId && item.target === message.recipient,
+                    ) : undefined;
                   return (
                     <article
                       key={message.id}
@@ -641,6 +658,8 @@ export function App() {
                             agents={agents}
                           />
                         </Suspense>
+                        {help && <AssistanceRetry help={help} connected={connected} sending={sending}
+                          onRetry={(item) => { void retryAssistance(item); }} />}
                         {!isUser && agent && (
                           <Button
                             className="view-process"
