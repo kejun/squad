@@ -11,7 +11,8 @@ const remainingInflight = (c: TaskContext, e: TaskEvent) => inflight(c).filter(i
 const activeHelp = (c: TaskContext) => c.assists.find(h => h.epoch === c.epoch && ['pending', 'running', 'answered'].includes(h.status));
 const hasOrdinary = (c: TaskContext) => c.usage.ordinary < c.config.limits.ordinary;
 const isBot = (c: TaskContext, id: string) => c.config.bots.some(b => b.id === id);
-const capabilities = (c: TaskContext) => ({ findSkills: c.config.skillSearch?.enabled !== false });
+const capabilities = (c: TaskContext) => ({ findSkills: c.config.skillSearch?.enabled !== false,
+  webSearch: c.config.webTools?.enabled !== false, webFetch: c.config.webTools?.enabled !== false });
 
 function requestBudgetProblem(c: TaskContext, work: Intent): string | null {
   if (work.bucket === 'none') return null;
@@ -219,6 +220,11 @@ function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       const i = c.intents.find(i => i.id === e.intentId);
       if (!i || i.status !== 'inflight' || i.bucket === 'none') return 'WORK_NOT_INFLIGHT';
       if (i.epoch !== c.epoch || i.goalVersion !== c.goalVersion) return 'STALE_WORK';
+      if (e.capability) {
+        if (!['owner', 'assistance', 'facilitator'].includes(i.kind)) return 'WEB_TOOLS_NOT_ALLOWED';
+        if (c.config.webTools?.enabled === false) return 'WEB_TOOLS_DISABLED';
+        if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
+      }
       return i.requestCount > 0 ? requestBudgetProblem(c, i) : null;
     }
     case 'BOARD_WRITE': {
@@ -434,7 +440,8 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const issue = recoveryIssue(c, e.config);
       c.config.bots = e.config.bots; // Current permissions always win.
       c.config.skillSearch = { enabled: e.config.skillSearch?.enabled !== false };
-      for (const work of c.intents.filter(i => i.status === 'pending' && ['owner', 'assistance', 'facilitator'].includes(i.kind))) work.payload.capabilities = capabilities(c);
+      c.config.webTools = { enabled: e.config.webTools?.enabled !== false };
+      for (const work of c.intents.filter(i => ['pending', 'inflight'].includes(i.status) && ['owner', 'assistance', 'facilitator'].includes(i.kind))) work.payload.capabilities = capabilities(c);
       if (issue) { cancelWork(c, e); c.reason = issue; reject(c, 'INCOMPATIBLE_EXECUTION'); break; }
       for (const work of c.intents.filter(i => i.status === 'inflight' && i.kind !== 'cancel')) {
         if (work.replay === 'unsafe') { work.status = 'uncertain'; c.reason = 'Reconcile uncertain external result'; }

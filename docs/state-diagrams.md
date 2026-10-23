@@ -53,9 +53,38 @@ stateDiagram-v2
     inflight --> done: STOP 生成取消意图 / 执行器确认结算
 ```
 
-每个额外模型请求和技能搜索都先经 `scope.authorizeAdditionalRequest` 的 CONSUME 检查。被拒后禁止发起 I/O。模型 HTTP 408、429、5xx 或网络故障可有限重试；协议错误与不可恢复故障按任务图转移。技能搜索不会安装技能。停止首先持久化并派发取消意图，AbortSignal 传入模型和搜索；取消请求发出不等于原操作已结算。外部结果不确定时必须核对，不能直接重放。
+每个额外模型请求、技能搜索和网页工具调用都先经 CONSUME 检查。被拒后禁止发起 I/O。模型 HTTP 408、429、5xx 或网络故障可有限重试；协议错误与不可恢复故障按任务图转移。技能搜索不会安装技能。停止首先持久化并派发取消意图，AbortSignal 传入模型和工具；取消请求发出不等于原操作已结算。外部结果不确定时必须核对，不能直接重放。
 
 OpenCode 会话标识只影响传输：网页使用群 ID，CLI 使用持久任务 ID，适配器哈希后添加请求头，不创建另一条调度路径。HTTP 错误只保留已校验的短代码；MissingSessionID 即使附带参数标识，也应提供缺少会话头的提示，仍沿用 WORK_FAILED 转移。瞬态故障到达重试上限时，等待原因应同时说明原错误和额度限制。执行日志是观察记录，不驱动业务转移。
+
+## 默认网页工具
+
+对应 `BT_W01`–`BT_W10`，以下是已领取意图内部的一次请求循环，不是新增的任务顶层状态。状态机在 owner / assistance / facilitator 的 payload 中持久化 `capabilities.webSearch`、`capabilities.webFetch`。最终 check 不开放联网，保留原有 checks 预算语义。
+
+```mermaid
+stateDiagram-v2
+    [*] --> claimed: CLAIM 成功且首次请求已预占
+    claimed --> requested: 模型返回 web_search 或 web_fetch
+    requested --> rejected: 参数无效 / 关闭 / 过期 / 版本不匹配 / 已停止
+    requested --> rejected: 普通额度耗尽 / 评审汇总保留额度
+    requested --> fetching: CONSUME capability 成功并持久化
+    fetching --> evidence: SDK 返回来源与有界内容
+    evidence --> claimed: 下次模型请求经 CONSUME / 资料不获得调度权限
+    fetching --> failed: HTTP / 超时 / 转换 / 凭据错误
+    failed --> [*]: WORK_FAILED / 有限重试或既有失败转移
+    rejected --> [*]: 无外部 I/O / 既有失败结算
+    fetching --> cancelled: STOP 的取消意图 / AbortSignal
+    cancelled --> [*]: SETTLE / 迟到结果只结算旧工作
+    fetching --> recoverable: 进程退出且工作可安全重放
+    recoverable --> claimed: RECOVER 后重新 CLAIM / 再次计入预算
+```
+
+- 两种工具每次各消耗一次普通额度；分页续读是新的抓取。后续模型请求另外计费，评审汇总的保留额度同样适用。CONSUME 校验 inflight、epoch/goalVersion、期限、工具开关与工作类型，不能由适配器绕过。
+- 使用 `agents/websearch` 的 HTTP source 和 `agents/webfetch` 的抓取、分页与渲染函数。Node 宿主用 Workers AI REST API 适配 Markdown 转换；密钥仅在运行时从环境读取，不写入任务配置、模型上下文或执行日志。
+- 抓取沿用 SDK 的公共 URL、重定向、响应字节数与超时限制；正文使用 SDK 的不可信内容标记。搜索和网页内容不能改变评审名单或授予新调度权限。
+- 只有工作被领取后才能发出工具请求；失败保留安全代码，不伪装为零条结果。工具暂时失败可按原 WORK_FAILED 规则重试整个只读工作，受原预算限制。未配置账号不会阻止普通聊天启动。
+- 恢复时更新当前开关，并刷新 pending 和重新入队的 inflight 意图能力。途中尚未提交的模型循环可能重新搜索或抓取，重新调用可能收费；不承诺缓存或恰好一次外部请求。已结算意图不重放。
+- 网页只观察工具开始、来源结果、失败与完成，不另建调度路径。
 
 ## 群历史与消息路由
 

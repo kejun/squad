@@ -1,6 +1,7 @@
 import type { TeamEngine } from './engine.js';
 import type { Decision, Intent, TaskEvent } from './types.js';
 import { findSkills, type FoundSkill, type SkillSearchTransport } from './skills.js';
+import { CloudflareWebTools, validWebFetchInput, validWebSearchInput, type WebTools } from './web-tools.js';
 
 export type WorkOutput =
   | { type: 'help'; requestId: string; target: string; question: string; expected: string; refs?: string[] }
@@ -23,6 +24,8 @@ export interface WorkScope {
   authorizeAdditionalRequest(requestId: string): void;
   /** Available to every member by default; each search reserves one execution unit. */
   findSkills(query: string, signal?: AbortSignal): Promise<FoundSkill[]>;
+  webSearch: WebTools['search'];
+  webFetch: WebTools['fetch'];
 }
 
 export class WorkFailure extends Error {
@@ -49,7 +52,8 @@ export function validWorkOutput(value: unknown): value is WorkOutput {
 export class WorkRunner {
   private controllers = new Map<string, AbortController>();
   constructor(readonly engine: TeamEngine, private readonly adapter: WorkAdapter, private readonly clock: () => number = Date.now,
-    private readonly skillSearchTransport: SkillSearchTransport = globalThis.fetch) {}
+    private readonly skillSearchTransport: SkillSearchTransport = globalThis.fetch,
+    private readonly webTools: WebTools = new CloudflareWebTools()) {}
   async runOne(roomId: string, taskId: string): Promise<boolean> {
     if (this.engine.flushResults(roomId, taskId)) return true;
     const pending = this.engine.pending(roomId, taskId)[0];
@@ -74,6 +78,15 @@ export class WorkRunner {
     this.controllers.set(work.id, controller);
     let output: WorkOutput;
     let skillSearchSequence = 0;
+    let webSequence = 0;
+    const authorizeWeb = (capability: 'web_search' | 'web_fetch', signal: AbortSignal) => {
+      signal.throwIfAborted();
+      if (this.engine.config.webTools?.enabled === false) throw new WorkFailure('WEB_TOOLS_DISABLED');
+      const response = this.engine.send(roomId, taskId, { type: 'CONSUME', capability, intentId: work.id,
+        id: `request:${work.id}:${work.attempt}:${capability}:${++webSequence}`, at: this.clock(),
+        fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
+      if (!response.ok) throw new WorkFailure(response.code);
+    };
     const scope: WorkScope = { sessionId: taskId, authorizeAdditionalRequest: requestId => {
       const response = this.engine.send(roomId, taskId, { type: 'CONSUME', intentId: work.id, id: `request:${work.id}:${work.attempt}:${requestId}`, at: this.clock(), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       if (!response.ok) throw new WorkFailure(response.code);
@@ -85,6 +98,20 @@ export class WorkRunner {
       signal?.throwIfAborted();
       scope.authorizeAdditionalRequest(`findSkills:${++skillSearchSequence}`);
       return findSkills(query, signal ? AbortSignal.any([controller.signal, signal]) : controller.signal, this.skillSearchTransport);
+    }, webSearch: async (input, signal) => {
+      if (!validWebSearchInput(input)) throw new WorkFailure('invalid_web_search_input');
+      const combined = AbortSignal.any([controller.signal, signal]);
+      authorizeWeb('web_search', combined);
+      const result = await this.webTools.search(input, combined);
+      combined.throwIfAborted();
+      return result;
+    }, webFetch: async (input, signal) => {
+      if (!validWebFetchInput(input)) throw new WorkFailure('invalid_web_fetch_input');
+      const combined = AbortSignal.any([controller.signal, signal]);
+      authorizeWeb('web_fetch', combined);
+      const result = await this.webTools.fetch(input, combined);
+      combined.throwIfAborted();
+      return result;
     } };
     try {
       scope.authorizeAdditionalRequest('__initial_reserved_request__');
