@@ -17,6 +17,8 @@ const capabilities = (c: TaskContext) => ({ findSkills: c.config.skillSearch?.en
 function requestBudgetProblem(c: TaskContext, work: Intent): string | null {
   if (work.bucket === 'none') return null;
   if (c.usage[work.bucket] >= c.config.limits[work.bucket]) return 'BUDGET_EXHAUSTED';
+  if (work.kind === 'assistance' && c.assists.some(h => h.id === work.payload.requestId && h.retryOf)
+    && c.usage.ordinary + 1 >= c.config.limits.ordinary) return 'ASSISTANCE_SYNTHESIS_RESERVED';
   if (work.bucket === 'ordinary' && c.review && ['pending', 'reviewing'].includes(c.review.status)
     && c.usage.ordinary + 1 >= c.config.limits.ordinary) return 'REVIEW_SYNTHESIS_RESERVED';
   return null;
@@ -88,14 +90,53 @@ function helpProblem(c: TaskContext, caller: string, target: string, question: s
   if (!hasOrdinary(c)) return 'BUDGET_EXHAUSTED';
   return null;
 }
-function startHelp(c: TaskContext, e: TaskEvent, id: string, target: string, question: string, expected: string, refs: string[], system: boolean, requiredTools: string[] = [], reviewId?: string) {
+function startHelp(c: TaskContext, e: TaskEvent, id: string, target: string, question: string, expected: string, refs: string[], system: boolean, requiredTools: string[] = [], reviewId?: string, retryOf?: string) {
   cancelWork(c, e);
-  const item: Assistance = { id, target, question, expected, refs, ...fence(c), status: 'pending', consumed: false, ...(reviewId ? { reviewId } : {}) };
+  const item: Assistance = { id, target, question, expected, refs, ...fence(c), status: 'pending', consumed: false,
+    requestedBy: c.owner, requiredTools, ...(reviewId ? { reviewId } : {}), ...(retryOf ? { retryOf } : {}) };
   c.assists.push(item); c.usage.assists++;
   intent(c, e.at, 'assistance', target, { requestId: id, question, expected, refs, requiredTools, goal: c.goal, board: c.board,
     artifacts: c.artifacts.filter(a => refs.includes(a.id)), ...conversationInput(c), instructions: c.config.bots.find(b => b.id === target)?.instructions ?? '', capabilities: capabilities(c) });
   message(c, e, system ? 'facilitator' : c.owner, system ? `已为 ${c.owner} 安排 ${target} 协助：${question}` : question, system ? 'notice' : 'help', { requestId: id, recipient: target });
   c.reason = `Waiting for ${target}: ${id}`;
+}
+function savedHelpResult(c: TaskContext, requestId: string) {
+  if (c.assists.find(h => h.id === requestId)?.status !== 'answered') return undefined;
+  return c.results.find(r => r.requestId === requestId && !r.consumed && r.epoch === c.epoch && r.goalVersion === c.goalVersion);
+}
+function helpTools(c: TaskContext, h: Assistance): string[] {
+  return h.requiredTools ?? (c.intents.find(i => i.kind === 'assistance' && i.payload.requestId === h.id)?.payload.requiredTools as string[] | undefined) ?? [];
+}
+/** Shared command/snapshot guard; the machine rechecks it inside the transaction. */
+export function assistanceRetryProblem(c: TaskContext, requestId: string, config = c.config): string | null {
+  const h = c.assists.find(item => item.id === requestId);
+  if (!h) return 'UNKNOWN_HELP';
+  if (h.epoch !== c.epoch || h.goalVersion !== c.goalVersion) return 'STALE_HELP';
+  if (c.assists.some(item => item.retryOf === h.id)) return 'ASSISTANCE_ALREADY_RETRIED';
+  if (h.target === c.owner || (h.requestedBy && h.requestedBy !== c.owner)) return 'OWNER_CHANGED';
+  if (h.reviewId && (h.reviewId !== c.review?.id || c.review.goalVersion !== c.goalVersion)) return 'STALE_REVIEW';
+  if (c.outcome === 'complete') return 'TASK_COMPLETED';
+  if (!['failed', 'timeout', 'partial', 'cancelled', 'answered'].includes(h.status)) return 'ASSISTANCE_NOT_RETRYABLE';
+  if (inflight(c).length || c.intents.some(i => i.status === 'uncertain')) return 'UNRESOLVED_WORK';
+  if (c.config.version !== config.version || c.config.toolVersion !== config.toolVersion
+    || modelSignature(c.config.models) !== modelSignature(config.models)) return 'INCOMPATIBLE_EXECUTION';
+  if (!config.bots.some(b => b.id === c.owner)) return 'OWNER_UNAVAILABLE';
+  if (!config.bots.some(b => b.id === h.target)) return 'UNKNOWN_BOT';
+  if (helpTools(c, h).some(tool => !config.bots.find(b => b.id === h.target)?.tools.includes(tool))) return 'TOOL_PERMISSION';
+  if (activeHelp(c) && activeHelp(c)!.id !== h.id) return 'ASSISTANCE_BUSY';
+  if (savedHelpResult(c, h.id)) return hasOrdinary(c) ? null : 'BUDGET_EXHAUSTED';
+  if (h.status === 'answered') return 'RESULT_NOT_AVAILABLE';
+  if (c.usage.retries >= c.config.limits.retries) return 'RETRY_LIMIT';
+  if (c.usage.assists >= c.config.limits.assists) return 'ASSISTANCE_LIMIT';
+  return c.config.limits.ordinary - c.usage.ordinary >= 2 ? null : 'ASSISTANCE_RESUME_BUDGET';
+}
+function refreshReviewFailures(c: TaskContext) {
+  const review = c.review!;
+  delete review.incomplete;
+  for (const target of review.completed) {
+    const latest = c.assists.filter(h => h.reviewId === review.id && h.target === target).at(-1);
+    if (latest && ['failed', 'timeout'].includes(latest.status)) review.incomplete = `成员 ${target} 未能完成评审：${latest.status}`;
+  }
 }
 function requestReview(c: TaskContext, id: string, request: string, targets: string[]) {
   c.review = { id: `review:${id}`, request, targets: [...new Set(targets)], completed: [], status: 'pending', ...fence(c) };
@@ -106,6 +147,12 @@ function reviewCanDispatch(c: TaskContext) {
 }
 function nextReviewer(c: TaskContext, completing?: string) {
   return c.review?.targets.find(target => target !== completing && !c.review!.completed.includes(target));
+}
+function helpResultContinuesReview(c: TaskContext, requestId: string) {
+  if (c.inputs.some(n => !n.applied)) return false;
+  const help = c.assists.find(h => h.id === requestId);
+  const next = help ? nextReviewer(c, help.target) : undefined;
+  return !!help?.reviewId && help.reviewId === c.review?.id && !!next && isBot(c, next) && reviewCanDispatch(c);
 }
 function advanceReview(c: TaskContext, e: TaskEvent, completed?: Assistance) {
   const review = c.review!;
@@ -131,6 +178,25 @@ function resetReviewAtBoundary(c: TaskContext, e: TaskEvent) {
   cancelWork(c, e);
   for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
   requestReview(c, e.id, review.request, review.targets);
+}
+function acceptHelpResult(c: TaskContext, e: Extract<TaskEvent, { type: 'HELP_RESULT' }>) {
+  const h = c.assists.find(h => h.id === e.requestId)!;
+  h.status = e.status; h.resultId = e.resultId; h.answer = e.answer; h.consumed = true;
+  c.consumedResults.push(e.resultId);
+  const recorded = c.results.find(r => r.resultId === e.resultId);
+  if (recorded) recorded.consumed = true;
+  for (const i of c.intents.filter(i => i.payload.requestId === h.id)) release(c, i.id);
+  message(c, e, h.target, e.answer, 'answer', { requestId: h.id });
+  const hasInputs = c.inputs.some(n => !n.applied);
+  for (const note of c.inputs) note.applied = true;
+  if (h.reviewId && h.reviewId === c.review?.id) {
+    if (hasInputs) resetReviewAtBoundary(c, e);
+    else advanceReview(c, e, h);
+  } else {
+    cancelWork(c, e);
+    owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer: e.answer, requiresAssessment: true });
+    message(c, e, 'facilitator', `${h.target} 的核查结果已交给 ${c.owner}，已安排继续完善方案。`, 'notice', { requestId: h.id, recipient: c.owner });
+  }
 }
 function completeProblem(c: TaskContext): string | null {
   if (c.review && (c.review.incomplete || !['summarizing', 'complete'].includes(c.review.status))) return 'UNFINISHED_REVIEW';
@@ -172,8 +238,9 @@ function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     if (!op || op.status !== 'inflight') return 'UNKNOWN_OR_SETTLED_WORK';
     if (op.epoch !== c.epoch || op.goalVersion !== c.goalVersion) return 'STALE_WORK';
   }
-  if (c.stopped && !['STOP', 'SETTLE', 'HELP_RESULT', 'CONTINUE', 'RECOVER', 'CLAIM', 'WORK_FAILED', 'HUMAN_DECISION'].includes(e.type)) return 'STOPPED';
+  if (c.stopped && !['STOP', 'SETTLE', 'HELP_RESULT', 'CONTINUE', 'RETRY_ASSISTANCE', 'RECOVER', 'CLAIM', 'WORK_FAILED', 'HUMAN_DECISION'].includes(e.type)) return 'STOPPED';
   switch (e.type) {
+    case 'RETRY_ASSISTANCE': return assistanceRetryProblem(c, e.requestId, e.config);
     case 'HELP':
       if (c.assists.some(h => h.id === e.requestId)) return 'DUPLICATE_HELP';
       return helpProblem(c, e.caller, e.target, e.question, e.expected, e.requiredTools);
@@ -277,16 +344,23 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       c.results.push({ requestId: e.requestId, resultId: e.resultId, status: e.status, answer: e.answer, consumed: false, ...fence(c) });
       break;
     }
-    case 'HELP_RESULT': {
+    case 'HELP_RESULT': acceptHelpResult(c, e); break;
+    case 'RETRY_ASSISTANCE': {
       const h = c.assists.find(h => h.id === e.requestId)!;
-      h.status = e.status; h.resultId = e.resultId; h.answer = e.answer; h.consumed = true;
-      c.consumedResults.push(e.resultId);
-      const recorded = c.results.find(r => r.resultId === e.resultId);
-      if (recorded) recorded.consumed = true;
-      for (const i of c.intents.filter(i => i.payload.requestId === h.id)) release(c, i.id);
-      message(c, e, h.target, e.answer, 'answer', { requestId: h.id });
-      if (h.reviewId && h.reviewId === c.review?.id) advanceReview(c, e, h);
-      else owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer: e.answer, requiresAssessment: true });
+      if (e.config) c.config.bots = structuredClone(e.config.bots);
+      message(c, e, 'user', e.text, 'user', { requestId: h.id });
+      const saved = savedHelpResult(c, h.id);
+      if (saved) { acceptHelpResult(c, { ...e, ...saved, type: 'HELP_RESULT' }); break; }
+      if (c.stopped || c.outcome !== null) c.epoch++;
+      c.stopped = false; c.outcome = null; c.candidate = null; c.reason = ''; c.usage.retries++;
+      c.deferredCoordination = false;
+      for (const note of c.inputs) note.applied = true;
+      if (h.reviewId && c.review) {
+        Object.assign(c.review, fence(c)); c.review.status = 'reviewing';
+        c.review.completed = c.review.completed.filter(target => target !== h.target);
+        refreshReviewFailures(c);
+      }
+      startHelp(c, e, `${c.taskId}:help:${c.nextSeq++}`, h.target, h.question, h.expected, h.refs, true, helpTools(c, h), h.reviewId, h.id);
       break;
     }
     case 'BLOCKED':
@@ -431,7 +505,10 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
           h.status = 'failed'; h.answer = failureReason; h.consumed = true;
           message(c, e, h.target, failureReason, 'answer', { requestId: h.id });
           if (h.reviewId && h.reviewId === c.review?.id) advanceReview(c, e, h);
-          else owner(c, e, { requestId: h.id, status: 'failed', answer: failureReason });
+          else {
+            for (const note of c.inputs) note.applied = true;
+            owner(c, e, { requestId: h.id, status: 'failed', answer: failureReason, requiresAssessment: true });
+          }
         }
       }
       break;
@@ -477,7 +554,10 @@ export const taskMachine = setup({
       const work = context.intents.find(i => i.id === physicalWorkId);
       if (work && (!event.fence || (event.fence.epoch === work.epoch && event.fence.goalVersion === work.goalVersion))) release(c, work.id);
       if (['HELP_RESULT', 'RECORD_RESULT', 'DELIVER', 'CHECK_RESULT', 'COORDINATE', 'WORK_FAILED', 'BLOCKED'].includes(event.type)) c.lateResults.push(event);
-      if (event.type === 'HELP_RESULT') { const r = c.results.find(r => r.resultId === event.resultId); if (r) r.consumed = true; }
+      if (event.type === 'HELP_RESULT' && (context.stopped || context.outcome !== null
+        || ['STALE_FENCE', 'STALE_HELP', 'DUPLICATE_RESULT', 'UNKNOWN_OR_SETTLED_HELP'].includes(c.reply.code))) {
+        const r = c.results.find(r => r.resultId === event.resultId); if (r) r.consumed = true;
+      }
       if (event.type === 'COORDINATE' && fresh(context, event) && !context.stopped && ['INVALID_DECISION', 'REVIEW_PLAN_REQUIRED', 'REVIEW_NOT_REQUESTED'].includes(c.reply.code)) {
         cancelWork(c, event); c.reason = 'Facilitator judgment invalid; human input required';
         message(c, event, 'facilitator', c.reason, 'notice');
@@ -504,7 +584,14 @@ export const taskMachine = setup({
   guards: {
     valid,
     safeBoundary: ({ context }) => inflight(context).length === 0,
-    inputsReady: ({ context }) => !context.stopped && context.outcome === null && context.inputs.some(n => !n.applied) && inflight(context).length === 0,
+    inputsReady: ({ context }) => !context.stopped && context.outcome === null && context.inputs.some(n => !n.applied)
+      && inflight(context).length === 0 && !activeHelp(context),
+    retryHasResult: args => valid(args) && args.event.type === 'RETRY_ASSISTANCE' && !!savedHelpResult(args.context, args.event.requestId),
+    retryReviewContinues: args => valid(args) && args.event.type === 'RETRY_ASSISTANCE'
+      && !!savedHelpResult(args.context, args.event.requestId) && helpResultContinuesReview(args.context, args.event.requestId),
+    resultAtBoundary: args => valid(args) && !args.context.stopped && args.context.outcome === null && inflight(args.context).length === 0,
+    reviewResultAtBoundary: args => valid(args) && !args.context.stopped && args.context.outcome === null && inflight(args.context).length === 0
+      && args.event.type === 'HELP_RESULT' && helpResultContinuesReview(args.context, args.event.requestId),
     stoppedSettled: ({ context }) => context.stopped && inflight(context).length === 0 && !context.intents.some(i => i.status === 'uncertain'),
     canCoordinate: args => valid(args) && remainingInflight(args.context, args.event).length === 0,
     isCurrent: ({ context, event }) => fresh(context, event) && !context.stopped && (!event.workId || context.intents.some(i => i.id === event.workId && i.status === 'inflight')),
@@ -512,13 +599,7 @@ export const taskMachine = setup({
     reviewReady: ({ context }) => context.review?.status === 'pending' && !context.stopped && inflight(context).length === 0,
     decisionReview: args => valid(args) && d(args.event)?.action === 'review',
     decisionReviewDispatch: args => valid(args) && d(args.event)?.action === 'review' && reviewCanDispatch(args.context),
-    reviewResultContinues: args => {
-      if (!valid(args) || args.event.type !== 'HELP_RESULT') return false;
-      const event = args.event;
-      const help = args.context.assists.find(h => h.id === event.requestId);
-      const next = help ? nextReviewer(args.context, help.target) : undefined;
-      return !!help?.reviewId && help.reviewId === args.context.review?.id && !!next && isBot(args.context, next) && reviewCanDispatch(args.context);
-    },
+    reviewResultContinues: args => valid(args) && args.event.type === 'HELP_RESULT' && helpResultContinuesReview(args.context, args.event.requestId),
     failedReviewContinues: args => {
       if (!valid(args) || args.event.type !== 'WORK_FAILED' || args.event.resultUncertain) return false;
       const event = args.event;
@@ -564,6 +645,15 @@ export const taskMachine = setup({
   },
   always: { guard: 'inputsReady', target: '.running', actions: 'boundary' },
   on: {
+    RETRY_ASSISTANCE: [
+      { guard: 'retryReviewContinues', target: '.waitingAssistance', actions: 'apply' },
+      { guard: 'retryHasResult', target: '.running', actions: 'apply' },
+      { guard: 'valid', target: '.waitingAssistance', actions: 'apply' },
+    ],
+    HELP_RESULT: [
+      { guard: 'reviewResultAtBoundary', target: '.waitingAssistance', actions: 'apply' },
+      { guard: 'resultAtBoundary', target: '.running', actions: 'apply' },
+    ],
     STOP: { guard: 'valid', target: '.stopping', actions: 'apply' },
     USER_INPUT: { guard: 'valid', actions: 'apply' },
     HUMAN_DECISION: { guard: 'valid', actions: 'apply' },

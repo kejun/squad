@@ -63,6 +63,14 @@ export interface WebTask {
   board: BoardEntry[];
   trace: { event: string; detail: string; at: number }[];
   review?: Pick<ReviewRound, "targets" | "completed" | "status">;
+  assists?: WebAssistance[];
+}
+export interface WebAssistance {
+  id: string;
+  taskId: string;
+  target: string;
+  retryable: boolean;
+  reason: string;
 }
 export interface RoomSnapshot {
   room: WebRoom;

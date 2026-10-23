@@ -2,13 +2,15 @@ import { createHash, randomUUID } from 'node:crypto';
 import { initialTask, persistTask, restoreTask, stepTask, taskPhase, type TaskSnapshot } from './task.machine.js';
 import type { Store, Transaction } from './store.js';
 import { conversationHistory, requestedReviewTargets } from './conversation.js';
+import { requestedRetryTarget, retryableAssistance, retryProblemText } from './assistance-retry.js';
 import { validateConfig, type Goal, type Intent, type Reply, type TaskContext, type TaskEvent, type TeamConfig } from './types.js';
 
 interface StoredTask { version: 1; snapshot: unknown }
 export interface CommandResult extends Reply { taskId?: string; duplicate?: boolean }
 export interface Submission {
   id: string; text: string; mentions?: string[]; goal?: Goal;
-  intent?: 'new' | 'supplement' | 'decision' | 'continue'; replyToTaskId?: string;
+  intent?: 'new' | 'supplement' | 'decision' | 'continue' | 'retry'; replyToTaskId?: string;
+  retryAssistanceId?: string;
   extraOrdinary?: number;
 }
 export interface TaskView { phase: ReturnType<typeof taskPhase>; context: TaskContext }
@@ -61,9 +63,28 @@ export class TeamEngine {
   submit(roomId: string, input: Submission): CommandResult {
     return this.transact(roomId, tx => this.receipt(tx, input.id, input, () => {
       const at = this.clock();
-      const existingId = input.replyToTaskId ?? tx.room.activeTaskId ?? (input.intent === 'decision' ? Object.keys(tx.room.tasks).at(-1) : null);
+      const referencedId = input.replyToTaskId ?? tx.room.activeTaskId ?? Object.keys(tx.room.tasks).at(-1);
+      const referenced = referencedId && tx.room.tasks[referencedId] ? decode(tx.room.tasks[referencedId]).context : undefined;
+      const retryBots = [...this.config.bots, ...(referenced?.config.bots ?? []),
+        ...(referenced?.assists ?? []).map(h => ({ id: h.target, name: h.target, instructions: '', tools: [] }))];
+      const retryTarget = ['new', 'continue'].includes(input.intent ?? '') ? undefined : requestedRetryTarget(input.text, retryBots);
+      const retryRequested = input.intent === 'retry' || retryTarget !== undefined;
+      const retryReject = (code: string): CommandResult => ({ ok: false, code, detail: retryProblemText(code) });
+      if (input.intent === 'retry' && (!input.replyToTaskId || !input.retryAssistanceId)) return retryReject('RETRY_REFERENCE_REQUIRED');
+      const existingId = input.replyToTaskId ?? tx.room.activeTaskId ?? (input.intent === 'decision' || retryRequested ? Object.keys(tx.room.tasks).at(-1) : null);
       if (existingId && tx.room.tasks[existingId]) {
         const current = decode(tx.room.tasks[existingId]);
+        if (retryRequested) {
+          if (tx.room.activeTaskId && tx.room.activeTaskId !== existingId) return retryReject('ROOM_BUSY');
+          const candidates = current.context.assists.filter(h => h.target === retryTarget && retryableAssistance(h)
+            && h.epoch === current.context.epoch && h.goalVersion === current.context.goalVersion
+            && !current.context.assists.some(next => next.retryOf === h.id));
+          const requestId = input.intent === 'retry' ? input.retryAssistanceId : candidates.length === 1 ? candidates[0]!.id : undefined;
+          if (!requestId) return retryReject(candidates.length > 1 ? 'AMBIGUOUS_ASSISTANCE' : 'ASSISTANCE_NOT_FOUND');
+          const next = stepTask(current, { type: 'RETRY_ASSISTANCE', id: input.id, at, text: input.text, requestId, config: this.config });
+          storeTask(tx, next);
+          return { ...next.context.reply, detail: next.context.reply.ok ? '协助重试已受理' : retryProblemText(next.context.reply.code), taskId: existingId };
+        }
         const history = conversationHistory(Object.entries(tx.room.tasks).filter(([id]) => id !== existingId).map(([, task]) => decode(task).context));
         const reviewTargets = requestedReviewTargets(input.text, input.mentions ?? [], this.config.bots, current.context.owner);
         const conversation = { history, ...(reviewTargets ? { reviewTargets } : {}) };
@@ -86,6 +107,7 @@ export class TeamEngine {
         storeTask(tx, next);
         return { ...next.context.reply, taskId: existingId };
       }
+      if (retryRequested) return retryReject('TASK_NOT_FOUND');
       if (input.intent === 'continue') return { ok: false, code: 'TASK_NOT_FOUND', detail: 'Provide an existing task to continue' };
       const owner = input.mentions?.[0] ?? this.config.defaultBot;
       if (!this.config.bots.some(bot => bot.id === owner)) return { ok: false, code: 'UNKNOWN_BOT', detail: owner };
@@ -108,10 +130,10 @@ export class TeamEngine {
       const reply = { ...next.context.reply, taskId };
       if (event.type === 'CLAIM' && reply.code === 'BUDGET_EXHAUSTED') {
         next = stepTask(next, { type: 'EXHAUSTED', id: `${event.id}:budget`, at: event.at, reason: 'Execution budget exhausted' });
-      } else if (event.type === 'CLAIM' && reply.code === 'REVIEW_SYNTHESIS_RESERVED') {
+      } else if (event.type === 'CLAIM' && ['REVIEW_SYNTHESIS_RESERVED', 'ASSISTANCE_SYNTHESIS_RESERVED'].includes(reply.code)) {
         // A recovered reviewer must settle through the review queue, preserving the owner's final request.
         next = stepTask(next, { type: 'WORK_FAILED', id: `${event.id}:reserved`, at: event.at, intentId: event.intentId,
-          reason: 'REVIEW_SYNTHESIS_RESERVED: 已保留负责人汇总额度，当前评审工作无法继续', transient: false });
+          reason: `${reply.code}: 已保留负责人续办额度，当前协助工作无法继续`, transient: false });
       }
       storeTask(tx, next);
       return reply;
@@ -144,12 +166,24 @@ export class TeamEngine {
     return this.view(roomId, taskId)!.context.intents.find(i => i.id === intentId)!;
   }
   flushResults(roomId: string, taskId: string): boolean {
-    const result = this.view(roomId, taskId)?.context.results.find(r => !r.consumed);
-    if (!result) return false;
-    this.send(roomId, taskId, { type: 'HELP_RESULT', id: `consume:${result.resultId}`, at: this.clock(),
-      requestId: result.requestId, resultId: result.resultId, status: result.status, answer: result.answer,
-      fence: { epoch: result.epoch, goalVersion: result.goalVersion } });
-    return true;
+    if (!this.view(roomId, taskId)?.context.results.some(r => !r.consumed)) return false;
+    return this.transact(roomId, tx => {
+      if (!tx.room.tasks[taskId]) return false;
+      const current = decode(tx.room.tasks[taskId]);
+      const c = current.context;
+      const result = c.results.find(r => !r.consumed);
+      if (!result) return false;
+      if (!c.stopped && c.outcome === null
+        && c.intents.some(i => i.kind !== 'cancel' && i.status === 'inflight' && i.payload.requestId !== result.requestId)) return false;
+      const next = stepTask(current, { type: 'HELP_RESULT', id: `consume:${result.resultId}`, at: this.clock(),
+        requestId: result.requestId, resultId: result.resultId, status: result.status, answer: result.answer,
+        fence: { epoch: result.epoch, goalVersion: result.goalVersion } });
+      // A temporary rejection must not commit a receipt that prevents a later safe handoff.
+      // The consumed result and successor intent are the durable deduplication boundary.
+      if (!next.context.results.find(r => r.resultId === result.resultId)?.consumed) return false;
+      storeTask(tx, next);
+      return true;
+    });
   }
   recover(roomId: string): void {
     const room = this.store.read(roomId);

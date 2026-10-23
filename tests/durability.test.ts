@@ -87,6 +87,9 @@ describe('durable transaction contracts', () => {
     h.event({ type: 'COORDINATE', decision: { action: 'assist', target: 'B', question: 'verify', expected: 'source', reason: 'blocked path' } });
     h.reopen(); const requestId = h.context().assists[0]!.id;
     h.event({ type: 'RECORD_RESULT', requestId, resultId: 'R1', answer: 'official source', status: 'success' }); h.reopen();
-    expect(h.context().consumedResults).toEqual(['R1']); expect(h.context().messages.filter(m => m.author === 'facilitator')).toHaveLength(1);
+    expect(h.context().consumedResults).toEqual(['R1']);
+    expect(h.context().messages.filter(m => m.author === 'facilitator').map(m => m.text)).toEqual([
+      '已为 A 安排 B 协助：verify', 'B 的核查结果已交给 A，已安排继续完善方案。',
+    ]);
   });
 });
