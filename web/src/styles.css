@@ -121,30 +121,11 @@ svg {
   color: #86a18f;
 }
 .brand-mark {
-  width: 26px;
-  height: 27px;
-  position: relative;
+  width: 36px;
+  height: 36px;
   display: block;
-  transform: rotate(-9deg);
-}
-.brand-mark i {
-  display: block;
-  width: 23px;
-  height: 6px;
-  background: #273142;
-  border-radius: 2px;
-  position: absolute;
-  left: 0;
-  top: 2px;
-}
-.brand-mark i:nth-child(2) {
-  top: 11px;
-  width: 17px;
-}
-.brand-mark i:nth-child(3) {
-  top: 20px;
-  width: 9px;
-  background: #739b8a;
+  flex-shrink: 0;
+  object-fit: contain;
 }
 .version-tag {
   font-size: 8px;
@@ -604,8 +585,8 @@ svg {
   z-index: 1;
 }
 .welcome-emblem .brand-mark {
-  transform: rotate(-8deg) scale(0.8);
-  margin-left: 3px;
+  width: 40px;
+  height: 40px;
 }
 .emblem-line {
   position: absolute;
