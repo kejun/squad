@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { parseEnv } from 'node:util';
 import { validateConfig, type ModelService, type TeamConfig } from './types.js';
 
 export type ModelEnvironment = Record<string, string | undefined>;
@@ -7,12 +9,35 @@ const slots = [
   ['builder-2', 'BUILDER_2_MODEL'], ['builder-3', 'BUILDER_3_MODEL'],
 ] as const;
 
-/** Load optional .env from the working directory. Existing process variables take precedence. */
+const fileValues = new Map<string, string>();
+
+/** Reload optional .env, replacing only values previously supplied by this loader. */
 export function loadModelEnvFile(path = '.env'): void {
-  try { process.loadEnvFile(path); }
+  let values: ModelEnvironment = {};
+  try { values = parseEnv(readFileSync(path, 'utf8')); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw new Error('Unable to load model environment file');
   }
+  // Preserve host overrides, including changes made after startup. Remove revoked file values.
+  for (const [key, previous] of fileValues) {
+    if (process.env[key] !== previous) fileValues.delete(key);
+    else if (!Object.hasOwn(values, key)) {
+      delete process.env[key];
+      fileValues.delete(key);
+    }
+  }
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined && (process.env[key] === undefined || fileValues.has(key))) {
+      process.env[key] = value;
+      fileValues.set(key, value);
+    }
+  }
+}
+
+/** One consistent environment for a request, independent of later file or process updates. */
+export function readModelEnv(): ModelEnvironment {
+  loadModelEnvFile();
+  return { ...process.env };
 }
 
 /** Resolve non-secret model settings; keep only credential variable names in task configuration. */

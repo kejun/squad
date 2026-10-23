@@ -59,7 +59,7 @@ OpenCode 会话标识只影响传输：网页使用群 ID，CLI 使用持久任�
 
 ## 默认网页工具
 
-对应 `BT_W01`–`BT_W10`，以下是已领取意图内部的一次请求循环，不是新增的任务顶层状态。状态机在 owner / assistance / facilitator 的 payload 中持久化 `capabilities.webSearch`、`capabilities.webFetch`。最终 check 不开放联网，保留原有 checks 预算语义。
+对应 `BT_W01`–`BT_W14`，以下是已领取意图内部的一次请求循环，不是新增的任务顶层状态。状态机在 owner / assistance / facilitator 的 payload 中持久化 `capabilities.webSearch`、`capabilities.webFetch`。最终 check 不开放联网，保留原有 checks 预算语义。
 
 ```mermaid
 stateDiagram-v2
@@ -67,7 +67,9 @@ stateDiagram-v2
     claimed --> requested: 模型返回 web_search 或 web_fetch
     requested --> rejected: 参数无效 / 关闭 / 过期 / 版本不匹配 / 已停止
     requested --> rejected: 普通额度耗尽 / 评审汇总保留额度
-    requested --> fetching: CONSUME capability 成功并持久化
+    requested --> configuring: CONSUME capability 成功并持久化
+    configuring --> fetching: 重载环境文件 / 固定本次配置
+    configuring --> failed: 文件读取失败 / 不发出 HTTP 请求
     fetching --> evidence: SDK 返回来源与有界内容
     evidence --> claimed: 下次模型请求经 CONSUME / 资料不获得调度权限
     fetching --> failed: HTTP / 超时 / 转换 / 凭据错误
@@ -81,6 +83,7 @@ stateDiagram-v2
 
 - 两种工具每次各消耗一次普通额度；分页续读是新的抓取。后续模型请求另外计费，评审汇总的保留额度同样适用。CONSUME 校验 inflight、epoch/goalVersion、期限、工具开关与工作类型，不能由适配器绕过。
 - 使用 `agents/websearch` 的 HTTP source 和 `agents/webfetch` 的抓取、分页与渲染函数。Node 宿主用 Workers AI REST API 适配 Markdown 转换；密钥仅在运行时从环境读取，不写入任务配置、模型上下文或执行日志。
+- BT_W11–BT_W14 沿用现有意图、CONSUME、WORK_FAILED、STOP 和 RECOVER，不修改 XState。每次工具调用前重载 `.env`，更新或删除仅由文件管理的值，保留进程环境和显式注入的优先级；文件不存在时清除旧文件值，其他读取错误使本次调用失败。单次调用的搜索选项、账号、令牌与错误脱敏共用开始时的快照，HTML/PDF 转换不得中途换用另一账号；下一次请求及恢复后的请求重新读取。
 - 抓取沿用 SDK 的公共 URL、重定向、响应字节数与超时限制；正文使用 SDK 的不可信内容标记。搜索和网页内容不能改变评审名单或授予新调度权限。
 - 只有工作被领取后才能发出工具请求；失败保留安全代码，不伪装为零条结果。工具暂时失败可按原 WORK_FAILED 规则重试整个只读工作，受原预算限制。未配置账号不会阻止普通聊天启动。
 - 恢复时更新当前开关，并刷新 pending 和重新入队的 inflight 意图能力。途中尚未提交的模型循环可能重新搜索或抓取，重新调用可能收费；不承诺缓存或恰好一次外部请求。已结算意图不重放。
@@ -146,6 +149,8 @@ stateDiagram-v2
 ```
 
 品牌展示对应 BT_U14：侧栏保留 squad. 文字，欢迎区仅显示图标，浏览器图标引用同一份本地 SVG。资源使用正方形视口等比缩放，不依赖外部图片服务。展示沿用 loading / connected / disconnected 及原有消息、详情状态，不产生业务事件或外部操作意图，因此无需新增 XState 状态或转移。
+
+消息正文对应 BT_U15：在原有消息展示中以 14px 基础字号渲染 Markdown，各布局均沿用该字号，保留段内换行与语义结构。仅调整现有状态下的样式，不产生事件或 XState 转移。
 
 快照提供群消息、任务状态、评审进度和成员执行日志。消息经 Markdown/GFM 渲染，跳过原始 HTML，代码和已有链接不转成成员按钮。等待用户时发送消息映射 HUMAN_DECISION；继续按钮提交 CONTINUE，停止按钮提交 STOP，均通过 HTTP 服务进入 TeamEngine。HTTP 不接受客户端任意状态机事件。产物下载只读取实际持久化内容。
 
