@@ -11,6 +11,7 @@ import {
 } from "../runner.js";
 import { SqliteStore } from "../store.js";
 import type { Intent, TeamConfig } from "../types.js";
+import type { WebTools } from "../web-tools.js";
 import type {
   ExecutionEvent,
   RoomSnapshot,
@@ -44,6 +45,7 @@ export class WebService {
     readonly config: TeamConfig,
     path: string,
     adapter?: WorkAdapter,
+    private readonly webTools?: WebTools,
   ) {
     this.store = new SqliteStore(path);
     this.engine = new TeamEngine(this.store, config);
@@ -305,6 +307,28 @@ export class WebService {
               throw error;
             }
           },
+          webSearch: async (input, toolSignal) => {
+            this.append(roomId, work, "tool-start", "搜索网页", input.query);
+            try {
+              const result = await scope.webSearch(input, toolSignal);
+              this.append(roomId, work, "tool-result", "网页搜索完成", result.text);
+              return result;
+            } catch (error) {
+              this.append(roomId, work, "error", "网页搜索失败", String(error));
+              throw error;
+            }
+          },
+          webFetch: async (input, toolSignal) => {
+            this.append(roomId, work, "tool-start", "读取网页", input.url);
+            try {
+              const result = await scope.webFetch(input, toolSignal);
+              this.append(roomId, work, "tool-result", "网页读取完成", result.text);
+              return result;
+            } catch (error) {
+              this.append(roomId, work, "error", "网页读取失败", String(error));
+              throw error;
+            }
+          },
         };
         try {
           const output = await this.adapter.execute(work, signal, tracedScope);
@@ -331,7 +355,7 @@ export class WebService {
         await this.adapter.cancel?.(work);
       },
     };
-    runner = new WorkRunner(this.engine, observed);
+    runner = new WorkRunner(this.engine, observed, Date.now, globalThis.fetch, this.webTools);
     this.runners.set(roomId, runner);
     return runner;
   }

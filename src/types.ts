@@ -15,6 +15,8 @@ export interface Limits {
 export interface TeamConfig {
   version: string; toolVersion: string; defaultBot: string; bots: Bot[]; limits: Limits;
   skillSearch?: { enabled: boolean };
+  /** Shared read-only web tools; omitted means enabled. Credentials stay in the host environment. */
+  webTools?: { enabled: boolean };
   models?: ModelConfiguration;
 }
 export interface Fence { epoch: number; goalVersion: number }
@@ -109,7 +111,7 @@ export type TaskEvent = Envelope & (
   | { type: 'BOARD_WRITE'; author: string; entryId: string; baseRevision?: number; text: string; kind: BoardEntry['kind']; sources: string[] }
   | { type: 'ARTIFACT'; artifact: Omit<Artifact, 'goalVersion'> }
   | { type: 'CLAIM'; intentId: string }
-  | { type: 'CONSUME'; intentId: string }
+  | { type: 'CONSUME'; intentId: string; capability?: 'web_search' | 'web_fetch' }
   | { type: 'WORK_FAILED'; intentId: string; reason: string; transient: boolean; resultUncertain?: boolean }
   | { type: 'RECOVER'; config: TeamConfig }
   | { type: 'EXHAUSTED'; reason: string }
@@ -120,6 +122,7 @@ export type TaskEvent = Envelope & (
 export function validateConfig(config: TeamConfig): void {
   if (!config.version || !config.toolVersion || !config.bots.length) throw new Error('Invalid team configuration');
   if (config.skillSearch !== undefined && (!config.skillSearch || typeof config.skillSearch.enabled !== 'boolean')) throw new Error('Invalid skill search configuration');
+  if (config.webTools !== undefined && (!config.webTools || typeof config.webTools.enabled !== 'boolean')) throw new Error('Invalid web tools configuration');
   validateModels(config);
   const ids = config.bots.map(b => b.id);
   if (ids.some(id => !id || id === 'user' || id === 'facilitator') || new Set(ids).size !== ids.length || !ids.includes(config.defaultBot)) throw new Error('Invalid bot identities');

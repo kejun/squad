@@ -6,7 +6,7 @@
 
 ## 运行
 
-需要 Node.js 22.13 或更高版本。本次在 Node.js 24 上验证。XState 固定为 v5，依赖版本和完整性由 package-lock.json 记录。
+需要 Node.js 22.18+（22.x）或 24.11+，以满足 Agents SDK 的依赖要求。本次在 Node.js 24.19 上验证。XState 固定为 v5，依赖版本和完整性由 package-lock.json 记录。
 
 ```sh
 npm ci
@@ -47,7 +47,7 @@ npm start
 
 ## 代码位置
 
-默认配置包含 5 个群成员：方案师 `A`、核查员 `B`、`builder-1`、`builder-2`、`builder-3`。三个 Builder 均负责实现、修改与验证，默认继承主模型并支持技能搜索；角色说明和工具权限在 `team.config.ts` 中调整，模型分配在 `.env` 中调整。后台促进者独立运行，不计入这 5 个成员。所有成员共用任务预算，协作仍按当前状态机顺序调度。
+默认配置包含 5 个群成员：方案师 `A`、核查员 `B`、`builder-1`、`builder-2`、`builder-3`。三个 Builder 均负责实现、修改与验证，默认继承主模型；所有成员默认支持技能搜索、网页搜索和网页抓取。角色说明和工具权限在 `team.config.ts` 中调整，模型分配在 `.env` 中调整。后台促进者独立运行，不计入这 5 个成员。所有成员共用任务预算，协作仍按当前状态机顺序调度。
 
 | 文件 | 职责 |
 | --- | --- |
@@ -56,6 +56,7 @@ npm start
 | src/store.ts | SQLite 与内存适配器，状态、消息、操作意图及回执一起保存 |
 | src/runner.ts | 提交后执行外部操作，将结果转为受校验事件 |
 | src/model-adapter.ts | 第三方模型 HTTP 调用、结构化输出与技能搜索循环 |
+| src/web-tools.ts | Cloudflare Agents SDK 网页搜索、抓取、Markdown 转换与分页 |
 | src/model-config.ts | 模型分配、固定执行配置与恢复兼容检查 |
 | src/model-env.ts | 自动加载 .env、模型默认值与成员覆盖项 |
 | src/web/ | 群聊 HTTP 接口、执行宿主、持久执行日志和前后端契约 |
@@ -104,13 +105,42 @@ stateDiagram-v2
 
 coordinating 与 stopping 是内部控制状态。结束结果单独记录 complete、partial、failed 或 stopped，方便界面区分成功、缺口和取消。用户补充必须等在途工作结算后才应用；若仍有评审，则重新进入 coordinating 组织本轮评审。普通额度耗尽通过 EXHAUSTED 结束，恢复时配置不兼容或外部结果不确定则进入 waitingHuman；安全恢复保留当前任务状态并接续操作。
 
-不能只核对这张顶层图：评审队列的状态保存在上下文中，外部调用和网页交互也各有边界。对应的[细化状态图](docs/state-diagrams.md)包含成员评审、操作领取与回传、群历史与消息路由，以及网页展示流程。新增、删除或调整功能时，必须按照 [AGENTS.md](AGENTS.md) **先写 Gherkin 场景，再更新状态图与 XState，最后完成具体实现**。
+不能只核对这张顶层图：评审队列的状态保存在上下文中，外部调用和网页交互也各有边界。对应的[细化状态图](docs/state-diagrams.md)包含成员评审、操作领取与回传、默认网页工具、群历史与消息路由，以及网页展示流程。网页工具沿用当前 owner / assistance / facilitator 意图和 CONSUME 预算事件，不新增顶层任务状态；开关、期限和版本由状态机守卫检查。新增、删除或调整功能时，必须按照 [AGENTS.md](AGENTS.md) **先写 Gherkin 场景，再更新状态图与 XState，最后完成具体实现**。
 
 ## 接入接口
 
 默认向负责人、协助成员和后台促进者提供 `find skills` 技能搜索，配置入口为 `team.config.ts` 的 `skillSearch.enabled`，省略时也默认开启。适配器从工作输入的 `capabilities.findSkills` 发现能力，通过 `await scope.findSkills('react testing')` 搜索，返回技能名称、来源、安装量及链接。每次搜索额外消耗一次普通额度，并沿用当前任务的轮次、停止和取消控制。搜索失败会报错，不会伪装成零结果；找到技能后是否采用由任务上下文决定。
 
 查询直接使用 Vercel Skills CLI 相同的 `https://skills.sh/api/search` 接口；当前实现提供搜索，不执行安装。内置模型适配器已通过结构化动作协议开放 `findSkills`，兼容不提供原生函数调用的服务。可在构造 `WorkRunner` 时通过第四参数注入搜索传输，供离线验证使用。
+
+## 默认网页工具
+
+`A`、`B` 和三个 Builder，以及后台促进者，默认都可使用 `web_search` / `web_fetch`。使用官方 `agents@0.30.0` 的 `agents/websearch`、`agents/webfetch` 接口，在现有 Node.js 宿主运行，无需部署 Worker，兼容各 Bot 独立配置的模型服务。完成检查不开放搜索，仍使用独立 checks 额度。
+
+在 `.env` 填写同一组凭据后重启：
+
+```dotenv
+CLOUDFLARE_ACCOUNT_ID=你的32位账号ID
+CLOUDFLARE_API_TOKEN=你的API令牌
+# 可选：省略时使用 default 网关和平台默认搜索提供商
+# CLOUDFLARE_AI_GATEWAY_ID=default
+# CLOUDFLARE_WEB_SEARCH_PROVIDER=ceramic
+# CLOUDFLARE_WEB_SEARCH_BYOK_ALIAS=default
+# SQUAD_WEB_TOOLS_ENABLED=false
+```
+
+搜索令牌需要目标账号的 **Workers AI: Read** 和 **AI Gateway: Read** 权限，网关需有搜索额度或已存储的提供商密钥。提供商支持 `ceramic`、`exa`、`linkup`。未填写凭据仍能启动和聊天；实际搜索或文档转换时会明确提示缺少配置。凭据仅从宿主环境读取，不进入持久任务配置或模型上下文。
+
+- `web_search` 返回标题、来源 URL 与摘要，最多 5 条，每条摘要最多 600 字符。
+- `web_fetch` 优先请求 Markdown，HTML/PDF 等文档经 Workers AI REST API 转换；Markdown、JSON、纯文本和 `raw` 文本读取无需 Cloudflare 凭据。每页最多 20,000 字符，按返回的 `nextOffset` 续读。
+- 每次搜索或抓取各消耗 1 次 ordinary 额度，后续模型调用另计。默认单次工具超时 30 秒，抓取上限 5 MB、最多 5 次重定向；评审汇总保留额度、停止与版本隔离同样有效。
+- 抓取沿用 SDK 的公共 URL 策略，拒绝私网 IP、localhost、URL 凭据、非 HTTP(S) 地址和不安全重定向。SDK 不通过 DNS 校验公共域名最终解析到的 IP；如部署在有敏感内网访问权的环境，应限制出口或通过 `CloudflareWebToolsOptions.allowedHosts` 限定站点。
+- 工具返回资料不能授予任务调度权限，模型收到来源和不可信正文标记。群聊成员执行详情显示联网开始、结果与失败。不会绕过登录、执行页面 JavaScript 或操控浏览器。
+- 恢复未完成的只读工作可能再次搜索、抓取或转换并产生费用，仍累计原有预算；已结算工作不重放，暂无跨调用页面缓存。
+
+自定义适配器可调用 `scope.webSearch({ query }, signal)` 和 `scope.webFetch({ url, offset }, signal)`。两者返回 `{ output, text }`，其中 `output` 保留结构化来源和元数据，`text` 是 SDK 为模型整理的有界内容。内置模型适配器使用结构化 JSON 动作循环，无需供应商原生函数调用。`WorkRunner` 第五参数可以注入工具宿主用于验证；仅传输被替换，验收仍执行真实 SDK。
+
+官方接口依据：[网页搜索](https://developers.cloudflare.com/agents/tools/web-search/)、[网页抓取](https://developers.cloudflare.com/agents/tools/web-fetch/)、[Markdown 转换 REST API](https://developers.cloudflare.com/workers-ai/features/markdown-conversion/usage/rest-api/)。自动化验证使用受控 HTTP 响应，不代表真实账号的权限、余额和服务可用性已验证。
 
 ## 第三方模型配置
 
