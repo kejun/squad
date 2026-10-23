@@ -35,28 +35,13 @@ import type { Message } from "../../src/types";
 import type { WebAgent } from "../../src/web/contracts";
 import { api, useWorkspace } from "./api";
 import { Details } from "./Details";
+import { Logo } from "./Logo";
 import { AgentAvatar, agentStatus, IconButton, phaseLabel, time } from "./ui";
 
 const MessageText = lazy(() =>
   import("./MessageText").then((module) => ({ default: module.MessageText })),
 );
 
-function Logo({ compact = false }: { compact?: boolean }) {
-  return (
-    <div className="brand">
-      <span className="brand-mark" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-      </span>
-      {!compact && (
-        <span>
-          squad<span className="brand-period">.</span>
-        </span>
-      )}
-    </div>
-  );
-}
 export function App() {
   const workspace = useWorkspace();
   const {

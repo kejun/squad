@@ -120,7 +120,7 @@ HANDOFF 沿用 running 的状态内转移：先确认边界和新成员权限，
 stateDiagram-v2
     state "网页" as Web {
       state "连接" as Connection {
-        [*] --> loading
+        [*] --> loading: 展示本地品牌资源
         loading --> connected: 群列表或快照读取成功
         loading --> disconnected: 读取失败
         connected --> disconnected: 快照轮询失败
@@ -144,6 +144,8 @@ stateDiagram-v2
       }
     }
 ```
+
+品牌展示对应 BT_U14：侧栏保留 squad. 文字，欢迎区仅显示图标，浏览器图标引用同一份本地 SVG。资源使用正方形视口等比缩放，不依赖外部图片服务。展示沿用 loading / connected / disconnected 及原有消息、详情状态，不产生业务事件或外部操作意图，因此无需新增 XState 状态或转移。
 
 快照提供群消息、任务状态、评审进度和成员执行日志。消息经 Markdown/GFM 渲染，跳过原始 HTML，代码和已有链接不转成成员按钮。等待用户时发送消息映射 HUMAN_DECISION；继续按钮提交 CONTINUE，停止按钮提交 STOP，均通过 HTTP 服务进入 TeamEngine。HTTP 不接受客户端任意状态机事件。产物下载只读取实际持久化内容。
 
