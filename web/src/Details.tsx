@@ -246,11 +246,6 @@ export function Details({
                   <div className="detail-empty">
                     <Terminal size={26} strokeWidth={1.3} />
                     <h3>还没有执行记录</h3>
-                    <p>
-                      在群聊中 @{agent.id} 发起任务，
-                      <br />
-                      执行过程会显示在这里。
-                    </p>
                   </div>
                 )}
               </Scroll>
@@ -261,15 +256,15 @@ export function Details({
               </Scroll>
             </Tabs.Panel>
           </Tabs.Root>
-          <div className="detail-foot">
-            <span className="tiny-dot" />
-            {connected ? "执行记录自动同步" : "连接中断，等待重新连接"}
-          </div>
+          {!connected && (
+            <div className="detail-foot" role="status">
+              连接中断，等待重新连接
+            </div>
+          )}
         </>
       ) : (
         <Scroll>
           <div className="task-details">
-            <div className="section-eyebrow">当前任务</div>
             <h2>{task?.goal ?? "从一条消息开始"}</h2>
             <span className="task-state">
               {connected ? phaseLabel(task) : "连接中断"}
@@ -356,7 +351,6 @@ function Artifacts({
       <div className="artifact-empty">
         <FileText size={24} strokeWidth={1.3} />
         <p>暂无产物</p>
-        <span>成员交付的文件会保存在这里</span>
       </div>
     );
   return (

@@ -76,8 +76,7 @@ p {
 code,
 pre,
 .profile-id,
-.work-count,
-.version-tag {
+.work-count {
   font-family: "IBM Plex Mono", monospace;
 }
 svg {
@@ -99,7 +98,7 @@ svg {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 30px 18px 0;
+  padding: 30px 18px 20px;
 }
 .sidebar-brand {
   height: 38px;
@@ -127,47 +126,8 @@ svg {
   flex-shrink: 0;
   object-fit: contain;
 }
-.version-tag {
-  font-size: 8px;
-  letter-spacing: 1px;
-  color: #a0a6b0;
-  padding-top: 9px;
-}
-.workspace-name {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 28px 10px 24px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.workspace-initial {
-  width: 31px;
-  height: 31px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  background: #e7ece8;
-  color: #67806d;
-  font-size: 13px;
-  font-weight: 600;
-}
-.workspace-name small {
-  display: block;
-  margin-top: 5px;
-  font-size: 7px;
-  letter-spacing: 1px;
-  color: #a0a5ad;
-  font-weight: 500;
-}
-.workspace-dot {
-  width: 5px;
-  height: 5px;
-  background: #91ab98;
-  border-radius: 50%;
-  margin-left: auto;
-}
 .new-chat {
+  margin-top: 28px;
   height: 39px;
   width: 100%;
   border: 1px solid #dfe3e8;
@@ -196,15 +156,11 @@ svg {
 .sidebar-section-title {
   display: flex;
   justify-content: space-between;
-  margin: 30px 11px 12px;
+  margin: 24px 11px 10px;
   font-size: 10px;
   color: #969da6;
   font-weight: 500;
   letter-spacing: 0.3px;
-}
-.sidebar-section-title > span:last-child {
-  font-size: 9px;
-  color: #a6adb5;
 }
 .room-list {
   overflow: auto;
@@ -268,7 +224,7 @@ svg {
   gap: 10px;
   border-radius: 7px;
   text-align: left;
-  min-height: 61px;
+  min-height: 52px;
 }
 .agent-button:hover {
   background: #edf0f3;
@@ -341,69 +297,6 @@ svg {
 .agent-chevron {
   color: #acb2ba;
 }
-.sidebar-tip {
-  display: flex;
-  gap: 9px;
-  margin: auto 5px 20px;
-  padding-top: 20px;
-  align-items: flex-start;
-  color: #a1a8b1;
-}
-.tip-icon {
-  padding-top: 1px;
-  color: #8a9b8e;
-}
-.sidebar-tip p {
-  font-size: 10px;
-  line-height: 1.9;
-  color: #8b9490;
-}
-.sidebar-tip p span {
-  font-size: 9px;
-  color: #a1a8a4;
-}
-.sidebar-tip > svg {
-  margin-left: auto;
-  opacity: 0.6;
-}
-.sidebar-footer {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 17px 10px;
-  border-top: 1px solid #e4e8ec;
-  margin: 0 -1px;
-}
-.user-avatar {
-  width: 29px;
-  height: 29px;
-  background: #e5e8eb;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 10px;
-  color: #717b88;
-  font-weight: 600;
-}
-.sidebar-footer > span:nth-child(2) {
-  font-size: 11px;
-}
-.sidebar-footer small {
-  display: block;
-  font-size: 9px;
-  color: #a2a8b0;
-  margin-top: 4px;
-}
-.connection-dot {
-  width: 6px;
-  height: 6px;
-  background: #89a592;
-  border-radius: 50%;
-  margin-left: auto;
-}
-.connection-dot.offline {
-  background: #bf8b76;
-}
 .chat-main {
   min-width: 0;
   min-height: 0;
@@ -415,7 +308,7 @@ svg {
 .chat-header {
   display: flex;
   align-items: center;
-  min-height: 88px;
+  min-height: 64px;
   padding: 0 38px;
   border-bottom: 1px solid var(--line);
   gap: 14px;
@@ -443,25 +336,11 @@ svg {
   letter-spacing: -0.2px;
   max-width: 380px;
 }
-.chat-title > span {
-  display: block;
-  font-size: 10px;
-  color: #9ba1aa;
-  margin-top: 7px;
-}
 .header-actions {
   display: flex;
   align-items: center;
   gap: 19px;
   margin-left: auto;
-}
-.private-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #9ca3ad;
-  font-size: 9px;
-  white-space: nowrap;
 }
 .tiny-dot {
   width: 4px;
@@ -489,7 +368,7 @@ svg {
   opacity: 0.35;
 }
 .team-bar {
-  min-height: 61px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -525,16 +404,6 @@ svg {
 .stack-avatar-button .builder-symbol sub {
   font-size: 6px;
 }
-.team-divider {
-  height: 10px;
-  width: 1px;
-  background: #e5e8ec;
-  margin: 0 3px;
-}
-.team-bar-hint {
-  font-size: 9px;
-  color: #a1a7af;
-}
 .connection-label {
   margin-left: auto;
   display: flex;
@@ -560,7 +429,7 @@ svg {
   width: 100%;
   max-width: 680px;
   margin: auto;
-  padding: 36px 28px 60px;
+  padding: 32px 28px 44px;
   text-align: center;
 }
 .welcome-emblem {
@@ -632,33 +501,18 @@ svg {
   transform: rotate(-7deg);
   font-size: 20px;
 }
-.welcome-eyebrow {
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 8px;
-  font-weight: 400;
-  color: #9ca5a0;
-  letter-spacing: 2.1px;
-  margin-bottom: 18px;
-}
 .welcome h2 {
   font-size: 29px;
   font-weight: 550;
   letter-spacing: -0.9px;
   color: #344137;
 }
-.welcome > p {
-  font-size: 11px;
-  color: #959da3;
-  line-height: 2.1;
-  margin-top: 15px;
-  letter-spacing: 0.2px;
-}
 .starter-prompts {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   max-width: 530px;
-  margin: 37px auto 0;
+  margin: 28px auto 0;
 }
 .starter-prompt {
   height: 75px;
@@ -713,15 +567,6 @@ svg {
   font-family: "IBM Plex Mono", monospace;
   font-size: 12px;
   letter-spacing: -1px;
-}
-.welcome-foot {
-  margin-top: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  font-size: 9px;
-  color: #b1b7be;
 }
 .composer-area {
   padding: 0 38px 22px;
@@ -815,24 +660,6 @@ svg {
 .send-button:disabled {
   color: #a2b1a8;
   background: #eaf0ec;
-}
-.composer-foot {
-  display: flex;
-  justify-content: space-between;
-  margin: 12px 2px 0;
-  font-size: 8px;
-  color: #adb4bb;
-  letter-spacing: 0.1px;
-}
-.composer-foot > span:first-child {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.composer-foot .tiny-dot {
-  background: #b5c4ba;
-  width: 3px;
-  height: 3px;
 }
 .task-status-row {
   display: flex;
@@ -967,14 +794,8 @@ svg {
   align-items: center;
   gap: 7px;
 }
-.author-button > span {
-  font-size: 6px;
-  letter-spacing: 0.5px;
+.author-button > svg {
   color: #9aa7b1;
-  background: #f0f3f6;
-  border-radius: 3px;
-  padding: 2px 4px;
-  font-weight: 500;
 }
 .message-text {
   font-size: 14px;
@@ -1187,24 +1008,12 @@ svg {
   gap: 4px;
   margin-top: 12px;
 }
-.view-process {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  color: #9aaba0;
-  font-size: 9px;
-  padding: 3px 0;
-  margin-top: 9px;
-}
-.view-process:hover {
-  color: #537b62;
-}
 .notice-message {
   opacity: 0.85;
 }
 .scroll-to-bottom {
   position: absolute;
-  bottom: 190px;
+  bottom: 160px;
   right: 35px;
   width: 29px;
   height: 29px;
@@ -1668,12 +1477,6 @@ svg {
   color: #98a69e;
   margin-top: 17px;
 }
-.detail-empty p {
-  font-size: 10px;
-  line-height: 1.9;
-  color: #adb7b1;
-  margin-top: 9px;
-}
 .artifact-empty {
   text-align: center;
   color: #b5bfc7;
@@ -1686,12 +1489,6 @@ svg {
   font-size: 11px;
   margin-top: 12px;
   color: #a1ada5;
-}
-.artifact-empty > span {
-  font-size: 9px;
-  display: block;
-  margin-top: 7px;
-  color: #b6bfb9;
 }
 .artifact-list {
   padding: 18px;
@@ -1718,11 +1515,6 @@ svg {
 }
 .task-details {
   padding: 27px 23px;
-}
-.section-eyebrow {
-  font-size: 9px;
-  color: #a4b0a8;
-  margin-bottom: 12px;
 }
 .task-details h2 {
   font-size: 15px;
@@ -1865,9 +1657,6 @@ svg {
   .welcome h2 {
     font-size: 33px;
   }
-  .welcome > p {
-    font-size: 12px;
-  }
   .starter-prompts {
     margin-top: 42px;
   }
@@ -1882,10 +1671,6 @@ svg {
   .sidebar {
     padding-top: 20px;
   }
-  .workspace-name {
-    margin-top: 20px;
-    margin-bottom: 20px;
-  }
   .sidebar-section-title {
     margin-top: 22px;
   }
@@ -1896,10 +1681,6 @@ svg {
     min-height: 51px;
     padding-top: 7px;
     padding-bottom: 7px;
-  }
-  .sidebar-tip {
-    margin-bottom: 12px;
-    padding-top: 13px;
   }
   .welcome {
     padding-top: 20px;
@@ -1916,17 +1697,14 @@ svg {
   .starter-prompts {
     margin-top: 24px;
   }
-  .welcome-foot {
-    margin-top: 17px;
-  }
   .composer-area {
     padding-bottom: 16px;
   }
   .chat-header {
-    min-height: 77px;
+    min-height: 64px;
   }
   .team-bar {
-    min-height: 54px;
+    min-height: 48px;
   }
 }
 @media (max-width: 1180px) {
@@ -1940,9 +1718,6 @@ svg {
     padding-left: 13px;
     padding-right: 13px;
   }
-  .version-tag {
-    font-size: 7px;
-  }
   .chat-header {
     padding-left: 25px;
     padding-right: 25px;
@@ -1953,9 +1728,6 @@ svg {
   .composer-area {
     padding-left: 25px;
     padding-right: 25px;
-  }
-  .private-label {
-    display: none;
   }
   .agent-profile {
     padding-left: 18px;
@@ -1979,9 +1751,6 @@ svg {
   }
   .status-summary {
     max-width: 160px;
-  }
-  .has-details .team-bar-hint {
-    display: none;
   }
   .has-details .welcome {
     padding-left: 21px;
@@ -2020,9 +1789,6 @@ svg {
   }
   .has-details .send-hint {
     display: block;
-  }
-  .has-details .team-bar-hint {
-    display: inline;
   }
   .has-details .starter-prompt strong {
     font-size: 10px;
@@ -2077,7 +1843,7 @@ svg {
     gap: 17px;
   }
   .chat-header {
-    min-height: 76px;
+    min-height: 64px;
     padding: 0 19px;
     gap: 10px;
   }
@@ -2088,16 +1854,10 @@ svg {
     font-size: 13px;
     max-width: calc(100vw - 145px);
   }
-  .chat-title > span {
-    font-size: 9px;
-  }
   .team-bar {
     padding: 0 23px;
-    min-height: 53px;
+    min-height: 48px;
     gap: 9px;
-  }
-  .team-bar-hint {
-    font-size: 8px;
   }
   .composer-area {
     padding: 0 18px 17px;
@@ -2107,13 +1867,6 @@ svg {
   }
   .welcome h2 {
     font-size: 27px;
-  }
-  .welcome-eyebrow {
-    font-size: 7px;
-    letter-spacing: 1.8px;
-  }
-  .welcome > p {
-    font-size: 11px;
   }
   .starter-prompts {
     margin-top: 29px;
@@ -2134,9 +1887,6 @@ svg {
   }
   .send-hint,
   .has-details .send-hint {
-    font-size: 7px;
-  }
-  .composer-foot {
     font-size: 7px;
   }
   .composer textarea {
@@ -2177,20 +1927,16 @@ svg {
   }
   .scroll-to-bottom {
     right: 23px;
-    bottom: 178px;
+    bottom: 148px;
   }
   .welcome-emblem {
     margin-bottom: 14px;
   }
   .new-chat {
-    margin-top: 4px;
+    margin-top: 24px;
   }
 }
 @media (max-width: 380px) {
-  .team-bar-hint,
-  .has-details .team-bar-hint {
-    display: none;
-  }
   .starter-prompt > svg {
     display: none;
   }
@@ -2207,9 +1953,6 @@ svg {
   }
   .status-summary {
     max-width: 85px;
-  }
-  .welcome-foot {
-    font-size: 8px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

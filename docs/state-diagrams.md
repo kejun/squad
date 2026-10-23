@@ -195,7 +195,7 @@ stateDiagram-v2
       --
       state "详情" as Details {
         [*] --> closed
-        closed --> agentDetails: 点击成员或 Markdown 中成员点名
+        closed --> agentDetails: 点击成员、消息作者或头像、Markdown 中成员点名
         closed --> taskDetails: 点击任务状态
         agentDetails --> agentDetails: 选择其他成员 / 展开可观察执行输出
         agentDetails --> closed: 关闭或切群
@@ -207,6 +207,10 @@ stateDiagram-v2
 品牌展示对应 BT_U14：侧栏保留 squad. 文字，欢迎区仅显示图标，浏览器图标引用同一份本地 SVG。资源使用正方形视口等比缩放，不依赖外部图片服务。展示沿用 loading / connected / disconnected 及原有消息、详情状态，不产生业务事件或外部操作意图，因此无需新增 XState 状态或转移。
 
 消息正文对应 BT_U15：在原有消息展示中以 14px 基础字号渲染 Markdown，各布局均沿用该字号，保留段内换行与语义结构。仅调整现有状态下的样式，不产生事件或 XState 转移。
+
+界面精简对应 BT_U17–BT_U19：导航、成员、消息和输入区通过分组、间距与明确的操作名称区分；欢迎区只保留品牌、主标题和快捷提问。消息作者使用展开图标并保留可访问名称，替代每条消息底部重复的过程按钮；侧栏与头像入口继续可用。详情空状态只显示简短状态，正常连接不重复解释自动同步，离线时保留提示。连接状态、等待回复、发送失败、停止与继续、协助重试原因、执行身份和预算等影响操作的信息仍然显示。
+
+上述调整只改变原有 loading / connected / disconnected、drafting / sending 和详情状态的渲染，不新增 XState 状态或转移，也不改变 HTTP 命令与副作用边界。测试直接渲染视图和详情组件，验证内容、可访问入口与禁用状态；完整浏览器交互仍按原有待验收项单列。
 
 快照提供群消息、任务状态、评审进度和成员执行日志。消息经 Markdown/GFM 渲染，跳过原始 HTML，代码和已有链接不转成成员按钮。等待用户时发送消息映射 HUMAN_DECISION；继续按钮提交 CONTINUE，停止按钮提交 STOP，均通过 HTTP 服务进入 TeamEngine。HTTP 不接受客户端任意状态机事件。产物下载只读取实际持久化内容。
 
