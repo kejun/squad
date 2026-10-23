@@ -1,5 +1,7 @@
 import { SqliteStore, TeamEngine } from '../../src/index.js';
-import { config } from '../../team.config.js';
+import { createTeamConfig } from '../../team.config.js';
+// The crash fixture must use the same isolated configuration as the parent test.
+const config = createTeamConfig({});
 const [file, point] = process.argv.slice(2);
 if (!file) throw new Error('Database path required');
 const store = new SqliteStore(file); const e = new TeamEngine(store, config, () => 0);

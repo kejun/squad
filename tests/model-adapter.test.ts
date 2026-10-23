@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { describe, expect, it, vi } from 'vitest';
 import { OpenAICompatibleAdapter, resolveModel, TeamEngine, validateConfig, WorkRunner, type TeamConfig } from '../src/index.js';
@@ -45,6 +46,7 @@ describe('third-party model configuration and transport', () => {
     const [url, init] = http.mock.calls[0]!;
     expect(url).toBe('https://models.example/v1/chat/completions');
     expect(init?.headers).toMatchObject({ authorization: 'Bearer test-secret' });
+    expect(init?.headers).not.toHaveProperty('x-opencode-session');
     expect(JSON.parse(String(init?.body))).toMatchObject({ model: 'main-model', stream: false, temperature: 0.3, max_tokens: 1024, enable_thinking: false, response_format: { type: 'json_object' } });
     expect(h.context().candidate?.text).toBe('provider answer'); expect(h.context().usage.ordinary).toBe(1);
     expect(JSON.stringify(h.store.read(h.room))).not.toContain('test-secret');
@@ -60,7 +62,60 @@ describe('third-party model configuration and transport', () => {
     expect(JSON.parse(String(http.mock.calls[0]![1]?.body))).not.toHaveProperty('response_format');
   });
 
-  it('registers find skills in the model protocol and charges search plus follow-up', async () => {
+  it('[BT_M01] keeps the OpenCode session stable across assistance, checking and recovery', async () => {
+    const c = modelConfig();
+    for (const service of Object.values(c.models!.services)) service.baseUrl = 'https://opencode.ai/inference/go/openai/v1';
+    const replies = [
+      { type: 'help', target: 'B', question: 'verify', expected: 'evidence' },
+      { type: 'answer', text: 'verified' },
+      { type: 'deliver', text: 'plan', artifactIds: [] },
+      { type: 'check', passed: true, gaps: [] },
+    ];
+    const http = vi.fn<typeof fetch>(async () => completion(replies.shift()));
+    const { h, runner, adapter } = setup(c, http);
+    await runner.runOne(h.room, h.task);
+    h.reopen();
+    const resumed = new WorkRunner(h.engine, adapter, () => h.now);
+    while (await resumed.runOne(h.room, h.task)) { /* Finite scripted outputs. */ }
+    expect(h.context().outcome).toBe('complete');
+    expect(http).toHaveBeenCalledTimes(4);
+    const session = createHash('sha256').update(h.task).digest('hex');
+    for (const [, init] of http.mock.calls) {
+      expect(init?.headers).toMatchObject({ 'x-opencode-session': session, 'user-agent': 'squad-bots/0.1.0' });
+    }
+  });
+
+  it('[BT_M01] uses an explicitly supplied conversation ID and keeps the header safe', async () => {
+    const c = modelConfig(); c.models!.services.main!.baseUrl = 'https://opencode.ai/inference/go/openai/v1';
+    const http = vi.fn<typeof fetch>(async () => completion({ type: 'answer', text: 'done' }));
+    const { h, adapter } = setup(c, http);
+    const conversationId = '群聊\r\nwith arbitrary input';
+    await new WorkRunner(h.engine, { execute: (work, signal, scope) => adapter.execute(work, signal, { ...scope, sessionId: conversationId }) }, () => h.now).runOne(h.room, h.task);
+    expect(http.mock.calls[0]?.[1]?.headers).toMatchObject({ 'x-opencode-session': createHash('sha256').update(conversationId).digest('hex') });
+  });
+
+  it('[BT_M02] shows the provider error identifier without persisting echoed secrets or raw messages', async () => {
+    const { h, runner } = setup(modelConfig(), async () => Response.json({
+      error: { type: 'MissingSessionID', message: 'private provider message with test-secret', request: { authorization: 'Bearer test-secret' } },
+    }, { status: 400 }));
+    await runner.runOne(h.room, h.task);
+    expect(h.context().reason).toContain('MissingSessionID');
+    expect(h.context().reason).toContain('x-opencode-session');
+    expect(JSON.stringify(h.context())).not.toContain('test-secret');
+    expect(JSON.stringify(h.context())).not.toContain('private provider message');
+  });
+
+  it('retains a short parameter identifier and discards oversized provider error bodies', async () => {
+    const diagnostic = setup(modelConfig(), async () => Response.json({ error: { code: 'invalid_request_error', param: 'response_format', message: 'must not be persisted' } }, { status: 400 }));
+    await diagnostic.runner.runOne(diagnostic.h.room, diagnostic.h.task);
+    expect(diagnostic.h.context().reason).toContain('invalid_request_error [response_format]');
+    expect(diagnostic.h.context().reason).not.toContain('must not be persisted');
+    const oversized = setup(modelConfig(), async () => Response.json({ error: { type: 'IgnoredError', message: 'x'.repeat(9000) } }, { status: 400 }));
+    await oversized.runner.runOne(oversized.h.room, oversized.h.task);
+    expect(oversized.h.context().reason).toBe('Error: Model HTTP 400 (main)');
+  });
+
+  it('[BT_M04] registers find skills in the model protocol and charges search plus follow-up', async () => {
     const http = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(completion({ type: 'findSkills', query: 'testing' }))
       .mockResolvedValueOnce(completion({ type: 'answer', text: 'found a skill' }));
@@ -89,7 +144,7 @@ describe('third-party model configuration and transport', () => {
     expect(h.context().reason).toContain('TEST_MODEL_KEY');
   });
 
-  it.each([401, 403, 408, 429, 503])('uses bounded orchestration retries for HTTP %i', async status => {
+  it.each([401, 403, 408, 429, 503])('[BT_M03] uses bounded orchestration retries for HTTP %i', async status => {
     const http = vi.fn<typeof fetch>(async () => new Response('provider body must not be persisted', { status }));
     const c = modelConfig(); c.limits.retries = 1;
     const { h, runner } = setup(c, http); await runner.runOne(h.room, h.task);
@@ -112,7 +167,7 @@ describe('third-party model configuration and transport', () => {
     expect(h.view().phase).toBe('waitingHuman'); expect(h.context().outcome).toBeNull();
   });
 
-  it('rejects truncated completions instead of publishing partial JSON', async () => {
+  it('[BT_M05] rejects truncated completions instead of publishing partial JSON', async () => {
     const { h, runner } = setup(modelConfig(), async () => completion({ type: 'answer', text: 'cut off' }, 'length'));
     await runner.runOne(h.room, h.task); expect(h.view().phase).toBe('waitingHuman');
     expect(h.context().candidate).toBeNull();
@@ -124,7 +179,7 @@ describe('third-party model configuration and transport', () => {
     expect(h.context().usage.retries).toBe(1); expect(JSON.stringify(h.context())).not.toContain('test-secret');
   });
 
-  it('cancels an in-flight HTTP request and does not publish its result', async () => {
+  it('[BT_M06] cancels an in-flight HTTP request and does not publish its result', async () => {
     let started!: () => void; const ready = new Promise<void>(resolve => { started = resolve; });
     const { h, runner } = setup(modelConfig(), async (_url, init) => {
       started();

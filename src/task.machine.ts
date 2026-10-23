@@ -13,6 +13,20 @@ const hasOrdinary = (c: TaskContext) => c.usage.ordinary < c.config.limits.ordin
 const isBot = (c: TaskContext, id: string) => c.config.bots.some(b => b.id === id);
 const capabilities = (c: TaskContext) => ({ findSkills: c.config.skillSearch?.enabled !== false });
 
+function requestBudgetProblem(c: TaskContext, work: Intent): string | null {
+  if (work.bucket === 'none') return null;
+  if (c.usage[work.bucket] >= c.config.limits[work.bucket]) return 'BUDGET_EXHAUSTED';
+  if (work.bucket === 'ordinary' && c.review && ['pending', 'reviewing'].includes(c.review.status)
+    && c.usage.ordinary + 1 >= c.config.limits.ordinary) return 'REVIEW_SYNTHESIS_RESERVED';
+  return null;
+}
+function canRetryWork(c: TaskContext, e: TaskEvent): boolean {
+  if (e.type !== 'WORK_FAILED') return false;
+  const work = c.intents.find(i => i.id === e.intentId);
+  return !!work && e.transient && !e.resultUncertain && work.replay !== 'unsafe' && !c.stopped
+    && c.usage.retries < c.config.limits.retries && hasOrdinary(c) && !requestBudgetProblem(c, work);
+}
+
 function message(c: TaskContext, e: TaskEvent, author: string, text: string, kind: TaskContext['messages'][number]['kind'], extra: Partial<TaskContext['messages'][number]> = {}) {
   c.messages.push({ id: `${c.taskId}:message:${c.nextSeq++}`, taskId: c.taskId, at: e.at, author, text, kind, ...extra });
 }
@@ -40,12 +54,17 @@ function release(c: TaskContext, id: string | undefined) {
   if (work) work.status = 'done';
   for (const cancel of c.intents.filter(i => i.kind === 'cancel' && i.payload.intentId === id)) cancel.status = 'done';
 }
+function conversationInput(c: TaskContext) {
+  return { messages: [...(c.history?.messages ?? []), ...c.messages], candidate: c.candidate,
+    conversation: { artifacts: c.history?.artifacts ?? [], board: c.history?.board ?? [], tasks: c.history?.tasks ?? [], truncated: c.history?.truncated ?? false },
+    ...(c.review ? { review: { ...c.review, results: c.assists.filter(h => h.reviewId === c.review!.id).map(h => ({ target: h.target, requestId: h.id, status: h.status, answer: h.answer })) } } : {}) };
+}
 function owner(c: TaskContext, e: TaskEvent, payload: Record<string, unknown> = {}) {
   if (c.stopped) return;
   // Pending instructions are superseded, not executed in parallel.
   for (const i of c.intents) if (i.kind === 'owner' && i.status === 'pending') i.status = 'cancelled';
   intent(c, e.at, 'owner', c.owner, { ...payload, goal: c.goal, inputs: c.inputs.filter(n => n.applied),
-    board: c.board, artifacts: c.artifacts, messages: c.messages,
+    board: c.board, artifacts: c.artifacts, repeat: c.repeat, ...conversationInput(c),
     capabilities: capabilities(c), roster: c.config.bots.map(b => ({ id: b.id, name: b.name, instructions: b.instructions, tools: b.tools })) });
   c.nextCheckAt = e.at + c.config.limits.progressIntervalMs;
 }
@@ -54,7 +73,7 @@ function coordinate(c: TaskContext, e: TaskEvent, reason: string) {
   c.reason = reason;
   c.deferredCoordination = false;
   intent(c, e.at, 'facilitator', 'facilitator', { reason, goal: c.goal, board: c.board, artifacts: c.artifacts,
-    messages: c.messages, roster: c.config.bots, usage: c.usage, limits: c.config.limits, capabilities: capabilities(c) });
+    ...conversationInput(c), repeat: c.repeat, roster: c.config.bots, usage: c.usage, limits: c.config.limits, capabilities: capabilities(c) });
   c.nextCheckAt = e.at + c.config.limits.progressIntervalMs;
 }
 function helpProblem(c: TaskContext, caller: string, target: string, question: string, expected: string, requiredTools: string[] = []): string | null {
@@ -68,16 +87,52 @@ function helpProblem(c: TaskContext, caller: string, target: string, question: s
   if (!hasOrdinary(c)) return 'BUDGET_EXHAUSTED';
   return null;
 }
-function startHelp(c: TaskContext, e: TaskEvent, id: string, target: string, question: string, expected: string, refs: string[], system: boolean, requiredTools: string[] = []) {
+function startHelp(c: TaskContext, e: TaskEvent, id: string, target: string, question: string, expected: string, refs: string[], system: boolean, requiredTools: string[] = [], reviewId?: string) {
   cancelWork(c, e);
-  const item: Assistance = { id, target, question, expected, refs, ...fence(c), status: 'pending', consumed: false };
+  const item: Assistance = { id, target, question, expected, refs, ...fence(c), status: 'pending', consumed: false, ...(reviewId ? { reviewId } : {}) };
   c.assists.push(item); c.usage.assists++;
   intent(c, e.at, 'assistance', target, { requestId: id, question, expected, refs, requiredTools, goal: c.goal, board: c.board,
-    artifacts: c.artifacts.filter(a => refs.includes(a.id)), instructions: c.config.bots.find(b => b.id === target)?.instructions ?? '', capabilities: capabilities(c) });
+    artifacts: c.artifacts.filter(a => refs.includes(a.id)), ...conversationInput(c), instructions: c.config.bots.find(b => b.id === target)?.instructions ?? '', capabilities: capabilities(c) });
   message(c, e, system ? 'facilitator' : c.owner, system ? `已为 ${c.owner} 安排 ${target} 协助：${question}` : question, system ? 'notice' : 'help', { requestId: id, recipient: target });
   c.reason = `Waiting for ${target}: ${id}`;
 }
+function requestReview(c: TaskContext, id: string, request: string, targets: string[]) {
+  c.review = { id: `review:${id}`, request, targets: [...new Set(targets)], completed: [], status: 'pending', ...fence(c) };
+}
+function reviewCanDispatch(c: TaskContext) {
+  // Keep one ordinary request for the owner's synthesis. Check capacity is separately reserved.
+  return c.usage.ordinary + 1 < c.config.limits.ordinary && c.usage.assists < c.config.limits.assists;
+}
+function nextReviewer(c: TaskContext, completing?: string) {
+  return c.review?.targets.find(target => target !== completing && !c.review!.completed.includes(target));
+}
+function advanceReview(c: TaskContext, e: TaskEvent, completed?: Assistance) {
+  const review = c.review!;
+  if (completed) {
+    if (!review.completed.includes(completed.target)) review.completed.push(completed.target);
+    if (['failed', 'timeout'].includes(completed.status)) review.incomplete = `成员 ${completed.target} 未能完成评审：${completed.status}`;
+  }
+  const target = nextReviewer(c);
+  if (target && reviewCanDispatch(c) && isBot(c, target)) {
+    startHelp(c, e, `${review.id}:${target}:${c.nextSeq++}`, target, review.question!, review.expected!, [], true, [], review.id);
+    return;
+  }
+  if (target) review.incomplete = `评审额度或成员不可用；尚未完成：${review.targets.filter(id => !review.completed.includes(id)).join('、')}`;
+  review.status = 'summarizing';
+  if (!hasOrdinary(c)) {
+    const answers = c.assists.filter(h => h.reviewId === review.id && h.consumed).map(h => `${h.target}（${h.status}）：${h.answer ?? ''}`);
+    c.candidate = { text: ['已收到的成员意见：', ...answers, review.incomplete ?? '执行额度不足，尚未完成汇总。'].join('\n\n'), artifactIds: [], goalVersion: c.goalVersion };
+  }
+  owner(c, e, { reason: '汇总本轮所有成员意见，区分共识、分歧、风险、建议与未完成项；不得再次索要已在群聊中的方案。' });
+}
+function resetReviewAtBoundary(c: TaskContext, e: TaskEvent) {
+  const review = c.review!;
+  cancelWork(c, e);
+  for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
+  requestReview(c, e.id, review.request, review.targets);
+}
 function completeProblem(c: TaskContext): string | null {
+  if (c.review && (c.review.incomplete || !['summarizing', 'complete'].includes(c.review.status))) return 'UNFINISHED_REVIEW';
   if (!c.candidate || !c.candidate.text.trim()) return 'NO_DELIVERY';
   if (c.candidate.goalVersion !== c.goalVersion) return 'STALE_DELIVERY';
   if (activeHelp(c)) return 'UNSETTLED_ASSISTANCE';
@@ -93,6 +148,8 @@ function recoveryIssue(c: TaskContext, config: TaskContext['config']): string | 
   if (c.config.version !== config.version || c.config.toolVersion !== config.toolVersion) return 'Execution version incompatible';
   if (modelSignature(c.config.models) !== modelSignature(config.models)) return 'Model configuration changed';
   if (!config.bots.some(b => b.id === c.owner)) return 'Execution member unavailable';
+  if (c.review && ['pending', 'reviewing'].includes(c.review.status)
+    && c.review.targets.some(target => !config.bots.some(bot => bot.id === target))) return 'Execution member unavailable';
   for (const i of c.intents.filter(i => ['pending', 'inflight'].includes(i.status))) {
     if (modelSignature(i.model) !== modelSignature(resolveModel(config, i.kind, i.target))) return 'Model configuration changed';
     if (['owner', 'assistance', 'tool'].includes(i.kind) && !config.bots.some(b => b.id === i.target)) return 'Execution member unavailable';
@@ -104,6 +161,7 @@ function recoveryIssue(c: TaskContext, config: TaskContext['config']): string | 
 }
 function finish(c: TaskContext, e: TaskEvent, outcome: TaskContext['outcome'], reason: string) {
   cancelWork(c, e); c.outcome = outcome; c.reason = reason;
+  if (c.review) c.review.status = outcome === 'stopped' ? 'cancelled' : 'complete';
   if (outcome !== 'stopped') message(c, e, c.owner, `${c.candidate?.text ?? ''}${reason ? `\n${reason}` : ''}`.trim(), 'final');
 }
 function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
@@ -129,7 +187,13 @@ function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     }
     case 'COORDINATE': {
       const d = e.decision;
-      if (!d || !['continue', 'assist', 'replan', 'askUser', 'finish'].includes(d.action) || typeof d.reason !== 'string' || !d.reason.trim()) return 'INVALID_DECISION';
+      if (!d || !['continue', 'assist', 'review', 'replan', 'askUser', 'finish'].includes(d.action) || typeof d.reason !== 'string' || !d.reason.trim()) return 'INVALID_DECISION';
+      if (c.review?.status === 'pending' && !['review', 'askUser'].includes(d.action)) return 'REVIEW_PLAN_REQUIRED';
+      if (d.action === 'review') {
+        if (c.review?.status !== 'pending') return 'REVIEW_NOT_REQUESTED';
+        if ([d.question, d.expected].some(value => typeof value !== 'string' || !value.trim())) return 'INVALID_DECISION';
+        if (c.review.targets.some(target => target === c.owner || !isBot(c, target))) return 'INVALID_REVIEW_TARGET';
+      }
       if (d.action === 'assist' && [d.target, d.question, d.expected].some(v => typeof v !== 'string')) return 'INVALID_DECISION';
       if (d.action === 'replan' && typeof d.plan !== 'string') return 'INVALID_DECISION';
       if (d.action === 'askUser' && typeof d.question !== 'string') return 'INVALID_DECISION';
@@ -149,14 +213,13 @@ function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (inflight(c).length) return 'WORK_BUSY';
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
       if (i.kind === 'tool' && !c.config.bots.find(b => b.id === i.target)?.tools.includes(String(i.payload.tool))) return 'TOOL_PERMISSION';
-      if (i.bucket !== 'none' && c.usage[i.bucket] >= c.config.limits[i.bucket]) return 'BUDGET_EXHAUSTED';
-      return null;
+      return requestBudgetProblem(c, i);
     }
     case 'CONSUME': {
       const i = c.intents.find(i => i.id === e.intentId);
       if (!i || i.status !== 'inflight' || i.bucket === 'none') return 'WORK_NOT_INFLIGHT';
       if (i.epoch !== c.epoch || i.goalVersion !== c.goalVersion) return 'STALE_WORK';
-      return i.requestCount > 0 && c.usage[i.bucket] >= c.config.limits[i.bucket] ? 'BUDGET_EXHAUSTED' : null;
+      return i.requestCount > 0 ? requestBudgetProblem(c, i) : null;
     }
     case 'BOARD_WRITE': {
       if (e.author !== 'user' && !isBot(c, e.author)) return 'UNKNOWN_AUTHOR';
@@ -167,6 +230,8 @@ function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (e.kind === 'evidence' && e.sources.length === 0) return 'MISSING_SOURCE';
       return null;
     }
+    case 'USER_INPUT': case 'HUMAN_DECISION':
+      return e.reviewTargets?.some(target => target === c.owner || !isBot(c, target)) ? 'INVALID_REVIEW_TARGET' : null;
     case 'HANDOFF': return !isBot(c, e.owner) ? 'UNKNOWN_BOT' : inflight(c).length ? 'WAIT_FOR_BOUNDARY' : null;
     case 'CONTINUE': {
       if (['Execution version incompatible', 'Tool permission revoked', 'Execution member unavailable', 'Model configuration changed'].includes(c.reason)) return 'INCOMPATIBLE_EXECUTION';
@@ -214,7 +279,8 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (recorded) recorded.consumed = true;
       for (const i of c.intents.filter(i => i.payload.requestId === h.id)) release(c, i.id);
       message(c, e, h.target, e.answer, 'answer', { requestId: h.id });
-      owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer: e.answer, requiresAssessment: true });
+      if (h.reviewId && h.reviewId === c.review?.id) advanceReview(c, e, h);
+      else owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer: e.answer, requiresAssessment: true });
       break;
     }
     case 'BLOCKED':
@@ -223,6 +289,12 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     case 'COORDINATE': {
       const d: Decision = e.decision;
+      c.trace.push({ event: 'COORDINATION_DECISION', at: e.at, detail: JSON.stringify({ decision: d,
+        basis: { reason: c.reason, ...fence(c), boardRefs: c.board.map(entry => entry.id), artifactRefs: c.artifacts.map(artifact => artifact.id), repeat: c.repeat } }) });
+      if (d.action === 'review') {
+        c.review!.status = 'reviewing'; c.review!.question = d.question; c.review!.expected = d.expected;
+        advanceReview(c, e);
+      }
       if (d.action === 'continue') owner(c, e, { reason: d.reason });
       if (d.action === 'assist') startHelp(c, e, `${c.taskId}:help:${c.nextSeq++}`, d.target, d.question, d.expected, [], true);
       if (d.action === 'replan') {
@@ -236,6 +308,7 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     }
     case 'WAIT_USER': cancelWork(c, e); c.reason = e.question; message(c, e, c.owner, e.question, 'answer'); break;
     case 'USER_INPUT': {
+      if (e.history) c.history = e.history;
       message(c, e, 'user', e.text, 'user');
       if (e.decision) c.board.push({ id: e.id, kind: 'decision', text: e.text, author: 'user', sources: [], verified: false, revision: 1, goalVersion: c.goalVersion });
       else {
@@ -246,34 +319,48 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
           for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
         }
       }
+      if (e.reviewTargets) requestReview(c, e.id, e.text, e.reviewTargets);
       break;
     }
     case 'HUMAN_DECISION': {
+      if (e.history) c.history = e.history;
       message(c, e, 'user', e.text, 'user');
       c.board.push({ id: e.id, kind: 'decision', text: e.text, author: 'user', sources: [e.id], verified: false, revision: 1, goalVersion: c.goalVersion });
       if (c.outcome === null) {
         c.goal.constraints.push(`用户决定：${e.text}`); c.goalVersion++; c.candidate = null;
         c.inputs.push({ id: e.id, text: e.text, applied: false }); cancelWork(c, e);
         for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
+        if (e.reviewTargets) requestReview(c, e.id, e.text, e.reviewTargets);
       }
       break;
     }
     case 'BOUNDARY':
       for (const note of c.inputs) note.applied = true;
-      owner(c, e, { reason: 'Apply latest user input' }); c.deferredCoordination = false; break;
-    case 'HANDOFF': cancelWork(c, e); c.owner = e.owner; message(c, e, 'facilitator', `任务交接给 ${e.owner}`, 'notice'); owner(c, e, { handoff: true, boardRefs: c.board.map(b => b.id) }); break;
+      if (c.review && !['cancelled', 'complete'].includes(c.review.status)) resetReviewAtBoundary(c, e);
+      else owner(c, e, { reason: 'Apply latest user input' });
+      c.deferredCoordination = false; break;
+    case 'HANDOFF': {
+      const from = c.owner;
+      cancelWork(c, e); c.owner = e.owner;
+      c.trace.push({ event: 'OWNERSHIP_HANDOFF', at: e.at, detail: JSON.stringify({ from, to: e.owner, ...fence(c),
+        boardRefs: c.board.map(entry => entry.id), artifactRefs: c.artifacts.map(artifact => artifact.id) }) });
+      message(c, e, 'facilitator', `任务从 ${from} 交接给 ${e.owner}`, 'notice');
+      owner(c, e, { handoff: true, boardRefs: c.board.map(b => b.id) }); break;
+    }
     case 'DELIVER':
       cancelWork(c, e); c.candidate = { text: e.text, artifactIds: e.artifactIds, goalVersion: c.goalVersion };
-      intent(c, e.at, 'check', 'facilitator', { candidate: c.candidate, goal: c.goal, artifacts: c.artifacts, board: c.board, deterministicGap: completeProblem(c) });
+      intent(c, e.at, 'check', 'facilitator', { goal: c.goal, artifacts: c.artifacts, board: c.board, ...conversationInput(c), deterministicGap: completeProblem(c) });
       break;
     case 'CHECK_RESULT':
       c.consumedResults.push(e.resultId);
-      if (e.passed && !completeProblem(c)) finish(c, e, 'complete', '');
+      if (c.review?.incomplete) finish(c, e, 'partial', c.review.incomplete);
+      else if (e.passed && !completeProblem(c)) finish(c, e, 'complete', '');
       else if (hasOrdinary(c)) coordinate(c, e, [completeProblem(c), ...e.gaps].filter(Boolean).join('; ') || 'Incomplete delivery');
       else finish(c, e, c.candidate || c.artifacts.length ? 'partial' : 'failed', e.gaps.join('; ') || completeProblem(c) || 'Budget exhausted');
       break;
     case 'STOP':
       c.stopped = true; c.reason = 'User requested stop'; cancelWork(c, e);
+      if (c.review) c.review.status = 'cancelled';
       for (const h of c.assists) if (['pending', 'running', 'answered'].includes(h.status)) h.status = 'cancelled';
       break;
     case 'SETTLE': {
@@ -286,7 +373,10 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (e.extraOrdinary) c.config.limits.ordinary += e.extraOrdinary;
       c.epoch++; c.stopped = false; c.outcome = null; c.reason = '';
       for (const h of c.assists) if (['pending', 'running', 'answered'].includes(h.status)) h.status = 'cancelled';
-      owner(c, e, { continued: true }); break;
+      if (c.review && (c.review.status !== 'complete' || c.review.incomplete)) {
+        requestReview(c, e.id, c.review.request, c.review.targets); c.candidate = null;
+      } else owner(c, e, { continued: true });
+      break;
     case 'TICK': c.processedSignals.push(e.id); coordinate(c, e, 'No evidenced progress by deadline'); break;
     case 'ACTIVITY': break;
     case 'PROGRESS': c.progressRefs.push(...e.refs); c.lastProgressAt = e.at; c.nextCheckAt = e.at + c.config.limits.progressIntervalMs; c.repeat.count = 0; break;
@@ -325,15 +415,17 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (work.kind === 'cancel') { work.status = 'done'; c.reason = `Cancellation not confirmed: ${e.reason}`; break; }
       if (e.resultUncertain || work.replay === 'unsafe') {
         work.status = 'uncertain'; c.reason = `Result uncertain; reconcile before retry: ${e.reason}`;
-      } else if (e.transient && c.usage.retries < c.config.limits.retries && !c.stopped && hasOrdinary(c)) {
+      } else if (canRetryWork(c, e)) {
         c.usage.retries++; work.status = 'pending'; work.deadline = e.at + c.config.limits.workTimeoutMs;
       } else {
-        release(c, work.id); c.reason = e.reason;
+        const failureReason = e.transient && c.usage.retries >= c.config.limits.retries ? `${e.reason}（重试额度已用尽）` : e.reason;
+        release(c, work.id); c.reason = failureReason;
         if (work.kind === 'assistance') {
           const h = c.assists.find(h => h.id === work.payload.requestId)!;
-          h.status = 'failed'; h.answer = e.reason; h.consumed = true;
-          message(c, e, h.target, e.reason, 'answer', { requestId: h.id });
-          owner(c, e, { requestId: h.id, status: 'failed', answer: e.reason });
+          h.status = 'failed'; h.answer = failureReason; h.consumed = true;
+          message(c, e, h.target, failureReason, 'answer', { requestId: h.id });
+          if (h.reviewId && h.reviewId === c.review?.id) advanceReview(c, e, h);
+          else owner(c, e, { requestId: h.id, status: 'failed', answer: failureReason });
         }
       }
       break;
@@ -379,7 +471,7 @@ export const taskMachine = setup({
       if (work && (!event.fence || (event.fence.epoch === work.epoch && event.fence.goalVersion === work.goalVersion))) release(c, work.id);
       if (['HELP_RESULT', 'RECORD_RESULT', 'DELIVER', 'CHECK_RESULT', 'COORDINATE', 'WORK_FAILED', 'BLOCKED'].includes(event.type)) c.lateResults.push(event);
       if (event.type === 'HELP_RESULT') { const r = c.results.find(r => r.resultId === event.resultId); if (r) r.consumed = true; }
-      if (event.type === 'COORDINATE' && fresh(context, event) && !context.stopped && c.reply.code === 'INVALID_DECISION') {
+      if (event.type === 'COORDINATE' && fresh(context, event) && !context.stopped && ['INVALID_DECISION', 'REVIEW_PLAN_REQUIRED', 'REVIEW_NOT_REQUESTED'].includes(c.reply.code)) {
         cancelWork(c, event); c.reason = 'Facilitator judgment invalid; human input required';
         message(c, event, 'facilitator', c.reason, 'notice');
       }
@@ -395,6 +487,12 @@ export const taskMachine = setup({
     deferred: assign(({ context, event }) => {
       const c = structuredClone(context); coordinate(c, event, c.reason); return c;
     }),
+    beginReview: assign(({ context, event }) => {
+      const c = structuredClone(context);
+      // The initial XState transition has no event timestamp; retain the persisted input clock.
+      coordinate(c, { type: 'BOUNDARY', id: event.id ?? 'initial-review', at: event.at ?? c.lastActivityAt }, `用户请求成员评审：${c.review!.request}`);
+      return c;
+    }),
   },
   guards: {
     valid,
@@ -404,6 +502,26 @@ export const taskMachine = setup({
     canCoordinate: args => valid(args) && remainingInflight(args.context, args.event).length === 0,
     isCurrent: ({ context, event }) => fresh(context, event) && !context.stopped && (!event.workId || context.intents.some(i => i.id === event.workId && i.status === 'inflight')),
     deferredReady: ({ context }) => context.deferredCoordination && inflight(context).length === 0,
+    reviewReady: ({ context }) => context.review?.status === 'pending' && !context.stopped && inflight(context).length === 0,
+    decisionReview: args => valid(args) && d(args.event)?.action === 'review',
+    decisionReviewDispatch: args => valid(args) && d(args.event)?.action === 'review' && reviewCanDispatch(args.context),
+    reviewResultContinues: args => {
+      if (!valid(args) || args.event.type !== 'HELP_RESULT') return false;
+      const event = args.event;
+      const help = args.context.assists.find(h => h.id === event.requestId);
+      const next = help ? nextReviewer(args.context, help.target) : undefined;
+      return !!help?.reviewId && help.reviewId === args.context.review?.id && !!next && isBot(args.context, next) && reviewCanDispatch(args.context);
+    },
+    failedReviewContinues: args => {
+      if (!valid(args) || args.event.type !== 'WORK_FAILED' || args.event.resultUncertain) return false;
+      const event = args.event;
+      const work = args.context.intents.find(i => i.id === event.intentId);
+      const help = args.context.assists.find(h => h.id === work?.payload.requestId);
+      const next = help ? nextReviewer(args.context, help.target) : undefined;
+      return work?.kind === 'assistance' && !!help?.reviewId && help.reviewId === args.context.review?.id
+        && !!next && isBot(args.context, next) && reviewCanDispatch(args.context);
+    },
+    incompleteReview: args => valid(args) && !!args.context.review?.incomplete,
     claimOwner: args => valid(args) && ['owner', 'tool'].includes(args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind ?? ''),
     claimHelp: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'assistance',
     claimFacilitator: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'facilitator',
@@ -421,7 +539,7 @@ export const taskMachine = setup({
     decisionRun: args => valid(args) && ['continue', 'replan'].includes(d(args.event)?.action ?? ''),
     checkComplete: ({ context, event }) => valid({ context, event }) && event.type === 'CHECK_RESULT' && event.passed && !completeProblem(context),
     canCorrect: ({ context, event }) => valid({ context, event }) && hasOrdinary(context),
-    retryable: args => valid(args) && args.event.type === 'WORK_FAILED' && args.event.transient && !args.event.resultUncertain && args.context.intents.find(i => i.id === (args.event as Extract<TaskEvent, { type: 'WORK_FAILED' }>).intentId)?.replay !== 'unsafe' && args.context.usage.retries < args.context.config.limits.retries && hasOrdinary(args.context),
+    retryable: args => valid(args) && canRetryWork(args.context, args.event),
     failedAssistance: args => valid(args) && args.event.type === 'WORK_FAILED' && !args.event.resultUncertain && args.context.intents.find(i => i.id === (args.event as Extract<TaskEvent, { type: 'WORK_FAILED' }>).intentId)?.kind === 'assistance',
     recoveredSafe: ({ context, event }) => event.type === 'RECOVER' && !recoveryIssue(context, event.config) && !context.intents.some(i => i.status === 'inflight' && i.replay === 'unsafe'),
   },
@@ -432,7 +550,9 @@ export const taskMachine = setup({
       epoch: 1, goalVersion: 1, messages: [input.message], board: [], boardHistory: [], artifacts: [], assists: [], intents: [], trace: [], inputs: [], consumedResults: [], processedSignals: [], progressRefs: [], lateResults: [], results: [],
       usage: { ordinary: 0, checks: 0, assists: 0, replans: 0, retries: 0 }, candidate: null, outcome: null, reason: '', stopped: false, nextSeq: 1,
       lastActivityAt: input.at, lastProgressAt: input.at, nextCheckAt: input.at + input.config.limits.progressIntervalMs, repeat: { fingerprint: '', count: 0 }, deferredCoordination: false, reply: { ok: true, code: 'OK', detail: 'created' } };
-    owner(c, { type: 'BOUNDARY', id: 'initial', at: input.at });
+    if (input.history) c.history = input.history;
+    if (input.reviewTargets?.length) requestReview(c, input.message.id, input.message.text, input.reviewTargets);
+    else owner(c, { type: 'BOUNDARY', id: 'initial', at: input.at });
     return c;
   },
   always: { guard: 'inputsReady', target: '.running', actions: 'boundary' },
@@ -454,7 +574,7 @@ export const taskMachine = setup({
   },
   states: {
     running: {
-      always: { guard: 'deferredReady', target: 'coordinating', actions: 'deferred' },
+      always: [{ guard: 'reviewReady', target: 'coordinating', actions: 'beginReview' }, { guard: 'deferredReady', target: 'coordinating', actions: 'deferred' }],
       on: {
         CLAIM: { guard: 'claimOwner', actions: 'apply' },
         HELP: { guard: 'valid', target: 'waitingAssistance', actions: 'apply' },
@@ -472,14 +592,16 @@ export const taskMachine = setup({
       on: {
         CLAIM: { guard: 'claimHelp', actions: 'apply' },
         RECORD_RESULT: { guard: 'valid', actions: 'apply' },
-        HELP_RESULT: { guard: 'valid', target: 'running', actions: 'apply' },
-        WORK_FAILED: [{ guard: 'retryable', actions: 'apply' }, { guard: 'failedAssistance', target: 'running', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
+        HELP_RESULT: [{ guard: 'reviewResultContinues', actions: 'apply' }, { guard: 'valid', target: 'running', actions: 'apply' }],
+        WORK_FAILED: [{ guard: 'retryable', actions: 'apply' }, { guard: 'failedReviewContinues', actions: 'apply' }, { guard: 'failedAssistance', target: 'running', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
       },
     },
     coordinating: {
       on: {
         CLAIM: { guard: 'claimFacilitator', actions: 'apply' },
         COORDINATE: [
+          { guard: 'decisionReviewDispatch', target: 'waitingAssistance', actions: 'apply' },
+          { guard: 'decisionReview', target: 'running', actions: 'apply' },
           { guard: 'decisionAssist', target: 'waitingAssistance', actions: 'apply' },
           { guard: 'decisionAsk', target: 'waitingHuman', actions: 'apply' },
           { guard: 'decisionFinish', target: 'ended', actions: 'apply' },
@@ -494,6 +616,7 @@ export const taskMachine = setup({
       on: {
         CLAIM: { guard: 'claimCheck', actions: 'apply' },
         CHECK_RESULT: [
+          { guard: 'incompleteReview', target: 'ended', actions: 'apply' },
           { guard: 'checkComplete', target: 'ended', actions: 'apply' },
           { guard: 'canCorrect', target: 'coordinating', actions: 'apply' },
           { guard: 'valid', target: 'ended', actions: 'apply' },

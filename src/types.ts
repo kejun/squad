@@ -35,6 +35,7 @@ export interface Assistance extends Fence {
   id: string; target: string; question: string; expected: string; refs: string[];
   status: 'pending' | 'running' | 'answered' | 'success' | 'partial' | 'failed' | 'timeout' | 'cancelled';
   resultId?: string; answer?: string; consumed: boolean;
+  reviewId?: string;
 }
 export type WorkKind = 'owner' | 'assistance' | 'facilitator' | 'check' | 'cancel' | 'tool';
 export interface Intent extends Fence {
@@ -49,6 +50,18 @@ export interface Reply { ok: boolean; code: string; detail: string }
 export interface InputNote { id: string; text: string; applied: boolean }
 export interface RecordedResult extends Fence { requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; consumed: boolean }
 export interface Candidate { text: string; artifactIds: string[]; goalVersion: number }
+export interface ConversationHistory {
+  messages: Message[];
+  artifacts: (Artifact & { taskId: string })[];
+  board: (BoardEntry & { taskId: string })[];
+  tasks?: { taskId: string; goal: Goal; owner: string; outcome: Outcome | null }[];
+  truncated: boolean;
+}
+export interface ReviewRound extends Fence {
+  id: string; request: string; targets: string[]; completed: string[];
+  status: 'pending' | 'reviewing' | 'summarizing' | 'complete' | 'cancelled';
+  question?: string; expected?: string; incomplete?: string;
+}
 export interface TaskContext extends Fence {
   schemaVersion: 1; taskId: string; owner: string; config: TeamConfig; goal: Goal;
   messages: Message[]; board: BoardEntry[]; boardHistory: BoardEntry[]; artifacts: Artifact[]; assists: Assistance[];
@@ -61,12 +74,15 @@ export interface TaskContext extends Fence {
   stopped: boolean; nextSeq: number; lastActivityAt: number; lastProgressAt: number;
   nextCheckAt: number; repeat: { fingerprint: string; count: number };
   deferredCoordination: boolean; reply: Reply;
+  history?: ConversationHistory;
+  review?: ReviewRound;
 }
-export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message }
+export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[] }
 export interface Envelope { id: string; at: number; fence?: Fence; workId?: string }
 export type Decision =
   | { action: 'continue'; reason: string }
   | { action: 'assist'; target: string; question: string; expected: string; reason: string }
+  | { action: 'review'; question: string; expected: string; reason: string }
   | { action: 'replan'; plan: string; reason: string }
   | { action: 'askUser'; question: string; reason: string }
   | { action: 'finish'; reason: string };
@@ -76,8 +92,8 @@ export type TaskEvent = Envelope & (
   | { type: 'RECORD_RESULT'; requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string }
   | { type: 'BLOCKED'; reason: string }
   | { type: 'COORDINATE'; decision: Decision }
-  | { type: 'USER_INPUT'; text: string; goal?: Goal; decision?: boolean }
-  | { type: 'HUMAN_DECISION'; text: string }
+  | { type: 'USER_INPUT'; text: string; goal?: Goal; decision?: boolean; history?: ConversationHistory; reviewTargets?: string[] }
+  | { type: 'HUMAN_DECISION'; text: string; history?: ConversationHistory; reviewTargets?: string[] }
   | { type: 'BOUNDARY' }
   | { type: 'HANDOFF'; owner: string }
   | { type: 'WAIT_USER'; question: string }

@@ -17,6 +17,8 @@ export interface WorkAdapter {
   cancel?(intent: Intent): Promise<void>;
 }
 export interface WorkScope {
+  /** Stable conversation identity for provider routing; defaults to the persisted task ID. */
+  readonly sessionId?: string;
   /** The first request is reserved on claim; call before each additional model/tool request. */
   authorizeAdditionalRequest(requestId: string): void;
   /** Available to every member by default; each search reserves one execution unit. */
@@ -53,7 +55,8 @@ export class WorkRunner {
     const pending = this.engine.pending(roomId, taskId)[0];
     if (!pending) return false;
     const work = this.engine.claim(roomId, taskId, pending.id);
-    if (!work) return false;
+    // A denied recovery claim may settle a reviewer and schedule synthesis in the same transaction.
+    if (!work) return this.engine.pending(roomId, taskId).some(item => item.id !== pending.id);
     if (work.kind === 'cancel') {
       const id = String(work.payload.intentId);
       this.controllers.get(id)?.abort();
@@ -71,7 +74,7 @@ export class WorkRunner {
     this.controllers.set(work.id, controller);
     let output: WorkOutput;
     let skillSearchSequence = 0;
-    const scope: WorkScope = { authorizeAdditionalRequest: requestId => {
+    const scope: WorkScope = { sessionId: taskId, authorizeAdditionalRequest: requestId => {
       const response = this.engine.send(roomId, taskId, { type: 'CONSUME', intentId: work.id, id: `request:${work.id}:${work.attempt}:${requestId}`, at: this.clock(), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       if (!response.ok) throw new WorkFailure(response.code);
     }, findSkills: async (query, signal) => {

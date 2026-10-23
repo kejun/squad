@@ -1,8 +1,8 @@
-# Bot Team v0.4 — XState 执行内核
+# Bot Team v0.4 — 群聊协作工作台
 
 这是依据中文 Gherkin 规格开始实现的 TypeScript/XState 项目。核心负责任务、协助、监督、黑板、预算与人类控制；外部模型和工具通过 WorkAdapter 接入。
 
-当前交付包含可执行状态机、真实 SQLite 事务存储、内存测试适配器、操作驱动器、OpenAI 兼容模型服务适配器、回归测试和部分原 Gherkin 的 Cucumber 步骤绑定。网页、自然语言意图提取和 Pi Durable 适配器尚未实现，不能把本项目称为完整应用。模型调用已通过本地 HTTP 服务验证，尚未使用真实供应商密钥联调。
+当前交付包含 React/Base UI 群聊网页、本地 HTTP 宿主、可执行状态机、真实 SQLite 事务存储、操作驱动器、OpenAI 兼容模型适配器、回归测试和 Gherkin 的 Cucumber 步骤绑定。通用自然语言意图提取和 Pi Durable 适配器尚未实现。模型协议使用受控 HTTP 验证；真实供应商效果另行评估。
 
 ## 运行
 
@@ -14,7 +14,36 @@ npm run check
 npm run demo
 ```
 
-check 执行严格 TypeScript 编译、回归测试、已绑定的原 Gherkin 场景，并生成 reports/spec-coverage.md。demo 使用受控模型替身演示 A 求助 B、保存回传、A 继续、检查交付与结束，不消耗真实模型费用。
+check 执行前后端及 Gherkin 步骤的严格 TypeScript 检查、回归测试、全部可自动验收的 Gherkin 场景，并生成 reports/spec-coverage.md。新增场景默认执行，漏绑定会失败；明确待验收项需在 features/acceptance-gaps.json 逐项登记。demo 使用受控模型替身演示 A 求助 B、保存回传、A 继续、检查交付与结束，不消耗真实模型费用。
+
+## 群聊网页
+
+```sh
+npm run dev
+```
+
+打开 http://127.0.0.1:5173 。开发命令同时启动 Vite 和本地 API，按 Ctrl+C 一起退出。模型使用现有 `.env` 配置，密钥仅由服务端读取。未配置模型时网页仍能打开，并提示配置方式。
+
+- 左侧新建、切换群聊；每个群的消息和执行记录保存在 `team.sqlite`，刷新或重启后仍可查看。
+- 在输入框键入 `@`，或点击「点名成员」选择负责人，支持方向键与 Enter 补全。直接发送时由默认成员负责。普通消息中的引用不会自动触发成员调度。
+- Enter 发送，Shift+Enter 换行。执行期间可以补充当前工作；成员等待回复时，发送内容作为用户决定处理。
+- 群聊消息支持 Markdown：标题、粗体、列表、引用、链接、图片、代码块、表格和任务清单；普通换行保留。正文中的成员点名仍可点击查看过程，代码和链接内容按原样显示。
+- 点击成员列表、群聊头像或「查看执行过程」，在右侧查看该成员的执行请求、协助、模型输出、技能搜索、错误和取消记录。原始输出默认折叠；空闲成员显示空状态。
+- 点击底部任务状态查看目标、额度、调度记录和已有产物；「停止」会取消正在等待的模型请求，已停止任务可明确继续。连接中断时暂停发送并显示重连提示。
+- 同一群的新任务会带上有来源标识的历史发言、方案与产物。已结束的任务保持结束；历史文件作为参考材料，不会直接冒充本轮交付。既有的等待任务在收到下一条用户消息时，也会补齐群历史。
+- 直接说「大家都提提意见」「其他人评审一下方案」会启动成员评审：促进者先根据群里已有方案形成评审问题，再依次收集其他成员的意见，由负责人汇总共识、分歧与改进项。执行中的单独点名评审限定于选中的成员；简单请求仍由负责人直接处理。引用、代码和 Bot 发言不会触发全员调度。
+- 评审队列与结果一同持久化；重启后接续剩余成员。停止会取消本轮队列，明确继续才开始新轮次；评审失败或额度不足会如实记录缺口，并以部分完成交付。普通额度会为最终汇总保留一次请求。
+
+界面基于 `@base-ui/react` 的 Button、Popover、Tabs、Collapsible、Tooltip 和 Scroll Area，采用独立 CSS，兼容手机布局。详情展示可观察的执行记录，不包含模型隐藏推理。成员从 `team.config.ts` 加载，新增成员无需修改前端。
+
+本地生产运行：
+
+```sh
+npm run build
+npm start
+```
+
+打开 http://127.0.0.1:4318 。`WEB_PORT` 可修改 API/生产服务端口（默认 `4318`），`WEB_DATABASE` 可指定独立数据库路径（默认 `team.sqlite`）。开发代理跟随 `WEB_PORT`。服务仅监听本机回环地址，适合本地使用。
 
 ## 代码位置
 
@@ -29,11 +58,14 @@ check 执行严格 TypeScript 编译、回归测试、已绑定的原 Gherkin �
 | src/model-adapter.ts | 第三方模型 HTTP 调用、结构化输出与技能搜索循环 |
 | src/model-config.ts | 模型分配、固定执行配置与恢复兼容检查 |
 | src/model-env.ts | 自动加载 .env、模型默认值与成员覆盖项 |
+| src/web/ | 群聊 HTTP 接口、执行宿主、持久执行日志和前后端契约 |
+| web/ | React/Base UI 群聊、点名补全和成员执行详情 |
+| scripts/dev.mjs、scripts/web.ts | 本地开发和生产服务入口 |
 | .env.example | 模型服务、密钥和各 Bot 模型的配置示例 |
 | src/types.ts | 任务、消息、协助、黑板、预算、事件与配置契约 |
 | team.config.ts | 示例角色、工具权限与有限额度 |
 | features/ | 原始中文 Gherkin 基线，未修改需求以迁就实现 |
-| tests/ | 状态回归、故障恢复、原 Gherkin 步骤绑定 |
+| tests/ | 状态回归、故障恢复、Gherkin 步骤绑定与验收门禁 |
 | scripts/spec-coverage.ts | 区分回归关联、原场景直接通过和待绑定范围 |
 
 ## 状态模型
@@ -42,14 +74,24 @@ check 执行严格 TypeScript 编译、回归测试、已绑定的原 Gherkin �
 stateDiagram-v2
     [*] --> running
     running --> waitingAssistance: HELP
-    waitingAssistance --> running: HELP_RESULT
-    running --> coordinating: BLOCKED / TICK
-    coordinating --> waitingAssistance: 安排协助
-    coordinating --> running: 继续或重规划
+    waitingAssistance --> waitingAssistance: 评审结果或失败 / 还有成员且额度允许
+    waitingAssistance --> running: 协助结束 / 评审收齐或额度不足后汇总
+    running --> coordinating: BLOCKED / TICK / 重复失败 / 评审待组织
+    coordinating --> waitingAssistance: 安排协助或开始成员评审
+    coordinating --> running: 继续 / 重规划 / 无可派发评审后汇总
     coordinating --> waitingHuman: 询问或监督故障
-    waitingHuman --> running: 用户补充或明确继续
+    coordinating --> ended: finish / 部分完成或失败
+    running --> waitingHuman: WAIT_USER / 不可重试故障
+    waitingAssistance --> waitingHuman: 结果不确定等不可继续故障
+    checking --> waitingHuman: 不可重试故障
+    running --> running: 用户补充在安全边界生效
+    running --> running: HANDOFF / 记录原负责人及新负责人和交接依据
+    waitingAssistance --> running: 用户补充在安全边界生效
+    coordinating --> running: 用户补充在安全边界生效
+    checking --> running: 用户补充在安全边界生效
+    waitingHuman --> running: 用户补充生效 / 明确 CONTINUE
     running --> checking: DELIVER
-    checking --> ended: 完成或部分完成
+    checking --> ended: 检查通过 / 评审有缺口 / 无修正额度
     checking --> coordinating: 有缺口且有预算
     running --> stopping: STOP
     waitingAssistance --> stopping: STOP
@@ -60,7 +102,9 @@ stateDiagram-v2
     ended --> running: 明确继续并开始新轮次
 ```
 
-coordinating 与 stopping 是内部控制状态。结束结果单独记录 complete、partial、failed 或 stopped，方便界面区分成功、缺口和取消。
+coordinating 与 stopping 是内部控制状态。结束结果单独记录 complete、partial、failed 或 stopped，方便界面区分成功、缺口和取消。用户补充必须等在途工作结算后才应用；若仍有评审，则重新进入 coordinating 组织本轮评审。普通额度耗尽通过 EXHAUSTED 结束，恢复时配置不兼容或外部结果不确定则进入 waitingHuman；安全恢复保留当前任务状态并接续操作。
+
+不能只核对这张顶层图：评审队列的状态保存在上下文中，外部调用和网页交互也各有边界。对应的[细化状态图](docs/state-diagrams.md)包含成员评审、操作领取与回传、群历史与消息路由，以及网页展示流程。新增、删除或调整功能时，必须按照 [AGENTS.md](AGENTS.md) **先写 Gherkin 场景，再更新状态图与 XState，最后完成具体实现**。
 
 ## 接入接口
 
@@ -126,7 +170,7 @@ CHECK_MODEL_NAME=YOUR_CHECK_MODEL
 npm run model:run -- "为这个目标给出方案，必要时向核查员求助"
 ```
 
-此命令每次新建一个演示群，将任务保存在 `team.sqlite`，支持 Ctrl+C 停止。缺少必需密钥时不会发送请求。它使用默认 Bot；群聊界面仍需后续接入。宿主接入方式如下：
+此命令每次新建一个演示群，将任务保存在 `team.sqlite`，支持 Ctrl+C 停止。缺少必需密钥时不会发送请求。它使用默认 Bot；网页使用相同模型配置与执行内核。宿主接入方式如下：
 
 ```typescript
 const runner = new WorkRunner(engine, new OpenAICompatibleAdapter(config));
@@ -136,6 +180,8 @@ await runner.runOne(roomId, taskId);
 首次模型请求使用领取工作时预留的额度；技能搜索和后续模型请求分别再扣一次额度。HTTP 408、429、5xx 和网络故障使用任务级有限重试；鉴权失败、格式错误和截断回答进入等待人类，不自动切换服务。操作超时覆盖模型及技能搜索循环。模型和服务配置固定在任务操作上，恢复时发现服务或路由变化会暂停，避免静默换模型重放。
 
 模型适配器支持文本交付、求助、促进者决策、完成检查和技能搜索。现有 `read`、`writeArtifact` 等通用工具由额外的 `WorkAdapter` 接入，不能把模型声称生成了文件当作已持久化的产物。
+
+使用 OpenCode Go 时，适配器自动发送 `x-opencode-session` 和 `User-Agent: squad-bots/0.1.0`。网页以群聊作为稳定会话，CLI 以任务作为会话；协助、检查、重试及重启保持同一会话标识，无需在 `.env` 中额外填写请求头。缺少该标识时，OpenCode 会返回 HTTP 400 / `MissingSessionID`。HTTP 错误仅保存短错误代码和参数名，不持久化供应商的原始响应或回显内容。
 
 ```typescript
 const engine = new TeamEngine(new SqliteStore('team.sqlite'), config);
@@ -152,7 +198,7 @@ const start = engine.submit('room1', {
 });
 ```
 
-mentions 是编辑器实际点名得到的成员身份；不要从引用资料、工具文本或 Bot 普通发言中构造调度请求。goal 和 intent 由上游界面或意图提取模块提供。send 是可信后端事件接口，不应直接向未经校验的客户端或模型开放。
+mentions 是编辑器实际点名得到的成员身份；不要从引用资料、工具文本或 Bot 普通发言中构造调度请求。群评审识别只读取直接用户提交，支持常见的中文/英文集体评审表达及实际点名评审；它不是通用的自然语言意图提取器。goal 和 intent 由上游界面或意图提取模块提供。send 是可信后端事件接口，不应直接向未经校验的客户端或模型开放。
 
 宿主通过 WorkRunner 领取已提交的操作，并调用 WorkAdapter.execute。适配器必须保留 intent.id 作为稳定逻辑身份，将模型输出校验为 WorkOutput，并遵守 AbortSignal。涉及外部写入时，还要提供幂等操作或结果核对。
 
@@ -176,9 +222,11 @@ mentions 是编辑器实际点名得到的成员身份；不要从引用资料�
 
 测试跨越 TeamEngine 的同一接口，覆盖主动求助、被动监督、停止传播、版本隔离、黑板冲突、预算和完成检查。SQLite 恢复测试会实际启动子进程，在命名检查点退出，再重新打开数据库。
 
-部分原 Gherkin 已直接绑定并运行。其余场景在覆盖报告中保持待绑定；关联某个场景编号的回归断言，不自动代表原场景的所有例子与界面要求都已验收。尤其是 features/06_durability.feature 的 Pi Durable 背景仍需真实适配器接入后才可按原文验收。
+Gherkin 已直接覆盖消息路由、协助、监督、黑板、人类控制、额度、交付、群历史、成员评审、模型传输和 Markdown 渲染。全部未登记为待验收的场景及例子必须直接通过；回归关联不能代替直接执行。覆盖报告同时检查唯一场景编号、排除登记与执行遗漏，场景说明见 features/README.md。
 
-后续集成工作集中在 Pi Durable 的 WorkAdapter 与宿主唤醒、真实供应商联调与通用工具接入、自然语言目标/意图提取、网页与下载入口。核心状态与 Gherkin 基线可继续复用。
+尚待验收的要求保持原文并逐项记录原因：features/06_durability.feature 要求真实 Pi Durable 接入；BT_U01、U02、U03、U09 仍需完整浏览器交互验收；BT_F06 仍需费用及未知费用展示。当前 SQLite 故障回归、评审恢复与 Markdown 服务端渲染测试不冒充这些验收。
+
+后续集成工作集中在 Pi Durable 的 WorkAdapter 与宿主唤醒、真实供应商联调与通用工具接入、自然语言目标/意图提取。网页已提供已有产物的下载入口；文件是否实际生成仍取决于 WorkAdapter，不能把模型声称的文件当作产物。核心状态与 Gherkin 基线可继续复用。
 
 ## 设计依据
 

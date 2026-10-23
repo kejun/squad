@@ -1,5 +1,5 @@
 # language: zh-CN
-@v0_4 @durability @req_06 @req_07 @req_08
+@v0_4 @durability @req_06 @req_07 @req_08 @requires_pi_durable
 功能: 故障恢复、结果去重与执行隔离
   重新打开持久状态后，每个活动任务仍有可落实的下一步。
 

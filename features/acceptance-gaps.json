@@ -1,0 +1,14 @@
+{
+  "requires_pi_durable": {
+    "reason": "原规格明确要求 Pi Durable；当前仅有 SQLite/XState 宿主，保留原要求，不能用本地存储测试冒充该接入验收。",
+    "ids": ["BT_D01", "BT_D02", "BT_D03", "BT_D04", "BT_D05", "BT_D06", "BT_D07", "BT_D08", "BT_D09", "BT_D10", "BT_D11", "BT_D12", "BT_D13"]
+  },
+  "manual_browser": {
+    "reason": "已有网页实现，但完整点击、输入补全、详情切换与断网交互尚未绑定浏览器自动化；SSR 或 HTTP 断言不代表这些界面场景已通过。",
+    "ids": ["BT_U01", "BT_U02", "BT_U03", "BT_U09"]
+  },
+  "requires_cost": {
+    "reason": "当前只统计请求额度，尚未实现提供方费用与未知费用展示，不能将请求次数视为金额。",
+    "ids": ["BT_F06"]
+  }
+}

@@ -1,12 +1,38 @@
 import assert from 'node:assert/strict';
 import { Before, Given, When, Then, setWorldConstructor, World, type DataTable } from '@cucumber/cucumber';
 import { Harness, configuration } from '../helpers.js';
-import { MemoryStore, type Intent, type TaskEvent } from '../../src/index.js';
+import { MemoryStore, TeamEngine, WorkRunner, WorkFailure, type Intent, type TaskEvent, type WorkAdapter } from '../../src/index.js';
 
-class SpecWorld extends World {
+export class SpecWorld extends World {
   h = new Harness(); result: { ok: boolean; code?: string } = { ok: true };
   problem = ''; received: Intent | undefined; prepared = ''; oldWork: Intent | undefined;
   frame = { epoch: 1, goalVersion: 1 }; question = '核对恢复能力的范围';
+  reviewCalls: Intent[] = []; reviewPath = ''; extraReviewRequests = 0; reviewAttempts = 0;
+  reviewAdapter(): WorkAdapter {
+    return { execute: async (work, _signal, scope) => {
+      this.reviewCalls.push(work);
+      if (work.kind === 'facilitator') return { type: 'decision', decision: { action: 'review', question: '评审方案的风险与改进项', expected: '具体意见', reason: '用户请求成员评审' } };
+      if (work.kind === 'assistance') {
+        this.reviewAttempts++;
+        if (this.reviewPath === '瞬态故障重试' && this.reviewAttempts === 1) throw new WorkFailure('评审服务暂时不可用', true);
+        if (this.reviewPath === '额外模型请求') scope.authorizeAdditionalRequest('extra-review-model');
+        if (this.reviewPath === '技能搜索') await scope.findSkills('proposal review');
+        this.extraReviewRequests++;
+        return { type: 'answer', text: '建议补充离线恢复验证。' };
+      }
+      if (work.kind === 'check') return { type: 'check', passed: true, gaps: [] };
+      assert.equal(work.kind, 'owner');
+      return { type: 'deliver', text: '已汇总收到的意见，并列出尚未完成的成员评审。', artifactIds: [] };
+    } };
+  }
+  async drainReview() {
+    const runner = new WorkRunner(this.h.engine, this.reviewAdapter(), () => this.h.now, async () => {
+      this.extraReviewRequests++;
+      return new Response(JSON.stringify({ skills: [] }));
+    });
+    for (let n = 0; n < 30; n++) if (!(await runner.runOne(this.h.room, this.h.task))) return;
+    assert.fail('成员评审未在有限步骤内结算');
+  }
   ask(id = 'H1') {
     return this.h.event({ type: 'HELP', requestId: id, caller: 'A', target: this.problem === '目标成员不存在' ? 'missing' : this.problem === '向自己求助' ? 'A' : 'B', question: this.question, expected: '官方依据与限制', requiredTools: ['read'] });
   }
@@ -136,3 +162,61 @@ When('确定性检查与必要的语义检查均通过', function (this: SpecWor
 Then('群内应能看到原委托、具体求助、核查答复及一份最终交付', function (this: SpecWorld) { const kinds = this.h.context().messages.map(m => m.kind); for (const k of ['user', 'help', 'answer', 'final']) assert(kinds.includes(k as never)); assert.equal(kinds.filter(k => k === 'final').length, 1); });
 Then('主任务应结束为{string}且负责人仍为{string}', function (this: SpecWorld, outcome: string, owner: string) { assert.equal(outcome, '完成'); assert.equal(this.h.context().outcome, 'complete'); assert.equal(this.h.context().owner, owner); });
 Then('无需用户逐次批准派发或再次确认才能停止自主运行', function (this: SpecWorld) { assert.equal(this.h.view().phase, 'ended'); assert.equal(this.h.engine.pending(this.h.room, this.h.task).length, 0); });
+
+Given('任务{string}具有明确的目标、硬约束和完成标准', function (this: SpecWorld, _task: string) {
+  const goal = this.h.context().goal;
+  assert(goal.text && goal.constraints.length && goal.criteria.length);
+});
+Given('模型输出与语义检查结果由测试替身控制', function (this: SpecWorld) { assert.equal(this.h.config.models, undefined); });
+Given('所有数字额度均为本场景的测试配置', function (this: SpecWorld) { assert(Number.isSafeInteger(this.h.config.limits.ordinary)); });
+Given('群评审的普通执行额度为 {int} 次且完成检查额度单独预留', function (this: SpecWorld, limit: number) {
+  this.h = new Harness(configuration({ ordinary: limit }));
+  assert(this.h.config.limits.checks > 0);
+  assert(this.h.engine.submit(this.h.room, { id: 'group-review', text: '大家都提提意见：方案为离线缓存并在联网后同步。' }).ok);
+});
+Given('促进者已完成评审组织且首位成员等待执行', async function (this: SpecWorld) {
+  const runner = new WorkRunner(this.h.engine, this.reviewAdapter(), () => this.h.now);
+  assert(await runner.runOne(this.h.room, this.h.task));
+  assert.equal(this.h.context().usage.ordinary, 1);
+  assert.equal(this.h.engine.pending(this.h.room, this.h.task)[0]?.kind, 'assistance');
+});
+When('该成员尝试通过{string}继续执行', async function (this: SpecWorld, path: string) {
+  assert(['额外模型请求', '技能搜索', '瞬态故障重试', '重启后重新领取'].includes(path));
+  this.reviewPath = path;
+  if (path === '重启后重新领取') {
+    const pending = this.h.engine.pending(this.h.room, this.h.task)[0]!;
+    assert(this.h.engine.claim(this.h.room, this.h.task, pending.id));
+    this.h.engine = new TeamEngine(this.h.store, this.h.config, () => this.h.now);
+    this.h.engine.recover(this.h.room);
+  }
+  await this.drainReview();
+});
+Then('不应通过该路径发出额外的模型或工具请求', function (this: SpecWorld) { assert.equal(this.extraReviewRequests, 0); });
+Then('应记录该成员的未完成原因并将最后一次普通请求用于负责人汇总', function (this: SpecWorld) {
+  assert.equal(this.h.context().assists[0]?.status, 'failed');
+  assert(this.h.context().assists[0]?.answer);
+  assert(this.h.context().review?.incomplete);
+  assert.equal(this.reviewCalls.filter(work => work.kind === 'owner').length, 1);
+  assert.equal(this.h.context().usage.ordinary, 3);
+});
+When('该成员通过额外模型请求完成评审', async function (this: SpecWorld) {
+  this.reviewPath = '额外模型请求';
+  await this.drainReview();
+});
+Then('应允许该次额外请求且保留一次普通请求用于负责人汇总', function (this: SpecWorld) {
+  assert.equal(this.extraReviewRequests, 1);
+  assert.equal(this.reviewCalls.filter(work => work.kind === 'owner').length, 1);
+  assert.equal(this.h.context().usage.ordinary, 4);
+});
+Then('该成员的评审应成功且未收齐的成员应如实记录为缺口', function (this: SpecWorld) {
+  assert.equal(this.h.context().assists[0]?.status, 'success');
+  const review = this.h.context().review!;
+  assert.equal(review.completed.length, 1);
+  for (const target of review.targets.filter(target => !review.completed.includes(target))) assert(review.incomplete?.includes(target));
+});
+Then('汇总应经过完成检查且群评审应结束为{string}', function (this: SpecWorld, outcome: string) {
+  assert.equal(outcome, '部分完成');
+  assert.equal(this.reviewCalls.filter(work => work.kind === 'check').length, 1);
+  assert.equal(this.h.view().phase, 'ended');
+  assert.equal(this.h.context().outcome, 'partial');
+});

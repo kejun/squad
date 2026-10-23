@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { initialTask, persistTask, restoreTask, stepTask, taskPhase, type TaskSnapshot } from './task.machine.js';
 import type { Store, Transaction } from './store.js';
+import { conversationHistory, requestedReviewTargets } from './conversation.js';
 import { validateConfig, type Goal, type Intent, type Reply, type TaskContext, type TaskEvent, type TeamConfig } from './types.js';
 
 interface StoredTask { version: 1; snapshot: unknown }
@@ -63,8 +64,11 @@ export class TeamEngine {
       const existingId = input.replyToTaskId ?? tx.room.activeTaskId ?? (input.intent === 'decision' ? Object.keys(tx.room.tasks).at(-1) : null);
       if (existingId && tx.room.tasks[existingId]) {
         const current = decode(tx.room.tasks[existingId]);
+        const history = conversationHistory(Object.entries(tx.room.tasks).filter(([id]) => id !== existingId).map(([, task]) => decode(task).context));
+        const reviewTargets = requestedReviewTargets(input.text, input.mentions ?? [], this.config.bots, current.context.owner);
+        const conversation = { history, ...(reviewTargets ? { reviewTargets } : {}) };
         if (input.intent === 'decision') {
-          const next = stepTask(current, { type: 'HUMAN_DECISION', id: input.id, at, text: input.text }); storeTask(tx, next);
+          const next = stepTask(current, { type: 'HUMAN_DECISION', id: input.id, at, text: input.text, ...conversation }); storeTask(tx, next);
           return { ...next.context.reply, taskId: existingId };
         }
         if (input.intent === 'continue') {
@@ -78,7 +82,7 @@ export class TeamEngine {
           tx.room.notices.push({ id: input.id, text: '另开群或等待当前工作结束' });
           return { ok: false, code: 'ROOM_BUSY', detail: '另开群或等待当前工作结束' };
         }
-        const next = stepTask(current, { type: 'USER_INPUT', id: input.id, at, text: input.text, ...(input.goal ? { goal: input.goal } : {}) });
+        const next = stepTask(current, { type: 'USER_INPUT', id: input.id, at, text: input.text, ...conversation, ...(input.goal ? { goal: input.goal } : {}) });
         storeTask(tx, next);
         return { ...next.context.reply, taskId: existingId };
       }
@@ -87,8 +91,10 @@ export class TeamEngine {
       if (!this.config.bots.some(bot => bot.id === owner)) return { ok: false, code: 'UNKNOWN_BOT', detail: owner };
       const taskId = `task:${input.id}`;
       const goal = input.goal ?? { text: input.text, constraints: [], criteria: ['Answer the user request'], requiredArtifacts: 0 };
+      const history = conversationHistory(Object.values(tx.room.tasks).map(task => decode(task).context));
+      const reviewTargets = requestedReviewTargets(input.text, input.mentions ?? [], this.config.bots, owner);
       const snapshot = initialTask({ taskId, owner, goal, config: this.config, at,
-        message: { id: input.id, text: input.text, author: 'user', at, taskId, kind: 'user' } });
+        message: { id: input.id, text: input.text, author: 'user', at, taskId, kind: 'user' }, history, ...(reviewTargets ? { reviewTargets } : {}) });
       storeTask(tx, snapshot);
       return { ok: true, code: 'OK', detail: 'created', taskId };
     }));
@@ -102,6 +108,10 @@ export class TeamEngine {
       const reply = { ...next.context.reply, taskId };
       if (event.type === 'CLAIM' && reply.code === 'BUDGET_EXHAUSTED') {
         next = stepTask(next, { type: 'EXHAUSTED', id: `${event.id}:budget`, at: event.at, reason: 'Execution budget exhausted' });
+      } else if (event.type === 'CLAIM' && reply.code === 'REVIEW_SYNTHESIS_RESERVED') {
+        // A recovered reviewer must settle through the review queue, preserving the owner's final request.
+        next = stepTask(next, { type: 'WORK_FAILED', id: `${event.id}:reserved`, at: event.at, intentId: event.intentId,
+          reason: 'REVIEW_SYNTHESIS_RESERVED: 已保留负责人汇总额度，当前评审工作无法继续', transient: false });
       }
       storeTask(tx, next);
       return reply;
