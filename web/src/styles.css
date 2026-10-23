@@ -977,7 +977,7 @@ svg {
   font-weight: 500;
 }
 .message-text {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.95;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -2148,9 +2148,6 @@ svg {
   }
   .message {
     gap: 10px;
-  }
-  .message-text {
-    font-size: 11px;
   }
   .message .agent-avatar {
     width: 33px;

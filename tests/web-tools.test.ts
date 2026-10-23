@@ -71,6 +71,19 @@ describe('Cloudflare SDK web tools', () => {
     f.state.custom = async () => Response.json({ message: webEnv.CLOUDFLARE_API_TOKEN });
     await expect(f.tools.search({ query: 'SDK' }, signal())).rejects.toThrow('web_search_unavailable');
   });
+  it('[BT_W14] redacts the request token even when the environment changes before an error returns', async () => {
+    const env = { ...webEnv, CLOUDFLARE_API_TOKEN: 'old_file_token' };
+    const f = webFixture({ env });
+    f.state.custom = async () => {
+      env.CLOUDFLARE_API_TOKEN = 'new_file_token';
+      return Response.json({ ok: false, error: { category: 'auth', code: 'web_search_old_file_token', status: 401, retryable: false } }, { status: 401 });
+    };
+    const error = await f.tools.search({ query: 'SDK' }, signal()).catch(e => e as WorkFailure);
+    expect(error).toBeInstanceOf(WorkFailure);
+    expect(error.message).toBe('web_search_failed (HTTP 401)');
+    expect(String(error)).not.toContain('old_file_token');
+    expect(String(error)).not.toContain('new_file_token');
+  });
   it('[BT_W05] bounds automatic transient retries through the existing task budget', async () => {
     const h = new Harness(configuration({ retries: 1 })); const f = webFixture(); f.state.searchStatus = 503;
     const runner = new WorkRunner(h.engine, { execute: async (_work, sig, scope) => { await scope.webSearch({ query: 'SDK' }, sig); return answer; } }, () => 0, undefined, f.tools);

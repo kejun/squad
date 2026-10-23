@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Given, When, Then } from '@cucumber/cucumber';
@@ -72,3 +73,13 @@ Then('合法图片应保留且延迟加载', function (this: SpecWorld) { assert
 Given('消息包含脚注引用和对应注释', function (this: SpecWorld) { markdown.set(this, { text: '结论[^source]\n\n[^source]: 依据说明' }); });
 Then('应保留脚注目标与返回引用的链接', function (this: SpecWorld) { assert(md(this).html!.includes('href="#user-content-fn-source"')); assert(md(this).html!.includes('href="#user-content-fnref-source"')); });
 Then('消息内跳转不应另开窗口', function (this: SpecWorld) { assert(!md(this).html!.includes('target="_blank"')); });
+Then('消息正文在各布局下应使用14px基础字号且保留段内换行', function (this: SpecWorld) {
+  assert.match(md(this).html!, /class="message-text"/);
+  assert(md(this).html!.includes('第一行<br/>'));
+  assert(md(this).html!.includes('第二行'));
+  const css = readFileSync(new URL('../../web/src/styles.css', import.meta.url), 'utf8');
+  const sizes = [...css.matchAll(/\.message-text\s*\{([^}]+)\}/g)]
+    .flatMap(rule => [...rule[1]!.matchAll(/font-size:\s*([^;]+);/g)].map(size => size[1]!.trim()));
+  assert(sizes.length > 0);
+  assert(sizes.every(size => size === '14px'));
+});

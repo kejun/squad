@@ -1,6 +1,8 @@
-# Bot Team v0.4 — 群聊协作工作台
+<img src="web/public/logo.svg" alt="squad logo" width="96" height="96" />
 
-这是依据中文 Gherkin 规格开始实现的 TypeScript/XState 项目。核心负责任务、协助、监督、黑板、预算与人类控制；外部模型和工具通过 WorkAdapter 接入。
+# squad
+
+squad 是一个群聊协作工作台，依据中文 Gherkin 规格以 TypeScript/XState 实现。核心负责任务、协助、监督、黑板、预算与人类控制；外部模型和工具通过 WorkAdapter 接入。
 
 当前交付包含 React/Base UI 群聊网页、本地 HTTP 宿主、可执行状态机、真实 SQLite 事务存储、操作驱动器、OpenAI 兼容模型适配器、回归测试和 Gherkin 的 Cucumber 步骤绑定。通用自然语言意图提取和 Pi Durable 适配器尚未实现。模型协议使用受控 HTTP 验证；真实供应商效果另行评估。
 
@@ -109,6 +111,8 @@ coordinating 与 stopping 是内部控制状态。结束结果单独记录 compl
 
 品牌展示（BT_U14）沿用[网页交互](docs/state-diagrams.md#网页交互)中的连接、消息与详情状态。侧栏、欢迎区与浏览器图标共享随应用提供的 SVG，仅更新静态展示，不产生业务事件，无需改动 XState。
 
+消息正文在各布局下的 14px 基础字号（BT_U15）沿用相同网页状态。环境重载（BT_W11–BT_W14）位于已领取、已计费的网页工具请求内：每次调用前重读 `.env` 并固定本次配置，文件失败沿用 WORK_FAILED，停止和恢复沿用现有转移；不新增 XState 状态或调度入口。
+
 ## 接入接口
 
 默认向负责人、协助成员和后台促进者提供 `find skills` 技能搜索，配置入口为 `team.config.ts` 的 `skillSearch.enabled`，省略时也默认开启。适配器从工作输入的 `capabilities.findSkills` 发现能力，通过 `await scope.findSkills('react testing')` 搜索，返回技能名称、来源、安装量及链接。每次搜索额外消耗一次普通额度，并沿用当前任务的轮次、停止和取消控制。搜索失败会报错，不会伪装成零结果；找到技能后是否采用由任务上下文决定。
@@ -119,7 +123,7 @@ coordinating 与 stopping 是内部控制状态。结束结果单独记录 compl
 
 `A`、`B` 和三个 Builder，以及后台促进者，默认都可使用 `web_search` / `web_fetch`。使用官方 `agents@0.30.0` 的 `agents/websearch`、`agents/webfetch` 接口，在现有 Node.js 宿主运行，无需部署 Worker，兼容各 Bot 独立配置的模型服务。完成检查不开放搜索，仍使用独立 checks 额度。
 
-在 `.env` 填写同一组凭据后重启：
+在 `.env` 填写同一组凭据：
 
 ```dotenv
 CLOUDFLARE_ACCOUNT_ID=你的32位账号ID
@@ -132,6 +136,10 @@ CLOUDFLARE_API_TOKEN=你的API令牌
 ```
 
 搜索令牌需要目标账号的 **Workers AI: Read** 和 **AI Gateway: Read** 权限，网关需有搜索额度或已存储的提供商密钥。提供商支持 `ceramic`、`exa`、`linkup`。未填写凭据仍能启动和聊天；实际搜索或文档转换时会明确提示缺少配置。凭据仅从宿主环境读取，不进入持久任务配置或模型上下文。
+
+每次 `web_search` / `web_fetch` 调用前会重载 `.env`：修改账号、令牌、网关、搜索提供商或 BYOK 别名后，下一次调用自动生效，无需重启或发送信号。删除、清空文件中的凭据或删除文件后，不会继续使用之前从文件加载的令牌；其他文件读取错误会明确报错。在途调用固定使用开始时的配置，避免抓取与转换使用不同账号。
+
+启动时已设置的进程环境变量优先于文件；显式注入 `CloudflareWebToolsOptions.env` 时由注入方管理配置，不读取文件。模型服务地址、模型名称、成员分配与 `SQUAD_WEB_TOOLS_ENABLED` 仍属于启动配置，修改后需要重启。
 
 - `web_search` 返回标题、来源 URL 与摘要，最多 5 条，每条摘要最多 600 字符。
 - `web_fetch` 优先请求 Markdown，HTML/PDF 等文档经 Workers AI REST API 转换；Markdown、JSON、纯文本和 `raw` 文本读取无需 Cloudflare 凭据。每页最多 20,000 字符，按返回的 `nextOffset` 续读。
