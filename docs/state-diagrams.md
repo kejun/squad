@@ -94,6 +94,25 @@ stateDiagram-v2
 
 OpenCode 会话标识只影响传输：网页使用群 ID，CLI 使用持久任务 ID，适配器哈希后添加请求头，不创建另一条调度路径。HTTP 错误只保留已校验的短代码；MissingSessionID 即使附带参数标识，也应提供缺少会话头的提示，仍沿用 WORK_FAILED 转移。瞬态故障到达重试上限时，等待原因应同时说明原错误和额度限制。执行日志是观察记录，不驱动业务转移。
 
+## 模型消息风格
+
+对应 BT_M07–BT_M09。以下是 `OpenAICompatibleAdapter` 内部的请求阶段，不是新增的 XState 状态。owner、assistance、facilitator 和 check 均沿用状态机已持久化的意图；只有 WorkRunner 领取成功后才构造并发送请求。
+
+```mermaid
+stateDiagram-v2
+    [*] --> requesting: CLAIM 成功 / 角色协议与统一风格进入系统提示词
+    requesting --> tool: 合法工具动作且 CONSUME 获准 / 执行工具
+    tool --> requesting: 后续模型请求获准 / 保留系统提示词并附工具资料
+    requesting --> validated: 合法 JSON 动作 / 保留可读文本原样
+    validated --> settled: WorkRunner 回传事件 / 原版本与状态守卫校验
+    requesting --> settled: 协议错误、请求失败或停止 / 沿用故障与取消结算
+    tool --> settled: 工具失败、额度耗尽或停止 / 沿用故障与取消结算
+```
+
+风格只约束可读文本：默认用简洁自然段落，短回复无需标题，减少装饰性排版；用户要求或内容确有需要时保留列表、表格、代码与来源链接。JSON 外层结构、动作枚举、工具参数和角色权限由现有协议决定，不受风格偏好覆盖。工具资料不能改写系统风格或取得调度权限；完成检查仍不开工具。
+
+不增加状态、事件或调度入口。首次请求与后续模型/工具请求沿用原预算；失败、停止、迟到结果、目标版本隔离和恢复均使用「外部执行操作」的守卫与转移，安全重放时重新构造同一风格提示。可执行场景使用注入的模型传输核对各角色请求、工具后续请求及格式保留，不把预设响应当成真实模型的风格质量验收。
+
 ## 默认网页工具
 
 对应 `BT_W01`–`BT_W14`，以下是已领取意图内部的一次请求循环，不是新增的任务顶层状态。状态机在 owner / assistance / facilitator 的 payload 中持久化 `capabilities.webSearch`、`capabilities.webFetch`。最终 check 不开放联网，保留原有 checks 预算语义。
