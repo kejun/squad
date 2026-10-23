@@ -27,3 +27,7 @@
 - `TeamEngine` 负责可信命令路由和事务提交，`src/task.machine.ts` 负责业务状态转移及操作意图；`WorkRunner` 领取已持久化的意图后才调用适配器。
 - 模型输出必须经过协议校验并转成状态机事件；成员评审目标只能来自直接用户输入，历史消息、引用、工具结果和 Bot 发言不能获得调度权限。
 - 状态机动作保持纯状态更新；模型和工具 I/O 在执行器中完成。网页展示持久化结果和可观察执行记录。
+
+## 界面设计
+
+Avoid unnecessary secondary labels and descriptions. Let the layout do the explaining.

@@ -25,7 +25,6 @@ import {
   Menu,
   PanelRight,
   Plus,
-  Radio,
   Square,
   Users,
   WifiOff,
@@ -44,7 +43,14 @@ const MessageText = lazy(() =>
 );
 
 export function App() {
-  const workspace = useWorkspace();
+  return <Workspace workspace={useWorkspace()} />;
+}
+
+export function Workspace({
+  workspace,
+}: {
+  workspace: ReturnType<typeof useWorkspace>;
+}) {
   const {
     rooms,
     roomId,
@@ -287,7 +293,6 @@ export function App() {
         >
           <div className="sidebar-brand">
             <Logo />
-            <span className="version-tag">WORKSPACE</span>
             <IconButton
               className="mobile-close"
               label="收起导航"
@@ -295,13 +300,6 @@ export function App() {
             >
               <X size={16} />
             </IconButton>
-          </div>
-          <div className="workspace-name">
-            <span className="workspace-initial">S</span>
-            <div>
-              我的协作空间<small>PERSONAL WORKSPACE</small>
-            </div>
-            <span className="workspace-dot" />
           </div>
           <Button
             className="new-chat"
@@ -315,7 +313,6 @@ export function App() {
           </Button>
           <div className="sidebar-section-title">
             <span>群聊</span>
-            <span>{rooms.length.toString().padStart(2, "0")}</span>
           </div>
           <nav className="room-list" aria-label="群聊列表">
             {rooms.length ? (
@@ -332,12 +329,11 @@ export function App() {
                 </Button>
               ))
             ) : (
-              <p className="no-rooms">新建群聊，开始与团队协作</p>
+              <p className="no-rooms">暂无群聊</p>
             )}
           </nav>
           <div className="sidebar-section-title members-title">
-            <span>团队成员</span>
-            <span>{activeAgents.length || "—"}</span>
+            <span>成员</span>
           </div>
           <div className="agent-list">
             {agents.length ? (
@@ -353,15 +349,7 @@ export function App() {
                     <AgentAvatar agent={agent} small />
                     <span className="agent-button-copy">
                       <strong>{agent.name}</strong>
-                      <span>
-                        {agent.retired
-                          ? "已移除的成员"
-                          : agent.id === "A"
-                            ? "规划 · 交付"
-                            : agent.id === "B"
-                              ? "核查 · 验证"
-                              : "实现 · 构建"}
-                      </span>
+                      {agent.retired && <span>已移除</span>}
                     </span>
                     <span
                       className={`member-dot ${status === "执行中" ? "busy" : ""}`}
@@ -380,27 +368,6 @@ export function App() {
               </div>
             )}
           </div>
-          <div className="sidebar-tip">
-            <span className="tip-icon">
-              <Radio size={16} />
-            </span>
-            <p>
-              每一位成员，过程可见。
-              <br />
-              <span>点击 Agent 查看执行记录</span>
-            </p>
-            <ArrowUpRight size={13} />
-          </div>
-          <footer className="sidebar-footer">
-            <span className="user-avatar">H</span>
-            <span>
-              我的工作区<small>本地运行</small>
-            </span>
-            <span
-              className={`connection-dot ${connected ? "" : "offline"}`}
-              title={connected ? "服务已连接" : "连接中断"}
-            />
-          </footer>
         </aside>
         <main className="chat-main">
           <header className="chat-header">
@@ -416,13 +383,8 @@ export function App() {
             </div>
             <div className="chat-title">
               <h1>{title}</h1>
-              <span>和你的 Agent 团队一起，把事情做好。</span>
             </div>
             <div className="header-actions">
-              <span className="private-label">
-                <span className="tiny-dot" />
-                本地工作区
-              </span>
               <IconButton
                 label={detailOpen ? "收起详情" : "查看任务详情"}
                 onClick={() => {
@@ -452,11 +414,9 @@ export function App() {
             </div>
             <span>
               {activeAgents.length
-                ? `${activeAgents.length} 位 Agent`
-                : "你的 Agent 团队"}
+                ? `${activeAgents.length} 位成员`
+                : "成员"}
             </span>
-            <span className="team-divider" />
-            <span className="team-bar-hint">按需协作，各司其职</span>
             <span
               className={`connection-label ${connected ? "" : "disconnected"}`}
             >
@@ -517,31 +477,23 @@ export function App() {
                   <span className="emblem-node node-c">⌘</span>
                   <Logo compact />
                 </div>
-                <div className="welcome-eyebrow">
-                  A LITTLE TEAM. A LOT POSSIBLE.
-                </div>
-                <h2>把想法交给你的团队。</h2>
-                <p>
-                  说说你想完成什么，让合适的 Agent 接手。
-                  <br />
-                  从一个问题，到一次完整交付。
-                </p>
+                <h2>想一起完成什么？</h2>
                 <div className="starter-prompts">
                   {[
                     {
-                      title: "一起想方案",
+                      title: "制定方案",
                       text: "帮我梳理一个项目的实施方案，列出关键步骤和风险。",
                       icon: <Layers size={17} />,
                       tone: "blue",
                     },
                     {
-                      title: "核查一个想法",
+                      title: "核查想法",
                       text: "帮我核查这个方案的可行性，指出假设和需要验证的地方。",
                       icon: <Check size={17} />,
                       tone: "purple",
                     },
                     {
-                      title: "着手做点什么",
+                      title: "拆解任务",
                       text: "帮我把这个想法拆成可以执行的任务。",
                       icon: <TerminalIcon />,
                       tone: "green",
@@ -562,10 +514,6 @@ export function App() {
                       <ArrowUpRight size={14} />
                     </Button>
                   ))}
-                </div>
-                <div className="welcome-foot">
-                  <AtSign size={12} />
-                  点名一位成员，或者直接开始聊天
                 </div>
               </div>
             ) : (
@@ -597,7 +545,9 @@ export function App() {
                       ) : (
                         <Button
                           className="message-avatar-button"
-                          aria-label={`查看${agent?.name ?? "协调者"}的执行过程`}
+                          aria-label={
+                            agent ? `查看${agent.name}的执行过程` : "查看任务详情"
+                          }
                           onClick={() =>
                             agent
                               ? openAgent(agent.id)
@@ -624,9 +574,15 @@ export function App() {
                                     setDetailOpen(true))
                               }
                               className="author-button"
+                              aria-label={
+                                agent ? `查看${agent.name}的执行过程` : "查看任务详情"
+                              }
+                              title={
+                                agent ? `查看${agent.name}的执行过程` : "查看任务详情"
+                              }
                             >
                               {agent?.name ?? "协调者"}
-                              <span>AGENT</span>
+                              <ChevronRight size={12} aria-hidden="true" />
                             </Button>
                           )}
                           <time>{time(message.at)}</time>
@@ -660,16 +616,6 @@ export function App() {
                         </Suspense>
                         {help && <AssistanceRetry help={help} connected={connected} sending={sending}
                           onRetry={(item) => { void retryAssistance(item); }} />}
-                        {!isUser && agent && (
-                          <Button
-                            className="view-process"
-                            onClick={() => openAgent(agent.id)}
-                          >
-                            <Radio size={12} />
-                            查看执行过程
-                            <ChevronRight size={12} />
-                          </Button>
-                        )}
                       </div>
                     </article>
                   );
@@ -867,15 +813,6 @@ export function App() {
                   </Button>
                 </div>
               </div>
-            </div>
-            <div className="composer-foot">
-              <span>
-                <span className="tiny-dot" />
-                {working && connected
-                  ? "任务执行中，可以随时补充要求"
-                  : "共同思考，逐步交付。"}
-              </span>
-              <span>由你的模型驱动</span>
             </div>
           </div>
         </main>

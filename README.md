@@ -120,6 +120,8 @@ coordinating 与 stopping 是内部控制状态。结束结果单独记录 compl
 
 模型消息风格（BT_M07–BT_M09）在已领取的 owner / assistance / facilitator / check 请求中统一注入系统提示词，工具后的模型请求继续携带相同约定。默认使用用户的语言、简洁自然段落，先说结论；短回复直接进入正文，减少装饰性标题、加粗和重复总结。真正的步骤、并列项、对比或代码按需使用相应格式，用户明确要求的排版优先；保留必要的证据、来源链接和技术细节。约定仅影响 JSON 中的可读文本，不修改结构化动作、工具参数或 Markdown 渲染，沿用现有领取、预算、校验及事件回传，无需改动 XState。写法参考 [Claude 提示词指南](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#control-the-format-of-responses)：正向描述所需风格，并让风格提示本身使用自然段落。
 
+界面精简（BT_U17–BT_U19）沿用[网页交互](docs/state-diagrams.md#网页交互)的连接、消息与详情状态，通过群聊导航、成员列表、作者入口和输入区表达用途。去除重复工作区标签、宣传文案、职责副标题及空状态说明，消息作者与头像保留过程入口；连接异常、发送错误、等待回复、重试原因和预算仍按状态显示。仅调整 React 展示与间距，不改变命令、权限、外部调用或 XState 转移。
+
 ## 接入接口
 
 默认向负责人、协助成员和后台促进者提供 `find skills` 技能搜索，配置入口为 `team.config.ts` 的 `skillSearch.enabled`，省略时也默认开启。适配器从工作输入的 `capabilities.findSkills` 发现能力，通过 `await scope.findSkills('react testing')` 搜索，返回技能名称、来源、安装量及链接。每次搜索额外消耗一次普通额度，并沿用当前任务的轮次、停止和取消控制。搜索失败会报错，不会伪装成零结果；找到技能后是否采用由任务上下文决定。
