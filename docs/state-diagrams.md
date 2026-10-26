@@ -2,6 +2,32 @@
 
 本文件与 README 的「状态模型」共同描述当前功能。顶层任务状态由 `src/task.machine.ts` 管理；下图分别标明上下文状态、操作状态和界面状态，不能将后两者误认为新增的 XState 顶层状态。
 
+## 详情复制与导出
+
+对应 BT_A12–BT_A21。现有详情只提供产物下载，消息全文、依据和折叠过程缺少便捷的带走入口。采用常规的浏览器[剪贴板写入](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText)与[Blob文件下载](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a#download)，不引入导出服务或格式选择菜单。Clipboard API可能因非安全上下文或浏览器权限失败，必须等待写入确认；[对象URL](https://developer.mozilla.org/en-US/docs/Web/API/URL/revokeObjectURL_static)使用后回收。
+
+```mermaid
+stateDiagram-v2
+    [*] --> unavailable: 没有内容或指定目标已不存在
+    [*] --> ready: 解析当前详情范围并生成完整文档
+    unavailable --> ready: 有效内容加载
+    ready --> copying: 用户点击复制 / 捕获本次文档，拒绝重复点击
+    copying --> copied: 剪贴板确认且文档身份与内容仍相同
+    copying --> copyFailed: API不可用或拒绝 / 提示失败，保留导出入口
+    copying --> ready: 切换目标、页签或内容变化 / 隔离迟到回执
+    ready --> ready: 用户导出 / 创建UTF8文件并发起下载，回收临时资源
+    ready --> exportFailed: 创建下载失败 / 清理并允许重试
+    exportFailed --> ready: 重试导出成功发起
+    copied --> ready: 当前详情变化
+    copied --> ready: 提示到期
+    copyFailed --> copying: 重试复制
+    copying --> disposed: 关闭或卸载 / 丢弃回执反馈
+```
+
+复制与导出共用一个纯文档选择器，读取当前已加载快照，禁止从 DOM.innerText 截取可见摘要而遗漏折叠记录。消息详情包含原始全文、该消息关联的真实报告、该任务的依据与来源、执行事件完整内容及调度记录；不混入其他任务或未关联报告正文。任务详情带任务资料和同任务记录；成员执行过程与产物页签分别按成员筛选。缺失指定任务、消息或产物时返回不可用，禁止回退新任务；只有成员资料但暂无工作记录时仍可导出当前资料。普通详情使用 Markdown，产物预览复制原文并保留原文件格式，顶栏复用导出入口，不重复放置同一文件下载按钮；产物列表仍可单独下载各文件。建议文件名清理路径及控制字符，保留合法点文件名；浏览器仍可能调整实际下载名称。正文不截断、不改写。
+
+本次浏览器 I/O 仅由用户点击触发，不发送模型、工具或任务命令，不生成新的黑板产物，也不修改额度。读取快照期间不会执行新的业务，因此沿用现有任务 XState，无需修改 src/task.machine.ts。文档身份、复制等待、反馈和资源清理均为页面状态。导出提示只确认已发起下载，不声称文件已保存到磁盘。反馈短暂显示且至少14px，窄面板保留原关闭入口与可访问按钮。
+
 ## 页面侧栏与字号
 
 对应 BT_P01–BT_P11。需求评估：现有左右面板使用固定宽度，桌面没有左侧收起入口；大量辅助文字低于14px。采用常规可调整分隔条，提供键盘和可访问尺寸；参考 [WAI Window Splitter](https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter/)。保留现有 Grid 与窄屏抽屉，只增加本地布局状态，无需额外布局依赖或业务 XState 状态。
