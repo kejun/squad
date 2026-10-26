@@ -114,11 +114,13 @@ describe('Cloudflare SDK web tools', () => {
     await expect(f.tools.fetch({ url: sourceUrl }, controller.signal)).rejects.toThrow(); expect(f.calls).toHaveLength(0);
   });
 
-  it('[BT_W02] validates model tool arguments before charging or executing', async () => {
+  it('[BT_W02] [BT_M11] regenerates malformed tool arguments without executing or charging a tool call', async () => {
     for (const output of [{ type: 'web_search', query: ' ' }, { type: 'web_search', query: 'a', limit: -1 }, { type: 'web_fetch', url: sourceUrl, offset: -1 }, { type: 'web_fetch', url: sourceUrl, format: 'browser' }]) {
-      const h = new Harness(webModelConfig()); const f = webFixture(); const model = scriptedModel(h.config, [output]);
+      const h = new Harness(webModelConfig()); const f = webFixture(); const model = scriptedModel(h.config, [output, answer]);
       await new WorkRunner(h.engine, model.adapter, () => 0, undefined, f.tools).runOne(h.room, h.task);
-      expect(f.calls).toHaveLength(0); expect(h.context().usage.ordinary).toBe(1); expect(h.view().phase).toBe('waitingHuman');
+      expect(f.calls).toHaveLength(0); expect(model.requests).toHaveLength(2);
+      expect(h.context().usage.ordinary).toBe(2); expect(h.context().usage.retries).toBe(1);
+      expect(h.view().phase).toBe('checking'); expect(h.context().candidate?.text).toBe(answer.text);
     }
   });
   it('[BT_W09] default capabilities and dotenv switch never persist credentials', () => {

@@ -66,6 +66,8 @@ const traceLabel: Record<string, string> = {
   BOUNDARY: "应用补充",
   HUMAN_DECISION: "收到用户决定",
   COORDINATE: "协调任务",
+  REGENERATE_MODEL_OUTPUT: "重新生成模型输出",
+  MODEL_OUTPUT_REPAIR: "修正模型输出格式",
 };
 function EventIcon({ event }: { event: ExecutionEvent }) {
   return event.kind === "error" ? (

@@ -44,6 +44,8 @@ export interface Assistance extends Fence {
   requestedBy?: string; requiredTools?: string[]; retryOf?: string;
 }
 export type WorkKind = 'owner' | 'assistance' | 'facilitator' | 'check' | 'cancel' | 'tool';
+export const modelOutputIssues = ['invalid_json', 'invalid_object', 'invalid_type', 'check_passed_boolean', 'check_gaps_strings', 'invalid_work_output', 'invalid_decision', 'invalid_tool_request'] as const;
+export type ModelOutputIssue = typeof modelOutputIssues[number];
 export interface Intent extends Fence {
   id: string; kind: WorkKind; target: string; payload: Record<string, unknown>;
   status: 'pending' | 'inflight' | 'done' | 'cancelled' | 'uncertain';
@@ -51,6 +53,8 @@ export interface Intent extends Fence {
   bucket: 'ordinary' | 'checks' | 'none';
   requestCount: number;
   model?: ModelBinding;
+  /** Persisted format-repair authorization; never stores the rejected model body. */
+  outputRepair?: { count: number; issue: ModelOutputIssue };
 }
 export interface Reply { ok: boolean; code: string; detail: string }
 export interface InputNote { id: string; text: string; applied: boolean }
@@ -93,6 +97,7 @@ export type Decision =
   | { action: 'askUser'; question: string; reason: string }
   | { action: 'finish'; reason: string };
 export type TaskEvent = Envelope & (
+  | { type: 'REGENERATE_MODEL_OUTPUT'; intentId: string; issue: ModelOutputIssue }
   | { type: 'HELP'; requestId: string; caller: string; target: string; question: string; expected: string; refs?: string[]; requiredTools?: string[] }
   | { type: 'HELP_RESULT'; requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; summary?: string; artifactIds?: string[] }
   | { type: 'RECORD_RESULT'; requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; summary?: string; artifacts?: ArtifactDraft[] }
