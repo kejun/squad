@@ -1,0 +1,4 @@
+interface:
+  display_name: "验证 squad"
+  short_description: "运行真实群聊界面，核对协作结果、持久化和导出，并保留操作证据"
+  default_prompt: "使用 $verify-squad 验证 squad 的群聊与交付流程，并报告实际覆盖的入口及证据。"
