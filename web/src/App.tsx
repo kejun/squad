@@ -23,6 +23,8 @@ import {
   Layers,
   LoaderCircle,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   PanelRight,
   Plus,
   Square,
@@ -36,6 +38,7 @@ import type { WebAgent, WebAssistance } from "../../src/web/contracts";
 import { AssistanceRetry, assistanceRetrySubmission } from "./AssistanceRetry";
 import { api, useWorkspace } from "./api";
 import { ResultLinks, type DetailTarget } from "./ResultLinks";
+import { PanelSeparator, usePanelLayout } from "./PanelLayout";
 import { Logo } from "./Logo";
 import { AgentAvatar, agentStatus, IconButton, phaseLabel, time } from "./ui";
 
@@ -65,6 +68,7 @@ export function Workspace({
   } = workspace;
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const panels = usePanelLayout(detailOpen);
   const [detailTarget, setDetailTarget] = useState<DetailTarget | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -77,6 +81,8 @@ export function Workspace({
   const [creating, setCreating] = useState(false);
   const [stopping, setStopping] = useState(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const navigationToggle = useRef<HTMLButtonElement>(null);
+  const detailsToggle = useRef<HTMLDivElement>(null);
   const chat = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   const [showScrollDown, setShowScrollDown] = useState(false);
@@ -131,6 +137,14 @@ export function Workspace({
     setDetailOpen(true);
     setSidebarOpen(false);
   }, []);
+  const closeNavigation = () => {
+    setSidebarOpen(false);
+    navigationToggle.current?.focus();
+  };
+  const closeDetails = () => {
+    setDetailOpen(false);
+    detailsToggle.current?.querySelector<HTMLButtonElement>("button")?.focus();
+  };
   const addMention = (agent: WebAgent) => {
     const withoutQuery = text.replace(/@[\w-]*$/, "");
     setText(
@@ -289,25 +303,36 @@ export function Workspace({
   const executing = agents.filter(
     (agent) => agentStatus(agent.id, snapshot, connected) === "执行中",
   );
+  const navigationExpanded = panels.layout.mobile ? sidebarOpen : !panels.leftCollapsed;
+  const toggleNavigation = () => {
+    if (panels.layout.mobile) setSidebarOpen((open) => !open);
+    else panels.toggleLeft();
+  };
   return (
     <Tooltip.Provider delay={350}>
-      <div className={`workspace ${detailOpen ? "has-details" : ""}`}>
+      <div
+        ref={panels.container}
+        style={panels.style}
+        className={`workspace panel-workspace ${detailOpen ? "has-details" : ""}${panels.leftCollapsed ? " is-sidebar-collapsed" : ""}${panels.layout.mobile ? " is-mobile-layout" : ""}${panels.layout.detailsOverlay ? " is-details-overlay" : ""}`}
+      >
         {sidebarOpen && (
           <div
             className="sidebar-backdrop"
-            onClick={() => setSidebarOpen(false)}
+            onClick={closeNavigation}
           />
         )}
         <aside
+          id="workspace-navigation"
           className={`sidebar ${sidebarOpen ? "is-open" : ""}`}
           aria-label="群聊和成员"
+          hidden={!panels.layout.mobile && panels.leftCollapsed}
         >
           <div className="sidebar-brand">
             <Logo />
             <IconButton
               className="mobile-close"
               label="收起导航"
-              onClick={() => setSidebarOpen(false)}
+              onClick={closeNavigation}
             >
               <X size={16} />
             </IconButton>
@@ -379,27 +404,46 @@ export function Workspace({
               </div>
             )}
           </div>
+          {navigationExpanded && <PanelSeparator
+            side="left"
+            value={panels.layout.left}
+            bounds={panels.layout.leftBounds}
+            controls="workspace-navigation"
+            resetKey={panels.resetKey}
+            onResize={(width, commit) => panels.resize("left", width, commit)}
+            onCancel={panels.cancel}
+            onKeyResize={(key, shift) => panels.resizeByKey("left", key, shift)}
+            onToggle={() => {
+              if (panels.layout.mobile) closeNavigation();
+              else panels.toggleLeft();
+              navigationToggle.current?.focus();
+            }}
+          />}
         </aside>
         <main className="chat-main">
           <header className="chat-header">
-            <IconButton
-              className="mobile-menu"
-              label="打开导航"
-              onClick={() => setSidebarOpen(true)}
+            <Button
+              ref={navigationToggle}
+              className="icon-button navigation-toggle"
+              aria-label={navigationExpanded ? "收起导航" : "展开导航"}
+              aria-expanded={navigationExpanded}
+              aria-controls="workspace-navigation"
+              title={navigationExpanded ? "收起导航" : "展开导航"}
+              onClick={toggleNavigation}
             >
-              <Menu size={19} />
-            </IconButton>
+              {panels.layout.mobile ? <Menu size={19} /> : navigationExpanded ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+            </Button>
             <div className="chat-title-icon">
               <Hash size={20} />
             </div>
             <div className="chat-title">
               <h1>{title}</h1>
             </div>
-            <div className="header-actions">
+            <div className="header-actions" ref={detailsToggle}>
               <IconButton
                 label={detailOpen ? "收起详情" : "查看任务详情"}
                 onClick={() => {
-                  if (detailOpen && !selectedAgent) setDetailOpen(false);
+                  if (detailOpen && !selectedAgent) closeDetails();
                   else {
                     setSelectedAgent(null);
                     setDetailOpen(true);
@@ -836,9 +880,21 @@ export function Workspace({
           <>
             <div
               className="details-backdrop"
-              onClick={() => setDetailOpen(false)}
+              onClick={closeDetails}
             />
-            <Suspense fallback={<aside className="details" aria-label="详情加载中" role="status">正在加载…</aside>}>
+            <div id="workspace-details" className="details-panel">
+              <PanelSeparator
+                side="right"
+                value={panels.layout.right}
+                bounds={panels.layout.rightBounds}
+                controls="workspace-details"
+                resetKey={panels.resetKey}
+                onResize={(width, commit) => panels.resize("right", width, commit)}
+                onCancel={panels.cancel}
+                onKeyResize={(key, shift) => panels.resizeByKey("right", key, shift)}
+                onToggle={closeDetails}
+              />
+              <Suspense fallback={<aside className="details" aria-label="详情加载中" role="status">正在加载…</aside>}>
               <Details
               key={selectedAgent ?? `${detailTarget?.taskId ?? "task"}:${detailTarget?.messageId ?? ""}:${detailTarget?.artifactId ?? ""}`}
               snapshot={snapshot}
@@ -846,9 +902,10 @@ export function Workspace({
               connected={connected}
               target={detailTarget ?? undefined}
               onAgent={openAgent}
-              onClose={() => setDetailOpen(false)}
+              onClose={closeDetails}
               />
-            </Suspense>
+              </Suspense>
+            </div>
           </>
         )}
       </div>
