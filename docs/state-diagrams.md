@@ -2,6 +2,39 @@
 
 本文件与 README 的「状态模型」共同描述当前功能。顶层任务状态由 `src/task.machine.ts` 管理；下图分别标明上下文状态、操作状态和界面状态，不能将后两者误认为新增的 XState 顶层状态。
 
+## 简短结果与产物发布
+
+对应 BT_A01–BT_A11。复用 running、waitingAssistance、checking、ended 和既有操作状态；摘要、报告和引用是同一结果的上下文，不增加顶层状态。新增行为先经以下结果事件事务，再由网页展示。
+
+```mermaid
+stateDiagram-v2
+    [*] --> inflight: 已保存意图经 CLAIM 领取
+    inflight --> committed: DELIVER 或 RECORD_RESULT / 校验身份、版本和报告草稿 / 原子保存全文、摘要及产物
+    inflight --> rejected: 停止、旧版本、无效草稿或重复结果 / 不创建产物
+    inflight --> inflight: 事务提交失败 / 回滚且停止新增派发
+    committed --> checking: 负责人候选和报告已保存 / 检查获准后执行
+    committed --> handoff: 核查报告已保存 / HELP_RESULT 原子消费并接续负责人
+    committed --> handoff: 重启 / 补消费已保存核查结果
+    checking --> published: 检查通过或按原规则部分结束 / 消息关联已保存产物
+    handoff --> published: 群中显示核查结论和报告入口
+    rejected --> [*]
+```
+
+检查与负责人接续使用完整候选、核查文本和产物，不使用展示摘要替代。报告按事件和工作确定身份，重复回执不重复保存。旧协议长结果可在同一结果事务中生成报告；旧快照新增字段均可省略。未生成报告的短答不创建空文档。首次与后续外部请求沿用现有预算，生成本地产物不调用额外模型。
+
+```mermaid
+stateDiagram-v2
+    [*] --> feed: 展示短结论与真实产物入口
+    feed --> messageDetails: 点击详情 / 固定 taskId 和 messageId
+    feed --> artifactPreview: 点击报告 / 固定 taskId 和 artifactId
+    messageDetails --> artifactPreview: 选择关联报告
+    artifactPreview --> messageDetails: 返回结果详情
+    messageDetails --> feed: 关闭或切群
+    artifactPreview --> feed: 关闭或切群
+```
+
+网页仅读取对应任务的全文、来源和可观察执行记录。报告预览复用安全 Markdown 渲染，下载使用相同持久内容。历史消息不能回退到当前任务的报告；不存在的引用显示不可用，不创建产物或调度。旧长消息只缩短主视图显示，其原文仍能在详情查看。
+
 ## 协助重试与结果交接
 
 对应 BT_H10–BT_H20、BT_U16；复用 running、waitingAssistance、waitingHuman、ended 顶层状态。以下为协助上下文及提交边界。原负责人保持任务所有权；网页仅提交命令，不直接调用成员。

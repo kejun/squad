@@ -4,6 +4,7 @@ import { Tabs } from "@base-ui/react/tabs";
 import { Collapsible } from "@base-ui/react/collapsible";
 import {
   ArrowDownToLine,
+  ArrowLeft,
   ArrowUpRight,
   Check,
   ChevronDown,
@@ -29,6 +30,9 @@ import {
   Scroll,
   time,
 } from "./ui";
+import { MessageText } from "./MessageText";
+import type { DetailTarget } from "./ResultLinks";
+import { artifactsForAgent, messageArtifacts } from "./ResultLinks";
 
 const kindLabel: Record<WebWork["kind"], string> = {
   owner: "执行任务",
@@ -89,25 +93,31 @@ export function Details({
   agent,
   onClose,
   connected,
+  target,
+  onAgent,
 }: {
   snapshot: RoomSnapshot | null;
   agent: WebAgent | null;
   onClose: () => void;
   connected: boolean;
+  target?: DetailTarget | undefined;
+  onAgent?: ((id: string) => void) | undefined;
 }) {
   const [tab, setTab] = useState("process");
+  const [opened, setOpened] = useState<DetailTarget | null | undefined>(undefined);
+  const focused = opened === undefined ? target : opened ?? undefined;
   const task =
-    snapshot?.tasks.find((task) => task.id === snapshot.activeTaskId) ??
-    snapshot?.tasks.at(-1);
+    focused ? snapshot?.tasks.find((task) => task.id === focused.taskId)
+      : snapshot?.tasks.find((task) => task.id === snapshot.activeTaskId) ?? snapshot?.tasks.at(-1);
   const works =
     snapshot?.works.filter(
       (work) => work.agentId === agent?.id && work.kind !== "cancel",
     ) ?? [];
   const artifacts = agent
-    ? (snapshot?.tasks
-        .filter((task) => task.owner === agent.id)
-        .flatMap((task) => task.artifacts) ?? [])
-    : (task?.artifacts ?? []);
+    ? artifactsForAgent(snapshot, agent.id)
+    : (task?.artifacts.map((artifact) => ({ ...artifact, taskId: task.id })) ?? []);
+  if (focused) return <ResultDetails snapshot={snapshot} target={focused} connected={connected} onClose={onClose} onAgent={onAgent}
+    onOpen={setOpened} onBack={() => setOpened(target ? { taskId: target.taskId, ...(target.messageId ? { messageId: target.messageId } : {}) } : null)} />;
   return (
     <aside
       className="details"
@@ -252,7 +262,7 @@ export function Details({
             </Tabs.Panel>
             <Tabs.Panel className="tab-panel" value="artifacts">
               <Scroll>
-                <Artifacts artifacts={artifacts} />
+                <Artifacts artifacts={artifacts} onOpen={(artifact) => setOpened({ taskId: artifact.taskId, artifactId: artifact.id })} />
               </Scroll>
             </Tabs.Panel>
           </Tabs.Root>
@@ -292,7 +302,7 @@ export function Details({
                 </div>
                 {task.reason && <p className="task-reason">{task.reason}</p>}
                 <h3 className="detail-section-heading">交付产物</h3>
-                <Artifacts artifacts={artifacts} />
+                <Artifacts artifacts={artifacts} onOpen={(artifact) => setOpened({ taskId: artifact.taskId, artifactId: artifact.id })} />
                 {!!task.board.length && (
                   <>
                     <h3 className="detail-section-heading">共享记录</h3>
@@ -343,8 +353,10 @@ export function Details({
 }
 function Artifacts({
   artifacts,
+  onOpen,
 }: {
-  artifacts: { id: string; name: string; content: string }[];
+  artifacts: { id: string; name: string; content: string; taskId: string }[];
+  onOpen: (artifact: { id: string; taskId: string }) => void;
 }) {
   if (!artifacts.length)
     return (
@@ -356,9 +368,9 @@ function Artifacts({
   return (
     <div className="artifact-list">
       {artifacts.map((artifact) => (
-        <div className="artifact-item" key={artifact.id}>
+        <div className="artifact-item" key={`${artifact.taskId}:${artifact.id}`}>
           <FileText size={18} />
-          <span>{artifact.name}</span>
+          <Button className="artifact-name" aria-label={`查看 ${artifact.name}`} onClick={() => onOpen(artifact)}>{artifact.name}</Button>
           <Button
             className="icon-button"
             aria-label={`下载 ${artifact.name}`}
@@ -369,5 +381,74 @@ function Artifacts({
         </div>
       ))}
     </div>
+  );
+}
+
+const noAgentAction = () => {};
+
+function ResultDetails({ snapshot, target, onClose, onOpen, onBack, connected, onAgent }: {
+  snapshot: RoomSnapshot | null;
+  target: DetailTarget;
+  onClose: () => void;
+  onOpen: (target: DetailTarget) => void;
+  onBack: () => void;
+  connected: boolean;
+  onAgent?: ((id: string) => void) | undefined;
+}) {
+  const task = snapshot?.tasks.find((item) => item.id === target.taskId);
+  const message = target.messageId ? snapshot?.messages.find((item) => item.taskId === target.taskId && item.id === target.messageId) : undefined;
+  const artifact = target.artifactId ? task?.artifacts.find((item) => item.id === target.artifactId) : undefined;
+  const available = !!task && (!target.messageId || !!message) && (!target.artifactId || !!artifact);
+  const artifacts = (message ? messageArtifacts(snapshot, message) : task?.artifacts ?? []).map((item) => ({ ...item, taskId: target.taskId }));
+  const events = snapshot?.events.filter((event) => event.taskId === target.taskId) ?? [];
+  const author = artifact?.author ?? message?.author;
+  const agent = snapshot?.agents.find((item) => item.id === author);
+  return (
+    <aside className="details" aria-label={artifact ? "报告预览" : "结果详情"}>
+      <header className="details-header">
+        <span><FileText size={15} /> {artifact ? "报告" : "详情"}</span>
+        <IconButton label="关闭详情" onClick={onClose}><X size={17} /></IconButton>
+      </header>
+      <Scroll>
+        <div className="task-details result-details">
+          {!available ? <p className="no-record">内容已不可用</p> : artifact ? <>
+            <Button className="result-back" onClick={onBack}><ArrowLeft size={13} /> 返回详情</Button>
+            <div className="report-heading"><h2>{artifact.name}</h2>
+              <Button className="icon-button" aria-label={`下载 ${artifact.name}`} onClick={() => download(artifact.name, artifact.content)}><ArrowDownToLine size={16} /></Button>
+            </div>
+            {author && <p className="report-author">{agent?.name ?? author}</p>}
+            {/\.(?:md|markdown)$/i.test(artifact.name)
+              ? <MessageText text={artifact.content} agents={onAgent ? snapshot?.agents ?? [] : []} onAgent={onAgent ?? noAgentAction} />
+              : <pre className="report-plain"><code>{artifact.content}</code></pre>}
+          </> : <>
+            <h2>{task!.goal}</h2>
+            <span className="task-state">{connected ? phaseLabel(task) : "连接中断"}</span>
+            {message && <MessageText text={message.detailText ?? message.text} agents={onAgent ? snapshot?.agents ?? [] : []} onAgent={onAgent ?? noAgentAction} />}
+            {!message && task!.reason && <p className="task-reason">{task!.reason}</p>}
+            {!!artifacts.length && <Artifacts artifacts={artifacts} onOpen={(item) => onOpen({ ...target, artifactId: item.id })} />}
+            {!!task!.board.length && <section className="result-evidence" aria-label="依据">
+              <h3 className="detail-section-heading">依据</h3>
+              {task!.board.map((entry) => <div className="board-entry" key={entry.id}>
+                <MessageText text={entry.text} agents={onAgent ? snapshot?.agents ?? [] : []} onAgent={onAgent ?? noAgentAction} />
+                {entry.sources.map((source) => /^https?:\/\//.test(source)
+                  ? <a href={source} key={source} target="_blank" rel="noreferrer">查看来源 <ArrowUpRight size={12} /></a>
+                  : <code key={source}>{source}</code>)}
+              </div>)}
+            </section>}
+            {!!events.length && <section className="result-events" aria-label="执行记录">
+              <h3 className="detail-section-heading">执行记录</h3>
+              {events.map((event) => <details className={`result-event ${event.kind}`} key={event.id}>
+                <summary><EventIcon event={event} /><span>{event.title}</span><time>{time(event.at)}</time></summary>
+                <pre>{event.detail || "没有附加内容"}</pre>
+              </details>)}
+            </section>}
+            {!!task!.trace.length && <details className="result-trace"><summary>调度记录</summary>
+              {task!.trace.map((trace, index) => <div className="trace-row" key={index}><span>{traceLabel[trace.event] ?? trace.event}</span><time>{time(trace.at)}</time></div>)}
+            </details>}
+          </>}
+        </div>
+      </Scroll>
+      {!connected && <div className="detail-foot" role="status">连接中断，等待重新连接</div>}
+    </aside>
   );
 }

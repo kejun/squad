@@ -1510,6 +1510,122 @@ svg {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.artifact-name {
+  padding: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  color: inherit;
+}
+.artifact-name:hover {
+  color: #526e5c;
+  text-decoration: underline;
+}
+.result-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+}
+.result-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 5px 8px;
+  border: 1px solid #dfe8e1;
+  border-radius: 5px;
+  font-size: 11px;
+  color: #6b8272;
+  background: #f9fbf9;
+  overflow-wrap: anywhere;
+}
+.result-link:hover {
+  border-color: #b9cbbd;
+  color: #486350;
+}
+.result-detail-link {
+  border-color: transparent;
+  background: transparent;
+}
+.result-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  color: #7c9183;
+  font-size: 11px;
+  margin-bottom: 20px;
+}
+.report-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.report-author {
+  font-size: 11px;
+  color: #8c9d91;
+  margin: -10px 0 20px;
+}
+.report-plain {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #e6ece8;
+  border-radius: 6px;
+  background: #f8faf8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #627467;
+}
+.result-details .artifact-list {
+  padding: 18px 0 0;
+}
+.result-event {
+  border-bottom: 1px solid #edf1ee;
+  font-size: 11px;
+  color: #829489;
+}
+.result-event summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  cursor: pointer;
+}
+.result-event summary > span {
+  flex: 1;
+}
+.result-event summary time {
+  color: #a4b0a8;
+  font-size: 9px;
+}
+.result-event pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 420px;
+  overflow: auto;
+  padding: 0 0 14px;
+  line-height: 1.7;
+}
+.result-trace {
+  border-top: 1px solid #e7ede9;
+  margin-top: 24px;
+  padding-top: 14px;
+  font-size: 11px;
+  color: #8a9c90;
+}
+.result-trace summary {
+  cursor: pointer;
+  margin-bottom: 12px;
+}
 .artifact-item > .icon-button {
   margin-left: auto;
 }

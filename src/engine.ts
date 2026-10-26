@@ -177,6 +177,7 @@ export class TeamEngine {
         && c.intents.some(i => i.kind !== 'cancel' && i.status === 'inflight' && i.payload.requestId !== result.requestId)) return false;
       const next = stepTask(current, { type: 'HELP_RESULT', id: `consume:${result.resultId}`, at: this.clock(),
         requestId: result.requestId, resultId: result.resultId, status: result.status, answer: result.answer,
+        ...(result.summary === undefined ? {} : { summary: result.summary }), ...(result.artifactIds ? { artifactIds: result.artifactIds } : {}),
         fence: { epoch: result.epoch, goalVersion: result.goalVersion } });
       // A temporary rejection must not commit a receipt that prevents a later safe handoff.
       // The consumed result and successor intent are the durable deduplication boundary.

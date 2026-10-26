@@ -1,6 +1,7 @@
 import { assign, initialTransition, setup, transition, type SnapshotFrom } from 'xstate';
-import type { Assistance, BoardEntry, Decision, Intent, Phase, TaskContext, TaskEvent, TaskInput } from './types.js';
+import type { ArtifactDraft, Assistance, BoardEntry, Decision, Intent, Phase, TaskContext, TaskEvent, TaskInput } from './types.js';
 import { modelSignature, resolveModel } from './model-config.js';
+import { compactMessage, isLongResult, validArtifactDrafts, validSummary } from './presentation.js';
 
 const ok = (c: TaskContext, detail = 'applied') => { c.reply = { ok: true, code: 'OK', detail }; };
 const reject = (c: TaskContext, code: string) => { c.reply = { ok: false, code, detail: code }; };
@@ -30,8 +31,22 @@ function canRetryWork(c: TaskContext, e: TaskEvent): boolean {
     && c.usage.retries < c.config.limits.retries && hasOrdinary(c) && !requestBudgetProblem(c, work);
 }
 
-function message(c: TaskContext, e: TaskEvent, author: string, text: string, kind: TaskContext['messages'][number]['kind'], extra: Partial<TaskContext['messages'][number]> = {}) {
-  c.messages.push({ id: `${c.taskId}:message:${c.nextSeq++}`, taskId: c.taskId, at: e.at, author, text, kind, ...extra });
+function message(c: TaskContext, e: TaskEvent, author: string, text: string, kind: TaskContext['messages'][number]['kind'], extra: Partial<TaskContext['messages'][number]> = {}, summary?: string) {
+  const shown = kind === 'user' ? text : compactMessage(text, summary);
+  c.messages.push({ id: `${c.taskId}:message:${c.nextSeq++}`, taskId: c.taskId, at: e.at, author, text: shown, kind,
+    ...(shown === text ? {} : { detailText: text }), ...(e.workId ? { workId: e.workId } : {}), ...extra });
+}
+function saveReports(c: TaskContext, e: TaskEvent, text: string, author: string, drafts: ArtifactDraft[] = []): string[] {
+  const reports = drafts.length ? drafts : isLongResult(text) ? [{ name: author === c.owner ? 'result.md' : 'review.md', content: text }] : [];
+  if (reports.length) {
+    c.lastProgressAt = e.at; c.nextCheckAt = e.at + c.config.limits.progressIntervalMs; c.repeat.count = 0;
+  }
+  return reports.map((draft, index) => {
+    const id = `${c.taskId}:artifact:${e.id}:${index + 1}`;
+    c.artifacts.push({ id, name: draft.name, content: draft.content, author, goalVersion: c.goalVersion, ...(e.workId ? { workId: e.workId } : {}) });
+    c.progressRefs.push(id);
+    return id;
+  });
 }
 function intent(c: TaskContext, at: number, kind: Intent['kind'], target: string, payload: Record<string, unknown> = {}, replay: Intent['replay'] = 'safe'): Intent {
   const item: Intent = { id: `${c.taskId}:E${c.epoch}:${kind}:${c.nextSeq++}`, kind, target, payload,
@@ -60,7 +75,7 @@ function release(c: TaskContext, id: string | undefined) {
 function conversationInput(c: TaskContext) {
   return { messages: [...(c.history?.messages ?? []), ...c.messages], candidate: c.candidate,
     conversation: { artifacts: c.history?.artifacts ?? [], board: c.history?.board ?? [], tasks: c.history?.tasks ?? [], truncated: c.history?.truncated ?? false },
-    ...(c.review ? { review: { ...c.review, results: c.assists.filter(h => h.reviewId === c.review!.id).map(h => ({ target: h.target, requestId: h.id, status: h.status, answer: h.answer })) } } : {}) };
+    ...(c.review ? { review: { ...c.review, results: c.assists.filter(h => h.reviewId === c.review!.id).map(h => ({ target: h.target, requestId: h.id, status: h.status, answer: h.answer, artifactIds: h.artifactIds })) } } : {}) };
 }
 function owner(c: TaskContext, e: TaskEvent, payload: Record<string, unknown> = {}) {
   if (c.stopped) return;
@@ -95,8 +110,9 @@ function startHelp(c: TaskContext, e: TaskEvent, id: string, target: string, que
   const item: Assistance = { id, target, question, expected, refs, ...fence(c), status: 'pending', consumed: false,
     requestedBy: c.owner, requiredTools, ...(reviewId ? { reviewId } : {}), ...(retryOf ? { retryOf } : {}) };
   c.assists.push(item); c.usage.assists++;
+  const reportRefs = new Set([...refs, ...(c.candidate?.artifactIds ?? []), ...c.assists.flatMap(help => help.artifactIds ?? [])]);
   intent(c, e.at, 'assistance', target, { requestId: id, question, expected, refs, requiredTools, goal: c.goal, board: c.board,
-    artifacts: c.artifacts.filter(a => refs.includes(a.id)), ...conversationInput(c), instructions: c.config.bots.find(b => b.id === target)?.instructions ?? '', capabilities: capabilities(c) });
+    artifacts: c.artifacts.filter(a => reportRefs.has(a.id)), ...conversationInput(c), instructions: c.config.bots.find(b => b.id === target)?.instructions ?? '', capabilities: capabilities(c) });
   message(c, e, system ? 'facilitator' : c.owner, system ? `已为 ${c.owner} 安排 ${target} 协助：${question}` : question, system ? 'notice' : 'help', { requestId: id, recipient: target });
   c.reason = `Waiting for ${target}: ${id}`;
 }
@@ -181,12 +197,16 @@ function resetReviewAtBoundary(c: TaskContext, e: TaskEvent) {
 }
 function acceptHelpResult(c: TaskContext, e: Extract<TaskEvent, { type: 'HELP_RESULT' }>) {
   const h = c.assists.find(h => h.id === e.requestId)!;
-  h.status = e.status; h.resultId = e.resultId; h.answer = e.answer; h.consumed = true;
-  c.consumedResults.push(e.resultId);
   const recorded = c.results.find(r => r.resultId === e.resultId);
+  const summary = e.summary ?? recorded?.summary;
+  const artifactIds = e.artifactIds ?? recorded?.artifactIds ?? saveReports(c, e, e.answer, h.target);
+  h.status = e.status; h.resultId = e.resultId; h.answer = e.answer; h.consumed = true;
+  h.artifactIds = artifactIds;
+  if (summary !== undefined) h.summary = summary;
+  c.consumedResults.push(e.resultId);
   if (recorded) recorded.consumed = true;
   for (const i of c.intents.filter(i => i.payload.requestId === h.id)) release(c, i.id);
-  message(c, e, h.target, e.answer, 'answer', { requestId: h.id });
+  message(c, e, h.target, e.answer, 'answer', { requestId: h.id, artifactIds, ...(recorded?.workId ? { workId: recorded.workId } : {}) }, summary);
   const hasInputs = c.inputs.some(n => !n.applied);
   for (const note of c.inputs) note.applied = true;
   if (h.reviewId && h.reviewId === c.review?.id) {
@@ -194,7 +214,7 @@ function acceptHelpResult(c: TaskContext, e: Extract<TaskEvent, { type: 'HELP_RE
     else advanceReview(c, e, h);
   } else {
     cancelWork(c, e);
-    owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer: e.answer, requiresAssessment: true });
+    owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer: e.answer, artifactIds, requiresAssessment: true });
     message(c, e, 'facilitator', `${h.target} 的核查结果已交给 ${c.owner}，已安排继续完善方案。`, 'notice', { requestId: h.id, recipient: c.owner });
   }
 }
@@ -229,7 +249,14 @@ function recoveryIssue(c: TaskContext, config: TaskContext['config']): string | 
 function finish(c: TaskContext, e: TaskEvent, outcome: TaskContext['outcome'], reason: string) {
   cancelWork(c, e); c.outcome = outcome; c.reason = reason;
   if (c.review) c.review.status = outcome === 'stopped' ? 'cancelled' : 'complete';
-  if (outcome !== 'stopped') message(c, e, c.owner, `${c.candidate?.text ?? ''}${reason ? `\n${reason}` : ''}`.trim(), 'final');
+  if (outcome !== 'stopped') {
+    const full = `${c.candidate?.text ?? ''}${reason ? `\n${reason}` : ''}`.trim();
+    const summary = reason ? `${reason}\n${c.candidate?.summary ?? compactMessage(c.candidate?.text ?? '')}`.trim() : c.candidate?.summary;
+    message(c, e, c.owner, full, 'final', {
+      artifactIds: c.candidate?.artifactIds.filter(id => c.artifacts.some(artifact => artifact.id === id && artifact.goalVersion === c.goalVersion)) ?? [],
+      ...(c.candidate?.workId ? { workId: c.candidate.workId } : {}),
+    }, summary);
+  }
 }
 function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
   if (!fresh(c, e)) return 'STALE_FENCE';
@@ -239,6 +266,7 @@ function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     if (op.epoch !== c.epoch || op.goalVersion !== c.goalVersion) return 'STALE_WORK';
   }
   if (c.stopped && !['STOP', 'SETTLE', 'HELP_RESULT', 'CONTINUE', 'RETRY_ASSISTANCE', 'RECOVER', 'CLAIM', 'WORK_FAILED', 'HUMAN_DECISION'].includes(e.type)) return 'STOPPED';
+  if ((e.type === 'DELIVER' || e.type === 'RECORD_RESULT') && (!validArtifactDrafts(e.artifacts) || !validSummary(e.summary))) return 'INVALID_REPORT';
   switch (e.type) {
     case 'RETRY_ASSISTANCE': return assistanceRetryProblem(c, e.requestId, e.config);
     case 'HELP':
@@ -246,6 +274,7 @@ function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       return helpProblem(c, e.caller, e.target, e.question, e.expected, e.requiredTools);
     case 'RECORD_RESULT':
     case 'HELP_RESULT': {
+      if (e.type === 'HELP_RESULT' && (!validSummary(e.summary) || e.artifactIds?.some(id => !c.artifacts.some(a => a.id === id && a.goalVersion === c.goalVersion)))) return 'INVALID_REPORT';
       if (c.consumedResults.includes(e.resultId)) return 'DUPLICATE_RESULT';
       const h = c.assists.find(i => i.id === e.requestId);
       if (!h || !['pending', 'running', 'answered'].includes(h.status)) return 'UNKNOWN_OR_SETTLED_HELP';
@@ -340,8 +369,10 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'HELP': startHelp(c, e, e.requestId, e.target, e.question, e.expected, e.refs ?? [], false, e.requiredTools); break;
     case 'RECORD_RESULT': {
       const h = c.assists.find(h => h.id === e.requestId)!;
+      const artifactIds = saveReports(c, e, e.answer, h.target, e.artifacts);
       h.status = 'answered';
-      c.results.push({ requestId: e.requestId, resultId: e.resultId, status: e.status, answer: e.answer, consumed: false, ...fence(c) });
+      c.results.push({ requestId: e.requestId, resultId: e.resultId, status: e.status, answer: e.answer, consumed: false, artifactIds,
+        ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}), ...fence(c) });
       break;
     }
     case 'HELP_RESULT': acceptHelpResult(c, e); break;
@@ -427,10 +458,13 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       message(c, e, 'facilitator', `任务从 ${from} 交接给 ${e.owner}`, 'notice');
       owner(c, e, { handoff: true, boardRefs: c.board.map(b => b.id) }); break;
     }
-    case 'DELIVER':
-      cancelWork(c, e); c.candidate = { text: e.text, artifactIds: e.artifactIds, goalVersion: c.goalVersion };
+    case 'DELIVER': {
+      const artifactIds = saveReports(c, e, e.text, c.owner, e.artifacts);
+      cancelWork(c, e); c.candidate = { text: e.text, artifactIds: [...new Set([...e.artifactIds, ...artifactIds])], goalVersion: c.goalVersion,
+        ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}) };
       intent(c, e.at, 'check', 'facilitator', { goal: c.goal, artifacts: c.artifacts, board: c.board, ...conversationInput(c), deterministicGap: completeProblem(c) });
       break;
+    }
     case 'CHECK_RESULT':
       c.consumedResults.push(e.resultId);
       if (c.review?.incomplete) finish(c, e, 'partial', c.review.incomplete);
