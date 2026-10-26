@@ -169,7 +169,8 @@ describe('report and result detail navigation', () => {
   it('[BT_A09] previews the historical task report instead of the active task report', () => {
     const html = renderToStaticMarkup(createElement(Details, { snapshot: artifactSnapshot(), agent: null, onClose() {}, connected: true,
       target: { taskId: 'old-task', messageId: 'old-result', artifactId: 'old-report' } }));
-    expect(html).toContain('独特尾段：报告全文必须保留。'); expect(html).toContain('下载 恢复方案.md');
+    expect(html).toContain('独特尾段：报告全文必须保留。');
+    expect(html).toContain('<h2>恢复方案.md</h2>'); expect(html).toContain('aria-label="导出详情"');
     expect(html).not.toContain('不应展示的新任务报告正文');
   });
 

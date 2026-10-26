@@ -54,7 +54,7 @@ describe('artifact and message details', () => {
     const s = fixture(); s.tasks[0]!.artifacts[0]!.content = '# 完整报告\n\n[依据](https://example.com/evidence)\n\n<script>alert(1)</script>\n\n[坏链接](javascript:alert(1))';
     const html = render(s, { taskId: 'old', artifactId: 'report' });
     expect(html).toContain('<h1>完整报告</h1>'); expect(html).toContain('href="https://example.com/evidence"');
-    expect(html).toContain('aria-label="下载 核查报告.md"'); expect(html).not.toContain('<script>'); expect(html).not.toContain('href="javascript:');
+    expect(html).toContain('aria-label="导出详情"'); expect(html).not.toContain('<script>'); expect(html).not.toContain('href="javascript:');
   });
   it('[BT_A10] preserves HTML and other code artifacts as literal source text', () => {
     const s = fixture(); const report = s.tasks[0]!.artifacts[0]!;
@@ -64,7 +64,7 @@ describe('artifact and message details', () => {
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
     expect(html).toContain('&lt;body&gt;完整代码&lt;/body&gt;');
     expect(html).not.toContain('<script>');
-    expect(html).toContain('aria-label="下载 demo.html"');
+    expect(html).toContain('aria-label="导出详情"');
   });
   it('[BT_A01] keeps partial delivery visible without marking it as a completed success', () => {
     const s = fixture(); s.tasks[0]!.outcome = 'partial'; s.messages[0]!.kind = 'final';

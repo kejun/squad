@@ -1173,6 +1173,7 @@ svg {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 .details-header > span {
   display: flex;
@@ -1183,6 +1184,27 @@ svg {
 }
 .details-header > span svg {
   color: #9aa6b1;
+}
+.detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.detail-header-actions .icon-button:disabled {
+  opacity: 0.45;
+}
+.detail-action-feedback {
+  padding: 9px 21px;
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  color: var(--accent);
+  border-bottom: 1px solid var(--line);
+}
+.detail-action-feedback.is-error {
+  color: #a35043;
 }
 .agent-profile {
   padding: 27px 23px 0;
