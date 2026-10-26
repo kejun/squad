@@ -31,7 +31,11 @@ export async function startFixture(log) {
       const respond = output => res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }] }));
       if (goal.includes('VERIFY_STOP') && kind === 'owner' && count === 1) {
         pending.add(res);
-        res.on('close', () => { pending.delete(res); cancelled++; });
+        res.on('close', () => {
+          pending.delete(res);
+          cancelled++;
+          appendFileSync(log, JSON.stringify({ event: 'request-cancelled', workId, goal, target, kind }) + '\n');
+        });
         return; // Deliberately wait for the user's Stop action to abort HTTP.
       }
       if (goal.includes('VERIFY_RETRY') && kind === 'assistance' && count === 1) {

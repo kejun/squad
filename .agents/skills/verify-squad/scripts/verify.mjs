@@ -231,6 +231,9 @@ async function control() {
   await click('button', '停止');
   await until(() => get(`/api/rooms/${room.id}`), s => s.tasks[0]?.outcome === 'stopped', 'stopped outcome');
   await until(() => fixture.cancelled, n => n > 0, 'HTTP cancellation');
+  const transport = readFileSync(join(evidence, 'model-http.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+  assert(transport.some(e => e.event === 'request-cancelled' && e.goal === before.tasks[0].goal
+    && before.works.some(w => w.id === e.workId && w.status === 'inflight')), 'Retain transport cancellation for this inflight work');
   await capture('control-stopped');
   await click('button', '继续执行', false);
   const after = await done(room, 'A');

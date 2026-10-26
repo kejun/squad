@@ -59,7 +59,7 @@ node .agents/skills/verify-squad/scripts/doctor.mjs /absolute/evidence/instance.
 - `actions.jsonl` / `trace.zip`：动作、浏览器 POST、DOM 和截图；用对应 Playwright CLI 的 `show-trace` 打开。
 - `*.png` / `*.aria.txt` / `*.fonts.json`：操作前后与故障中间态；仅最终截图不足以证明流程。
 - `*.snapshot.json` / `rooms.sqlite-proof.json`：用户操作形成的消息、任务、负责人和产物；rooms 比较真实进程重启前后的结果并只读核查数据库。
-- `model-http.jsonl` / `server.log`：本地模型请求和应用日志；reports 要求无效 check 输出被重新生成、最终通过且检查额度为 2。
+- `model-http.jsonl` / `server.log`：本地模型请求和应用日志；control 保留带 workId 的 HTTP 取消事件，reports 要求无效 check 输出被重新生成、最终通过且检查额度为 2。
 - `clipboard.txt` / `verification-report.md`：真实复制、下载后的逐字读回，必须等于持久化产物源文。
 
 使用合成输入。只模拟模型服务边界；不得拦截 `/api` 伪造成功、直接设置 React 状态、向数据库写预期结果或用内部事件跳过用户流程。证据可能含内容和本地路径，分享前检查。
