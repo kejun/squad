@@ -24,7 +24,7 @@ export function conversationHistory(tasks: TaskContext[]): ConversationHistory {
   const messages = take(
     tasks.flatMap((task) => task.messages).sort((a, b) => a.at - b.at),
     100,
-    (message) => message.text.length,
+    (message) => message.text.length + (message.detailText?.length ?? 0),
   );
   const artifacts = take(
     tasks.flatMap((task) =>

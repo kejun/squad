@@ -31,16 +31,18 @@ import {
   X,
 } from "lucide-react";
 import type { Message } from "../../src/types";
+import { compactMessage } from "../../src/presentation";
 import type { WebAgent, WebAssistance } from "../../src/web/contracts";
 import { AssistanceRetry, assistanceRetrySubmission } from "./AssistanceRetry";
 import { api, useWorkspace } from "./api";
-import { Details } from "./Details";
+import { ResultLinks, type DetailTarget } from "./ResultLinks";
 import { Logo } from "./Logo";
 import { AgentAvatar, agentStatus, IconButton, phaseLabel, time } from "./ui";
 
 const MessageText = lazy(() =>
   import("./MessageText").then((module) => ({ default: module.MessageText })),
 );
+const Details = lazy(() => import("./Details").then((module) => ({ default: module.Details })));
 
 export function App() {
   return <Workspace workspace={useWorkspace()} />;
@@ -63,6 +65,7 @@ export function Workspace({
   } = workspace;
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [detailTarget, setDetailTarget] = useState<DetailTarget | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [mentionsByRoom, setMentionsByRoom] = useState<
@@ -103,6 +106,7 @@ export function Workspace({
     setSidebarOpen(false);
     setSelectedAgent(null);
     setDetailOpen(false);
+    setDetailTarget(null);
     atBottom.current = true;
   }, [roomId]);
   useEffect(() => {
@@ -117,6 +121,13 @@ export function Workspace({
   }, [text]);
   const openAgent = useCallback((id: string) => {
     setSelectedAgent(id);
+    setDetailTarget(null);
+    setDetailOpen(true);
+    setSidebarOpen(false);
+  }, []);
+  const openResult = useCallback((target: DetailTarget) => {
+    setSelectedAgent(null);
+    setDetailTarget(target);
     setDetailOpen(true);
     setSidebarOpen(false);
   }, []);
@@ -531,6 +542,8 @@ export function Workspace({
                     (agent) => agent.id === message.author,
                   );
                   const isUser = message.kind === "user";
+                  const displayText = isUser ? message.text : compactMessage(message.text);
+                  const messageTask = snapshot?.tasks.find((item) => item.id === message.taskId);
                   const help = (message.kind === "help" || message.kind === "notice")
                     ? snapshot?.tasks.find((item) => item.id === message.taskId)?.assists?.find(
                       (item) => item.id === message.requestId && item.target === message.recipient,
@@ -551,7 +564,7 @@ export function Workspace({
                           onClick={() =>
                             agent
                               ? openAgent(agent.id)
-                              : (setSelectedAgent(null), setDetailOpen(true))
+                              : openResult({ taskId: message.taskId, messageId: message.id })
                           }
                         >
                           <AgentAvatar
@@ -570,8 +583,7 @@ export function Workspace({
                               onClick={() =>
                                 agent
                                   ? openAgent(agent.id)
-                                  : (setSelectedAgent(null),
-                                    setDetailOpen(true))
+                                  : openResult({ taskId: message.taskId, messageId: message.id })
                               }
                               className="author-button"
                               aria-label={
@@ -588,8 +600,10 @@ export function Workspace({
                           <time>{time(message.at)}</time>
                           {message.kind === "final" && (
                             <span className="delivery-label">
-                              <Check size={10} />
-                              交付
+                              {messageTask?.outcome === "complete" ? <Check size={10} /> : <CircleAlert size={10} />}
+                              {messageTask?.outcome === "partial" ? "部分交付"
+                                : messageTask?.outcome === "failed" ? "未完成"
+                                  : messageTask?.outcome === "stopped" ? "已停止" : "交付"}
                             </span>
                           )}
                         </div>
@@ -605,15 +619,16 @@ export function Workspace({
                         )}
                         <Suspense
                           fallback={
-                            <div className="message-text">{message.text}</div>
+                            <div className="message-text">{displayText}</div>
                           }
                         >
                           <MessageText
-                            text={message.text}
+                            text={displayText}
                             onAgent={openAgent}
                             agents={agents}
                           />
                         </Suspense>
+                        <ResultLinks snapshot={snapshot} message={message} onOpen={openResult} />
                         {help && <AssistanceRetry help={help} connected={connected} sending={sending}
                           onRetry={(item) => { void retryAssistance(item); }} />}
                       </div>
@@ -644,6 +659,7 @@ export function Workspace({
                   className="task-status-button"
                   onClick={() => {
                     setSelectedAgent(null);
+                    setDetailTarget(latestTask ? { taskId: latestTask.id } : null);
                     setDetailOpen(true);
                   }}
                 >
@@ -822,13 +838,17 @@ export function Workspace({
               className="details-backdrop"
               onClick={() => setDetailOpen(false)}
             />
-            <Details
-              key={selectedAgent ?? "task"}
+            <Suspense fallback={<aside className="details" aria-label="详情加载中" role="status">正在加载…</aside>}>
+              <Details
+              key={selectedAgent ?? `${detailTarget?.taskId ?? "task"}:${detailTarget?.messageId ?? ""}:${detailTarget?.artifactId ?? ""}`}
               snapshot={snapshot}
               agent={selected}
               connected={connected}
+              target={detailTarget ?? undefined}
+              onAgent={openAgent}
               onClose={() => setDetailOpen(false)}
-            />
+              />
+            </Suspense>
           </>
         )}
       </div>

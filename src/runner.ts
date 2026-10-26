@@ -1,12 +1,13 @@
 import type { TeamEngine } from './engine.js';
-import type { Decision, Intent, TaskEvent } from './types.js';
+import type { ArtifactDraft, Decision, Intent, TaskEvent } from './types.js';
+import { validArtifactDrafts, validSummary } from './presentation.js';
 import { findSkills, type FoundSkill, type SkillSearchTransport } from './skills.js';
 import { CloudflareWebTools, validWebFetchInput, validWebSearchInput, type WebTools } from './web-tools.js';
 
 export type WorkOutput =
   | { type: 'help'; requestId: string; target: string; question: string; expected: string; refs?: string[] }
-  | { type: 'answer'; text: string; status?: 'success' | 'partial' | 'failed' }
-  | { type: 'deliver'; text: string; artifactIds: string[] }
+  | { type: 'answer'; text: string; status?: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[] }
+  | { type: 'deliver'; text: string; artifactIds: string[]; summary?: string; artifacts?: ArtifactDraft[] }
   | { type: 'decision'; decision: Decision }
   | { type: 'check'; passed: boolean; gaps: string[] }
   | { type: 'blocked'; reason: string }
@@ -37,8 +38,8 @@ export function validWorkOutput(value: unknown): value is WorkOutput {
   const strings = (a: unknown): a is string[] => Array.isArray(a) && a.every(x => typeof x === 'string');
   switch (v.type) {
     case 'help': return ['requestId', 'target', 'question', 'expected'].every(k => typeof v[k] === 'string' && (v[k] as string).trim().length > 0) && (v.refs === undefined || strings(v.refs));
-    case 'answer': return typeof v.text === 'string' && (v.status === undefined || ['success', 'partial', 'failed'].includes(String(v.status)));
-    case 'deliver': return typeof v.text === 'string' && strings(v.artifactIds);
+    case 'answer': return typeof v.text === 'string' && validSummary(v.summary) && validArtifactDrafts(v.artifacts) && (v.status === undefined || ['success', 'partial', 'failed'].includes(String(v.status)));
+    case 'deliver': return typeof v.text === 'string' && strings(v.artifactIds) && validSummary(v.summary) && validArtifactDrafts(v.artifacts);
     case 'decision': return !!v.decision && typeof v.decision === 'object';
     case 'check': return typeof v.passed === 'boolean' && strings(v.gaps);
     case 'blocked': return typeof v.reason === 'string';
@@ -138,14 +139,18 @@ export class WorkRunner {
       return true;
     }
     let event: TaskEvent;
+    const presentation = output.type === 'answer' || output.type === 'deliver' ? {
+      ...(output.summary === undefined ? {} : { summary: output.summary }),
+      ...(output.artifacts === undefined ? {} : { artifacts: output.artifacts }),
+    } : {};
     switch (output.type) {
       case 'help': event = { ...base, type: 'HELP', caller: work.target, requestId: output.requestId, target: output.target, question: output.question, expected: output.expected, ...(output.refs ? { refs: output.refs } : {}) }; break;
       case 'answer':
         event = work.kind === 'assistance'
-          ? { ...base, type: 'RECORD_RESULT', requestId: String(work.payload.requestId), resultId: base.id, status: output.status ?? 'success', answer: output.text }
-          : { ...base, type: 'DELIVER', text: output.text, artifactIds: [] };
+          ? { ...base, ...presentation, type: 'RECORD_RESULT', requestId: String(work.payload.requestId), resultId: base.id, status: output.status ?? 'success', answer: output.text }
+          : { ...base, ...presentation, type: 'DELIVER', text: output.text, artifactIds: [] };
         break;
-      case 'deliver': event = { ...base, type: 'DELIVER', text: output.text, artifactIds: output.artifactIds }; break;
+      case 'deliver': event = { ...base, ...presentation, type: 'DELIVER', text: output.text, artifactIds: output.artifactIds }; break;
       case 'decision': event = { ...base, type: 'COORDINATE', decision: output.decision }; break;
       case 'check': event = { ...base, type: 'CHECK_RESULT', resultId: base.id, passed: output.passed, gaps: output.gaps }; break;
       case 'blocked': event = { ...base, type: 'BLOCKED', reason: output.reason }; break;

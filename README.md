@@ -73,6 +73,8 @@ npm start
 
 ## 状态模型
 
+简短消息与完整报告对应 BT_A01–BT_A11：方案和核查结果的全文、摘要及报告在现有 DELIVER / RECORD_RESULT 事务中保存，完成检查和负责人仍使用完整材料。群里显示结论，报告可预览与下载，详情按消息定位对应任务。参见[需求评估](docs/concise-results.md)和[细化状态图](docs/state-diagrams.md#简短结果与产物发布)；复用原顶层状态，新增结果字段及事务守卫后再接入网页。
+
 ```mermaid
 stateDiagram-v2
     [*] --> running

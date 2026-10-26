@@ -26,17 +26,20 @@ export type Outcome = 'complete' | 'partial' | 'failed' | 'stopped';
 export interface Message {
   id: string; author: string; text: string; kind: 'user' | 'help' | 'answer' | 'notice' | 'final';
   at: number; taskId: string; requestId?: string; recipient?: string; replyTo?: string;
+  detailText?: string; artifactIds?: string[]; workId?: string;
 }
 export interface BoardEntry {
   id: string; revision: number; author: string; text: string;
   kind: 'evidence' | 'hypothesis' | 'opinion' | 'decision' | 'deadEnd';
   sources: string[]; verified: boolean; goalVersion: number;
 }
-export interface Artifact { id: string; name: string; content: string; goalVersion: number }
+export interface ArtifactDraft { name: string; content: string }
+export interface Artifact { id: string; name: string; content: string; goalVersion: number; author?: string; workId?: string }
 export interface Assistance extends Fence {
   id: string; target: string; question: string; expected: string; refs: string[];
   status: 'pending' | 'running' | 'answered' | 'success' | 'partial' | 'failed' | 'timeout' | 'cancelled';
   resultId?: string; answer?: string; consumed: boolean;
+  summary?: string; artifactIds?: string[];
   reviewId?: string;
   requestedBy?: string; requiredTools?: string[]; retryOf?: string;
 }
@@ -51,8 +54,8 @@ export interface Intent extends Fence {
 }
 export interface Reply { ok: boolean; code: string; detail: string }
 export interface InputNote { id: string; text: string; applied: boolean }
-export interface RecordedResult extends Fence { requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; consumed: boolean }
-export interface Candidate { text: string; artifactIds: string[]; goalVersion: number }
+export interface RecordedResult extends Fence { requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; consumed: boolean; summary?: string; artifactIds?: string[]; workId?: string }
+export interface Candidate { text: string; artifactIds: string[]; goalVersion: number; summary?: string; workId?: string }
 export interface ConversationHistory {
   messages: Message[];
   artifacts: (Artifact & { taskId: string })[];
@@ -91,8 +94,8 @@ export type Decision =
   | { action: 'finish'; reason: string };
 export type TaskEvent = Envelope & (
   | { type: 'HELP'; requestId: string; caller: string; target: string; question: string; expected: string; refs?: string[]; requiredTools?: string[] }
-  | { type: 'HELP_RESULT'; requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string }
-  | { type: 'RECORD_RESULT'; requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string }
+  | { type: 'HELP_RESULT'; requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; summary?: string; artifactIds?: string[] }
+  | { type: 'RECORD_RESULT'; requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; summary?: string; artifacts?: ArtifactDraft[] }
   | { type: 'RETRY_ASSISTANCE'; requestId: string; text: string; config?: TeamConfig }
   | { type: 'BLOCKED'; reason: string }
   | { type: 'COORDINATE'; decision: Decision }
@@ -101,7 +104,7 @@ export type TaskEvent = Envelope & (
   | { type: 'BOUNDARY' }
   | { type: 'HANDOFF'; owner: string }
   | { type: 'WAIT_USER'; question: string }
-  | { type: 'DELIVER'; text: string; artifactIds: string[] }
+  | { type: 'DELIVER'; text: string; artifactIds: string[]; summary?: string; artifacts?: ArtifactDraft[] }
   | { type: 'CHECK_RESULT'; passed: boolean; gaps: string[]; resultId: string }
   | { type: 'STOP' }
   | { type: 'SETTLE'; intentId: string }
