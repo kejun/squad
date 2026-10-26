@@ -2,6 +2,26 @@
 
 本文件与 README 的「状态模型」共同描述当前功能。顶层任务状态由 `src/task.machine.ts` 管理；下图分别标明上下文状态、操作状态和界面状态，不能将后两者误认为新增的 XState 顶层状态。
 
+## 模型输出格式修正
+
+对应 BT_M10–BT_M20。现有适配器将 JSON/角色协议错误抛为永久失败，无法自动重新生成。采用[校验反馈回路](https://docs.langchain.com/oss/javascript/langgraph/thinking-in-langgraph)：保留原任务和已取得的工具资料，指出字段校验问题后请求新结果；不把格式错误转为用户信息不足，也不放宽验证。兼容第三方服务，继续使用原响应格式配置，不强制供应商支持新的严格 schema 参数。
+
+```mermaid
+stateDiagram-v2
+    [*] --> inflight: 已持久化意图通过领取校验
+    inflight --> validating: 收到完整文本返回
+    validating --> applied: JSON与当前角色协议均有效 / 回传原有结果事件
+    validating --> repairSaved: REGENERATE_MODEL_OUTPUT / 当前工作、版本、截止、请求预算与重试额度守卫通过 / 保存安全问题代码与计数
+    repairSaved --> inflight: CONSUME另扣请求额度 / 带原上下文和修正要求调用同一模型
+    validating --> waitingHuman: 修正额度不足或不可恢复故障 / 原有失败处理
+    repairSaved --> stopped: 停止、版本改变、超时或存储失败 / 不发出新请求
+    repairSaved --> inflight: 重启恢复 / 保留已用次数与问题代码，再次领取校验
+```
+
+保留 running、waitingAssistance、coordinating、checking 等既有业务顶层状态；新增 REGENERATE_MODEL_OUTPUT 事件及操作上下文 outputRepair。状态机只保存修正次数与受控校验代码，使用现有 usage.retries/config.limits.retries，不新增独立预算。后续模型请求仍通过 CONSUME，扣所属 ordinary 或 checks 额度；修正不重置本次工作截止时间，也不重新执行已完成的工具。停止、旧轮次/目标版本、非在途或非模型工作、额度耗尽时拒绝。重复事件回执不重复计数；重启保留修正信息，不绕过恢复和模型绑定校验。
+
+错误 type、passed 类型、gaps 缺失/null/非字符串数组、无效 JSON、其他角色协议错误只触发重新生成；不自动将字符串转换为布尔、不补空数组、不发布无效返回中的产物或动作。反馈仅包含宿主生成的问题代码和允许的协议，不回显原始错误返回或凭据。合法 passed:false 按普通检查不通过推进。HTTP 鉴权/网络故障、响应截断和供应商响应损坏沿用原处理，不走格式回路。网页执行器透传授权钩子并记录格式修正；群消息不因一次格式修正而发布长篇报错。存储事务失败后禁止继续请求。
+
 ## 详情复制与导出
 
 对应 BT_A12–BT_A21。现有详情只提供产物下载，消息全文、依据和折叠过程缺少便捷的带走入口。采用常规的浏览器[剪贴板写入](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText)与[Blob文件下载](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a#download)，不引入导出服务或格式选择菜单。Clipboard API可能因非安全上下文或浏览器权限失败，必须等待写入确认；[对象URL](https://developer.mozilla.org/en-US/docs/Web/API/URL/revokeObjectURL_static)使用后回收。
