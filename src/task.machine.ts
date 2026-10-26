@@ -1,5 +1,5 @@
 import { assign, initialTransition, setup, transition, type SnapshotFrom } from 'xstate';
-import type { ArtifactDraft, Assistance, BoardEntry, Decision, Intent, Phase, TaskContext, TaskEvent, TaskInput } from './types.js';
+import { modelOutputIssues, type ArtifactDraft, type Assistance, type BoardEntry, type Decision, type Intent, type Phase, type TaskContext, type TaskEvent, type TaskInput } from './types.js';
 import { modelSignature, resolveModel } from './model-config.js';
 import { compactMessage, isLongResult, validArtifactDrafts, validSummary } from './presentation.js';
 
@@ -312,14 +312,24 @@ function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (i.kind === 'tool' && !c.config.bots.find(b => b.id === i.target)?.tools.includes(String(i.payload.tool))) return 'TOOL_PERMISSION';
       return requestBudgetProblem(c, i);
     }
+    case 'REGENERATE_MODEL_OUTPUT': {
+      const i = c.intents.find(i => i.id === e.intentId);
+      if (!i || i.status !== 'inflight') return 'WORK_NOT_INFLIGHT';
+      if (!['owner', 'assistance', 'facilitator', 'check'].includes(i.kind) || i.replay === 'unsafe') return 'OUTPUT_REPAIR_NOT_ALLOWED';
+      if (i.epoch !== c.epoch || i.goalVersion !== c.goalVersion) return 'STALE_WORK';
+      if (!modelOutputIssues.includes(e.issue)) return 'INVALID_OUTPUT_ISSUE';
+      if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
+      if (c.usage.retries >= c.config.limits.retries) return 'OUTPUT_REPAIR_EXHAUSTED';
+      return requestBudgetProblem(c, i);
+    }
     case 'CONSUME': {
       const i = c.intents.find(i => i.id === e.intentId);
       if (!i || i.status !== 'inflight' || i.bucket === 'none') return 'WORK_NOT_INFLIGHT';
       if (i.epoch !== c.epoch || i.goalVersion !== c.goalVersion) return 'STALE_WORK';
+      if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
       if (e.capability) {
         if (!['owner', 'assistance', 'facilitator'].includes(i.kind)) return 'WEB_TOOLS_NOT_ALLOWED';
         if (c.config.webTools?.enabled === false) return 'WEB_TOOLS_DISABLED';
-        if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
       }
       return i.requestCount > 0 ? requestBudgetProblem(c, i) : null;
     }
@@ -523,6 +533,13 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       work.requestCount++;
       break;
     }
+    case 'REGENERATE_MODEL_OUTPUT': {
+      const work = c.intents.find(i => i.id === e.intentId)!;
+      c.usage.retries++;
+      work.outputRepair = { count: (work.outputRepair?.count ?? 0) + 1, issue: e.issue };
+      c.trace.push({ event: 'MODEL_OUTPUT_REPAIR', at: e.at, detail: JSON.stringify({ intentId: work.id, issue: e.issue, count: work.outputRepair.count }) });
+      break;
+    }
     case 'WORK_FAILED': {
       const work = c.intents.find(i => i.id === e.intentId);
       if (!work) { reject(c, 'UNKNOWN_WORK'); break; }
@@ -697,6 +714,7 @@ export const taskMachine = setup({
     PROGRESS: { guard: 'valid', actions: 'apply' },
     CLAIM: { guard: 'claimCancel', actions: 'apply' },
     CONSUME: { guard: 'valid', actions: 'apply' },
+    REGENERATE_MODEL_OUTPUT: { guard: 'valid', actions: 'apply' },
     SETTLE: { guard: 'valid', actions: 'apply' },
     RECOVER: [{ guard: 'recoveredSafe', actions: 'apply' }, { target: '.waitingHuman', actions: 'apply' }],
     EXHAUSTED: { guard: 'valid', target: '.ended', actions: 'apply' },

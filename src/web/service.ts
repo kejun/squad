@@ -294,6 +294,11 @@ export class WebService {
         );
         const tracedScope: WorkScope = {
           sessionId: roomId,
+          regenerateModelOutput: (issue) => {
+            if (!scope.regenerateModelOutput) throw new Error('Model output repair authorization unavailable');
+            scope.regenerateModelOutput(issue);
+            this.append(roomId, work, "error", "模型输出格式不合规，重新生成", issue);
+          },
           authorizeAdditionalRequest: (id) => {
             scope.authorizeAdditionalRequest(id);
             this.append(roomId, work, "request", "发起后续请求", id);

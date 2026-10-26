@@ -1,5 +1,5 @@
 import type { TeamEngine } from './engine.js';
-import type { ArtifactDraft, Decision, Intent, TaskEvent } from './types.js';
+import type { ArtifactDraft, Decision, Intent, ModelOutputIssue, TaskEvent } from './types.js';
 import { validArtifactDrafts, validSummary } from './presentation.js';
 import { findSkills, type FoundSkill, type SkillSearchTransport } from './skills.js';
 import { CloudflareWebTools, validWebFetchInput, validWebSearchInput, type WebTools } from './web-tools.js';
@@ -23,6 +23,8 @@ export interface WorkScope {
   readonly sessionId?: string;
   /** The first request is reserved on claim; call before each additional model/tool request. */
   authorizeAdditionalRequest(requestId: string): void;
+  /** Authorize and persist a format repair before another request; absent hosts fail closed. */
+  regenerateModelOutput?(issue: ModelOutputIssue): void;
   /** Available to every member by default; each search reserves one execution unit. */
   findSkills(query: string, signal?: AbortSignal): Promise<FoundSkill[]>;
   webSearch: WebTools['search'];
@@ -80,6 +82,7 @@ export class WorkRunner {
     let output: WorkOutput;
     let skillSearchSequence = 0;
     let webSequence = 0;
+    let repairSequence = 0;
     const authorizeWeb = (capability: 'web_search' | 'web_fetch', signal: AbortSignal) => {
       signal.throwIfAborted();
       if (this.engine.config.webTools?.enabled === false) throw new WorkFailure('WEB_TOOLS_DISABLED');
@@ -91,6 +94,12 @@ export class WorkRunner {
     const scope: WorkScope = { sessionId: taskId, authorizeAdditionalRequest: requestId => {
       const response = this.engine.send(roomId, taskId, { type: 'CONSUME', intentId: work.id, id: `request:${work.id}:${work.attempt}:${requestId}`, at: this.clock(), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       if (!response.ok) throw new WorkFailure(response.code);
+    }, regenerateModelOutput: issue => {
+      controller.signal.throwIfAborted();
+      const response = this.engine.send(roomId, taskId, { type: 'REGENERATE_MODEL_OUTPUT', intentId: work.id, issue,
+        id: `repair:${work.id}:${work.attempt}:${++repairSequence}`, at: this.clock(),
+        fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
+      if (!response.ok) throw new WorkFailure(`模型输出格式不合规，无法继续重新生成 (${response.code})`);
     }, findSkills: async (query, signal) => {
       const current = this.engine.view(roomId, taskId)!.context;
       if (this.engine.config.skillSearch?.enabled === false || current.config.skillSearch?.enabled === false) throw new WorkFailure('SKILL_SEARCH_DISABLED');
