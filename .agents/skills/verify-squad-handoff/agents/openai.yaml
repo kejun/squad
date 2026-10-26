@@ -1,0 +1,4 @@
+interface:
+  display_name: "squad 形式化交接验证"
+  short_description: "穷举协助结果交接、停止与恢复的顺序，并核对真实代码和故障检出能力"
+  default_prompt: "使用 $verify-squad-handoff 检查 squad 的结果交接不变量、活性与实现对应关系。"

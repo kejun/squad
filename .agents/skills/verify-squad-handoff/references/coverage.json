@@ -1,0 +1,30 @@
+{
+  "syncCommit": "06be10113d80a8e884d93b9e3c6d5877143bf2c7",
+  "bounds": {
+    "tasks": 1,
+    "owner": "A",
+    "assistant": "B",
+    "savedResults": 1,
+    "epochs": 2,
+    "goalVersions": 2,
+    "crashes": 1,
+    "rollbackFailures": 1,
+    "resumedOwnerClaims": 0
+  },
+  "files": {
+    "src/task.machine.ts": "7d18166fc88dcaad60ab497d4b64979f5462e498f31c3cfb1308dafea3395c8e",
+    "src/engine.ts": "e62c5fec7e47a87d0e172f06d3226d28b427ea5c3bf5bf0e93477da9a0f63bfb",
+    "src/store.ts": "bdf1fecfc09542d9a3e6dd57adf6dac57811f8273975317c526eb2ef6038a77c",
+    "src/runner.ts": "7d075fa60345f5183093b4e416263541c3d2bde4632233989ab2e35cc265fcd3",
+    "src/types.ts": "74bd98de07caa7114f2b6ab8f85c8a7ded8ba322d6457edc52d646fb0eac8d92",
+    "src/model-config.ts": "a56d2236ccd27ded0bfce1e2c7785781244ff42611f4e69bb9d2e055226d19a1",
+    "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
+    "src/presentation.ts": "860b9ce7a4123a25d161143153c6aa7518ad4aa25df0de69456e7e5abd5cebee",
+    "src/conversation.ts": "e5f220badb6786892b99c577034029d88fc3bc5e93edb4c5e6d6ee723a529c6e",
+    "src/model-env.ts": "781b6e0001fbc1a8bd56736ea5c0740ddc60d6932bc843b0c938a20ef1f24afa",
+    "src/index.ts": "6750bf3feb1228362d45bec601cc0d4822ee59d17ddc36b733276c2febb6cc62",
+    "team.config.ts": "4f8fa96ed8aa161c9b4648de8b1b365bb72a9879fbfa73e114aa6396457e4298",
+    "package.json": "36d938a5d5c1571eb69597937dd1fcea82dabc13aeca4ebea93ccbcbdbe609a1",
+    "package-lock.json": "0a84b488be918aaba7bbd8078cba52fffb1c88ca75a1e7305ee9f8c8a3286cac"
+  }
+}
