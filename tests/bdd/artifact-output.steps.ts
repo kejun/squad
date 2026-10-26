@@ -140,7 +140,8 @@ When('打开旧消息对应的报告详情', function (this: SpecWorld) {
   const s = state(this); s.html = renderToStaticMarkup(createElement(Details, { snapshot: s.snapshot!, agent: null, connected: true, onClose() {}, target: { taskId: 'old-task', messageId: 'old-result', artifactId: 'old-report' } }));
 });
 Then('应展示旧任务报告的完整内容并提供下载', function (this: SpecWorld) {
-  const html = state(this).html!; assert(html.includes('独特尾段：报告全文必须保留。')); assert(html.includes('下载 恢复方案.md'));
+  const html = state(this).html!; assert(html.includes('独特尾段：报告全文必须保留。'));
+  assert(html.includes('<h2>恢复方案.md</h2>')); assert(html.includes('aria-label="导出详情"'));
 });
 Then('不应跳转到新任务的报告', function (this: SpecWorld) { assert(!state(this).html!.includes('不应展示的新任务报告正文')); });
 Given('一条简短结果关联报告、来源与工具执行记录', function (this: SpecWorld) { state(this).snapshot = artifactSnapshot(); });

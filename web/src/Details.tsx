@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@base-ui/react/button";
 import { Tabs } from "@base-ui/react/tabs";
 import { Collapsible } from "@base-ui/react/collapsible";
@@ -14,7 +14,6 @@ import {
   Layers,
   LoaderCircle,
   Terminal,
-  X,
 } from "lucide-react";
 import type {
   ExecutionEvent,
@@ -25,7 +24,6 @@ import type {
 import {
   AgentAvatar,
   agentStatus,
-  IconButton,
   phaseLabel,
   Scroll,
   time,
@@ -33,6 +31,8 @@ import {
 import { MessageText } from "./MessageText";
 import type { DetailTarget } from "./ResultLinks";
 import { artifactsForAgent, messageArtifacts } from "./ResultLinks";
+import { DetailActions, downloadDetailDocument } from "./DetailActions";
+import { artifactDocument, buildDetailDocument } from "./detail-document";
 
 const kindLabel: Record<WebWork["kind"], string> = {
   owner: "执行任务",
@@ -78,16 +78,6 @@ function EventIcon({ event }: { event: ExecutionEvent }) {
     <Circle size={9} />
   );
 }
-function download(name: string, content: string) {
-  const url = URL.createObjectURL(
-    new Blob([content], { type: "text/plain;charset=utf-8" }),
-  );
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = name;
-  anchor.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 export function Details({
   snapshot,
   agent,
@@ -116,6 +106,8 @@ export function Details({
   const artifacts = agent
     ? artifactsForAgent(snapshot, agent.id)
     : (task?.artifacts.map((artifact) => ({ ...artifact, taskId: task.id })) ?? []);
+  const detailDocument = useMemo(() => focused ? null : buildDetailDocument(snapshot, { agent, tab }),
+    [snapshot, agent, tab, focused]);
   if (focused) return <ResultDetails snapshot={snapshot} target={focused} connected={connected} onClose={onClose} onAgent={onAgent}
     onOpen={setOpened} onBack={() => setOpened(target ? { taskId: target.taskId, ...(target.messageId ? { messageId: target.messageId } : {}) } : null)} />;
   return (
@@ -123,14 +115,11 @@ export function Details({
       className="details"
       aria-label={agent ? `${agent.name}的执行过程` : "任务详情"}
     >
-      <header className="details-header">
+      <DetailActions document={detailDocument} onClose={onClose}>
         <span>
           <Layers size={15} /> {agent ? "成员详情" : "任务详情"}
         </span>
-        <IconButton label="关闭详情" onClick={onClose}>
-          <X size={17} />
-        </IconButton>
-      </header>
+      </DetailActions>
       {agent ? (
         <>
           <div className="agent-profile">
@@ -374,7 +363,7 @@ function Artifacts({
           <Button
             className="icon-button"
             aria-label={`下载 ${artifact.name}`}
-            onClick={() => download(artifact.name, artifact.content)}
+            onClick={() => downloadDetailDocument(artifactDocument(artifact, artifact.taskId))}
           >
             <ArrowDownToLine size={16} />
           </Button>
@@ -403,19 +392,18 @@ function ResultDetails({ snapshot, target, onClose, onOpen, onBack, connected, o
   const events = snapshot?.events.filter((event) => event.taskId === target.taskId) ?? [];
   const author = artifact?.author ?? message?.author;
   const agent = snapshot?.agents.find((item) => item.id === author);
+  const detailDocument = useMemo(() => buildDetailDocument(snapshot, { target }),
+    [snapshot, target.taskId, target.messageId, target.artifactId]);
   return (
     <aside className="details" aria-label={artifact ? "报告预览" : "结果详情"}>
-      <header className="details-header">
+      <DetailActions document={detailDocument} onClose={onClose}>
         <span><FileText size={15} /> {artifact ? "报告" : "详情"}</span>
-        <IconButton label="关闭详情" onClick={onClose}><X size={17} /></IconButton>
-      </header>
+      </DetailActions>
       <Scroll>
         <div className="task-details result-details">
           {!available ? <p className="no-record">内容已不可用</p> : artifact ? <>
             <Button className="result-back" onClick={onBack}><ArrowLeft size={13} /> 返回详情</Button>
-            <div className="report-heading"><h2>{artifact.name}</h2>
-              <Button className="icon-button" aria-label={`下载 ${artifact.name}`} onClick={() => download(artifact.name, artifact.content)}><ArrowDownToLine size={16} /></Button>
-            </div>
+            <div className="report-heading"><h2>{artifact.name}</h2></div>
             {author && <p className="report-author">{agent?.name ?? author}</p>}
             {/\.(?:md|markdown)$/i.test(artifact.name)
               ? <MessageText text={artifact.content} agents={onAgent ? snapshot?.agents ?? [] : []} onAgent={onAgent ?? noAgentAction} />
