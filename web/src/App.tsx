@@ -438,6 +438,9 @@ export function Workspace({
         </aside>
         <main className="chat-main">
           <header className="chat-header">
+            {!navigationExpanded && <div className="topbar-brand">
+              <Logo compact />
+            </div>}
             <Button
               ref={navigationToggle}
               className="icon-button navigation-toggle"
@@ -449,9 +452,6 @@ export function Workspace({
             >
               {panels.layout.mobile ? <Menu size={19} /> : navigationExpanded ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
             </Button>
-            <div className="topbar-brand">
-              <Logo compact />
-            </div>
             <div className="chat-title">
               <h1>{title}</h1>
             </div>

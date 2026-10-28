@@ -17,6 +17,18 @@ async function setup(world: SpecWorld, width = 1440, raw?: string, denied = fals
   states.set(world, { fixture });
   await fixture.mount(); return fixture;
 }
+function assertTopbarBrand(f: PanelFixture, visible: boolean) {
+  const brand = f.container.querySelector('.chat-header .topbar-brand');
+  if (!visible) { assert(!brand, '导航展开时顶栏不应渲染品牌图形'); return; }
+  assert(brand);
+  assert(f.query('.chat-header').firstElementChild === brand, '品牌图形必须位于顶栏首位');
+  const img = f.query('.chat-header .topbar-brand img');
+  assert.equal(img.getAttribute('src'), '/logo.svg'); assert.equal(img.getAttribute('alt'), 'Squad');
+  for (const element of [img, brand]) {
+    const style = f.window.getComputedStyle(element as never);
+    assert.notEqual(style.display, 'none'); assert.notEqual(style.visibility, 'hidden');
+  }
+}
 After(async function (this: SpecWorld) { const value = states.get(this); if (value) await value.fixture.close(); states.delete(this); });
 
 Given('宽度为{int}的工作区中左右面板均展开', async function (this: SpecWorld, width: number) {
@@ -202,13 +214,9 @@ When('临时将工作区宽度改为{int}像素', async function (this: SpecWorl
   await state(this).fixture.viewport(width);
 });
 When('关闭详情后查看工作区顶栏', async function (this: SpecWorld) { await state(this).fixture.click('收起详情'); });
-Then('顶栏应展示可访问的Squad图形标识', function (this: SpecWorld) {
-  const f = state(this).fixture, img = f.query('.chat-header .topbar-brand img');
-  assert.equal(img.getAttribute('src'), '/logo.svg'); assert.equal(img.getAttribute('alt'), 'Squad');
-  for (const element of [img, f.query('.topbar-brand')]) {
-    const style = f.window.getComputedStyle(element as never);
-    assert.notEqual(style.display, 'none'); assert.notEqual(style.visibility, 'hidden');
-  }
+Then('顶栏品牌图形应{string}', function (this: SpecWorld, expected: string) {
+  assert(['隐藏', '显示在首位'].includes(expected));
+  assertTopbarBrand(state(this).fixture, expected === '显示在首位');
 });
 Then('顶栏群聊标题和导航详情入口仍可用', async function (this: SpecWorld) {
   const f = state(this).fixture, navigation = f.query('.navigation-toggle');
@@ -216,7 +224,9 @@ Then('顶栏群聊标题和导航详情入口仍可用', async function (this: S
   const wasExpanded = navigation.getAttribute('aria-expanded');
   await f.click(navigation.getAttribute('aria-label')!);
   assert.notEqual(navigation.getAttribute('aria-expanded'), wasExpanded);
+  assertTopbarBrand(f, wasExpanded === 'true');
   await f.click(navigation.getAttribute('aria-label')!);
+  assertTopbarBrand(f, wasExpanded !== 'true');
   await f.openDetails(); assert(f.container.querySelector('#workspace-details'));
   await f.click('收起详情'); assert(!f.container.querySelector('#workspace-details'));
   assert.deepEqual(f.requests, []);
