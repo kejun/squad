@@ -38,7 +38,7 @@ function preferences(value: unknown): PanelPreferences {
       ? Math.round(clamp(value, min, max)) : fallback;
   return {
     leftWidth: width(source.leftWidth, 252, 220, 420),
-    rightWidth: width(source.rightWidth, 352, 300, 680),
+    rightWidth: width(source.rightWidth, 352, 300, Number.MAX_SAFE_INTEGER),
     leftCollapsed: typeof source.leftCollapsed === "boolean"
       ? source.leftCollapsed : false,
   };
@@ -69,7 +69,7 @@ export function resolvePanelLayout(
     ? 0 : clamp(pref.leftWidth, leftBounds.min, leftBounds.max);
   const rightMax = Math.floor(detailsOverlay
     ? Math.min(680, overlaySpace)
-    : Math.min(680, width - 360 - left));
+    : width - 360 - left);
   const rightBounds = { min: Math.min(300, rightMax), max: rightMax };
   return {
     mobile,

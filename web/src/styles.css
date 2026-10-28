@@ -320,19 +320,18 @@ svg {
   border-bottom: 1px solid var(--line);
   gap: 14px;
 }
-.chat-title-icon {
-  width: 35px;
-  height: 35px;
-  border: 1px solid #e9ecf0;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  color: #7f8a96;
-  background: #fcfcfd;
+.topbar-brand {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
+}
+.topbar-brand .brand-mark {
+  width: 32px;
+  height: 32px;
 }
 .chat-title {
   min-width: 0;
+  flex: 1;
 }
 .chat-title h1 {
   font-size: 14px;
@@ -346,6 +345,7 @@ svg {
 .header-actions {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   gap: 19px;
   margin-left: auto;
 }
@@ -2038,9 +2038,6 @@ svg {
     min-height: 64px;
     padding: 0 19px;
     gap: 10px;
-  }
-  .chat-title-icon {
-    display: none;
   }
   .chat-title h1 {
     font-size: 14px;

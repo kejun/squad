@@ -173,3 +173,51 @@ Then('布局应按工作区可用宽度采用{string}而不混用视窗断点', 
     assert(f.availableWidth >= 360);
   }
 });
+
+Given('宽度为{int}的工作区中左侧导航{string}且详情展开', async function (this: SpecWorld, width: number, navigation: string) {
+  assert(['展开', '收起'].includes(navigation));
+  const f = await setup(this, width); await f.openDetails();
+  if (width > 720 && navigation === '收起') await f.click('收起导航');
+  if (width <= 720 && navigation === '展开') await f.openNavigation();
+});
+Then('右侧详情宽度应为{int}像素且拖拽上限为{int}像素', function (this: SpecWorld, width: number, max: number) {
+  const f = state(this).fixture;
+  assert.equal(f.widthOf('right'), width);
+  assert.equal(Number(f.separator('right').getAttribute('aria-valuemax')), max);
+  assert.equal(f.query('.workspace').style.getPropertyValue('--details-width'), `${width}px`);
+});
+Then('聊天区应至少保留360像素', function (this: SpecWorld) {
+  const f = state(this).fixture;
+  const left = Number.parseFloat(f.query('.workspace').style.getPropertyValue('--sidebar-width'));
+  assert(f.availableWidth - left - f.widthOf('right') >= 360);
+});
+When('重新加载已保存的布局', async function (this: SpecWorld) {
+  const f = state(this).fixture, raw = f.storage.getItem(PANEL_LAYOUT_STORAGE_KEY), width = f.availableWidth;
+  await f.close(); const reloaded = await setup(this, width, raw!); await reloaded.openDetails();
+});
+Then('右侧保存偏好仍为{int}像素', function (this: SpecWorld, width: number) {
+  assert.equal(state(this).fixture.preferences()?.rightWidth, width);
+});
+When('临时将工作区宽度改为{int}像素', async function (this: SpecWorld, width: number) {
+  await state(this).fixture.viewport(width);
+});
+When('关闭详情后查看工作区顶栏', async function (this: SpecWorld) { await state(this).fixture.click('收起详情'); });
+Then('顶栏应展示可访问的Squad图形标识', function (this: SpecWorld) {
+  const f = state(this).fixture, img = f.query('.chat-header .topbar-brand img');
+  assert.equal(img.getAttribute('src'), '/logo.svg'); assert.equal(img.getAttribute('alt'), 'Squad');
+  for (const element of [img, f.query('.topbar-brand')]) {
+    const style = f.window.getComputedStyle(element as never);
+    assert.notEqual(style.display, 'none'); assert.notEqual(style.visibility, 'hidden');
+  }
+});
+Then('顶栏群聊标题和导航详情入口仍可用', async function (this: SpecWorld) {
+  const f = state(this).fixture, navigation = f.query('.navigation-toggle');
+  assert.equal(f.query('.chat-title h1').textContent, '当前群聊');
+  const wasExpanded = navigation.getAttribute('aria-expanded');
+  await f.click(navigation.getAttribute('aria-label')!);
+  assert.notEqual(navigation.getAttribute('aria-expanded'), wasExpanded);
+  await f.click(navigation.getAttribute('aria-label')!);
+  await f.openDetails(); assert(f.container.querySelector('#workspace-details'));
+  await f.click('收起详情'); assert(!f.container.querySelector('#workspace-details'));
+  assert.deepEqual(f.requests, []);
+});
