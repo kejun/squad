@@ -40,6 +40,7 @@ const kindLabel: Record<WebWork["kind"], string> = {
   assistance: "协助成员",
   check: "检查交付",
   facilitator: "协调任务",
+  discussionSummary: "汇总讨论",
   tool: "调用工具",
   cancel: "取消执行",
 };

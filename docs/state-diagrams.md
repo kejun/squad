@@ -2,6 +2,40 @@
 
 本文件与 README 的「状态模型」共同描述当前功能。顶层任务状态由 `src/task.machine.ts` 管理；下图分别标明上下文状态、操作状态和界面状态，不能将后两者误认为新增的 XState 顶层状态。
 
+## 工作期间的后台讨论
+
+对应 BT_T01–BT_T17。沿用任务顶层状态，在 src/task.machine.ts 增加持久化 discussion 上下文和带 discussionId 的操作；主工作与讨论分别推进，讨论不能变更负责人或主目标。需求依据和替代方案见 [评估](background-discussion.md)。
+
+```mermaid
+stateDiagram-v2
+    [*] --> planning: 直接用户邀请且有空闲成员和预留预算 / 保存轮次和协调员意图
+    [*] --> delivered: 无空闲成员或预算不足 / 明确说明原因，无模型请求
+    planning --> collecting: DISCUSSION_PLAN校验通过 / 保存受授权成员意图
+    collecting --> collecting: DISCUSSION_RESULT / 原子保存意见和成员状态
+    collecting --> summarizing: 全部成员结算 / 保存协调员汇总意图
+    summarizing --> ready: DISCUSSION_RESULT / 保存汇总和完整来源
+    planning --> ready: 安排失败或超时 / 保存失败交接
+    summarizing --> ready: 汇总失败或超时 / 保存原意见清单与失败说明
+    ready --> ready: 主请求仍在途或等待用户 / 不重开负责人
+    ready --> delivered: 主工作安全边界 / 原负责人收到草稿、汇总及全部意见
+    planning --> planning: 重复直接邀请 / 说明复用当前轮次
+    collecting --> collecting: 重复直接邀请 / 不重复派发
+    planning --> cancelled: STOP或目标版本改变
+    collecting --> cancelled: STOP或目标版本改变
+    summarizing --> cancelled: STOP或目标版本改变
+    ready --> cancelled: STOP或目标版本改变
+```
+
+每次外部请求都先保存意图，再经 CLAIM 检查轮次、epoch、goalVersion、期限、成员互斥和预算，之后 CONSUME 才调用适配器。成员复用 assistance 协议但不进入主流程单一 assists 等待关系；协调员安排复用 facilitator 协议，汇总使用 discussionSummary 的只读 answer 协议。结果携带已领取 workId 与 discussionId，保存原文、报告、状态和下一步意图同事务提交，重复或旧结果拒绝。讨论无权重新邀请、修改目标、发起嵌套协助或提前发布最终交付。
+
+主流程 running 的 DELIVER 在讨论尚未交接时只保存候选草稿，不进入 checking；其他需要负责人接续的结果也等待讨论。ready 且无主请求、无未结算主协助和待解析输入时交接一次，恢复原 running 工作，最后沿用 checking。等待用户不会被后台结果擅自解除。讨论失败和跳过原因进入交接，最终交付如实标为部分完成。
+
+主请求在讨论期间报告 BLOCKED 或达到重复失败阈值时，保持 running 并保存阻塞原因和延后协调标记，等待正在收集的新依据；不另发可能提前结束任务的监督请求。讨论交接清除延后协调标记，将原阻塞与意见一起交给负责人。
+
+取消、结束与硬约束变化覆盖全部操作，普通主工作切换只取消主操作。重启重新校验成员、权限、版本和模型绑定，仅恢复未完成安全意图；已提交意见不重放。网页执行器按具体工作启动有界异步请求，不再按整个群阻塞；调度资格始终来自状态机和事务领取，宿主不自行选择成员或修改讨论状态。
+
+宿主中的在途工作以群 ID 与工作 ID 共同标识，避免不同群的相同输入编号互相阻塞。没有成功领取或消费结果时让出执行，等待已有请求结算、下一条命令或定时检查，不递归空转领取。宿主或存储故障暂停该群本进程中的后续派发，沿用 waitingHuman 与存储故障保护；这些是执行器互斥与生命周期规则，不新增业务 XState 状态。
+
 ## 输入意图解析
 
 对应 BT_I01–BT_I21。保留原执行内核，以 [Zod 运行时契约](https://zod.dev/basics)校验规则与模型结果；按 [XState 持久化](https://stately.ai/docs/persistence)的快照边界保存解析工作。结构化生成仍需宿主校验，参考 [AI SDK 结构化数据说明](https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data)，不引入该 SDK。项目继续固定 XState 5，不升级执行框架。

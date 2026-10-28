@@ -19,7 +19,7 @@ const line = (value: string) => value.replace(/[\r\n]+/g, " ");
 const workKinds: Record<WebWork["kind"], string> = {
   interpretation: "理解输入",
   owner: "执行任务", assistance: "协助成员", check: "检查交付",
-  facilitator: "协调任务", tool: "调用工具", cancel: "取消执行",
+  facilitator: "协调任务", discussionSummary: "汇总讨论", tool: "调用工具", cancel: "取消执行",
 };
 const workStatuses: Record<WebWork["status"], string> = {
   pending: "待执行", inflight: "执行中", done: "已结束", cancelled: "已取消", uncertain: "待核对",
