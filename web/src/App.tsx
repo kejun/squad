@@ -449,8 +449,8 @@ export function Workspace({
             >
               {panels.layout.mobile ? <Menu size={19} /> : navigationExpanded ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
             </Button>
-            <div className="chat-title-icon">
-              <Hash size={20} />
+            <div className="topbar-brand">
+              <Logo compact />
             </div>
             <div className="chat-title">
               <h1>{title}</h1>
