@@ -1,4 +1,4 @@
-import { initialTask, persistTask, restoreTask, stepTask, taskMachine, taskPhase, type TaskSnapshot } from './task.machine.js';
+import { initialTask, persistTask, restoreTask, stepTask, taskMachine, taskPhase, workLaneAvailable, type TaskSnapshot } from './task.machine.js';
 import { validateConfig, type Phase, type TaskEvent, type TaskInput } from './types.js';
 
 export type DebugEvent = TaskEvent | { type: '@init'; id: string; at: number };
@@ -64,7 +64,8 @@ export function taskGraph(): MachineGraph {
 }
 export function stateTransitions(graph: MachineGraph, state: string): MachineTransition[] {
   const local = graph.transitions.filter(t => t.source === state);
-  const overridden = new Set(local.filter(t => t.event !== '@always').map(t => t.event));
+  // Guarded local handlers can decline an event, allowing the parent handler to run.
+  const overridden = new Set(local.filter(t => t.event !== '@always' && t.guards.length === 0).map(t => t.event));
   return [...local, ...graph.transitions.filter(t => t.source === '*' && !overridden.has(t.event))];
 }
 export function debugFrame(snapshot: TaskSnapshot, event: DebugEvent, from: Phase | null): DebugFrame {
@@ -73,6 +74,8 @@ export function debugFrame(snapshot: TaskSnapshot, event: DebugEvent, from: Phas
 
 // Shape checks only. Business permissions, limits, fence checks, and rejection codes remain in taskMachine.
 const eventFields: Record<string, Record<string, 'string' | 'boolean' | 'object' | 'array'>> = {
+  DISCUSSION_PLAN: { workId: 'string', discussionId: 'string', fence: 'object', decision: 'object' },
+  DISCUSSION_RESULT: { workId: 'string', discussionId: 'string', fence: 'object', text: 'string', status: 'string' },
   HELP: { requestId: 'string', caller: 'string', target: 'string', question: 'string', expected: 'string' },
   HELP_RESULT: { requestId: 'string', resultId: 'string', status: 'string', answer: 'string' },
   RECORD_RESULT: { requestId: 'string', resultId: 'string', status: 'string', answer: 'string' },
@@ -176,7 +179,9 @@ export class TaskSandbox {
 export function debugEventTemplate(snapshot: TaskSnapshot, type: string): Record<string, unknown> {
   const c = snapshot.context;
   const latest = [...c.intents].reverse();
-  const work = latest.find(i => i.status === 'inflight' && i.kind !== 'cancel')
+  const work = latest.find(i => i.status === 'inflight' && i.kind !== 'cancel' && !i.discussionId)
+    ?? latest.find(i => i.status === 'pending' && i.kind !== 'cancel' && !i.discussionId)
+    ?? latest.find(i => i.status === 'inflight' && i.kind !== 'cancel')
     ?? latest.find(i => i.status === 'pending' && i.kind !== 'cancel');
   const help = c.assists.find(h => ['pending', 'running', 'answered'].includes(h.status)) ?? c.assists.at(-1);
   const result = c.results.find(r => !r.consumed);
@@ -184,12 +189,20 @@ export function debugEventTemplate(snapshot: TaskSnapshot, type: string): Record
   const base = { type, at: c.lastActivityAt + 1 };
   const completion = { ...base, fence: frame, ...(work?.status === 'inflight' ? { workId: work.id } : {}) };
   switch (type) {
+    case 'DISCUSSION_PLAN': case 'DISCUSSION_RESULT': {
+      const discussionWork = latest.find(item => item.discussionId === c.discussion?.id && !!item.discussionId && item.status === 'inflight'
+        && (type === 'DISCUSSION_PLAN' ? item.kind === 'facilitator' : ['assistance', 'discussionSummary'].includes(item.kind)));
+      return { ...base, workId: discussionWork?.id ?? '', discussionId: discussionWork?.discussionId ?? c.discussion?.id ?? '',
+        fence: discussionWork ? { epoch: discussionWork.epoch, goalVersion: discussionWork.goalVersion } : frame,
+        ...(type === 'DISCUSSION_PLAN' ? { decision: { action: 'review', question: '根据已有目标与资料讨论风险和替代方案', expected: '独立意见及来源依据', reason: '用户直接邀请空闲成员讨论' } }
+          : { text: discussionWork?.kind === 'discussionSummary' ? '协调员汇总：区分共识、分歧、依据与未完成项。' : `${discussionWork?.target ?? '成员'} 的独立意见与依据。`, status: 'success' }) };
+    }
     case 'HELP': return { ...completion, requestId: 'debug-help:' + c.nextSeq, caller: c.owner, target: c.config.bots.find(b => b.id !== c.owner)?.id ?? c.owner, question: '核对恢复风险', expected: '依据和限制' };
     case 'HELP_RESULT': case 'RECORD_RESULT': {
       const helpWork = latest.find(i => i.kind === 'assistance' && i.payload.requestId === help?.id && i.status === 'inflight');
       return { ...base, fence: frame, ...(helpWork ? { workId: helpWork.id } : {}), requestId: help?.id ?? 'debug-help', resultId: result?.resultId ?? 'debug-result:' + c.nextSeq, status: 'success', answer: '已核对，建议补充恢复验证。' };
     }
-    case 'CLAIM': return { ...base, intentId: latest.find(i => i.status === 'pending' && i.kind !== 'cancel')?.id ?? '' };
+    case 'CLAIM': return { ...base, intentId: latest.find(i => i.status === 'pending' && i.kind !== 'cancel' && workLaneAvailable(c, i))?.id ?? '' };
     case 'CONSUME': case 'SETTLE': return { ...base, intentId: work?.id ?? '' };
     case 'WORK_FAILED': return { ...completion, intentId: work?.id ?? '', reason: '模拟外部故障', transient: false };
     case 'WAIT_USER': return { ...completion, question: '请选择下一步' };

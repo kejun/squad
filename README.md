@@ -18,6 +18,8 @@ npm run demo
 
 check 执行前后端及 Gherkin 步骤的严格 TypeScript 检查、回归测试、全部可自动验收的 Gherkin 场景，并生成 reports/spec-coverage.md。新增场景默认执行，漏绑定会失败；明确待验收项需在 features/acceptance-gaps.json 逐项登记。demo 使用受控模型替身演示 A 求助 B、保存回传、A 继续、检查交付与结束，不消耗真实模型费用。
 
+`npm run simulate:discussion` 批量运行后台讨论的真实 XState 转换，包括全部144种合法结果返回顺序与生命周期边界，输出逐步 JSON 轨迹和 Markdown 汇总到 `reports/`，任何断言失败都会返回非零退出码。[已运行的仿真结果与修正](docs/discussion-simulation.md)说明覆盖范围、实际轨迹和保证边界；脚本不调用真实模型或工具。
+
 ## 群聊网页
 
 ```sh
@@ -77,7 +79,7 @@ npm start
 
 工作期间的后台讨论对应 BT_T01–BT_T17：直接邀请先保存独立的讨论轮次，协调员安排当时空闲的成员并行提供一轮意见，再汇总交给原负责人。主请求继续执行，原负责人在请求结算后吸收草稿与讨论结果；讨论完成前不检查或发布旧草稿。同成员互斥、共享预算、停止、版本隔离和恢复均由任务状态机校验，网页只领取可执行意图。参见[后台讨论状态图](docs/state-diagrams.md#工作期间的后台讨论)及[需求评估与取舍](docs/background-discussion.md)。
 
-浏览器状态机调试对应 BT_V01–BT_V09：`npm run dev` 默认开启，或用 `SQUAD_DEBUG=1 npm start` 显式开启宿主；网页顶栏的「状态机调试」直接打开状态图、实时观测与内存沙箱。也可在网页 URL 加 `?debug=1` 打开（仍需宿主允许）。图从当前 `taskMachine` 生成，包含 interpreting；沙箱复用纯转换、真实守卫和上下文更新，不启动执行器。实时观测在 SQLite 提交后发布，并按群、任务和进程会话隔离，保留有界事件历史。默认关闭时调试快照接口返回404。可选切换官方 Inspector iframe，本地图无需账号或外部服务。参见[调试交互及事务边界](docs/state-diagrams.md#浏览器状态机调试)。沿用现有任务 XState，不新增业务状态或任意事件写入接口。
+浏览器状态机调试对应 BT_V01–BT_V15：`npm run dev` 默认开启，或用 `SQUAD_DEBUG=1 npm start` 显式开启宿主；网页顶栏的「状态机调试」直接打开状态图、实时观测与内存沙箱。也可在网页 URL 加 `?debug=1` 打开（仍需宿主允许）。图从当前 `taskMachine` 生成，包含 interpreting；沙箱复用纯转换、真实守卫和上下文更新，不启动执行器。实时观测在 SQLite 提交后发布，并按群、任务和进程会话隔离，保留有界事件历史。默认关闭时调试快照接口返回404。可选切换官方 Inspector iframe，本地图无需账号或外部服务。参见[调试交互及事务边界](docs/state-diagrams.md#浏览器状态机调试)。沿用现有任务 XState，不新增业务状态或任意事件写入接口。
 
 输入意图对应 BT_I01–BT_I21：规则识别明确命令，复杂输入先进入 interpreting；状态机保存解析操作后，WorkRunner 领取并通过原模型适配器执行。结果经 Zod、引用身份和任务版本校验后，才进入规划、协作或检查；不确定时进入 waitingHuman。所有角色共享原始输入和经过校验的意图，直接指定的目标及硬约束始终保留。参见[输入意图解析](docs/state-diagrams.md#输入意图解析)。
 
