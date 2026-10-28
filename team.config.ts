@@ -6,10 +6,13 @@ loadModelEnvFile();
 export function createTeamConfig(env: ModelEnvironment = process.env): TeamConfig {
   const webEnabled = env.SQUAD_WEB_TOOLS_ENABLED?.trim().toLowerCase();
   if (webEnabled && !['true', 'false'].includes(webEnabled)) throw new Error('SQUAD_WEB_TOOLS_ENABLED must be true or false');
+  const intentEnabled = env.SQUAD_INTENT_ANALYSIS_ENABLED?.trim().toLowerCase();
+  if (intentEnabled && !['true', 'false'].includes(intentEnabled)) throw new Error('SQUAD_INTENT_ANALYSIS_ENABLED must be true or false');
   return configureModelsFromEnv({
   version: 'team-v1', toolVersion: 'tools-v1', defaultBot: 'A',
   skillSearch: { enabled: true },
   webTools: { enabled: webEnabled !== 'false' },
+  inputAnalysis: { enabled: intentEnabled !== 'false' },
   bots: [
     { id: 'A', name: '方案师', instructions: '负责交付，缺少依据时请求核查。', tools: ['read', 'writeArtifact'] },
     { id: 'B', name: '核查员', instructions: '核对具体问题，保留来源并说明不确定性。', tools: ['read'] },

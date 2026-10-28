@@ -35,6 +35,7 @@ import { DetailActions, downloadDetailDocument } from "./DetailActions";
 import { artifactDocument, buildDetailDocument } from "./detail-document";
 
 const kindLabel: Record<WebWork["kind"], string> = {
+  interpretation: "理解输入",
   owner: "执行任务",
   assistance: "协助成员",
   check: "检查交付",
@@ -68,6 +69,8 @@ const traceLabel: Record<string, string> = {
   COORDINATE: "协调任务",
   REGENERATE_MODEL_OUTPUT: "重新生成模型输出",
   MODEL_OUTPUT_REPAIR: "修正模型输出格式",
+  INTERPRETATION_RESULT: "保存输入理解",
+  INPUT_INTERPRETED: "输入理解完成",
 };
 function EventIcon({ event }: { event: ExecutionEvent }) {
   return event.kind === "error" ? (
@@ -292,6 +295,25 @@ export function Details({
                   </strong>
                 </div>
                 {task.reason && <p className="task-reason">{task.reason}</p>}
+                {!!task.inputAnalyses?.length && (
+                  <Collapsible.Root className="task-log">
+                    <Collapsible.Trigger>输入理解 <ChevronDown size={14} /></Collapsible.Trigger>
+                    <Collapsible.Panel>
+                      {task.inputAnalyses.map(input => (
+                        <div className="board-entry" key={input.id}>
+                          <span>{{ pending: "等待理解", inflight: "正在理解", resolved: "已理解", clarification: "等待澄清", failed: "理解失败", cancelled: "已取消" }[input.status]}</span>
+                          <MessageText agents={snapshot?.agents ?? []} onAgent={onAgent ?? noAgentAction} text={input.spec?.objective ?? input.rawText} />
+                          {input.spec && <MessageText agents={snapshot?.agents ?? []} onAgent={onAgent ?? noAgentAction} text={[
+                            ...input.spec.constraints.map(item => `- 约束：${item}`),
+                            ...input.spec.expectedOutputs.map(item => `- 交付：${item}`),
+                            ...input.spec.acceptanceCriteria.map(item => `- 验收：${item}`),
+                            ...(input.spec.clarification ? [input.spec.clarification] : []),
+                          ].join("\n")} />}
+                        </div>
+                      ))}
+                    </Collapsible.Panel>
+                  </Collapsible.Root>
+                )}
                 <h3 className="detail-section-heading">交付产物</h3>
                 <Artifacts artifacts={artifacts} onOpen={(artifact) => setOpened({ taskId: artifact.taskId, artifactId: artifact.id })} />
                 {!!task.board.length && (

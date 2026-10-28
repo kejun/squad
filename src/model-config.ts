@@ -2,8 +2,9 @@ import type { Intent, ModelBinding, TeamConfig } from './types.js';
 
 export function resolveModel(config: TeamConfig, kind: Intent['kind'], target: string): ModelBinding | undefined {
   const models = config.models;
-  if (!models || !['owner', 'assistance', 'facilitator', 'check'].includes(kind)) return undefined;
+  if (!models || !['interpretation', 'owner', 'assistance', 'facilitator', 'check'].includes(kind)) return undefined;
   const serviceId = kind === 'check' ? models.check ?? models.facilitator ?? models.default
+    : kind === 'interpretation' ? models.intent ?? models.facilitator ?? models.default
     : kind === 'facilitator' ? models.facilitator ?? models.default
     : config.bots.find(bot => bot.id === target)?.model ?? models.default;
   const service = models.services[serviceId];

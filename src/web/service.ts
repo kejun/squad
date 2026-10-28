@@ -138,6 +138,7 @@ export class WebService {
         artifacts: c.artifacts,
         board: c.board,
         trace: c.trace,
+        ...(c.inputAnalyses ? { inputAnalyses: c.inputAnalyses } : {}),
         assists: c.assists.filter(retryableAssistance).map((help) => {
           const problem = stored.activeTaskId && stored.activeTaskId !== taskId
             ? "ROOM_BUSY" : assistanceRetryProblem(c, help.id, this.config);
@@ -213,6 +214,9 @@ export class WebService {
     const first = this.engine.timeline(roomId).length === 0;
     const result = this.engine.submit(roomId, input);
     if (!result.ok) throw new WebError(409, result.detail);
+    if (result.taskId && this.engine.view(roomId, result.taskId)?.context.stopped) {
+      void this.drainCancellation(roomId, result.taskId).catch(error => this.hostError(roomId, error));
+    }
     if (first) {
       const title =
         input.text
@@ -284,7 +288,7 @@ export class WebService {
           roomId,
           work,
           "started",
-          work.kind === "check" ? "开始检查交付" : "开始执行",
+          work.kind === "interpretation" ? "开始理解输入" : work.kind === "check" ? "开始检查交付" : "开始执行",
           String(
             work.payload.question ??
               work.payload.reason ??
@@ -349,7 +353,7 @@ export class WebService {
             roomId,
             work,
             signal.aborted ? "cancelled" : "output",
-            signal.aborted ? "执行已取消" : "返回执行结果",
+            signal.aborted ? "执行已取消" : work.kind === "interpretation" ? "输入理解完成" : "返回执行结果",
             JSON.stringify(output, null, 2),
           );
           return output;

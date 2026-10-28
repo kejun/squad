@@ -1,3 +1,6 @@
+import type { InputIntentSpec } from './input-intent.js';
+export type { InputIntentSpec, InputReference } from './input-intent.js';
+
 export interface Bot { id: string; name: string; instructions: string; tools: string[]; model?: string }
 export interface ModelService {
   baseUrl: string; model: string; apiKeyEnv?: string;
@@ -5,7 +8,7 @@ export interface ModelService {
   extraBody?: Record<string, unknown>;
 }
 export interface ModelConfiguration {
-  default: string; facilitator?: string; check?: string; services: Record<string, ModelService>;
+  default: string; facilitator?: string; check?: string; intent?: string; services: Record<string, ModelService>;
 }
 export interface ModelBinding { serviceId: string; service: ModelService }
 export interface Limits {
@@ -17,11 +20,12 @@ export interface TeamConfig {
   skillSearch?: { enabled: boolean };
   /** Shared read-only web tools; omitted means enabled. Credentials stay in the host environment. */
   webTools?: { enabled: boolean };
+  inputAnalysis?: { enabled: boolean };
   models?: ModelConfiguration;
 }
 export interface Fence { epoch: number; goalVersion: number }
 export interface Goal { text: string; constraints: string[]; criteria: string[]; requiredArtifacts: number }
-export type Phase = 'running' | 'waitingAssistance' | 'coordinating' | 'waitingHuman' | 'checking' | 'stopping' | 'ended';
+export type Phase = 'interpreting' | 'running' | 'waitingAssistance' | 'coordinating' | 'waitingHuman' | 'checking' | 'stopping' | 'ended';
 export type Outcome = 'complete' | 'partial' | 'failed' | 'stopped';
 export interface Message {
   id: string; author: string; text: string; kind: 'user' | 'help' | 'answer' | 'notice' | 'final';
@@ -43,8 +47,8 @@ export interface Assistance extends Fence {
   reviewId?: string;
   requestedBy?: string; requiredTools?: string[]; retryOf?: string;
 }
-export type WorkKind = 'owner' | 'assistance' | 'facilitator' | 'check' | 'cancel' | 'tool';
-export const modelOutputIssues = ['invalid_json', 'invalid_object', 'invalid_type', 'check_passed_boolean', 'check_gaps_strings', 'invalid_work_output', 'invalid_decision', 'invalid_tool_request'] as const;
+export type WorkKind = 'interpretation' | 'owner' | 'assistance' | 'facilitator' | 'check' | 'cancel' | 'tool';
+export const modelOutputIssues = ['invalid_json', 'invalid_object', 'invalid_type', 'check_passed_boolean', 'check_gaps_strings', 'invalid_work_output', 'invalid_decision', 'invalid_tool_request', 'invalid_input_intent'] as const;
 export type ModelOutputIssue = typeof modelOutputIssues[number];
 export interface Intent extends Fence {
   id: string; kind: WorkKind; target: string; payload: Record<string, unknown>;
@@ -58,6 +62,13 @@ export interface Intent extends Fence {
 }
 export interface Reply { ok: boolean; code: string; detail: string }
 export interface InputNote { id: string; text: string; applied: boolean }
+export type InputAction = InputIntentSpec['action'];
+/** Interpretation of direct user input, distinct from an executable Intent. Optional on legacy snapshots. */
+export interface InputAnalysis extends Fence {
+  id: string; rawText: string; action: InputAction; source: 'rule' | 'model';
+  status: 'pending' | 'inflight' | 'resolved' | 'clarification' | 'failed' | 'cancelled';
+  spec?: InputIntentSpec; workId?: string; error?: string;
+}
 export interface RecordedResult extends Fence { requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; consumed: boolean; summary?: string; artifactIds?: string[]; workId?: string }
 export interface Candidate { text: string; artifactIds: string[]; goalVersion: number; summary?: string; workId?: string }
 export interface ConversationHistory {
@@ -86,6 +97,7 @@ export interface TaskContext extends Fence {
   deferredCoordination: boolean; reply: Reply;
   history?: ConversationHistory;
   review?: ReviewRound;
+  inputAnalyses?: InputAnalysis[];
 }
 export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[] }
 export interface Envelope { id: string; at: number; fence?: Fence; workId?: string }
@@ -97,6 +109,7 @@ export type Decision =
   | { action: 'askUser'; question: string; reason: string }
   | { action: 'finish'; reason: string };
 export type TaskEvent = Envelope & (
+  | { type: 'INTERPRETATION_RESULT'; inputId: string; spec: InputIntentSpec }
   | { type: 'REGENERATE_MODEL_OUTPUT'; intentId: string; issue: ModelOutputIssue }
   | { type: 'HELP'; requestId: string; caller: string; target: string; question: string; expected: string; refs?: string[]; requiredTools?: string[] }
   | { type: 'HELP_RESULT'; requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; summary?: string; artifactIds?: string[] }
@@ -111,9 +124,9 @@ export type TaskEvent = Envelope & (
   | { type: 'WAIT_USER'; question: string }
   | { type: 'DELIVER'; text: string; artifactIds: string[]; summary?: string; artifacts?: ArtifactDraft[] }
   | { type: 'CHECK_RESULT'; passed: boolean; gaps: string[]; resultId: string }
-  | { type: 'STOP' }
+  | { type: 'STOP'; text?: string }
   | { type: 'SETTLE'; intentId: string }
-  | { type: 'CONTINUE'; extraOrdinary?: number }
+  | { type: 'CONTINUE'; extraOrdinary?: number; text?: string }
   | { type: 'TICK' }
   | { type: 'ACTIVITY'; text: string }
   | { type: 'PROGRESS'; detail: string; refs: string[] }
@@ -133,6 +146,7 @@ export function validateConfig(config: TeamConfig): void {
   if (!config.version || !config.toolVersion || !config.bots.length) throw new Error('Invalid team configuration');
   if (config.skillSearch !== undefined && (!config.skillSearch || typeof config.skillSearch.enabled !== 'boolean')) throw new Error('Invalid skill search configuration');
   if (config.webTools !== undefined && (!config.webTools || typeof config.webTools.enabled !== 'boolean')) throw new Error('Invalid web tools configuration');
+  if (config.inputAnalysis !== undefined && (!config.inputAnalysis || typeof config.inputAnalysis.enabled !== 'boolean')) throw new Error('Invalid input analysis configuration');
   validateModels(config);
   const ids = config.bots.map(b => b.id);
   if (ids.some(id => !id || id === 'user' || id === 'facilitator') || new Set(ids).size !== ids.length || !ids.includes(config.defaultBot)) throw new Error('Invalid bot identities');
@@ -150,7 +164,7 @@ export function validateModels(config: TeamConfig): void {
     return;
   }
   if (!models.services || typeof models.services !== 'object' || Array.isArray(models.services)) throw new Error('Invalid model services');
-  for (const id of [models.default, models.facilitator ?? models.default, models.check ?? models.facilitator ?? models.default, ...config.bots.map(bot => bot.model ?? models.default)]) {
+  for (const id of [models.default, models.facilitator ?? models.default, models.check ?? models.facilitator ?? models.default, models.intent ?? models.facilitator ?? models.default, ...config.bots.map(bot => bot.model ?? models.default)]) {
     if (typeof id !== 'string' || !Object.hasOwn(models.services, id)) throw new Error('Unknown model service');
   }
   for (const [id, service] of Object.entries(models.services)) {

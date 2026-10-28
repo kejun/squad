@@ -45,7 +45,7 @@ export function configureModelsFromEnv(base: TeamConfig, env: ModelEnvironment):
   const config = structuredClone(base);
   const value = (key: string) => env[key]?.trim() || undefined;
   const has = (prefix: string) => suffixes.some(suffix => value(`${prefix}_${suffix}`) !== undefined);
-  const prefixes = ['MODEL', ...slots.map(([, prefix]) => prefix), 'FACILITATOR_MODEL', 'CHECK_MODEL'];
+  const prefixes = ['MODEL', ...slots.map(([, prefix]) => prefix), 'FACILITATOR_MODEL', 'CHECK_MODEL', 'INTENT_MODEL'];
   if (!prefixes.some(has)) return config;
   if (!value('MODEL_BASE_URL') || !value('MODEL_NAME')) throw new Error('Configure MODEL_BASE_URL and MODEL_NAME in .env');
   const bool = (key: string, fallback: boolean): boolean => {
@@ -98,6 +98,10 @@ export function configureModelsFromEnv(base: TeamConfig, env: ModelEnvironment):
   if (has('CHECK_MODEL')) {
     config.models.services.check = profile('CHECK_MODEL', config.models.services.facilitator ?? primary);
     config.models.check = 'check';
+  }
+  if (has('INTENT_MODEL')) {
+    config.models.services.intent = profile('INTENT_MODEL', config.models.services.facilitator ?? primary);
+    config.models.intent = 'intent';
   }
   validateConfig(config);
   return config;

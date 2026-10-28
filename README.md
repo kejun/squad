@@ -4,7 +4,7 @@
 
 squad 是一个群聊协作工作台，依据中文 Gherkin 规格以 TypeScript/XState 实现。核心负责任务、协助、监督、黑板、预算与人类控制；外部模型和工具通过 WorkAdapter 接入。
 
-当前交付包含 React/Base UI 群聊网页、本地 HTTP 宿主、可执行状态机、真实 SQLite 事务存储、操作驱动器、OpenAI 兼容模型适配器、回归测试和 Gherkin 的 Cucumber 步骤绑定。通用自然语言意图提取和 Pi Durable 适配器尚未实现。模型协议使用受控 HTTP 验证；真实供应商效果另行评估。
+当前交付包含 React/Base UI 群聊网页、本地 HTTP 宿主、可执行状态机、真实 SQLite 事务存储、操作驱动器、OpenAI 兼容模型适配器、输入意图解析、回归测试和 Gherkin 的 Cucumber 步骤绑定。Pi Durable 适配器尚未实现。模型协议使用受控 HTTP 验证；真实供应商效果另行评估。
 
 ## 运行
 
@@ -58,6 +58,7 @@ npm start
 | src/store.ts | SQLite 与内存适配器，状态、消息、操作意图及回执一起保存 |
 | src/runner.ts | 提交后执行外部操作，将结果转为受校验事件 |
 | src/model-adapter.ts | 第三方模型 HTTP 调用、结构化输出与技能搜索循环 |
+| src/input-intent.ts | 输入意图 Zod 契约、确定性快速路径、解析策略与引用校验 |
 | src/web-tools.ts | Cloudflare Agents SDK 网页搜索、抓取、Markdown 转换与分页 |
 | src/model-config.ts | 模型分配、固定执行配置与恢复兼容检查 |
 | src/model-env.ts | 自动加载 .env、模型默认值与成员覆盖项 |
@@ -73,6 +74,8 @@ npm start
 
 ## 状态模型
 
+输入意图对应 BT_I01–BT_I21：规则识别明确命令，复杂输入先进入 interpreting；状态机保存解析操作后，WorkRunner 领取并通过原模型适配器执行。结果经 Zod、引用身份和任务版本校验后，才进入规划、协作或检查；不确定时进入 waitingHuman。所有角色共享原始输入和经过校验的意图，直接指定的目标及硬约束始终保留。参见[输入意图解析](docs/state-diagrams.md#输入意图解析)。
+
 模型输出格式修正对应 BT_M10–BT_M20：完整返回但未通过 JSON/当前角色协议校验时，先保存修正意图，再携带校验反馈重新生成。每次修正消耗现有 retries 额度，后续请求另扣所属普通/检查额度；不强转字段、不补造通过结果。参见[状态图与边界](docs/state-diagrams.md#模型输出格式修正)。
 
 详情复制与导出对应 BT_A12–BT_A21：顶栏复制当前内容或导出文件；消息、任务和成员页签生成完整 Markdown，产物预览保留原文件内容。历史目标、来源和执行记录按当前详情范围选择，复制和导出均不触发模型或业务调度。参见[交互状态图](docs/state-diagrams.md#详情复制与导出)；仅新增页面状态，沿用现有业务 XState。
@@ -84,6 +87,11 @@ npm start
 ```mermaid
 stateDiagram-v2
     [*] --> running
+    running --> interpreting: 有待解析输入且到达安全边界
+    interpreting --> running: 合法意图 / 安排后继工作
+    interpreting --> interpreting: 可重试故障或仍有待解析输入
+    interpreting --> waitingHuman: 需要澄清或解析失败
+    interpreting --> stopping: STOP
     running --> waitingAssistance: HELP
     waitingAssistance --> waitingAssistance: 评审结果或失败 / 还有成员且额度允许
     waitingAssistance --> running: 协助结束 / 评审收齐或额度不足后汇总
@@ -103,6 +111,8 @@ stateDiagram-v2
     ended --> waitingAssistance: 明确重试原协助 / 新轮次且保留负责人
     coordinating --> running: 用户补充在安全边界生效
     checking --> running: 用户补充在安全边界生效
+    checking --> interpreting: 复杂补充优先于旧交付检查
+    waitingHuman --> interpreting: 用户补充或明确重试未完成解析
     waitingHuman --> running: 用户补充生效 / 明确 CONTINUE
     running --> checking: DELIVER
     checking --> ended: 检查通过 / 评审有缺口 / 无修正额度
@@ -168,6 +178,14 @@ CLOUDFLARE_API_TOKEN=你的API令牌
 自定义适配器可调用 `scope.webSearch({ query }, signal)` 和 `scope.webFetch({ url, offset }, signal)`。两者返回 `{ output, text }`，其中 `output` 保留结构化来源和元数据，`text` 是 SDK 为模型整理的有界内容。内置模型适配器使用结构化 JSON 动作循环，无需供应商原生函数调用。`WorkRunner` 第五参数可以注入工具宿主用于验证；仅传输被替换，验收仍执行真实 SDK。
 
 官方接口依据：[网页搜索](https://developers.cloudflare.com/agents/tools/web-search/)、[网页抓取](https://developers.cloudflare.com/agents/tools/web-fetch/)、[Markdown 转换 REST API](https://developers.cloudflare.com/workers-ai/features/markdown-conversion/usage/rest-api/)。自动化验证使用受控 HTTP 响应，不代表真实账号的权限、余额和服务可用性已验证。
+
+## 输入意图
+
+保留 XState 5、SQLite、预算及执行回执，以 Zod 作为唯一新增运行时依赖。明确的点名、停止、继续和协助重试使用 TypeScript 规则；长消息、多个要求、条件、约束和含糊指代才进入模型解析。规则与模型结果都形成相同契约：输入动作、目标、约束、交付要求、验收标准、引用和澄清问题。模型结果只是对用户输入的解释，不能改写可信命令、指定负责人、扩大评审或授予工具权限。
+
+解析复用 OpenAICompatibleAdapter 和普通预算，不添加模型 SDK 或第二套执行框架。默认使用促进者模型，可用 `INTENT_MODEL_*` 单独配置，继承与跨服务密钥隔离规则同其他角色。`SQUAD_INTENT_ANALYSIS_ENABLED=false` 关闭深度解析；未配置模型时保留规则规范化和原有离线执行方式。该策略按需调用，不保证规则能理解任意自然语言。
+
+解析原文、状态、结果、epoch、goalVersion、请求次数和回执随任务快照保存。所有角色在自己的具体问题之外同时接收这些意图和原始目标，保持规划、协作和验收一致。引用只允许指向本次实际提供的消息、产物、黑板或任务；历史产物仍是参考资料。解析需要澄清或最终失败时暂停执行，用户补充或明确继续后才接续。真实模型的理解质量需要用实际输入另行评估。
 
 ## 第三方模型配置
 

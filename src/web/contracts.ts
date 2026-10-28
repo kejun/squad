@@ -2,6 +2,7 @@ import type {
   Artifact,
   BoardEntry,
   Intent,
+  InputAnalysis,
   Message,
   Outcome,
   Phase,
@@ -62,6 +63,7 @@ export interface WebTask {
   artifacts: Artifact[];
   board: BoardEntry[];
   trace: { event: string; detail: string; at: number }[];
+  inputAnalyses?: InputAnalysis[];
   review?: Pick<ReviewRound, "targets" | "completed" | "status">;
   assists?: WebAssistance[];
 }
