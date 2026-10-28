@@ -54,6 +54,17 @@ export function createWebServer(
         const origin = req.headers.origin;
         if (origin && new URL(origin).host !== req.headers.host)
           throw new WebError(403, "请求来源不受支持。");
+        if (req.method === "GET" && url.pathname === "/api/debug")
+          return json(res, { enabled: service.debugEnabled });
+        const debug = /^\/api\/debug\/rooms\/([^/]+)$/.exec(url.pathname);
+        if (debug) {
+          if (!service.debugEnabled) throw new WebError(404, "调试未开启。");
+          if (req.method !== "GET") throw new WebError(405, "调试接口只允许读取。");
+          const after = Number(url.searchParams.get("after") ?? 0);
+          if (!Number.isSafeInteger(after) || after < 0) throw new WebError(400, "调试游标无效。");
+          return json(res, service.debugSnapshot(decodeURIComponent(debug[1]!), after,
+            url.searchParams.get("session") ?? undefined, url.searchParams.get("task") ?? undefined));
+        }
         if (req.method === "GET" && url.pathname === "/api/rooms")
           return json(res, { rooms: service.rooms() });
         if (req.method === "POST" && url.pathname === "/api/rooms") {

@@ -7,6 +7,9 @@ const port = Number(process.env.WEB_PORT ?? 4318);
 const service = new WebService(
   config,
   process.env.WEB_DATABASE ?? "team.sqlite",
+  undefined,
+  undefined,
+  process.env.SQUAD_DEBUG === "1" || process.env.SQUAD_DEBUG === "true",
 );
 const server = createWebServer(service, resolve("dist/web"));
 server.listen(port, "127.0.0.1", () =>

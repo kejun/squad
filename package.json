@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
+    "@statelyai/inspect": "0.7.2",
     "agents": "0.30.0",
     "lucide-react": "^1.61.0",
     "react": "^19.3.1",
