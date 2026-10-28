@@ -3,6 +3,7 @@ import { initialTask, persistTask, restoreTask, stepTask, taskPhase, type TaskSn
 import type { Store, Transaction } from './store.js';
 import { conversationHistory, requestedReviewTargets } from './conversation.js';
 import { requestedRetryTarget, retryableAssistance, retryProblemText } from './assistance-retry.js';
+import { inputControl, leadingInputMention } from './input-intent.js';
 import { validateConfig, type Goal, type Intent, type Reply, type TaskContext, type TaskEvent, type TeamConfig } from './types.js';
 
 interface StoredTask { version: 1; snapshot: unknown }
@@ -62,16 +63,26 @@ export class TeamEngine {
   }
   submit(roomId: string, input: Submission): CommandResult {
     return this.transact(roomId, tx => this.receipt(tx, input.id, input, () => {
+      const control = input.intent === undefined || input.intent === 'decision' || input.intent === 'supplement' ? inputControl(input.text) : undefined;
+      if (control === 'continue') input = { ...input, intent: 'continue' };
+      const mention = leadingInputMention(input.text);
+      if (!input.mentions?.length && mention) input = { ...input, mentions: [mention] };
       const at = this.clock();
       const referencedId = input.replyToTaskId ?? tx.room.activeTaskId ?? Object.keys(tx.room.tasks).at(-1);
       const referenced = referencedId && tx.room.tasks[referencedId] ? decode(tx.room.tasks[referencedId]).context : undefined;
+      if (control === 'stop') {
+        if (!referencedId || !referenced) return { ok: false, code: 'TASK_NOT_FOUND', detail: '没有可停止的任务' };
+        const next = stepTask(decode(tx.room.tasks[referencedId]), { type: 'STOP', id: input.id, text: input.text, at });
+        storeTask(tx, next);
+        return { ...next.context.reply, taskId: referencedId };
+      }
       const retryBots = [...this.config.bots, ...(referenced?.config.bots ?? []),
         ...(referenced?.assists ?? []).map(h => ({ id: h.target, name: h.target, instructions: '', tools: [] }))];
       const retryTarget = ['new', 'continue'].includes(input.intent ?? '') ? undefined : requestedRetryTarget(input.text, retryBots);
       const retryRequested = input.intent === 'retry' || retryTarget !== undefined;
       const retryReject = (code: string): CommandResult => ({ ok: false, code, detail: retryProblemText(code) });
       if (input.intent === 'retry' && (!input.replyToTaskId || !input.retryAssistanceId)) return retryReject('RETRY_REFERENCE_REQUIRED');
-      const existingId = input.replyToTaskId ?? tx.room.activeTaskId ?? (input.intent === 'decision' || retryRequested ? Object.keys(tx.room.tasks).at(-1) : null);
+      const existingId = input.replyToTaskId ?? tx.room.activeTaskId ?? (['decision', 'continue'].includes(input.intent ?? '') || retryRequested ? Object.keys(tx.room.tasks).at(-1) : null);
       if (existingId && tx.room.tasks[existingId]) {
         const current = decode(tx.room.tasks[existingId]);
         if (retryRequested) {
@@ -94,7 +105,7 @@ export class TeamEngine {
         }
         if (input.intent === 'continue') {
           if (tx.room.activeTaskId && tx.room.activeTaskId !== existingId) return { ok: false, code: 'ROOM_BUSY', detail: 'Another task is active' };
-          const event: TaskEvent = { type: 'CONTINUE', id: input.id, at, ...(input.extraOrdinary === undefined ? {} : { extraOrdinary: input.extraOrdinary }) };
+          const event: TaskEvent = { type: 'CONTINUE', id: input.id, text: input.text, at, ...(input.extraOrdinary === undefined ? {} : { extraOrdinary: input.extraOrdinary }) };
           const next = stepTask(current, event); storeTask(tx, next);
           return { ...next.context.reply, taskId: existingId };
         }
@@ -153,7 +164,7 @@ export class TeamEngine {
     const view = this.view(roomId, taskId);
     if (!view) return [];
     const kind: Partial<Record<TaskView['phase'], Intent['kind'][]>> = {
-      running: ['owner', 'tool'], waitingAssistance: ['assistance'], coordinating: ['facilitator'], checking: ['check'],
+      interpreting: ['interpretation'], running: ['owner', 'tool'], waitingAssistance: ['assistance'], coordinating: ['facilitator'], checking: ['check'],
     };
     return view.context.intents.filter(i => i.status === 'pending' && (i.kind === 'cancel' || kind[view.phase]?.includes(i.kind)));
   }

@@ -1,10 +1,12 @@
 import type { TeamEngine } from './engine.js';
-import type { ArtifactDraft, Decision, Intent, ModelOutputIssue, TaskEvent } from './types.js';
+import type { ArtifactDraft, Decision, InputIntentSpec, InputReference, Intent, ModelOutputIssue, TaskEvent } from './types.js';
+import { inputIntentSchema, validInputIntent } from './input-intent.js';
 import { validArtifactDrafts, validSummary } from './presentation.js';
 import { findSkills, type FoundSkill, type SkillSearchTransport } from './skills.js';
 import { CloudflareWebTools, validWebFetchInput, validWebSearchInput, type WebTools } from './web-tools.js';
 
 export type WorkOutput =
+  | { type: 'interpretation'; spec: InputIntentSpec }
   | { type: 'help'; requestId: string; target: string; question: string; expected: string; refs?: string[] }
   | { type: 'answer'; text: string; status?: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[] }
   | { type: 'deliver'; text: string; artifactIds: string[]; summary?: string; artifacts?: ArtifactDraft[] }
@@ -39,6 +41,7 @@ export function validWorkOutput(value: unknown): value is WorkOutput {
   const v = value as Record<string, unknown>;
   const strings = (a: unknown): a is string[] => Array.isArray(a) && a.every(x => typeof x === 'string');
   switch (v.type) {
+    case 'interpretation': return Object.keys(v).every(key => ['type', 'spec'].includes(key)) && inputIntentSchema.safeParse(v.spec).success;
     case 'help': return ['requestId', 'target', 'question', 'expected'].every(k => typeof v[k] === 'string' && (v[k] as string).trim().length > 0) && (v.refs === undefined || strings(v.refs));
     case 'answer': return typeof v.text === 'string' && validSummary(v.summary) && validArtifactDrafts(v.artifacts) && (v.status === undefined || ['success', 'partial', 'failed'].includes(String(v.status)));
     case 'deliver': return typeof v.text === 'string' && strings(v.artifactIds) && validSummary(v.summary) && validArtifactDrafts(v.artifacts);
@@ -141,9 +144,11 @@ export class WorkRunner {
     this.controllers.delete(work.id);
     const base = { id: `result:${work.id}`, at: this.clock(), workId: work.id, fence: { epoch: work.epoch, goalVersion: work.goalVersion } };
     const allowed: Record<Intent['kind'], WorkOutput['type'][]> = {
-      owner: ['help', 'answer', 'deliver', 'blocked', 'askUser'], assistance: ['answer'], facilitator: ['decision'], check: ['check'], tool: ['settled'], cancel: ['settled'],
+      interpretation: ['interpretation'], owner: ['help', 'answer', 'deliver', 'blocked', 'askUser'], assistance: ['answer'], facilitator: ['decision'], check: ['check'], tool: ['settled'], cancel: ['settled'],
     };
-    if (!validWorkOutput(output) || !allowed[work.kind].includes(output.type)) {
+    if (!validWorkOutput(output) || !allowed[work.kind].includes(output.type)
+      || (output.type === 'interpretation' && !validInputIntent(output.spec,
+        (work.payload.input as { action: unknown }).action, work.payload.references as InputReference[]))) {
       this.engine.send(roomId, taskId, { ...base, id: `${base.id}:invalid`, type: 'WORK_FAILED', intentId: work.id, reason: 'Invalid worker output', transient: false });
       return true;
     }
@@ -153,6 +158,7 @@ export class WorkRunner {
       ...(output.artifacts === undefined ? {} : { artifacts: output.artifacts }),
     } : {};
     switch (output.type) {
+      case 'interpretation': event = { ...base, type: 'INTERPRETATION_RESULT', inputId: (work.payload.input as { id: string }).id, spec: output.spec }; break;
       case 'help': event = { ...base, type: 'HELP', caller: work.target, requestId: output.requestId, target: output.target, question: output.question, expected: output.expected, ...(output.refs ? { refs: output.refs } : {}) }; break;
       case 'answer':
         event = work.kind === 'assistance'

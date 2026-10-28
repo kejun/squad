@@ -17,6 +17,7 @@ export interface DetailView {
 const markdownType = "text/markdown;charset=utf-8";
 const line = (value: string) => value.replace(/[\r\n]+/g, " ");
 const workKinds: Record<WebWork["kind"], string> = {
+  interpretation: "理解输入",
   owner: "执行任务", assistance: "协助成员", check: "检查交付",
   facilitator: "协调任务", tool: "调用工具", cancel: "取消执行",
 };
@@ -59,7 +60,7 @@ function stamp(at: number): string {
 }
 function taskStatus(task: WebTask): string {
   if (task.phase === "ended") return ({ complete: "已完成", partial: "部分完成", failed: "执行失败", stopped: "已停止" })[task.outcome ?? "failed"];
-  return ({ running: "正在执行", waitingAssistance: "等待协助", coordinating: "正在协调", waitingHuman: "等待回复", checking: "检查交付", stopping: "正在停止" })[task.phase];
+  return ({ interpreting: "正在理解输入", running: "正在执行", waitingAssistance: "等待协助", coordinating: "正在协调", waitingHuman: "等待回复", checking: "检查交付", stopping: "正在停止" })[task.phase];
 }
 function nameOf(snapshot: RoomSnapshot, id: string): string {
   return snapshot.agents.find((agent) => agent.id === id)?.name ?? id;
@@ -82,6 +83,8 @@ function taskSections(snapshot: RoomSnapshot, task: WebTask, message?: Message):
     `- 群聊：${line(snapshot.room.title)}\n- 任务：${line(task.id)}\n- 状态：${taskStatus(task)}\n- 负责人：${line(nameOf(snapshot, task.owner))}\n- 执行请求：${task.usage.ordinary} / ${task.limits.ordinary}\n- 交付检查：${task.usage.checks} / ${task.limits.checks}`,
     ...(message ? [`## 结果\n\n作者：${line(nameOf(snapshot, message.author))}\n\n${message.detailText ?? message.text}`] : []),
     ...(task.reason ? [`## 任务说明\n\n${task.reason}`] : []),
+    ...(task.inputAnalyses?.length ? ["## 输入理解", ...task.inputAnalyses.map(input =>
+      `### ${line(input.id)}\n\n状态：${input.status}\n\n原始输入：\n\n${input.rawText}${input.spec ? `\n\n${fence(JSON.stringify(input.spec, null, 2))}` : ""}`)] : []),
     ...reportSections(artifacts),
     ...(task.board.length ? ["## 依据与共享记录", ...task.board.map((entry) =>
       `### ${line(nameOf(snapshot, entry.author))}\n\n${entry.text}${entry.sources.length ? `\n\n来源：\n${entry.sources.map((source) => `- ${source}`).join("\n")}` : ""}`)] : []),

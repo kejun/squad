@@ -113,6 +113,7 @@ export const phaseLabel = (task: WebTask | undefined) =>
           : task.review?.status === "summarizing" && task.phase === "running"
             ? "汇总评审意见"
             : {
+                interpreting: "正在理解输入",
                 running: "正在执行",
                 waitingAssistance: "等待协助",
                 coordinating: "正在协调",
