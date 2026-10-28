@@ -823,8 +823,10 @@ export const taskMachine = setup({
       // A stale completion may retire its own physical work, never advance the new round.
       const physicalWorkId = event.workId ?? (event.type === 'WORK_FAILED' ? event.intentId : undefined);
       const work = context.intents.find(i => i.id === physicalWorkId);
-      const belongsToDiscussion = (event.type === 'DISCUSSION_PLAN' || event.type === 'DISCUSSION_RESULT') && event.discussionId === work?.discussionId;
-      if (work && (!work.discussionId || belongsToDiscussion) && (!event.fence || (event.fence.epoch === work.epoch && event.fence.goalVersion === work.goalVersion))) {
+      const isDiscussionResult = event.type === 'DISCUSSION_PLAN' || event.type === 'DISCUSSION_RESULT';
+      const belongsToDiscussion = isDiscussionResult && !!work?.discussionId && event.discussionId === work.discussionId;
+      const mayRetire = isDiscussionResult ? belongsToDiscussion && !!event.fence : !work?.discussionId || event.type === 'WORK_FAILED';
+      if (work && mayRetire && (!event.fence || (event.fence.epoch === work.epoch && event.fence.goalVersion === work.goalVersion))) {
         if (work.discussionId && work.status === 'inflight' && fresh(context, event) && !context.stopped && discussionActive(c)
           && ['INVALID_DISCUSSION_PLAN', 'INVALID_DISCUSSION_RESULT', 'WORK_EXPIRED'].includes(c.reply.code)) discussionFailed(c, event, c.intents.find(item => item.id === work.id)!, c.reply.code);
         else release(c, work.id);
