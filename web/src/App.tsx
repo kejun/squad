@@ -15,6 +15,7 @@ import {
   ArrowUp,
   ArrowUpRight,
   AtSign,
+  Bug,
   Check,
   ChevronDown,
   ChevronRight,
@@ -46,15 +47,26 @@ const MessageText = lazy(() =>
   import("./MessageText").then((module) => ({ default: module.MessageText })),
 );
 const Details = lazy(() => import("./Details").then((module) => ({ default: module.Details })));
+const TaskDebug = lazy(() => import("./TaskDebug").then(module => ({ default: module.TaskDebug })));
 
 export function App() {
-  return <Workspace workspace={useWorkspace()} />;
+  const workspace = useWorkspace();
+  const [debugEnabled, setDebugEnabled] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    void api<{ enabled: boolean }>("/debug", undefined, controller.signal)
+      .then(result => { if (!controller.signal.aborted) setDebugEnabled(result.enabled); }).catch(() => {});
+    return () => controller.abort();
+  }, []);
+  return <Workspace workspace={workspace} debugEnabled={debugEnabled} />;
 }
 
 export function Workspace({
   workspace,
+  debugEnabled = false,
 }: {
   workspace: ReturnType<typeof useWorkspace>;
+  debugEnabled?: boolean;
 }) {
   const {
     rooms,
@@ -68,6 +80,10 @@ export function Workspace({
   } = workspace;
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [debugOpen, setDebugOpen] = useState(false);
+  useEffect(() => {
+    if (debugEnabled && new URLSearchParams(window.location.search).get("debug") === "1") setDebugOpen(true);
+  }, [debugEnabled]);
   const panels = usePanelLayout(detailOpen);
   const [detailTarget, setDetailTarget] = useState<DetailTarget | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -440,6 +456,7 @@ export function Workspace({
               <h1>{title}</h1>
             </div>
             <div className="header-actions" ref={detailsToggle}>
+              {debugEnabled && <IconButton label="打开状态机调试" onClick={() => setDebugOpen(true)}><Bug size={18} /></IconButton>}
               <IconButton
                 label={detailOpen ? "收起详情" : "查看任务详情"}
                 onClick={() => {
@@ -909,6 +926,9 @@ export function Workspace({
           </>
         )}
       </div>
+      {debugEnabled && debugOpen && <Suspense fallback={<div role="status">加载状态机调试…</div>}>
+        <TaskDebug key={roomId ?? "sandbox"} roomId={roomId} onClose={() => setDebugOpen(false)} />
+      </Suspense>}
     </Tooltip.Provider>
   );
 }

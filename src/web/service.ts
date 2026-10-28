@@ -12,6 +12,8 @@ import {
   type WorkScope,
 } from "../runner.js";
 import { SqliteStore } from "../store.js";
+import { DebugJournal } from "./debug-journal.js";
+import type { DebugFeed } from "../task-debug.js";
 import type { Intent, TeamConfig } from "../types.js";
 import type { WebTools } from "../web-tools.js";
 import type {
@@ -42,15 +44,19 @@ export class WebService {
   private readonly running = new Map<string, Promise<void>>();
   private readonly timer: ReturnType<typeof setInterval>;
   private closing = false;
+  private readonly debugJournal: DebugJournal | null;
 
   constructor(
     readonly config: TeamConfig,
     path: string,
     adapter?: WorkAdapter,
     private readonly webTools?: WebTools,
+    readonly debugEnabled = false,
   ) {
     this.store = new SqliteStore(path);
-    this.engine = new TeamEngine(this.store, config);
+    this.debugJournal = debugEnabled ? new DebugJournal() : null;
+    this.engine = new TeamEngine(this.store, config, Date.now,
+      this.debugJournal ? (roomId, frame) => this.debugJournal!.append(roomId, frame) : undefined);
     // A second connection keeps Web metadata out of the engine's snapshot/receipt contract.
     this.db = new DatabaseSync(path);
     this.db.exec(`
@@ -195,6 +201,17 @@ export class WebService {
       modelConfigured: !!this.config.models,
       serverTime: Date.now(),
     };
+  }
+  debugSnapshot(roomId: string, after = 0, sessionId?: string, taskId?: string): DebugFeed {
+    if (!this.debugJournal) throw new WebError(404, "调试未开启。");
+    this.room(roomId);
+    const room = this.store.read(roomId);
+    const tasks = Object.keys(room.tasks).map(id => ({ id, phase: this.engine.view(roomId, id)!.phase }));
+    const id = taskId ?? room.activeTaskId ?? tasks.at(-1)?.id;
+    if (taskId && !room.tasks[taskId]) throw new WebError(404, "找不到这个任务。");
+    const stored = id ? room.tasks[id] as { snapshot: unknown } : undefined;
+    return { ...this.debugJournal.read(roomId, after, sessionId), tasks,
+      current: id && stored ? { taskId: id, snapshot: structuredClone(stored.snapshot) } : null };
   }
   submit(roomId: string, input: Submission) {
     this.room(roomId);
