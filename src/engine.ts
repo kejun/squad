@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { initialTask, persistTask, restoreTask, stepTask, taskPhase, type TaskSnapshot } from './task.machine.js';
+import { initialTask, persistTask, restoreTask, stepTask, taskPhase, workLaneAvailable, type TaskSnapshot } from './task.machine.js';
 import type { Store, Transaction } from './store.js';
 import { conversationHistory, requestedReviewTargets } from './conversation.js';
 import { requestedRetryTarget, retryableAssistance, retryProblemText } from './assistance-retry.js';
@@ -163,7 +163,10 @@ export class TeamEngine {
       const current = decode(tx.room.tasks[taskId]);
       let next = this.step(current, event);
       const reply = { ...next.context.reply, taskId };
-      if (event.type === 'CLAIM' && reply.code === 'BUDGET_EXHAUSTED') {
+      if (event.type === 'CLAIM' && ['BUDGET_EXHAUSTED', 'DISCUSSION_BUDGET_RESERVED', 'WORK_EXPIRED'].includes(reply.code)
+        && current.context.intents.find(work => work.id === event.intentId)?.discussionId) {
+        next = this.step(next, { type: 'WORK_FAILED', id: `${event.id}:discussion`, at: event.at, intentId: event.intentId, reason: reply.code, transient: false });
+      } else if (event.type === 'CLAIM' && reply.code === 'BUDGET_EXHAUSTED') {
         next = this.step(next, { type: 'EXHAUSTED', id: `${event.id}:budget`, at: event.at, reason: 'Execution budget exhausted' });
       } else if (event.type === 'CLAIM' && ['REVIEW_SYNTHESIS_RESERVED', 'ASSISTANCE_SYNTHESIS_RESERVED'].includes(reply.code)) {
         // A recovered reviewer must settle through the review queue, preserving the owner's final request.
@@ -190,7 +193,8 @@ export class TeamEngine {
     const kind: Partial<Record<TaskView['phase'], Intent['kind'][]>> = {
       interpreting: ['interpretation'], running: ['owner', 'tool'], waitingAssistance: ['assistance'], coordinating: ['facilitator'], checking: ['check'],
     };
-    return view.context.intents.filter(i => i.status === 'pending' && (i.kind === 'cancel' || kind[view.phase]?.includes(i.kind)));
+    return view.context.intents.filter(i => i.status === 'pending' && (i.kind === 'cancel'
+      || (!view.context.stopped && view.context.outcome === null && (i.discussionId || kind[view.phase]?.includes(i.kind)) && workLaneAvailable(view.context, i))));
   }
   claim(roomId: string, taskId: string, intentId: string): Intent | null {
     const view = this.view(roomId, taskId);
@@ -209,7 +213,7 @@ export class TeamEngine {
       const result = c.results.find(r => !r.consumed);
       if (!result) return false;
       if (!c.stopped && c.outcome === null
-        && c.intents.some(i => i.kind !== 'cancel' && i.status === 'inflight' && i.payload.requestId !== result.requestId)) return false;
+        && c.intents.some(i => !i.discussionId && i.kind !== 'cancel' && i.status === 'inflight' && i.payload.requestId !== result.requestId)) return false;
       const checkpoint = this.pendingObservations?.length ?? 0;
       const next = this.step(current, { type: 'HELP_RESULT', id: `consume:${result.resultId}`, at: this.clock(),
         requestId: result.requestId, resultId: result.resultId, status: result.status, answer: result.answer,
@@ -240,21 +244,24 @@ export class TeamEngine {
     if (!view) return;
     const c = view.context; const at = this.clock();
     for (const op of c.intents.filter(i => ['pending', 'inflight'].includes(i.status) && i.kind !== 'cancel' && i.deadline !== null && i.deadline <= at)) {
-      if (op.kind === 'assistance') {
+      if (op.kind === 'assistance' && !op.discussionId) {
         this.send(roomId, c.taskId, { id: `timeout:${op.id}`, type: 'HELP_RESULT', requestId: String(op.payload.requestId), resultId: `timeout:${op.id}`, status: 'timeout', answer: '协助已超时', at, fence: { epoch: op.epoch, goalVersion: op.goalVersion } });
       } else {
         this.send(roomId, c.taskId, { id: `timeout:${op.id}`, type: 'WORK_FAILED', intentId: op.id, reason: 'Tool or model deadline exceeded', transient: false, resultUncertain: op.replay === 'unsafe', at, fence: { epoch: op.epoch, goalVersion: op.goalVersion } });
       }
     }
     const latest = this.view(roomId, c.taskId)!;
-    if (latest.phase === 'running' && latest.context.nextCheckAt <= at) this.send(roomId, c.taskId, { type: 'TICK', id: `progress:${c.taskId}:${latest.context.epoch}:${latest.context.nextCheckAt}`, at });
+    if (latest.phase === 'running' && (!latest.context.discussion || ['delivered', 'cancelled'].includes(latest.context.discussion.status))
+      && latest.context.nextCheckAt <= at) this.send(roomId, c.taskId, { type: 'TICK', id: `progress:${c.taskId}:${latest.context.epoch}:${latest.context.nextCheckAt}`, at });
   }
   nextWake(roomId: string): number | null {
     const view = this.view(roomId);
-    if (!view || ['waitingHuman', 'ended'].includes(view.phase)) return null;
+    if (!view || view.phase === 'ended') return null;
+    const discussing = view.context.discussion && !['delivered', 'cancelled'].includes(view.context.discussion.status);
+    if (view.phase === 'waitingHuman' && !discussing) return null;
     if (view.context.results.some(r => !r.consumed)) return this.clock();
     const work = view.context.intents.filter(i => ['pending', 'inflight'].includes(i.status) && i.deadline !== null).map(i => i.deadline!);
-    if (view.phase === 'running') work.push(view.context.nextCheckAt);
+    if (view.phase === 'running' && !discussing) work.push(view.context.nextCheckAt);
     return work.length ? Math.min(...work) : null;
   }
 }

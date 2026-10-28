@@ -60,9 +60,10 @@ export class WorkRunner {
   constructor(readonly engine: TeamEngine, private readonly adapter: WorkAdapter, private readonly clock: () => number = Date.now,
     private readonly skillSearchTransport: SkillSearchTransport = globalThis.fetch,
     private readonly webTools: WebTools = new CloudflareWebTools()) {}
-  async runOne(roomId: string, taskId: string): Promise<boolean> {
+  async runOne(roomId: string, taskId: string, intentId?: string): Promise<boolean> {
     if (this.engine.flushResults(roomId, taskId)) return true;
-    const pending = this.engine.pending(roomId, taskId)[0];
+    const available = this.engine.pending(roomId, taskId);
+    const pending = intentId ? available.find(work => work.id === intentId) : available[0];
     if (!pending) return false;
     const work = this.engine.claim(roomId, taskId, pending.id);
     // A denied recovery claim may settle a reviewer and schedule synthesis in the same transaction.
@@ -144,7 +145,7 @@ export class WorkRunner {
     this.controllers.delete(work.id);
     const base = { id: `result:${work.id}`, at: this.clock(), workId: work.id, fence: { epoch: work.epoch, goalVersion: work.goalVersion } };
     const allowed: Record<Intent['kind'], WorkOutput['type'][]> = {
-      interpretation: ['interpretation'], owner: ['help', 'answer', 'deliver', 'blocked', 'askUser'], assistance: ['answer'], facilitator: ['decision'], check: ['check'], tool: ['settled'], cancel: ['settled'],
+      interpretation: ['interpretation'], owner: ['help', 'answer', 'deliver', 'blocked', 'askUser'], assistance: ['answer'], facilitator: ['decision'], discussionSummary: ['answer'], check: ['check'], tool: ['settled'], cancel: ['settled'],
     };
     if (!validWorkOutput(output) || !allowed[work.kind].includes(output.type)
       || (output.type === 'interpretation' && !validInputIntent(output.spec,
@@ -157,6 +158,13 @@ export class WorkRunner {
       ...(output.summary === undefined ? {} : { summary: output.summary }),
       ...(output.artifacts === undefined ? {} : { artifacts: output.artifacts }),
     } : {};
+    if (work.discussionId) {
+      if (output.type === 'decision') event = { ...base, type: 'DISCUSSION_PLAN', discussionId: work.discussionId, decision: output.decision };
+      else if (output.type === 'answer') event = { ...base, ...presentation, type: 'DISCUSSION_RESULT', discussionId: work.discussionId, text: output.text, status: output.status ?? 'success' };
+      else throw new Error('Unexpected discussion output after role validation');
+      this.engine.send(roomId, taskId, event);
+      return true;
+    }
     switch (output.type) {
       case 'interpretation': event = { ...base, type: 'INTERPRETATION_RESULT', inputId: (work.payload.input as { id: string }).id, spec: output.spec }; break;
       case 'help': event = { ...base, type: 'HELP', caller: work.target, requestId: output.requestId, target: output.target, question: output.question, expected: output.expected, ...(output.refs ? { refs: output.refs } : {}) }; break;

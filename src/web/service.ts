@@ -41,7 +41,8 @@ export class WebService {
   private readonly store: SqliteStore;
   private readonly adapter: WorkAdapter;
   private readonly runners = new Map<string, WorkRunner>();
-  private readonly running = new Map<string, Promise<void>>();
+  private readonly running = new Map<string, { roomId: string; job: Promise<void> }>();
+  private readonly failedRooms = new Set<string>();
   private readonly timer: ReturnType<typeof setInterval>;
   private closing = false;
   private readonly debugJournal: DebugJournal | null;
@@ -394,6 +395,7 @@ export class WebService {
     return runner;
   }
   private hostError(roomId: string, error: unknown) {
+    this.failedRooms.add(roomId);
     console.error(
       `Web host failure in room ${roomId}:`,
       error instanceof Error ? error.name : "Unknown error",
@@ -414,29 +416,30 @@ export class WebService {
     }
   }
   private kick(roomId: string) {
-    if (this.closing || this.running.has(roomId)) return;
+    if (this.closing || this.failedRooms.has(roomId)) return;
     const taskId = this.store.read(roomId).activeTaskId;
-    if (!taskId || !this.engine.pending(roomId, taskId).length) return;
-    // Yield once so the HTTP mutation can return before model execution starts.
-    const job = Promise.resolve()
-      .then(async () => {
-        while (
-          !this.closing &&
-          (await this.runner(roomId).runOne(roomId, taskId))
-        ) {
-          /* Engine budgets bound the loop. */
-        }
-      })
-      .catch((error) => this.hostError(roomId, error))
-      .finally(() => {
-        this.running.delete(roomId);
-      });
-    this.running.set(roomId, job);
+    if (!taskId) return;
+    while (this.engine.flushResults(roomId, taskId)) { /* Consume durable handoffs before projecting successors. */ }
+    for (const work of this.engine.pending(roomId, taskId)) {
+      const key = `${roomId}:${work.id}`;
+      if (this.running.has(key)) continue;
+      let progressed = false;
+      // The machine supplies eligibility; the transactional claim still checks every lock and budget.
+      const job = Promise.resolve()
+        .then(() => this.closing ? false : this.runner(roomId).runOne(roomId, taskId, work.id))
+        .then(value => { progressed = value; })
+        .catch((error) => this.hostError(roomId, error))
+        .finally(() => {
+          this.running.delete(key);
+          if (progressed) this.kick(roomId);
+        });
+      this.running.set(key, { roomId, job });
+    }
   }
   async close() {
     this.closing = true;
     clearInterval(this.timer);
-    for (const roomId of this.running.keys()) {
+    for (const roomId of new Set([...this.running.values()].map(work => work.roomId))) {
       const taskId = this.store.read(roomId).activeTaskId;
       if (taskId) {
         this.engine.send(roomId, taskId, {
@@ -447,7 +450,7 @@ export class WebService {
         await this.drainCancellation(roomId, taskId);
       }
     }
-    await Promise.all(this.running.values());
+    await Promise.all([...this.running.values()].map(work => work.job));
     this.db.close();
     this.store.close();
   }

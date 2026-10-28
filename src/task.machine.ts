@@ -8,7 +8,9 @@ const ok = (c: TaskContext, detail = 'applied') => { c.reply = { ok: true, code:
 const reject = (c: TaskContext, code: string) => { c.reply = { ok: false, code, detail: code }; };
 const fence = (c: TaskContext) => ({ epoch: c.epoch, goalVersion: c.goalVersion });
 const fresh = (c: TaskContext, e: TaskEvent) => !e.fence || (e.fence.epoch === c.epoch && e.fence.goalVersion === c.goalVersion);
-const inflight = (c: TaskContext) => c.intents.filter(i => i.status === 'inflight' && i.kind !== 'cancel');
+const allInflight = (c: TaskContext) => c.intents.filter(i => i.status === 'inflight' && i.kind !== 'cancel');
+const inflight = (c: TaskContext) => allInflight(c).filter(i => !i.discussionId);
+const discussionActive = (c: TaskContext) => !!c.discussion && !['delivered', 'cancelled'].includes(c.discussion.status);
 const remainingInflight = (c: TaskContext, e: TaskEvent) => inflight(c).filter(i => i.id !== e.workId);
 const activeHelp = (c: TaskContext) => c.assists.find(h => h.epoch === c.epoch && ['pending', 'running', 'answered'].includes(h.status));
 const hasOrdinary = (c: TaskContext) => c.usage.ordinary < c.config.limits.ordinary;
@@ -22,6 +24,13 @@ const pendingInput = (c: TaskContext) => c.inputAnalyses?.find(input =>
   && !c.intents.some(work => work.id === input.workId && ['pending', 'inflight'].includes(work.status)));
 const incompatibleExecution = (c: TaskContext) => ['Execution version incompatible', 'Tool permission revoked',
   'Execution member unavailable', 'Model configuration changed', 'Input analysis configuration changed'].includes(c.reason);
+
+/** Lane and member locks are shared by the read projection and transactional claim guard. */
+export function workLaneAvailable(c: TaskContext, work: Intent): boolean {
+  if (allInflight(c).some(item => item.target === work.target)
+    || c.intents.some(item => item.status === 'uncertain' && item.target === work.target)) return false;
+  return work.discussionId ? discussionActive(c) && work.discussionId === c.discussion?.id : inflight(c).length === 0;
+}
 
 function recordInput(c: TaskContext, id: string, text: string, action: InputAction) {
   const analyses = c.inputAnalyses ??= [];
@@ -46,6 +55,14 @@ function prepareInterpretation(c: TaskContext, e: TaskEvent) {
 function requestBudgetProblem(c: TaskContext, work: Intent): string | null {
   if (work.bucket === 'none') return null;
   if (c.usage[work.bucket] >= c.config.limits[work.bucket]) return 'BUDGET_EXHAUSTED';
+  if (work.bucket === 'ordinary' && discussionActive(c)) {
+    const round = c.discussion!;
+    const pending = c.intents.filter(i => i.discussionId === round.id && i.status === 'pending' && i.id !== work.id).length;
+    // Reserve every already-promised participant, coordinator synthesis and one owner continuation.
+    const reserve = 1 + pending + (round.status === 'planning' ? 2
+      : round.status === 'collecting' ? 1 : 0);
+    if (c.usage.ordinary + 1 + reserve > c.config.limits.ordinary) return 'DISCUSSION_BUDGET_RESERVED';
+  }
   if (work.kind === 'assistance' && c.assists.some(h => h.id === work.payload.requestId && h.retryOf)
     && c.usage.ordinary + 1 >= c.config.limits.ordinary) return 'ASSISTANCE_SYNTHESIS_RESERVED';
   if (work.bucket === 'ordinary' && c.review && ['pending', 'reviewing'].includes(c.review.status)
@@ -85,14 +102,16 @@ function intent(c: TaskContext, at: number, kind: Intent['kind'], target: string
   c.intents.push(item);
   return item;
 }
-function cancelWork(c: TaskContext, e: TaskEvent) {
+function cancelWork(c: TaskContext, e: TaskEvent, all = false) {
   for (const item of [...c.intents]) {
     if (item.kind === 'cancel') continue;
+    if (item.discussionId && !all) continue;
     if (item.status === 'pending') item.status = 'cancelled';
     if (item.status === 'inflight' && !c.intents.some(i => i.kind === 'cancel' && i.payload.intentId === item.id && i.status !== 'cancelled')) {
       intent(c, e.at, 'cancel', item.target, { intentId: item.id });
     }
   }
+  if (all && discussionActive(c)) c.discussion!.status = 'cancelled';
 }
 function release(c: TaskContext, id: string | undefined) {
   if (!id) return;
@@ -104,10 +123,11 @@ function conversationInput(c: TaskContext) {
   return { messages: [...(c.history?.messages ?? []), ...c.messages], candidate: c.candidate,
     inputIntents: (c.inputAnalyses ?? []).filter(input => input.status === 'resolved'),
     conversation: { artifacts: c.history?.artifacts ?? [], board: c.history?.board ?? [], tasks: c.history?.tasks ?? [], truncated: c.history?.truncated ?? false },
-    ...(c.review ? { review: { ...c.review, results: c.assists.filter(h => h.reviewId === c.review!.id).map(h => ({ target: h.target, requestId: h.id, status: h.status, answer: h.answer, artifactIds: h.artifactIds })) } } : {}) };
+    ...(c.review ? { review: { ...c.review, results: c.assists.filter(h => h.reviewId === c.review!.id).map(h => ({ target: h.target, requestId: h.id, status: h.status, answer: h.answer, artifactIds: h.artifactIds })) } } : {}),
+    ...(c.discussion ? { discussion: structuredClone(c.discussion) } : {}) };
 }
 function owner(c: TaskContext, e: TaskEvent, payload: Record<string, unknown> = {}) {
-  if (c.stopped || unresolvedInput(c)) return;
+  if (c.stopped || unresolvedInput(c) || discussionActive(c)) return;
   // Pending instructions are superseded, not executed in parallel.
   for (const i of c.intents) if (i.kind === 'owner' && i.status === 'pending') i.status = 'cancelled';
   intent(c, e.at, 'owner', c.owner, { ...payload, goal: c.goal, inputs: c.inputs.filter(n => n.applied),
@@ -187,6 +207,97 @@ function refreshReviewFailures(c: TaskContext) {
 function requestReview(c: TaskContext, id: string, request: string, targets: string[]) {
   c.review = { id: `review:${id}`, request, targets: [...new Set(targets)], completed: [], status: 'pending', ...fence(c) };
 }
+function discussionIntent(c: TaskContext, e: TaskEvent, kind: Intent['kind'], target: string) {
+  const work = intent(c, e.at, kind, target, { goal: c.goal, board: c.board, artifacts: c.artifacts,
+    ...conversationInput(c), roster: c.config.bots, capabilities: capabilities(c) });
+  work.discussionId = c.discussion!.id;
+  return work;
+}
+function discussionSources(c: TaskContext): string {
+  const round = c.discussion!;
+  return [
+    ...round.results.map(result => `${result.target}（${result.status}）：${result.answer}`),
+    ...round.skipped.map(item => `${item.target}：未参与（${item.reason}）`),
+    round.incomplete ?? '',
+  ].filter(Boolean).join('\n\n');
+}
+function discussionReady(c: TaskContext, e: TaskEvent, text: string) {
+  c.discussion!.summary = text; c.discussion!.status = 'ready';
+  message(c, e, 'facilitator', `讨论已汇总，等待 ${c.owner} 当前工作结算后继续完善方案。`, 'notice', { recipient: c.owner });
+}
+function summarizeDiscussion(c: TaskContext, e: TaskEvent) {
+  c.discussion!.status = 'summarizing';
+  discussionIntent(c, e, 'discussionSummary', 'facilitator');
+}
+function startDiscussion(c: TaskContext, e: Extract<TaskEvent, { type: 'USER_INPUT' }>) {
+  if (discussionActive(c)) {
+    message(c, e, 'facilitator', '已在组织本轮讨论，结果将汇总交给原负责人。', 'notice');
+    return;
+  }
+  const requested = [...new Set(e.reviewTargets!)];
+  const busy = new Set(c.intents.filter(i => i.kind !== 'cancel' && ['pending', 'inflight', 'uncertain'].includes(i.status)).map(i => i.target));
+  const skipped = requested.filter(target => busy.has(target)).map(target => ({ target, reason: '正在工作' }));
+  c.discussion = { id: `discussion:${e.id}`, request: e.text, targets: requested.filter(target => !busy.has(target)),
+    skipped, results: [], status: 'planning', ...fence(c) };
+  const round = c.discussion;
+  if (skipped.length) round.incomplete = '部分成员正在工作，本轮未参与讨论。';
+  if (!round.targets.length || c.config.limits.ordinary - c.usage.ordinary < 4 || c.usage.assists >= c.config.limits.assists) {
+    round.status = 'delivered';
+    round.incomplete = !round.targets.length ? '暂无空闲成员参与讨论。' : '讨论额度不足，已保留原负责人续办额度。';
+    if (round.targets.length) round.skipped.push(...round.targets.map(target => ({ target, reason: '讨论额度不足' })));
+    message(c, e, 'facilitator', discussionSources(c), 'notice');
+    return;
+  }
+  message(c, e, 'facilitator', `已收到讨论邀请，将组织空闲成员：${round.targets.join('、')}；结果汇总后交给 ${c.owner}。${skipped.length ? ` ${skipped.map(item => item.target).join('、')} 正在工作，本轮跳过。` : ''}`, 'notice');
+  discussionIntent(c, e, 'facilitator', 'facilitator');
+}
+function planDiscussion(c: TaskContext, e: Extract<TaskEvent, { type: 'DISCUSSION_PLAN' }>) {
+  const round = c.discussion!;
+  const decision = e.decision as Extract<Decision, { action: 'review' }>;
+  release(c, e.workId);
+  round.question = decision.question; round.expected = decision.expected; round.status = 'collecting';
+  let capacity = Math.max(0, Math.min(c.config.limits.ordinary - c.usage.ordinary - 2, c.config.limits.assists - c.usage.assists));
+  for (const target of round.targets) {
+    const busy = c.intents.some(work => work.kind !== 'cancel' && work.target === target && ['pending', 'inflight', 'uncertain'].includes(work.status));
+    if (busy || capacity <= 0) {
+      round.skipped.push({ target, reason: busy ? '正在工作' : '讨论额度不足' });
+      round.incomplete = '部分成员未参与讨论，详见未参与原因。';
+      continue;
+    }
+    capacity--; c.usage.assists++;
+    const work = discussionIntent(c, e, 'assistance', target);
+    work.payload.question = decision.question; work.payload.expected = decision.expected;
+    work.payload.instructions = c.config.bots.find(bot => bot.id === target)!.instructions;
+  }
+  if (!c.intents.some(work => work.discussionId === round.id && work.kind === 'assistance' && work.status === 'pending')) summarizeDiscussion(c, e);
+}
+function discussionFailed(c: TaskContext, e: TaskEvent, work: Intent, reason: string) {
+  release(c, work.id);
+  const round = c.discussion!;
+  round.incomplete = `讨论未全部完成：${reason}`;
+  if (work.kind === 'assistance') {
+    const status = /deadline|超时/i.test(reason) ? 'timeout' as const : 'failed' as const;
+    round.results.push({ target: work.target, status, answer: reason, artifactIds: [] });
+    message(c, e, work.target, `讨论${status === 'timeout' ? '超时' : '失败'}：${reason}`, 'answer');
+    if (!c.intents.some(item => item.discussionId === round.id && item.kind === 'assistance' && ['pending', 'inflight'].includes(item.status))) summarizeDiscussion(c, e);
+  } else discussionReady(c, e, discussionSources(c));
+}
+function acceptDiscussion(c: TaskContext, e: Extract<TaskEvent, { type: 'DISCUSSION_RESULT' }>) {
+  const work = c.intents.find(item => item.id === e.workId)!;
+  release(c, work.id);
+  const ids = saveReports(c, e, e.text, work.target, e.artifacts);
+  if (e.status !== 'success') c.discussion!.incomplete = '部分讨论工作未完整完成，详见原始意见。';
+  message(c, e, work.target, e.text, work.kind === 'discussionSummary' ? 'notice' : 'answer', { artifactIds: ids }, e.summary);
+  if (work.kind === 'discussionSummary') discussionReady(c, e, e.text);
+  else {
+    c.discussion!.results.push({ target: work.target, status: e.status, answer: e.text, artifactIds: ids });
+    if (!c.intents.some(item => item.discussionId === c.discussion!.id && item.kind === 'assistance' && ['pending', 'inflight'].includes(item.status))) summarizeDiscussion(c, e);
+  }
+}
+function discussionIncomplete(c: TaskContext) {
+  const round = c.discussion;
+  return round && round.epoch === c.epoch && round.goalVersion === c.goalVersion ? round.incomplete : undefined;
+}
 function reviewCanDispatch(c: TaskContext) {
   // Keep one ordinary request for the owner's synthesis. Check capacity is separately reserved.
   return c.usage.ordinary + 1 < c.config.limits.ordinary && c.usage.assists < c.config.limits.assists;
@@ -249,6 +360,7 @@ function acceptHelpResult(c: TaskContext, e: Extract<TaskEvent, { type: 'HELP_RE
   }
 }
 function completeProblem(c: TaskContext): string | null {
+  if (discussionActive(c)) return 'UNFINISHED_DISCUSSION';
   if (unresolvedInput(c)) return 'UNRESOLVED_INPUT_INTENT';
   if (c.inputs.some(input => !input.applied)) return 'UNAPPLIED_USER_INPUT';
   if (c.review && (c.review.incomplete || !['summarizing', 'complete'].includes(c.review.status))) return 'UNFINISHED_REVIEW';
@@ -268,6 +380,7 @@ function recoveryIssue(c: TaskContext, config: TaskContext['config']): string | 
   if (modelSignature(c.config.models) !== modelSignature(config.models)) return 'Model configuration changed';
   if (unresolvedInput(c) && (c.config.inputAnalysis?.enabled !== false) !== (config.inputAnalysis?.enabled !== false)) return 'Input analysis configuration changed';
   if (!config.bots.some(b => b.id === c.owner)) return 'Execution member unavailable';
+  if (discussionActive(c) && c.discussion!.targets.some(target => !config.bots.some(bot => bot.id === target))) return 'Execution member unavailable';
   if (c.review && ['pending', 'reviewing'].includes(c.review.status)
     && c.review.targets.some(target => !config.bots.some(bot => bot.id === target))) return 'Execution member unavailable';
   for (const i of c.intents.filter(i => ['pending', 'inflight'].includes(i.status))) {
@@ -280,7 +393,7 @@ function recoveryIssue(c: TaskContext, config: TaskContext['config']): string | 
   return null;
 }
 function finish(c: TaskContext, e: TaskEvent, outcome: TaskContext['outcome'], reason: string) {
-  cancelWork(c, e); c.outcome = outcome; c.reason = reason;
+  cancelWork(c, e, true); c.outcome = outcome; c.reason = reason;
   for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight'].includes(input.status)) {
     input.status = outcome === 'stopped' ? 'cancelled' : 'failed'; input.error = reason;
   }
@@ -300,10 +413,22 @@ function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     const op = c.intents.find(i => i.id === e.workId);
     if (!op || op.status !== 'inflight') return 'UNKNOWN_OR_SETTLED_WORK';
     if (op.epoch !== c.epoch || op.goalVersion !== c.goalVersion) return 'STALE_WORK';
+    if (op.discussionId && !['DISCUSSION_PLAN', 'DISCUSSION_RESULT', 'WORK_FAILED'].includes(e.type)) return 'DISCUSSION_EVENT_REQUIRED';
   }
   if (c.stopped && !['STOP', 'SETTLE', 'HELP_RESULT', 'CONTINUE', 'RETRY_ASSISTANCE', 'RECOVER', 'CLAIM', 'WORK_FAILED', 'HUMAN_DECISION'].includes(e.type)) return 'STOPPED';
   if ((e.type === 'DELIVER' || e.type === 'RECORD_RESULT') && (!validArtifactDrafts(e.artifacts) || !validSummary(e.summary))) return 'INVALID_REPORT';
   switch (e.type) {
+    case 'DISCUSSION_PLAN': case 'DISCUSSION_RESULT': {
+      const work = c.intents.find(item => item.id === e.workId);
+      if (!e.workId || !e.fence || !work?.discussionId) return 'DISCUSSION_WORK_REQUIRED';
+      if (!discussionActive(c) || work.discussionId !== c.discussion!.id || e.discussionId !== work.discussionId) return 'STALE_DISCUSSION';
+      if (work.deadline !== null && e.at >= work.deadline) return 'WORK_EXPIRED';
+      if (e.type === 'DISCUSSION_PLAN') return work.kind === 'facilitator' && c.discussion!.status === 'planning'
+        && e.decision?.action === 'review' && [e.decision.question, e.decision.expected, e.decision.reason].every(value => typeof value === 'string' && value.trim()) ? null : 'INVALID_DISCUSSION_PLAN';
+      return ((work.kind === 'assistance' && c.discussion!.status === 'collecting') || (work.kind === 'discussionSummary' && c.discussion!.status === 'summarizing'))
+        && typeof e.text === 'string' && !!e.text.trim() && ['success', 'partial', 'failed'].includes(e.status)
+        && validSummary(e.summary) && validArtifactDrafts(e.artifacts) ? null : 'INVALID_DISCUSSION_RESULT';
+    }
     case 'INTERPRETATION_RESULT': {
       const input = c.inputAnalyses?.find(input => input.id === e.inputId);
       const work = c.intents.find(work => work.id === e.workId);
@@ -351,7 +476,7 @@ function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (i.epoch !== c.epoch || i.goalVersion !== c.goalVersion) return 'STALE_WORK';
       if (['owner', 'assistance', 'tool'].includes(i.kind) && !isBot(c, i.target)) return 'UNKNOWN_BOT';
       if (i.kind === 'assistance' && ((i.payload.requiredTools as string[] | undefined) ?? []).some(t => !c.config.bots.find(b => b.id === i.target)?.tools.includes(t))) return 'TOOL_PERMISSION';
-      if (inflight(c).length) return 'WORK_BUSY';
+      if (!workLaneAvailable(c, i)) return 'WORK_BUSY';
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
       if (i.kind === 'tool' && !c.config.bots.find(b => b.id === i.target)?.tools.includes(String(i.payload.tool))) return 'TOOL_PERMISSION';
       return requestBudgetProblem(c, i);
@@ -359,7 +484,7 @@ function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     case 'REGENERATE_MODEL_OUTPUT': {
       const i = c.intents.find(i => i.id === e.intentId);
       if (!i || i.status !== 'inflight') return 'WORK_NOT_INFLIGHT';
-      if (!['interpretation', 'owner', 'assistance', 'facilitator', 'check'].includes(i.kind) || i.replay === 'unsafe') return 'OUTPUT_REPAIR_NOT_ALLOWED';
+      if (!['interpretation', 'owner', 'assistance', 'facilitator', 'discussionSummary', 'check'].includes(i.kind) || i.replay === 'unsafe') return 'OUTPUT_REPAIR_NOT_ALLOWED';
       if (i.epoch !== c.epoch || i.goalVersion !== c.goalVersion) return 'STALE_WORK';
       if (!modelOutputIssues.includes(e.issue)) return 'INVALID_OUTPUT_ISSUE';
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
@@ -388,10 +513,10 @@ function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     }
     case 'USER_INPUT': case 'HUMAN_DECISION':
       return e.reviewTargets?.some(target => target === c.owner || !isBot(c, target)) ? 'INVALID_REVIEW_TARGET' : null;
-    case 'HANDOFF': return !isBot(c, e.owner) ? 'UNKNOWN_BOT' : inflight(c).length ? 'WAIT_FOR_BOUNDARY' : null;
+    case 'HANDOFF': return !isBot(c, e.owner) ? 'UNKNOWN_BOT' : allInflight(c).length || discussionActive(c) ? 'WAIT_FOR_BOUNDARY' : null;
     case 'CONTINUE': {
       if (incompatibleExecution(c)) return 'INCOMPATIBLE_EXECUTION';
-      if (inflight(c).length || c.intents.some(i => i.status === 'uncertain')) return 'UNRESOLVED_WORK';
+      if (allInflight(c).length || c.intents.some(i => i.status === 'uncertain')) return 'UNRESOLVED_WORK';
       if (!isBot(c, c.owner)) return 'OWNER_UNAVAILABLE';
       if (e.extraOrdinary !== undefined && (!Number.isSafeInteger(e.extraOrdinary) || e.extraOrdinary <= 0)) return 'INVALID_BUDGET';
       return hasOrdinary(c) || e.extraOrdinary ? null : 'BUDGET_EXHAUSTED';
@@ -420,6 +545,15 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
   ok(c); c.lastActivityAt = e.at;
   c.trace.push({ event: e.type, detail: e.id, at: e.at });
   switch (e.type) {
+    case 'DISCUSSION_PLAN': planDiscussion(c, e); break;
+    case 'DISCUSSION_RESULT': acceptDiscussion(c, e); break;
+    case 'DISCUSSION_HANDOFF':
+      c.discussion!.status = 'delivered';
+      c.deferredCoordination = false;
+      cancelWork(c, e);
+      owner(c, e, { reason: '吸收协调员汇总和全部成员原始意见，在已有草稿上继续完善；区分共识、分歧、依据和未完成项。', previousBlocker: c.reason });
+      message(c, e, 'facilitator', `讨论汇总及成员原始意见已交给 ${c.owner}，已安排继续完善方案。`, 'notice', { recipient: c.owner });
+      break;
     case 'INTERPRETATION_RESULT': {
       const input = c.inputAnalyses!.find(input => input.id === e.inputId)!;
       input.spec = structuredClone(e.spec); input.status = e.spec.clarification ? 'clarification' : 'resolved';
@@ -460,7 +594,7 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     }
     case 'BLOCKED':
-      if (inflight(c).length) { c.deferredCoordination = true; c.reason = e.reason; }
+      if (inflight(c).length || discussionActive(c)) { c.deferredCoordination = true; c.reason = e.reason; }
       else coordinate(c, e, e.reason);
       break;
     case 'COORDINATE': {
@@ -486,12 +620,15 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'USER_INPUT': {
       if (e.history) c.history = e.history;
       message(c, e, 'user', e.text, 'user');
+      if (!e.goal && e.reviewTargets?.length && (discussionActive(c) || ((!c.review || ['complete', 'cancelled'].includes(c.review.status)) && inflight(c).some(work => ['owner', 'tool', 'assistance'].includes(work.kind))))) {
+        startDiscussion(c, e); break;
+      }
       if (e.decision) c.board.push({ id: e.id, kind: 'decision', text: e.text, author: 'user', sources: [], verified: false, revision: 1, goalVersion: c.goalVersion });
       else {
         c.inputs.push({ id: e.id, text: e.text, applied: false });
         if (e.goal) {
           c.goal = e.goal; c.goalVersion++; c.candidate = null;
-          cancelWork(c, e);
+          cancelWork(c, e, true);
           for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight', 'clarification', 'failed'].includes(input.status)) input.status = 'cancelled';
           for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
         }
@@ -507,7 +644,7 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (c.outcome === null) {
         c.goal.constraints.push(`用户决定：${e.text}`); c.goalVersion++; c.candidate = null;
         for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight'].includes(input.status)) input.status = 'cancelled';
-        c.inputs.push({ id: e.id, text: e.text, applied: false }); cancelWork(c, e);
+        c.inputs.push({ id: e.id, text: e.text, applied: false }); cancelWork(c, e, true);
         for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
         if (e.reviewTargets) requestReview(c, e.id, e.text, e.reviewTargets);
         recordInput(c, e.id, e.text, e.reviewTargets?.length ? 'review' : 'decision');
@@ -531,19 +668,21 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const artifactIds = saveReports(c, e, e.text, c.owner, e.artifacts);
       cancelWork(c, e); c.candidate = { text: e.text, artifactIds: [...new Set([...e.artifactIds, ...artifactIds])], goalVersion: c.goalVersion,
         ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}) };
+      if (discussionActive(c)) break;
       intent(c, e.at, 'check', 'facilitator', { goal: c.goal, artifacts: c.artifacts, board: c.board, ...conversationInput(c), deterministicGap: completeProblem(c) });
       break;
     }
     case 'CHECK_RESULT':
       c.consumedResults.push(e.resultId);
-      if (c.review?.incomplete) finish(c, e, 'partial', c.review.incomplete);
+      if (discussionIncomplete(c)) finish(c, e, 'partial', discussionIncomplete(c)!);
+      else if (c.review?.incomplete) finish(c, e, 'partial', c.review.incomplete);
       else if (e.passed && !completeProblem(c)) finish(c, e, 'complete', '');
       else if (hasOrdinary(c)) coordinate(c, e, [completeProblem(c), ...e.gaps].filter(Boolean).join('; ') || 'Incomplete delivery');
       else finish(c, e, c.candidate || c.artifacts.length ? 'partial' : 'failed', e.gaps.join('; ') || completeProblem(c) || 'Budget exhausted');
       break;
     case 'STOP':
       if (e.text) message(c, e, 'user', e.text, 'user');
-      c.stopped = true; c.reason = 'User requested stop'; cancelWork(c, e);
+      c.stopped = true; c.reason = 'User requested stop'; cancelWork(c, e, true);
       for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight', 'clarification', 'failed'].includes(input.status)) input.status = 'cancelled';
       if (c.review) c.review.status = 'cancelled';
       for (const h of c.assists) if (['pending', 'running', 'answered'].includes(h.status)) h.status = 'cancelled';
@@ -574,7 +713,7 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const fingerprint = JSON.stringify([e.operation, e.parameters, e.resource, e.error, e.result]).normalize('NFKC');
       c.repeat = { fingerprint, count: c.repeat.fingerprint === fingerprint ? c.repeat.count + 1 : 1 };
       if (c.repeat.count >= c.config.limits.repeatThreshold) {
-        if (inflight(c).length) { c.deferredCoordination = true; c.reason = 'Repeated failure without progress'; }
+        if (inflight(c).length || discussionActive(c)) { c.deferredCoordination = true; c.reason = 'Repeated failure without progress'; }
         else coordinate(c, e, 'Repeated failure without progress');
       }
       break;
@@ -591,7 +730,7 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       work.status = 'inflight'; work.attempt++; work.requestCount = 0;
       if (work.bucket !== 'none') c.usage[work.bucket]++;
       if (work.kind === 'interpretation') c.inputAnalyses!.find(input => input.workId === work.id)!.status = 'inflight';
-      if (work.kind === 'assistance') c.assists.find(h => h.id === work.payload.requestId)!.status = 'running';
+      if (work.kind === 'assistance' && !work.discussionId) c.assists.find(h => h.id === work.payload.requestId)!.status = 'running';
       break;
     }
     case 'CONSUME': {
@@ -610,6 +749,11 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'WORK_FAILED': {
       const work = c.intents.find(i => i.id === e.intentId);
       if (!work) { reject(c, 'UNKNOWN_WORK'); break; }
+      if (work.discussionId) {
+        if (discussionActive(c) && work.discussionId === c.discussion!.id) discussionFailed(c, e, work, e.reason);
+        else release(c, work.id);
+        break;
+      }
       if (work.kind === 'cancel') { work.status = 'done'; c.reason = `Cancellation not confirmed: ${e.reason}`; break; }
       if (e.resultUncertain || work.replay === 'unsafe') {
         work.status = 'uncertain'; c.reason = `Result uncertain; reconcile before retry: ${e.reason}`;
@@ -643,7 +787,7 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       c.config.skillSearch = { enabled: e.config.skillSearch?.enabled !== false };
       c.config.webTools = { enabled: e.config.webTools?.enabled !== false };
       for (const work of c.intents.filter(i => ['pending', 'inflight'].includes(i.status) && ['owner', 'assistance', 'facilitator'].includes(i.kind))) work.payload.capabilities = capabilities(c);
-      if (issue) { cancelWork(c, e); c.reason = issue; reject(c, 'INCOMPATIBLE_EXECUTION'); break; }
+      if (issue) { cancelWork(c, e, true); c.reason = issue; reject(c, 'INCOMPATIBLE_EXECUTION'); break; }
       for (const work of c.intents.filter(i => i.status === 'inflight' && i.kind !== 'cancel')) {
         if (work.replay === 'unsafe') { work.status = 'uncertain'; c.reason = 'Reconcile uncertain external result'; }
         else {
@@ -679,8 +823,13 @@ export const taskMachine = setup({
       // A stale completion may retire its own physical work, never advance the new round.
       const physicalWorkId = event.workId ?? (event.type === 'WORK_FAILED' ? event.intentId : undefined);
       const work = context.intents.find(i => i.id === physicalWorkId);
-      if (work && (!event.fence || (event.fence.epoch === work.epoch && event.fence.goalVersion === work.goalVersion))) release(c, work.id);
-      if (['INTERPRETATION_RESULT', 'HELP_RESULT', 'RECORD_RESULT', 'DELIVER', 'CHECK_RESULT', 'COORDINATE', 'WORK_FAILED', 'BLOCKED'].includes(event.type)) c.lateResults.push(event);
+      const belongsToDiscussion = (event.type === 'DISCUSSION_PLAN' || event.type === 'DISCUSSION_RESULT') && event.discussionId === work?.discussionId;
+      if (work && (!work.discussionId || belongsToDiscussion) && (!event.fence || (event.fence.epoch === work.epoch && event.fence.goalVersion === work.goalVersion))) {
+        if (work.discussionId && work.status === 'inflight' && fresh(context, event) && !context.stopped && discussionActive(c)
+          && ['INVALID_DISCUSSION_PLAN', 'INVALID_DISCUSSION_RESULT', 'WORK_EXPIRED'].includes(c.reply.code)) discussionFailed(c, event, c.intents.find(item => item.id === work.id)!, c.reply.code);
+        else release(c, work.id);
+      }
+      if (['DISCUSSION_PLAN', 'DISCUSSION_RESULT', 'INTERPRETATION_RESULT', 'HELP_RESULT', 'RECORD_RESULT', 'DELIVER', 'CHECK_RESULT', 'COORDINATE', 'WORK_FAILED', 'BLOCKED'].includes(event.type)) c.lateResults.push(event);
       if (event.type === 'INTERPRETATION_RESULT' && fresh(context, event) && !context.stopped
         && work?.kind === 'interpretation' && work.status === 'inflight') {
         const input = c.inputAnalyses?.find(input => input.workId === work.id);
@@ -719,9 +868,16 @@ export const taskMachine = setup({
       prepareInterpretation(c, { type: 'BOUNDARY', id: event.id ?? 'initial-interpretation', at: event.at ?? c.lastActivityAt });
       return c;
     }),
+    handoffDiscussion: assign(({ context, event }) => reduce(context, { type: 'DISCUSSION_HANDOFF', id: `${event.id}:discussion-handoff`, at: event.at })),
   },
   guards: {
     valid,
+    claimDiscussion: args => valid(args) && args.event.type === 'CLAIM' && args.context.intents.some(work => work.id === (args.event.type === 'CLAIM' ? args.event.intentId : '') && !!work.discussionId),
+    failedDiscussion: args => valid(args) && args.event.type === 'WORK_FAILED' && args.context.intents.some(work => work.id === (args.event.type === 'WORK_FAILED' ? args.event.intentId : '') && !!work.discussionId),
+    holdingDelivery: args => valid(args) && discussionActive(args.context),
+    discussionHandoffReady: ({ context }) => context.discussion?.status === 'ready' && !context.stopped && !incompatibleExecution(context)
+      && inflight(context).length === 0 && !activeHelp(context) && !unresolvedInput(context) && !context.inputs.some(input => !input.applied),
+    incompleteDiscussion: args => valid(args) && !!discussionIncomplete(args.context),
     safeBoundary: ({ context }) => inflight(context).length === 0,
     analysisReady: ({ context }) => !context.stopped && context.outcome === null && !incompatibleExecution(context) && !!pendingInput(context)
       && inflight(context).length === 0 && !activeHelp(context),
@@ -733,10 +889,10 @@ export const taskMachine = setup({
     resultAtBoundary: args => valid(args) && !args.context.stopped && args.context.outcome === null && inflight(args.context).length === 0,
     reviewResultAtBoundary: args => valid(args) && !args.context.stopped && args.context.outcome === null && inflight(args.context).length === 0
       && args.event.type === 'HELP_RESULT' && helpResultContinuesReview(args.context, args.event.requestId),
-    stoppedSettled: ({ context }) => context.stopped && inflight(context).length === 0 && !context.intents.some(i => i.status === 'uncertain'),
-    canCoordinate: args => valid(args) && remainingInflight(args.context, args.event).length === 0,
+    stoppedSettled: ({ context }) => context.stopped && allInflight(context).length === 0 && !context.intents.some(i => i.status === 'uncertain'),
+    canCoordinate: args => valid(args) && !discussionActive(args.context) && remainingInflight(args.context, args.event).length === 0,
     isCurrent: ({ context, event }) => fresh(context, event) && !context.stopped && (!event.workId || context.intents.some(i => i.id === event.workId && i.status === 'inflight')),
-    deferredReady: ({ context }) => context.deferredCoordination && !unresolvedInput(context) && inflight(context).length === 0,
+    deferredReady: ({ context }) => context.deferredCoordination && !discussionActive(context) && !unresolvedInput(context) && inflight(context).length === 0,
     reviewReady: ({ context }) => context.review?.status === 'pending' && !context.stopped && !unresolvedInput(context) && inflight(context).length === 0,
     interpretationClarifies: args => valid(args) && args.event.type === 'INTERPRETATION_RESULT' && args.event.spec.clarification !== null,
     currentInterpretation: ({ context, event }) => event.type === 'INTERPRETATION_RESULT' && fresh(context, event) && !context.stopped
@@ -756,13 +912,13 @@ export const taskMachine = setup({
     },
     incompleteReview: args => valid(args) && !!args.context.review?.incomplete,
     claimOwner: args => valid(args) && ['owner', 'tool'].includes(args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind ?? ''),
-    claimHelp: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'assistance',
-    claimFacilitator: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'facilitator',
+    claimHelp: args => valid(args) && args.context.intents.some(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : '') && i.kind === 'assistance' && !i.discussionId),
+    claimFacilitator: args => valid(args) && args.context.intents.some(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : '') && i.kind === 'facilitator' && !i.discussionId),
     claimCheck: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'check',
     claimCancel: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'cancel',
-    shouldTick: ({ context, event }) => valid({ context, event }) && event.at >= context.nextCheckAt && inflight(context).length === 0 && !context.processedSignals.includes(event.id),
+    shouldTick: ({ context, event }) => valid({ context, event }) && !discussionActive(context) && event.at >= context.nextCheckAt && inflight(context).length === 0 && !context.processedSignals.includes(event.id),
     repeated: ({ context, event }) => {
-      if (event.type !== 'FAILURE_SIGNAL' || !valid({ context, event }) || remainingInflight(context, event).length) return false;
+      if (event.type !== 'FAILURE_SIGNAL' || !valid({ context, event }) || discussionActive(context) || remainingInflight(context, event).length) return false;
       const f = JSON.stringify([event.operation, event.parameters, event.resource, event.error, event.result]).normalize('NFKC');
       return (f === context.repeat.fingerprint ? context.repeat.count + 1 : 1) >= context.config.limits.repeatThreshold;
     },
@@ -794,6 +950,8 @@ export const taskMachine = setup({
     { guard: 'inputsReady', target: '.running', actions: 'boundary' },
   ],
   on: {
+    DISCUSSION_PLAN: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+    DISCUSSION_RESULT: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     RETRY_ASSISTANCE: [
       { guard: 'retryReviewContinues', target: '.waitingAssistance', actions: 'apply' },
       { guard: 'retryHasResult', target: '.running', actions: 'apply' },
@@ -810,7 +968,8 @@ export const taskMachine = setup({
     ARTIFACT: { guard: 'valid', actions: 'apply' },
     ACTIVITY: { guard: 'valid', actions: 'apply' },
     PROGRESS: { guard: 'valid', actions: 'apply' },
-    CLAIM: { guard: 'claimCancel', actions: 'apply' },
+    CLAIM: [{ guard: 'claimDiscussion', actions: 'apply' }, { guard: 'claimCancel', actions: 'apply' }],
+    WORK_FAILED: { guard: 'failedDiscussion', actions: 'apply' },
     CONSUME: { guard: 'valid', actions: 'apply' },
     REGENERATE_MODEL_OUTPUT: { guard: 'valid', actions: 'apply' },
     SETTLE: { guard: 'valid', actions: 'apply' },
@@ -828,22 +987,22 @@ export const taskMachine = setup({
           { guard: 'valid', target: 'running', actions: 'apply' },
           { guard: 'currentInterpretation', target: 'waitingHuman', actions: 'reject' },
         ],
-        WORK_FAILED: [{ guard: 'retryable', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
+        WORK_FAILED: [{ guard: 'failedDiscussion', actions: 'apply' }, { guard: 'retryable', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
       },
     },
     running: {
-      always: [{ guard: 'reviewReady', target: 'coordinating', actions: 'beginReview' }, { guard: 'deferredReady', target: 'coordinating', actions: 'deferred' }],
+      always: [{ guard: 'discussionHandoffReady', actions: 'handoffDiscussion' }, { guard: 'reviewReady', target: 'coordinating', actions: 'beginReview' }, { guard: 'deferredReady', target: 'coordinating', actions: 'deferred' }],
       on: {
         CLAIM: { guard: 'claimOwner', actions: 'apply' },
         HELP: { guard: 'valid', target: 'waitingAssistance', actions: 'apply' },
         BLOCKED: [{ guard: 'canCoordinate', target: 'coordinating', actions: 'apply' }, { guard: 'valid', actions: 'apply' }],
         WAIT_USER: { guard: 'valid', target: 'waitingHuman', actions: 'apply' },
         HANDOFF: { guard: 'valid', actions: 'apply' },
-        DELIVER: { guard: 'valid', target: 'checking', actions: 'apply' },
+        DELIVER: [{ guard: 'holdingDelivery', actions: 'apply' }, { guard: 'valid', target: 'checking', actions: 'apply' }],
         TOOL: { guard: 'valid', actions: 'apply' },
         TICK: { guard: 'shouldTick', target: 'coordinating', actions: 'apply' },
         FAILURE_SIGNAL: [{ guard: 'repeated', target: 'coordinating', actions: 'apply' }, { guard: 'valid', actions: 'apply' }],
-        WORK_FAILED: [{ guard: 'retryable', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
+        WORK_FAILED: [{ guard: 'failedDiscussion', actions: 'apply' }, { guard: 'retryable', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
       },
     },
     waitingAssistance: {
@@ -851,7 +1010,7 @@ export const taskMachine = setup({
         CLAIM: { guard: 'claimHelp', actions: 'apply' },
         RECORD_RESULT: { guard: 'valid', actions: 'apply' },
         HELP_RESULT: [{ guard: 'reviewResultContinues', actions: 'apply' }, { guard: 'valid', target: 'running', actions: 'apply' }],
-        WORK_FAILED: [{ guard: 'retryable', actions: 'apply' }, { guard: 'failedReviewContinues', actions: 'apply' }, { guard: 'failedAssistance', target: 'running', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
+        WORK_FAILED: [{ guard: 'failedDiscussion', actions: 'apply' }, { guard: 'retryable', actions: 'apply' }, { guard: 'failedReviewContinues', actions: 'apply' }, { guard: 'failedAssistance', target: 'running', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
       },
     },
     coordinating: {
@@ -866,7 +1025,7 @@ export const taskMachine = setup({
           { guard: 'decisionRun', target: 'running', actions: 'apply' },
           { guard: 'isCurrent', target: 'waitingHuman', actions: 'reject' },
         ],
-        WORK_FAILED: [{ guard: 'retryable', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
+        WORK_FAILED: [{ guard: 'failedDiscussion', actions: 'apply' }, { guard: 'retryable', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
       },
     },
     waitingHuman: { on: { CONTINUE: { guard: 'valid', target: 'running', actions: 'apply' } } },
@@ -874,12 +1033,13 @@ export const taskMachine = setup({
       on: {
         CLAIM: { guard: 'claimCheck', actions: 'apply' },
         CHECK_RESULT: [
+          { guard: 'incompleteDiscussion', target: 'ended', actions: 'apply' },
           { guard: 'incompleteReview', target: 'ended', actions: 'apply' },
           { guard: 'checkComplete', target: 'ended', actions: 'apply' },
           { guard: 'canCorrect', target: 'coordinating', actions: 'apply' },
           { guard: 'valid', target: 'ended', actions: 'apply' },
         ],
-        WORK_FAILED: [{ guard: 'retryable', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
+        WORK_FAILED: [{ guard: 'failedDiscussion', actions: 'apply' }, { guard: 'retryable', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
       },
     },
     stopping: {

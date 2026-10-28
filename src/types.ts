@@ -47,7 +47,7 @@ export interface Assistance extends Fence {
   reviewId?: string;
   requestedBy?: string; requiredTools?: string[]; retryOf?: string;
 }
-export type WorkKind = 'interpretation' | 'owner' | 'assistance' | 'facilitator' | 'check' | 'cancel' | 'tool';
+export type WorkKind = 'interpretation' | 'owner' | 'assistance' | 'facilitator' | 'discussionSummary' | 'check' | 'cancel' | 'tool';
 export const modelOutputIssues = ['invalid_json', 'invalid_object', 'invalid_type', 'check_passed_boolean', 'check_gaps_strings', 'invalid_work_output', 'invalid_decision', 'invalid_tool_request', 'invalid_input_intent'] as const;
 export type ModelOutputIssue = typeof modelOutputIssues[number];
 export interface Intent extends Fence {
@@ -57,6 +57,8 @@ export interface Intent extends Fence {
   bucket: 'ordinary' | 'checks' | 'none';
   requestCount: number;
   model?: ModelBinding;
+  /** Independent, read-only discussion lane; never a primary assistance dependency. */
+  discussionId?: string;
   /** Persisted format-repair authorization; never stores the rejected model body. */
   outputRepair?: { count: number; issue: ModelOutputIssue };
 }
@@ -83,6 +85,13 @@ export interface ReviewRound extends Fence {
   status: 'pending' | 'reviewing' | 'summarizing' | 'complete' | 'cancelled';
   question?: string; expected?: string; incomplete?: string;
 }
+export interface DiscussionRound extends Fence {
+  id: string; request: string; targets: string[];
+  status: 'planning' | 'collecting' | 'summarizing' | 'ready' | 'delivered' | 'cancelled';
+  skipped: { target: string; reason: string }[];
+  results: { target: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; artifactIds: string[] }[];
+  question?: string; expected?: string; summary?: string; incomplete?: string;
+}
 export interface TaskContext extends Fence {
   schemaVersion: 1; taskId: string; owner: string; config: TeamConfig; goal: Goal;
   messages: Message[]; board: BoardEntry[]; boardHistory: BoardEntry[]; artifacts: Artifact[]; assists: Assistance[];
@@ -97,6 +106,7 @@ export interface TaskContext extends Fence {
   deferredCoordination: boolean; reply: Reply;
   history?: ConversationHistory;
   review?: ReviewRound;
+  discussion?: DiscussionRound;
   inputAnalyses?: InputAnalysis[];
 }
 export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[] }
@@ -109,6 +119,9 @@ export type Decision =
   | { action: 'askUser'; question: string; reason: string }
   | { action: 'finish'; reason: string };
 export type TaskEvent = Envelope & (
+  | { type: 'DISCUSSION_PLAN'; discussionId: string; decision: Decision }
+  | { type: 'DISCUSSION_RESULT'; discussionId: string; text: string; status: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[] }
+  | { type: 'DISCUSSION_HANDOFF' }
   | { type: 'INTERPRETATION_RESULT'; inputId: string; spec: InputIntentSpec }
   | { type: 'REGENERATE_MODEL_OUTPUT'; intentId: string; issue: ModelOutputIssue }
   | { type: 'HELP'; requestId: string; caller: string; target: string; question: string; expected: string; refs?: string[]; requiredTools?: string[] }
