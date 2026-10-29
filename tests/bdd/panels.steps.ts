@@ -295,3 +295,30 @@ Then('桌面导航展开偏好应保持不变', function (this: SpecWorld) {
 When('迟到的右栏拖拽松手事件到达', async function (this: SpecWorld) {
   const s = state(this); await s.fixture.endDrag(s.dragStartWidth! - 900);
 });
+
+Given('宽度为{int}的工作区已打开详情', async function (this: SpecWorld, width: number) {
+  const f = await setup(this, width); await f.openDetails();
+});
+When('检查聊天和详情标题栏样式', function (this: SpecWorld) {
+  const f = state(this).fixture;
+  for (const selector of ['.chat-header', '.details-header']) {
+    const style = f.window.getComputedStyle(f.query(selector) as never);
+    assert.equal(style.height, '64px'); assert.equal(style.minHeight, '64px'); assert.equal(style.flexShrink, '0');
+  }
+});
+Then('两个标题栏应等高且不会被内容区挤压', function (this: SpecWorld) {
+  const f = state(this).fixture;
+  assert.equal(f.window.getComputedStyle(f.query('.chat-header') as never).height,
+    f.window.getComputedStyle(f.query('.details-header') as never).height);
+});
+When('在聊天标题栏检查连接状态并从导航查看方案师', async function (this: SpecWorld) {
+  const f = state(this).fixture;
+  assert(f.query('.chat-header .connection-label').textContent?.includes('已连接'));
+  await f.click('查看方案师的执行过程');
+});
+Then('页面不应渲染成员条且成员详情仍可使用', function (this: SpecWorld) {
+  const f = state(this).fixture;
+  assert.equal(f.container.querySelector('.team-bar, .team-avatar-stack, .stack-avatar-button'), null);
+  assert.equal(f.query('.agent-profile h2').textContent, '方案师');
+  for (const label of ['复制详情', '导出详情', '关闭详情']) assert(f.label(label));
+});
