@@ -394,3 +394,31 @@ export async function npmBuildAcceptance() {
     assert(f.h.context().intents.find(w => w.kind === 'check')!.localOperations!.some(op => op.result?.data.stdout && String(op.result.data.stdout).includes('npm-build-ok')));
   } finally { await f.close(); }
 }
+
+export async function versionHandoffAcceptance() {
+  const f = await LocalFixture.create(); f.backend.before = undefined;
+  try {
+    const old = f.runtime.catalog().skills[0]!;
+    const owner = new WorkRunner(f.h.engine, { execute: async (_work, signal, scope) => {
+      const action: LocalAction = { type: 'loadSkill', skillId: f.skillId }; assert((await scope.localTools!.invoke(action, [{ role: 'assistant', content: JSON.stringify(action) }], signal)).ok);
+      return { type: 'help', requestId: 'version-help', target: 'B', question: '使用已激活技能核查', expected: '证据' };
+    } }, () => 0, globalThis.fetch, undefined, f.runtime);
+    assert(await owner.runOne(f.h.room, f.h.task));
+    await f.runtime.close();
+    await writeFile(join(f.skills, 'local-check/SKILL.md'), '---\nname: local-check\ndescription: New version\n---\nnew-body-must-not-be-mixed');
+    await writeFile(join(f.skills, 'local-check/scripts/run.mjs'), 'console.log("new-script-must-not-run")');
+    const { LocalRuntime } = await import('../src/local-runtime.js');
+    f.runtime = await LocalRuntime.create({ dataRoot: join(f.root, 'runtime'), skillRoots: [f.skills], workspaceRoot: f.source, backend: f.backend, clock: () => 0 });
+    assert.notEqual(f.runtime.catalog().skills[0]!.skillVersion, old.skillVersion);
+    f.h.engine.recover(f.h.room);
+    const helper = f.h.engine.pending(f.h.room, f.h.task).find(w => w.kind === 'assistance')!;
+    assert.equal(helper.localSkills?.find(s => s.skillId === f.skillId)?.skillVersion, old.skillVersion);
+    const actions = f.actions(); actions[0] = { type: 'loadSkill', skillId: 'local-check' };
+    f.replies.push(...actions, { type: 'answer', text: '使用固定版本完成核查' }); await f.runner().runOne(f.h.room, f.h.task, helper.id);
+    const result = f.h.context().intents.find(w => w.id === helper.id)!;
+    assert.equal(result.localOperations![0]!.result!.data.skillVersion, old.skillVersion);
+    assert(result.localCheckpoint!.messages.some(m => m.content.includes('skill-ok')));
+    assert(!result.localCheckpoint!.messages.some(m => m.content.includes('new-body-must-not-be-mixed') || m.content.includes('new-script-must-not-run')));
+    assert.equal(f.backend.calls.length, 1);
+  } finally { await f.close(); }
+}

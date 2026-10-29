@@ -99,6 +99,7 @@ export class SkillRegistry {
     if (!entry) throw new LocalToolError('SKILL_NOT_FOUND');
     return entry;
   }
+  resolveId(id: string): string { return this.entry(id).skillId; }
   async snapshot(id: string, version?: string): Promise<{ entry: SkillMetadata; path: string }> {
     const entry = this.entry(id, version); const key = entry.skillVersion;
     let promise = this.snapshots.get(key);

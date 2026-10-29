@@ -88,6 +88,17 @@ describe('persisted local operations in the real taskMachine', () => {
     }
   });
   it('[BT_L16] an uncertain background operation cannot discard the live owner draft', discussionUncertainModel);
+  it('[BT_L18] pins activated versions across member handoffs and snapshot recovery', () => {
+    const m = new LocalModel(); m.request({ type: 'loadSkill', skillId: 'skill1' }); m.claim();
+    m.result({ result: { ok: true, code: 'loaded', data: { skillId: 'skill1', skillVersion: 'b'.repeat(64) } } });
+    expect(m.c.localSkillVersions).toEqual([{ skillId: 'skill1', skillVersion: 'b'.repeat(64) }]);
+    expect(m.send({ type: 'HELP', workId: m.work.id, fence: m.work, caller: 'A', requestId: 'H', target: 'B', question: '核查', expected: '证据' }).ok).toBe(true);
+    m.send({ type: 'RECOVER', config: localModelInput().config });
+    expect(m.c.intents.at(-1)!.localSkills).toEqual(m.c.localSkillVersions);
+    const old = new LocalModel(); old.request({ type: 'loadSkill', skillId: 'skill1' }); old.claim(); old.c.goalVersion++; old.c.localSkillVersions = [];
+    old.result({ result: { ok: true, code: 'loaded', data: { skillId: 'skill1', skillVersion: 'b'.repeat(64) } } });
+    expect(old.c.localSkillVersions).toEqual([]);
+  });
   it('[BT_L17] only check work can claim host version verification and it reserves the workspace', () => {
     const owner = new LocalModel(); expect(owner.request({ type: 'verifyWorkspace', expectedRevision: 'b'.repeat(64) }).code).toBe('WORKSPACE_VALIDATION_NOT_ALLOWED');
     const m = new LocalModel(); m.c.intents[0]!.status = 'done'; m.send({ type: 'DELIVER', text: 'candidate', artifactIds: [] });

@@ -115,6 +115,7 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
   let op = work.localOperations?.find(o => o.id === e.operationId);
   switch (e.type) {
     case 'LOCAL_REQUEST':
+      work.localSkills = [...(work.localSkills ?? []).filter(s => !c.localSkillVersions?.some(p => p.skillId === s.skillId)), ...(c.localSkillVersions ?? [])];
       op = { id: e.operationId, namespace: e.namespace, requestHash: e.requestHash, action: e.action, status: 'queued', parentAttempt: work.attempt, attempt: 0, createdAt: e.at,
         ...(e.workspaceId ? { workspaceId: e.workspaceId } : {}) };
       (work.localOperations ??= []).push(op);
@@ -152,6 +153,7 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
       c.reason = '本地操作已核对';
       break;
   }
+  if (op?.status === 'succeeded' && op.action.type === 'loadSkill' && work.epoch === c.epoch && work.goalVersion === c.goalVersion && !c.stopped) c.localSkillVersions = [...(c.localSkillVersions ?? []).filter(s => !work.localSkills?.some(p => p.skillId === s.skillId)), ...(work.localSkills ?? [])];
   c.trace.push({ event: e.type, at: e.at, detail: JSON.stringify({ workId: work.id, operationId: e.operationId, status: op!.status }) });
 }
 export function cancelLocalOperations(work: Intent): void {

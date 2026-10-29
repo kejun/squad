@@ -96,6 +96,7 @@ function saveReports(c: TaskContext, e: TaskEvent, text: string, author: string,
 }
 function intent(c: TaskContext, at: number, kind: Intent['kind'], target: string, payload: Record<string, unknown> = {}, replay: Intent['replay'] = 'safe'): Intent {
   const item: Intent = { id: `${c.taskId}:E${c.epoch}:${kind}:${c.nextSeq++}`, kind, target, payload,
+    ...(c.localSkillVersions?.length ? { localSkills: structuredClone(c.localSkillVersions) } : {}),
     ...fence(c), status: 'pending', replay, attempt: 0, deadline: at + c.config.limits.workTimeoutMs,
     bucket: kind === 'check' ? 'checks' : kind === 'cancel' ? 'none' : 'ordinary', requestCount: 0 };
   const model = resolveModel(c.config, kind, target);
@@ -619,7 +620,7 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (d.action === 'continue') owner(c, e, { reason: d.reason });
       if (d.action === 'assist') startHelp(c, e, `${c.taskId}:help:${c.nextSeq++}`, d.target, d.question, d.expected, [], true);
       if (d.action === 'replan') {
-        c.usage.replans++;
+        c.usage.replans++; c.localSkillVersions = [];
         c.board.push({ id: `${c.taskId}:plan:${c.usage.replans}`, kind: 'opinion', author: 'facilitator', text: d.plan, sources: [], verified: false, revision: 1, goalVersion: c.goalVersion });
         owner(c, e, { plan: d.plan, retainedEvidence: c.board.map(b => b.id), reason: d.reason });
       }
@@ -638,7 +639,7 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       else {
         c.inputs.push({ id: e.id, text: e.text, applied: false });
         if (e.goal) {
-          c.goal = e.goal; c.goalVersion++; c.candidate = null;
+          c.goal = e.goal; c.goalVersion++; c.localSkillVersions = []; c.candidate = null;
           cancelWork(c, e, true);
           for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight', 'clarification', 'failed'].includes(input.status)) input.status = 'cancelled';
           for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
@@ -653,7 +654,7 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       message(c, e, 'user', e.text, 'user');
       c.board.push({ id: e.id, kind: 'decision', text: e.text, author: 'user', sources: [e.id], verified: false, revision: 1, goalVersion: c.goalVersion });
       if (c.outcome === null) {
-        c.goal.constraints.push(`用户决定：${e.text}`); c.goalVersion++; c.candidate = null;
+        c.goal.constraints.push(`用户决定：${e.text}`); c.goalVersion++; c.localSkillVersions = []; c.candidate = null;
         for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight'].includes(input.status)) input.status = 'cancelled';
         c.inputs.push({ id: e.id, text: e.text, applied: false }); cancelWork(c, e, true);
         for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
@@ -738,6 +739,7 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'ARTIFACT': c.artifacts.push({ ...e.artifact, goalVersion: c.goalVersion }); c.progressRefs.push(e.artifact.id); c.repeat.count = 0; c.lastProgressAt = e.at; c.nextCheckAt = e.at + c.config.limits.progressIntervalMs; break;
     case 'CLAIM': {
       const work = c.intents.find(i => i.id === e.intentId)!;
+      work.localSkills = [...(work.localSkills ?? []).filter(s => !c.localSkillVersions?.some(p => p.skillId === s.skillId)), ...(c.localSkillVersions ?? [])];
       work.status = 'inflight'; work.attempt++; work.requestCount = 0;
       if (work.bucket !== 'none') c.usage[work.bucket]++;
       if (work.kind === 'interpretation') c.inputAnalyses!.find(input => input.workId === work.id)!.status = 'inflight';

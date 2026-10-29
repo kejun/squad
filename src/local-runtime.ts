@@ -162,7 +162,9 @@ export class LocalRuntime {
           return { result: { ok: matches, code: matches ? 'WORKSPACE_REVISION_CONFIRMED' : 'WORKSPACE_REVISION_CHANGED',
             data: { expectedRevision: action.expectedRevision, currentRevision, copyRevision } }, settled: true, effectsKnown: true };
         }
-        else if (action.type === 'loadSkill') data = await this.registry.load(action.skillId, this.binding(work, action.skillId)?.skillVersion);
+        else if (action.type === 'loadSkill') {
+          const binding = this.binding(work, action.skillId); data = await this.registry.load(binding?.skillId ?? action.skillId, binding?.skillVersion);
+        }
         else {
           const binding = this.binding(work, action.skillId); if (!binding) throw new LocalToolError('SKILL_NOT_ACTIVE');
           data = await this.registry.read(binding.skillId, action.path, binding.skillVersion, action.offset);
@@ -223,7 +225,10 @@ export class LocalRuntime {
     await this.journal.write({ operationId: op.id, sessionId, phase: 'settled', completion });
     return completion;
   }
-  private binding(work: Intent, id: string): SkillBinding | undefined { return work.localSkills?.find(s => s.skillId === id); }
+  private binding(work: Intent, id: string): SkillBinding | undefined {
+    const exact = work.localSkills?.find(s => s.skillId === id); if (exact) return exact;
+    try { const canonical = this.registry.resolveId(id); return work.localSkills?.find(s => s.skillId === canonical); } catch { return undefined; }
+  }
   async reconcile(op: LocalOperation) {
     if (op.action.type !== 'runCli') return { resolution: 'notStarted' as const, detail: 'Host-classified read-only skill operation may be replayed' };
     return this.journal.reconcile(op.id, op.sessionId!);

@@ -4,7 +4,7 @@ import { After, Given, When, Then } from '@cucumber/cucumber';
 import type { SpecWorld } from './steps.js';
 import { LocalFixture, assertFlow } from '../local-tools-fixture.js';
 import type { Intent } from '../../src/types.js';
-import { npmBuildAcceptance, revisionAcceptance, concurrentAcceptance, sandboxAcceptance, acknowledgementAcceptance, cliFailureAcceptance, crashAcceptance, formatAcceptance, guardAcceptance, isolationAcceptance, leaseAcceptance, namespaceAcceptance, permissionAcceptance, policyAcceptance, registryAcceptance, serviceAcceptance, skillErrorAcceptance, stopAcceptance } from '../local-tools-acceptance.js';
+import { versionHandoffAcceptance, npmBuildAcceptance, revisionAcceptance, concurrentAcceptance, sandboxAcceptance, acknowledgementAcceptance, cliFailureAcceptance, crashAcceptance, formatAcceptance, guardAcceptance, isolationAcceptance, leaseAcceptance, namespaceAcceptance, permissionAcceptance, policyAcceptance, registryAcceptance, serviceAcceptance, skillErrorAcceptance, stopAcceptance } from '../local-tools-acceptance.js';
 interface State { fixture?: LocalFixture; work?: Intent; constraint?: string; expected?: string; stage?: string; window?: string; problem?: string; fault?: string; verified?: boolean }
 const states = new WeakMap<SpecWorld, State>();
 const state = (world: SpecWorld) => { let s = states.get(world); if (!s) { s = {}; states.set(world, s); } return s; };
@@ -79,3 +79,8 @@ Then('宿主应先领取版本复核操作再将检查结论按{string}提交', 
 Then('版本复核不得再次执行 CLI', function (this: SpecWorld) { assert(state(this).verified); });
 
 Then('副本应保留工程内工具链接并可执行 npm build', async function (this: SpecWorld) { await npmBuildAcceptance(); });
+
+Given('负责人已激活一个技能的旧版本', function (this: SpecWorld) { state(this); });
+When('同一任务安排另一位成员并恢复执行', async function (this: SpecWorld) { await versionHandoffAcceptance(); state(this).verified = true; });
+Then('新工作应继承任务中已固定的技能版本', function (this: SpecWorld) { assert(state(this).verified); });
+Then('按名称加载也不得混入重启后发现的新正文或脚本', function (this: SpecWorld) { assert(state(this).verified); });
