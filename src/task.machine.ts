@@ -1,4 +1,4 @@
-import { applyLocalEvent, cancelLocalOperations, localEnabled, localEventProblem, localPhysicalPending, localUnsettled, recoverLocalOperations, type LocalEvent } from './local-operation.js';
+import { applyLocalEvent, cancelLocalOperations, localEnabled, localEventProblem, localPhysicalPending, localRecoveryBlocked, localUnsettled, recoverLocalOperations, type LocalEvent } from './local-operation.js';
 import { assign, initialTransition, setup, transition, type SnapshotFrom } from 'xstate';
 import { modelOutputIssues, type ArtifactDraft, type Assistance, type BoardEntry, type Decision, type InputAction, type InputReference, type Intent, type Phase, type TaskContext, type TaskEvent, type TaskInput } from './types.js';
 import { createInputAnalysis, inputReferences, validInputIntent } from './input-intent.js';
@@ -23,8 +23,7 @@ const unresolvedInput = (c: TaskContext) => (c.inputAnalyses ?? []).some(input =
 const pendingInput = (c: TaskContext) => c.inputAnalyses?.find(input =>
   input.epoch === c.epoch && input.goalVersion === c.goalVersion && input.status === 'pending'
   && !c.intents.some(work => work.id === input.workId && ['pending', 'inflight'].includes(work.status)));
-const incompatibleExecution = (c: TaskContext) => ['Execution version incompatible', 'Tool permission revoked',
-  'Execution member unavailable', 'Model configuration changed', 'Input analysis configuration changed'].includes(c.reason);
+const incompatibleExecution = localRecoveryBlocked;
 
 /** Lane and member locks are shared by the read projection and transactional claim guard. */
 export function workLaneAvailable(c: TaskContext, work: Intent): boolean {
@@ -831,7 +830,7 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
 
 const valid = ({ context, event }: { context: TaskContext; event: TaskEvent }) => !permissionProblem(context, event);
 function localResumeKind(c: TaskContext, e: TaskEvent): string | null {
-  if (!valid({ context: c, event: e }) || c.stopped || c.outcome !== null) return null;
+  if (!valid({ context: c, event: e }) || c.stopped || incompatibleExecution(c) || c.outcome !== null) return null;
   if (e.type !== 'LOCAL_RECONCILE' && e.type !== 'LOCAL_RESULT') return null;
   const work = c.intents.find(i => i.id === e.intentId);
   if (e.type === 'LOCAL_RESULT' && (work?.status !== 'uncertain' || !e.settled || !e.effectsKnown)) return null;

@@ -88,6 +88,18 @@ describe('persisted local operations in the real taskMachine', () => {
     }
   });
   it('[BT_L16] an uncertain background operation cannot discard the live owner draft', discussionUncertainModel);
+  it('[BT_L12] a trusted receipt settles effects but cannot resume an incompatible execution', () => {
+    for (const resultType of ['LOCAL_RESULT', 'LOCAL_RECONCILE']) {
+      const m = new LocalModel(); m.request(); m.claim(); m.started();
+      const config = localModelInput().config; config.toolVersion = 'new-protocol'; m.send({ type: 'RECOVER', config });
+      expect(m.c.reason).toBe('Execution version incompatible');
+      if (resultType === 'LOCAL_RESULT') m.result();
+      else m.send({ type: 'LOCAL_RECONCILE', intentId: m.work.id, operationId: 'op1', sessionId: 'session1', resolution: 'receipt', detail: 'trusted receipt', result: { ok: true, code: 'succeeded', data: {} } });
+      expect(m.c.reason).toBe('Execution version incompatible'); expect(taskPhase(m.snapshot)).toBe('waitingHuman');
+      expect(m.c.intents[0]!.status).toBe('done');
+      expect(m.request().code).toBe('INCOMPATIBLE_EXECUTION');
+    }
+  });
   it('[BT_L18] pins activated versions across member handoffs and snapshot recovery', () => {
     const m = new LocalModel(); m.request({ type: 'loadSkill', skillId: 'skill1' }); m.claim();
     m.result({ result: { ok: true, code: 'loaded', data: { skillId: 'skill1', skillVersion: 'b'.repeat(64) } } });

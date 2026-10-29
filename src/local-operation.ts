@@ -47,8 +47,11 @@ export function validLocalAction(value: unknown): value is LocalAction {
 export const localUnsettled = (work: Intent) => work.localOperations?.some(op => ['queued', 'claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false;
 export const localPhysicalPending = (work: Intent) => work.localOperations?.some(op => ['claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false;
 export const localEnabled = (config: TeamConfig, target: string) => config.localTools?.enabled !== false && config.bots.find(b => b.id === target)?.localTools !== false;
+export const localRecoveryBlocked = (c: TaskContext) => ['Execution version incompatible', 'Tool permission revoked',
+  'Execution member unavailable', 'Model configuration changed', 'Input analysis configuration changed'].includes(c.reason);
 export function localParentProblem(c: TaskContext, work: Intent | undefined, at: number, attempt?: number): string | null {
   if (c.stopped) return 'STOPPED';
+  if (localRecoveryBlocked(c)) return 'INCOMPATIBLE_EXECUTION';
   if (!work || work.status !== 'inflight' || attempt !== undefined && attempt !== work.attempt) return 'WORK_NOT_INFLIGHT';
   if (work.epoch !== c.epoch || work.goalVersion !== c.goalVersion) return 'STALE_WORK';
   if (work.deadline !== null && at >= work.deadline) return 'WORK_EXPIRED';
@@ -135,10 +138,10 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
       if (e.isolated !== undefined) op!.isolated = e.isolated;
       break;
     case 'LOCAL_RESULT':
-      if (!e.settled || !e.effectsKnown) { op!.status = 'uncertain'; op!.result = e.result; work.status = 'uncertain'; c.reason = '本地操作效果不确定，需核对后继续'; }
+      if (!e.settled || !e.effectsKnown) { op!.status = 'uncertain'; op!.result = e.result; work.status = 'uncertain'; if (!localRecoveryBlocked(c)) c.reason = '本地操作效果不确定，需核对后继续'; }
       else {
         finishOperation(work, op!, e.result, e.at);
-        if (work.status === 'uncertain' && !localPhysicalPending(work)) work.status = c.stopped || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion ? 'done' : 'pending';
+        if (work.status === 'uncertain' && !localPhysicalPending(work)) work.status = c.stopped || localRecoveryBlocked(c) || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion ? 'done' : 'pending';
       }
       break;
     case 'LOCAL_RECONCILE':
@@ -148,9 +151,9 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
         delete op!.sessionId;
       }
       if (!localPhysicalPending(work) && work.status === 'uncertain') {
-        work.status = c.stopped || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion ? 'done' : 'pending';
+        work.status = c.stopped || localRecoveryBlocked(c) || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion ? 'done' : 'pending';
       }
-      c.reason = '本地操作已核对';
+      if (!localRecoveryBlocked(c)) c.reason = '本地操作已核对';
       break;
   }
   if (op?.status === 'succeeded' && op.action.type === 'loadSkill' && work.epoch === c.epoch && work.goalVersion === c.goalVersion && !c.stopped) c.localSkillVersions = [...(c.localSkillVersions ?? []).filter(s => !work.localSkills?.some(p => p.skillId === s.skillId)), ...(work.localSkills ?? [])];

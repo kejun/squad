@@ -20,16 +20,16 @@
 
 后续按同一顺序补齐了 queued 拒绝回执、可信核对后的父阶段恢复、群/任务命名空间，以及后台操作不确定时保留方案师草稿；每次先修订场景/图，复验纯模型后再继续接线。
 
-- 真实模型断言：`tests/local-operation-model.test.ts`，13项。全部事件都经持久化快照往返。
+- 真实模型断言：`tests/local-operation-model.test.ts`，14项。全部事件都经持久化快照往返。
 - `npm run simulate:local-tools`：8种角色 × 4种动作 × 8类结果，256个场景、1760次转移。含成功、失败、停止、领取前/后崩溃、回执后恢复、旧版本和撤权；`reports/local-tools-simulation.json` 记录逐步轨迹及模型 SHA-256。CLI、磁盘读取和模型返回均为合成事件；只有报告及模型摘要读写，不执行真实工具。
-- 最终受测模型 SHA-256：`task.machine.ts=1fdea3c6d0c721b90187e5cc304d059127b30ff9aa5f85a17534ed8bd0dbc3e7`，`local-operation.ts=a1e5a988128dfe05afcc6e362e017fd87a46989706d4c8c0579fae337b5c7426`，`types.ts=9c1b3801b9ec8e890909fde106a0de26a8dd30a3c85397cb5fd9461ab4f46482`。
+- 最终受测模型 SHA-256：`task.machine.ts=dd5ec71b41a82a13c831938e5401783214db76aa07d9e0ab80487b03b7dd42f9`，`local-operation.ts=57a5f88c8a8640d99dfe98166cdf40e371d30717e9ba1ddcbe38658f6ce39fce`，`types.ts=9c1b3801b9ec8e890909fde106a0de26a8dd30a3c85397cb5fd9461ab4f46482`。
 - 本地工具集成：方案师、核查员、Builder、新增 Bot、协调员、check、后台讨论均走真实 WorkRunner → JSON 模型循环 → 状态机领取 → 技能文件/真实 Node 子进程 → 原 Bot 续办。模型 HTTP 返回受控，子进程真实执行；显式注入的 ControlledProcessBackend 不提供 OS 隔离。
 - 注册表覆盖损坏 YAML、缺失根、同名、顶层链接、包内逃逸、激活前修改、旧快照跨重启、路径穿越和缺失版本。
 - 执行覆盖同一工程的真实排队、SQLite/内存跨群租约、重复消息 ID 的默认目录及副本隔离、未完成命令不解锁、核查副本输出、缺命令/后端、非零退出、超时、取消与后代、控制字符导致的转义后大输出、会话核对及过期摘要拒绝。
 - 恢复覆盖5个窗口（请求前、已保存未领取、领取后未启动、启动后 DB 回执前、回执后模型前），并额外经过真实 WebService 启动：确定回执先补交再调度，可能已启动而无回执时不发新模型请求/命令。格式修复不重复写入。
 - 网页继续复用已有执行详情，不增加 UI 组件；新 scope 透传、激活/命令记录、退出码、日志与持久回执恢复均由服务集成直接检查。没有新增浏览器目视验收声明。
 
-`npm run check`：438项 Vitest、510个直接执行的 Gherkin 用例通过；新 BT_L01–BT_L18 共53例均直接执行。原有26个待验收用例保持原登记，未移除或隐藏要求。
+`npm run check`：439项 Vitest、510个直接执行的 Gherkin 用例通过；新 BT_L01–BT_L18 共53例均直接执行。原有26个待验收用例保持原登记，未移除或隐藏要求。
 
 `npm run verify:local-sandbox` 在当前宿主退出78：`CLI_SANDBOX_UNAVAILABLE: Required OS namespaces are unavailable`。这是真实生产后端的拒绝结果，不是隔离已通过。仓库提供了可重复的 OS 文件读取、快照写入、环境和网络验证脚本；部署宿主需要通过此项。首期 Linux、单服务/同一数据库；没有跨实例租约、Windows/macOS 后端或硬性 cgroup 资源配额保证。
 
@@ -39,3 +39,5 @@ BT_L17 在正面 CHECK_RESULT 提交前领取宿主 verifyWorkspace 子操作。
 最终提交上复验 check/build 与模型仿真；生产入口也在隔离技能根下真实启动，GET /api/rooms 返回200，SIGTERM 正常退出并释放运行时锁。没有访问验证环境的个人技能目录。
 
 BT_L18 跨 Bot、工作意图和运行时重启继承任务级技能版本；以更新后的目录按名称加载，仍使用旧正文、引用和脚本。迟到旧目标的激活回执不污染新目标绑定。明确目标变化或 replan 才重建任务绑定。
+
+BT_L12 另覆盖执行协议版本不兼容后的可信回执：只结算旧操作，保留不兼容原因与 waitingHuman，不恢复父工作或重新授予本地执行权限。

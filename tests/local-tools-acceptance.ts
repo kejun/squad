@@ -209,6 +209,10 @@ export function permissionAcceptance() {
   assert.equal(m.op?.status, 'uncertain'); m.result();
   const work = m.c.intents[0]!; m.send({ type: 'CLAIM', intentId: work.id }); m.work = m.c.intents[0]!;
   assert.equal(m.request().code, 'LOCAL_TOOLS_DISABLED'); assert.equal(m.c.candidate, null);
+  const incompatible = new LocalModel(); incompatible.request(); incompatible.claim(); incompatible.started();
+  const next = localModelInput().config; next.toolVersion = 'new-protocol'; incompatible.send({ type: 'RECOVER', config: next });
+  incompatible.result(); assert.equal(incompatible.c.reason, 'Execution version incompatible'); assert.equal(incompatible.c.intents[0]!.status, 'done');
+  assert.equal(incompatible.request().code, 'INCOMPATIBLE_EXECUTION');
 }
 export async function policyAcceptance() {
   const policy = sandboxPolicy({ workspace: '/task', skillPath: '/snapshot' }); assert(policy.filesystem.denyRead.includes('/')); assert(policy.filesystem.denyRead.some(p => typeof p !== 'string' && p.path === process.cwd()));

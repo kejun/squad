@@ -84,3 +84,5 @@ Given('负责人已激活一个技能的旧版本', function (this: SpecWorld) {
 When('同一任务安排另一位成员并恢复执行', async function (this: SpecWorld) { await versionHandoffAcceptance(); state(this).verified = true; });
 Then('新工作应继承任务中已固定的技能版本', function (this: SpecWorld) { assert(state(this).verified); });
 Then('按名称加载也不得混入重启后发现的新正文或脚本', function (this: SpecWorld) { assert(state(this).verified); });
+
+Then('可信回执不得绕过执行版本不兼容而恢复调度', function (this: SpecWorld) { assert(state(this).verified); });
