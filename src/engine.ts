@@ -5,6 +5,7 @@ import { conversationHistory, requestedReviewTargets } from './conversation.js';
 import { requestedRetryTarget, retryableAssistance, retryProblemText } from './assistance-retry.js';
 import { inputControl, leadingInputMention } from './input-intent.js';
 import { debugFrame, type DebugEvent, type DebugFrame } from './task-debug.js';
+import { inspectInitialTask, inspectTask, type DebugEvidence } from './task-inspection.js';
 import { validateConfig, type Goal, type Intent, type Reply, type TaskContext, type TaskEvent, type TeamConfig } from './types.js';
 
 interface StoredTask { version: 1; snapshot: unknown }
@@ -41,17 +42,22 @@ export class TeamEngine {
   private storageFault = false;
   private readonly instanceId = randomUUID();
   private pendingObservations: DebugFrame[] | null = null;
+  private observationTransaction: string | null = null;
   constructor(readonly store: Store, readonly config: TeamConfig, private readonly clock: () => number = Date.now,
     private readonly observe?: (roomId: string, frame: DebugFrame) => void) { validateConfig(config); }
 
-  private record(snapshot: TaskSnapshot, event: DebugEvent, from: ReturnType<typeof taskPhase> | null) {
+  private record(snapshot: TaskSnapshot, event: DebugEvent, from: ReturnType<typeof taskPhase> | null, evidence?: DebugEvidence) {
     if (!this.observe || !this.pendingObservations) return;
     // Debug serialization must never change the result of a business transaction.
-    try { this.pendingObservations.push(debugFrame(snapshot, event, from)); } catch { /* Best-effort observation. */ }
+    try { this.pendingObservations.push({ ...debugFrame(snapshot, event, from, evidence), transactionId: this.observationTransaction! }); } catch { /* Best-effort observation. */ }
   }
   private step(snapshot: TaskSnapshot, event: TaskEvent): TaskSnapshot {
-    const next = stepTask(snapshot, event);
-    this.record(next, event, taskPhase(snapshot));
+    let next: TaskSnapshot, evidence: DebugEvidence | undefined;
+    if (this.observe) {
+      try { const inspected = inspectTask(snapshot, event); next = inspected.snapshot; evidence = inspected.evidence; }
+      catch { next = stepTask(snapshot, event); }
+    } else next = stepTask(snapshot, event);
+    this.record(next, event, taskPhase(snapshot), evidence);
     return next;
   }
 
@@ -59,6 +65,7 @@ export class TeamEngine {
     if (this.storageFault) throw new Error('Storage fault: reopen engine before dispatching more work');
     const observations: DebugFrame[] = [];
     this.pendingObservations = this.observe ? observations : null;
+    this.observationTransaction = this.observe ? randomUUID() : null;
     let result: T;
     try { result = this.store.transact(roomId, fn); }
     catch (error) {
@@ -66,7 +73,7 @@ export class TeamEngine {
       this.storageFault = true;
       throw error;
     }
-    finally { this.pendingObservations = null; }
+    finally { this.pendingObservations = null; this.observationTransaction = null; }
     // The commit already succeeded. Observer failures cannot poison the engine or its receipt.
     for (const observation of observations) {
       try { this.observe?.(roomId, observation); } catch { /* The next read supplies the current baseline. */ }
@@ -149,9 +156,14 @@ export class TeamEngine {
       const goal = input.goal ?? { text: input.text, constraints: [], criteria: ['Answer the user request'], requiredArtifacts: 0 };
       const history = conversationHistory(Object.values(tx.room.tasks).map(task => decode(task).context));
       const reviewTargets = requestedReviewTargets(input.text, input.mentions ?? [], this.config.bots, owner);
-      const snapshot = initialTask({ taskId, owner, goal, config: this.config, at,
-        message: { id: input.id, text: input.text, author: 'user', at, taskId, kind: 'user' }, history, ...(reviewTargets ? { reviewTargets } : {}) });
-      this.record(snapshot, { type: '@init', id: input.id, at }, null);
+      const taskInput = { taskId, owner, goal, config: this.config, at,
+        message: { id: input.id, text: input.text, author: 'user', at, taskId, kind: 'user' as const }, history, ...(reviewTargets ? { reviewTargets } : {}) };
+      let snapshot: TaskSnapshot, evidence: DebugEvidence | undefined;
+      if (this.observe) {
+        try { const inspected = inspectInitialTask(taskInput); snapshot = inspected.snapshot; evidence = inspected.evidence; }
+        catch { snapshot = initialTask(taskInput); }
+      } else snapshot = initialTask(taskInput);
+      this.record(snapshot, { type: '@init', id: input.id, at }, null, evidence);
       storeTask(tx, snapshot);
       return { ok: true, code: 'OK', detail: 'created', taskId };
     }));

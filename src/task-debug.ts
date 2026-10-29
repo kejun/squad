@@ -1,75 +1,25 @@
-import { initialTask, persistTask, restoreTask, stepTask, taskMachine, taskPhase, workLaneAvailable, type TaskSnapshot } from './task.machine.js';
+import { persistTask, restoreTask, taskPhase, workLaneAvailable, type TaskSnapshot } from './task.machine.js';
+import { inspectInitialTask, inspectTask, type DebugEvidence } from './task-inspection.js';
+import { taskGraph } from './task-structure.js';
 import { validateConfig, type Phase, type TaskEvent, type TaskInput } from './types.js';
+export { taskGraph, stateTransitions, type MachineGraph, type MachineTransition } from './task-structure.js';
+export type { DebugEvidence } from './task-inspection.js';
 
-export type DebugEvent = TaskEvent | { type: '@init'; id: string; at: number };
+export type DebugEvent = TaskEvent | { type: '@init' | '@baseline'; id: string; at: number };
 export interface DebugFrame {
-  from: Phase | null;
-  phase: Phase;
-  event: DebugEvent;
-  snapshot: unknown;
+  from: Phase | null; phase: Phase; event: DebugEvent; snapshot: unknown;
+  stepId?: string; previousStepId?: string; evidence?: DebugEvidence; transactionId?: string;
 }
 export interface DebugRecord extends DebugFrame { sequence: number; roomId: string; taskId: string }
 export interface DebugFeed {
-  sessionId: string;
-  cursor: number;
-  truncated: boolean;
+  sessionId: string; cursor: number; truncated: boolean;
   tasks: { id: string; phase: Phase }[];
   current: { taskId: string; snapshot: unknown } | null;
   records: DebugRecord[];
 }
-export interface MachineTransition {
-  source: string;
-  target: string | null;
-  event: string;
-  guards: string[];
-  actions: string[];
-}
-interface ConfigNode {
-  on?: Record<string, unknown>;
-  always?: unknown;
-  states?: Record<string, ConfigNode>;
-}
-export interface MachineGraph {
-  id: string;
-  initial: string;
-  states: string[];
-  transitions: MachineTransition[];
-}
-function names(value: unknown): string[] {
-  return (Array.isArray(value) ? value : value === undefined ? [] : [value]).map(item =>
-    typeof item === 'string' ? item : typeof item === 'function' ? item.name || '匿名函数'
-      : item && typeof item === 'object' && 'type' in item ? String(item.type) : '匿名实现');
-}
-
-/** Read structure, never evaluate guards or duplicate the machine's transition table. */
-export function taskGraph(): MachineGraph {
-  const config = taskMachine.config as ConfigNode;
-  const transitions: MachineTransition[] = [];
-  const collect = (node: ConfigNode, source: string) => {
-    const entries = [...Object.entries(node.on ?? {}), ...(node.always ? [['@always', node.always] as const] : [])];
-    for (const [event, value] of entries) {
-      for (const raw of Array.isArray(value) ? value : [value]) {
-        const transition = typeof raw === 'string' ? { target: raw } : (raw ?? {}) as { target?: string | string[]; guard?: unknown; actions?: unknown };
-        const targets = transition.target === undefined ? [null] : Array.isArray(transition.target) ? transition.target : [transition.target];
-        for (const target of targets) transitions.push({
-          source, event, target: target?.replace(/^#botTeamTask\./, '').replace(/^\./, '') ?? null,
-          guards: names(transition.guard), actions: names(transition.actions),
-        });
-      }
-    }
-  };
-  collect(config, '*');
-  for (const [state, node] of Object.entries(config.states ?? {})) collect(node, state);
-  return { id: taskMachine.id, initial: String(taskMachine.config.initial), states: Object.keys(config.states ?? {}), transitions };
-}
-export function stateTransitions(graph: MachineGraph, state: string): MachineTransition[] {
-  const local = graph.transitions.filter(t => t.source === state);
-  // Guarded local handlers can decline an event, allowing the parent handler to run.
-  const overridden = new Set(local.filter(t => t.event !== '@always' && t.guards.length === 0).map(t => t.event));
-  return [...local, ...graph.transitions.filter(t => t.source === '*' && !overridden.has(t.event))];
-}
-export function debugFrame(snapshot: TaskSnapshot, event: DebugEvent, from: Phase | null): DebugFrame {
-  return { from, phase: taskPhase(snapshot), event: structuredClone(event), snapshot: structuredClone(persistTask(snapshot)) };
+export function debugFrame(snapshot: TaskSnapshot, event: DebugEvent, from: Phase | null, evidence?: DebugEvidence): DebugFrame {
+  return { from, phase: taskPhase(snapshot), event: structuredClone(event), snapshot: structuredClone(persistTask(snapshot)),
+    ...(evidence ? { evidence: structuredClone(evidence) } : {}) };
 }
 
 // Shape checks only. Business permissions, limits, fence checks, and rejection codes remain in taskMachine.
@@ -120,12 +70,22 @@ export function debugInput(): TaskInput {
   };
 }
 
-/** A separate in-memory branch of the real machine. Errors never advance its history. */
+export interface SandboxOrigin { runId?: string; stepId?: string; taskId: string }
+export interface SandboxPreview { headId: string; text: string; frame: DebugFrame }
+const sandboxBytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).byteLength;
+export const SANDBOX_MAX_BYTES = 4 * 1024 * 1024;
+let sandboxSequence = 0;
+
+/** Viewing history never changes the execution head. Forking is explicit. */
 export class TaskSandbox {
+  readonly id = 'sandbox:' + ++sandboxSequence;
+  readonly origin: SandboxOrigin | undefined;
   private frames: DebugFrame[];
-  private readonly seed: unknown;
+  private readonly seed: DebugFrame;
   private sequence = 0;
+  private generation = 0;
   index = 0;
+  truncated = false;
   static fromInput(text: string): TaskSandbox {
     let input: TaskInput;
     try { input = JSON.parse(text) as TaskInput; } catch { throw new Error('初始输入必须是有效的 JSON'); }
@@ -133,23 +93,33 @@ export class TaskSandbox {
       || !Number.isSafeInteger(input.at) || input.at < 0 || !input.message || !input.goal
       || !Array.isArray(input.goal.constraints) || !Array.isArray(input.goal.criteria)) throw new Error('初始输入缺少有效的 taskId、owner、at、message 或 goal');
     validateConfig(input.config);
-    return new TaskSandbox(persistTask(initialTask(input)));
+    return new TaskSandbox(undefined, undefined, input);
   }
-  constructor(snapshot?: unknown) {
-    const initial = snapshot === undefined ? initialTask(debugInput()) : restoreTask(structuredClone(snapshot));
-    // Fail early on incompatible user/imported snapshots.
+  constructor(snapshot?: unknown, origin?: SandboxOrigin, input = debugInput()) {
+    const inspected = snapshot === undefined ? inspectInitialTask(input) : undefined;
+    const initial = inspected?.snapshot ?? restoreTask(structuredClone(snapshot));
     if (initial.context?.schemaVersion !== 1 || !taskGraph().states.includes(String(initial.value))) throw new Error('不兼容的任务快照');
     validateConfig(initial.context.config);
-    this.seed = structuredClone(persistTask(initial));
-    this.frames = [debugFrame(initial, { type: '@init', id: 'sandbox-init', at: initial.context.lastActivityAt }, null)];
+    this.origin = snapshot === undefined ? undefined : origin ?? { taskId: initial.context.taskId };
+    this.seed = debugFrame(initial, { type: snapshot === undefined ? '@init' : '@baseline', id: 'sandbox-init', at: initial.context.lastActivityAt }, null, inspected?.evidence);
+    if (sandboxBytes(this.seed) > SANDBOX_MAX_BYTES) throw new Error('快照超过沙箱4MiB容量');
+    this.frames = [{ ...structuredClone(this.seed), stepId: this.id + ':0:0' }];
   }
-  get snapshot(): TaskSnapshot { return restoreTask(structuredClone(this.frames[this.index]!.snapshot)); }
+  get snapshot(): TaskSnapshot { return restoreTask(structuredClone(this.frames.at(-1)!.snapshot)); }
+  get selected(): DebugFrame | undefined { return this.frames[this.index]; }
+  get headId(): string { return this.frames.at(-1)!.stepId!; }
   get history(): readonly DebugFrame[] { return this.frames; }
+  get bytes(): number { return sandboxBytes(this.frames); }
   select(index: number) {
     if (!Number.isInteger(index) || index < 0 || index >= this.frames.length) throw new Error('历史位置无效');
     this.index = index;
   }
-  send(text: string): TaskSnapshot {
+  fork(index = this.index): TaskSandbox {
+    const frame = this.frames[index];
+    if (!frame) throw new Error('历史位置已不可用');
+    return new TaskSandbox(frame.snapshot, { runId: this.id, stepId: frame.stepId!, taskId: this.snapshot.context.taskId });
+  }
+  preview(text: string): SandboxPreview {
     let raw: unknown;
     try { raw = JSON.parse(text); } catch { throw new Error('事件必须是有效的 JSON 对象'); }
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('事件必须是 JSON 对象');
@@ -159,20 +129,29 @@ export class TaskSandbox {
     const previous = this.snapshot;
     const event = { id: 'sandbox-event:' + (this.sequence + 1), at: previous.context.lastActivityAt + 1, ...body } as TaskEvent;
     if (typeof event.id !== 'string' || !event.id || !Number.isSafeInteger(event.at) || event.at < 0) throw new Error('事件 id 必须非空，at 必须是非负整数');
-    let next: TaskSnapshot;
-    try { next = stepTask(previous, event); } catch (error) {
-      throw new Error('事件参数无效：' + (error instanceof Error ? error.message : String(error)));
+    try {
+      const next = inspectTask(previous, event);
+      const frame = debugFrame(next.snapshot, event, taskPhase(previous), next.evidence);
+      if (sandboxBytes(frame) > SANDBOX_MAX_BYTES) throw new Error('事件结果超过沙箱4MiB容量');
+      return { headId: this.headId, text, frame };
+    } catch (error) { throw new Error('事件参数无效：' + (error instanceof Error ? error.message : String(error))); }
+  }
+  isPreviewCurrent(preview: SandboxPreview, text: string) { return preview.headId === this.headId && preview.text === text; }
+  send(text: string): TaskSnapshot {
+    const { frame } = this.preview(text), follow = this.index === this.frames.length - 1;
+    const selectedId = this.selected?.stepId;
+    frame.previousStepId = this.headId;
+    frame.stepId = `${this.id}:${this.generation}:${++this.sequence}`;
+    this.frames = [...this.frames, frame];
+    while (this.frames.length > 1 && (this.frames.length > 100 || sandboxBytes(this.frames) > SANDBOX_MAX_BYTES)) {
+      this.frames.shift(); this.truncated = true;
     }
-    this.sequence++;
-    this.frames = [...this.frames.slice(0, this.index + 1), debugFrame(next, event, taskPhase(previous))].slice(-100);
-    this.index = this.frames.length - 1;
-    return next;
+    this.index = follow ? this.frames.length - 1 : this.frames.findIndex(item => item.stepId === selectedId);
+    return this.snapshot;
   }
   reset() {
-    const initial = restoreTask(structuredClone(this.seed));
-    this.frames = [debugFrame(initial, { type: '@init', id: 'sandbox-init', at: initial.context.lastActivityAt }, null)];
-    this.index = 0;
-    this.sequence = 0;
+    this.generation++; this.sequence = 0; this.index = 0; this.truncated = false;
+    this.frames = [{ ...structuredClone(this.seed), stepId: `${this.id}:${this.generation}:0` }];
   }
 }
 

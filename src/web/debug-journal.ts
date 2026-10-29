@@ -9,7 +9,10 @@ export class DebugJournal {
   constructor(private readonly maxRecords = 200, private readonly maxBytes = 4 * 1024 * 1024) {}
   append(roomId: string, frame: DebugFrame) {
     const snapshot = frame.snapshot as { context: { taskId: string } };
-    const record: DebugRecord = { ...frame, roomId, taskId: snapshot.context.taskId, sequence: ++this.sequence };
+    const previous = [...this.records].reverse().find(item => item.record.roomId === roomId && item.record.taskId === snapshot.context.taskId)?.record;
+    const sequence = ++this.sequence;
+    const record: DebugRecord = { ...frame, roomId, taskId: snapshot.context.taskId, sequence,
+      stepId: this.sessionId + ':' + sequence, ...(previous?.stepId ? { previousStepId: previous.stepId } : {}) };
     const bytes = Buffer.byteLength(JSON.stringify(record));
     this.records.push({ record, bytes }); this.bytes += bytes;
     while (this.records.length && (this.records.length > this.maxRecords || this.bytes > this.maxBytes)) this.bytes -= this.records.shift()!.bytes;

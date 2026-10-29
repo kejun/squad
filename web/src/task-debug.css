@@ -1,76 +1,146 @@
-.debug-backdrop { position: fixed; inset: 0; z-index: 100; padding: 22px; background: #202e3c80; display: flex; align-items: center; justify-content: center; }
-.task-debug { display: flex; flex-direction: column; width: min(1600px, 100%); height: min(1000px, 96dvh); border: 1px solid #dce4e1; border-radius: 16px; background: var(--paper); box-shadow: 0 20px 80px #1b2d3340; overflow: hidden; font-size: 14px; }
-.task-debug button { border: 1px solid var(--line); border-radius: 7px; padding: 8px 11px; display: inline-flex; gap: 6px; align-items: center; justify-content: center; background: #fff; }
-.task-debug button:hover:not(:disabled) { background: #f0f6f2; border-color: #b8cdbf; }
-.task-debug button:disabled { opacity: .5; }
-.task-debug button[aria-pressed="true"] { background: #eaf3ee; border-color: #769d86; color: #24583c; }
+.debug-backdrop { position: fixed; inset: 0; z-index: 100; padding: 16px; background: #202e3c80; display: flex; align-items: center; justify-content: center; }
+.task-debug { display: flex; flex-direction: column; width: min(1600px, 100%); height: min(1050px, 97dvh); border: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: 0 20px 80px #1b2d3340; overflow: hidden; font-size: 14px; color: var(--ink); }
+.task-debug button { border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; display: inline-flex; gap: 6px; align-items: center; justify-content: center; background: #fff; font-size: 14px; color: inherit; cursor: pointer; }
+.task-debug button:hover:not(:disabled) { background: #f0f6f2; border-color: #9eb5a6; }
+.task-debug button:focus-visible, .task-debug summary:focus-visible { outline: 2px solid #547b69; outline-offset: 2px; }
+.task-debug button:disabled { opacity: .5; cursor: default; }
+.task-debug button[aria-pressed="true"] { background: #eaf3ee; border-color: #547b69; color: #24583c; }
 .task-debug h2, .task-debug h3, .task-debug p { margin: 0; }
 .task-debug h2 { font-size: 18px; font-weight: 650; }
 .task-debug h3 { font-size: 14px; font-weight: 650; }
+.task-debug p { line-height: 1.6; overflow-wrap: anywhere; }
 .task-debug code, .task-debug pre, .task-debug textarea { font-family: "IBM Plex Mono", ui-monospace, "PingFang SC", monospace; font-size: 14px; }
-.debug-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid var(--line); }
+.task-debug code { overflow-wrap: anywhere; }
+.debug-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--line); flex: none; }
 .debug-header > div { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.debug-header code { color: #63756a; margin-left: 5px; }
-.debug-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 11px 20px; border-bottom: 1px solid var(--line); }
-.debug-tabs, .debug-view-toggle { display: flex; gap: 4px; }
-.debug-view-toggle { margin-left: auto; }
-.task-debug select { background: #fff; border: 1px solid #dce4e0; border-radius: 7px; min-height: 36px; max-width: 100%; padding: 6px 9px; color: var(--ink); font-size: 14px; }
-.debug-notice { padding: 9px 20px; background: #fff9e9; color: #796335; border-bottom: 1px solid #eee4ce; }
-.debug-notice.is-error, .debug-error { color: #aa3939; background: #fff1f1; }
-.debug-body { display: grid; grid-template-columns: minmax(0, 1fr) 350px; min-height: 0; flex: 1; }
-.debug-main { overflow: auto; background: #f8faf9; min-width: 0; }
-.debug-state-summary { padding: 13px 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); background: #fff; }
-.debug-state-summary strong { color: #2f714b; font-size: 16px; }
-.debug-state-summary span { color: #617067; }
+.debug-header code { color: #536459; }
+.debug-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 18px; border-bottom: 1px solid var(--line); flex: none; }
+.debug-tabs { display: flex; gap: 4px; }
+.task-debug select, .task-debug input:not([type="range"]) { background: #fff; border: 1px solid var(--line); border-radius: 6px; min-height: 34px; max-width: 100%; padding: 5px 8px; color: var(--ink); font-size: 14px; }
+.debug-advanced { margin-left: auto; position: relative; }
+.task-debug summary { cursor: pointer; font-size: 14px; overflow-wrap: anywhere; }
+.debug-advanced[open] { max-width: 550px; }
+.debug-advanced textarea { display: block; }
+.debug-advanced > button { margin: 6px; }
+.debug-state-summary { padding: 11px 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; border-bottom: 1px solid var(--line); background: #fff; flex: none; }
+.debug-state-summary strong { color: #24583c; font-size: 16px; }
+.debug-state-summary strong code { margin-left: 6px; color: #536459; }
+.debug-state-summary span { color: #536459; }
 .debug-mode-note { margin-left: auto; }
+.debug-notice { padding: 7px 18px; background: #fff8e6; color: #705b29; border-bottom: 1px solid #e7dabc; flex: none; }
+.debug-notice.is-error, .debug-error { color: #9c2828; background: #fff1f1; }
+.debug-view-tabs { display: flex; gap: 5px; padding: 9px 18px; border-bottom: 1px solid var(--line); background: #fff; flex: none; }
+.debug-view-tabs button { border-color: transparent; }
+.debug-body { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, 1fr); min-height: 180px; flex: 1; overflow: hidden; }
+.debug-main { overflow: auto; background: #f7faf8; min-width: 0; }
+.debug-side { overflow: auto; min-width: 0; border-left: 1px solid var(--line); padding: 16px 18px; background: #fff; }
+.debug-section-title { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.debug-evidence-note { color: #56665b; margin-top: 7px !important; }
+.debug-waiting { padding: 15px 18px; border-bottom: 1px solid var(--line); background: #edf4ef; }
+.debug-waiting ul { list-style: none; padding: 0; margin: 9px 0 0; display: grid; gap: 7px; }
+.debug-waiting li { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.debug-waiting li > span { font-weight: 500; }
+.debug-waiting details { max-width: 100%; }
+.debug-waiting details code { display: block; margin-top: 5px; }
+.debug-history { padding: 16px 18px; }
+.debug-history ol { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.debug-history button { width: 100%; align-items: stretch; flex-direction: column; text-align: left; gap: 5px; padding: 10px 12px; }
+.debug-history-event { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.debug-history-event code { font-weight: 500; }
+.debug-history button > span:last-child { color: #536459; }
+.debug-history-position { padding: 8px; border-left: 3px solid #7f7096; background: #f5f1f9; }
+.debug-step-details > * + * { margin-top: 12px; }
+.debug-step-details .debug-step-result { font-weight: 650; font-size: 16px; }
+.debug-step-details details, .debug-side > details { border-top: 1px solid var(--line); padding-top: 10px; }
+.debug-step-details ol, .debug-step-details ul { padding-left: 22px; margin-bottom: 0; }
+.debug-microsteps li { padding: 4px 0; }
+.debug-microsteps li span { display: block; margin-bottom: 3px; color: #536459; }
+.debug-branches { display: grid; gap: 6px; }
+.debug-branches button, .debug-guard-evaluations button { flex-direction: column; align-items: flex-start; text-align: left; gap: 4px; }
+.debug-branches button > span:first-child { color: #536459; }
+.debug-guard-evaluations li + li { margin-top: 6px; }
+.debug-step-details pre, .debug-side pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 380px; overflow: auto; line-height: 1.6; margin: 8px 0 0; }
+.debug-step-details dl { display: grid; gap: 5px; }
+.debug-step-details dd { margin: 0 0 8px; }
+.debug-step-details dt { color: #536459; }
+.debug-diff-list { display: grid; gap: 12px; margin-top: 10px; }
+.debug-diff-list > div { display: grid; gap: 4px; }
+.debug-diff-list del, .debug-diff-list ins { white-space: pre-wrap; overflow-wrap: anywhere; text-decoration: none; padding: 5px 7px; font-family: ui-monospace, monospace; }
+.debug-diff-list del { background: #fceeee; color: #8c3030; }
+.debug-diff-list ins { background: #eaf5ee; color: #24583c; }
+.debug-event-editor { border-top: 1px solid var(--line); padding: 12px 18px; background: #fff; flex: none; max-height: 35dvh; overflow: auto; }
+.debug-event-editor > .debug-section-title > span { color: #536459; }
+.debug-editor-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.debug-editor-toolbar select { min-width: 190px; }
+.task-debug .debug-run { color: #fff; background: #416951; border-color: #416951; }
+.task-debug .debug-run:hover { color: #fff; background: #31533e; }
+.debug-event-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; margin-top: 10px; }
+.debug-event-fields label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.debug-event-fields code { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.debug-event-json { margin-top: 10px; }
+.task-debug textarea { width: 100%; height: 190px; resize: vertical; padding: 10px; line-height: 1.5; border: 1px solid var(--line); border-radius: 7px; margin-top: 8px; color: var(--ink); background: #fbfcfb; }
+.task-debug textarea:focus, .task-debug input:focus { outline: 2px solid #a9c4b3; outline-offset: 1px; }
+.debug-error { margin-top: 8px !important; padding: 9px 12px; border-radius: 6px; overflow-wrap: anywhere; }
+.debug-preview { padding-top: 10px; margin-top: 10px; border-top: 1px solid var(--line); }
+.debug-rules { padding: 16px 18px; background: #fff; }
+.debug-rules > details { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
+.debug-rule-rows { display: grid; gap: 6px; margin-top: 8px; }
+.debug-rule-rows button { flex-direction: column; align-items: flex-start; text-align: left; }
+.debug-rule-rows button span { color: #536459; }
 .debug-chart { background-image: radial-gradient(#dce5df 1px, transparent 1px); background-size: 20px 20px; }
-.debug-chart-tools { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; color: #596b60; gap: 12px; background: #f8faf9ee; }
+.debug-chart-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 12px; color: #536459; gap: 8px; background: #f7faf8ee; }
 .debug-chart-tools label { display: flex; align-items: center; gap: 6px; }
-.debug-chart-tools input { width: 85px; accent-color: #547b69; }
-.debug-chart-scroll { overflow: auto; }
+.debug-chart-tools input { width: 80px; accent-color: #547b69; }
+.task-debug .debug-global-rules { margin: 0 12px 10px; text-align: left; }
+.debug-chart-scroll { overflow: auto; max-height: 570px; }
 .debug-statechart { display: block; margin: 0 auto; max-width: none; }
-.debug-edge > path { stroke: #a6b8b0; stroke-width: 1.8; fill: none; }
-.debug-edge text { font-size: 18px; fill: #62796c; paint-order: stroke; stroke: #f8faf9; stroke-width: 6px; stroke-linejoin: round; }
+.debug-edge { color: #9baea0; cursor: pointer; }
+.debug-edge > path { stroke: currentColor; stroke-width: 1.5; fill: none; }
+.debug-edge text { font-size: 14px; fill: #536459; paint-order: stroke; stroke: #f7faf8; stroke-width: 5px; stroke-linejoin: round; }
+.debug-edge:not(.is-related) text { visibility: hidden; }
+.debug-edge:hover text, .debug-edge:focus text { visibility: visible; }
+.debug-edge.is-related, .debug-edge:hover { color: #547b69; }
 .debug-node { cursor: pointer; outline: none; }
-.debug-node rect { fill: #fff; stroke: #cbd8cf; stroke-width: 1.8; }
-.debug-node text { fill: #465a4c; font-size: 18px; font-family: ui-monospace, monospace; }
-.debug-node circle { fill: #fff; }
-.debug-node.is-selected rect, .debug-node:focus rect { stroke: #6d8da6; stroke-width: 3; }
-.debug-node.is-active rect { fill: #547b69; stroke: #547b69; }
-.debug-node.is-active text { fill: #fff; }
-.debug-transitions { padding: 16px 18px 22px; border-top: 1px solid var(--line); background: #fff; }
-.debug-transition-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
-.debug-transition-list button { justify-content: flex-start; flex-wrap: wrap; text-align: left; }
-.debug-transition-list code { min-width: 190px; color: #335e49; }
-.debug-transition-list .debug-guard { color: #8a6a33; }
-.debug-transition-list span { color: #68766d; overflow-wrap: anywhere; }
-.debug-side { overflow: auto; min-width: 0; border-left: 1px solid var(--line); padding: 16px; background: #fff; }
-.debug-side > section + section { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 16px; }
-.debug-section-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.debug-side select { width: 100%; }
-.task-debug textarea { width: 100%; height: 210px; resize: vertical; padding: 11px; line-height: 1.6; border: 1px solid #dce4e0; border-radius: 8px; margin-top: 10px; tab-size: 2; color: #304337; background: #fbfcfb; }
-.task-debug textarea:focus { outline: 2px solid #a9c4b3; outline-offset: 1px; }
-.task-debug .debug-run { width: 100%; color: #fff; background: #547b69; border-color: #547b69; margin-top: 9px; }
-.task-debug .debug-run:hover { color: #fff; background: #416953; }
-.debug-error { margin-top: 9px !important; padding: 10px; border-radius: 6px; overflow-wrap: anywhere; }
-.debug-history ol { list-style: none; padding: 0; margin: 0; max-height: 260px; overflow: auto; display: flex; flex-direction: column; gap: 5px; }
-.debug-history button { width: 100%; justify-content: space-between; flex-wrap: wrap; text-align: left; }
-.debug-history button span { color: #67766c; }
-.debug-history p { margin-top: 10px; color: #78847c; }
-.debug-context details, .debug-input { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
-.task-debug summary { cursor: pointer; overflow-wrap: anywhere; }
-.debug-context pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 400px; overflow: auto; line-height: 1.6; padding-top: 8px; margin-bottom: 0; }
-.debug-inspector { min-height: 610px; background: #fff; }
-.debug-inspector p { padding: 10px 18px; color: #64776a; }
+.debug-node rect { fill: #fff; stroke: #bdcec2; stroke-width: 1.8; }
+.debug-node text { fill: #344b3c; font-size: 16px; font-family: ui-monospace, monospace; }
+.debug-node text.debug-node-info { font-size: 14px; font-family: inherit; }
+.debug-node.is-selected rect, .debug-node:focus rect { stroke: #4d718d; stroke-width: 3; }
+.debug-node.is-active rect { fill: #edf5ef; stroke: #416951; stroke-width: 3; }
+.debug-node.is-historical rect { stroke: #806796; stroke-width: 3; stroke-dasharray: 6 4; }
+.debug-inspector { min-height: 500px; background: #fff; }
+.debug-inspector p { padding: 10px 18px; color: #536459; }
 .debug-inspector iframe { width: 100%; height: 580px; border: 0; }
 @media (max-width: 900px) {
   .debug-backdrop { padding: 0; }
   .task-debug { width: 100%; height: 100dvh; max-height: none; border-radius: 0; }
-  .debug-body { grid-template-columns: minmax(0, 1fr); overflow: auto; }
+  .debug-body { display: block; overflow: auto; }
   .debug-main, .debug-side { overflow: visible; }
   .debug-side { border-left: 0; border-top: 1px solid var(--line); }
-  .debug-toolbar { padding: 10px; gap: 6px; }
-  .debug-view-toggle { margin-left: 0; }
-  .debug-chart-scroll { max-height: 510px; }
+  .debug-toolbar, .debug-view-tabs, .debug-header, .debug-state-summary { padding: 9px 12px; }
+  .debug-state-summary { gap: 8px; }
+  .debug-mode-note { margin-left: 0; }
+  .debug-event-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .debug-event-editor { max-height: 32dvh; }
+  .debug-chart-scroll { max-height: 450px; }
 }
-
+@media (max-width: 540px) {
+  .debug-event-fields { grid-template-columns: minmax(0, 1fr); }
+  .debug-header code { display: none; }
+  .debug-section-title { flex-wrap: wrap; }
+  .debug-state-summary { max-height: 110px; overflow: auto; }
+}
+.debug-advanced[open] { max-width: none; }
+.debug-advanced-content { position: absolute; right: 0; top: 28px; z-index: 3; width: min(500px, 85vw); max-height: 60dvh; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; box-shadow: 0 10px 30px #1b2d3326; }
+.debug-advanced-content > button { margin: 4px; }
+.debug-viewing-history { display: flex; gap: 12px; justify-content: space-between; align-items: center; padding: 7px 18px; border-bottom: 1px solid #ded3e7; background: #f5f1f9; flex: none; }
+.debug-body.is-graph { grid-template-columns: minmax(0, 1fr); position: relative; }
+.debug-body.is-graph .debug-side:not([hidden]) { position: absolute; right: 12px; top: 12px; width: min(420px, 80%); max-height: calc(100% - 24px); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 30px #1b2d3326; }
+.task-debug .debug-graph-rule-link { margin: 12px; }
+.task-debug button.debug-run:hover:not(:disabled) { color: #fff; background: #31533e; border-color: #31533e; }
+.debug-origin { margin: 7px 0; color: #536459; }
+.debug-origin code { display: block; margin-top: 6px; }
+.debug-edge text { visibility: hidden; }
+.debug-edge.is-related text { visibility: hidden; }
+.debug-edge.is-main text, .debug-edge.is-selected text, .debug-edge:hover text, .debug-edge:focus text { visibility: visible; }
+.debug-edge:not(.is-main):not(.is-related):not(.is-selected) { opacity: .5; }
+.debug-edge > path.debug-edge-hit { stroke: transparent; stroke-width: 16px; pointer-events: stroke; }

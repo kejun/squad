@@ -11,12 +11,14 @@ import { Workspace } from '../../web/src/App.js';
 import { debugHost, sandboxBoundary } from '../task-debug-fixture.js';
 import { DebugUIFixture } from '../task-debug-ui-fixture.js';
 import type { SpecWorld } from './steps.js';
+import { assertDefaultUI, assertDraftHistory, assertForkUI, prepareDraftHistory, prepareForkUI, verifyDiagnosticPaths,
+  verifyExpiredAndBudget, verifyLegacyGap, verifyPreviewAndHead, verifyRetryAndEmpty, verifyStableGraph } from '../task-debug-behavior.js';
 
 interface State {
   sandbox: TaskSandbox; host?: Awaited<ReturnType<typeof debugHost>>; ui?: DebugUIFixture;
   result?: string; error?: unknown; before?: unknown; baseline?: unknown; feed?: DebugFeed;
   store?: MemoryStore; engine?: TeamEngine; observed: DebugFrame[]; count?: number; graph?: ReturnType<typeof taskGraph>;
-  phases: string[];
+  phases: string[]; branch?: TaskSandbox; sourceSandbox?: string;
 }
 const states = new WeakMap<SpecWorld, State>();
 function state(world: SpecWorld): State {
@@ -74,13 +76,15 @@ Then('沙箱快照和历史应保持不变并显示错误', function (this: Spec
   const s = state(this); assert(s.error instanceof Error && s.error.message.includes('JSON'));
   assert.equal(s.sandbox.history.length, 1); assert.deepEqual(persistTask(s.sandbox.snapshot), s.before);
 });
-When('执行有效事件后回到起点重新执行', function (this: SpecWorld) {
+When('执行有效事件后从起点创建独立分支并执行', function (this: SpecWorld) {
   const s = state(this); s.sandbox.send(JSON.stringify(debugEventTemplate(s.sandbox.snapshot, 'HELP'))); s.sandbox.send('{"type":"STOP"}');
-  s.sandbox.select(0); s.sandbox.send('{"type":"WAIT_USER","question":"下一步"}');
+  s.before = structuredClone(s.sandbox.history); s.sandbox.select(0); s.branch = s.sandbox.fork();
+  s.branch.send('{"type":"WAIT_USER","question":"下一步"}');
 });
-Then('新分支应替换后续历史且重置可回到初始状态', function (this: SpecWorld) {
-  const s = state(this); assert.equal(s.sandbox.history.length, 2); assert.equal(s.sandbox.snapshot.value, 'waitingHuman');
-  s.sandbox.reset(); assert.deepEqual(persistTask(s.sandbox.snapshot), s.baseline);
+Then('原轨迹应保留且分支可追溯并重置到自身基线', function (this: SpecWorld) {
+  const s = state(this); assert.deepEqual(s.sandbox.history, s.before); assert.equal(s.branch!.history.length, 2);
+  assert.equal(s.branch!.snapshot.value, 'waitingHuman'); assert.equal(s.branch!.origin!.stepId, s.sandbox.history[0]!.stepId);
+  assert.equal(s.branch!.history[0]!.event.type, '@baseline'); s.branch!.reset(); assert.deepEqual(persistTask(s.branch!.snapshot), s.baseline);
 });
 Given('一个启用提交观测的事务引擎', function (this: SpecWorld) {
   const s = state(this); s.store = new MemoryStore();
@@ -139,15 +143,60 @@ Given('网页打开一个状态机调试面板', async function (this: SpecWorld
   const s = state(this); s.ui = new DebugUIFixture(); await s.ui.open();
 });
 When('在面板选择求助事件并单步执行', async function (this: SpecWorld) { await state(this).ui!.sendHelp(); });
-Then('图中应高亮等待协助并显示事件和上下文', function (this: SpecWorld) {
+Then('当前运行应显示等待协助并可联动图和上下文', async function (this: SpecWorld) {
   assert.equal(state(this).ui!.phase, 'waitingAssistance');
+  assertDefaultUI(state(this).ui!); await state(this).ui!.click('完整状态图');
   assert.equal(document.querySelector('[aria-label="查看状态 waitingAssistance"]')!.getAttribute('data-active'), 'true');
+  await state(this).ui!.disclose('完整上下文');
   assert(document.querySelector('[aria-label="任务上下文"]')!.textContent!.includes('核对恢复风险'));
 });
 When('在面板返回历史并重置', async function (this: SpecWorld) {
-  const ui = state(this).ui!; await ui.click('0. @initrunning'); assert.equal(ui.phase, 'running'); await ui.click('重置');
+  const ui = state(this).ui!; await ui.click('当前运行'); await ui.click('查看步骤 0'); assert.equal(ui.phase, 'waitingAssistance'); assert(ui.text.includes('历史步骤')); await ui.click('重置');
 });
 Then('图中应高亮执行中且错误应清空', function (this: SpecWorld) { assert.equal(state(this).ui!.phase, 'running'); assert.equal(document.querySelector('[role="alert"]'), null); });
 When('按Escape关闭调试面板', async function (this: SpecWorld) { await state(this).ui!.escape(); });
 Then('页面应调用关闭操作', function (this: SpecWorld) { assert.equal(state(this).ui!.closed, 1); assert.equal(state(this).ui!.requests.length, 0); });
 
+When('诊断初始化停止拒绝和讨论领取的真实状态转换', function (this: SpecWorld) { state(this).before = verifyDiagnosticPaths(); });
+Then('所有最终快照应与原转换一致且停止包含自动微步', function (this: SpecWorld) {
+  assert.equal((state(this).before as ReturnType<typeof verifyDiagnosticPaths>).automatic, 2);
+});
+Then('实际守卫应按顺序记录局部失败和全局命中', function (this: SpecWorld) {
+  const value = state(this).before as ReturnType<typeof verifyDiagnosticPaths>;
+  assert.deepEqual(value.fallback.filter(e => e.event === 'CLAIM').map(e => [e.guard, e.passed]), [['claimOwner', false], ['claimDiscussion', true]]);
+});
+When('诊断协助重试和结束后的重复停止', function (this: SpecWorld) { state(this).result = verifyRetryAndEmpty(); });
+Then('应区分已命中未评估和空处理且不复用旧拒绝码', function (this: SpecWorld) { assert(state(this).result!.includes('保持不变')); assert(!state(this).result!.includes('OLD_REJECTION')); });
+When('预演求助后执行并回看起点再次执行停止', function (this: SpecWorld) { state(this).sandbox = verifyPreviewAndHead(); });
+Then('预演不新增历史且停止应从实验头追加而保留求助记录', function (this: SpecWorld) {
+  const s = state(this); assert.deepEqual(s.sandbox.history.map(f => f.event.type), ['@init', 'HELP', 'STOP']); assert.equal(s.sandbox.history.at(-1)!.from, 'waitingAssistance');
+});
+Then('应在默认运行视图显示等待对象条件证据和关键变化', function (this: SpecWorld) { assertDefaultUI(state(this).ui!); });
+When('编辑事件草稿并选择历史和查看规则', async function (this: SpecWorld) { await prepareDraftHistory(state(this).ui!); });
+Then('草稿应保持且历史与最新位置应分开显示', function (this: SpecWorld) { assertDraftHistory(state(this).ui!); });
+When('从求助前的历史步骤创建沙箱并执行等待用户', async function (this: SpecWorld) { const s = state(this); s.sourceSandbox = await prepareForkUI(s.ui!); });
+Then('源沙箱的求助轨迹应保留且新沙箱应标明复制基线', async function (this: SpecWorld) { const s = state(this); await assertForkUI(s.ui!, s.sourceSandbox!); });
+When('比较不同当前状态下的完整状态图与聚焦图', async function (this: SpecWorld) {
+  const s = state(this); s.ui = new DebugUIFixture(); await s.ui.open(); s.count = await verifyStableGraph(s.ui);
+});
+Then('节点坐标应稳定且全局内部及同事件分支均可定位', function (this: SpecWorld) { assert.equal(state(this).count, taskGraph().transitions.length); });
+When('查看没有条件证据的旧记录和已被裁剪的选中步骤', function (this: SpecWorld) { verifyLegacyGap(); state(this).result = '此记录未采集'; });
+Then('应明确显示未采集与历史缺口且不静默跳到最新', function (this: SpecWorld) { assert.equal(state(this).result, '此记录未采集'); });
+When('预演后修改参数并检查额度不足的继续事件', function (this: SpecWorld) { state(this).result = verifyExpiredAndBudget(); });
+Then('旧预演应失效且继续应显示真实拒绝而不标为可执行', function (this: SpecWorld) { assert.equal(state(this).result, 'BUDGET_EXHAUSTED'); });
+Given('一个读取真实调试接口的实时面板', async function (this: SpecWorld) {
+  const s = state(this); s.host = await debugHost(); s.ui = new DebugUIFixture(s.host);
+  await s.ui.open(); await s.ui.waitFor(() => s.ui!.phase === 'running');
+});
+When('历史查看期间真实引擎提交新的协助事件', async function (this: SpecWorld) {
+  const s = state(this), host = s.host!; await s.ui!.click('查看步骤 0');
+  host.service.engine.send(host.room.id, host.taskId, { type: 'HELP', id: 'live-help', at: 1, requestId: 'live-H', caller: 'A', target: 'B', question: '核对', expected: '依据' });
+  await s.ui!.waitFor(() => s.ui!.phase === 'waitingAssistance');
+});
+Then('顶部应更新到最新状态且步骤详情仍停在原历史', function (this: SpecWorld) {
+  assert.equal(state(this).ui!.phase, 'waitingAssistance'); assert(document.querySelector('[aria-label="步骤详情"]')!.textContent!.includes('@init'));
+});
+When('返回最新观测步骤', async function (this: SpecWorld) { await state(this).ui!.click('返回最新'); });
+Then('详情应显示新事件及其当次条件证据', function () {
+  const detail = document.querySelector('[aria-label="步骤详情"]')!.textContent!; assert(detail.includes('HELP')); assert(detail.includes('当次转换采集'));
+});
