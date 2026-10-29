@@ -1,3 +1,4 @@
+import { applyLocalEvent, cancelLocalOperations, localEnabled, localEventProblem, localPhysicalPending, localUnsettled, recoverLocalOperations, type LocalEvent } from './local-operation.js';
 import { assign, initialTransition, setup, transition, type SnapshotFrom } from 'xstate';
 import { modelOutputIssues, type ArtifactDraft, type Assistance, type BoardEntry, type Decision, type InputAction, type InputReference, type Intent, type Phase, type TaskContext, type TaskEvent, type TaskInput } from './types.js';
 import { createInputAnalysis, inputReferences, validInputIntent } from './input-intent.js';
@@ -15,7 +16,7 @@ const remainingInflight = (c: TaskContext, e: TaskEvent) => inflight(c).filter(i
 const activeHelp = (c: TaskContext) => c.assists.find(h => h.epoch === c.epoch && ['pending', 'running', 'answered'].includes(h.status));
 const hasOrdinary = (c: TaskContext) => c.usage.ordinary < c.config.limits.ordinary;
 const isBot = (c: TaskContext, id: string) => c.config.bots.some(b => b.id === id);
-const capabilities = (c: TaskContext) => ({ findSkills: c.config.skillSearch?.enabled !== false,
+const capabilities = (c: TaskContext, target = c.owner) => ({ localTools: localEnabled(c.config, target), findSkills: c.config.skillSearch?.enabled !== false,
   webSearch: c.config.webTools?.enabled !== false, webFetch: c.config.webTools?.enabled !== false });
 const unresolvedInput = (c: TaskContext) => (c.inputAnalyses ?? []).some(input =>
   input.epoch === c.epoch && input.goalVersion === c.goalVersion && ['pending', 'inflight', 'clarification', 'failed'].includes(input.status));
@@ -99,6 +100,7 @@ function intent(c: TaskContext, at: number, kind: Intent['kind'], target: string
     bucket: kind === 'check' ? 'checks' : kind === 'cancel' ? 'none' : 'ordinary', requestCount: 0 };
   const model = resolveModel(c.config, kind, target);
   if (model) item.model = model;
+  if (['owner', 'assistance', 'facilitator', 'check'].includes(kind)) item.payload.capabilities = { ...capabilities(c, target), ...(payload.capabilities as object ?? {}), localTools: localEnabled(c.config, target) };
   c.intents.push(item);
   return item;
 }
@@ -106,6 +108,7 @@ function cancelWork(c: TaskContext, e: TaskEvent, all = false) {
   for (const item of [...c.intents]) {
     if (item.kind === 'cancel') continue;
     if (item.discussionId && !all) continue;
+    cancelLocalOperations(item);
     if (item.status === 'pending') item.status = 'cancelled';
     if (item.status === 'inflight' && !c.intents.some(i => i.kind === 'cancel' && i.payload.intentId === item.id && i.status !== 'cancelled')) {
       intent(c, e.at, 'cancel', item.target, { intentId: item.id });
@@ -116,6 +119,7 @@ function cancelWork(c: TaskContext, e: TaskEvent, all = false) {
 function release(c: TaskContext, id: string | undefined) {
   if (!id) return;
   const work = c.intents.find(i => i.id === id);
+  if (work && localPhysicalPending(work)) return;
   if (work) work.status = 'done';
   for (const cancel of c.intents.filter(i => i.kind === 'cancel' && i.payload.intentId === id)) cancel.status = 'done';
 }
@@ -127,7 +131,7 @@ function conversationInput(c: TaskContext) {
     ...(c.discussion ? { discussion: structuredClone(c.discussion) } : {}) };
 }
 function owner(c: TaskContext, e: TaskEvent, payload: Record<string, unknown> = {}) {
-  if (c.stopped || unresolvedInput(c) || discussionActive(c)) return;
+  if (c.stopped || unresolvedInput(c) || discussionActive(c) || c.intents.some(localPhysicalPending)) return;
   // Pending instructions are superseded, not executed in parallel.
   for (const i of c.intents) if (i.kind === 'owner' && i.status === 'pending') i.status = 'cancelled';
   intent(c, e.at, 'owner', c.owner, { ...payload, goal: c.goal, inputs: c.inputs.filter(n => n.applied),
@@ -408,6 +412,12 @@ function finish(c: TaskContext, e: TaskEvent, outcome: TaskContext['outcome'], r
   }
 }
 function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
+  if (e.type.startsWith('LOCAL_')) return localEventProblem(c, e, work => requestBudgetProblem(c, work));
+  if (['DELIVER', 'CHECK_RESULT', 'RECORD_RESULT', 'DISCUSSION_PLAN', 'DISCUSSION_RESULT', 'COORDINATE', 'HELP', 'WAIT_USER', 'BLOCKED'].includes(e.type)
+    && c.intents.some(work => (e.workId ? work.id === e.workId : !work.discussionId) && localUnsettled(work))) return 'LOCAL_OPERATION_PENDING';
+  if (e.type === 'WORK_FAILED' && c.intents.some(work => work.id === e.intentId && localPhysicalPending(work))) return 'LOCAL_OPERATION_PENDING';
+  if (e.type === 'SETTLE' && c.intents.some(work => work.id === e.intentId && localPhysicalPending(work))) return 'LOCAL_OPERATION_PENDING';
+  if (e.type === 'RECONCILE' && c.intents.some(work => work.id === e.intentId && localPhysicalPending(work))) return 'LOCAL_OPERATION_PENDING';
   if (!fresh(c, e)) return 'STALE_FENCE';
   if (e.workId) {
     const op = c.intents.find(i => i.id === e.workId);
@@ -544,6 +554,7 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
   if (['INTERPRETATION_RESULT', 'HELP', 'HELP_RESULT', 'RECORD_RESULT', 'COORDINATE', 'BLOCKED', 'WAIT_USER', 'DELIVER', 'CHECK_RESULT', 'TOOL', 'SETTLE'].includes(e.type)) release(c, e.workId);
   ok(c); c.lastActivityAt = e.at;
   c.trace.push({ event: e.type, detail: e.id, at: e.at });
+  if (e.type.startsWith('LOCAL_')) { applyLocalEvent(c, e as TaskEvent & LocalEvent); return c; }
   switch (e.type) {
     case 'DISCUSSION_PLAN': planDiscussion(c, e); break;
     case 'DISCUSSION_RESULT': acceptDiscussion(c, e); break;
@@ -784,12 +795,17 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'RECOVER': {
       const issue = recoveryIssue(c, e.config);
       c.config.bots = e.config.bots; // Current permissions always win.
+      c.config.localTools = { enabled: e.config.localTools?.enabled !== false };
+      for (const work of c.intents) recoverLocalOperations(work);
       c.config.skillSearch = { enabled: e.config.skillSearch?.enabled !== false };
       c.config.webTools = { enabled: e.config.webTools?.enabled !== false };
-      for (const work of c.intents.filter(i => ['pending', 'inflight'].includes(i.status) && ['owner', 'assistance', 'facilitator'].includes(i.kind))) work.payload.capabilities = capabilities(c);
+      for (const work of c.intents.filter(i => ['pending', 'inflight'].includes(i.status) && ['owner', 'assistance', 'facilitator', 'check'].includes(i.kind))) {
+        const legacy = (work.payload.capabilities as { localTools?: boolean } | undefined)?.localTools === undefined;
+        work.payload.capabilities = { ...capabilities(c, work.target), localTools: !legacy && localEnabled(e.config, work.target) };
+      }
       if (issue) { cancelWork(c, e, true); c.reason = issue; reject(c, 'INCOMPATIBLE_EXECUTION'); break; }
       for (const work of c.intents.filter(i => i.status === 'inflight' && i.kind !== 'cancel')) {
-        if (work.replay === 'unsafe') { work.status = 'uncertain'; c.reason = 'Reconcile uncertain external result'; }
+        if (localPhysicalPending(work) || work.replay === 'unsafe') { work.status = 'uncertain'; c.reason = 'Reconcile uncertain external result'; }
         else {
           work.status = 'pending';
           if (work.kind === 'interpretation') c.inputAnalyses!.find(input => input.workId === work.id)!.status = 'pending';
@@ -821,7 +837,7 @@ export const taskMachine = setup({
     reject: assign(({ context, event }) => {
       const c = structuredClone(context); reject(c, permissionProblem(c, event) ?? 'INVALID_STATE');
       // A stale completion may retire its own physical work, never advance the new round.
-      const physicalWorkId = event.workId ?? (event.type === 'WORK_FAILED' ? event.intentId : undefined);
+      const physicalWorkId = event.type.startsWith('LOCAL_') ? undefined : event.workId ?? (event.type === 'WORK_FAILED' ? event.intentId : undefined);
       const work = context.intents.find(i => i.id === physicalWorkId);
       const isDiscussionResult = event.type === 'DISCUSSION_PLAN' || event.type === 'DISCUSSION_RESULT';
       const belongsToDiscussion = isDiscussionResult && !!work?.discussionId && event.discussionId === work.discussionId;
@@ -874,17 +890,18 @@ export const taskMachine = setup({
   },
   guards: {
     valid,
+    uncertainLocalResult: args => valid(args) && !args.context.stopped && args.event.type === 'LOCAL_RESULT' && (!args.event.settled || !args.event.effectsKnown),
     claimDiscussion: args => valid(args) && args.event.type === 'CLAIM' && args.context.intents.some(work => work.id === (args.event.type === 'CLAIM' ? args.event.intentId : '') && !!work.discussionId),
     failedDiscussion: args => valid(args) && args.event.type === 'WORK_FAILED' && args.context.intents.some(work => work.id === (args.event.type === 'WORK_FAILED' ? args.event.intentId : '') && !!work.discussionId),
     holdingDelivery: args => valid(args) && discussionActive(args.context),
     discussionHandoffReady: ({ context }) => context.discussion?.status === 'ready' && !context.stopped && !incompatibleExecution(context)
-      && inflight(context).length === 0 && !activeHelp(context) && !unresolvedInput(context) && !context.inputs.some(input => !input.applied),
+      && inflight(context).length === 0 && !context.intents.some(localPhysicalPending) && !activeHelp(context) && !unresolvedInput(context) && !context.inputs.some(input => !input.applied),
     incompleteDiscussion: args => valid(args) && !!discussionIncomplete(args.context),
-    safeBoundary: ({ context }) => inflight(context).length === 0,
+    safeBoundary: ({ context }) => inflight(context).length === 0 && !context.intents.some(localPhysicalPending),
     analysisReady: ({ context }) => !context.stopped && context.outcome === null && !incompatibleExecution(context) && !!pendingInput(context)
-      && inflight(context).length === 0 && !activeHelp(context),
+      && inflight(context).length === 0 && !context.intents.some(localPhysicalPending) && !activeHelp(context),
     inputsReady: ({ context }) => !context.stopped && context.outcome === null && !unresolvedInput(context) && context.inputs.some(n => !n.applied)
-      && inflight(context).length === 0 && !activeHelp(context),
+      && inflight(context).length === 0 && !context.intents.some(localPhysicalPending) && !activeHelp(context),
     retryHasResult: args => valid(args) && args.event.type === 'RETRY_ASSISTANCE' && !!savedHelpResult(args.context, args.event.requestId),
     retryReviewContinues: args => valid(args) && args.event.type === 'RETRY_ASSISTANCE'
       && !!savedHelpResult(args.context, args.event.requestId) && helpResultContinuesReview(args.context, args.event.requestId),
@@ -894,8 +911,8 @@ export const taskMachine = setup({
     stoppedSettled: ({ context }) => context.stopped && allInflight(context).length === 0 && !context.intents.some(i => i.status === 'uncertain'),
     canCoordinate: args => valid(args) && !discussionActive(args.context) && remainingInflight(args.context, args.event).length === 0,
     isCurrent: ({ context, event }) => fresh(context, event) && !context.stopped && (!event.workId || context.intents.some(i => i.id === event.workId && i.status === 'inflight')),
-    deferredReady: ({ context }) => context.deferredCoordination && !discussionActive(context) && !unresolvedInput(context) && inflight(context).length === 0,
-    reviewReady: ({ context }) => context.review?.status === 'pending' && !context.stopped && !unresolvedInput(context) && inflight(context).length === 0,
+    deferredReady: ({ context }) => context.deferredCoordination && !discussionActive(context) && !unresolvedInput(context) && inflight(context).length === 0 && !context.intents.some(localPhysicalPending),
+    reviewReady: ({ context }) => context.review?.status === 'pending' && !context.stopped && !unresolvedInput(context) && inflight(context).length === 0 && !context.intents.some(localPhysicalPending),
     interpretationClarifies: args => valid(args) && args.event.type === 'INTERPRETATION_RESULT' && args.event.spec.clarification !== null,
     currentInterpretation: ({ context, event }) => event.type === 'INTERPRETATION_RESULT' && fresh(context, event) && !context.stopped
       && context.intents.some(work => work.id === event.workId && work.kind === 'interpretation' && work.status === 'inflight'),
@@ -918,7 +935,7 @@ export const taskMachine = setup({
     claimFacilitator: args => valid(args) && args.context.intents.some(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : '') && i.kind === 'facilitator' && !i.discussionId),
     claimCheck: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'check',
     claimCancel: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'cancel',
-    shouldTick: ({ context, event }) => valid({ context, event }) && !discussionActive(context) && event.at >= context.nextCheckAt && inflight(context).length === 0 && !context.processedSignals.includes(event.id),
+    shouldTick: ({ context, event }) => valid({ context, event }) && !discussionActive(context) && event.at >= context.nextCheckAt && inflight(context).length === 0 && !context.intents.some(localPhysicalPending) && !context.processedSignals.includes(event.id),
     repeated: ({ context, event }) => {
       if (event.type !== 'FAILURE_SIGNAL' || !valid({ context, event }) || discussionActive(context) || remainingInflight(context, event).length) return false;
       const f = JSON.stringify([event.operation, event.parameters, event.resource, event.error, event.result]).normalize('NFKC');
@@ -932,7 +949,7 @@ export const taskMachine = setup({
     canCorrect: ({ context, event }) => valid({ context, event }) && hasOrdinary(context),
     retryable: args => valid(args) && canRetryWork(args.context, args.event),
     failedAssistance: args => valid(args) && args.event.type === 'WORK_FAILED' && !args.event.resultUncertain && args.context.intents.find(i => i.id === (args.event as Extract<TaskEvent, { type: 'WORK_FAILED' }>).intentId)?.kind === 'assistance',
-    recoveredSafe: ({ context, event }) => event.type === 'RECOVER' && !recoveryIssue(context, event.config) && !context.intents.some(i => i.status === 'inflight' && i.replay === 'unsafe'),
+    recoveredSafe: ({ context, event }) => event.type === 'RECOVER' && !recoveryIssue(context, event.config) && !context.intents.some(i => localPhysicalPending(i) || i.status === 'uncertain' || i.status === 'inflight' && i.replay === 'unsafe'),
   },
 }).createMachine({
   id: 'botTeamTask', initial: 'running',
@@ -952,6 +969,11 @@ export const taskMachine = setup({
     { guard: 'inputsReady', target: '.running', actions: 'boundary' },
   ],
   on: {
+    LOCAL_REQUEST: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+    LOCAL_CLAIM: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+    LOCAL_STARTED: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+    LOCAL_RESULT: [{ guard: 'uncertainLocalResult', target: '.waitingHuman', actions: 'apply' }, { guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+    LOCAL_RECONCILE: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     DISCUSSION_PLAN: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     DISCUSSION_RESULT: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     RETRY_ASSISTANCE: [
@@ -1046,7 +1068,7 @@ export const taskMachine = setup({
     },
     stopping: {
       always: { guard: 'stoppedSettled', target: 'ended', actions: 'stopped' },
-      on: { STOP: {}, WORK_FAILED: { actions: 'apply' }, HELP_RESULT: { actions: 'reject' }, SETTLE: { actions: 'apply' } },
+      on: { STOP: {}, WORK_FAILED: { actions: 'apply' }, HELP_RESULT: { actions: 'reject' }, SETTLE: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }] },
     },
     ended: {
       on: {

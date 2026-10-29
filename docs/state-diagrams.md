@@ -506,3 +506,33 @@ stateDiagram-v2
 批量仿真枚举主草稿、四位成员结果和协调员汇总的全部144种因果合法返回顺序，逐步检查成员互斥、预算、交接唯一性以及最终检查；另外覆盖在各讨论阶段停止、版本变更、错误身份、失败、超时和恢复。该有限枚举检查明确边界内的执行结果，不构成任意事件序列或真实模型输出质量的证明。
 
 BT_V15 校验图的守卫分支投影：局部事件只有带守卫的分支时，失败后仍可能由父级全局转移处理，状态详情必须保留这些全局分支，例如 running 的 CLAIM 还可领取讨论和取消工作。局部存在无条件分支时才完全遮蔽同名全局事件，例如 stopping 的 STOP。该修正只读取真实机器结构，沿用 XState 的原有事件冒泡语义，不改变业务转移。
+
+
+## 本地技能与 CLI 子操作
+
+对应 BT_L01–BT_L13。沿用主任务顶层阶段，子状态与检查点保存在父 Intent 内，由真实 taskMachine 纯转换验证。服务先建立有界共享目录，再恢复任务。listSkills 只读内存元数据免费；正文、资源和 CLI 每次领取扣一次 ordinary（即使父工作为 check），继续模型按父工作原 bucket 计费。讨论、评审与负责人续办保留额度继续有效。
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued: LOCAL_REQUEST 保存动作和续办检查点
+    queued --> claimed: LOCAL_CLAIM 当前权限/父工作/额度/工作区租约通过
+    queued --> cancelled: 停止/目标失效
+    claimed --> running: LOCAL_STARTED 会话身份和工程版本
+    claimed --> failed: LOCAL_RESULT 确认未启动
+    claimed --> cancelling: STOP/目标改变
+    running --> succeeded: LOCAL_RESULT 回执与检查点原子保存
+    running --> failed: LOCAL_RESULT 确认失败
+    running --> cancelling: STOP/超时/目标改变
+    claimed --> uncertain: RECOVER 缺少可靠回执
+    running --> uncertain: RECOVER 缺少可靠回执
+    cancelling --> cancelled: LOCAL_RESULT 确认会话退出及效果
+    cancelling --> uncertain: 无法确认退出或效果
+    uncertain --> succeeded: LOCAL_RECONCILE 宿主可信回执
+    uncertain --> queued: LOCAL_RECONCILE 证明尚未执行
+```
+
+LOCAL_REQUEST 固定 operationId、请求摘要、父会话 attempt、技能版本与模型动作。LOCAL_CLAIM 与跨群共享的工作区租约在同一存储事务中提交；竞争者保持 queued，不消费预算。租约到期不是进程结束证明，不自动接管。实际执行前再次确认当前父工作、权限、取消和领取身份。回执只能结算自己的 operationId 与 sessionId；迟到回执不恢复候选或新目标。SETTLE、普通最终输出、重试、目标边界和新父工作均不能释放尚有未决子操作的工作锁。
+
+停止会将已领取子操作置 cancelling 并发取消意图，执行器等待沙箱会话和后代退出；可能写入的取消/崩溃保留 uncertain，直到核对回执/效果。重启先核对本地会话日志与存储，再调度父工作；没有会话启动记录可证明未执行，已有回执可补交，缺少证据则保持 uncertain 和租约，不重放写入。旧任务缺失能力默认不授权；显式恢复核对通过后仅为兼容版本的新动作启用当前配置。
+
+技能注册表固定启动 manifest；激活原子发布同版本只读快照，资源按包内相对路径读取；正文和资源不是调度权限。所有 Bot 默认获得四个本地接口，解析/纯汇总阶段不执行。check 与后台讨论的 CLI 用可写隔离副本并标记工程 revision；主工作区仍为权威来源。执行后端不可用返回真实失败，不退回无沙箱进程。文件、日志、环境、网络和进程 I/O 在执行器完成，状态机不访问文件或启动进程。

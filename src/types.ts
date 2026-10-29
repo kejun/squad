@@ -1,7 +1,8 @@
+import type { LocalCheckpoint, LocalEvent, LocalOperation, SkillBinding } from './local-operation.js';
 import type { InputIntentSpec } from './input-intent.js';
 export type { InputIntentSpec, InputReference } from './input-intent.js';
 
-export interface Bot { id: string; name: string; instructions: string; tools: string[]; model?: string }
+export interface Bot { id: string; name: string; instructions: string; tools: string[]; model?: string; localTools?: boolean }
 export interface ModelService {
   baseUrl: string; model: string; apiKeyEnv?: string;
   jsonMode?: boolean; temperature?: number; maxTokens?: number;
@@ -18,6 +19,7 @@ export interface Limits {
 export interface TeamConfig {
   version: string; toolVersion: string; defaultBot: string; bots: Bot[]; limits: Limits;
   skillSearch?: { enabled: boolean };
+  localTools?: { enabled: boolean };
   /** Shared read-only web tools; omitted means enabled. Credentials stay in the host environment. */
   webTools?: { enabled: boolean };
   inputAnalysis?: { enabled: boolean };
@@ -59,6 +61,9 @@ export interface Intent extends Fence {
   model?: ModelBinding;
   /** Independent, read-only discussion lane; never a primary assistance dependency. */
   discussionId?: string;
+  localOperations?: LocalOperation[];
+  localCheckpoint?: LocalCheckpoint;
+  localSkills?: SkillBinding[];
   /** Persisted format-repair authorization; never stores the rejected model body. */
   outputRepair?: { count: number; issue: ModelOutputIssue };
 }
@@ -119,6 +124,7 @@ export type Decision =
   | { action: 'askUser'; question: string; reason: string }
   | { action: 'finish'; reason: string };
 export type TaskEvent = Envelope & (
+  | LocalEvent
   | { type: 'DISCUSSION_PLAN'; discussionId: string; decision: Decision }
   | { type: 'DISCUSSION_RESULT'; discussionId: string; text: string; status: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[] }
   | { type: 'DISCUSSION_HANDOFF' }
@@ -160,6 +166,8 @@ export function validateConfig(config: TeamConfig): void {
   if (config.skillSearch !== undefined && (!config.skillSearch || typeof config.skillSearch.enabled !== 'boolean')) throw new Error('Invalid skill search configuration');
   if (config.webTools !== undefined && (!config.webTools || typeof config.webTools.enabled !== 'boolean')) throw new Error('Invalid web tools configuration');
   if (config.inputAnalysis !== undefined && (!config.inputAnalysis || typeof config.inputAnalysis.enabled !== 'boolean')) throw new Error('Invalid input analysis configuration');
+  if (config.localTools !== undefined && typeof config.localTools.enabled !== 'boolean') throw new Error('Invalid local tools configuration');
+  if (config.bots.some(b => b.localTools !== undefined && typeof b.localTools !== 'boolean')) throw new Error('Invalid bot local tools configuration');
   validateModels(config);
   const ids = config.bots.map(b => b.id);
   if (ids.some(id => !id || id === 'user' || id === 'facilitator') || new Set(ids).size !== ids.length || !ids.includes(config.defaultBot)) throw new Error('Invalid bot identities');
