@@ -120,7 +120,7 @@ function release(c: TaskContext, id: string | undefined) {
   if (!id) return;
   const work = c.intents.find(i => i.id === id);
   if (work && localPhysicalPending(work)) return;
-  if (work) work.status = 'done';
+  if (work) { cancelLocalOperations(work); work.status = 'done'; }
   for (const cancel of c.intents.filter(i => i.kind === 'cancel' && i.payload.intentId === id)) cancel.status = 'done';
 }
 function conversationInput(c: TaskContext) {
@@ -828,6 +828,16 @@ function reduce(original: TaskContext, e: TaskEvent): TaskContext {
 }
 
 const valid = ({ context, event }: { context: TaskContext; event: TaskEvent }) => !permissionProblem(context, event);
+function localResumeKind(c: TaskContext, e: TaskEvent): string | null {
+  if (!valid({ context: c, event: e }) || c.stopped || c.outcome !== null) return null;
+  if (e.type !== 'LOCAL_RECONCILE' && e.type !== 'LOCAL_RESULT') return null;
+  const work = c.intents.find(i => i.id === e.intentId);
+  if (e.type === 'LOCAL_RESULT' && (work?.status !== 'uncertain' || !e.settled || !e.effectsKnown)) return null;
+  if (!work || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion) return null;
+  if (c.intents.some(i => i.localOperations?.some(op => op.id !== e.operationId && ['claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)))) return null;
+  const primary = [...c.intents].reverse().find(i => !i.discussionId && i.kind !== 'cancel' && ['pending', 'inflight', 'uncertain'].includes(i.status));
+  return primary?.kind ?? (discussionActive(c) ? 'owner' : null);
+}
 const d = (event: TaskEvent) => event.type === 'COORDINATE' ? event.decision : null;
 
 export const taskMachine = setup({
@@ -890,7 +900,11 @@ export const taskMachine = setup({
   },
   guards: {
     valid,
-    uncertainLocalResult: args => valid(args) && !args.context.stopped && args.event.type === 'LOCAL_RESULT' && (!args.event.settled || !args.event.effectsKnown),
+    localResumeOwner: ({ context, event }) => ['owner', 'tool'].includes(localResumeKind(context, event) ?? ''),
+    localResumeHelp: ({ context, event }) => localResumeKind(context, event) === 'assistance',
+    localResumeFacilitator: ({ context, event }) => localResumeKind(context, event) === 'facilitator',
+    localResumeCheck: ({ context, event }) => localResumeKind(context, event) === 'check',
+    uncertainLocalResult: args => valid(args) && !args.context.stopped && args.event.type === 'LOCAL_RESULT' && !args.context.intents.find(w => w.id === (args.event as Extract<TaskEvent, { type: 'LOCAL_RESULT' }>).intentId)?.discussionId && (!args.event.settled || !args.event.effectsKnown),
     claimDiscussion: args => valid(args) && args.event.type === 'CLAIM' && args.context.intents.some(work => work.id === (args.event.type === 'CLAIM' ? args.event.intentId : '') && !!work.discussionId),
     failedDiscussion: args => valid(args) && args.event.type === 'WORK_FAILED' && args.context.intents.some(work => work.id === (args.event.type === 'WORK_FAILED' ? args.event.intentId : '') && !!work.discussionId),
     holdingDelivery: args => valid(args) && discussionActive(args.context),
@@ -970,10 +984,11 @@ export const taskMachine = setup({
   ],
   on: {
     LOCAL_REQUEST: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+    LOCAL_REJECTED: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     LOCAL_CLAIM: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     LOCAL_STARTED: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
-    LOCAL_RESULT: [{ guard: 'uncertainLocalResult', target: '.waitingHuman', actions: 'apply' }, { guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
-    LOCAL_RECONCILE: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+    LOCAL_RESULT: [{ guard: 'localResumeOwner', target: '.running', actions: 'apply' }, { guard: 'localResumeHelp', target: '.waitingAssistance', actions: 'apply' }, { guard: 'localResumeFacilitator', target: '.coordinating', actions: 'apply' }, { guard: 'localResumeCheck', target: '.checking', actions: 'apply' }, { guard: 'uncertainLocalResult', target: '.waitingHuman', actions: 'apply' }, { guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+    LOCAL_RECONCILE: [{ guard: 'localResumeOwner', target: '.running', actions: 'apply' }, { guard: 'localResumeHelp', target: '.waitingAssistance', actions: 'apply' }, { guard: 'localResumeFacilitator', target: '.coordinating', actions: 'apply' }, { guard: 'localResumeCheck', target: '.checking', actions: 'apply' }, { guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     DISCUSSION_PLAN: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     DISCUSSION_RESULT: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     RETRY_ASSISTANCE: [

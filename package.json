@@ -19,9 +19,13 @@
     "simulate:discussion": "node --import tsx scripts/simulate-discussion.ts",
     "test:bdd": "node scripts/run-bdd.mjs",
     "check": "node scripts/check.mjs",
-    "test:debug-browser": "node scripts/verify-state-debug.mjs"
+    "test:debug-browser": "node scripts/verify-state-debug.mjs",
+    "simulate:local-tools": "node --import tsx scripts/simulate-local-tools.ts",
+    "local:operations": "node --import tsx scripts/local-operations.ts",
+    "verify:local-sandbox": "node --import tsx scripts/verify-local-sandbox.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sandbox-runtime": "0.0.81",
     "@base-ui/react": "^1.9.0",
     "@statelyai/inspect": "0.7.2",
     "agents": "0.30.0",
@@ -32,6 +36,7 @@
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "xstate": "5.33.3",
+    "yaml": "2.9.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {

@@ -1,3 +1,4 @@
+import type { LocalRuntime } from "../local-runtime.js";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { TeamEngine, type Submission } from "../engine.js";
@@ -45,6 +46,8 @@ export class WebService {
   private readonly failedRooms = new Set<string>();
   private readonly timer: ReturnType<typeof setInterval>;
   private closing = false;
+  private startup: Promise<void> = Promise.resolve();
+  private initialized = true;
   private readonly debugJournal: DebugJournal | null;
 
   constructor(
@@ -53,6 +56,7 @@ export class WebService {
     adapter?: WorkAdapter,
     private readonly webTools?: WebTools,
     readonly debugEnabled = false,
+    private readonly localRuntime?: LocalRuntime,
   ) {
     this.store = new SqliteStore(path);
     this.debugJournal = debugEnabled ? new DebugJournal() : null;
@@ -78,12 +82,15 @@ export class WebService {
               throw new WorkFailure("请先在 .env 配置模型服务，然后重启应用。");
             },
           });
-    for (const room of this.rooms()) {
-      this.engine.recover(room.id);
-      this.kick(room.id);
-    }
+    if (localRuntime) {
+      this.initialized = false;
+      this.startup = this.recoverLocal().then(() => {
+        this.initialized = true;
+        for (const room of this.rooms()) this.kick(room.id);
+      });
+    } else for (const room of this.rooms()) { this.engine.recover(room.id); this.kick(room.id); }
     this.timer = setInterval(() => {
-      if (this.closing) return;
+      if (this.closing || !this.initialized) return;
       for (const room of this.rooms()) {
         const wake = this.engine.nextWake(room.id);
         if (wake !== null && wake <= Date.now()) this.engine.tick(room.id);
@@ -93,6 +100,32 @@ export class WebService {
     this.timer.unref();
   }
 
+  async ready(): Promise<void> { await this.startup; }
+  private async recoverLocal(): Promise<void> {
+    const rooms = this.rooms();
+    for (const room of rooms) this.engine.recover(room.id);
+    for (const room of rooms) {
+      for (const taskId of Object.keys(this.store.read(room.id).tasks)) {
+        const context = this.engine.view(room.id, taskId)!.context;
+        for (const work of context.intents) for (const op of work.localOperations ?? []) {
+          if (op.status !== 'uncertain' || !op.sessionId) continue;
+          const reconciliation = await this.localRuntime!.reconcile(op);
+          if (reconciliation) {
+            const reply = this.engine.send(room.id, taskId, { type: 'LOCAL_RECONCILE', id: `startup-local:${randomUUID()}`, at: Date.now(),
+              intentId: work.id, operationId: op.id, sessionId: op.sessionId, ...reconciliation });
+            if (reply.ok) this.append(room.id, work, 'tool-result', '已核对本地操作回执', JSON.stringify({ operationId: op.id, ...reconciliation }));
+          } else this.append(room.id, work, 'error', '本地操作等待核对', JSON.stringify({ operationId: op.id, sessionId: op.sessionId, status: 'uncertain' }));
+        }
+        // Projection from committed child receipts also fills a crash between DB commit and UI append.
+        const latest = this.engine.view(room.id, taskId)!.context;
+        for (const work of latest.intents) for (const op of work.localOperations ?? []) {
+          if (!op.result || !['succeeded', 'failed', 'cancelled'].includes(op.status)) continue;
+          const shown = this.db.prepare("SELECT 1 FROM web_events WHERE roomId=? AND workId=? AND kind='tool-result' AND instr(detail,?)>0 LIMIT 1").get(room.id, work.id, op.id);
+          if (!shown) this.append(room.id, work, 'tool-result', '本地操作持久回执', JSON.stringify({ operationId: op.id, ...op.result }));
+        }
+      }
+    }
+  }
   rooms(): WebRoom[] {
     return this.db
       .prepare(
@@ -216,6 +249,7 @@ export class WebService {
   }
   submit(roomId: string, input: Submission) {
     this.room(roomId);
+    if (!this.initialized) throw new WebError(503, "本地执行会话正在恢复，请稍后重试。");
     if (
       !input.id ||
       input.id.length > 120 ||
@@ -316,6 +350,22 @@ export class WebService {
         );
         const tracedScope: WorkScope = {
           sessionId: roomId,
+          ...(scope.localTools ? { localTools: {
+            catalog: scope.localTools.catalog, checkpoint: scope.localTools.checkpoint,
+            invoke: async (action, messages, toolSignal) => {
+              const labels = { listSkills: "查看本地技能", loadSkill: "激活本地技能", readSkillResource: "读取技能资源", runCli: "执行本地命令" };
+              this.append(roomId, work, "tool-start", labels[action.type], JSON.stringify(this.localRuntime!.clean(action)));
+              const result = await scope.localTools!.invoke(action, messages, toolSignal);
+              this.append(roomId, work, "tool-result", action.type === "runCli" ? "本地命令结束" : "本地技能操作完成", JSON.stringify({ operationId: this.engine.view(roomId)!.context.intents.find(w => w.id === work.id)?.localOperations?.at(-1)?.id, ...result }));
+              return result;
+            },
+            resume: async (operationId, toolSignal) => {
+              this.append(roomId, work, "tool-start", "续办本地操作", operationId);
+              const result = await scope.localTools!.resume(operationId, toolSignal);
+              this.append(roomId, work, "tool-result", "已读取本地操作回执", JSON.stringify({ operationId: this.engine.view(roomId)!.context.intents.find(w => w.id === work.id)?.localOperations?.at(-1)?.id, ...result }));
+              return result;
+            },
+          } satisfies NonNullable<WorkScope["localTools"]> } : {}),
           regenerateModelOutput: (issue) => {
             if (!scope.regenerateModelOutput) throw new Error('Model output repair authorization unavailable');
             scope.regenerateModelOutput(issue);
@@ -390,7 +440,7 @@ export class WebService {
         await this.adapter.cancel?.(work);
       },
     };
-    runner = new WorkRunner(this.engine, observed, Date.now, globalThis.fetch, this.webTools);
+    runner = new WorkRunner(this.engine, observed, Date.now, globalThis.fetch, this.webTools, this.localRuntime);
     this.runners.set(roomId, runner);
     return runner;
   }
@@ -416,7 +466,7 @@ export class WebService {
     }
   }
   private kick(roomId: string) {
-    if (this.closing || this.failedRooms.has(roomId)) return;
+    if (this.closing || !this.initialized || this.failedRooms.has(roomId)) return;
     const taskId = this.store.read(roomId).activeTaskId;
     if (!taskId) return;
     while (this.engine.flushResults(roomId, taskId)) { /* Consume durable handoffs before projecting successors. */ }
@@ -438,6 +488,7 @@ export class WebService {
   }
   async close() {
     this.closing = true;
+    await this.startup;
     clearInterval(this.timer);
     for (const roomId of new Set([...this.running.values()].map(work => work.roomId))) {
       const taskId = this.store.read(roomId).activeTaskId;

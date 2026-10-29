@@ -23,7 +23,13 @@ export function debugFrame(snapshot: TaskSnapshot, event: DebugEvent, from: Phas
 }
 
 // Shape checks only. Business permissions, limits, fence checks, and rejection codes remain in taskMachine.
-const eventFields: Record<string, Record<string, 'string' | 'boolean' | 'object' | 'array'>> = {
+const eventFields: Record<string, Record<string, 'string' | 'number' | 'boolean' | 'object' | 'array'>> = {
+  LOCAL_REQUEST: { intentId: 'string', operationId: 'string', namespace: 'string', requestHash: 'string', action: 'object', parentAttempt: 'number', fence: 'object' },
+  LOCAL_CLAIM: { intentId: 'string', operationId: 'string', sessionId: 'string', parentAttempt: 'number', leaseAvailable: 'boolean', fence: 'object' },
+  LOCAL_REJECTED: { intentId: 'string', operationId: 'string', parentAttempt: 'number', result: 'object' },
+  LOCAL_STARTED: { intentId: 'string', operationId: 'string', sessionId: 'string' },
+  LOCAL_RESULT: { intentId: 'string', operationId: 'string', sessionId: 'string', result: 'object', settled: 'boolean', effectsKnown: 'boolean' },
+  LOCAL_RECONCILE: { intentId: 'string', operationId: 'string', sessionId: 'string', resolution: 'string', detail: 'string' },
   DISCUSSION_PLAN: { workId: 'string', discussionId: 'string', fence: 'object', decision: 'object' },
   DISCUSSION_RESULT: { workId: 'string', discussionId: 'string', fence: 'object', text: 'string', status: 'string' },
   HELP: { requestId: 'string', caller: 'string', target: 'string', question: 'string', expected: 'string' },
@@ -168,6 +174,19 @@ export function debugEventTemplate(snapshot: TaskSnapshot, type: string): Record
   const base = { type, at: c.lastActivityAt + 1 };
   const completion = { ...base, fence: frame, ...(work?.status === 'inflight' ? { workId: work.id } : {}) };
   switch (type) {
+    case 'LOCAL_REQUEST': return { ...base, intentId: work?.id ?? '', operationId: `${work?.id ?? 'sandbox'}:local:${work?.localCheckpoint?.nextOperation ?? 0}`,
+      namespace: 'c'.repeat(64), requestHash: 'a'.repeat(64), action: { type: 'runCli', executable: 'node', args: ['-e', 'console.log("synthetic only")'] },
+      parentAttempt: work?.attempt ?? 0, workspaceId: 'sandbox-workspace', messages: [{ role: 'assistant', content: '合成 CLI 动作，仅仿真' }], fence: work ? { epoch: work.epoch, goalVersion: work.goalVersion } : frame };
+    case 'LOCAL_CLAIM': case 'LOCAL_REJECTED': case 'LOCAL_STARTED': case 'LOCAL_RESULT': case 'LOCAL_RECONCILE': {
+      const parent = latest.find(i => i.localOperations?.some(op => ['queued', 'claimed', 'running', 'cancelling', 'uncertain'].includes(op.status))) ?? work;
+      const op = parent?.localOperations?.find(op => ['queued', 'claimed', 'running', 'cancelling', 'uncertain'].includes(op.status));
+      const identity = { ...base, intentId: parent?.id ?? '', operationId: op?.id ?? '', sessionId: op?.sessionId ?? 'sandbox-local-session' };
+      if (type === 'LOCAL_CLAIM') return { ...identity, parentAttempt: parent?.attempt ?? 0, leaseAvailable: true, fence: parent ? { epoch: parent.epoch, goalVersion: parent.goalVersion } : frame };
+      if (type === 'LOCAL_REJECTED') return { ...identity, parentAttempt: op?.parentAttempt ?? 0, result: { ok: false, code: 'BUDGET_EXHAUSTED', data: {} } };
+      if (type === 'LOCAL_STARTED') return { ...identity, workspaceRevision: 'synthetic-revision', isolated: parent?.kind === 'check' || !!parent?.discussionId };
+      if (type === 'LOCAL_RECONCILE') return { ...identity, resolution: 'notStarted', detail: '合成宿主核对：确认未启动，不访问真实进程' };
+      return { ...identity, result: { ok: true, code: 'succeeded', data: { exitCode: 0, stdout: '合成命令结果，不是真实 CLI 执行' } }, settled: true, effectsKnown: true };
+    }
     case 'DISCUSSION_PLAN': case 'DISCUSSION_RESULT': {
       const discussionWork = latest.find(item => item.discussionId === c.discussion?.id && !!item.discussionId && item.status === 'inflight'
         && (type === 'DISCUSSION_PLAN' ? item.kind === 'facilitator' : ['assistance', 'discussionSummary'].includes(item.kind)));

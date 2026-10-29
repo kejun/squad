@@ -163,7 +163,7 @@ When('使用关闭网页工具的新配置恢复任务', function (this: SpecWor
 });
 Then('待执行工作不再宣告联网能力且直接调用也会被拒绝', async function (this: SpecWorld) {
   const caps = this.h.engine.pending(this.h.room, this.h.task)[0]!.payload.capabilities;
-  assert.deepEqual(caps, { findSkills: true, webSearch: false, webFetch: false });
+  assert.deepEqual(caps, { localTools: true, findSkills: true, webSearch: false, webFetch: false });
   await requestSearch(this); assert(s(this).error?.includes('WEB_TOOLS_DISABLED')); assert.equal(s(this).fixture.calls.length, 0);
 });
 When('使用原配置恢复并重新执行联网工作', async function (this: SpecWorld) {
@@ -180,13 +180,13 @@ Given('各 Bot 配置了不同的兼容模型服务', function (this: SpecWorld)
   this.h = new Harness(config);
 });
 When('为负责人、协助成员和促进者生成工作意图', function (this: SpecWorld) {
-  const check = () => assert.deepEqual(this.h.engine.pending(this.h.room, this.h.task)[0]!.payload.capabilities, { findSkills: true, webSearch: true, webFetch: true });
+  const check = () => assert.deepEqual(this.h.engine.pending(this.h.room, this.h.task)[0]!.payload.capabilities, { localTools: true, findSkills: true, webSearch: true, webFetch: true });
   check(); assert.equal(this.h.engine.pending(this.h.room, this.h.task)[0]!.model!.serviceId, 'A');
   this.h.help(); check(); assert.equal(this.h.engine.pending(this.h.room, this.h.task)[0]!.model!.serviceId, 'B');
   this.h.result(); this.h.event({ type: 'BLOCKED', reason: '需要来源' }); check();
 });
 Then('每种工作都应携带默认网页搜索和抓取能力', function (this: SpecWorld) {
-  for (const work of this.h.context().intents.filter(i => ['owner', 'assistance', 'facilitator'].includes(i.kind))) assert.deepEqual(work.payload.capabilities, { findSkills: true, webSearch: true, webFetch: true });
+  for (const work of this.h.context().intents.filter(i => ['owner', 'assistance', 'facilitator'].includes(i.kind))) assert.deepEqual(work.payload.capabilities, { localTools: true, findSkills: true, webSearch: true, webFetch: true });
 });
 Then('最终检查仍只使用原有检查额度', async function (this: SpecWorld) {
   this.h = new Harness(); this.h.event({ type: 'DELIVER', text: '结果', artifactIds: [] });

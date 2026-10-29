@@ -15,3 +15,20 @@
 ## 执行边界
 
 固定 Anthropic Sandbox Runtime `0.0.81`（已核对其 allowRead、PID namespace、die-with-parent 和依赖探测实现）。当前验证宿主的 bubblewrap 返回 `Creating new namespace failed: Operation not permitted`；生产后端必须如实返回不可用，不能把受控进程夹具当作 OS 隔离验证。后续集成记录须区分真实子进程测试、策略测试和实际 OS 沙箱验收。
+
+## 最终模型与集成覆盖
+
+后续按同一顺序补齐了 queued 拒绝回执、可信核对后的父阶段恢复、群/任务命名空间，以及后台操作不确定时保留方案师草稿；每次先修订场景/图，复验纯模型后再继续接线。
+
+- 真实模型断言：`tests/local-operation-model.test.ts`，11项。全部事件都经持久化快照往返。
+- `npm run simulate:local-tools`：8种角色 × 4种动作 × 8类结果，256个场景、1760次转移。含成功、失败、停止、领取前/后崩溃、回执后恢复、旧版本和撤权；`reports/local-tools-simulation.json` 记录逐步轨迹及模型 SHA-256。CLI、磁盘读取和模型返回均为合成事件；只有报告及模型摘要读写，不执行真实工具。
+- 最终受测模型 SHA-256：`task.machine.ts=520bf93480b9edde7b0f2db4861e0b222860ab5d2a4914b00d8ecb21ff4ea8e6`，`local-operation.ts=f4027e65b64feee161e126ceb8924c7962d3ef7b44ca29bb8a8cddd12455ce38`，`types.ts=c7231a2f4c6c8cf7270f9e3dffee25c72fa0f16805e617d936771755d391d0d6`。
+- 本地工具集成：方案师、核查员、Builder、新增 Bot、协调员、check、后台讨论均走真实 WorkRunner → JSON 模型循环 → 状态机领取 → 技能文件/真实 Node 子进程 → 原 Bot 续办。模型 HTTP 返回受控，子进程真实执行；显式注入的 ControlledProcessBackend 不提供 OS 隔离。
+- 注册表覆盖损坏 YAML、缺失根、同名、顶层链接、包内逃逸、激活前修改、旧快照跨重启、路径穿越和缺失版本。
+- 执行覆盖同一工程的真实排队、SQLite/内存跨群租约、重复消息 ID 的默认目录及副本隔离、未完成命令不解锁、核查副本输出、缺命令/后端、非零退出、超时、取消与后代、控制字符导致的转义后大输出、会话核对及过期摘要拒绝。
+- 恢复覆盖5个窗口（请求前、已保存未领取、领取后未启动、启动后 DB 回执前、回执后模型前），并额外经过真实 WebService 启动：确定回执先补交再调度，可能已启动而无回执时不发新模型请求/命令。格式修复不重复写入。
+- 网页继续复用已有执行详情，不增加 UI 组件；新 scope 透传、激活/命令记录、退出码、日志与持久回执恢复均由服务集成直接检查。没有新增浏览器目视验收声明。
+
+`npm run check`：430项 Vitest、505个直接执行的 Gherkin 用例通过；新 BT_L01–BT_L16 共48例均直接执行。原有26个待验收用例保持原登记，未移除或隐藏要求。
+
+`npm run verify:local-sandbox` 在当前宿主退出78：`CLI_SANDBOX_UNAVAILABLE: Required OS namespaces are unavailable`。这是真实生产后端的拒绝结果，不是隔离已通过。仓库提供了可重复的 OS 文件读取、快照写入、环境和网络验证脚本；部署宿主需要通过此项。首期 Linux、单服务/同一数据库；没有跨实例租约、Windows/macOS 后端或硬性 cgroup 资源配额保证。

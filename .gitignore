@@ -9,3 +9,5 @@ reports/
 .env
 .env.*
 !.env.example
+
+.squad-local/

@@ -11,7 +11,7 @@ export interface LocalToolResult { ok: boolean; code: string; data: Record<strin
 export interface LocalCheckpoint { messages: LocalMessage[]; nextOperation: number; pendingOperationId?: string }
 export interface SkillBinding { skillId: string; skillVersion: string }
 export interface LocalOperation {
-  id: string; requestHash: string; action: LocalAction;
+  id: string; namespace: string; requestHash: string; action: LocalAction;
   status: 'queued' | 'claimed' | 'running' | 'succeeded' | 'failed' | 'cancelling' | 'cancelled' | 'uncertain';
   parentAttempt: number; attempt: number; sessionId?: string;
   workspaceId?: string; workspaceRevision?: string; isolated?: boolean;
@@ -19,7 +19,8 @@ export interface LocalOperation {
   result?: LocalToolResult;
 }
 export type LocalEvent =
-  | { type: 'LOCAL_REQUEST'; intentId: string; operationId: string; requestHash: string; action: LocalAction; parentAttempt: number; messages: LocalMessage[]; workspaceId?: string }
+  | { type: 'LOCAL_REQUEST'; intentId: string; operationId: string; namespace: string; requestHash: string; action: LocalAction; parentAttempt: number; messages: LocalMessage[]; workspaceId?: string }
+  | { type: 'LOCAL_REJECTED'; intentId: string; operationId: string; parentAttempt: number; result: LocalToolResult }
   | { type: 'LOCAL_CLAIM'; intentId: string; operationId: string; parentAttempt: number; sessionId: string; leaseAvailable: boolean }
   | { type: 'LOCAL_STARTED'; intentId: string; operationId: string; sessionId: string; workspaceRevision?: string; isolated?: boolean }
   | { type: 'LOCAL_RESULT'; intentId: string; operationId: string; sessionId: string; result: LocalToolResult; settled: boolean; effectsKnown: boolean }
@@ -67,13 +68,15 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
   }
   switch (event.type) {
     case 'LOCAL_REQUEST':
-      if (!validLocalAction(event.action) || !event.operationId || !/^[a-f0-9]{64}$/.test(event.requestHash)
+      if (!validLocalAction(event.action) || !/^[a-f0-9]{64}$/.test(event.namespace) || !event.operationId || !/^[a-f0-9]{64}$/.test(event.requestHash)
         || !Array.isArray(event.messages) || !event.messages.every(m => m && ['user', 'assistant'].includes(m.role) && typeof m.content === 'string')
         || JSON.stringify(event.messages).length > 1_900_000) return 'INVALID_LOCAL_REQUEST';
       if (op) return op.requestHash === event.requestHash ? 'LOCAL_ALREADY_REQUESTED' : 'LOCAL_REQUEST_CONFLICT';
       if (localUnsettled(work)) return 'LOCAL_OPERATION_PENDING';
       if (event.action.type === 'runCli' && !event.workspaceId) return 'WORKSPACE_REQUIRED';
       return null;
+    case 'LOCAL_REJECTED':
+      return op?.status === 'queued' && op.parentAttempt === event.parentAttempt && event.result?.ok === false ? null : 'LOCAL_NOT_QUEUED';
     case 'LOCAL_CLAIM':
       if (!op || op.status !== 'queued') return 'LOCAL_NOT_QUEUED';
       if (!event.sessionId) return 'LOCAL_SESSION_REQUIRED';
@@ -109,10 +112,13 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
   let op = work.localOperations?.find(o => o.id === e.operationId);
   switch (e.type) {
     case 'LOCAL_REQUEST':
-      op = { id: e.operationId, requestHash: e.requestHash, action: e.action, status: 'queued', parentAttempt: work.attempt, attempt: 0, createdAt: e.at,
+      op = { id: e.operationId, namespace: e.namespace, requestHash: e.requestHash, action: e.action, status: 'queued', parentAttempt: work.attempt, attempt: 0, createdAt: e.at,
         ...(e.workspaceId ? { workspaceId: e.workspaceId } : {}) };
       (work.localOperations ??= []).push(op);
       work.localCheckpoint = { messages: e.messages, nextOperation: (work.localCheckpoint?.nextOperation ?? 0) + 1, pendingOperationId: op.id };
+      break;
+    case 'LOCAL_REJECTED':
+      finishOperation(work, op!, e.result, e.at);
       break;
     case 'LOCAL_CLAIM':
       op!.status = 'claimed'; op!.sessionId = e.sessionId; op!.parentAttempt = work.attempt; op!.attempt++;
@@ -126,7 +132,10 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
       break;
     case 'LOCAL_RESULT':
       if (!e.settled || !e.effectsKnown) { op!.status = 'uncertain'; op!.result = e.result; work.status = 'uncertain'; c.reason = '本地操作效果不确定，需核对后继续'; }
-      else finishOperation(work, op!, e.result, e.at);
+      else {
+        finishOperation(work, op!, e.result, e.at);
+        if (work.status === 'uncertain' && !localPhysicalPending(work)) work.status = c.stopped || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion ? 'done' : 'pending';
+      }
       break;
     case 'LOCAL_RECONCILE':
       if (e.resolution === 'receipt') finishOperation(work, op!, e.result!, e.at);

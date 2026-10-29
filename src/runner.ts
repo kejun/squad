@@ -1,3 +1,7 @@
+import { randomUUID } from 'node:crypto';
+import { localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
+import type { LocalRuntime } from './local-runtime.js';
+import type { SkillPage } from './local-skills.js';
 import type { TeamEngine } from './engine.js';
 import type { ArtifactDraft, Decision, InputIntentSpec, InputReference, Intent, ModelOutputIssue, TaskEvent } from './types.js';
 import { inputIntentSchema, validInputIntent } from './input-intent.js';
@@ -20,7 +24,14 @@ export interface WorkAdapter {
   execute(intent: Intent, signal: AbortSignal, scope: WorkScope): Promise<WorkOutput>;
   cancel?(intent: Intent): Promise<void>;
 }
+export interface LocalWorkTools {
+  readonly catalog: SkillPage;
+  readonly checkpoint: LocalCheckpoint | undefined;
+  invoke(action: LocalAction, messages: LocalMessage[], signal: AbortSignal): Promise<LocalToolResult>;
+  resume(operationId: string, signal: AbortSignal): Promise<LocalToolResult>;
+}
 export interface WorkScope {
+  readonly localTools?: LocalWorkTools;
   /** Stable conversation identity for provider routing; defaults to the persisted task ID. */
   readonly sessionId?: string;
   /** The first request is reserved on claim; call before each additional model/tool request. */
@@ -59,7 +70,8 @@ export class WorkRunner {
   private controllers = new Map<string, AbortController>();
   constructor(readonly engine: TeamEngine, private readonly adapter: WorkAdapter, private readonly clock: () => number = Date.now,
     private readonly skillSearchTransport: SkillSearchTransport = globalThis.fetch,
-    private readonly webTools: WebTools = new CloudflareWebTools()) {}
+    private readonly webTools: WebTools = new CloudflareWebTools(),
+    private readonly localRuntime?: LocalRuntime) {}
   async runOne(roomId: string, taskId: string, intentId?: string): Promise<boolean> {
     if (this.engine.flushResults(roomId, taskId)) return true;
     const available = this.engine.pending(roomId, taskId);
@@ -127,12 +139,73 @@ export class WorkRunner {
       combined.throwIfAborted();
       return result;
     } };
+    if (this.localRuntime) {
+      const runtime = this.localRuntime;
+      const executeLocal = async (operationId: string, externalSignal: AbortSignal): Promise<LocalToolResult> => {
+        const remaining = work.deadline === null ? this.engine.config.limits.workTimeoutMs : work.deadline - this.clock();
+        const signal = AbortSignal.any([controller.signal, externalSignal, AbortSignal.timeout(Math.max(1, Math.min(remaining, 2_147_483_647)))]);
+        let op: LocalOperation | undefined;
+        while (true) {
+          signal.throwIfAborted();
+          if (!localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_TOOLS_DISABLED');
+          op = this.engine.view(roomId, taskId)?.context.intents.find(i => i.id === work.id)?.localOperations?.find(o => o.id === operationId);
+          if (!op) throw new WorkFailure('LOCAL_OPERATION_MISSING');
+          if (['succeeded', 'failed', 'cancelled'].includes(op.status) && op.result) return op.result;
+          if (op.status !== 'queued') throw new WorkFailure('LOCAL_OPERATION_UNCERTAIN', false, true);
+          const generation = op.workspaceId ? runtime.workspaceGeneration(op.workspaceId) : 0;
+          const claim = this.engine.claimLocal(roomId, taskId, work.id, op.id, work.attempt);
+          if (claim.response.ok) { op = claim.operation!; break; }
+          if (claim.response.code !== 'WORKSPACE_BUSY') {
+            const result = { ok: false, code: claim.response.code, data: {} };
+            this.engine.send(roomId, taskId, { type: 'LOCAL_REJECTED', id: `local-reject:${randomUUID()}`, at: this.clock(), intentId: work.id,
+              operationId: op.id, parentAttempt: op.parentAttempt, result });
+            throw new WorkFailure(claim.response.code);
+          }
+          await runtime.waitForWorkspace(op.workspaceId!, generation, signal);
+        }
+        const currentWork = () => this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === work.id)!;
+        let execution;
+        let enteredRuntime = false;
+        try {
+          signal.throwIfAborted();
+          // Permission and cancellation are checked again after the durable claim, before filesystem/process I/O.
+          const context = this.engine.view(roomId, taskId)!.context;
+          if (context.stopped || context.epoch !== work.epoch || context.goalVersion !== work.goalVersion || !localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_EXECUTION_REVOKED');
+          enteredRuntime = true;
+          execution = await runtime.execute(currentWork(), op, signal, metadata => {
+            const started = this.engine.send(roomId, taskId, { type: 'LOCAL_STARTED', id: `local-start:${op!.sessionId}`, at: this.clock(),
+              intentId: work.id, operationId: op!.id, sessionId: op!.sessionId!, ...metadata });
+            if (!started.ok) throw new WorkFailure(started.code);
+          });
+        } catch (error) {
+          // An unknown host failure after a claim is never converted to permission to replay a write.
+          const safe = !enteredRuntime || op.action.type !== 'runCli';
+          execution = { result: { ok: false, code: signal.aborted ? 'cancelled' : 'LOCAL_EXECUTION_FAILED', data: {} }, settled: safe, effectsKnown: safe };
+        }
+        const response = this.engine.send(roomId, taskId, { type: 'LOCAL_RESULT', id: `local-result:${op.sessionId}`, at: this.clock(),
+          intentId: work.id, operationId: op.id, sessionId: op.sessionId!, ...execution });
+        if (response.ok && execution.settled && execution.effectsKnown && op.workspaceId) runtime.notifyWorkspace(op.workspaceId);
+        if (!response.ok || !execution.settled || !execution.effectsKnown) throw new WorkFailure(response.ok ? 'LOCAL_OPERATION_UNCERTAIN' : response.code, false, true);
+        signal.throwIfAborted();
+        return execution.result;
+      };
+      Object.defineProperty(scope, 'localTools', { value: {
+        catalog: runtime.catalog(), checkpoint: work.localCheckpoint,
+        invoke: async (action: LocalAction, messages: LocalMessage[], signal: AbortSignal) => {
+          signal.throwIfAborted(); controller.signal.throwIfAborted();
+          if (!localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_TOOLS_DISABLED');
+          const op = this.engine.requestLocal(roomId, taskId, work.id, work.attempt, action, messages, action.type === 'runCli' ? runtime.workspaceId(work, this.engine.localNamespace(roomId, taskId)) : undefined);
+          return executeLocal(op.id, signal);
+        },
+        resume: executeLocal,
+      } satisfies LocalWorkTools, enumerable: true });
+    }
     try {
       scope.authorizeAdditionalRequest('__initial_reserved_request__');
       output = await this.adapter.execute(work, controller.signal, scope);
     }
     catch (error) {
-      if (controller.signal.aborted) {
+      if (controller.signal.aborted && !this.engine.view(roomId, taskId)!.context.intents.some(i => i.id === work.id && localPhysicalPending(i))) {
         this.engine.send(roomId, taskId, { id: `${work.id}:cancelled`, at: this.clock(), type: 'SETTLE', intentId: work.id });
       } else {
         this.engine.send(roomId, taskId, { id: `${work.id}:failed:${work.attempt}`, at: this.clock(), type: 'WORK_FAILED', intentId: work.id,

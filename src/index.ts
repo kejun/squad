@@ -10,3 +10,7 @@ export * from './model-adapter.js';
 export * from './model-env.js';
 export * from './presentation.js';
 export * from './input-intent.js';
+export * from './local-operation.js';
+export * from './local-skills.js';
+export * from './local-cli.js';
+export * from './local-runtime.js';
