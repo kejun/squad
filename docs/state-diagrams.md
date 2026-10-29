@@ -496,6 +496,8 @@ stateDiagram-v2
 
 稳定图按结构布局而非当前状态布局，聚焦仅隐藏节点；全局、内部更新及同事件的全部分支均有计数与规则入口。筛选显示隐藏数量。等待事项来自 intents、discussion、review、outcome 等真实上下文；ended 结合完成结果显示，继续通过原守卫验证。观察游标、草稿和图形选择属于交互模型，无需增加业务 XState 状态；业务层复验 STOP 自动微步、拒绝、额度、版本与讨论领取后再进行界面验收。
 
+模型层门槛于 2026-10-29 通过后进入具体接入：受测业务模型为 main `94a045e8651cdda343056905ab5fdd760eaf9222` 的 `src/task.machine.ts`（本次未改业务转移）。命令 `node node_modules/vitest/vitest.mjs run tests/task-inspection.test.ts tests/discussion-simulation.test.ts --maxWorkers=1` 完整退出0，5项断言通过，包含144种因果合法返回顺序及生命周期边界；`tsc -p tsconfig.json --noEmit` 退出0。关键轨迹：`running → stopping → ended`；`claimOwner=false → claimDiscussion=true`；`retryReviewContinues=false → retryHasResult=true` 后不评价 valid；ended 的 STOP 为空处理且没有新拒绝。该记录只证明模型层，UI 与提交接线由后续集成检查覆盖。
+
 后台讨论仿真对应 BT_V10–BT_V14。DISCUSSION_PLAN 模板绑定已领取的讨论协调员工作；DISCUSSION_RESULT 模板绑定本轮在途成员或协调员汇总工作，携带 workId、discussionId、工作自身的 fence 和角色协议。DELIVER、HELP 等主工作模板从主执行流程选取工作，不会因较新的并行成员工作而串错身份。CLAIM 模板只优先选择当前可领取的工作；未经过领取的结果仍受真实守卫限制。缺少必要字段时先报告参数错误，保留沙箱快照与历史。沿用现有业务状态；仅修正模板与事件形状校验，不增加另一套调度规则。
 
 批量仿真枚举主草稿、四位成员结果和协调员汇总的全部144种因果合法返回顺序，逐步检查成员互斥、预算、交接唯一性以及最终检查；另外覆盖在各讨论阶段停止、版本变更、错误身份、失败、超时和恢复。该有限枚举检查明确边界内的执行结果，不构成任意事件序列或真实模型输出质量的证明。
