@@ -4,7 +4,8 @@ import { api } from './api';
 
 export function mergeDebugFeed(previous: DebugFeed | null, next: DebugFeed): DebugFeed {
   const changedSession = !!previous && previous.sessionId !== next.sessionId;
-  const all = [...(changedSession || next.truncated ? [] : previous?.records ?? []), ...next.records];
+  const all = [...new Map([...(changedSession || next.truncated ? [] : previous?.records ?? []), ...next.records]
+    .map(record => [record.sequence, record])).values()].sort((a, b) => a.sequence - b.sequence);
   const records: DebugFeed['records'] = [];
   let bytes = 0;
   const encoder = new TextEncoder();

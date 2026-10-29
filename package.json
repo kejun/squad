@@ -18,7 +18,8 @@
     "coverage:specs": "node --import tsx scripts/spec-coverage.ts",
     "simulate:discussion": "node --import tsx scripts/simulate-discussion.ts",
     "test:bdd": "node scripts/run-bdd.mjs",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "test:debug-browser": "node scripts/verify-state-debug.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

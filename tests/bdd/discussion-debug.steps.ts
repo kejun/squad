@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { Given, When, Then } from '@cucumber/cucumber';
 import { persistTask, restoreTask } from '../../src/task.machine.js';
-import { stateTransitions, taskGraph, type MachineTransition, type TaskSandbox } from '../../src/task-debug.js';
+import { debugEventTemplate, stateTransitions, taskGraph, type MachineTransition, type TaskSandbox } from '../../src/task-debug.js';
+import { waitingItems } from '../../src/task-debug-view.js';
 import { runDiscussionSimulations, type SimulationReport } from '../../scripts/simulate-discussion.js';
 import { completeWithTemplates, malformedDiscussion, plannedSandbox, primaryDeliveryTemplate, rejectedDiscussionIdentity } from '../discussion-debug-fixture.js';
 import type { SpecWorld } from './steps.js';
@@ -26,3 +27,11 @@ Then('应拒绝该结果并保留原在途工作以接受有效返回', function
 When('在执行中状态查看CLAIM的守卫分支', function (this: SpecWorld) { claimBranches.set(this, stateTransitions(taskGraph(), 'running').filter(item => item.event === 'CLAIM')); });
 Then('应显示主工作与全局讨论及取消领取的守卫', function (this: SpecWorld) { const guards = claimBranches.get(this)!.flatMap(item => item.guards); for (const guard of ['claimOwner', 'claimDiscussion', 'claimCancel']) assert(guards.includes(guard)); });
 Then('停止状态无条件处理的STOP不应回退全局停止转移', function () { const transitions = stateTransitions(taskGraph(), 'stopping').filter(item => item.event === 'STOP'); assert.equal(transitions.length, 1); assert.deepEqual(transitions[0]!.guards, []); });
+When('完成成员讨论和协调员汇总但不结算主工作', function (this: SpecWorld) {
+  const sandbox = box(this);
+  for (const type of ['DISCUSSION_PLAN', 'CLAIM', 'DISCUSSION_RESULT', 'CLAIM', 'DISCUSSION_RESULT']) sandbox.send(JSON.stringify(debugEventTemplate(sandbox.snapshot, type)));
+});
+Then('当前等待事项应说明汇总已就绪并等待方案师结算', function (this: SpecWorld) {
+  assert.equal(box(this).snapshot.context.discussion?.status, 'ready');
+  assert(waitingItems(box(this).snapshot.context).some(item => item.text.includes('汇总已就绪') && item.text.includes('方案师当前工作结算')));
+});
