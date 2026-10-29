@@ -50,13 +50,24 @@ npm start
 
 打开 http://127.0.0.1:4318 。`WEB_PORT` 可修改 API/生产服务端口（默认 `4318`），`WEB_DATABASE` 可指定独立数据库路径（默认 `team.sqlite`）。开发代理跟随 `WEB_PORT`。服务仅监听本机回环地址，适合本地使用。
 
+## 本地技能与 CLI
+
+服务启动先扫描运行账号的 `~/.agents/skills/`，所有 Bot 共用一个版本目录；正文与引用按需加载，CLI 在受控工作区执行。新增 Bot 自动继承；`Bot.localTools = false` 可单独关闭。技能更新后重启生效，不自动安装技能或命令依赖。
+
+模型使用 `listSkills`、`loadSkill`、`readSkillResource`、`runCli` 四个 JSON 动作。每次磁盘/命令操作先经 XState 保存和领取；命令回执、技能版本和模型续办检查点持久化。检查与后台讨论在副本中运行，权威工程不变；检查的源文件只读，输出目录可写，正面结论提交前复核源版本。同一工程跨群串行，不同默认任务目录隔离。
+
+默认 CLI 后端为固定版本的 Linux Anthropic Sandbox Runtime；需 bubblewrap、socat、ripgrep 及可用的用户/PID/网络命名空间。不可用时明确返回 `CLI_SANDBOX_UNAVAILABLE`，技能发现和读取仍可用。`npm run verify:local-sandbox` 验证实际文件、网络与环境边界（环境不可用退出78）。[运行配置与未决操作核对](docs/local-tools.md) 说明目录、权限及恢复命令；[验证记录](docs/local-tools-verification.md) 区分模型、真实子进程和 OS 沙箱证据。
+
 ## 代码位置
 
-默认配置包含 5 个群成员：方案师 `A`、核查员 `B`、`builder-1`、`builder-2`、`builder-3`。三个 Builder 均负责实现、修改与验证，默认继承主模型；所有成员默认支持技能搜索、网页搜索和网页抓取。角色说明和工具权限在 `team.config.ts` 中调整，模型分配在 `.env` 中调整。后台促进者独立运行，不计入这 5 个成员。所有成员共用任务预算；主工作保持顺序调度，用户邀请的后台讨论允许不同空闲成员并行执行。
+默认配置包含 5 个群成员：方案师 `A`、核查员 `B`、`builder-1`、`builder-2`、`builder-3`。三个 Builder 均负责实现、修改与验证，默认继承主模型；所有成员默认支持技能搜索、网页搜索、网页抓取，以及本地技能和 CLI。角色说明和工具权限在 `team.config.ts` 中调整，模型分配在 `.env` 中调整。后台促进者独立运行，不计入这 5 个成员。所有成员共用任务预算；主工作保持顺序调度，用户邀请的后台讨论允许不同空闲成员并行执行。
 
 | 文件 | 职责 |
 | --- | --- |
 | src/task.machine.ts | XState 状态、守卫、上下文更新与待执行操作 |
+| src/local-operation.ts | 父工作内局部操作的纯契约与守卫 |
+| src/local-skills.ts | 启动目录、版本快照和包内资源读取 |
+| src/local-cli.ts / src/local-runtime.ts | OS 后端、进程会话、工作区与恢复回执 |
 | src/engine.ts | 群路由、命令去重、原子提交、派发领取、期限检查与恢复 |
 | src/store.ts | SQLite 与内存适配器，状态、消息、操作意图及回执一起保存 |
 | src/runner.ts | 提交后执行外部操作，将结果转为受校验事件 |
@@ -76,6 +87,9 @@ npm start
 | scripts/spec-coverage.ts | 区分回归关联、原场景直接通过和待绑定范围 |
 
 ## 状态模型
+
+本地技能与 CLI 的持久化子操作见 [局部操作状态图](docs/state-diagrams.md#本地技能与-cli-子操作)：先保存、领取和扣额，再执行；未知写入经核对后续办。
+
 
 工作期间的后台讨论对应 BT_T01–BT_T17：直接邀请先保存独立的讨论轮次，协调员安排当时空闲的成员并行提供一轮意见，再汇总交给原负责人。主请求继续执行，原负责人在请求结算后吸收草稿与讨论结果；讨论完成前不检查或发布旧草稿。同成员互斥、共享预算、停止、版本隔离和恢复均由任务状态机校验，网页只领取可执行意图。参见[后台讨论状态图](docs/state-diagrams.md#工作期间的后台讨论)及[需求评估与取舍](docs/background-discussion.md)。
 

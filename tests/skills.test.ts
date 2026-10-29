@@ -9,12 +9,12 @@ describe('default find skills capability', () => {
   it('exposes discovery to owners, helpers and facilitators, including new members', () => {
     const c = configuration(); c.bots.push({ id: 'C', name: 'C', instructions: '', tools: [] });
     const h = new Harness(c);
-    expect(h.engine.pending(h.room, h.task)[0]?.payload.capabilities).toEqual({ findSkills: true, webSearch: true, webFetch: true });
-    h.help(); expect(h.engine.pending(h.room, h.task)[0]?.payload.capabilities).toEqual({ findSkills: true, webSearch: true, webFetch: true });
+    expect(h.engine.pending(h.room, h.task)[0]?.payload.capabilities).toEqual({ localTools: true, findSkills: true, webSearch: true, webFetch: true });
+    h.help(); expect(h.engine.pending(h.room, h.task)[0]?.payload.capabilities).toEqual({ localTools: true, findSkills: true, webSearch: true, webFetch: true });
     h.result(); h.event({ type: 'BLOCKED', reason: 'missing skill' });
-    expect(h.engine.pending(h.room, h.task)[0]?.payload.capabilities).toEqual({ findSkills: true, webSearch: true, webFetch: true });
+    expect(h.engine.pending(h.room, h.task)[0]?.payload.capabilities).toEqual({ localTools: true, findSkills: true, webSearch: true, webFetch: true });
     h.engine.submit('other', { id: 'C1', text: 'find a skill', mentions: ['C'] });
-    expect(h.engine.pending('other', 'task:C1')[0]?.payload.capabilities).toEqual({ findSkills: true, webSearch: true, webFetch: true });
+    expect(h.engine.pending('other', 'task:C1')[0]?.payload.capabilities).toEqual({ localTools: true, findSkills: true, webSearch: true, webFetch: true });
   });
 
   it('executes skill discovery through the driver and charges each search', async () => {
@@ -44,7 +44,7 @@ describe('default find skills capability', () => {
   it('allows disabling discovery through configuration', async () => {
     const c = configuration(); c.skillSearch = { enabled: false };
     const h = new Harness(c); const http = transport();
-    expect(h.engine.pending(h.room, h.task)[0]?.payload.capabilities).toEqual({ findSkills: false, webSearch: true, webFetch: true });
+    expect(h.engine.pending(h.room, h.task)[0]?.payload.capabilities).toEqual({ localTools: true, findSkills: false, webSearch: true, webFetch: true });
     const runner = new WorkRunner(h.engine, { async execute(_work, _signal, scope) {
       await scope.findSkills('review'); return { type: 'answer', text: 'unreachable' };
     } }, () => 0, http);

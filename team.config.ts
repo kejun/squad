@@ -8,9 +8,12 @@ export function createTeamConfig(env: ModelEnvironment = process.env): TeamConfi
   if (webEnabled && !['true', 'false'].includes(webEnabled)) throw new Error('SQUAD_WEB_TOOLS_ENABLED must be true or false');
   const intentEnabled = env.SQUAD_INTENT_ANALYSIS_ENABLED?.trim().toLowerCase();
   if (intentEnabled && !['true', 'false'].includes(intentEnabled)) throw new Error('SQUAD_INTENT_ANALYSIS_ENABLED must be true or false');
+  const localEnabled = env.SQUAD_LOCAL_TOOLS_ENABLED?.trim().toLowerCase();
+  if (localEnabled && !['true', 'false'].includes(localEnabled)) throw new Error('SQUAD_LOCAL_TOOLS_ENABLED must be true or false');
   return configureModelsFromEnv({
   version: 'team-v1', toolVersion: 'tools-v1', defaultBot: 'A',
   skillSearch: { enabled: true },
+  localTools: { enabled: env.SQUAD_LOCAL_TOOLS_ENABLED?.trim().toLowerCase() !== 'false' },
   webTools: { enabled: webEnabled !== 'false' },
   inputAnalysis: { enabled: intentEnabled !== 'false' },
   bots: [

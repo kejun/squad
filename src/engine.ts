@@ -1,3 +1,4 @@
+import { localPhysicalPending, type LocalAction, type LocalMessage, type LocalOperation } from './local-operation.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { initialTask, persistTask, restoreTask, stepTask, taskPhase, workLaneAvailable, type TaskSnapshot } from './task.machine.js';
 import type { Store, Transaction } from './store.js';
@@ -173,10 +174,28 @@ export class TeamEngine {
     return this.transact(roomId, tx => this.receipt(tx, event.id, { taskId, event: identity }, () => {
       if (!tx.room.tasks[taskId]) return { ok: false, code: 'TASK_NOT_FOUND', detail: taskId };
       const current = decode(tx.room.tasks[taskId]);
+      let leasedKey: string | undefined;
+      let leasedOwner: string | undefined;
+      if (event.type === 'LOCAL_CLAIM') {
+        const local = event;
+        const op = current.context.intents.find(i => i.id === local.intentId)?.localOperations?.find(o => o.id === local.operationId);
+        if (op?.workspaceId && op.status === 'queued') {
+          leasedKey = op.workspaceId; leasedOwner = fingerprint({ roomId, taskId, operationId: event.operationId });
+          event = { ...event, leaseAvailable: tx.acquireWorkspace(leasedKey, leasedOwner) };
+        }
+      }
       let next = this.step(current, event);
+      if (event.type === 'LOCAL_CLAIM' && !next.context.reply.ok && leasedKey && leasedOwner) tx.releaseWorkspace(leasedKey, leasedOwner);
+      if (event.type === 'LOCAL_RESULT' || event.type === 'LOCAL_RECONCILE') {
+        const local = event;
+        const op = next.context.intents.find(i => i.id === local.intentId)?.localOperations?.find(o => o.id === local.operationId);
+        if (op?.workspaceId && ['succeeded', 'failed', 'cancelled', 'queued'].includes(op.status) && next.context.reply.ok) {
+          tx.releaseWorkspace(op.workspaceId, fingerprint({ roomId, taskId, operationId: event.operationId }));
+        }
+      }
       const reply = { ...next.context.reply, taskId };
       if (event.type === 'CLAIM' && ['BUDGET_EXHAUSTED', 'DISCUSSION_BUDGET_RESERVED', 'WORK_EXPIRED'].includes(reply.code)
-        && current.context.intents.find(work => work.id === event.intentId)?.discussionId) {
+        && current.context.intents.find(work => work.id === (event as Extract<TaskEvent, { type: 'CLAIM' }>).intentId)?.discussionId) {
         next = this.step(next, { type: 'WORK_FAILED', id: `${event.id}:discussion`, at: event.at, intentId: event.intentId, reason: reply.code, transient: false });
       } else if (event.type === 'CLAIM' && reply.code === 'BUDGET_EXHAUSTED') {
         next = this.step(next, { type: 'EXHAUSTED', id: `${event.id}:budget`, at: event.at, reason: 'Execution budget exhausted' });
@@ -188,6 +207,25 @@ export class TeamEngine {
       storeTask(tx, next);
       return reply;
     }));
+  }
+  localNamespace(roomId: string, taskId: string): string { return fingerprint({ roomId, taskId }); }
+  requestLocal(roomId: string, taskId: string, intentId: string, parentAttempt: number, action: LocalAction, messages: LocalMessage[], workspaceId?: string): LocalOperation {
+    const work = this.view(roomId, taskId)?.context.intents.find(i => i.id === intentId);
+    if (!work) throw new Error('UNKNOWN_WORK');
+    const operationId = `${intentId}:local:${work.localCheckpoint?.nextOperation ?? 0}`;
+    const response = this.send(roomId, taskId, { type: 'LOCAL_REQUEST', id: `local-request:${operationId}`, at: this.clock(),
+      intentId, operationId, parentAttempt, namespace: this.localNamespace(roomId, taskId), requestHash: fingerprint({ action, workspaceId: workspaceId ?? null, namespace: this.localNamespace(roomId, taskId) }), action, messages,
+      ...(workspaceId ? { workspaceId } : {}), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
+    if (!response.ok) throw new Error(response.code);
+    return this.view(roomId, taskId)!.context.intents.find(i => i.id === intentId)!.localOperations!.find(o => o.id === operationId)!;
+  }
+  claimLocal(roomId: string, taskId: string, intentId: string, operationId: string, parentAttempt: number): { response: CommandResult; operation?: LocalOperation } {
+    const work = this.view(roomId, taskId)?.context.intents.find(i => i.id === intentId);
+    if (!work) return { response: { ok: false, code: 'UNKNOWN_WORK', detail: intentId } };
+    const response = this.send(roomId, taskId, { type: 'LOCAL_CLAIM', id: `local-claim:${randomUUID()}`, at: this.clock(), intentId, operationId, parentAttempt,
+      sessionId: randomUUID(), leaseAvailable: true, fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
+    const operation = this.view(roomId, taskId)!.context.intents.find(i => i.id === intentId)!.localOperations?.find(o => o.id === operationId);
+    return { response, ...(operation ? { operation } : {}) };
   }
   view(roomId: string, taskId?: string): TaskView | null {
     const room = this.store.read(roomId);
@@ -256,6 +294,7 @@ export class TeamEngine {
     if (!view) return;
     const c = view.context; const at = this.clock();
     for (const op of c.intents.filter(i => ['pending', 'inflight'].includes(i.status) && i.kind !== 'cancel' && i.deadline !== null && i.deadline <= at)) {
+      if (localPhysicalPending(op)) continue; // The local runner enforces the parent deadline and awaits session settlement.
       if (op.kind === 'assistance' && !op.discussionId) {
         this.send(roomId, c.taskId, { id: `timeout:${op.id}`, type: 'HELP_RESULT', requestId: String(op.payload.requestId), resultId: `timeout:${op.id}`, status: 'timeout', answer: '协助已超时', at, fence: { epoch: op.epoch, goalVersion: op.goalVersion } });
       } else {

@@ -1,0 +1,88 @@
+import { discussionUncertainModel } from '../local-model-fixture.js';
+import assert from 'node:assert/strict';
+import { After, Given, When, Then } from '@cucumber/cucumber';
+import type { SpecWorld } from './steps.js';
+import { LocalFixture, assertFlow } from '../local-tools-fixture.js';
+import type { Intent } from '../../src/types.js';
+import { versionHandoffAcceptance, npmBuildAcceptance, revisionAcceptance, concurrentAcceptance, sandboxAcceptance, acknowledgementAcceptance, cliFailureAcceptance, crashAcceptance, formatAcceptance, guardAcceptance, isolationAcceptance, leaseAcceptance, namespaceAcceptance, permissionAcceptance, policyAcceptance, registryAcceptance, serviceAcceptance, skillErrorAcceptance, stopAcceptance } from '../local-tools-acceptance.js';
+interface State { fixture?: LocalFixture; work?: Intent; constraint?: string; expected?: string; stage?: string; window?: string; problem?: string; fault?: string; verified?: boolean }
+const states = new WeakMap<SpecWorld, State>();
+const state = (world: SpecWorld) => { let s = states.get(world); if (!s) { s = {}; states.set(world, s); } return s; };
+After(async function (this: SpecWorld) { await states.get(this)?.fixture?.close(); });
+Given('本地技能目录含正常技能、损坏技能和顶层链接', function (this: SpecWorld) { state(this); });
+When('服务建立一次技能目录并按需加载技能及引用', async function (this: SpecWorld) { await registryAcceptance(); state(this).verified = true; });
+Then('目录应去重并报告损坏项且正文资源绑定同一版本', function (this: SpecWorld) { assert(state(this).verified); });
+Then('扫描不得执行技能脚本且更新源文件不得混入旧版本', function (this: SpecWorld) { assert(state(this).verified); });
+Given('本地工具任务处于{string}工作', async function (this: SpecWorld, role: string) { state(this).fixture = await LocalFixture.create(role); });
+When('Bot 加载技能、读取引用、执行命令后返回角色结果', async function (this: SpecWorld) { const s = state(this); s.work = await s.fixture!.flow(); });
+Then('三个模型动作应先领取再执行且结果交还原 Bot；最终检查另需宿主版本复核', function (this: SpecWorld) { const s = state(this); assertFlow(s.fixture!, s.work!); });
+Then('本地操作扣普通额度而最终检查仍扣检查额度', function (this: SpecWorld) { const s = state(this); assertFlow(s.fixture!, s.work!); });
+Given('本地子操作受到{string}约束', function (this: SpecWorld, value: string) { state(this).constraint = value; });
+When('尝试保存或领取本地操作', function (this: SpecWorld) { const s = state(this); s.expected = guardAcceptance(s.constraint!); });
+Then(/^应返回"([^"]+)"且不得发起本地 I\/O$/, function (this: SpecWorld, code: string) { assert.equal(state(this).expected, code); });
+Then('已保存的拒绝应结算 queued 操作并保留回执', function (this: SpecWorld) { assert(state(this).expected); });
+Given('不同群的两个 Bot 共享一个真实工作区且另有独立工作区', function (this: SpecWorld) { state(this); });
+When('同时领取三个 CLI 子操作', async function (this: SpecWorld) { leaseAcceptance(); await namespaceAcceptance(); await concurrentAcceptance(); state(this).verified = true; });
+Then('同一工作区应只有一个领取成功而独立工作区不受阻', function (this: SpecWorld) { assert(state(this).verified); });
+Then('只有确认执行结算后才能转交工作区租约', function (this: SpecWorld) { assert(state(this).verified); });
+Given('一个 CLI 子操作已进入{string}', function (this: SpecWorld, stage: string) { state(this).stage = stage; });
+When('用户停止并随后收到迟到的本地结果', function (this: SpecWorld) { stopAcceptance(state(this).stage!); state(this).verified = true; });
+Then('退出确认前不得释放父工作或工作区且不得生成候选', function (this: SpecWorld) { assert(state(this).verified); });
+Given('CLI 工作在{string}保存后崩溃', function (this: SpecWorld, window: string) { state(this).window = window; });
+When('服务恢复任务与本地操作', async function (this: SpecWorld) { await crashAcceptance(state(this).window!); state(this).verified = true; });
+Then('应按{string}续办且不盲目重跑写入', function (this: SpecWorld, _policy: string) { assert(state(this).verified); });
+Then('可信回执核对完成后应恢复原父工作阶段', function (this: SpecWorld) { assert(state(this).verified); });
+Given('模型请求本地命令后返回一次不合规最终结果', function (this: SpecWorld) { state(this); });
+When('适配器根据持久化回执继续并修复格式', async function (this: SpecWorld) { await formatAcceptance(); state(this).verified = true; });
+Then('CLI 应只执行一次且模型应看到真实回执', function (this: SpecWorld) { assert(state(this).verified); });
+Given('本地技能操作遇到{string}', function (this: SpecWorld, problem: string) { state(this).problem = problem; });
+When('读取或激活对应技能资源', function (this: SpecWorld) { state(this); });
+Then('应得到{string}且不读取包外内容', async function (this: SpecWorld, code: string) { await skillErrorAcceptance(state(this).problem!, code); });
+Given('核查与讨论命令会写入 dist 和 test-results', function (this: SpecWorld) { state(this); });
+When('在绑定工程版本的副本中执行验证', async function (this: SpecWorld) { await isolationAcceptance(); state(this).verified = true; });
+Then('副本产物可写且权威工程保持原内容', function (this: SpecWorld) { assert(state(this).verified); });
+Then('回执应包含所测工程版本和输出文件清单', function (this: SpecWorld) { assert(state(this).verified); });
+Given('CLI 遇到{string}', function (this: SpecWorld, fault: string) { state(this).fault = fault; });
+When('受控执行器执行该命令', function (this: SpecWorld) { state(this); });
+Then('应记录{string}且结算实际执行会话', async function (this: SpecWorld, code: string) { await cliFailureAcceptance(state(this).fault!, code); });
+Given('已准备本地运行时再创建群聊服务', function (this: SpecWorld) { state(this); });
+When('成员通过服务完成技能和 CLI 任务', async function (this: SpecWorld) { await serviceAcceptance(); state(this).verified = true; });
+Then('执行详情应显示技能激活、命令开始、退出码和受限日志', function (this: SpecWorld) { assert(state(this).verified); });
+Then('本地回执与检查点应保存在 SQLite 且不包含宿主密钥', function (this: SpecWorld) { assert(state(this).verified); });
+Given('旧工作已激活技能且当前权限被撤销', function (this: SpecWorld) { state(this); });
+When('恢复后尝试发起下一条本地命令', function (this: SpecWorld) { permissionAcceptance(); state(this).verified = true; });
+Then('当前权限应覆盖历史授权且旧回执不得进入新目标候选', function (this: SpecWorld) { assert(state(this).verified); });
+Given('执行宿主只开放任务工作区和选中的技能快照', function (this: SpecWorld) { state(this); });
+When('构造沙箱命令和最小环境', async function (this: SpecWorld) { await policyAcceptance(); state(this).verified = true; });
+Then('服务目录、home、模型密钥和网络应默认不可访问', function (this: SpecWorld) { assert(state(this).verified); });
+Then('沙箱不可用不得降级为宿主执行', function (this: SpecWorld) { assert(state(this).verified); });
+
+Given('CLI 已退出但取消或崩溃后的写入效果尚未核对', function (this: SpecWorld) { state(this); });
+When('操作者读取记录并用匹配的回执摘要确认已核对效果', async function (this: SpecWorld) { await acknowledgementAcceptance(); state(this).verified = true; });
+Then('只应结算对应会话且不得重跑命令或释放其他工作区', function (this: SpecWorld) { assert(state(this).verified); });
+Then('未退出或摘要过期的会话必须继续保持不确定', function (this: SpecWorld) { assert(state(this).verified); });
+
+Then('默认工作区应按群和任务隔离，重复消息标识不得串目录', function (this: SpecWorld) { assert(state(this).verified); });
+
+Given('从真实任务模型创建离线沙箱', function (this: SpecWorld) { state(this); });
+When('使用模板依次保存、领取、启动和结算局部命令', async function (this: SpecWorld) { await sandboxAcceptance(); state(this).verified = true; });
+Then('沙箱应显示 queued、claimed、running、succeeded 的轨迹且父工作继续', function (this: SpecWorld) { assert(state(this).verified); });
+Then('沙箱只改变模型记录，不运行真实 CLI', function (this: SpecWorld) { assert(state(this).verified); });
+
+Given('方案师仍在工作且讨论成员的 CLI 操作效果不确定', function (this: SpecWorld) { state(this); });
+When('后台本地操作待核对时方案师交回草稿', function (this: SpecWorld) { discussionUncertainModel(); state(this).verified = true; });
+Then('应保存草稿并等待讨论核对，不得丢弃草稿或开始最终检查', function (this: SpecWorld) { assert(state(this).verified); });
+
+Given('最终检查已在副本执行过验证命令', function (this: SpecWorld) { state(this); });
+When('提交检查结果前发生{string}', function (this: SpecWorld, change: string) { state(this).problem = change; });
+Then('宿主应先领取版本复核操作再将检查结论按{string}提交', async function (this: SpecWorld, verdict: string) { await revisionAcceptance(state(this).problem!, verdict); state(this).verified = true; });
+Then('版本复核不得再次执行 CLI', function (this: SpecWorld) { assert(state(this).verified); });
+
+Then('副本应保留工程内工具链接并可执行 npm build', async function (this: SpecWorld) { await npmBuildAcceptance(); });
+
+Given('负责人已激活一个技能的旧版本', function (this: SpecWorld) { state(this); });
+When('同一任务安排另一位成员并恢复执行', async function (this: SpecWorld) { await versionHandoffAcceptance(); state(this).verified = true; });
+Then('新工作应继承任务中已固定的技能版本', function (this: SpecWorld) { assert(state(this).verified); });
+Then('按名称加载也不得混入重启后发现的新正文或脚本', function (this: SpecWorld) { assert(state(this).verified); });
+
+Then('可信回执不得绕过执行版本不兼容而恢复调度', function (this: SpecWorld) { assert(state(this).verified); });
