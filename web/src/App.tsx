@@ -456,6 +456,9 @@ export function Workspace({
               <h1>{title}</h1>
             </div>
             <div className="header-actions" ref={detailsToggle}>
+              <span className={`connection-label ${connected ? "" : "disconnected"}`} role="status">
+                {connected ? <><span className="tiny-dot" />已连接</> : <><WifiOff size={12} />连接中断</>}
+              </span>
               {debugEnabled && <IconButton label="打开状态机调试" onClick={() => setDebugOpen(true)}><Bug size={18} /></IconButton>}
               <IconButton
                 label={detailOpen ? "收起详情" : "查看任务详情"}
@@ -471,40 +474,6 @@ export function Workspace({
               </IconButton>
             </div>
           </header>
-          <div className="team-bar">
-            <div className="team-avatar-stack">
-              {activeAgents.map((agent) => (
-                <Button
-                  key={agent.id}
-                  className="stack-avatar-button"
-                  aria-label={`查看${agent.name}的执行过程`}
-                  onClick={() => openAgent(agent.id)}
-                >
-                  <AgentAvatar agent={agent} small />
-                </Button>
-              ))}
-            </div>
-            <span>
-              {activeAgents.length
-                ? `${activeAgents.length} 位成员`
-                : "成员"}
-            </span>
-            <span
-              className={`connection-label ${connected ? "" : "disconnected"}`}
-            >
-              {connected ? (
-                <>
-                  <span className="tiny-dot" />
-                  已连接
-                </>
-              ) : (
-                <>
-                  <WifiOff size={12} />
-                  连接中断
-                </>
-              )}
-            </span>
-          </div>
           {!connected && (
             <div className="offline-banner" role="status">
               <WifiOff size={15} />
