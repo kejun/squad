@@ -10,7 +10,7 @@ import {
   DEFAULT_PANEL_PREFERENCES,
   PANEL_LAYOUT_STORAGE_KEY,
   readPanelPreferences,
-  resizePanel,
+  resizePanelFromDrag,
   resizePanelByKey,
   resolvePanelLayout,
   type PanelBounds,
@@ -28,9 +28,17 @@ export function usePanelLayout(rightOpen: boolean) {
   const container = useRef<HTMLDivElement>(null);
   const [saved, setSaved] = useState(storedPreferences);
   const [preview, setPreview] = useState<PanelPreferences | null>(null);
+  // Pointer events can arrive before React renders the previous preview.
+  const previewRef = useRef<PanelPreferences | null>(null);
+  const [navigationChanges, setNavigationChanges] = useState(0);
   const [width, setWidth] = useState(() =>
     typeof window === "undefined" ? 1280 : window.innerWidth || 1280);
-  const layout = resolvePanelLayout(preview ?? saved, width, rightOpen);
+  const effective = preview ?? saved;
+  const layout = resolvePanelLayout(effective, width, rightOpen);
+  const cancel = useCallback(() => {
+    previewRef.current = null;
+    setPreview(null);
+  }, []);
 
   useEffect(() => {
     const element = container.current;
@@ -51,32 +59,37 @@ export function usePanelLayout(rightOpen: boolean) {
     try { window.localStorage.setItem(PANEL_LAYOUT_STORAGE_KEY, JSON.stringify(saved)); }
     catch { /* Browser preferences must not block the workspace. */ }
   }, [saved]);
-  useEffect(() => setPreview(null), [width, rightOpen, saved.leftCollapsed]);
+  useEffect(cancel, [width, rightOpen, saved.leftCollapsed, cancel]);
 
-  const cancel = useCallback(() => setPreview(null), []);
   const resize = (side: PanelSide, requestedWidth: number, commit: boolean) => {
-    const next = resizePanel(saved, side, requestedWidth, width, rightOpen);
+    const next = resizePanelFromDrag(previewRef.current ?? saved, side, requestedWidth, width, rightOpen);
     if (commit) {
       setSaved(next);
-      setPreview(null);
-    } else setPreview(next);
+      cancel();
+    } else {
+      previewRef.current = next;
+      setPreview(next);
+    }
   };
   const resizeByKey = (side: PanelSide, key: string, shiftKey: boolean) => {
     const next = resizePanelByKey(saved, side, key, width, rightOpen, shiftKey);
     if (!next) return false;
     setSaved(next);
-    setPreview(null);
+    cancel();
     return true;
   };
   const toggleLeft = () => {
-    setPreview(null);
-    setSaved((previous) => ({ ...previous, leftCollapsed: !previous.leftCollapsed }));
+    const leftCollapsed = !(previewRef.current ?? saved).leftCollapsed;
+    cancel();
+    setSaved((previous) => ({ ...previous, leftCollapsed }));
+    // The manual choice may equal the saved value while an automatic preview is active.
+    setNavigationChanges((previous) => previous + 1);
   };
   return {
     container,
     layout,
-    leftCollapsed: saved.leftCollapsed,
-    resetKey: `${width}:${rightOpen}:${saved.leftCollapsed}`,
+    leftCollapsed: effective.leftCollapsed,
+    resetKey: `${width}:${rightOpen}:${saved.leftCollapsed}:${navigationChanges}`,
     style: {
       "--sidebar-width": `${layout.left}px`,
       "--details-width": `${layout.right}px`,
