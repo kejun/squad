@@ -26,6 +26,14 @@ try {
     const completion = await backend.execute({ executable: process.execPath, args: ['-e', program], workspace, cwd: workspace, skillPath: snapshot,
       env: minimalCliEnvironment(workspace), timeoutMs: 5000, sessionId: 'verify-os-boundaries', logPath: join(root, 'output.log') }, new AbortController().signal, async () => {});
     assert(completion.settled); assert(completion.result.ok, JSON.stringify(completion.result)); assert(String(completion.result.data.stdout).includes('boundaries-ok'));
-    assert.equal(await readFile(join(workspace, 'output.txt'), 'utf8'), 'workspace-write-ok'); console.log('OS sandbox file, snapshot-write, credential and network boundaries passed');
+    assert.equal(await readFile(join(workspace, 'output.txt'), 'utf8'), 'workspace-write-ok');
+    const buildOutput = join(workspace, 'dist'); await mkdir(buildOutput);
+    const readOnlyCheck = await backend.execute({ executable: process.execPath,
+      args: ['-e', `const fs=require('fs');try{fs.writeFileSync('output.txt','mutated');process.exit(21)}catch{}fs.writeFileSync('dist/build.txt','build-ok');`],
+      workspace, cwd: workspace, env: minimalCliEnvironment(workspace), writeRoots: [buildOutput], timeoutMs: 3000,
+      sessionId: 'verify-readonly-check-inputs', logPath: join(root, 'check.log') }, new AbortController().signal, async () => {});
+    assert(readOnlyCheck.result.ok, JSON.stringify(readOnlyCheck.result));
+    assert.equal(await readFile(join(buildOutput, 'build.txt'), 'utf8'), 'build-ok');
+    console.log('OS sandbox file, snapshot-write, credential and network boundaries passed');
   }
 } finally { await backend.close(); await rm(root, { recursive: true, force: true }); }

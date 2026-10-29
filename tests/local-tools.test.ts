@@ -31,7 +31,7 @@ describe('local skill registry and real child-process integration', () => {
   it('[BT_L07] format regeneration uses the original receipt and never repeats a CLI write', async () => {
     const f = await fixture(); f.replies.push(...f.actions(), '{bad', { type: 'answer', text: '已核对真实输出' });
     await f.runner().runOne(f.h.room, f.h.task); expect(f.backend.calls).toHaveLength(1);
-    expect(await readFile(join(f.source, 'runs.txt'), 'utf8')).toBe('once\n');
+    expect(await readFile(join(f.source, 'dist/runs.txt'), 'utf8')).toBe('once\n');
     expect(f.requests.at(-1)!.messages.some(m => m.content.includes('skill-ok'))).toBe(true);
   });
   it('[BT_L08] activation rejects a changed startup version, escapes and ambiguous names', async () => {
@@ -48,10 +48,10 @@ describe('local skill registry and real child-process integration', () => {
   it('[BT_L09] check and background discussion build in writable copies and pin the tested revision', async () => {
     for (const role of ['最终检查', '后台讨论']) {
       const f = await fixture(role); const work = await f.flow(); assertFlow(f, work);
-      await expect(readFile(join(f.source, 'runs.txt'))).rejects.toThrow();
+      await expect(readFile(join(f.source, 'dist/runs.txt'))).rejects.toThrow();
       expect(await readFile(join(f.backend.calls[0]!.workspace, 'dist/result.txt'), 'utf8')).toBe('built');
       await expect(readFile(join(f.backend.calls[0]!.workspace, '.env'))).rejects.toThrow();
-      const result = work.localOperations?.at(-1)?.result!; expect(result.data.isolated).toBe(true); expect(result.data.workspaceRevision).toMatch(/^[a-f0-9]{64}$/);
+      const result = work.localOperations?.find(op => op.action.type === 'runCli')?.result!; expect(result.data.isolated).toBe(true); expect(result.data.workspaceRevision).toMatch(/^[a-f0-9]{64}$/);
       expect(result.data.outputFiles).toEqual(expect.arrayContaining([expect.objectContaining({ path: 'dist/result.txt' })]));
     }
   });

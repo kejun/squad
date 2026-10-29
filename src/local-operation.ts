@@ -2,6 +2,7 @@
 import type { Intent, TaskContext, TaskEvent, TeamConfig } from './types.js';
 
 export type LocalAction =
+  | { type: 'verifyWorkspace'; expectedRevision: string }
   | { type: 'listSkills'; query?: string; cursor?: string }
   | { type: 'loadSkill'; skillId: string }
   | { type: 'readSkillResource'; skillId: string; path: string; offset?: number }
@@ -31,9 +32,10 @@ export function validLocalAction(value: unknown): value is LocalAction {
   const a = value as Record<string, unknown>;
   const text = (v: unknown, max = 4096) => typeof v === 'string' && !!v.trim() && v.length <= max && !v.includes('\0');
   const optional = (key: string) => a[key] === undefined || text(a[key]);
-  const keys: Record<string, string[]> = { listSkills: ['query', 'cursor'], loadSkill: ['skillId'], readSkillResource: ['skillId', 'path', 'offset'], runCli: ['executable', 'args', 'cwd', 'timeoutMs', 'skillId'] };
+  const keys: Record<string, string[]> = { verifyWorkspace: ['expectedRevision'], listSkills: ['query', 'cursor'], loadSkill: ['skillId'], readSkillResource: ['skillId', 'path', 'offset'], runCli: ['executable', 'args', 'cwd', 'timeoutMs', 'skillId'] };
   if (typeof a.type !== 'string' || !keys[a.type] || Object.keys(a).some(k => k !== 'type' && !keys[a.type as string]!.includes(k))) return false;
   switch (a.type) {
+    case 'verifyWorkspace': return typeof a.expectedRevision === 'string' && /^[a-f0-9]{64}$/.test(a.expectedRevision);
     case 'listSkills': return optional('query') && optional('cursor');
     case 'loadSkill': return text(a.skillId);
     case 'readSkillResource': return text(a.skillId) && text(a.path) && (a.offset === undefined || Number.isSafeInteger(a.offset) && Number(a.offset) >= 0);
@@ -73,14 +75,15 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
         || JSON.stringify(event.messages).length > 1_900_000) return 'INVALID_LOCAL_REQUEST';
       if (op) return op.requestHash === event.requestHash ? 'LOCAL_ALREADY_REQUESTED' : 'LOCAL_REQUEST_CONFLICT';
       if (localUnsettled(work)) return 'LOCAL_OPERATION_PENDING';
-      if (event.action.type === 'runCli' && !event.workspaceId) return 'WORKSPACE_REQUIRED';
+      if (event.action.type === 'verifyWorkspace' && work.kind !== 'check') return 'WORKSPACE_VALIDATION_NOT_ALLOWED';
+      if (['runCli', 'verifyWorkspace'].includes(event.action.type) && !event.workspaceId) return 'WORKSPACE_REQUIRED';
       return null;
     case 'LOCAL_REJECTED':
       return op?.status === 'queued' && op.parentAttempt === event.parentAttempt && event.result?.ok === false ? null : 'LOCAL_NOT_QUEUED';
     case 'LOCAL_CLAIM':
       if (!op || op.status !== 'queued') return 'LOCAL_NOT_QUEUED';
       if (!event.sessionId) return 'LOCAL_SESSION_REQUIRED';
-      if (op.action.type === 'runCli' && !event.leaseAvailable) return 'WORKSPACE_BUSY';
+      if (['runCli', 'verifyWorkspace'].includes(op.action.type) && !event.leaseAvailable) return 'WORKSPACE_BUSY';
       return op.action.type === 'listSkills' ? null : budget({ ...work, bucket: 'ordinary' });
     case 'LOCAL_STARTED':
       if (!op || op.sessionId !== event.sessionId || !['claimed', 'cancelling'].includes(op.status)) return 'LOCAL_SESSION_MISMATCH';

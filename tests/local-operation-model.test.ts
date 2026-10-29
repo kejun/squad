@@ -88,6 +88,15 @@ describe('persisted local operations in the real taskMachine', () => {
     }
   });
   it('[BT_L16] an uncertain background operation cannot discard the live owner draft', discussionUncertainModel);
+  it('[BT_L17] only check work can claim host version verification and it reserves the workspace', () => {
+    const owner = new LocalModel(); expect(owner.request({ type: 'verifyWorkspace', expectedRevision: 'b'.repeat(64) }).code).toBe('WORKSPACE_VALIDATION_NOT_ALLOWED');
+    const m = new LocalModel(); m.c.intents[0]!.status = 'done'; m.send({ type: 'DELIVER', text: 'candidate', artifactIds: [] });
+    const check = m.c.intents.at(-1)!; m.send({ type: 'CLAIM', intentId: check.id }); m.work = m.c.intents.at(-1)!;
+    expect(m.request({ type: 'verifyWorkspace', expectedRevision: 'b'.repeat(64) }).ok).toBe(true);
+    expect(m.claim(false).code).toBe('WORKSPACE_BUSY'); expect(m.c.usage.ordinary).toBe(1);
+    expect(m.claim().ok).toBe(true); expect(m.c.usage.ordinary).toBe(2); expect(m.c.usage.checks).toBe(1);
+    expect(m.result().ok).toBe(true);
+  });
   it('[BT_L03] settles a denied queued operation without any I/O or budget charge', () => {
     const m = new LocalModel(i => { i.config.limits.ordinary = 1; }); m.request(); expect(m.claim().code).toBe('BUDGET_EXHAUSTED');
     expect(m.send({ type: 'LOCAL_REJECTED', intentId: m.work.id, operationId: 'op1', parentAttempt: m.work.attempt, result: { ok: false, code: 'BUDGET_EXHAUSTED', data: {} } }).ok).toBe(true);

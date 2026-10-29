@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { initialTask, persistTask, restoreTask, stepTask, taskPhase, type TaskSnapshot } from '../src/task.machine.js';
-import type { Intent, TaskEvent, TaskInput } from '../src/types.js';
+import type { TaskEvent, TaskInput } from '../src/types.js';
 import type { LocalAction } from '../src/local-operation.js';
 
 export function simulateLocalTools() {

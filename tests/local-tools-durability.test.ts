@@ -1,5 +1,5 @@
 import { describe, it } from 'vitest';
-import { concurrentAcceptance, sandboxAcceptance, acknowledgementAcceptance, cliFailureAcceptance, crashAcceptance, guardAcceptance, leaseAcceptance, namespaceAcceptance, permissionAcceptance, registryAcceptance, serviceAcceptance, serviceRecoveryAcceptance, skillErrorAcceptance, stopAcceptance } from './local-tools-acceptance.js';
+import { npmBuildAcceptance, revisionAcceptance, concurrentAcceptance, sandboxAcceptance, acknowledgementAcceptance, cliFailureAcceptance, crashAcceptance, guardAcceptance, leaseAcceptance, namespaceAcceptance, permissionAcceptance, registryAcceptance, serviceAcceptance, serviceRecoveryAcceptance, skillErrorAcceptance, stopAcceptance } from './local-tools-acceptance.js';
 describe('local operation boundary and recovery integration', () => {
   it('[BT_L01] startup catalog and archived snapshots stay bound across a restart', registryAcceptance);
   it.each(['普通额度耗尽','评审汇总保留','后台讨论保留','已停止','工作过期','旧目标版本','权限关闭','解析阶段','旧任务缺少授权','租约不可用'])('[BT_L03] refuses %s before I/O', constraint => { guardAcceptance(constraint); });
@@ -13,6 +13,8 @@ describe('local operation boundary and recovery integration', () => {
   it('[BT_L06] [BT_L11] startup reconciles a durable receipt before scheduling', () => serviceRecoveryAcceptance(false));
   it('[BT_L06] startup retains a possibly launched command without guessing', () => serviceRecoveryAcceptance(true));
   it('[BT_L11] wires local tools through WebService and durable execution details', serviceAcceptance);
+  it('[BT_L09] runs real npm build with preserved node_modules tool links inside the copy', npmBuildAcceptance);
+  it.each([['权威工程源文件变化','未通过'],['检查副本源文件变化','未通过'],['检查副本输入曾改变后恢复','未通过'],['仅生成 dist 与 test-results','通过']])('[BT_L17] fences final checking after %s', revisionAcceptance);
   it('[BT_L15] runs local operations through the real offline state graph templates', sandboxAcceptance);
   it('[BT_L14] acknowledges reviewed effects only after confirmed process exit', acknowledgementAcceptance);
   it('[BT_L12] current revocation wins over previously active local work', permissionAcceptance);

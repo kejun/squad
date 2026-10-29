@@ -8,11 +8,11 @@
 
 本文保留最初的设计依据；实现采用共享注册表、持久化父工作内子操作与 Linux SRT 后端。模型 JSON 接口沿用下表名称，事件实际命名为 LOCAL_REQUEST / LOCAL_CLAIM / LOCAL_STARTED / LOCAL_RESULT / LOCAL_REJECTED / LOCAL_RECONCILE。首期支持单服务实例，默认禁用网络；当前验证宿主不允许创建 OS 命名空间，生产沙箱验收须在具备相应能力的主机执行。
 
-### 与当前 Squad 的对应
+### 设计时的 Squad 对应（历史基线）
 
 代码基线：`f3a5d7a156aee60037a677f4a27a60ad414c060d`。
 
-| 已有能力 | 当前边界 | 本方案接入点 |
+| 已有能力 | 设计时边界 | 本方案接入点 |
 | --- | --- | --- |
 | `src/skills.ts` 的 `findSkills` | 搜索 skills.sh，返回名称及链接；不加载本地技能、不安装 | 保留公开搜索，新增独立本地注册表 |
 | `src/model-adapter.ts` 的结构化工具循环 | 模型可请求公开技能搜索、网页搜索与抓取；普通工具目前只对 owner / assistance / facilitator 开放 | 增加本地技能和 CLI 动作；工具动作与最终角色输出分层校验 |
@@ -138,7 +138,7 @@ stateDiagram-v2
 | 4. 执行器与适配器 | CLI 后端、workspace、预算、取消、协议循环和 trace 包装 | 先受控子进程夹具，再真实命令；所有 scope 包装一致 |
 | 5. 集成验收 | 现有成员执行过程展示激活/命令/退出码/日志，接入恢复 | 每个 Bot 均能完成一个真实技能任务，停止、重启和多 Bot 竞争无重复写入或静默丢失 |
 
-验收情形已细化为 features/24_local_skills_cli.feature 的 BT_L01–BT_L16；逐项测试与部署边界见验证记录：
+验收情形已细化为 features/24_local_skills_cli.feature 的 BT_L01–BT_L17；逐项测试与部署边界见验证记录：
 
 - 服务只扫描一次用户技能根；全部 Bot 能看到同一目录版本，新增 Bot 自动继承。
 - 指定一个技能后，先加载正文，再读取相对引用并运行包内脚本；结果继续返回原 Bot。

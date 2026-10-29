@@ -4,7 +4,7 @@ import { After, Given, When, Then } from '@cucumber/cucumber';
 import type { SpecWorld } from './steps.js';
 import { LocalFixture, assertFlow } from '../local-tools-fixture.js';
 import type { Intent } from '../../src/types.js';
-import { concurrentAcceptance, sandboxAcceptance, acknowledgementAcceptance, cliFailureAcceptance, crashAcceptance, formatAcceptance, guardAcceptance, isolationAcceptance, leaseAcceptance, namespaceAcceptance, permissionAcceptance, policyAcceptance, registryAcceptance, serviceAcceptance, skillErrorAcceptance, stopAcceptance } from '../local-tools-acceptance.js';
+import { npmBuildAcceptance, revisionAcceptance, concurrentAcceptance, sandboxAcceptance, acknowledgementAcceptance, cliFailureAcceptance, crashAcceptance, formatAcceptance, guardAcceptance, isolationAcceptance, leaseAcceptance, namespaceAcceptance, permissionAcceptance, policyAcceptance, registryAcceptance, serviceAcceptance, skillErrorAcceptance, stopAcceptance } from '../local-tools-acceptance.js';
 interface State { fixture?: LocalFixture; work?: Intent; constraint?: string; expected?: string; stage?: string; window?: string; problem?: string; fault?: string; verified?: boolean }
 const states = new WeakMap<SpecWorld, State>();
 const state = (world: SpecWorld) => { let s = states.get(world); if (!s) { s = {}; states.set(world, s); } return s; };
@@ -15,7 +15,7 @@ Then('目录应去重并报告损坏项且正文资源绑定同一版本', funct
 Then('扫描不得执行技能脚本且更新源文件不得混入旧版本', function (this: SpecWorld) { assert(state(this).verified); });
 Given('本地工具任务处于{string}工作', async function (this: SpecWorld, role: string) { state(this).fixture = await LocalFixture.create(role); });
 When('Bot 加载技能、读取引用、执行命令后返回角色结果', async function (this: SpecWorld) { const s = state(this); s.work = await s.fixture!.flow(); });
-Then('三次子操作应先领取再执行且结果交还原 Bot', function (this: SpecWorld) { const s = state(this); assertFlow(s.fixture!, s.work!); });
+Then('三个模型动作应先领取再执行且结果交还原 Bot；最终检查另需宿主版本复核', function (this: SpecWorld) { const s = state(this); assertFlow(s.fixture!, s.work!); });
 Then('本地操作扣普通额度而最终检查仍扣检查额度', function (this: SpecWorld) { const s = state(this); assertFlow(s.fixture!, s.work!); });
 Given('本地子操作受到{string}约束', function (this: SpecWorld, value: string) { state(this).constraint = value; });
 When('尝试保存或领取本地操作', function (this: SpecWorld) { const s = state(this); s.expected = guardAcceptance(s.constraint!); });
@@ -72,3 +72,10 @@ Then('沙箱只改变模型记录，不运行真实 CLI', function (this: SpecWo
 Given('方案师仍在工作且讨论成员的 CLI 操作效果不确定', function (this: SpecWorld) { state(this); });
 When('后台本地操作待核对时方案师交回草稿', function (this: SpecWorld) { discussionUncertainModel(); state(this).verified = true; });
 Then('应保存草稿并等待讨论核对，不得丢弃草稿或开始最终检查', function (this: SpecWorld) { assert(state(this).verified); });
+
+Given('最终检查已在副本执行过验证命令', function (this: SpecWorld) { state(this); });
+When('提交检查结果前发生{string}', function (this: SpecWorld, change: string) { state(this).problem = change; });
+Then('宿主应先领取版本复核操作再将检查结论按{string}提交', async function (this: SpecWorld, verdict: string) { await revisionAcceptance(state(this).problem!, verdict); state(this).verified = true; });
+Then('版本复核不得再次执行 CLI', function (this: SpecWorld) { assert(state(this).verified); });
+
+Then('副本应保留工程内工具链接并可执行 npm build', async function (this: SpecWorld) { await npmBuildAcceptance(); });

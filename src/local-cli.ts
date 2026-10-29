@@ -1,14 +1,14 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { constants } from 'node:fs';
-import { access, mkdir, open, readFile, readdir, readlink, realpath, rename, stat } from 'node:fs/promises';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { access, mkdir, open, readFile, readlink, realpath, rename, stat } from 'node:fs/promises';
+import { dirname, isAbsolute, join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { SandboxManager, type SandboxRuntimeConfig } from '@anthropic-ai/sandbox-runtime';
-import { digest, LocalToolError, within } from './local-skills.js';
+import { digest, LocalToolError } from './local-skills.js';
 import type { LocalToolResult } from './local-operation.js';
 
 export interface CliInvocation {
-  executable: string; args: string[]; cwd: string; workspace: string; skillPath?: string;
+  executable: string; args: string[]; cwd: string; workspace: string; skillPath?: string; writeRoots?: string[];
   env: Record<string, string>; timeoutMs: number; sessionId: string; logPath: string;
 }
 export interface CliCompletion { result: LocalToolResult; settled: boolean; effectsKnown: boolean }
@@ -19,10 +19,10 @@ export interface CliBackend {
 }
 export interface ProcessIdentity { pid: number; procPid: string; pidNamespace: string; startTime: string; bootId: string }
 const literal = (path: string) => ({ path, literal: true as const });
-export function sandboxPolicy(input: Pick<CliInvocation, 'workspace' | 'skillPath'>): SandboxRuntimeConfig {
+export function sandboxPolicy(input: Pick<CliInvocation, 'workspace' | 'skillPath' | 'writeRoots'>): SandboxRuntimeConfig {
   const reads = ['/usr', '/bin', '/sbin', '/lib', '/lib64', '/etc/ld.so.cache', '/etc/alternatives', '/etc/ssl/certs', '/dev/null', '/dev/urandom', dirname(dirname(process.execPath)), input.workspace, ...(input.skillPath ? [input.skillPath] : [])];
   return { network: { allowedDomains: [], deniedDomains: ['*'], strictAllowlist: true, allowLocalBinding: false, allowAllUnixSockets: false },
-    filesystem: { denyRead: ['/', literal(process.cwd()), literal(join(input.workspace, '.env')), join(input.workspace, '**/.env'), join(input.workspace, '**/.env.*'), join(input.workspace, '**/*.sqlite'), join(input.workspace, '**/*.sqlite-*')], allowRead: reads.map(literal), allowWrite: [literal(input.workspace)], denyWrite: [literal(join(input.workspace, '.env')), ...['**/.env', '**/.env.*', '**/*.sqlite', '**/*.sqlite-*', '**/.git/config', '**/.git/hooks/**'].map(pattern => join(input.workspace, pattern))] },
+    filesystem: { denyRead: ['/', literal(process.cwd()), literal(join(input.workspace, '.env')), join(input.workspace, '**/.env'), join(input.workspace, '**/.env.*'), join(input.workspace, '**/*.sqlite'), join(input.workspace, '**/*.sqlite-*')], allowRead: reads.map(literal), allowWrite: (input.writeRoots ?? [input.workspace]).map(literal), denyWrite: [literal(join(input.workspace, '.env')), ...['**/.env', '**/.env.*', '**/*.sqlite', '**/*.sqlite-*', '**/.git/config', '**/.git/hooks/**'].map(pattern => join(input.workspace, pattern))] },
     enableWeakerNestedSandbox: false, allowNestedUserNamespaces: false };
 }
 export function minimalCliEnvironment(workspace: string, extra: Record<string, string> = {}): Record<string, string> {

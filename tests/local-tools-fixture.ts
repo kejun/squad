@@ -13,7 +13,7 @@ import { SqliteStore } from '../src/store.js';
 import type { Intent, TeamConfig } from '../src/types.js';
 
 export const skillScript = `import fs from 'node:fs';
-fs.appendFileSync('runs.txt', 'once\\n');
+fs.mkdirSync('dist', {recursive:true}); fs.appendFileSync('dist/runs.txt', 'once\\n');
 fs.mkdirSync('dist', {recursive:true}); fs.writeFileSync('dist/result.txt','built');
 fs.mkdirSync('test-results', {recursive:true}); fs.writeFileSync('test-results/result.txt','passed');
 console.log('skill-ok');`;
@@ -87,12 +87,12 @@ export class LocalFixture {
   async close() { await this.runtime?.close(); this.h?.store.close(); await removeFixture(this.root); }
 }
 export function assertFlow(f: LocalFixture, work: Intent) {
-  assert.equal(f.backend.calls.length, 1); assert.equal(work.localOperations?.length, 3);
+  assert.equal(f.backend.calls.length, 1); assert.equal(work.localOperations?.length, work.kind === 'check' ? 4 : 3);
   assert(work.localOperations.every(o => o.status === 'succeeded' && o.attempt === 1 && o.result?.ok));
   assert(work.localCheckpoint?.messages.some(m => m.content.includes('skill-ok')));
   assert(f.requests.at(-1)?.messages.some(m => m.content.includes('skill-ok')));
   assert.equal(f.requests.length, 4);
-  assert.equal(f.h.context().usage.ordinary, work.kind === 'check' ? 3 : work.discussionId ? 9 : 7);
+  assert.equal(f.h.context().usage.ordinary, work.kind === 'check' ? 4 : work.discussionId ? 9 : 7);
   assert.equal(f.h.context().usage.checks, work.kind === 'check' ? 4 : 0);
 }
 

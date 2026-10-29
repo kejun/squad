@@ -194,7 +194,7 @@ export class WorkRunner {
         invoke: async (action: LocalAction, messages: LocalMessage[], signal: AbortSignal) => {
           signal.throwIfAborted(); controller.signal.throwIfAborted();
           if (!localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_TOOLS_DISABLED');
-          const op = this.engine.requestLocal(roomId, taskId, work.id, work.attempt, action, messages, action.type === 'runCli' ? runtime.workspaceId(work, this.engine.localNamespace(roomId, taskId)) : undefined);
+          const op = this.engine.requestLocal(roomId, taskId, work.id, work.attempt, action, messages, ['runCli', 'verifyWorkspace'].includes(action.type) ? runtime.workspaceId(work, this.engine.localNamespace(roomId, taskId)) : undefined);
           return executeLocal(op.id, signal);
         },
         resume: executeLocal,
@@ -215,7 +215,6 @@ export class WorkRunner {
       this.controllers.delete(work.id);
       return true;
     }
-    this.controllers.delete(work.id);
     const base = { id: `result:${work.id}`, at: this.clock(), workId: work.id, fence: { epoch: work.epoch, goalVersion: work.goalVersion } };
     const allowed: Record<Intent['kind'], WorkOutput['type'][]> = {
       interpretation: ['interpretation'], owner: ['help', 'answer', 'deliver', 'blocked', 'askUser'], assistance: ['answer'], facilitator: ['decision'], discussionSummary: ['answer'], check: ['check'], tool: ['settled'], cancel: ['settled'],
@@ -224,6 +223,7 @@ export class WorkRunner {
       || (output.type === 'interpretation' && !validInputIntent(output.spec,
         (work.payload.input as { action: unknown }).action, work.payload.references as InputReference[]))) {
       this.engine.send(roomId, taskId, { ...base, id: `${base.id}:invalid`, type: 'WORK_FAILED', intentId: work.id, reason: 'Invalid worker output', transient: false });
+      this.controllers.delete(work.id);
       return true;
     }
     let event: TaskEvent;
@@ -236,6 +236,7 @@ export class WorkRunner {
       else if (output.type === 'answer') event = { ...base, ...presentation, type: 'DISCUSSION_RESULT', discussionId: work.discussionId, text: output.text, status: output.status ?? 'success' };
       else throw new Error('Unexpected discussion output after role validation');
       this.engine.send(roomId, taskId, event);
+      this.controllers.delete(work.id);
       return true;
     }
     switch (output.type) {
@@ -253,8 +254,29 @@ export class WorkRunner {
       case 'askUser': event = { ...base, type: 'WAIT_USER', question: output.question }; break;
       case 'settled': event = { ...base, type: 'SETTLE', intentId: work.id }; break;
     }
+    if (event.type === 'CHECK_RESULT' && event.passed && scope.localTools && this.localRuntime) {
+      const current = this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === work.id)!;
+      const validation = current.localOperations?.find(op => op.action.type === 'runCli' && op.isolated && op.workspaceRevision);
+      if (validation) {
+        try {
+          const verification = await scope.localTools.invoke({ type: 'verifyWorkspace', expectedRevision: validation.workspaceRevision! },
+            [...(current.localCheckpoint?.messages ?? []), { role: 'assistant', content: JSON.stringify(output) },
+              { role: 'user', content: JSON.stringify({ type: 'host_workspace_validation', expectedRevision: validation.workspaceRevision }) }], controller.signal);
+          if (current.localOperations?.some(op => op.result?.data.validationInputsChanged === true)) {
+            event = { ...event, passed: false, gaps: [...event.gaps, '检查过程中源文件已改变，结果不能证明原工程通过验证 (CHECK_INPUTS_CHANGED)'] };
+          }
+          if (!verification.ok) event = { ...event, passed: false, gaps: [...event.gaps, `工程验证版本已失效：${JSON.stringify(verification.data)} (${verification.code})`] };
+        } catch (error) {
+          this.engine.send(roomId, taskId, { ...base, id: `${base.id}:validation-failed:${work.attempt}`, type: 'WORK_FAILED', intentId: work.id,
+            reason: error instanceof WorkFailure ? error.message : 'Workspace validation failed', transient: false });
+          this.controllers.delete(work.id);
+          return true;
+        }
+      }
+    }
     // If this commit fails, the error escapes. It is not misreported as a model failure.
     this.engine.send(roomId, taskId, event);
+    this.controllers.delete(work.id);
     return true;
   }
 }

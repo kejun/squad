@@ -219,6 +219,14 @@ export class WebService {
         });
       }
     }
+    for (const taskId of Object.keys(stored.tasks)) {
+      const context = this.engine.view(roomId, taskId)!.context;
+      for (const work of context.intents) for (const op of work.localOperations ?? []) {
+        if (op.action.type !== 'verifyWorkspace' || !op.result) continue;
+        const shown = this.db.prepare("SELECT 1 FROM web_events WHERE roomId=? AND workId=? AND kind='tool-result' AND instr(detail,?)>0 LIMIT 1").get(roomId, work.id, op.id);
+        if (!shown) this.append(roomId, work, 'tool-result', '工程版本复核', JSON.stringify({ operationId: op.id, ...op.result }));
+      }
+    }
     const events = this.db
       .prepare(
         "SELECT id, taskId, workId, agentId, at, kind, title, detail FROM web_events WHERE roomId = ? ORDER BY id",
@@ -353,7 +361,7 @@ export class WebService {
           ...(scope.localTools ? { localTools: {
             catalog: scope.localTools.catalog, checkpoint: scope.localTools.checkpoint,
             invoke: async (action, messages, toolSignal) => {
-              const labels = { listSkills: "查看本地技能", loadSkill: "激活本地技能", readSkillResource: "读取技能资源", runCli: "执行本地命令" };
+              const labels = { listSkills: "查看本地技能", loadSkill: "激活本地技能", readSkillResource: "读取技能资源", runCli: "执行本地命令", verifyWorkspace: "核对工程版本" };
               this.append(roomId, work, "tool-start", labels[action.type], JSON.stringify(this.localRuntime!.clean(action)));
               const result = await scope.localTools!.invoke(action, messages, toolSignal);
               this.append(roomId, work, "tool-result", action.type === "runCli" ? "本地命令结束" : "本地技能操作完成", JSON.stringify({ operationId: this.engine.view(roomId)!.context.intents.find(w => w.id === work.id)?.localOperations?.at(-1)?.id, ...result }));

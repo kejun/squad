@@ -54,7 +54,7 @@ npm start
 
 服务启动先扫描运行账号的 `~/.agents/skills/`，所有 Bot 共用一个版本目录；正文与引用按需加载，CLI 在受控工作区执行。新增 Bot 自动继承；`Bot.localTools = false` 可单独关闭。技能更新后重启生效，不自动安装技能或命令依赖。
 
-模型使用 `listSkills`、`loadSkill`、`readSkillResource`、`runCli` 四个 JSON 动作。每次磁盘/命令操作先经 XState 保存和领取；命令回执、技能版本和模型续办检查点持久化。检查与后台讨论在可写副本中运行，权威工程不变。同一工程跨群串行，不同默认任务目录隔离。
+模型使用 `listSkills`、`loadSkill`、`readSkillResource`、`runCli` 四个 JSON 动作。每次磁盘/命令操作先经 XState 保存和领取；命令回执、技能版本和模型续办检查点持久化。检查与后台讨论在副本中运行，权威工程不变；检查的源文件只读，输出目录可写，正面结论提交前复核源版本。同一工程跨群串行，不同默认任务目录隔离。
 
 默认 CLI 后端为固定版本的 Linux Anthropic Sandbox Runtime；需 bubblewrap、socat、ripgrep 及可用的用户/PID/网络命名空间。不可用时明确返回 `CLI_SANDBOX_UNAVAILABLE`，技能发现和读取仍可用。`npm run verify:local-sandbox` 验证实际文件、网络与环境边界（环境不可用退出78）。[运行配置与未决操作核对](docs/local-tools.md) 说明目录、权限及恢复命令；[验证记录](docs/local-tools-verification.md) 区分模型、真实子进程和 OS 沙箱证据。
 
