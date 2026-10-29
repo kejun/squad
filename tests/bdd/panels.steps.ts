@@ -8,6 +8,7 @@ import type { SpecWorld } from './steps.js';
 interface PanelState {
   fixture: PanelFixture; side?: PanelSide; baseline?: { left: number; right: number };
   key?: string; saved?: string | null; typography?: ReturnType<typeof assertTypographyFloor>;
+  dragStartWidth?: number; dragHandle?: HTMLElement;
 }
 const states = new WeakMap<SpecWorld, PanelState>();
 const sideOf = (name: string): PanelSide => name === '左侧' ? 'left' : 'right';
@@ -54,7 +55,8 @@ Then('面板应保持在允许范围内且聊天区至少有360像素', function
   const width = f.widthOf(s.side!);
   assert(width >= Number(handle.getAttribute('aria-valuemin')));
   assert(width <= Number(handle.getAttribute('aria-valuemax')));
-  assert(f.viewportWidth - f.widthOf('left') - f.widthOf('right') >= 360);
+  const left = Number.parseFloat(f.query('.workspace').style.getPropertyValue('--sidebar-width'));
+  assert(f.availableWidth - left - f.widthOf('right') >= 360);
 });
 
 Given('左侧导航已调整为320像素且右侧详情展开', async function (this: SpecWorld) {
@@ -138,6 +140,7 @@ Then('应停止调整并清理捕获和全局拖拽样式', function (this: Spec
   const f = state(this).fixture, root = f.window.document.documentElement;
   assert.equal(root.dataset.panelResizing, undefined); assert.equal(root.style.cursor, ''); assert.equal(root.style.userSelect, '');
   assert(!f.container.querySelector('.panel-separator.is-dragging'));
+  if (state(this).dragHandle) assert(!state(this).dragHandle!.hasPointerCapture(1));
 });
 Then('未提交的拖拽不应覆盖已保存偏好', function (this: SpecWorld) {
   const s = state(this); assert.equal(s.fixture.storage.getItem(PANEL_LAYOUT_STORAGE_KEY), s.saved);
@@ -230,4 +233,65 @@ Then('顶栏群聊标题和导航详情入口仍可用', async function (this: S
   await f.openDetails(); assert(f.container.querySelector('#workspace-details'));
   await f.click('收起详情'); assert(!f.container.querySelector('#workspace-details'));
   assert.deepEqual(f.requests, []);
+});
+
+When('开始拖拽右栏并请求宽度为{int}像素', async function (this: SpecWorld, width: number) {
+  const s = state(this), f = s.fixture;
+  s.saved = f.storage.getItem(PANEL_LAYOUT_STORAGE_KEY);
+  s.dragStartWidth = f.widthOf('right'); s.dragHandle = f.separator('right');
+  await f.startDrag('right'); await f.moveDrag(s.dragStartWidth - width);
+});
+Then('预览导航应{string}且右栏宽度为{int}像素', function (this: SpecWorld, navigation: string, width: number) {
+  const f = state(this).fixture, collapsed = navigation === '收起';
+  assert(['展开', '收起'].includes(navigation));
+  assert.equal(f.query('.navigation-toggle').getAttribute('aria-expanded'), String(!collapsed));
+  assert.equal(f.query('#workspace-navigation').hasAttribute('hidden'), collapsed);
+  assert.equal(f.query('.workspace').style.getPropertyValue('--sidebar-width'), collapsed ? '0px' : '252px');
+  assert.equal(f.widthOf('right'), width); assertTopbarBrand(f, collapsed);
+});
+Then('右栏应保持指针捕获且未保存拖拽偏好', function (this: SpecWorld) {
+  const s = state(this);
+  assert(s.dragHandle!.hasPointerCapture(1));
+  assert.equal(s.fixture.window.document.documentElement.dataset.panelResizing, 'right');
+  assert.equal(s.fixture.storage.getItem(PANEL_LAYOUT_STORAGE_KEY), s.saved);
+});
+When('继续拖拽右栏到{int}像素', async function (this: SpecWorld, width: number) {
+  const s = state(this); await s.fixture.moveDrag(s.dragStartWidth! - width);
+});
+When('继续拖拽右栏到{int}像素并松手', async function (this: SpecWorld, width: number) {
+  const s = state(this), dx = s.dragStartWidth! - width;
+  await s.fixture.moveDrag(dx); await s.fixture.endDrag(dx);
+});
+Then('导航收起与右栏{int}像素应保存且重载后保持', async function (this: SpecWorld, width: number) {
+  const f = state(this).fixture, raw = f.storage.getItem(PANEL_LAYOUT_STORAGE_KEY);
+  assert.equal(f.preferences()?.leftCollapsed, true); assert.equal(f.preferences()?.rightWidth, width);
+  assert.equal(f.widthOf('right'), width); assert.deepEqual(f.requests, []);
+  await f.close(); const restored = await setup(this, 1440, raw!); await restored.openDetails();
+  assert.equal(restored.preferences()?.leftCollapsed, true); assert.equal(restored.widthOf('right'), width);
+});
+Then('左栏应恢复252像素且右栏保存偏好仍为{int}像素', function (this: SpecWorld, width: number) {
+  const f = state(this).fixture;
+  assert.equal(f.widthOf('left'), 252); assert.equal(f.preferences()?.rightWidth, width);
+  assert.equal(f.widthOf('right'), 828); assertTopbarBrand(f, false);
+});
+When('自动收起预览发生{string}', async function (this: SpecWorld, mode: string) {
+  const f = state(this).fixture;
+  if (mode === '窗口变窄') await f.viewport(1100);
+  else if (mode === '关闭详情') await f.click('收起详情');
+  else { assert(['按下Escape', '取消指针', '窗口失焦'].includes(mode)); await f.cancel(mode); }
+});
+Then('自动收起预览应撤销且保存偏好不变', function (this: SpecWorld) {
+  const s = state(this), f = s.fixture;
+  assert.equal(f.storage.getItem(PANEL_LAYOUT_STORAGE_KEY), s.saved);
+  assert.equal(f.query('.workspace').style.getPropertyValue('--sidebar-width'), '252px');
+  assert.equal(f.query('.navigation-toggle').getAttribute('aria-expanded'), 'true');
+  if (f.container.querySelector('#workspace-details')) assert.equal(f.widthOf('right'), 352);
+  assertTopbarBrand(f, false); assert.deepEqual(f.requests, []);
+});
+Then('桌面导航展开偏好应保持不变', function (this: SpecWorld) {
+  const f = state(this).fixture;
+  assert.equal(f.preferences()?.leftCollapsed, false); assert.deepEqual(f.requests, []);
+});
+When('迟到的右栏拖拽松手事件到达', async function (this: SpecWorld) {
+  const s = state(this); await s.fixture.endDrag(s.dragStartWidth! - 900);
 });

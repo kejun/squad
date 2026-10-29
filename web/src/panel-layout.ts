@@ -7,6 +7,7 @@ export interface PanelPreferences {
 }
 
 export const PANEL_LAYOUT_STORAGE_KEY = "squad:panel-layout:v1";
+export const MIN_CHAT_WIDTH = 360;
 export const DEFAULT_PANEL_PREFERENCES: Readonly<PanelPreferences> = {
   leftWidth: 252,
   rightWidth: 352,
@@ -63,13 +64,13 @@ export function resolvePanelLayout(
   const overlaySpace = Math.max(0, Math.floor(width - 32));
   const leftMax = Math.floor(mobile
     ? Math.min(420, overlaySpace)
-    : Math.min(420, width - 360 - (rightOpen && !detailsOverlay ? 300 : 0)));
+    : Math.min(420, width - MIN_CHAT_WIDTH - (rightOpen && !detailsOverlay ? 300 : 0)));
   const leftBounds = { min: Math.min(220, leftMax), max: leftMax };
   const left = !mobile && pref.leftCollapsed
     ? 0 : clamp(pref.leftWidth, leftBounds.min, leftBounds.max);
   const rightMax = Math.floor(detailsOverlay
     ? Math.min(680, overlaySpace)
-    : width - 360 - left);
+    : width - MIN_CHAT_WIDTH - left);
   const rightBounds = { min: Math.min(300, rightMax), max: rightMax };
   return {
     mobile,
@@ -98,6 +99,25 @@ export function resizePanel(
     bounds.max,
   ));
   return { ...pref, [side === "left" ? "leftWidth" : "rightWidth"]: width };
+}
+
+/** Pass the previous drag preview to keep automatic collapse stable until commit or cancel. */
+export function resizePanelFromDrag(
+  current: PanelPreferences,
+  side: PanelSide,
+  requestedWidth: number,
+  viewportWidth: number,
+  rightOpen: boolean,
+): PanelPreferences {
+  const pref = preferences(current);
+  const layout = resolvePanelLayout(pref, viewportWidth, rightOpen);
+  const collapseLeft = side === "right" && rightOpen && !layout.detailsOverlay
+    && !pref.leftCollapsed && Number.isFinite(requestedWidth)
+    && requestedWidth > layout.right && requestedWidth >= layout.rightBounds.max;
+  return resizePanel(
+    collapseLeft ? { ...pref, leftCollapsed: true } : pref,
+    side, requestedWidth, viewportWidth, rightOpen,
+  );
 }
 
 export function resizePanelByKey(

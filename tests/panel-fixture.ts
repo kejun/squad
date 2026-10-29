@@ -136,6 +136,16 @@ export class PanelFixture {
   async moveDrag(dx: number) { await act(async () => { this.pointer('pointermove', 500 + dx); }); }
   async endDrag(dx: number) { await act(async () => { this.pointer('pointerup', 500 + dx); }); }
   async drag(side: PanelSide, dx: number) { await this.startDrag(side); await this.moveDrag(dx); await this.endDrag(dx); }
+  async resizeInOneFrame(side: PanelSide, widths: readonly number[]) {
+    assert(widths.length > 0);
+    const start = this.widthOf(side), direction = side === 'left' ? 1 : -1;
+    this.dragHandle = this.separator(side);
+    await act(async () => {
+      this.pointer('pointerdown', 500);
+      for (const width of widths) this.pointer('pointermove', 500 + (width - start) * direction);
+      this.pointer('pointerup', 500 + (widths.at(-1)! - start) * direction);
+    });
+  }
   async requestWidth(side: PanelSide, width: number) { const current = this.widthOf(side); await this.drag(side, side === 'left' ? width - current : current - width); }
   async key(side: PanelSide, key: string, shiftKey = false) {
     await act(async () => { const separator = this.separator(side); separator.focus(); separator.dispatchEvent(new this.window.KeyboardEvent('keydown', { key, shiftKey, bubbles: true }) as unknown as Event); });
@@ -144,6 +154,7 @@ export class PanelFixture {
     if (mode === '组件卸载') { await act(async () => { this.root!.unmount(); }); this.root = undefined; }
     else await act(async () => {
       if (mode === '取消指针') this.pointer('pointercancel', 580);
+      else if (mode === '窗口失焦') this.window.dispatchEvent(new this.window.Event('blur'));
       else this.window.dispatchEvent(new this.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
   }

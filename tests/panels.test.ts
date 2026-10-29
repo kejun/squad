@@ -68,6 +68,19 @@ describe('workspace panel interactions', () => {
     expect(f.requests).toEqual([]);
   });
 
+  it('[BT_P16] preserves automatic collapse when drag reversal and pointer-up precede the next render', async () => {
+    const f = await fixture(); await f.openDetails();
+    const handle = f.separator('right');
+    await f.resizeInOneFrame('right', [900, 700]);
+    expect(f.widthOf('right')).toBe(700);
+    expect(f.preferences()).toEqual({ leftWidth: 252, rightWidth: 700, leftCollapsed: true });
+    expect(f.query('.workspace').style.getPropertyValue('--sidebar-width')).toBe('0px');
+    expect(f.query('.chat-header').firstElementChild?.classList.contains('topbar-brand')).toBe(true);
+    expect(handle.hasPointerCapture(1)).toBe(false);
+    expect(f.window.document.documentElement.dataset.panelResizing).toBeUndefined();
+    expect(f.requests).toEqual([]);
+  });
+
   it('[BT_P10] audits the text floor across every stylesheet, including native smaller-text defaults', () => {
     const audited = assertTypographyFloor();
     expect(audited.files).toBeGreaterThan(0); expect(audited.declarations).toBeGreaterThan(0);
