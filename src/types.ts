@@ -125,6 +125,7 @@ export type Decision =
   | { action: 'askUser'; question: string; reason: string }
   | { action: 'finish'; reason: string };
 export type TaskEvent = Envelope & (
+  | { type: 'REQUEST_HOST_RETRY'; sourceWorkId: string; sourceOperationId: string; sourceRequestHash: string; requestHash: string }
   | LocalEvent
   | { type: 'DISCUSSION_PLAN'; discussionId: string; decision: Decision }
   | { type: 'DISCUSSION_RESULT'; discussionId: string; text: string; status: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[] }

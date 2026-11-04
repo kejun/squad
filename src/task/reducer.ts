@@ -7,6 +7,7 @@ import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } f
 import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requestReview, resetReviewAtBoundary, savedHelpResult, startHelp } from './assistance.js';
 import { recordInput } from './input.js';
 import { canRetryWork } from './budget.js';
+import { applyHostRetry } from '../host-retry.js';
 
 export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
   const c = structuredClone(original);
@@ -17,6 +18,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
   c.trace.push({ event: e.type, detail: e.id, at: e.at });
   if (e.type.startsWith('LOCAL_')) { applyLocalEvent(c, e as TaskEvent & LocalEvent); return c; }
   switch (e.type) {
+    case 'REQUEST_HOST_RETRY': applyHostRetry(c, e); break;
     case 'DISCUSSION_PLAN': planDiscussion(c, e); break;
     case 'DISCUSSION_RESULT': acceptDiscussion(c, e); break;
     case 'DISCUSSION_HANDOFF':

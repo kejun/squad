@@ -27,6 +27,8 @@ export interface LocalOperation {
   createdAt: number; startedAt?: number; finishedAt?: number;
   result?: LocalToolResult;
   approval?: HostApproval;
+  hostRetryIntentId?: string;
+  hostRetryOf?: string;
 }
 export type LocalEvent =
   | { type: 'LOCAL_REQUEST'; intentId: string; operationId: string; namespace: string; requestHash: string; action: LocalAction; parentAttempt: number; messages: LocalMessage[]; workspaceId?: string }
