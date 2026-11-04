@@ -1,4 +1,4 @@
-import { localPhysicalPending, type LocalAction, type LocalMessage, type LocalOperation } from './local-operation.js';
+import { localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalMessage, type LocalOperation } from './local-operation.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { initialTask, persistTask, restoreTask, stepTask, taskPhase, startTaskExecution, executionState, workLaneAvailable, type TaskSnapshot } from './task.machine.js';
 import type { Store, Transaction } from './store.js';
@@ -200,10 +200,10 @@ export class TeamEngine {
       }
       let next = this.step(current, event);
       if (event.type === 'LOCAL_CLAIM' && !next.context.reply.ok && leasedKey && leasedOwner) tx.releaseWorkspace(leasedKey, leasedOwner);
-      if (event.type === 'LOCAL_RESULT' || event.type === 'LOCAL_RECONCILE') {
+      if (event.type === 'LOCAL_RESULT' || event.type === 'LOCAL_RECONCILE' || event.type === 'LOCAL_APPROVAL_REQUIRED') {
         const local = event;
         const op = next.context.intents.find(i => i.id === local.intentId)?.localOperations?.find(o => o.id === local.operationId);
-        if (op?.workspaceId && ['succeeded', 'failed', 'cancelled', 'queued'].includes(op.status) && next.context.reply.ok) {
+        if (op?.workspaceId && ['succeeded', 'failed', 'cancelled', 'queued', 'awaitingApproval'].includes(op.status) && next.context.reply.ok) {
           tx.releaseWorkspace(op.workspaceId, fingerprint({ roomId, taskId, operationId: event.operationId }));
         }
       }
@@ -223,6 +223,13 @@ export class TeamEngine {
     }));
   }
   localNamespace(roomId: string, taskId: string): string { return fingerprint({ roomId, taskId }); }
+  decideHostApproval(roomId: string, taskId: string, intentId: string, operationId: string, approvalId: string, decision: 'approve' | 'deny', commandId: string): CommandResult {
+    const work = this.view(roomId, taskId)?.context.intents.find(i => i.id === intentId);
+    if (!work) return { ok: false, code: 'UNKNOWN_WORK', detail: '找不到授权请求' };
+    if (!localEnabled(this.config, work.target)) return { ok: false, code: 'LOCAL_TOOLS_DISABLED', detail: '本地工具权限已关闭' };
+    return this.send(roomId, taskId, { type: 'LOCAL_APPROVAL_DECISION', id: commandId, at: this.clock(), intentId, operationId, approvalId, decision,
+      fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
+  }
   requestLocal(roomId: string, taskId: string, intentId: string, parentAttempt: number, action: LocalAction, messages: LocalMessage[], workspaceId?: string): LocalOperation {
     const work = this.view(roomId, taskId)?.context.intents.find(i => i.id === intentId);
     if (!work) throw new Error('UNKNOWN_WORK');
@@ -257,7 +264,7 @@ export class TeamEngine {
     const kind: Partial<Record<TaskView['phase'], Intent['kind'][]>> = {
       interpreting: ['interpretation'], running: ['owner', 'tool'], waitingAssistance: ['assistance'], coordinating: ['facilitator'], checking: ['check'],
     };
-    return view.context.intents.filter(i => i.status === 'pending' && (i.kind === 'cancel'
+    return view.context.intents.filter(i => i.status === 'pending' && !localAwaitingApproval(i) && (i.kind === 'cancel'
       || (!view.context.stopped && view.context.outcome === null && (i.discussionId || kind[view.phase]?.includes(i.kind)) && workLaneAvailable(view.context, i))));
   }
   claim(roomId: string, taskId: string, intentId: string): Intent | null {
@@ -324,6 +331,10 @@ export class TeamEngine {
     const view = this.view(roomId);
     if (!view) return;
     const c = view.context; const at = this.clock();
+    for (const work of c.intents) for (const op of work.localOperations ?? []) {
+      if (op.approval && ['awaitingApproval', 'queued'].includes(op.status) && op.approval.expiresAt <= at)
+        this.send(roomId, c.taskId, { type: 'LOCAL_APPROVAL_EXPIRED', id: `expire:${op.approval.id}`, at, intentId: work.id, operationId: op.id });
+    }
     for (const op of c.intents.filter(i => ['pending', 'inflight'].includes(i.status) && i.kind !== 'cancel' && i.deadline !== null && i.deadline <= at)) {
       if (localPhysicalPending(op)) continue; // The local runner enforces the parent deadline and awaits session settlement.
       if (op.kind === 'assistance' && !op.discussionId) {
@@ -343,7 +354,9 @@ export class TeamEngine {
     if (view.phase === 'waitingHuman' && !discussing) return null;
     if (view.context.results.some(r => !r.consumed)) return this.clock();
     const work = view.context.intents.filter(i => ['pending', 'inflight'].includes(i.status) && i.deadline !== null).map(i => i.deadline!);
-    if (view.phase === 'running' && !discussing) work.push(view.context.nextCheckAt);
+    for (const intent of view.context.intents) for (const op of intent.localOperations ?? [])
+      if (op.status === 'awaitingApproval' && op.approval) work.push(op.approval.expiresAt);
+    if (view.phase === 'running' && !discussing && !view.context.intents.some(localAwaitingApproval)) work.push(view.context.nextCheckAt);
     return work.length ? Math.min(...work) : null;
   }
 }

@@ -1,7 +1,7 @@
 import { type TaskContext, type TaskEvent } from '../types.js';
 import { localResumeKind, valid } from './policy.js';
 import { activeHelp, allInflight, completeProblem, d, discussionActive, discussionIncomplete, fresh, hasOrdinary, incompatibleExecution, inflight, isBot, pendingInput, recoveryIssue, remainingInflight, unresolvedInput } from './facts.js';
-import { localPhysicalPending } from '../local-operation.js';
+import { localAwaitingApproval, localPhysicalPending } from '../local-operation.js';
 import { helpResultContinuesReview, nextReviewer, reviewCanDispatch, savedHelpResult } from './assistance.js';
 import { canRetryWork } from './budget.js';
 
@@ -58,7 +58,7 @@ export const taskGuards = {
     claimFacilitator: args => valid(args) && args.context.intents.some(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : '') && i.kind === 'facilitator' && !i.discussionId),
     claimCheck: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'check',
     claimCancel: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'cancel',
-    shouldTick: ({ context, event }) => valid({ context, event }) && !discussionActive(context) && event.at >= context.nextCheckAt && inflight(context).length === 0 && !context.intents.some(localPhysicalPending) && !context.processedSignals.includes(event.id),
+    shouldTick: ({ context, event }) => valid({ context, event }) && !discussionActive(context) && event.at >= context.nextCheckAt && inflight(context).length === 0 && !context.intents.some(work => localPhysicalPending(work) || localAwaitingApproval(work)) && !context.processedSignals.includes(event.id),
     repeated: ({ context, event }) => {
       if (event.type !== 'FAILURE_SIGNAL' || !valid({ context, event }) || discussionActive(context) || remainingInflight(context, event).length) return false;
       const f = JSON.stringify([event.operation, event.parameters, event.resource, event.error, event.result]).normalize('NFKC');

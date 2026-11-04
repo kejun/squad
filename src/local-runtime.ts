@@ -1,11 +1,11 @@
-import { randomUUID } from 'node:crypto';
-import { constants } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import { constants, createReadStream } from 'node:fs';
 import { chmod, copyFile, lstat, mkdir, open, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { Intent } from './types.js';
-import type { LocalOperation, LocalToolResult, SkillBinding } from './local-operation.js';
+import type { HostApproval, HostCommandPlan, LocalOperation, LocalToolResult, SkillBinding } from './local-operation.js';
 import { digest, LocalToolError, SkillRegistry, within, type RegistryOptions, type SkillPage } from './local-skills.js';
-import { CliJournal, identityAlive, minimalCliEnvironment, processIdentity, resolveExecutable, SandboxCliBackend, type CliBackend, type CliCompletion } from './local-cli.js';
+import { CliJournal, hostCliEnvironment, hostIdentity, identityAlive, minimalCliEnvironment, processIdentity, resolveExecutable, runProcess, SandboxCliBackend, type CliBackend, type CliCompletion } from './local-cli.js';
 
 export interface LocalRuntimeOptions {
   dataRoot: string; skillRoots?: string[]; workspaceRoot?: string; commandTimeoutMs?: number;
@@ -17,7 +17,12 @@ export interface LocalRuntimeOptions {
   clock?: () => number;
 }
 interface Workspace { path: string; revision: string; isolated: boolean }
-export interface LocalExecution extends CliCompletion { workspaceRevision?: string; isolated?: boolean }
+async function executableDigest(path: string, signal: AbortSignal): Promise<string> {
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(path, { signal })) hash.update(chunk);
+  return hash.digest('hex');
+}
+export interface LocalExecution extends CliCompletion { workspaceRevision?: string; isolated?: boolean; approval?: HostApproval }
 const secretName = (name: string) => name === '.git' || name === '.home' || name === '.tmp' || name === '.squad-local'
   || name === '.env' || name.startsWith('.env.') || /\.sqlite(?:-|$)/.test(name);
 
@@ -128,7 +133,7 @@ export class LocalRuntime {
     return { path: copy, revision, isolated };
   }
   clean<T>(value: T): T {
-    const secrets = [...(this.options.redact ?? []), ...Object.values(this.options.commandEnv ?? {}).flatMap(env => Object.values(env))].filter(s => s.length >= 4);
+    const secrets = this.secrets();
     const scrub = (item: unknown): unknown => {
       if (typeof item === 'string') { for (const secret of secrets) item = (item as string).replaceAll(secret, '[redacted]'); return item; }
       if (Array.isArray(item)) return item.map(scrub);
@@ -136,6 +141,10 @@ export class LocalRuntime {
       return item;
     };
     return scrub(value) as T;
+  }
+  private secrets(): string[] {
+    return [...(this.options.redact ?? []), ...Object.values(this.options.commandEnv ?? {}).flatMap(env => Object.values(env)),
+      ...Object.entries(process.env).filter(([key]) => /TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY/i.test(key)).map(([, value]) => value ?? '')].filter(s => s.length >= 4);
   }
 
   private boundedResult(result: LocalToolResult): LocalToolResult {
@@ -185,7 +194,8 @@ export class LocalRuntime {
     let launched = false;
     let completion: LocalExecution;
     try {
-      if (!this.backend.available) throw new LocalToolError('CLI_SANDBOX_UNAVAILABLE');
+      const host = action.execution === 'host';
+      if (!host && !this.backend.available) throw new LocalToolError('CLI_SANDBOX_UNAVAILABLE');
       const workspace = await this.workspace(work, op); signal.throwIfAborted();
       let skillPath: string | undefined;
       if (action.skillId) {
@@ -204,16 +214,34 @@ export class LocalRuntime {
         }
         return arg;
       };
-      const env = minimalCliEnvironment(workspace.path, this.options.commandEnv?.[action.executable]);
+      const env = host ? hostCliEnvironment(this.options.commandEnv?.[action.executable], this.options.redact)
+        : minimalCliEnvironment(workspace.path, this.options.commandEnv?.[action.executable]);
       const executable = await resolveExecutable(await expand(action.executable), env);
       const args = await Promise.all(action.args.map(expand));
+      if (host) {
+        const plan: HostCommandPlan = { executable, args, cwd, workspaceRevision: digest(JSON.stringify(await workspaceManifest(workspace.path))),
+          executableHash: await executableDigest(executable, signal), environmentHash: digest(JSON.stringify(Object.entries(env).sort(([a], [b]) => a.localeCompare(b)))),
+          ...hostIdentity(), reason: action.reason! };
+        const commandDigest = digest(JSON.stringify({ plan, action, requestHash: op.requestHash, workId: work.id, epoch: work.epoch, goalVersion: work.goalVersion }));
+        const now = (this.options.clock ?? Date.now)();
+        if (!op.approval) {
+          const approval: HostApproval = { id: randomUUID(), digest: commandDigest, plan, status: 'pending', expiresAt: Math.min(now + 600_000, work.deadline ?? Infinity) };
+          const prepared = { result: { ok: false, code: 'HOST_APPROVAL_REQUIRED', data: {} }, settled: true, effectsKnown: true };
+          await this.journal.write({ operationId: op.id, sessionId, phase: 'settled', completion: prepared });
+          return { ...prepared, approval };
+        }
+        if (op.approval.status !== 'approved') throw new LocalToolError('HOST_APPROVAL_REQUIRED');
+        if (now >= op.approval.expiresAt) throw new LocalToolError('HOST_APPROVAL_EXPIRED');
+        if (op.approval.digest !== commandDigest) throw new LocalToolError('HOST_APPROVAL_STALE');
+      }
       const remaining = work.deadline === null ? 120_000 : work.deadline - (this.options.clock ?? Date.now)();
       const timeoutMs = Math.min(action.timeoutMs ?? this.options.commandTimeoutMs ?? 120_000, Math.max(1, remaining));
       if (work.kind === 'check') for (const dir of validationOutputs) await mkdir(join(workspace.path, dir), { recursive: true });
       started({ workspaceRevision: workspace.revision, isolated: workspace.isolated }); signal.throwIfAborted();
       launched = true;
       const baseline = new Map((await workspaceManifest(workspace.path)).map(file => [file.path, file.hash]));
-      const result = await this.backend.execute({ executable, args, cwd, workspace: workspace.path, ...(skillPath ? { skillPath } : {}), env, timeoutMs, sessionId,
+      const execute = host ? runProcess : this.backend.execute.bind(this.backend);
+      const result = await execute({ executable, args, cwd, workspace: workspace.path, ...(skillPath ? { skillPath } : {}), env, timeoutMs, sessionId, redact: this.secrets(),
         ...(work.kind === 'check' ? { writeRoots: [...validationOutputs, '.home', '.tmp'].map(dir => join(workspace.path, dir)) } : {}),
         logPath: join(this.options.dataRoot, 'logs', `${digest(sessionId)}.log`) }, signal,
         async identity => { await this.journal.write({ operationId: op.id, sessionId, phase: 'spawned', identity }); });
@@ -223,7 +251,7 @@ export class LocalRuntime {
       // A terminated sandbox may have written files. Their bounded content fingerprint makes the effect
       // observable; it is still not a proof of arbitrary network effects (network is denied by default).
       completion = { ...result, result: this.boundedResult({ ...result.result, ...(validationInputsChanged ? { ok: false, code: 'CHECK_INPUTS_CHANGED' } : {}), data: { ...result.result.data, workspaceRevision: workspace.revision, isolated: workspace.isolated,
-        outputFiles, outputFilesTruncated, validationInputsChanged } }), workspaceRevision: workspace.revision, isolated: workspace.isolated };
+        outputFiles, outputFilesTruncated, validationInputsChanged, execution: host ? 'host' : 'sandbox' } }), workspaceRevision: workspace.revision, isolated: workspace.isolated };
     } catch (error) {
       completion = { result: { ok: false, code: signal.aborted ? 'cancelled' : error instanceof LocalToolError ? error.code : 'CLI_EXECUTION_FAILED', data: {} }, settled: !launched, effectsKnown: !launched };
     }

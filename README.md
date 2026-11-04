@@ -58,7 +58,7 @@ npm start
 
 模型使用 `listSkills`、`loadSkill`、`readSkillResource`、`runCli` 四个 JSON 动作。每次磁盘/命令操作先经 XState 保存和领取；命令回执、技能版本和模型续办检查点持久化。检查与后台讨论在副本中运行，权威工程不变；检查的源文件只读，输出目录可写，正面结论提交前复核源版本。同一工程跨群串行，不同默认任务目录隔离。
 
-默认 CLI 后端为固定版本的 Anthropic Sandbox Runtime：macOS 使用 sandbox-exec 和系统 Python 3 的 libproc 进程身份探测，Linux 使用 bubblewrap、socat、ripgrep 及用户/PID/网络命名空间。依赖不可用时明确返回 `CLI_SANDBOX_UNAVAILABLE`，不降级为宿主执行。`npm run verify:local-sandbox` 验证实际文件、网络与环境边界（环境不可用退出78）。[运行配置与未决操作核对](docs/local-tools.md) 说明目录、权限及恢复命令；[验证记录](docs/local-tools-verification.md) 区分模型、真实子进程和 OS 沙箱证据。
+默认 CLI 后端为固定版本的 Anthropic Sandbox Runtime：macOS 使用 sandbox-exec 和系统 Python 3 的 libproc 进程身份探测，Linux 使用 bubblewrap、socat、ripgrep 及用户/PID/网络命名空间。依赖不可用时明确返回 `CLI_SANDBOX_UNAVAILABLE`，不自动降级。需要使用本机登录态或系统能力时，Bot 可申请按次宿主执行，网页显示具体命令与目录，由用户“允许本次”或“拒绝”，无需逐个 CLI 预配置。批准前不执行，重启后重新确认；宿主权限属于服务机器及账号。`npm run verify:local-sandbox` 验证实际文件、网络与环境边界（环境不可用退出78）。[运行配置与未决操作核对](docs/local-tools.md) 说明目录、权限及恢复命令；[验证记录](docs/local-tools-verification.md) 区分模型、真实子进程和 OS 沙箱证据。
 
 ## 代码位置
 
@@ -139,6 +139,7 @@ stateDiagram-v2
 | --- | --- |
 | 输入、协助、评审、后台讨论、交付 | [任务上下文](docs/state-diagrams.md#任务拥有的上下文生命周期)：BT_I、BT_H、BT_G01–G14、BT_T、BT_A01–A11 |
 | 意图领取、工具、格式修正、本地操作与宿主 | [执行与适配器](docs/state-diagrams.md#执行与适配器边界)：BT_M、BT_W、BT_L |
+| 按次批准宿主 CLI、拒绝与恢复 | [宿主命令授权](docs/state-diagrams.md#宿主命令按次授权)：BT_L23–BT_L30；默认仍为沙箱 |
 | 群历史、可信路由、归档 | [房间与命令](docs/state-diagrams.md#房间与可信命令)：BT_R、BT_G15–G22；归档不打断在途任务 |
 | 草稿、详情、导出、布局、调试与 Inspector | [网页与观察](docs/state-diagrams.md#网页与观察)：BT_U、BT_P、BT_A12–A21、BT_V；UI 仅读取快照或提交可信命令 |
 

@@ -22,9 +22,22 @@
 {"type":"loadSkill","skillId":"从目录复制的 local:..."}
 {"type":"readSkillResource","skillId":"已激活ID","path":"references/guide.md","offset":0}
 {"type":"runCli","executable":"node","args":["@skill/scripts/check.mjs"],"skillId":"已激活ID","cwd":".","timeoutMs":120000}
+{"type":"runCli","executable":"gh","args":["pr","list"],"execution":"host","reason":"需要使用本机已登录的 GitHub 账号"}
 ```
 
 每次只返回一个 JSON 动作，工具回执交给原 Bot 后继续模型循环。普通 CLI 可省略 skillId。`@skill/` 指选中技能的只读快照，`@workspace/` 指当前工作区；cwd 必须在工作区内。返回真实退出码、信号、受限 stdout/stderr、工程版本和变更文件清单。长输出及日志截断会明确标记。结果整体也有大小边界，不会因转义后的 JSON 过大留下无法结算的操作。
+
+## 按次批准宿主命令
+
+默认不需要新增配置。`execution` 省略或为 `sandbox` 时继续使用原沙箱。Bot 确认需要本机登录态、网络、本地服务或系统能力时，可以带 `execution: host` 和具体 `reason` 提出申请。网页自动显示完整参数、真实工作目录、服务机器与账号、原因及权限范围，并提供“允许本次”和“拒绝”。关闭提示不作决定，待处理卡片仍可打开；刷新与重启后仍能看到请求。
+
+审批只授权这一条不可替换的命令，不建立永久 CLI 白名单。预备与等待不启动进程、不扣 CLI 执行额度，且释放工程租约；批准后重新领取并扣一次 ordinary。等待不循环请求模型。默认申请10分钟内有效，且不超过父工作期限。批准标识、参数、真实目录、工程内容、可执行文件或环境指纹不匹配时拒绝执行。恢复使未消费批准重新等待；已领取操作先核对日志，即使确定尚未启动也重新批准。已经运行而效果不明的命令不重放。
+
+普通失败不会自动在宿主重试。模型、技能、命令输出及聊天中的“同意”不能批准；只有用户在同源页面提交对应批准标识，经过 TeamEngine 事务和 XState 守卫后，运行器才执行。拒绝与过期作为明确回执交回原 Bot。
+
+宿主使用服务运行账号的真实 HOME、PATH 和认证环境，过滤服务私有配置及已登记的模型密钥，不加载交互式 shell。它能访问该账号的工作区外文件及网络；原 check/讨论目录副本仍存在，但宿主模式没有原沙箱的读写或网络隔离保证。它不会继承另一台机器、另一账号的登录态，也不会自动授予 macOS 辅助功能、录屏权限或提供交互终端。已知环境凭据在命令回执和落盘输出中脱敏，包括跨管道数据块的输出；未知文件凭据或主动编码后的内容不在此脱敏保证内。
+
+专用浏览器验收：先 `npm run build`，再 `node scripts/verify-host-approval.mjs`；浏览器模块和二进制沿用 `SQUAD_PLAYWRIGHT_MODULE` / `SQUAD_CHROMIUM`。该脚本使用独立生产服务、模型 HTTP 夹具、浏览器点击与真实宿主命令，证据保存到 `reports/host-approval/`。
 
 元数据查询不扣额度；技能正文、资源读取及 CLI 每次领取扣一次 ordinary。继续模型按原工作 bucket 计费，check 仍扣 checks；子操作不重复走通用请求扣费。保留现有评审、讨论汇总和负责人续办额度。
 

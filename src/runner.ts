@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
+import { localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
 import type { LocalRuntime } from './local-runtime.js';
 import type { SkillPage } from './local-skills.js';
 import type { TeamEngine } from './engine.js';
@@ -47,6 +47,7 @@ export interface WorkScope {
 export class WorkFailure extends Error {
   constructor(message: string, readonly transient = false, readonly resultUncertain = false) { super(message); }
 }
+class ApprovalSuspended extends Error {}
 export function validWorkOutput(value: unknown): value is WorkOutput {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
@@ -72,6 +73,12 @@ export class WorkRunner {
     private readonly skillSearchTransport: SkillSearchTransport = globalThis.fetch,
     private readonly webTools: WebTools = new CloudflareWebTools(),
     private readonly localRuntime?: LocalRuntime) {}
+  /** Shutdown of an idle approval waiter preserves its durable checkpoint for the next service. */
+  suspendApprovals(roomId: string, taskId: string) {
+    const c = this.engine.view(roomId, taskId)?.context;
+    for (const item of this.controllers.values()) if (item.roomId === roomId && c?.intents.some(work => work.id === item.intentId && localAwaitingApproval(work)))
+      item.controller.abort(new ApprovalSuspended('等待宿主授权已保存，服务关闭'));
+  }
   async runOne(roomId: string, taskId: string, intentId?: string): Promise<boolean> {
     if (this.engine.flushResults(roomId, taskId)) return true;
     const available = this.engine.pending(roomId, taskId);
@@ -155,9 +162,19 @@ export class WorkRunner {
         while (true) {
           signal.throwIfAborted();
           if (!localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_TOOLS_DISABLED');
+          const approvalKey = `approval:${operationId}`, approvalGeneration = runtime.workspaceGeneration(approvalKey);
           op = this.engine.view(roomId, taskId)?.context.intents.find(i => i.id === work.id)?.localOperations?.find(o => o.id === operationId);
           if (!op) throw new WorkFailure('LOCAL_OPERATION_MISSING');
           if (['succeeded', 'failed', 'cancelled'].includes(op.status) && op.result) return op.result;
+          if (op.status === 'awaitingApproval' && op.approval) {
+            const until = Math.max(1, op.approval.expiresAt - this.clock());
+            try { await runtime.waitForWorkspace(approvalKey, approvalGeneration, AbortSignal.any([signal, AbortSignal.timeout(Math.min(until, 2_147_483_647))])); }
+            catch (error) {
+              if (signal.aborted) throw error;
+              send({ type: 'LOCAL_APPROVAL_EXPIRED', id: `expire:${op.approval.id}`, at: this.clock(), intentId: work.id, operationId: op.id });
+            }
+            continue;
+          }
           if (op.status !== 'queued') throw new WorkFailure('LOCAL_OPERATION_UNCERTAIN', false, true);
           const generation = op.workspaceId ? runtime.workspaceGeneration(op.workspaceId) : 0;
           const claim = this.engine.claimLocal(roomId, taskId, work.id, op.id, work.attempt);
@@ -189,6 +206,15 @@ export class WorkRunner {
           const safe = !enteredRuntime || op.action.type !== 'runCli';
           execution = { result: { ok: false, code: signal.aborted ? 'cancelled' : 'LOCAL_EXECUTION_FAILED', data: {} }, settled: safe, effectsKnown: safe };
         }
+        if (execution.approval) {
+          const required = send({ type: 'LOCAL_APPROVAL_REQUIRED', id: `approval-required:${op.sessionId}`, at: this.clock(), intentId: work.id,
+            operationId: op.id, sessionId: op.sessionId!, approval: execution.approval, fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
+          if (required.ok) {
+            if (op.workspaceId) runtime.notifyWorkspace(op.workspaceId);
+            return executeLocal(operationId, externalSignal);
+          }
+          // Preparation never spawned a process; even a concurrent stop can settle its claim safely.
+        }
         const response = send({ type: 'LOCAL_RESULT', id: `local-result:${op.sessionId}`, at: this.clock(),
           intentId: work.id, operationId: op.id, sessionId: op.sessionId!, ...execution });
         if (response.ok && execution.settled && execution.effectsKnown && op.workspaceId) runtime.notifyWorkspace(op.workspaceId);
@@ -212,6 +238,7 @@ export class WorkRunner {
       output = await this.adapter.execute(work, controller.signal, scope);
     }
     catch (error) {
+      if (controller.signal.reason instanceof ApprovalSuspended) { this.controllers.delete(executionKey); return true; }
       if (controller.signal.aborted && !this.engine.view(roomId, taskId)!.context.intents.some(i => i.id === work.id && localPhysicalPending(i))) {
         send({ id: `${work.id}:cancelled:${work.attempt}`, at: this.clock(), type: 'SETTLE', intentId: work.id });
       } else {

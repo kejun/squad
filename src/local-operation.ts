@@ -6,23 +6,35 @@ export type LocalAction =
   | { type: 'listSkills'; query?: string; cursor?: string }
   | { type: 'loadSkill'; skillId: string }
   | { type: 'readSkillResource'; skillId: string; path: string; offset?: number }
-  | { type: 'runCli'; executable: string; args: string[]; cwd?: string; timeoutMs?: number; skillId?: string };
+  | { type: 'runCli'; executable: string; args: string[]; cwd?: string; timeoutMs?: number; skillId?: string; execution?: 'sandbox' | 'host'; reason?: string };
 export interface LocalMessage { role: 'user' | 'assistant'; content: string }
 export interface LocalToolResult { ok: boolean; code: string; data: Record<string, unknown> }
 export interface LocalCheckpoint { messages: LocalMessage[]; nextOperation: number; pendingOperationId?: string }
 export interface SkillBinding { skillId: string; skillVersion: string }
+export interface HostCommandPlan {
+  executable: string; args: string[]; cwd: string; workspaceRevision: string;
+  executableHash: string; environmentHash: string; host: string; account: string; reason: string;
+}
+export interface HostApproval {
+  id: string; digest: string; plan: HostCommandPlan; expiresAt: number;
+  status: 'pending' | 'approved' | 'denied' | 'expired';
+}
 export interface LocalOperation {
   id: string; namespace: string; requestHash: string; action: LocalAction;
-  status: 'queued' | 'claimed' | 'running' | 'succeeded' | 'failed' | 'cancelling' | 'cancelled' | 'uncertain';
+  status: 'queued' | 'claimed' | 'awaitingApproval' | 'running' | 'succeeded' | 'failed' | 'cancelling' | 'cancelled' | 'uncertain';
   parentAttempt: number; attempt: number; sessionId?: string;
   workspaceId?: string; workspaceRevision?: string; isolated?: boolean;
   createdAt: number; startedAt?: number; finishedAt?: number;
   result?: LocalToolResult;
+  approval?: HostApproval;
 }
 export type LocalEvent =
   | { type: 'LOCAL_REQUEST'; intentId: string; operationId: string; namespace: string; requestHash: string; action: LocalAction; parentAttempt: number; messages: LocalMessage[]; workspaceId?: string }
   | { type: 'LOCAL_REJECTED'; intentId: string; operationId: string; parentAttempt: number; result: LocalToolResult }
   | { type: 'LOCAL_CLAIM'; intentId: string; operationId: string; parentAttempt: number; sessionId: string; leaseAvailable: boolean }
+  | { type: 'LOCAL_APPROVAL_REQUIRED'; intentId: string; operationId: string; sessionId: string; approval: HostApproval }
+  | { type: 'LOCAL_APPROVAL_DECISION'; intentId: string; operationId: string; approvalId: string; decision: 'approve' | 'deny' }
+  | { type: 'LOCAL_APPROVAL_EXPIRED'; intentId: string; operationId: string }
   | { type: 'LOCAL_STARTED'; intentId: string; operationId: string; sessionId: string; workspaceRevision?: string; isolated?: boolean }
   | { type: 'LOCAL_RESULT'; intentId: string; operationId: string; sessionId: string; result: LocalToolResult; settled: boolean; effectsKnown: boolean }
   | { type: 'LOCAL_RECONCILE'; intentId: string; operationId: string; sessionId: string; resolution: 'notStarted' | 'receipt'; result?: LocalToolResult; detail: string };
@@ -32,7 +44,7 @@ export function validLocalAction(value: unknown): value is LocalAction {
   const a = value as Record<string, unknown>;
   const text = (v: unknown, max = 4096) => typeof v === 'string' && !!v.trim() && v.length <= max && !v.includes('\0');
   const optional = (key: string) => a[key] === undefined || text(a[key]);
-  const keys: Record<string, string[]> = { verifyWorkspace: ['expectedRevision'], listSkills: ['query', 'cursor'], loadSkill: ['skillId'], readSkillResource: ['skillId', 'path', 'offset'], runCli: ['executable', 'args', 'cwd', 'timeoutMs', 'skillId'] };
+  const keys: Record<string, string[]> = { verifyWorkspace: ['expectedRevision'], listSkills: ['query', 'cursor'], loadSkill: ['skillId'], readSkillResource: ['skillId', 'path', 'offset'], runCli: ['executable', 'args', 'cwd', 'timeoutMs', 'skillId', 'execution', 'reason'] };
   if (typeof a.type !== 'string' || !keys[a.type] || Object.keys(a).some(k => k !== 'type' && !keys[a.type as string]!.includes(k))) return false;
   switch (a.type) {
     case 'verifyWorkspace': return typeof a.expectedRevision === 'string' && /^[a-f0-9]{64}$/.test(a.expectedRevision);
@@ -40,11 +52,14 @@ export function validLocalAction(value: unknown): value is LocalAction {
     case 'loadSkill': return text(a.skillId);
     case 'readSkillResource': return text(a.skillId) && text(a.path) && (a.offset === undefined || Number.isSafeInteger(a.offset) && Number(a.offset) >= 0);
     case 'runCli': return text(a.executable) && Array.isArray(a.args) && a.args.length <= 128 && a.args.every(v => typeof v === 'string' && v.length <= 8192 && !v.includes('\0'))
-      && optional('cwd') && optional('skillId') && (a.timeoutMs === undefined || Number.isSafeInteger(a.timeoutMs) && Number(a.timeoutMs) > 0 && Number(a.timeoutMs) <= 10_800_000);
+      && optional('cwd') && optional('skillId') && optional('reason') && (a.execution === undefined || a.execution === 'sandbox' || a.execution === 'host')
+      && (a.execution !== 'host' || text(a.reason, 1000))
+      && (a.timeoutMs === undefined || Number.isSafeInteger(a.timeoutMs) && Number(a.timeoutMs) > 0 && Number(a.timeoutMs) <= 10_800_000);
     default: return false;
   }
 }
-export const localUnsettled = (work: Intent) => work.localOperations?.some(op => ['queued', 'claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false;
+export const localAwaitingApproval = (work: Intent) => work.localOperations?.some(op => op.status === 'awaitingApproval') ?? false;
+export const localUnsettled = (work: Intent) => localAwaitingApproval(work) || (work.localOperations?.some(op => ['queued', 'claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false);
 export const localPhysicalPending = (work: Intent) => work.localOperations?.some(op => ['claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false;
 export const localEnabled = (config: TeamConfig, target: string) => config.localTools?.enabled !== false && config.bots.find(b => b.id === target)?.localTools !== false;
 export const localRecoveryBlocked = (c: TaskContext) => ['Execution version incompatible', 'Tool permission revoked',
@@ -87,9 +102,38 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
       if (!op || op.status !== 'queued') return 'LOCAL_NOT_QUEUED';
       if (!event.sessionId) return 'LOCAL_SESSION_REQUIRED';
       if (['runCli', 'verifyWorkspace'].includes(op.action.type) && !event.leaseAvailable) return 'WORKSPACE_BUSY';
+      if (op.action.type === 'runCli' && op.action.execution === 'host' && op.approval) {
+        if (op.approval.status !== 'approved') return 'HOST_APPROVAL_REQUIRED';
+        if (event.at >= op.approval.expiresAt) return 'HOST_APPROVAL_EXPIRED';
+      }
       return op.action.type === 'listSkills' ? null : budget({ ...work, bucket: 'ordinary' });
+    case 'LOCAL_APPROVAL_REQUIRED': {
+      const problem = localParentProblem(c, work, e.at);
+      if (problem) return problem;
+      if (!op || op.status !== 'claimed' || op.sessionId !== event.sessionId || op.startedAt !== undefined || op.approval
+        || op.action.type !== 'runCli' || op.action.execution !== 'host') return 'HOST_APPROVAL_NOT_PREPARABLE';
+      const a = event.approval, p = a?.plan;
+      if (!a || a.status !== 'pending' || typeof a.id !== 'string' || !a.id || a.id.length > 512 || !/^[a-f0-9]{64}$/.test(a.digest)
+        || !Number.isSafeInteger(a.expiresAt) || a.expiresAt <= e.at || a.expiresAt > e.at + 600_000 || work.deadline !== null && a.expiresAt > work.deadline
+        || !p || !validLocalAction({ type: 'runCli', executable: p.executable, args: p.args, cwd: p.cwd })
+        || p.reason !== op.action.reason || ![p.workspaceRevision, p.executableHash, p.environmentHash].every(v => typeof v === 'string' && /^[a-f0-9]{64}$/.test(v))
+        || ![p.host, p.account].every(v => typeof v === 'string' && !!v && v.length <= 256)) return 'INVALID_HOST_APPROVAL';
+      return null;
+    }
+    case 'LOCAL_APPROVAL_DECISION': {
+      const problem = localParentProblem(c, work.status === 'pending' ? { ...work, status: 'inflight' } : work, e.at);
+      if (problem) return problem;
+      if (c.outcome !== null || !e.fence || e.fence.epoch !== work.epoch || e.fence.goalVersion !== work.goalVersion) return 'STALE_FENCE';
+      if (!op || op.status !== 'awaitingApproval' || op.approval?.status !== 'pending') return 'HOST_APPROVAL_NOT_PENDING';
+      if (op.approval.id !== event.approvalId) return 'HOST_APPROVAL_MISMATCH';
+      if (e.at >= op.approval.expiresAt) return 'HOST_APPROVAL_EXPIRED';
+      return ['approve', 'deny'].includes(event.decision) ? null : 'INVALID_HOST_DECISION';
+    }
+    case 'LOCAL_APPROVAL_EXPIRED':
+      return op?.approval && ['awaitingApproval', 'queued'].includes(op.status) && e.at >= op.approval.expiresAt ? null : 'HOST_APPROVAL_NOT_EXPIRED';
     case 'LOCAL_STARTED':
       if (!op || op.sessionId !== event.sessionId || !['claimed', 'cancelling'].includes(op.status)) return 'LOCAL_SESSION_MISMATCH';
+      if (op.action.type === 'runCli' && op.action.execution === 'host' && op.approval?.status !== 'approved') return 'HOST_APPROVAL_REQUIRED';
       return null;
     case 'LOCAL_RESULT':
       if (!op || op.sessionId !== event.sessionId || !['claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) return 'LOCAL_SESSION_MISMATCH';
@@ -129,7 +173,19 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
       break;
     case 'LOCAL_CLAIM':
       op!.status = 'claimed'; op!.sessionId = e.sessionId; op!.parentAttempt = work.attempt; op!.attempt++;
-      if (op!.action.type !== 'listSkills') c.usage.ordinary++;
+      if (op!.action.type !== 'listSkills' && !(op!.action.type === 'runCli' && op!.action.execution === 'host' && !op!.approval)) c.usage.ordinary++;
+      break;
+    case 'LOCAL_APPROVAL_REQUIRED':
+      op!.approval = structuredClone(e.approval); op!.status = 'awaitingApproval';
+      break;
+    case 'LOCAL_APPROVAL_DECISION':
+      op!.approval!.status = e.decision === 'approve' ? 'approved' : 'denied';
+      if (e.decision === 'approve') op!.status = 'queued';
+      else finishOperation(work, op!, { ok: false, code: 'HOST_APPROVAL_DENIED', data: {} }, e.at);
+      break;
+    case 'LOCAL_APPROVAL_EXPIRED':
+      op!.approval!.status = 'expired';
+      finishOperation(work, op!, { ok: false, code: 'HOST_APPROVAL_EXPIRED', data: {} }, e.at);
       break;
     case 'LOCAL_STARTED':
       if (op!.status !== 'cancelling') op!.status = 'running';
@@ -149,6 +205,9 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
       else {
         op!.status = c.stopped || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion ? 'cancelled' : 'queued';
         delete op!.sessionId;
+        if (op!.status === 'queued' && op!.approval) {
+          op!.status = 'awaitingApproval'; op!.approval!.status = 'pending'; op!.approval!.id = `${e.id}:${op!.id}`;
+        }
       }
       if (!localPhysicalPending(work) && work.status === 'uncertain') {
         work.status = c.stopped || localRecoveryBlocked(c) || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion ? 'done' : 'pending';
@@ -161,11 +220,16 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
 }
 export function cancelLocalOperations(work: Intent): void {
   for (const op of work.localOperations ?? []) {
-    if (op.status === 'queued') op.status = 'cancelled';
+    if (['queued', 'awaitingApproval'].includes(op.status)) {
+      op.status = 'cancelled'; if (op.approval) op.approval.status = 'expired';
+    }
     else if (['claimed', 'running'].includes(op.status)) op.status = 'cancelling';
   }
 }
-export function recoverLocalOperations(work: Intent): void {
+export function recoverLocalOperations(work: Intent, recoveryId = 'recovery'): void {
+  for (const op of work.localOperations ?? []) if (op.approval && ['awaitingApproval', 'queued'].includes(op.status)) {
+    op.status = 'awaitingApproval'; op.approval.status = 'pending'; op.approval.id = `${recoveryId}:${op.id}`;
+  }
   for (const op of work.localOperations ?? []) if (['claimed', 'running', 'cancelling'].includes(op.status)) op.status = 'uncertain';
   if (localPhysicalPending(work)) work.status = 'uncertain';
 }

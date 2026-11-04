@@ -77,7 +77,7 @@ export function createWebServer(
             201,
           );
         }
-        const match = /^\/api\/rooms\/([^/]+)(?:\/(messages|stop|archive|restore))?$/.exec(
+        const match = /^\/api\/rooms\/([^/]+)(?:\/(messages|stop|archive|restore|host-approval))?$/.exec(
           url.pathname,
         );
         if (!match?.[1]) throw new WebError(404, "接口不存在。");
@@ -88,6 +88,14 @@ export function createWebServer(
           const data = await body(req);
           if (typeof data.id !== "string" || !data.id || data.id.length > 120)
             throw new WebError(400, "缺少请求标识。");
+          if (match[2] === 'host-approval') {
+            if (!origin || !req.headers['content-type']?.startsWith('application/json') || req.headers['sec-fetch-site'] === 'cross-site')
+              throw new WebError(403, '宿主授权必须由同源页面提交。');
+            const keys = ['id', 'taskId', 'workId', 'operationId', 'approvalId', 'decision'];
+            if (Object.keys(data).some(key => !keys.includes(key)) || keys.some(key => typeof data[key] !== 'string' || !data[key] || String(data[key]).length > 1024)
+              || !['approve', 'deny'].includes(String(data.decision))) throw new WebError(400, '授权请求格式不正确。');
+            return json(res, service.decideHostApproval(roomId, data as unknown as Parameters<WebService['decideHostApproval']>[1]));
+          }
           if (match[2] === "archive" || match[2] === "restore")
             return json(res, service.setRoomArchived(roomId, data.id, match[2] === "archive"));
           if (match[2] === "stop") {
