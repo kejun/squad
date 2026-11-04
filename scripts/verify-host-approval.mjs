@@ -20,8 +20,10 @@ await mkdir(serviceDir); await mkdir(workspace); await symlink(join(root, 'dist'
 const result = { status: 'running', source: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
   dirty: execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(), checks: [], cleanup: {} };
 const requests = [], errors = [], posts = [];
+const manualRetry = process.env.SQUAD_VERIFY_HOST_RETRY === '1';
+const privateAuth = join(state, 'private', 'auth.txt'); await mkdir(dirname(privateAuth)); await writeFile(privateAuth, 'synthetic-host-login');
 const executable = process.execPath;
-const action = { type: 'runCli', executable, args: ['-e', 'require("node:fs").appendFileSync("runs.txt", "once\\n"); console.log("host-proof", process.env.HOME)'], execution: 'host', reason: '复用本机账号与已有授权，验证按次批准' };
+const action = { type: 'runCli', executable, args: ['-e', `require("node:fs").readFileSync(${JSON.stringify(privateAuth)}); require("node:fs").appendFileSync("runs.txt", "once\\n"); console.log("host-proof", process.env.HOME)`], execution: manualRetry ? 'sandbox' : 'host', reason: '复用本机账号与已有授权，验证按次批准' };
 const fixture = createServer((req, res) => { void (async () => {
   let text = ''; for await (const chunk of req) text += chunk;
   const body = JSON.parse(text); requests.push(body);
@@ -66,7 +68,14 @@ async function capture(name) {
 }
 async function requestCommand() {
   await page.getByRole('textbox', { name: '群聊消息输入框' }).fill('执行本次宿主验证命令');
+  const sent = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/messages'));
   await page.getByRole('button', { name: '发送消息', exact: true }).click();
+  const reply = await (await sent).json();
+  if (manualRetry) {
+    await until(room, snapshot => snapshot.tasks.find(task => task.id === reply.taskId)?.outcome === 'complete', 'model finishes without requesting host');
+    assert.equal((await room()).hostApprovals.length, 0);
+    await page.getByRole('button', { name: '请求在宿主执行', exact: true }).click();
+  }
   await page.getByRole('dialog').waitFor();
   assert((await page.getByLabel('请求执行的完整命令').textContent()).includes(executable));
 }
@@ -97,6 +106,7 @@ try {
   await page.getByRole('button', { name: '拒绝', exact: true }).click();
   await until(room, snapshot => snapshot.tasks.at(-1)?.outcome === 'complete', 'denied result returned to original owner'); assert.equal(await runs(), '');
   result.checks.push('popup, exact command, close without deciding, refresh, idle model budget, denial');
+  if (manualRetry) result.checks.push('failed sandbox record remains usable after the model finishes; button requests approval without new model selection');
   await requestCommand(); await page.getByRole('button', { name: '允许本次', exact: true }).click();
   await until(room, snapshot => snapshot.tasks.at(-1)?.outcome === 'complete', 'approved host command completed'); assert.equal(await runs(), 'once\n');
   result.checks.push('user click through production HTTP, one host execution, true HOME and durable result');

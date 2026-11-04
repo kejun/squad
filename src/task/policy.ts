@@ -5,9 +5,15 @@ import { allInflight, discussionActive, fresh, hasOrdinary, incompatibleExecutio
 import { validArtifactDrafts, validSummary } from '../presentation.js';
 import { validInputIntent } from '../input-intent.js';
 import { assistanceRetryProblem, helpProblem } from './assistance.js';
+import { hostRetryProblem } from '../host-retry.js';
 
 export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
   if (e.type.startsWith('LOCAL_')) return localEventProblem(c, e, work => requestBudgetProblem(c, work));
+  if (e.type === 'REQUEST_HOST_RETRY') {
+    if (!e.fence || !fresh(c, e)) return 'STALE_FENCE';
+    if (!/^[a-f0-9]{64}$/.test(e.requestHash)) return 'INVALID_LOCAL_REQUEST';
+    return hostRetryProblem(c, e.sourceWorkId, e.sourceOperationId, e.sourceRequestHash);
+  }
   const attemptWorkId = e.workId ?? ('intentId' in e ? e.intentId : undefined);
   if (e.attempt !== undefined && c.intents.find(work => work.id === attemptWorkId)?.attempt !== e.attempt) return 'STALE_ATTEMPT';
   if (['DELIVER', 'CHECK_RESULT', 'RECORD_RESULT', 'DISCUSSION_PLAN', 'DISCUSSION_RESULT', 'COORDINATE', 'HELP', 'WAIT_USER', 'BLOCKED'].includes(e.type)

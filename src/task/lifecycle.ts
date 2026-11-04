@@ -8,6 +8,7 @@ export const taskLifecycle = {
     { guard: 'inputsReady', target: '.running', actions: 'boundary' },
   ],
   on: {
+    REQUEST_HOST_RETRY: [{ guard: 'valid', target: '.running', actions: 'apply' }, { actions: 'reject' }],
     LOCAL_REQUEST: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     LOCAL_REJECTED: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     LOCAL_CLAIM: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
