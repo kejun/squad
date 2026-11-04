@@ -5,7 +5,7 @@ import type { SpecWorld } from './steps.js';
 import { LocalFixture, assertFlow } from '../local-tools-fixture.js';
 import type { Intent } from '../../src/types.js';
 import { versionHandoffAcceptance, npmBuildAcceptance, revisionAcceptance, concurrentAcceptance, sandboxAcceptance, acknowledgementAcceptance, cliFailureAcceptance, crashAcceptance, formatAcceptance, guardAcceptance, isolationAcceptance, leaseAcceptance, namespaceAcceptance, permissionAcceptance, policyAcceptance, registryAcceptance, serviceAcceptance, skillErrorAcceptance, stopAcceptance } from '../local-tools-acceptance.js';
-interface State { fixture?: LocalFixture; work?: Intent; constraint?: string; expected?: string; stage?: string; window?: string; problem?: string; fault?: string; verified?: boolean }
+interface State { fixture?: LocalFixture; work?: Intent; constraint?: string; expected?: string; stage?: string; window?: string; recoveryPolicy?: string; problem?: string; fault?: string; verified?: boolean }
 const states = new WeakMap<SpecWorld, State>();
 const state = (world: SpecWorld) => { let s = states.get(world); if (!s) { s = {}; states.set(world, s); } return s; };
 After(async function (this: SpecWorld) { await states.get(this)?.fixture?.close(); });
@@ -29,8 +29,8 @@ Given('一个 CLI 子操作已进入{string}', function (this: SpecWorld, stage:
 When('用户停止并随后收到迟到的本地结果', function (this: SpecWorld) { stopAcceptance(state(this).stage!); state(this).verified = true; });
 Then('退出确认前不得释放父工作或工作区且不得生成候选', function (this: SpecWorld) { assert(state(this).verified); });
 Given('CLI 工作在{string}保存后崩溃', function (this: SpecWorld, window: string) { state(this).window = window; });
-When('服务恢复任务与本地操作', async function (this: SpecWorld) { await crashAcceptance(state(this).window!); state(this).verified = true; });
-Then('应按{string}续办且不盲目重跑写入', function (this: SpecWorld, _policy: string) { assert(state(this).verified); });
+When('服务恢复任务与本地操作', async function (this: SpecWorld) { const s = state(this); s.recoveryPolicy = (await crashAcceptance(s.window!)).policy; s.verified = true; });
+Then('应按{string}续办且不盲目重跑写入', function (this: SpecWorld, policy: string) { assert.equal(state(this).recoveryPolicy, policy); });
 Then('可信回执核对完成后应恢复原父工作阶段', function (this: SpecWorld) { assert(state(this).verified); });
 Given('模型请求本地命令后返回一次不合规最终结果', function (this: SpecWorld) { state(this); });
 When('适配器根据持久化回执继续并修复格式', async function (this: SpecWorld) { await formatAcceptance(); state(this).verified = true; });

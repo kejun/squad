@@ -738,6 +738,8 @@ describe("bounded group review", () => {
             async findSkills() {
               return [];
             },
+            async webSearch() { throw new Error('Unexpected web search in review fixture'); },
+            async webFetch() { throw new Error('Unexpected web fetch in review fixture'); },
           },
         );
         return Response.json({

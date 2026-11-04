@@ -44,7 +44,7 @@
 
 ## 覆盖源码
 
-- `src/task.machine.ts`：fresh/permissionProblem、acceptHelpResult、owner/cancelWork、savedHelpResult/assistanceRetryProblem、reduce 的结果/停止/继续/用户目标/恢复分支，相关 XState 守卫与自动边界。
+- `src/task.machine.ts` 及 `src/task/*.ts`：组合入口，facts/policy 的版本与权限校验，assistance 的原子消费与重试，operations 的 owner/cancelWork，reducer 的结果/停止/继续/目标/恢复分支，以及 guards/lifecycle 的 XState 守卫与自动边界。
 - `src/engine.ts`：transact、receipt、send、submit 的保存结果重试、claim、flushResults、recover 的事务拆分。
 - `src/store.ts`：两种存储的 transact/read；SQLite 注入故障点和回滚。
 - `src/runner.ts`：runOne 最前面的 flushResults 调度入口；本次不运行模型/工具适配器。
@@ -69,3 +69,39 @@ Progress 在有限故障预算、恢复及 Flush 弱公平假设下检查。模�
 不覆盖结果到达之前的外部调用、从失败状态重新执行 B、多个结果/任务/成员评审队列、已领取 A 的执行与模型交付、预算耗尽、权限撤销、错误配置恢复、真实模型/工具、Pi Durable、操作系统进程竞争或无限崩溃。没有用 state constraint 截断可达图；边界来自建模域和故障预算。Deadlock 检查关闭，因为调度停顿/终止在此切片合法；Progress 独立检查所需的进度。
 
 SQLite close/reopen 是本轮的进程丢失替身：未强制终止 OS 进程，也未测试磁盘断电。TLC 只检查提交前/后状态，依赖底层事务原子性；回滚探针不构成数据库或文件系统的形式化证明。
+
+## 2026-10-30 职责拆分对应审查
+
+审查起点为 `06be10113d80a8e884d93b9e3c6d5877143bf2c7`，目标为当前工作区（HEAD `b3502f`）。本次之前积累的输入解析、后台讨论、本地工具、观察器与群聊归档也纳入漂移审查；不能把冻结的重构基线误作该旧提交的等价证明。
+
+| 变化 | 对有限交接切片的影响与核对依据 |
+| --- | --- |
+| `task.machine` 拆分 | 58 个领域声明与改动前 `dd5ec71b…` 的 AST 源文本逐个一致（仅新增 export）；配置中的八个阶段、守卫/动作名字和顺序不变。冻结的八种快照、十二条真实事件轨迹与诊断全部通过；这是有限回归，不是任意输入的等价证明。 |
+| 模型消费与续办 | `acceptHelpResult`、`savedHelpResult`、`assistanceRetryProblem` 和 `fresh` 相对旧同步提交保持函数体一致。迁移至 assistance/facts；`owner` 新增输入、讨论和本地执行等待条件，形式化前缀没有这些未决状态。 |
+| 模型停止、继续、换目标与恢复 | 新增讨论取消、输入分析及本地操作处理；本切片无讨论/本地子操作，空模型配置令输入由规则直接解析为 resolved。停止仍取消 pending owner，继续仍递增 epoch；换目标仍递增 goalVersion 并取消协助；RECOVER 与 flush 分属事务。相关分支按旧同步提交逐项比较。 |
+| 引擎 | 观察器只在配置后采集，回调在提交后发送；形式化引擎无观察器。归档是独立命令、共用 receipt 事务但不改变任务；新增本地租约与讨论领取分支不在本切片触发。send/submit/claim/flush/recover 的持久化与失败原子边界保留。 |
+| 存储 | 新增 archive 可选字段及 workspace_leases；snapshot 与 receipt 仍在相同 SQLite BEGIN/COMMIT/ROLLBACK 内；MemoryStore 仍先复制、成功后提交。回滚故障位置保持在提交前。 |
+| 执行器 | runOne 仍先 flushResults，之后才领取并执行；选择具体意图、解释/讨论/本地工具分支均不影响本切片不领取续办的探针。starve-flush 负对照保留。 |
+| 类型、配置与命令识别 | 新增字段及输入/讨论种类；createTeamConfig({}) 无 models，既有 A/B、额度及版本保持；新增自然语言控制不改变明确 retry/continue 提交的含义。conversation 新识别讨论，形式化普通文本无评审目标。 |
+| 依赖与导出 | XState 仍为 5.33.3；新增 sandbox-runtime、inspect、yaml、zod 等依赖及 index 导出不改变有限协议。新增纯模型依赖、诊断/房间模块和执行器读取边界一并加入源码哈希门禁。 |
+| 负对照 | 删除消费标记与重复续办改为定位 `src/task/assistance.ts`，停止漏取消定位 `src/task/operations.ts`；替换内容、性质、有限域与四类行为失败要求不变。 |
+
+对应位置：`task/reducer.ts` 保留 RECORD_RESULT、STOP、CONTINUE、USER_INPUT、RECOVER 的单次复制与事件更新；`task/assistance.ts` 拥有结果消费和评审规则；`task/operations.ts` 生成 owner/cancel 意图；`task/policy.ts`、`task/guards.ts` 和 `task/lifecycle.ts` 组合原校验及转移。领域模块不是新的事务或 actor 所有者。完整 TLC、两种真实存储回放及四类负对照的结果见本轮证据；没有扩大原有形式化结论范围。
+
+## 2026-10-30 多 actor 对应审查
+
+本轮以职责拆分完成时的 coverage 文件 SHA 为比较基线（保存在 `reports/task-actors/baseline/formal-coverage.json`）。新增 `src/task/execution.machine.ts`，父任务保留预算与结果交接所有权。先通过 62 项模型检查，再接引擎、执行器和观察器。
+
+- 父任务的 `task/lifecycle.ts`、原业务 guards、reducer、assistance、operations、budget、facts 函数体未在本轮改变。policy 新增可选 attempt 校验，reject 动作不得释放其他尝试；无 attempt 的旧可信事件仍走原校验路径。新增包装只声明 spawnChild/sendTo，工作子 actor 的 PARENT_FACTS/终态通知均为内部消息，不更新业务 context。原有八阶段和业务规则身份仍按冻结轨迹逐步核对。
+- 子 actor 只在 CLAIM 成功后创建，绑定意图和 attempt，保存于同一 task snapshot 的原生 children 字段。其 authorized/running/cancelling/uncertain/terminal 状态不参与本抽象 marker/consumed/resumes 等投影；这些状态也不写消费标记、不安排 owner，因此没有增加半提交结果的写入口。
+- `stepTask` 使用隔离原生 actor 系统同步处理命令和内部消息；父子深度快照先收集再关闭临时宿主，持久化值仍在原存储事务中提交。恢复构造 dormant actor 引用，不重跑外部调用。旧快照没有 children 时保持既有恢复规则。
+- `TeamEngine.beginExecution` 新增独立启动许可事务，提交成功后才交给执行器；公共 send 和沙箱拒绝 EXECUTION_* 协议。这是领取之后、适配器调用之前的新边界。原 send/submit/flushResults/recover 的事务没有拆分；消费及 owner 续办依然同一事务写入。
+- `WorkRunner.runOne` 仍以 flushResults 为第一步；有限模型与 RunnerProgress 探针不领取 R1 的 owner 续办，所以新许可分支不进入原切片。新的启动协议由 BT_N06–BT_N12 的模型、Memory/SQLite 故障与实际执行器测试覆盖，**不冒充原 TLA+ 模型已经穷举启动许可或外部 I/O**。
+- 诊断改为读取同次原生 actor 微步，公共图过滤执行传输协议、保留原业务规则身份；Inspector 只构建未启动的观察元数据并注册真实父子关系。观察器不在此交接模型的写路径。
+- 旧四类源码负对照仍定位原 assistance/operations/runner 语句，原有限域、性质、回放与可达性要求不变；覆盖门禁增加 execution.machine，共 35 文件。TLC/真实回放完整复跑后才记录本轮验证结果。
+
+后续集成发现并补齐 BT_N14/BT_N15：新执行器消息和回执身份携带 attempt，取消通道按 room/task/intent/attempt 隔离，旧结果既不能结算、收费到新尝试，也不能删除其取消通道。68 项模型门槛再次通过后才接入这些字段；原交接模型事件不携带 attempt，因此原有限切片的消费、停止与恢复关系保持，新增尝试竞态另由真实执行器受控返回测试验证。
+
+最终尝试隔离审查还覆盖解析与协调的拒绝回退：currentInterpretation/isCurrent 以及解析失败副作用必须匹配 attempt，防止旧结果虽然被拒绝却改变当前阶段或输入状态。BT_N14 扩展到十类实际工作消息，73 项模型门槛通过；旧无 attempt 轨迹的原规则身份、守卫顺序和微步依旧逐步相等。
+
+启动许可最终还核对业务 ended 与不兼容恢复：父任务撤销未启动的普通工作，已启动工作进入取消等待；cancel actor 保留清理权限。BT_N10 显式覆盖这两种拒绝，最终 75 项模型检查通过。原有限切片不请求启动许可，其业务投影继续由全部原边回放及负对照核对。

@@ -9,6 +9,7 @@ export const report = '# 验证报告\n\n这是通过真实模型 HTTP 边界返
 export async function startFixture(log) {
   const counts = new Map();
   const pending = new Set();
+  const archivePending = new Map();
   let cancelled = 0;
   const server = createServer(async (req, res) => {
     try {
@@ -29,6 +30,18 @@ export async function startFixture(log) {
       const repair = request.messages.some(m => m.content.includes('model_output_validation_error'));
       appendFileSync(log, JSON.stringify({ workId, goal, target, kind, count, repair }) + '\n');
       const respond = output => res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }] }));
+      if (goal.includes('VERIFY_ARCHIVE') && kind === 'owner' && count === 1) {
+        pending.add(res);
+        archivePending.set(res, () => {
+          pending.delete(res); archivePending.delete(res);
+          res.writeHead(200, { 'content-type': 'application/json' });
+          respond({ type: 'deliver', text: '归档期间完成报告。', summary: '验证任务已完成，请查看报告。',
+            artifacts: [{ name: 'verification-report.md', content: report }], artifactIds: [] });
+        });
+        res.on('close', () => { pending.delete(res); archivePending.delete(res); });
+        appendFileSync(log, JSON.stringify({ event: 'archive-request-held', workId, goal }) + '\n');
+        return;
+      }
       if (goal.includes('VERIFY_STOP') && kind === 'owner' && count === 1) {
         pending.add(res);
         res.on('close', () => {
@@ -64,6 +77,7 @@ export async function startFixture(log) {
   return {
     url: `http://127.0.0.1:${server.address().port}/v1`,
     get cancelled() { return cancelled; },
+    releaseArchive() { for (const release of [...archivePending.values()]) release(); },
     async close() {
       for (const response of pending) response.destroy();
       server.closeAllConnections();

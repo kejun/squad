@@ -107,9 +107,6 @@
 .debug-node.is-selected rect, .debug-node:focus rect { stroke: #4d718d; stroke-width: 3; }
 .debug-node.is-active rect { fill: #edf5ef; stroke: #416951; stroke-width: 3; }
 .debug-node.is-historical rect { stroke: #806796; stroke-width: 3; stroke-dasharray: 6 4; }
-.debug-inspector { min-height: 500px; background: #fff; }
-.debug-inspector p { padding: 10px 18px; color: #536459; }
-.debug-inspector iframe { width: 100%; height: 580px; border: 0; }
 @media (max-width: 900px) {
   .debug-backdrop { padding: 0; }
   .task-debug { width: 100%; height: 100dvh; max-height: none; border-radius: 0; }

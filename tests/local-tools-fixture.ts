@@ -11,6 +11,8 @@ import { configuration, Harness } from './helpers.js';
 import { modelResponse } from './model-regeneration-fixture.js';
 import { SqliteStore } from '../src/store.js';
 import type { Intent, TeamConfig } from '../src/types.js';
+import { SandboxManager } from '@anthropic-ai/sandbox-runtime';
+import { SandboxCliBackend } from '../src/local-cli.js';
 
 export const skillScript = `import fs from 'node:fs';
 fs.mkdirSync('dist', {recursive:true}); fs.appendFileSync('dist/runs.txt', 'once\\n');
@@ -35,13 +37,20 @@ export class ControlledProcessBackend implements CliBackend {
     this.calls.push(input); this.before?.(input); return runProcess(input, signal, onSpawn);
   }
 }
+/** Force the external dependency boundary to fail; never depend on the host lacking a sandbox. */
+export async function unavailableNativeSandbox() {
+  const original = SandboxManager.checkDependenciesAsync;
+  SandboxManager.checkDependenciesAsync = async () => ({ errors: ['controlled missing dependency'], warnings: [] });
+  try { return await SandboxCliBackend.create(); }
+  finally { SandboxManager.checkDependenciesAsync = original; }
+}
 export class LocalFixture {
   readonly backend = new ControlledProcessBackend();
   readonly requests: { messages: { role: string; content: string }[] }[] = [];
   readonly replies: unknown[] = [];
   runtime!: LocalRuntime; h!: Harness; source!: string; skills!: string; skillId!: string;
   private constructor(readonly root: string) {}
-  static async create(role = '方案师', sqlite = false, serviceClock = false): Promise<LocalFixture> {
+  static async create(role = '方案师', sqlite = false, serviceClock = false, options: { backend?: CliBackend } = {}): Promise<LocalFixture> {
     const f = new LocalFixture(await mkdtemp(join(tmpdir(), 'squad-local-')));
     f.source = join(f.root, 'source'); f.skills = join(f.root, 'skills'); await mkdir(f.source); await mkdir(f.skills); await writeSkill(f.skills);
     await writeFile(join(f.source, 'source.txt'), 'authoritative'); await writeFile(join(f.source, '.env'), 'SECRET_FILE=do-not-copy');
@@ -59,7 +68,7 @@ export class LocalFixture {
         decision: { action: 'review', question: '验证', expected: '证据', reason: '直接邀请' } });
     }
     f.runtime = await LocalRuntime.create({ dataRoot: join(f.root, 'runtime'), skillRoots: [f.skills], workspaceRoot: f.source,
-      backend: f.backend, clock: () => f.h.now, redact: ['host-model-secret'] });
+      backend: options.backend ?? f.backend, clock: () => f.h.now, redact: ['host-model-secret'] });
     f.skillId = f.runtime.catalog().skills[0]!.skillId;
     f.backend.before = () => {
       const current = f.h.context().intents.flatMap(w => w.localOperations ?? []).find(o => o.status === 'running');

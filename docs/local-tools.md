@@ -6,7 +6,7 @@
 
 | 配置 | 默认/用途 |
 | --- | --- |
-| `SQUAD_LOCAL_SKILLS_ROOTS` | 默认运行账号 `~/.agents/skills/`；Linux 用 `:` 分隔额外的受信绝对路径，不自动扫描克隆项目 |
+| `SQUAD_LOCAL_SKILLS_ROOTS` | 默认运行账号 `~/.agents/skills/`；macOS/Linux 用 `:` 分隔额外的受信绝对路径，不自动扫描克隆项目 |
 | `SQUAD_LOCAL_DATA_DIR` | 数据库旁的 `.squad-local/`；保存私有快照、命令日志、会话回执、默认任务目录和检查副本 |
 | `SQUAD_WORKSPACE_ROOT` | 可选真实工程；不设置时每个群/任务使用独立空目录。必须与服务源码、数据库和运行时目录分开 |
 | `SQUAD_LOCAL_TOOLS_ENABLED` | 默认开启；`false` 关闭启动扫描及 Bot 本地能力 |
@@ -32,7 +32,9 @@ owner、assistance、facilitator、check 均可使用；纯输入解析和讨论
 
 ## 执行边界
 
-生产后端固定 `@anthropic-ai/sandbox-runtime@0.0.81`，首期支持 Linux。需已安装 bubblewrap、socat、ripgrep 和内核命名空间能力；`npm run verify:local-sandbox` 在真实后端验证边界，不可用退出78，不降级为宿主执行。跨平台后端是后续增量。
+生产后端固定 `@anthropic-ai/sandbox-runtime@0.0.81`，支持 macOS 与 Linux。macOS 需 `/usr/bin/sandbox-exec`、`/usr/bin/python3` 和 SRT 的依赖；系统 Python 以隔离模式调用 libproc，使用微秒启动时间和开机UUID核对服务/命令身份，不读取用户 Python 配置。Linux 需 bubblewrap、socat、ripgrep 和内核命名空间能力。`npm run verify:local-sandbox` 在真实后端验证边界，不可用退出78，不降级为宿主执行。Windows 后端尚未接入。
+
+服务先探测自身身份再原子创建锁；活跃锁和未知平台/身份锁均不接管。Linux 旧版持久回执继续识别为 Linux 身份。macOS 的系统目录别名在技能边界与沙箱策略中先规范为真实路径；`@skill/` 和 `@workspace/` 展开为受检验的真实路径。沙箱使用系统 `/bin/bash` 包装结构化参数，macOS 的系统运行依赖包含 `/System/Library`、`/Library/Apple` 和 Homebrew 的 `/opt/homebrew`；子进程 PATH 可发现 `/opt/homebrew/bin`。
 
 默认拒绝网络，文件读取从根目录拒绝后只开放系统运行依赖、任务目录和选中快照；服务目录、环境文件、数据库保持不可读，技能快照不可写。子进程只收到最小环境，不继承模型密钥、宿主代理或 `SRT_*` 私有环境；固定 SRT 的 Linux wrapper 已自行编码沙箱代理设置，不能把它返回的 `process.env` 合回子进程。需要凭据的 CLI 只能由可信宿主通过 `LocalRuntimeOptions.commandEnv` 明确配置，输出中的配置密钥会脱敏。
 

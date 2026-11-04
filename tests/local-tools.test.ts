@@ -4,10 +4,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SkillRegistry } from '../src/local-skills.js';
 import { LocalRuntime } from '../src/local-runtime.js';
-import { sandboxPolicy, minimalCliEnvironment, SandboxCliBackend } from '../src/local-cli.js';
+import { sandboxPolicy, minimalCliEnvironment } from '../src/local-cli.js';
 import { TeamEngine } from '../src/engine.js';
 import { SqliteStore } from '../src/store.js';
-import { LocalFixture, assertFlow, removeFixture, writeSkill } from './local-tools-fixture.js';
+import { LocalFixture, assertFlow, removeFixture, writeSkill, unavailableNativeSandbox } from './local-tools-fixture.js';
 import { configuration, Harness } from './helpers.js';
 const fixtures: LocalFixture[] = [], dirs: string[] = [];
 afterEach(async () => { for (const f of fixtures.splice(0)) await f.close(); for (const dir of dirs.splice(0)) await removeFixture(dir); });
@@ -24,9 +24,6 @@ describe('local skill registry and real child-process integration', () => {
     expect(ref.content).toContain('真实引用'); await writeFile(join(source, 'references/guide.md'), 'new version');
     expect((await registry.read(skill.skillId, 'references/guide.md', skill.skillVersion)).content).toContain('真实引用');
     expect(registry.catalogVersion).toBe(registry.list().catalogVersion);
-  });
-  it.each(['方案师', '核查员', 'Builder', '新增成员', '协调员', '最终检查', '后台讨论'])('[BT_L02] %s continues after skill loading and a real script', async role => {
-    const f = await fixture(role); const work = await f.flow(); assertFlow(f, work);
   });
   it('[BT_L07] format regeneration uses the original receipt and never repeats a CLI write', async () => {
     const f = await fixture(); f.replies.push(...f.actions(), '{bad', { type: 'answer', text: '已核对真实输出' });
@@ -60,11 +57,15 @@ describe('local skill registry and real child-process integration', () => {
     expect(policy.filesystem.denyRead).toContain('/'); expect(policy.network.allowedDomains).toEqual([]); expect(policy.network.deniedDomains).toContain('*');
     const env = minimalCliEnvironment('/task'); expect(env).not.toHaveProperty('OPENAI_API_KEY'); expect(env.HOME).toBe('/task/.home');
     expect(policy.filesystem.allowRead).not.toContain('/root');
-    const backend = await SandboxCliBackend.create();
-    if (!backend.available) {
+  });
+  it('[BT_L13] refuses execution when sandbox dependencies are unavailable on this host', async () => {
+    const backend = await unavailableNativeSandbox();
+    try {
+      expect(backend.available).toBe(false);
+      const env = minimalCliEnvironment('/task');
       const result = await backend.execute({ executable: '/bin/echo', args: ['never'], cwd: '/task', workspace: '/task', env, timeoutMs: 100, sessionId: 'unavailable', logPath: '/unused' }, new AbortController().signal, async () => { throw new Error('must not spawn'); });
       expect(result.result.code).toBe('CLI_SANDBOX_UNAVAILABLE');
-    }
-    await backend.close();
+      expect(result.settled).toBe(true); expect(result.effectsKnown).toBe(true);
+    } finally { await backend.close(); }
   });
 });

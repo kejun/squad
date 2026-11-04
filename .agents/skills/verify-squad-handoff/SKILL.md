@@ -67,7 +67,7 @@ python3 .agents/skills/verify-squad-handoff/scripts/check.py --verify-evidence "
 
 ## Coverage and synchronization
 
-最近核对实现的提交：`06be10113d80a8e884d93b9e3c6d5877143bf2c7`。函数级对应关系在[correspondence.md](references/correspondence.md)，哈希和边界在[coverage.json](references/coverage.json)。这些记录是审查与漂移门禁，不是自动等价证明。
+最近核对实现的基点提交：`b3502f19f8f6136cb8b818a526bab8885cb9f82e`，包括 2026-10-30 工作区职责拆分；精确版本以 coverage.json 中各文件 SHA 为准。函数级对应关系在[correspondence.md](references/correspondence.md)，哈希和边界在[coverage.json](references/coverage.json)。这些记录是审查与漂移门禁，不是自动等价证明。
 
 覆盖代码变化后，逐项审查 sync commit 到当前的差异：事务是否拆分、守卫/版本/权限是否变化、是否增加新的写入口、投影遗漏是否影响后续行为。更新模型、回放和负对照，再完整运行。只有确认对应且检查完成后，才推进 sync commit 和哈希。产品真实违反性质时保留反例，解释用户损害，未经授权不改产品、不放宽性质。
 
@@ -79,7 +79,7 @@ python3 .agents/skills/verify-squad-handoff/scripts/check.py --verify-evidence "
 - `negative-controls/`：真实代码修改 diff、具体行为失败和对应 TLC 反例。
 - `run.json` / `artifacts.json`：源码 SHA、工作区差异、覆盖文件哈希、每步结果、清理状态及证据大小/哈希。
 
-临时产品副本、SQLite 和依赖链接只存在于本轮独立 scratch 目录；finally 删除该目录，证据不删除。coverage.json 列出的14个源码/依赖文件哈希必须与运行前一致，`coveredFilesUnchanged` 只代表这14个文件。助手不会修改业务代码、现有 `.env` 或用户数据库。强制杀死父进程可能留下临时目录，只清理本轮已确认归属的目录。读取结果时区分模型错误、真实代码错误、对应审查未完成和工具阻塞。
+临时产品副本、SQLite 和依赖链接只存在于本轮独立 scratch 目录；finally 删除该目录，证据不删除。coverage.json 列出的全部源码/依赖文件哈希必须与运行前一致，`coveredFilesUnchanged` 只代表清单中的文件。助手不会修改业务代码、现有 `.env` 或用户数据库。强制杀死父进程可能留下临时目录，只清理本轮已确认归属的目录。读取结果时区分模型错误、真实代码错误、对应审查未完成和工具阻塞。
 
 ## Helpers and maintenance
 

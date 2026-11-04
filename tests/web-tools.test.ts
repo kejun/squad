@@ -78,11 +78,9 @@ describe('Cloudflare SDK web tools', () => {
       env.CLOUDFLARE_API_TOKEN = 'new_file_token';
       return Response.json({ ok: false, error: { category: 'auth', code: 'web_search_old_file_token', status: 401, retryable: false } }, { status: 401 });
     };
-    const error = await f.tools.search({ query: 'SDK' }, signal()).catch(e => e as WorkFailure);
-    expect(error).toBeInstanceOf(WorkFailure);
-    expect(error.message).toBe('web_search_failed (HTTP 401)');
-    expect(String(error)).not.toContain('old_file_token');
-    expect(String(error)).not.toContain('new_file_token');
+    const result = f.tools.search({ query: 'SDK' }, signal());
+    await expect(result).rejects.toBeInstanceOf(WorkFailure);
+    await expect(result).rejects.toThrow(/^web_search_failed \(HTTP 401\)$/);
   });
   it('[BT_W05] bounds automatic transient retries through the existing task budget', async () => {
     const h = new Harness(configuration({ retries: 1 })); const f = webFixture(); f.state.searchStatus = 503;
@@ -92,12 +90,15 @@ describe('Cloudflare SDK web tools', () => {
     expect(h.context().usage.retries).toBe(1); expect(h.view().phase).toBe('waitingHuman');
     expect(h.context().candidate).toBeNull(); expect(JSON.stringify(h.context())).not.toContain(webEnv.CLOUDFLARE_API_TOKEN);
   });
-  it.each([401, 429, 500])('[BT_W05] sanitizes conversion failure HTTP %s', async status => {
+  it.each([
+    { status: 401, transient: false }, { status: 429, transient: true }, { status: 500, transient: true },
+  ])('[BT_W05] sanitizes conversion failure HTTP $status', async ({ status, transient }) => {
     const f = webFixture(); f.state.custom = async url => String(url).endsWith('/ai/tomarkdown')
       ? new Response(webEnv.CLOUDFLARE_API_TOKEN, { status }) : new Response('<h1>test</h1>', { headers: { 'content-type': 'text/html' } });
-    const error = await f.tools.fetch({ url: sourceUrl }, signal()).catch(e => e as WorkFailure);
-    expect(error).toBeInstanceOf(WorkFailure); expect(error.message).toBe(`web_fetch_conversion_failed (HTTP ${status})`);
-    expect(error.transient).toBe(status !== 401); expect(String(error)).not.toContain(webEnv.CLOUDFLARE_API_TOKEN);
+    const result = f.tools.fetch({ url: sourceUrl }, signal());
+    await expect(result).rejects.toBeInstanceOf(WorkFailure);
+    await expect(result).rejects.toMatchObject({ message: `web_fetch_conversion_failed (HTTP ${status})`, transient });
+    await expect(result).rejects.not.toThrow(webEnv.CLOUDFLARE_API_TOKEN);
   });
   it('[BT_W06] cancellation during conversion reaches the actual REST request', async () => {
     const f = webFixture(); let started!: () => void; const start = new Promise<void>(resolve => { started = resolve; });

@@ -26,7 +26,7 @@ describe('browser state-machine debug', () => {
     expect(await (await fetch(host.url + '/api/debug')).json()).toEqual({ enabled: false });
     expect((await fetch(host.url + host.route)).status).toBe(404);
     const workspace = { rooms: [], roomId: null, snapshot: null, connected: true, error: '', setError: () => {}, chooseRoom: () => {},
-      createRoom: async () => '', refreshRooms: async () => [] };
+      createRoom: async () => '', setRoomArchived: async () => { throw new Error('Unexpected archive action'); }, refreshRooms: async () => [] };
     expect(renderToStaticMarkup(createElement(Workspace, { workspace }))).not.toContain('打开状态机调试');
     expect(renderToStaticMarkup(createElement(Workspace, { workspace, debugEnabled: true }))).toContain('打开状态机调试');
   });
@@ -49,7 +49,7 @@ describe('browser state-machine debug', () => {
     expect(sandbox.snapshot.context.assists[0]?.consumed).toBe(true);
   });
   it('[BT_V02] registers an actual machine definition with Inspector without running a shadow actor', () => {
-    const sent: { type: string; definition?: string }[] = [];
+    const sent: { type: string; definition?: string | undefined }[] = [];
     const inspector = createInspector({ send: event => sent.push(event) }, { autoStart: false });
     const snapshot = initialTask(debugInput());
     const metadata = createActor(taskMachine, { snapshot, input: debugInput(), id: 'metadata-only' });

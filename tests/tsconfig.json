@@ -1,0 +1,5 @@
+{
+  "extends": "./bdd/tsconfig.json",
+  "include": ["**/*.ts", "../web/src/**/*.tsx"],
+  "exclude": []
+}

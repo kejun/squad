@@ -245,7 +245,7 @@ describe('third-party model configuration and transport', () => {
   });
 
   it('executes the full multi-model collaboration over real local HTTP', async () => {
-    const received: { path?: string; auth?: string; body: Record<string, unknown> }[] = [];
+    const received: { path: string | undefined; auth: string | undefined; body: Record<string, unknown> }[] = [];
     const replies = [
       { type: 'help', target: 'B', question: 'verify source', expected: 'evidence' },
       { type: 'answer', text: 'verified evidence' },

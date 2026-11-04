@@ -183,6 +183,63 @@ async function rooms() {
     writeFileSync(join(evidence, 'rooms.sqlite-proof.json'), JSON.stringify({ roomIds: [first.id, second.id], stored: JSON.parse(row.data) }, null, 2));
   } finally { db.close(); }
   await capture('rooms-after-restart');
+  await archiveRooms(first, a);
+}
+async function archiveRooms(first, before) {
+  const input = page.getByRole('textbox', { name: '群聊消息输入框' });
+  await input.fill('归档前的未发送草稿');
+  await page.getByRole('navigation', { name: '群聊列表', exact: true }).getByRole('button', { name: before.room.title, exact: true }).hover();
+  await click('button', '归档群聊 ' + before.room.title);
+  await until(() => get('/api/rooms'), value => value.rooms.find(room => room.id === first.id)?.archived, 'archive committed');
+  assert.equal(await page.getByRole('navigation', { name: '群聊列表', exact: true }).getByRole('button', { name: before.room.title, exact: true }).count(), 0);
+  await click('button', '已归档 1');
+  await page.getByRole('navigation', { name: '归档群聊列表', exact: true }).getByRole('button', { name: before.room.title, exact: true }).click();
+  await page.getByRole('log').getByText('VERIFY_ROOMS 默认负责人验证', { exact: true }).waitFor();
+  assert.equal(await input.inputValue(), '归档前的未发送草稿');
+  const archived = await get(`/api/rooms/${first.id}`);
+  assert.deepEqual(archived.messages, before.messages); assert.deepEqual(archived.tasks, before.tasks);
+  assert(archived.tasks[0].artifacts.length > 0);
+  await capture('rooms-archived');
+  await stopApp(); await launch(); await page.reload();
+  await page.getByRole('navigation', { name: '归档群聊列表', exact: true }).waitFor();
+  await page.getByRole('log').getByText('VERIFY_ROOMS 默认负责人验证', { exact: true }).waitFor();
+  assert.equal((await get(`/api/rooms/${first.id}`)).room.archived, true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await click('button', '展开导航');
+  await capture('rooms-archived-mobile');
+  await click('button', '恢复群聊 ' + before.room.title);
+  await until(() => get(`/api/rooms/${first.id}`), value => !value.room.archived, 'room restored');
+  await page.getByRole('navigation', { name: '群聊列表', exact: true }).waitFor();
+  await page.getByRole('complementary', { name: '群聊和成员' }).getByRole('button', { name: '收起导航', exact: true }).click();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await capture('rooms-restored');
+
+  const working = await newRoom();
+  await send('VERIFY_ARCHIVE 归档时继续执行');
+  const inflight = await until(() => get(`/api/rooms/${working.id}`), value => value.works.some(work => work.kind === 'owner' && work.status === 'inflight'), 'owner inflight before archive');
+  await until(() => readFileSync(join(evidence, 'model-http.jsonl'), 'utf8'), value => value.includes('archive-request-held'), 'held model HTTP request');
+  const beforeArchive = await get(`/api/rooms/${working.id}`);
+  await page.getByRole('navigation', { name: '群聊列表', exact: true }).getByRole('button', { name: inflight.room.title, exact: true }).hover();
+  await click('button', '归档群聊 ' + inflight.room.title);
+  const held = await until(() => get(`/api/rooms/${working.id}`), value => value.room.archived, 'inflight room archived');
+  assert.deepEqual(held.tasks, beforeArchive.tasks);
+  await click('button', '已归档 1');
+  await page.getByRole('navigation', { name: '归档群聊列表', exact: true }).getByRole('button', { name: inflight.room.title, exact: true }).click();
+  await capture('rooms-archive-inflight');
+  fixture.releaseArchive();
+  const finished = await done(working, 'A');
+  assert(finished.room.archived); assert.deepEqual(finished.tasks[0].usage, { ordinary: 1, checks: 1 });
+  await send('VERIFY_ROOMS 归档群续办');
+  await until(() => get(`/api/rooms/${working.id}`), value => value.tasks.length === 2, 'new task in archive');
+  const next = await done(working, 'A'); assert(next.room.archived); assert.equal(next.tasks.length, 2);
+  const db = new DatabaseSync(database, { readOnly: true });
+  try {
+    const stored = JSON.parse(db.prepare('SELECT data FROM rooms WHERE id=?').get(working.id).data);
+    assert.equal(stored.archive.value, 'archived');
+    writeFileSync(join(evidence, 'rooms-archive.sqlite-proof.json'), JSON.stringify({ roomId: working.id, archive: stored.archive, taskCount: Object.keys(stored.tasks).length }, null, 2));
+  } finally { db.close(); }
+  await capture('rooms-archive-complete');
+  log('room-archive-verified', { scenarios: ['BT_G15', 'BT_G16', 'BT_G17', 'BT_G21'], historyPreserved: true, draftPreserved: true, mobileRestore: true, archiveAfterNewMessage: next.room.archived });
 }
 async function reports() {
   const room = await newRoom();
@@ -296,10 +353,19 @@ async function layout() {
   await page.reload();
   await page.getByRole('button', { name: '展开导航', exact: true }).waitFor();
   await click('button', '展开导航');
-  const font = await page.getByRole('log').locator('.message-text').first().evaluate(el => getComputedStyle(el).fontSize);
-  assert.equal(font, '14px');
+  const typography = async () => {
+    const font = await page.getByRole('log').locator('.message-text').first().evaluate(el => getComputedStyle(el).fontSize);
+    const color = await page.getByRole('log').locator('.message:not(.from-user) .message-text').first().evaluate(el => getComputedStyle(el).color);
+    const userColor = await page.getByRole('log').locator('.from-user .message-text').first().evaluate(el => getComputedStyle(el).color);
+    assert.equal(font, '16px');
+    assert.equal(color, 'rgb(39, 49, 66)');
+    assert.equal(userColor, 'rgb(39, 49, 66)');
+    log('message-typography', { font, color, userColor, viewport: page.viewportSize() });
+  };
+  await typography();
   await capture('layout-desktop');
   await page.setViewportSize({ width: 390, height: 844 });
+  await typography();
   await click('button', '展开导航');
   await page.getByRole('complementary', { name: '群聊和成员' }).waitFor();
   await capture('layout-mobile');

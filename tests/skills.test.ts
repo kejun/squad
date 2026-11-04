@@ -1,11 +1,36 @@
 import { describe, expect, it, vi } from 'vitest';
 import { findSkills, WorkRunner, TeamEngine } from '../src/index.js';
 import { configuration, Harness } from './helpers.js';
+import { malformedSkillResults, mixedSourceSkills, skillSearchCase } from './skill-search-fixture.js';
 
 const result = { id: 'owner/repo/review', name: 'review', source: 'owner/repo', installs: 1200 };
 const transport = () => vi.fn<typeof fetch>(async () => Response.json({ skills: [result] }));
 
 describe('default find skills capability', () => {
+  it('[BT_M21] parses mixed repository/domain results and resumes the real model loop', async () => {
+    const skills = await findSkills('general purpose assistant skills', new AbortController().signal,
+      async () => Response.json({ skills: mixedSourceSkills }));
+    expect(skills.map(skill => skill.installs)).toEqual([71, 14]);
+    expect(skills[1]).toEqual({ id: 'skills.volces.com/gemini-assistant', source: 'skills.volces.com', name: 'gemini-assistant', installs: 14,
+      url: 'https://skills.sh/skills.volces.com/gemini-assistant' });
+    const test = skillSearchCase(); await test.run();
+    expect(test.searches).toBe(1); expect(test.requests).toHaveLength(2);
+    const second = JSON.stringify(test.requests[1]);
+    for (const skill of skills) expect(second).toContain(skill.url);
+    expect(test.h.context().usage.ordinary).toBe(3);
+    expect(test.h.view().phase).toBe('checking');
+    expect(test.h.context().intents.some(work => work.kind === 'tool')).toBe(false);
+  });
+
+  it.each(Object.keys(malformedSkillResults))('[BT_M22] rejects malformed %s without hiding it as empty results', async problem => {
+    const test = skillSearchCase(problem); await test.run();
+    expect(test.searches).toBe(1); expect(test.requests).toHaveLength(1);
+    expect(test.h.view().phase).toBe('waitingHuman');
+    expect(test.h.context().reason).toContain('Invalid skill search result');
+    expect(test.h.context().candidate).toBeNull();
+    expect(test.h.context().usage.ordinary).toBe(2);
+  });
+
   it('exposes discovery to owners, helpers and facilitators, including new members', () => {
     const c = configuration(); c.bots.push({ id: 'C', name: 'C', instructions: '', tools: [] });
     const h = new Harness(c);

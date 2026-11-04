@@ -127,17 +127,21 @@ export class WebService {
     }
   }
   rooms(): WebRoom[] {
-    return this.db
+    const rooms = this.db
       .prepare(
         "SELECT id, title, createdAt FROM web_rooms ORDER BY createdAt, rowid",
       )
       .all() as unknown as WebRoom[];
+    // Scheduling and recovery use this complete list, including archived rooms.
+    return rooms.map(room => ({ ...room, ...this.engine.roomArchive(room.id) }));
   }
   createRoom(title = "新的群聊"): WebRoom {
     const room = {
       id: randomUUID(),
       title: title.trim().slice(0, 80) || "新的群聊",
       createdAt: Date.now(),
+      archived: false,
+      archiveVersion: 0,
     };
     this.db
       .prepare("INSERT INTO web_rooms(id, title, createdAt) VALUES(?, ?, ?)")
@@ -148,6 +152,13 @@ export class WebService {
     const room = this.rooms().find((room) => room.id === id);
     if (!room) throw new WebError(404, "找不到这个群聊。");
     return room;
+  }
+  setRoomArchived(roomId: string, commandId: string, archived: boolean): WebRoom {
+    this.room(roomId);
+    const reply = this.engine.setRoomArchived(roomId, commandId, archived);
+    if (!reply.ok) throw new WebError(409, reply.detail);
+    // A repeated old receipt returns current metadata, never reapplies its old target state.
+    return this.room(roomId);
   }
   snapshot(roomId: string): RoomSnapshot {
     const room = this.room(roomId);

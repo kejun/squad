@@ -175,6 +175,15 @@ svg {
   max-height: 28vh;
   flex: 0 1 auto;
 }
+.room-list-tabs { gap: 12px; justify-content: flex-start; }
+.room-list-tabs button { color: inherit; }
+.room-list-tabs button[aria-pressed="true"] { color: #3b574a; font-weight: 600; }
+.room-row { display: flex; align-items: center; gap: 2px; }
+.room-row .room-button { min-width: 0; flex: 1; }
+.room-archive-action { flex-shrink: 0; width: 30px; height: 30px; opacity: 0; }
+.room-row:hover .room-archive-action,
+.room-row:focus-within .room-archive-action { opacity: 1; }
+@media (hover: none), (max-width: 760px) { .room-archive-action { opacity: 1; } }
 .room-button {
   min-height: 38px;
   width: 100%;
@@ -788,11 +797,11 @@ svg {
   color: #9aa7b1;
 }
 .message-text {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.95;
   white-space: normal;
   overflow-wrap: anywhere;
-  color: #5c6673;
+  color: #273142;
   margin-top: 9px;
 }
 .message-text > :first-child {
@@ -972,7 +981,7 @@ svg {
   border-radius: 0 9px 9px 9px;
   display: inline-block;
   max-width: 100%;
-  color: #5a6861;
+  color: #273142;
 }
 .inline-mention {
   font-size: inherit;

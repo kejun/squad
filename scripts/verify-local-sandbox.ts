@@ -1,17 +1,21 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { SandboxCliBackend, minimalCliEnvironment } from '../src/local-cli.js';
+import { SandboxCliBackend, minimalCliEnvironment, identityAlive, type ProcessIdentity } from '../src/local-cli.js';
 
 /** Production SRT backend, never the injected process fixture. Exit 78 means host unavailable. */
-const root = await mkdtemp(join(tmpdir(), 'squad-os-sandbox-'));
+const root = await realpath(await mkdtemp(join(tmpdir(), 'squad-os-sandbox-')));
 process.env.SRT_PRIVATE_SENTINEL = 'must-not-inherit';
 const backend = await SandboxCliBackend.create();
+const network = createServer(socket => socket.end());
 try {
   if (!backend.available) {
     console.error(`CLI_SANDBOX_UNAVAILABLE: ${backend.unavailableReason}`); process.exitCode = 78;
   } else {
+    await new Promise<void>(resolve => network.listen(0, '127.0.0.1', resolve));
+    const port = (network.address() as { port: number }).port;
     const workspace = join(root, 'workspace'), snapshot = join(root, 'skill'); await mkdir(workspace); await mkdir(snapshot);
     await mkdir(join(workspace, '.home')); await mkdir(join(workspace, '.tmp'));
     const secret = join(root, 'private.txt'); await writeFile(secret, 'must-not-read'); await writeFile(join(snapshot, 'readonly.txt'), 'skill-body');
@@ -21,7 +25,7 @@ try {
       try { fs.writeFileSync(${JSON.stringify(join(snapshot, 'readonly.txt'))},'overwritten'); process.exit(12); } catch{}
       if(fs.readFileSync(${JSON.stringify(join(snapshot, 'readonly.txt'))},'utf8')!=='skill-body')process.exit(13);
       if(process.env.SQUAD_SANDBOX_TEST_SECRET || process.env.SRT_PRIVATE_SENTINEL)process.exit(14);
-      const s=net.connect({host:'1.1.1.1',port:80});s.on('connect',()=>process.exit(15));s.on('error',()=>{console.log('boundaries-ok');process.exit(0)});setTimeout(()=>{console.log('boundaries-ok');process.exit(0)},500);`;
+      const s=net.connect({host:'127.0.0.1',port:${port}});s.on('connect',()=>process.exit(15));s.on('error',()=>{console.log('boundaries-ok');process.exit(0)});setTimeout(()=>process.exit(16),1000);`;
     await writeFile(join(workspace, '.env'), 'secret');
     const completion = await backend.execute({ executable: process.execPath, args: ['-e', program], workspace, cwd: workspace, skillPath: snapshot,
       env: minimalCliEnvironment(workspace), timeoutMs: 5000, sessionId: 'verify-os-boundaries', logPath: join(root, 'output.log') }, new AbortController().signal, async () => {});
@@ -34,6 +38,14 @@ try {
       sessionId: 'verify-readonly-check-inputs', logPath: join(root, 'check.log') }, new AbortController().signal, async () => {});
     assert(readOnlyCheck.result.ok, JSON.stringify(readOnlyCheck.result));
     assert.equal(await readFile(join(buildOutput, 'build.txt'), 'utf8'), 'build-ok');
-    console.log('OS sandbox file, snapshot-write, credential and network boundaries passed');
+    const controller = new AbortController(); let identity: ProcessIdentity | undefined;
+    const cancelled = await backend.execute({ executable: process.execPath,
+      args: ['-e', "require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});setInterval(()=>{},1000)"],
+      workspace, cwd: workspace, env: minimalCliEnvironment(workspace), timeoutMs: 5000, sessionId: 'verify-cancel', logPath: join(root, 'cancel.log') },
+      controller.signal, async current => { identity = current; setTimeout(() => controller.abort(), 200); });
+    assert(identity, 'long command must have a recorded native process identity');
+    assert(cancelled.settled); assert.equal(cancelled.result.code, 'cancelled'); assert.equal(cancelled.effectsKnown, false);
+    assert.equal(await identityAlive(identity), false);
+    console.log('OS sandbox file, snapshot-write, credential, network, check-source and cancellation boundaries passed');
   }
-} finally { await backend.close(); await rm(root, { recursive: true, force: true }); }
+} finally { if (network.listening) await new Promise<void>(resolve => network.close(() => resolve())); await backend.close(); await rm(root, { recursive: true, force: true }); }

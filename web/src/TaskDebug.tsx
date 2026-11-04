@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bug, X } from 'lucide-react';
 import { debugEventTemplate, debugInput, taskGraph, TaskSandbox, type DebugFrame, type MachineTransition, type SandboxPreview } from '../../src/task-debug';
 import { persistTask, restoreTask, type TaskSnapshot } from '../../src/task.machine';
@@ -9,8 +9,8 @@ import { DebugRules, DebugRuleDetails } from './DebugRules';
 import { DebugStepDetails, JsonDisclosure } from './DebugStepDetails';
 import { DebugEventEditor } from './DebugEventEditor';
 import { useDebugFeed } from './use-debug-feed';
+import { InspectorView } from './InspectorView';
 
-const InspectorView = lazy(() => import('./InspectorView').then(module => ({ default: module.InspectorView })));
 const json = (value: unknown) => JSON.stringify(value, null, 2);
 type Draft = { type: string; text: string; headId: string; dirty: boolean };
 const makeDraft = (sandbox: TaskSandbox, type = 'HELP'): Draft => ({ type, text: json(debugEventTemplate(sandbox.snapshot, type)), headId: sandbox.headId, dirty: false });
@@ -26,7 +26,7 @@ export function TaskDebug({ roomId, onClose }: { roomId: string | null; onClose:
   const [revision, setRevision] = useState(0);
   const [taskId, setTaskId] = useState('');
   const [liveSelection, setLiveSelection] = useState<{ session: string; task: string; key: string } | null>(null);
-  const [view, setView] = useState<'run' | 'graph' | 'rules' | 'inspector'>('run');
+  const [view, setView] = useState<'run' | 'graph' | 'rules'>('run');
   const [inputText, setInputText] = useState(() => json(debugInput()));
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -145,7 +145,9 @@ export function TaskDebug({ roomId, onClose }: { roomId: string | null; onClose:
         <button onClick={() => startSandbox()}>新建沙箱</button>
         {mode === 'live' && <button disabled={!snapshot} onClick={() => startSandbox(snapshot)}>复制最新到沙箱</button>}
         {mode === 'sandbox' && <button onClick={reset}>重置</button>}
-        <details className="debug-advanced"><summary>高级</summary><div className="debug-advanced-content"><button disabled={!snapshot} onClick={() => setView('inspector')}>官方 Inspector</button>
+        <details className="debug-advanced"><summary>高级</summary><div className="debug-advanced-content"><InspectorView
+          snapshot={snapshot ? frame?.snapshot ?? persistTask(snapshot) : null} event={frame?.event}
+          identity={mode + ':' + (mode === 'live' ? feed?.sessionId + ':' + feed?.current?.taskId : sandbox.id)} />
           {mode === 'sandbox' && <><textarea aria-label="初始输入 JSON" value={inputText} maxLength={100000} spellCheck={false} onChange={e => setInputText(e.target.value)} />
             <button onClick={() => { try { addSandbox(TaskSandbox.fromInput(inputText)); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); } }}>应用初始输入</button></>}
         </div></details>
@@ -189,8 +191,6 @@ export function TaskDebug({ roomId, onClose }: { roomId: string | null; onClose:
             onRule={id => { setSelectedRule(id); }} onGlobals={() => { setFocus('*'); setView('rules'); }} />
             <button className="debug-graph-rule-link" onClick={() => setView('rules')}>查看所选状态的全部规则 · {focused}</button></>}
           {view === 'rules' && <DebugRules graph={graph} focus={focused} onFocus={setFocus} selected={selectedRule} onSelect={selectRule} />}
-          {view === 'inspector' && snapshot && <Suspense fallback={<p role="status">加载 Inspector…</p>}><InspectorView
-            snapshot={frame?.snapshot ?? persistTask(snapshot)} event={frame?.event} identity={mode + ':' + (mode === 'live' ? feed?.sessionId + ':' + feed?.current?.taskId : sandbox.id)} /></Suspense>}
         </main>
         <aside className="debug-side" aria-label="调试详情" hidden={view === 'graph' && !rule}>
           {rule ? <><button onClick={() => setSelectedRule(null)}>{view === 'graph' ? '关闭规则详情' : '返回步骤详情'}</button><DebugRuleDetails rule={rule} graph={graph} frame={frame} onFill={chooseEvent} canFill={!!snapshot} /></>

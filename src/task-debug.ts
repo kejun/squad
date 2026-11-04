@@ -130,7 +130,7 @@ export class TaskSandbox {
     try { raw = JSON.parse(text); } catch { throw new Error('事件必须是有效的 JSON 对象'); }
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('事件必须是 JSON 对象');
     const body = raw as Record<string, unknown>;
-    if (typeof body.type !== 'string' || !body.type.trim() || body.type.startsWith('@')) throw new Error('事件缺少有效的 type');
+    if (typeof body.type !== 'string' || !body.type.trim() || body.type.startsWith('@') || body.type.startsWith('EXECUTION_')) throw new Error('事件缺少有效的 type');
     validateEventShape(body);
     const previous = this.snapshot;
     const event = { id: 'sandbox-event:' + (this.sequence + 1), at: previous.context.lastActivityAt + 1, ...body } as TaskEvent;

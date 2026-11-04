@@ -69,7 +69,7 @@ describe('artifact and message details', () => {
   it('[BT_A01] keeps partial delivery visible without marking it as a completed success', () => {
     const s = fixture(); s.tasks[0]!.outcome = 'partial'; s.messages[0]!.kind = 'final';
     const workspace: ReturnType<typeof useWorkspace> = { rooms: [s.room], roomId: s.room.id, snapshot: s, connected: true, error: '',
-      setError() {}, chooseRoom() {}, createRoom: async () => s.room.id, refreshRooms: async () => [s.room] };
+      setError() {}, chooseRoom() {}, createRoom: async () => s.room.id, setRoomArchived: async () => { throw new Error('Unexpected archive action'); }, refreshRooms: async () => [s.room] };
     const html = renderToStaticMarkup(createElement(Workspace, { workspace }));
     expect(html).toContain('部分交付');
     const label = html.match(/class="delivery-label"[^>]*>([\s\S]*?)<\/span>/)?.[1];

@@ -1,8 +1,10 @@
 import { DatabaseSync } from 'node:sqlite';
+import type { RoomArchive } from './room.machine.js';
 
 export interface RoomData {
   schemaVersion: 1; activeTaskId: string | null;
   tasks: Record<string, unknown>; notices: { id: string; text: string }[];
+  archive?: RoomArchive;
 }
 export interface Transaction {
   room: RoomData;

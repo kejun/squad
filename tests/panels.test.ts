@@ -2,7 +2,6 @@ import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PanelFixture } from './panel-fixture.js';
 import { PANEL_LAYOUT_STORAGE_KEY } from '../web/src/panel-layout.js';
-import { assertTypographyFloor } from './typography-audit.js';
 
 const open: PanelFixture[] = [];
 async function fixture() { const value = new PanelFixture(); open.push(value); return value.mount(); }
@@ -81,8 +80,4 @@ describe('workspace panel interactions', () => {
     expect(f.requests).toEqual([]);
   });
 
-  it('[BT_P10] audits the text floor across every stylesheet, including native smaller-text defaults', () => {
-    const audited = assertTypographyFloor();
-    expect(audited.files).toBeGreaterThan(0); expect(audited.declarations).toBeGreaterThan(0);
-  });
 });

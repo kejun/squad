@@ -21,6 +21,8 @@ export interface WebRoom {
   id: string;
   title: string;
   createdAt: number;
+  archived?: boolean;
+  archiveVersion?: number;
 }
 export interface ExecutionEvent {
   id: number;

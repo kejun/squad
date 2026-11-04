@@ -77,7 +77,7 @@ export function createWebServer(
             201,
           );
         }
-        const match = /^\/api\/rooms\/([^/]+)(?:\/(messages|stop))?$/.exec(
+        const match = /^\/api\/rooms\/([^/]+)(?:\/(messages|stop|archive|restore))?$/.exec(
           url.pathname,
         );
         if (!match?.[1]) throw new WebError(404, "接口不存在。");
@@ -88,6 +88,8 @@ export function createWebServer(
           const data = await body(req);
           if (typeof data.id !== "string" || !data.id || data.id.length > 120)
             throw new WebError(400, "缺少请求标识。");
+          if (match[2] === "archive" || match[2] === "restore")
+            return json(res, service.setRoomArchived(roomId, data.id, match[2] === "archive"));
           if (match[2] === "stop") {
             if (typeof data.taskId !== "string")
               throw new WebError(400, "缺少任务标识。");

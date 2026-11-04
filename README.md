@@ -16,7 +16,9 @@ npm run check
 npm run demo
 ```
 
-check 执行前后端及 Gherkin 步骤的严格 TypeScript 检查、回归测试、全部可自动验收的 Gherkin 场景，并生成 reports/spec-coverage.md。新增场景默认执行，漏绑定会失败；明确待验收项需在 features/acceptance-gaps.json 逐项登记。demo 使用受控模型替身演示 A 求助 B、保存回传、A 继续、检查交付与结束，不消耗真实模型费用。
+check 执行前后端、全部测试及夹具的严格 TypeScript 检查、回归测试、全部可自动验收的 Gherkin 场景，并生成 reports/spec-coverage.md。新增场景默认执行，漏绑定会失败；明确待验收项需在 features/acceptance-gaps.json 逐项登记。demo 使用受控模型替身演示 A 求助 B、保存回传、A 继续、检查交付与结束，不消耗真实模型费用。
+
+`npm run test:unit` 只运行隔离的单元测试；完整检查仍执行全部测试层次。分层、模型验证命令和随机顺序复验见 [测试说明](tests/README.md)。
 
 `npm run simulate:discussion` 批量运行后台讨论的真实 XState 转换，包括全部144种合法结果返回顺序与生命周期边界，输出逐步 JSON 轨迹和 Markdown 汇总到 `reports/`，任何断言失败都会返回非零退出码。[已运行的仿真结果与修正](docs/discussion-simulation.md)说明覆盖范围、实际轨迹和保证边界；脚本不调用真实模型或工具。
 
@@ -56,7 +58,7 @@ npm start
 
 模型使用 `listSkills`、`loadSkill`、`readSkillResource`、`runCli` 四个 JSON 动作。每次磁盘/命令操作先经 XState 保存和领取；命令回执、技能版本和模型续办检查点持久化。检查与后台讨论在副本中运行，权威工程不变；检查的源文件只读，输出目录可写，正面结论提交前复核源版本。同一工程跨群串行，不同默认任务目录隔离。
 
-默认 CLI 后端为固定版本的 Linux Anthropic Sandbox Runtime；需 bubblewrap、socat、ripgrep 及可用的用户/PID/网络命名空间。不可用时明确返回 `CLI_SANDBOX_UNAVAILABLE`，技能发现和读取仍可用。`npm run verify:local-sandbox` 验证实际文件、网络与环境边界（环境不可用退出78）。[运行配置与未决操作核对](docs/local-tools.md) 说明目录、权限及恢复命令；[验证记录](docs/local-tools-verification.md) 区分模型、真实子进程和 OS 沙箱证据。
+默认 CLI 后端为固定版本的 Anthropic Sandbox Runtime：macOS 使用 sandbox-exec 和系统 Python 3 的 libproc 进程身份探测，Linux 使用 bubblewrap、socat、ripgrep 及用户/PID/网络命名空间。依赖不可用时明确返回 `CLI_SANDBOX_UNAVAILABLE`，不降级为宿主执行。`npm run verify:local-sandbox` 验证实际文件、网络与环境边界（环境不可用退出78）。[运行配置与未决操作核对](docs/local-tools.md) 说明目录、权限及恢复命令；[验证记录](docs/local-tools-verification.md) 区分模型、真实子进程和 OS 沙箱证据。
 
 ## 代码位置
 
@@ -88,86 +90,69 @@ npm start
 
 ## 状态模型
 
-本地技能与 CLI 的持久化子操作见 [局部操作状态图](docs/state-diagrams.md#本地技能与-cli-子操作)：先保存、领取和扣额，再执行；未知写入经核对后续办。
+任务根 actor 统一管理阶段、预算和结果交接，每次领取的执行请求使用独立子 actor；父子快照在同一事务提交。BT_N06–BT_N15 的边界、执行状态与恢复协议见[多 actor 设计](docs/task-actors.md)；前一轮模块拆分与 BT_N01–BT_N05 冻结业务基线见[重构记录](docs/task-machine-refactor.md)。
 
+设计遵循 [XState 八条原则](docs/xstate-design.md)：按状态所有者和生命周期划分，区分真实机器、上下文生命周期、执行流程与 UI 投影。以下两图合起来展示 `src/task.machine.ts` 的八个真实状态与选定路径，完整公共规则见表，细节见[分层索引](docs/state-diagrams.md)。它不是新增父状态或子 actor 的实现方案。
 
-工作期间的后台讨论对应 BT_T01–BT_T17：直接邀请先保存独立的讨论轮次，协调员安排当时空闲的成员并行提供一轮意见，再汇总交给原负责人。主请求继续执行，原负责人在请求结算后吸收草稿与讨论结果；讨论完成前不检查或发布旧草稿。同成员互斥、共享预算、停止、版本隔离和恢复均由任务状态机校验，网页只领取可执行意图。参见[后台讨论状态图](docs/state-diagrams.md#工作期间的后台讨论)及[需求评估与取舍](docs/background-discussion.md)。
-
-浏览器状态机调试对应 BT_V01–BT_V26：`npm run dev` 默认开启，或用 `SQUAD_DEBUG=1 npm start` 显式开启宿主；网页顶栏或 `?debug=1` 打开（仍需宿主允许）。默认「当前运行」呈现等待事项、事件轨迹与步骤解释，可切换稳定的完整状态图与转移规则。诊断在同次纯转换中采集真实守卫和自动微步，SQLite 提交后才发布；旧记录明确标记证据缺失。沙箱预演不推进历史，回看与执行头分开，从历史试验显式创建独立分支。图与规则从真实机器生成，本地界面无需账号，官方 Inspector 保留在高级入口。实时日志按群、任务和进程会话隔离且有界；默认关闭时快照接口返回404。参见[调试交互及事务边界](docs/state-diagrams.md#浏览器状态机调试)。沿用现有业务 XState，不新增业务状态、外部执行或任意事件写入接口。
-
-浏览器验收：先 `npm run build`，再 `npm run test:debug-browser`。复用 Playwright；可用 `SQUAD_PLAYWRIGHT_MODULE` 指定模块、`SQUAD_CHROMIUM` 指定浏览器。脚本启动独立数据库和本地模型 HTTP 夹具，实际操作网页，检查预演拒绝、历史分叉、自动微步、稳定图与14px字号，并只读比较真实 SQLite 任务。证据在 `reports/state-debug/`；完整退出且 `run.json` 为 verified、清理项全为 true 才算通过。
-
-输入意图对应 BT_I01–BT_I21：规则识别明确命令，复杂输入先进入 interpreting；状态机保存解析操作后，WorkRunner 领取并通过原模型适配器执行。结果经 Zod、引用身份和任务版本校验后，才进入规划、协作或检查；不确定时进入 waitingHuman。所有角色共享原始输入和经过校验的意图，直接指定的目标及硬约束始终保留。参见[输入意图解析](docs/state-diagrams.md#输入意图解析)。
-
-模型输出格式修正对应 BT_M10–BT_M20：完整返回但未通过 JSON/当前角色协议校验时，先保存修正意图，再携带校验反馈重新生成。每次修正消耗现有 retries 额度，后续请求另扣所属普通/检查额度；不强转字段、不补造通过结果。参见[状态图与边界](docs/state-diagrams.md#模型输出格式修正)。
-
-详情复制与导出对应 BT_A12–BT_A21：顶栏复制当前内容或导出文件；消息、任务和成员页签生成完整 Markdown，产物预览保留原文件内容。历史目标、来源和执行记录按当前详情范围选择，复制和导出均不触发模型或业务调度。参见[交互状态图](docs/state-diagrams.md#详情复制与导出)；仅新增页面状态，沿用现有业务 XState。
-
-页面侧栏与字号对应 BT_P01–BT_P21：左右展开面板可拖拽调宽，桌面拖宽右栏使聊天区触及360px下限时自动收起左栏，继续拖拽仍保留至少360px聊天区。自动收起先作为拖拽预览，松手保存、取消恢复；左侧可手动恢复原宽度。左侧收起时，顶栏在导航按钮之前显示品牌图形。聊天和详情标题栏统一为64px，连接状态置于聊天标题栏，成员入口保留在左侧导航。窄屏沿用抽屉和详情覆盖层，可见文字最小为14px。参见[交互状态图](docs/state-diagrams.md#页面侧栏与字号)。这是本地布局状态，不改变任务 XState、预算或调度事件；业务状态机验证不适用，先验证纯布局模型再接入界面。
-
-简短消息与完整报告对应 BT_A01–BT_A11：方案和核查结果的全文、摘要及报告在现有 DELIVER / RECORD_RESULT 事务中保存，完成检查和负责人仍使用完整材料。群里显示结论，报告可预览与下载，详情按消息定位对应任务。参见[需求评估](docs/concise-results.md)和[细化状态图](docs/state-diagrams.md#简短结果与产物发布)；复用原顶层状态，新增结果字段及事务守卫后再接入网页。
+成功路径（解析和协助按需发生）：
 
 ```mermaid
 stateDiagram-v2
     [*] --> running
-    running --> interpreting: 有待解析输入且到达安全边界
-    interpreting --> running: 合法意图 / 安排后继工作
-    interpreting --> interpreting: 可重试故障或仍有待解析输入
-    interpreting --> waitingHuman: 需要澄清或解析失败
-    interpreting --> stopping: STOP
-    running --> waitingAssistance: HELP
-    waitingAssistance --> waitingAssistance: 评审结果或失败 / 还有成员且额度允许
-    waitingAssistance --> running: 协助结束 / 评审收齐或额度不足后汇总
-    running --> coordinating: BLOCKED / TICK / 重复失败 / 评审待组织
-    coordinating --> waitingAssistance: 安排协助或开始成员评审
-    coordinating --> running: 继续 / 重规划 / 无可派发评审后汇总
-    coordinating --> waitingHuman: 询问或监督故障
-    coordinating --> ended: finish / 部分完成或失败
-    running --> waitingHuman: WAIT_USER / 不可重试故障
-    waitingAssistance --> waitingHuman: 结果不确定等不可继续故障
-    checking --> waitingHuman: 不可重试故障
-    running --> running: 用户补充在安全边界生效
-    running --> running: HANDOFF / 记录原负责人及新负责人和交接依据
-    waitingAssistance --> running: 有效结果消费并合并用户补充 / 安排负责人续办
-    running --> waitingAssistance: RETRY_ASSISTANCE / 原协助可重试且预算足够
-    waitingHuman --> waitingAssistance: RETRY_ASSISTANCE / 在途与未知结果已结算
-    ended --> waitingAssistance: 明确重试原协助 / 新轮次且保留负责人
-    coordinating --> running: 用户补充在安全边界生效
-    checking --> running: 用户补充在安全边界生效
-    checking --> interpreting: 复杂补充优先于旧交付检查
-    waitingHuman --> interpreting: 用户补充或明确重试未完成解析
-    waitingHuman --> running: 用户补充生效 / 明确 CONTINUE
-    running --> checking: DELIVER
-    checking --> ended: 检查通过 / 评审有缺口 / 无修正额度
-    checking --> coordinating: 有缺口且有预算
-    running --> stopping: STOP
-    waitingAssistance --> stopping: STOP
-    coordinating --> stopping: STOP
-    checking --> stopping: STOP
-    waitingHuman --> stopping: STOP
-    stopping --> ended: 在途工作结算
-    ended --> running: 明确继续并开始新轮次
+    running --> interpreting: always [analysisReady] / beginInterpretation
+    interpreting --> running: INTERPRETATION_RESULT [valid且无需澄清] / apply
+    running --> waitingAssistance: HELP [valid] / apply
+    waitingAssistance --> running: HELP_RESULT [valid且不继续评审] / apply
+    running --> checking: DELIVER [valid且非holdingDelivery] / apply
+    checking --> ended: CHECK_RESULT [checkComplete] / apply
 ```
 
-coordinating 与 stopping 是内部控制状态。结束结果单独记录 complete、partial、failed 或 stopped，方便界面区分成功、缺口和取消。用户补充必须等在途工作结算后才应用；若仍有评审，则重新进入 coordinating 组织本轮评审。普通额度耗尽通过 EXHAUSTED 结束，恢复时配置不兼容或外部结果不确定则进入 waitingHuman；安全恢复保留当前任务状态并接续操作。
+控制路径（与上图为同一个 taskMachine，不是另一台机器或父状态）：
 
-不能只核对这张顶层图：评审队列的状态保存在上下文中，外部调用和网页交互也各有边界。对应的[细化状态图](docs/state-diagrams.md)包含协助重试与交接、成员评审、操作领取与回传、模型消息风格、默认网页工具、群历史与消息路由，以及网页展示流程。网页工具沿用当前 owner / assistance / facilitator 意图和 CONSUME 预算事件，不新增顶层任务状态；开关、期限和版本由状态机守卫检查。新增、删除或调整功能时，必须按照 [AGENTS.md](AGENTS.md) **先写 Gherkin 场景，再更新状态图与 XState，最后完成具体实现**。
+```mermaid
+stateDiagram-v2
+    running --> coordinating: BLOCKED [canCoordinate] / apply
+    coordinating --> running: COORDINATE [decisionRun] / apply
+    coordinating --> waitingHuman: COORDINATE [decisionAsk] / apply
+    waitingHuman --> running: CONTINUE [valid] / apply
+    running --> stopping: STOP [valid] / apply
+    stopping --> ended: always [stoppedSettled] / stopped
+    ended --> running: CONTINUE [valid] / apply
+```
 
-协助重试与交接（BT_H10–BT_H20、BT_U16）：`RETRY_ASSISTANCE` 显式指定原任务和原协助，保留目标与负责人，用新的请求 ID 和 `retryOf` 关联原尝试。直接用户输入的“B 重试”或“@B 重试”仅在当前任务（无活动任务时为最近任务）中唯一匹配时生效；歧义返回提示并由用户选择协助入口，不创建新任务。已保存且仍有效的结果直接消费。普通协助交接在同一转换中消费结果、应用补充并安排一次负责人续办；成员评审有补充时仍按原规则重新组织。停止后的重试必须由用户明确发起并开启新轮次，历史目标版本、在途或未知结果、撤销的权限与执行预算均须校验。重试不重置消耗，并为 B 的执行和 A 的续办保留至少两次普通请求。
+`coordinating`、`stopping` 是控制阶段。`ended` 是可继续的业务状态，结果由 `outcome = complete | partial | failed | stopped` 表示，不是 XState `final`。图中箭头表示选定的显式转移；同次事件后的自动微步可能继续进入解析或评审组织，不能把中间目标当作最终快照。
 
-品牌展示（BT_U14）沿用[网页交互](docs/state-diagrams.md#网页交互)中的连接、消息与详情状态。侧栏、欢迎区与浏览器图标共享随应用提供的 SVG，仅更新静态展示，不产生业务事件，无需改动 XState。
+| 公共规则 | 当前模型的语义 |
+| --- | --- |
+| STOP | 根级 `[valid] → stopping` 保存取消意图；`stopping`、`ended` 的局部 STOP 为空处理。只有无在途及未知操作才经 `stoppedSettled` 结束 |
+| USER_INPUT / HUMAN_DECISION | 先保存输入，安全边界才应用；根级 `always` 按 `analysisReady → inputsReady` 顺序处理；复杂输入优先解析 |
+| CLAIM / WORK_FAILED | 优先检查当前状态的分支，未命中才回退根级讨论或取消分支；已提交意图才可执行，失败按重试、未知结果或等待用户分支处理 |
+| EXHAUSTED | `[valid] → ended`，保留真实结果与已用预算，不承诺额度外的汇总或重试 |
+| RECOVER | 配置、成员、权限、模型、版本和未决物理操作均须核对；安全恢复保留当前阶段，否则转 `waitingHuman`；`ended` 使用其局部恢复规则 |
+| LOCAL_RESULT / LOCAL_RECONCILE | 仅可信且已结算的当前结果可按父工作种类恢复阶段；旧目标和停止任务只结算旧操作 |
+| RETRY_ASSISTANCE | 先尝试消费已保存有效结果，否则创建关联旧尝试的新记录；分支目标由评审队列和真实守卫决定，不重置预算 |
+| 无效、重复或迟到事件 | 按权限、身份、fence、期限及回执守卫拒绝或只结算自身，不推进新目标；局部无条件处理会遮蔽同名根事件 |
 
-消息正文在各布局下的 14px 基础字号（BT_U15）沿用相同网页状态。环境重载（BT_W11–BT_W14）位于已领取、已计费的网页工具请求内：每次调用前重读 `.env` 并固定本次配置，文件失败沿用 WORK_FAILED，停止和恢复沿用现有转移；不新增 XState 状态或调度入口。
+每个持久化任务由 `TeamEngine` 以纯转换和事务推进，`WorkRunner` 领取后才执行外部 I/O。评审、讨论、协助、输入和本地子操作保存在 context 中，仍由任务机器统一拥有；图的拆分不表示它们已经成为独立 actor。
 
-模型消息风格（BT_M07–BT_M09）在已领取的 owner / assistance / facilitator / check 请求中统一注入系统提示词，工具后的模型请求继续携带相同约定。默认使用用户的语言、简洁自然段落，先说结论；短回复直接进入正文，减少装饰性标题、加粗和重复总结。真正的步骤、并列项、对比或代码按需使用相应格式，用户明确要求的排版优先；保留必要的证据、来源链接和技术细节。约定仅影响 JSON 中的可读文本，不修改结构化动作、工具参数或 Markdown 渲染，沿用现有领取、预算、校验及事件回传，无需改动 XState。写法参考 [Claude 提示词指南](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#control-the-format-of-responses)：正向描述所需风格，并让风格提示本身使用自然段落。
+| 关心的问题 | 详细模型与验收范围 |
+| --- | --- |
+| 输入、协助、评审、后台讨论、交付 | [任务上下文](docs/state-diagrams.md#任务拥有的上下文生命周期)：BT_I、BT_H、BT_G01–G14、BT_T、BT_A01–A11 |
+| 意图领取、工具、格式修正、本地操作与宿主 | [执行与适配器](docs/state-diagrams.md#执行与适配器边界)：BT_M、BT_W、BT_L |
+| 群历史、可信路由、归档 | [房间与命令](docs/state-diagrams.md#房间与可信命令)：BT_R、BT_G15–G22；归档不打断在途任务 |
+| 草稿、详情、导出、布局、调试与 Inspector | [网页与观察](docs/state-diagrams.md#网页与观察)：BT_U、BT_P、BT_A12–A21、BT_V；UI 仅读取快照或提交可信命令 |
 
-界面精简（BT_U17–BT_U19）沿用[网页交互](docs/state-diagrams.md#网页交互)的连接、消息与详情状态，通过群聊导航、成员列表、作者入口和输入区表达用途。去除重复工作区标签、宣传文案、职责副标题及空状态说明，消息作者与头像保留过程入口；连接异常、发送错误、等待回复、重试原因和预算仍按状态显示。仅调整 React 展示与间距，不改变命令、权限、外部调用或 XState 转移。
+调试默认关闭；`npm run dev` 默认开启，或使用 `SQUAD_DEBUG=1 npm start`。宿主允许后从顶栏或 `?debug=1` 打开，本地运行视图和沙箱复用真实机器，不能向真实任务写入任意事件。官方 Inspector 在独立标签页打开，需要的托管认证仍在 Stately 完成；详见[观察通道](docs/state-diagrams.md#官方-inspector-观察通道)及[验收记录](docs/inspector-verification.md)。
+
+浏览器验收先 `npm run build`，再 `npm run test:debug-browser`；可用 `SQUAD_PLAYWRIGHT_MODULE`、`SQUAD_CHROMIUM` 指定依赖，`SQUAD_VERIFY_INSPECTOR=1` 加验官方协议。脚本使用独立数据库和模型 HTTP 夹具，完整退出且报告为 verified、清理项全为 true 才算通过；登录后的托管绘图单独报告。静态字号、颜色与几何约定见[样式规范](docs/ui-style.md)，不列为业务状态。
 
 ## 接入接口
 
 默认向负责人、协助成员和后台促进者提供 `find skills` 技能搜索，配置入口为 `team.config.ts` 的 `skillSearch.enabled`，省略时也默认开启。适配器从工作输入的 `capabilities.findSkills` 发现能力，通过 `await scope.findSkills('react testing')` 搜索，返回技能名称、来源、安装量及链接。每次搜索额外消耗一次普通额度，并沿用当前任务的轮次、停止和取消控制。搜索失败会报错，不会伪装成零结果；找到技能后是否采用由任务上下文决定。
 
 查询直接使用 Vercel Skills CLI 相同的 `https://skills.sh/api/search` 接口；当前实现提供搜索，不执行安装。内置模型适配器已通过结构化动作协议开放 `findSkills`，兼容不提供原生函数调用的服务。可在构造 `WorkRunner` 时通过第四参数注入搜索传输，供离线验证使用。
+
+搜索结果的 `source` 支持 `owner/repo` 仓库和 `skills.volces.com` 这类域名，链接固定指向 skills.sh；名称、来源或安装量畸形时仍报错，不能把失败当成空结果。[上游 CLI 的搜索实现](https://github.com/vercel-labs/skills/blob/main/src/find.ts)同样接收来源字符串并返回 skills.sh 链接。
 
 ## 默认网页工具
 

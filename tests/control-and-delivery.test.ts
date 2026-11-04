@@ -225,10 +225,16 @@ describe('configuration and driver', () => {
     expect(e.view(h.room, h.task)?.phase).toBe('waitingHuman'); expect(e.pending(h.room, h.task)).toEqual([]);
   });
   it('a persistent stop aborts the active adapter and waits for acknowledgement', async () => {
-    const h = new Harness();
-    const runner = new WorkRunner(h.engine, { execute(_work, signal) { return new Promise((_, reject) => signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true })); } }, () => 0);
-    const running = runner.runOne(h.room, h.task); h.event({ type: 'STOP' });
+    const h = new Harness(); let started!: () => void; let aborted = false;
+    const ready = new Promise<void>(resolve => { started = resolve; });
+    const runner = new WorkRunner(h.engine, { execute(_work, signal) { return new Promise((_, reject) => {
+      signal.addEventListener('abort', () => { aborted = true; reject(new Error('aborted')); }, { once: true });
+      started();
+    }); } }, () => 0);
+    const running = runner.runOne(h.room, h.task); await ready;
+    h.event({ type: 'STOP' });
     await runner.runOne(h.room, h.task); await running;
+    expect(aborted).toBe(true);
     expect(h.context().outcome).toBe('stopped');
   });
 });

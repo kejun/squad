@@ -159,11 +159,13 @@ export class SkillRegistry {
 }
 export async function safeResource(root: string, path: string): Promise<string> {
   if (!path || isAbsolute(path) || path.split(/[\\/]/).includes('..') || path.includes('\0')) throw new LocalToolError('SKILL_PATH_INVALID');
+  root = await realpath(root);
   const actual = await realpath(resolve(root, path));
   if (!within(root, actual)) throw new LocalToolError('SKILL_PATH_ESCAPE');
   return actual;
 }
 async function packageManifest(root: string, options: typeof defaults, deadline: number): Promise<PackageFile[]> {
+  root = await realpath(root);
   const files: PackageFile[] = []; let bytes = 0, visitedEntries = 0; const visited = new Set<string>();
   async function walk(dir: string, prefix: string, depth: number) {
     if (depth > 16 || Date.now() > deadline) throw new LocalToolError('SKILL_PACKAGE_LIMIT');

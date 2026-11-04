@@ -18,17 +18,17 @@
 
 | 功能文件 | 参数 | 自动化代表路径 | 仍需另验的扩展 |
 | --- | --- | --- | --- |
-| [群聊与点名](rooms-routing.md) | `rooms` | 建群按钮/快捷键、默认负责人、菜单/键盘补全、切群、离线、重启保存 | 草稿、Shift+Enter、引用不调度、断网补发/去重 |
+| [群聊与点名](rooms-routing.md) | `rooms` | 建群、点名、切群、离线重启、归档恢复、归档草稿、手机恢复、在途归档续办 | Shift+Enter、引用不调度、断网补发/去重 |
 | [报告与详情](reports-details.md) | `reports` | 报告入口、复制、下载、返回详情、成员产物页、检查输出修复 | 消息/任务入口、其他详情类型导出、错误反馈 |
 | [停止与继续](human-control.md) | `control` | 在途停止、HTTP 取消、明确继续同一任务 | 执行中补充、等待回复、迟到结果、崩溃恢复 |
 | [协助与评审](assistance-review.md) | `assistance` | 按钮/文字重试、B 交回 A、四成员评审 | 歧义/版本拒绝、额度耗尽、队列重启 |
-| [面板布局](layout.md) | `layout` | 左右拖动、Home、折叠恢复、14px 正文、手机导航 | Escape、其他键盘操作、详情叠层、保存宽度值 |
+| [面板布局](layout.md) | `layout` | 左右拖动、Home、折叠恢复、16px正文与#273142默认文字色、手机导航 | Escape、其他键盘操作、详情叠层、保存宽度值 |
 
 ## Source coverage
 
 | 功能组 | 主要源码 | 规格参考（不宣称全部通过） |
 | --- | --- | --- |
-| rooms | `web/src/App.tsx`、`web/src/api.ts`、`src/web/http.ts`、`src/web/service.ts`、`src/store.ts` | `01_routing.feature`、`08_interface_and_configuration.feature`，BT_U01/BT_U09 |
+| rooms | `web/src/App.tsx`、`web/src/api.ts`、`room-list.ts`、`src/web/http.ts`、`src/web/service.ts`、`src/store.ts`、`src/room.machine.ts` | `01_routing.feature`、`08_interface_and_configuration.feature`、`25_room_archive.feature`，BT_U01/BT_U09、BT_G15–BT_G22 |
 | reports | `src/presentation.ts`、`src/model-adapter.ts`、`src/runner.ts`、`web/src/ResultLinks.tsx`、`Details.tsx`、`DetailActions.tsx`、`detail-document.ts` | `17_result_artifacts.feature`、`19_detail_exports.feature`、`20_model_regeneration.feature` |
 | control | `src/engine.ts`、`src/task.machine.ts`、`src/runner.ts`、`web/src/App.tsx` | `05_human_control.feature` |
 | assistance | `src/assistance-retry.ts`、`src/conversation.ts`、`src/task.machine.ts`、`web/src/AssistanceRetry.tsx` | `10_conversation_review.feature`、`13_assistance_retry.feature`，BT_H11/BT_U16 |

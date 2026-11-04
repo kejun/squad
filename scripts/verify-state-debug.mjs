@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { startFixture } from '../.agents/skills/verify-squad/scripts/model-fixture.mjs';
 import { inspectInstance } from '../.agents/skills/verify-squad/scripts/doctor.mjs';
+import { verifyInspector } from './verify-inspector.mjs';
 
 // Real production entry, HTTP, SQLite and React. Only the model-provider HTTP
 // boundary uses the existing synthetic fixture; browser API calls are never faked.
@@ -80,13 +81,15 @@ try {
   context = await browser.newContext({ viewport: { width: 1366, height: 900 } });
   await context.route('**/*', route => {
     if (new URL(route.request().url()).hostname === '127.0.0.1') return route.continue();
+    // Hosted Inspector uses its real network dependencies in an anonymous, synthetic-data context.
+    if (process.env.SQUAD_VERIFY_INSPECTOR === '1') return route.continue();
     // Offline font fallback is measured below; no external application/data session.
     return route.abort();
   });
   await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   page = await context.newPage(); page.setDefaultTimeout(12000);
   page.on('pageerror', error => errors.push(error.message));
-  page.on('request', request => { if (request.method() === 'POST') { posts.push(request.url()); log('browser-post', { url: request.url(), body: request.postData() }); } });
+  page.on('request', request => { if (request.method() === 'POST' && new URL(request.url()).origin === url) { posts.push(request.url()); log('browser-post', { url: request.url(), body: request.postData() }); } });
   await page.goto(url);
   await page.getByRole('button', { name: '新建群聊', exact: false }).first().click();
   await page.getByRole('textbox', { name: '群聊消息输入框' }).fill('VERIFY_ROOMS 状态机调试验收');
@@ -155,12 +158,13 @@ try {
   const node = await cdp.send('DOM.querySelector', { nodeId: document.root.nodeId, selector: '.debug-header h2' });
   const fonts = await cdp.send('CSS.getPlatformFontsForNode', { nodeId: node.nodeId });
   writeFileSync(join(evidence, 'chinese-fonts.json'), JSON.stringify(fonts, null, 2));
-  assert(fonts.fonts.some(font => font.glyphCount > 0 && /Noto.*CJK|Noto.*SC|WenQuanYi|PingFang/i.test(font.familyName)), 'Chinese glyphs need an actual CJK font');
+  assert(fonts.fonts.some(font => font.glyphCount > 0 && /Noto.*CJK|Noto.*SC|WenQuanYi|PingFang/i.test(font.familyName + ' ' + font.postScriptName)), 'Chinese glyphs need an actual CJK font');
   await cdp.detach();
   await dialog.getByRole('button', { name: '当前运行', exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 }); await capture('mobile-run');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   assert.equal(overflow, false);
+  if (process.env.SQUAD_VERIFY_INSPECTOR === '1') await verifyInspector({ page, context, dialog, evidence, capture, until, run });
   assert.equal(readRoom(), committed); assert.equal(posts.length, beforePosts);
   run.checks.push('sandbox makes no business writes and SQLite stays unchanged');
   run.doctorAfter = await inspectInstance(instance);
@@ -171,5 +175,5 @@ try {
 } finally {
   try { await stop(); } catch (error) { run.cleanup.error = error.message; process.exitCode = 1; run.status = 'failed'; }
   writeFileSync(join(evidence, 'run.json'), JSON.stringify(run, null, 2));
-  console.log(JSON.stringify({ status: run.status, source: run.source, evidence, checks: run.checks, cleanup: run.cleanup }, null, 2));
+  console.log(JSON.stringify({ status: run.status, source: run.source, evidence, checks: run.checks, ...(run.hostedGraph ? { hostedGraph: run.hostedGraph } : {}), cleanup: run.cleanup }, null, 2));
 }

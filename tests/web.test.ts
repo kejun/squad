@@ -224,7 +224,7 @@ describe("Web host and HTTP boundary", () => {
           assistanceCalls++;
           return { type: "answer", text: "已核查来源。" };
         }
-        if (!work.payload.answer && !work.payload.inputs?.length)
+        if (!work.payload.answer && (!Array.isArray(work.payload.inputs) || work.payload.inputs.length === 0))
           return {
             type: "help",
             requestId: "help-1",

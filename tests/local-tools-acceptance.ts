@@ -9,9 +9,9 @@ import { MemoryStore, SqliteStore } from '../src/store.js';
 import { WorkRunner } from '../src/runner.js';
 import { WebService } from '../src/web/service.js';
 import { OpenAICompatibleAdapter } from '../src/model-adapter.js';
-import { minimalCliEnvironment, sandboxPolicy, SandboxCliBackend } from '../src/local-cli.js';
+import { minimalCliEnvironment, sandboxPolicy } from '../src/local-cli.js';
 import { LocalModel, localModelInput } from './local-model-fixture.js';
-import { LocalFixture, assertFlow, localConfig, removeFixture, writeSkill } from './local-tools-fixture.js';
+import { LocalFixture, assertFlow, localConfig, removeFixture, writeSkill, unavailableNativeSandbox } from './local-tools-fixture.js';
 import { configuration, Harness } from './helpers.js';
 import { modelResponse } from './model-regeneration-fixture.js';
 import type { LocalAction, LocalOperation } from '../src/local-operation.js';
@@ -118,7 +118,9 @@ export async function isolationAcceptance() {
   }
 }
 export async function cliFailureAcceptance(fault: string, expected: string) {
-  const f = await LocalFixture.create(); f.backend.before = undefined;
+  const f = await LocalFixture.create('方案师', false, false, fault === '沙箱不可用'
+    ? { backend: { available: false, execute: async () => { assert.fail('unavailable backend must not execute'); } } } : {});
+  f.backend.before = undefined;
   try {
     const actions: Record<string, LocalAction> = {
       命令缺失: { type: 'runCli', executable: 'squad-no-such-cli', args: [] },
@@ -128,7 +130,6 @@ export async function cliFailureAcceptance(fault: string, expected: string) {
       大量输出: { type: 'runCli', executable: 'node', args: ['-e', "process.stdout.write(String.fromCharCode(0).repeat(200000));process.stderr.write(String.fromCharCode(1).repeat(200000))"] },
       沙箱不可用: { type: 'runCli', executable: 'node', args: ['-e', "require('fs').writeFileSync('must-not-run','x')"] },
     };
-    if (fault === '沙箱不可用') Object.defineProperty(f.runtime, 'backend', { value: { available: false, execute: async () => { throw new Error('must not execute'); } } });
     const work = f.h.claim(); const action = actions[fault]!;
     const requested = f.h.engine.requestLocal(f.h.room, f.h.task, work.id, work.attempt, action, [], f.runtime.workspaceId(work));
     const claimed = f.h.engine.claimLocal(f.h.room, f.h.task, work.id, requested.id, work.attempt).operation!;
@@ -162,7 +163,13 @@ export async function crashAcceptance(window: string) {
       if (window === '回执后模型前') assert(f.h.event({ type: 'LOCAL_RESULT', intentId: work.id, operationId: op!.id, sessionId: op!.sessionId!, ...completion }).ok);
     }
     currentStore.close(); currentStore = new SqliteStore(join(f.root, 'team.sqlite')); f.h.engine = new TeamEngine(currentStore, f.h.config, () => f.h.now); f.h.engine.recover(f.h.room);
-    const uncertain = f.h.context().intents.find(w => w.id === work.id)!.localOperations?.find(o => o.status === 'uncertain');
+    const recovered = f.h.context().intents.find(w => w.id === work.id)!;
+    const uncertain = recovered.localOperations?.find(o => o.status === 'uncertain');
+    // Read the recovery decision from saved state, independently of the scenario's expected policy.
+    const policy = uncertain ? '核对不确定操作'
+      : recovered.localOperations?.some(o => o.status === 'queued') ? '领取原操作'
+      : recovered.localOperations?.some(o => o.status === 'succeeded') && recovered.localCheckpoint?.messages.some(m => m.content.includes('durable-receipt')) ? '使用原回执'
+      : !recovered.localOperations?.length ? '重新请求' : '无法识别的恢复状态';
     if (uncertain) {
       const receipt = await f.runtime.reconcile(uncertain); assert(receipt);
       assert(f.h.event({ type: 'LOCAL_RECONCILE', intentId: work.id, operationId: uncertain.id, sessionId: uncertain.sessionId!, ...receipt }).ok);
@@ -173,6 +180,7 @@ export async function crashAcceptance(window: string) {
     assert.equal(f.backend.calls.length, 1); assert.equal(await readFile(join(f.source, 'once.txt'), 'utf8'), 'x');
     assert.equal(f.h.context().intents.find(w => w.id === work.id)!.localOperations?.length, 1);
     assert(f.requests.at(-1)!.messages.some(m => m.content.includes('durable-receipt')));
+    return { policy };
   } finally {
     currentStore.close(); await f.runtime.close(); await removeFixture(f.root);
   }
@@ -218,11 +226,11 @@ export async function policyAcceptance() {
   const policy = sandboxPolicy({ workspace: '/task', skillPath: '/snapshot' }); assert(policy.filesystem.denyRead.includes('/')); assert(policy.filesystem.denyRead.some(p => typeof p !== 'string' && p.path === process.cwd()));
   assert.deepEqual(policy.network.allowedDomains, []); assert.deepEqual(policy.network.deniedDomains, ['*']);
   const env = minimalCliEnvironment('/task'); assert.equal(env.OPENAI_API_KEY, undefined); assert.equal(env.HOME, '/task/.home');
-  const backend = await SandboxCliBackend.create(); try {
-    if (!backend.available) {
+  const backend = await unavailableNativeSandbox(); try {
+      assert.equal(backend.available, false);
       const result = await backend.execute({ executable: '/bin/echo', args: ['must-not-run'], cwd: '/task', workspace: '/task', env, timeoutMs: 100, sessionId: 'unavailable', logPath: '/unused' }, new AbortController().signal, async () => { assert.fail('must not spawn'); });
       assert.equal(result.result.code, 'CLI_SANDBOX_UNAVAILABLE');
-    }
+      assert.equal(result.settled, true); assert.equal(result.effectsKnown, true);
   } finally { await backend.close(); }
 }
 

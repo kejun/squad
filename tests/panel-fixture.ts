@@ -90,6 +90,7 @@ export class PanelFixture {
       },
       createRoom: async () => { this.requests.push('createRoom'); return first.id; },
       refreshRooms: async () => this.workspace.rooms,
+      setRoomArchived: async () => { throw new Error('Unexpected archive action in panel fixture'); },
     };
   }
 

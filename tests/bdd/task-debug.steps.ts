@@ -39,7 +39,7 @@ When('请求调试能力和任务快照', async function (this: SpecWorld) {
 Then('能力应为关闭且快照接口返回404', function (this: SpecWorld) { assert.equal(state(this).result, '404'); });
 Then('普通网页不应出现状态机调试入口', function () {
   const workspace = { rooms: [], roomId: null, snapshot: null, connected: true, error: '', setError: () => {}, chooseRoom: () => {},
-    createRoom: async () => '', refreshRooms: async () => [] };
+    createRoom: async () => '', setRoomArchived: async () => { throw new Error('Unexpected archive action'); }, refreshRooms: async () => [] };
   assert(!renderToStaticMarkup(createElement(Workspace, { workspace })).includes('打开状态机调试'));
 });
 Given('浏览器加载当前任务状态机', function (this: SpecWorld) { state(this); });

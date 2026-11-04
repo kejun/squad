@@ -49,12 +49,17 @@ export class LocalRuntime {
   }
   private async acquireLock() {
     const path = join(this.options.dataRoot, 'service.lock');
+    // Probe before creating the file: unsupported/failed native probes cannot leave an empty lock.
+    const identity = await processIdentity(process.pid);
     for (let attempt = 0; attempt < 2; attempt++) {
+      let created = false;
       try {
         const handle = await open(path, 'wx', 0o600);
-        try { await handle.writeFile(JSON.stringify({ token: this.lockToken, identity: await processIdentity(process.pid) })); await handle.sync(); } finally { await handle.close(); }
+        created = true;
+        try { await handle.writeFile(JSON.stringify({ token: this.lockToken, identity })); await handle.sync(); } finally { await handle.close(); }
         this.lockPath = path; return;
       } catch (error) {
+        if (created) { await rm(path).catch(() => {}); throw error; }
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
         let old: { identity?: Awaited<ReturnType<typeof processIdentity>> };
         try { old = JSON.parse(await readFile(path, 'utf8')) as typeof old; } catch { throw new LocalToolError('LOCAL_RUNTIME_LOCK_UNCERTAIN'); }

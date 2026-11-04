@@ -32,7 +32,7 @@ function prepare(world: SpecWorld, mode: string) {
   const workspace: ReturnType<typeof useWorkspace> = {
     rooms: [room], roomId: room.id, snapshot, connected: mode !== '离线' && mode !== '成员离线',
     error: mode === '发送失败' ? '发送失败，请稍后重试。' : '',
-    setError() {}, chooseRoom() {}, createRoom: async () => room.id, refreshRooms: async () => [room],
+    setError() {}, chooseRoom() {}, createRoom: async () => room.id, setRoomArchived: async () => { throw new Error('Unexpected archive action'); }, refreshRooms: async () => [room],
   };
   const value = { mode, workspace, snapshot, html: '' }; views.set(world, value); return value;
 }
@@ -93,15 +93,14 @@ Given('群聊中已有成员的交付消息', function (this: SpecWorld) {
   s.snapshot.messages.push({ id: 'M2', taskId: 'task1', kind: 'final', author: 'A', text: '已完成恢复方案。', at: 1 });
   s.snapshot.tasks[0]!.phase = 'ended'; s.snapshot.tasks[0]!.outcome = 'complete'; s.snapshot.activeTaskId = null;
 });
-Then('作者和头像应保留可访问的执行过程入口及作者处的展开图标', function (this: SpecWorld) {
+Then('作者和头像应保留可访问的执行过程入口', function (this: SpecWorld) {
   const html = view(this).html;
   for (const name of ['author-button', 'message-avatar-button']) {
     assert.match(button(html, name), /aria-label="查看方案师的执行过程"/);
   }
   assert.match(button(html, 'author-button'), /方案师/);
-  assert.match(button(html, 'author-button'), /<svg[^>]*lucide-chevron-right/);
 });
-Then('消息应保留正文和交付标记并移除重复的 AGENT 标签与底部过程按钮', function (this: SpecWorld) {
+Then('消息应保留正文和交付标记且不重复展示身份与过程入口', function (this: SpecWorld) {
   const html = view(this).html;
   assert(html.includes('已完成恢复方案。'));
   assert.match(html, /class="delivery-label"[^>]*>[\s\S]*?交付/);

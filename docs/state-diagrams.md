@@ -1,76 +1,77 @@
-# 细化状态图
+# 分层状态图
 
-本文件与 README 的「状态模型」共同描述当前功能。顶层任务状态由 `src/task.machine.ts` 管理；下图分别标明上下文状态、操作状态和界面状态，不能将后两者误认为新增的 XState 顶层状态。
+设计依据见 [XState 八条原则](xstate-design.md)，真实任务主阶段见 [README](../README.md#状态模型)。任务阶段与执行子 actor 的组合见[多 actor 设计](task-actors.md)，外部执行继续遵守持久意图、领取和启动许可边界。
 
-## 工作期间的后台讨论
+任务阶段、预算和结果交接由根 actor 拥有；每次执行尝试的启动、取消和结算由子 actor 拥有。BT_N06–BT_N15 对应[真实 actor 树与执行状态图](task-actors.md)，在一个存储事务内保存父子快照。此前 BT_N01–BT_N05 的[模块拆分](task-machine-refactor.md#模型组合图)保留为历史记录，既有业务约束继续有效。
 
-对应 BT_T01–BT_T17。沿用任务顶层状态，在 src/task.machine.ts 增加持久化 discussion 上下文和带 discussionId 的操作；主工作与讨论分别推进，讨论不能变更负责人或主目标。需求依据和替代方案见 [评估](background-discussion.md)。
+| 层次 | 状态所有者与事实来源 | 读图方式 |
+| --- | --- | --- |
+| 真实 XState | `taskMachine`、`executionMachine`、`roomMachine`、两个 Inspector 模型 | 与源码节点、守卫和事件对应；业务 ended 不等于 final |
+| 任务上下文 | `src/types.ts` 的枚举、`src/task.machine.ts` 的纯更新 | 是主任务拥有的持久化子生命周期，不是已启动的 actor |
+| 执行与适配器 | `TeamEngine` / `WorkRunner` / 适配器与宿主 | 意图状态单独画；校验、HTTP、存储步骤使用 flowchart |
+| 网页与观察 | React 状态、派生条件、本地纯布局和观察模型 | 明确 UI 投影与真实模型，布局和视觉约定分开 |
 
-```mermaid
-stateDiagram-v2
-    [*] --> planning: 直接用户邀请且有空闲成员和预留预算 / 保存轮次和协调员意图
-    [*] --> delivered: 无空闲成员或预算不足 / 明确说明原因，无模型请求
-    planning --> collecting: DISCUSSION_PLAN校验通过 / 保存受授权成员意图
-    collecting --> collecting: DISCUSSION_RESULT / 原子保存意见和成员状态
-    collecting --> summarizing: 全部成员结算 / 保存协调员汇总意图
-    summarizing --> ready: DISCUSSION_RESULT / 保存汇总和完整来源
-    planning --> ready: 安排失败或超时 / 保存失败交接
-    summarizing --> ready: 汇总失败或超时 / 保存原意见清单与失败说明
-    ready --> ready: 主请求仍在途或等待用户 / 不重开负责人
-    ready --> delivered: 主工作安全边界 / 原负责人收到草稿、汇总及全部意见
-    planning --> planning: 重复直接邀请 / 说明复用当前轮次
-    collecting --> collecting: 重复直接邀请 / 不重复派发
-    planning --> cancelled: STOP或目标版本改变
-    collecting --> cancelled: STOP或目标版本改变
-    summarizing --> cancelled: STOP或目标版本改变
-    ready --> cancelled: STOP或目标版本改变
-```
+箭头按 `事件 [守卫] / 纯更新或保存意图` 阅读。同一事件的分支以源码顺序为准；真实机器的无 target 更新会标明“无target”，图上的回环不代表重新进入。流程节点不承诺可持久化或恢复。
 
-每次外部请求都先保存意图，再经 CLAIM 检查轮次、epoch、goalVersion、期限、成员互斥和预算，之后 CONSUME 才调用适配器。成员复用 assistance 协议但不进入主流程单一 assists 等待关系；协调员安排复用 facilitator 协议，汇总使用 discussionSummary 的只读 answer 协议。结果携带已领取 workId 与 discussionId，保存原文、报告、状态和下一步意图同事务提交，重复或旧结果拒绝。讨论无权重新邀请、修改目标、发起嵌套协助或提前发布最终交付。
+- [任务拥有的上下文生命周期](#任务拥有的上下文生命周期)：输入、协助、评审、讨论、交付。
+- [执行与适配器边界](#执行与适配器边界)：持久意图、本地操作、模型修正、网页工具和宿主。
+- [房间与可信命令](#房间与可信命令)：路由、历史与归档。
+- [网页与观察](#网页与观察)：群聊、导出、面板、调试和 Inspector。
+- [验证模型与文档](#验证模型与文档)：模型回归、文档核对与验收报告边界。
 
-主流程 running 的 DELIVER 在讨论尚未交接时只保存候选草稿，不进入 checking；其他需要负责人接续的结果也等待讨论。ready 且无主请求、无未结算主协助和待解析输入时交接一次，恢复原 running 工作，最后沿用 checking。等待用户不会被后台结果擅自解除。讨论失败和跳过原因进入交接，最终交付如实标为部分完成。
+## 事务与外部执行的共同边界
 
-主请求在讨论期间报告 BLOCKED 或达到重复失败阈值时，保持 running 并保存阻塞原因和延后协调标记，等待正在收集的新依据；不另发可能提前结束任务的监督请求。讨论交接清除延后协调标记，将原阻塞与意见一起交给负责人。
-
-取消、结束与硬约束变化覆盖全部操作，普通主工作切换只取消主操作。重启重新校验成员、权限、版本和模型绑定，仅恢复未完成安全意图；已提交意见不重放。网页执行器按具体工作启动有界异步请求，不再按整个群阻塞；调度资格始终来自状态机和事务领取，宿主不自行选择成员或修改讨论状态。
-
-宿主中的在途工作以群 ID 与工作 ID 共同标识，避免不同群的相同输入编号互相阻塞。没有成功领取或消费结果时让出执行，等待已有请求结算、下一条命令或定时检查，不递归空转领取。宿主或存储故障暂停该群本进程中的后续派发，沿用 waitingHuman 与存储故障保护；这些是执行器互斥与生命周期规则，不新增业务 XState 状态。
-
-讨论结果的拒绝边界对应 BT_V14：缺少 fence、错误讨论轮次、过期版本或将讨论结果关联到主工作时，只保存拒绝记录，不能结算当前有效在途工作。只有工作 ID、讨论轮次和工作自身版本边界完整匹配的真实完成事件，才可结算该工作；当前轮次内的协议错误按原失败分支结算，旧轮次的有效迟到完成只结算自身并留存历史。
+**图型：处理流程；所有者：`TeamEngine` / 持久存储 / `WorkRunner`。**
 
 ```mermaid
-stateDiagram-v2
-    inflight --> inflight: 结果缺少版本边界或身份不匹配 / 拒绝并保留有效工作
-    inflight --> consumed: 有效身份与结果 / 保存意见及推进讨论
-    inflight --> failed: 当前工作身份有效但协议错误 / 保存失败并结算
-    inflight --> retired: 旧工作身份有效且结果迟到 / 只结算自身，不能推进新轮次
+flowchart LR
+    U["可信用户命令或已校验执行结果"] --> E["事务内纯状态转换"]
+    E --> P["原子保存状态、意图与回执"]
+    P -->|提交成功| C["WorkRunner 领取已保存意图"]
+    P -->|提交失败| F["回滚且阻止后续派发"]
+    C --> A{"CLAIM及请求授权通过并提交"}
+    A -->|是| I["适配器执行模型或工具 I/O"]
+    A -->|否| N["不发 I/O，保留拒绝或结算结果"]
+    I --> V["校验身份、版本、期限及结果协议"]
+    V --> E
 ```
 
-## 输入意图解析
+| 横切边界 | 各图共同遵守的契约 |
+| --- | --- |
+| 预算与权限 | 首次 CLAIM 预占所属 bucket，额外请求先 CONSUME；评审/讨论及续办保留额度同样校验；拒绝后不得发 I/O |
+| 停止 | 先保存取消意图，再由执行器传递 AbortSignal/取消；发出取消与实际结算分开，物理操作未知时保留锁与 uncertain |
+| 失败与重试 | 有限重试共享原预算和期限规则；协议修正不放宽输出校验，存储失败后停止派发 |
+| 身份与迟到 | 事件绑定工作、attempt/session、epoch/goalVersion及适用的讨论/评审 ID；旧结果只可结算自己的旧操作 |
+| 重复与交接 | 命令回执、结果消费和后继意图在事务内去重；临时拒绝不把未消费结果永久封死 |
+| 重启恢复 | 先校验配置、成员、权限、模型绑定和物理会话；已结算不重放，安全未完成操作可再领取，未知写入先核对 |
+| 观察与 UI | 只观察提交后的状态；日志、历史、引用、工具输出和 Bot 发言不获得调度权限 |
+
+## 任务拥有的上下文生命周期
+
+### 输入意图解析
 
 对应 BT_I01–BT_I21。保留原执行内核，以 [Zod 运行时契约](https://zod.dev/basics)校验规则与模型结果；按 [XState 持久化](https://stately.ai/docs/persistence)的快照边界保存解析工作。结构化生成仍需宿主校验，参考 [AI SDK 结构化数据说明](https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data)，不引入该 SDK。项目继续固定 XState 5，不升级执行框架。
 
+**图型：上下文生命周期；所有者：`taskMachine / InputAnalysis.status`。**
+
 ```mermaid
 stateDiagram-v2
-    [*] --> received: 直接用户输入 / 原文和回执同事务保存
-    received --> resolved: 明确命令或简单请求 / 规则规范化
-    received --> pending: 复杂要求或指代 / 保存解析记录
-    pending --> interpreting: 无在途工作及未消费协助 / 保存解析操作
-    interpreting --> inflight: CLAIM及CONSUME通过 / 复用模型传输
-    inflight --> resolved: Schema和引用校验通过 / 原子保存结果
-    inflight --> clarification: 信息不足或置信度低 / 保存具体问题
-    clarification --> pending: 用户补充或明确继续
-    inflight --> pending: 可重试故障 / 共享有限重试
-    inflight --> failed: 格式修正耗尽或永久故障 / 等待用户
-    inflight --> failed: 自定义执行器绕过协议校验 / 状态机拒绝并保存原因
-    failed --> pending: 明确继续 / 重查预算配置与版本
-    resolved --> executing: 无其他待解析输入 / 原状态机规划与执行
-    resolved --> pending: 解析期间收到新输入 / 先完成后续解析
-    pending --> cancelled: STOP或目标版本更新
-    inflight --> cancelled: STOP或版本过期 / 取消并归档迟到结果
+    [*] --> pending: recordInput [source为model] / 保存原文与版本
+    [*] --> resolved: recordInput [source为rule] / 保存规则解析
+    pending --> inflight: CLAIM [claimInterpretation] / 预占ordinary
+    inflight --> resolved: INTERPRETATION_RESULT [valid且无clarification] / 保存spec
+    inflight --> clarification: INTERPRETATION_RESULT [interpretationClarifies] / 保存问题
+    inflight --> pending: WORK_FAILED [retryable] / 保留已用预算
+    inflight --> pending: RECOVER [安全重放] / 等待重新领取
+    inflight --> failed: WORK_FAILED [不可重试] / 保存错误
+    clarification --> pending: CONTINUE [valid且为当前目标] / 新epoch重试
+    failed --> pending: CONTINUE [valid且为当前目标] / 新epoch重试
+    cancelled --> pending: CONTINUE [仍需解析且非被替代输入] / 重新核对
 ```
 
-新增 interpreting 顶层状态、interpretation 操作种类、INTERPRETATION_RESULT 事件和可选 inputAnalyses 上下文。旧快照缺少该字段视为空，不强制迁移。每条记录保留输入 ID、原文、可信动作、来源、状态、epoch、goalVersion、解析结果与工作 ID；工作沿用 pending/inflight/done/cancelled、deadline、模型绑定、requestCount 和既有回执。所有模型 I/O 均在已提交并领取的操作上发起，解析禁用技能与网页工具，不获得新的调度权限。
+STOP 或目标变化把未完成解析记录置 `cancelled`；新输入有自己的记录，不把旧已解析记录重置。resolved 后的规划与执行是任务阶段和意图变化，不是 `InputAnalysis.status` 的额外枚举值。
+
+当前有 interpreting 顶层状态、interpretation 操作种类、INTERPRETATION_RESULT 事件和可选 inputAnalyses 上下文。旧快照缺少该字段视为空，不强制迁移。每条记录保留输入 ID、原文、可信动作、来源、状态、epoch、goalVersion、解析结果与工作 ID；工作沿用 pending/inflight/done/cancelled、deadline、模型绑定、requestCount 和既有回执。所有模型 I/O 均在已提交并领取的操作上发起，解析禁用技能与网页工具，不获得新的调度权限。
 
 规则只匹配直接输入的完整停止、继续和重试命令，点名只接受配置中的成员。引用、代码、否定句、历史和 Bot 内容不触发控制命令。模型仅解释 request/supplement/decision/review 中已由可信入口确定的动作，不能返回 stop/continue/retry、修改负责人或扩大直接用户指定的评审范围。Zod 契约严格拒绝额外字段；动作须与解析输入一致；每个引用须同时匹配实际提供的类型、ID 和 taskId。低置信度必须带澄清问题。原始 Goal、显式约束及完整消息始终独立保留，不能被模型摘要替换。
 
@@ -82,146 +83,44 @@ stateDiagram-v2
 
 网页等待用户时自动附加的 decision 分类不能盖过完整的直接停止或继续命令；显式 new、retry 等专用入口仍保留原语义。即使补充走规则路径，CHECK_RESULT 也不能在存在未应用输入时发布完成，必须先回到原安全边界应用补充。
 
-## 模型输出格式修正
-
-对应 BT_M10–BT_M20。现有适配器将 JSON/角色协议错误抛为永久失败，无法自动重新生成。采用[校验反馈回路](https://docs.langchain.com/oss/javascript/langgraph/thinking-in-langgraph)：保留原任务和已取得的工具资料，指出字段校验问题后请求新结果；不把格式错误转为用户信息不足，也不放宽验证。兼容第三方服务，继续使用原响应格式配置，不强制供应商支持新的严格 schema 参数。
-
-```mermaid
-stateDiagram-v2
-    [*] --> inflight: 已持久化意图通过领取校验
-    inflight --> validating: 收到完整文本返回
-    validating --> applied: JSON与当前角色协议均有效 / 回传原有结果事件
-    validating --> repairSaved: REGENERATE_MODEL_OUTPUT / 当前工作、版本、截止、请求预算与重试额度守卫通过 / 保存安全问题代码与计数
-    repairSaved --> inflight: CONSUME另扣请求额度 / 带原上下文和修正要求调用同一模型
-    validating --> waitingHuman: 修正额度不足或不可恢复故障 / 原有失败处理
-    repairSaved --> stopped: 停止、版本改变、超时或存储失败 / 不发出新请求
-    repairSaved --> inflight: 重启恢复 / 保留已用次数与问题代码，再次领取校验
-```
-
-保留 running、waitingAssistance、coordinating、checking 等既有业务顶层状态；新增 REGENERATE_MODEL_OUTPUT 事件及操作上下文 outputRepair。状态机只保存修正次数与受控校验代码，使用现有 usage.retries/config.limits.retries，不新增独立预算。后续模型请求仍通过 CONSUME，扣所属 ordinary 或 checks 额度；修正不重置本次工作截止时间，也不重新执行已完成的工具。停止、旧轮次/目标版本、非在途或非模型工作、额度耗尽时拒绝。重复事件回执不重复计数；重启保留修正信息，不绕过恢复和模型绑定校验。
-
-错误 type、passed 类型、gaps 缺失/null/非字符串数组、无效 JSON、其他角色协议及已获准工具的参数格式错误触发重新生成；不自动将字符串转换为布尔、不补空数组、不发布无效返回中的产物或动作。反馈仅包含宿主生成的问题代码和允许的协议，不回显原始错误返回或凭据。合法 passed:false 按普通检查不通过推进。工具权限拒绝、HTTP 鉴权/网络故障、响应截断和供应商响应损坏沿用原处理，不走格式回路。网页执行器透传授权钩子并记录格式修正；群消息不因一次格式修正而发布长篇报错。存储事务失败后禁止继续请求。
-
-## 详情复制与导出
-
-对应 BT_A12–BT_A21。现有详情只提供产物下载，消息全文、依据和折叠过程缺少便捷的带走入口。采用常规的浏览器[剪贴板写入](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText)与[Blob文件下载](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a#download)，不引入导出服务或格式选择菜单。Clipboard API可能因非安全上下文或浏览器权限失败，必须等待写入确认；[对象URL](https://developer.mozilla.org/en-US/docs/Web/API/URL/revokeObjectURL_static)使用后回收。
-
-```mermaid
-stateDiagram-v2
-    [*] --> unavailable: 没有内容或指定目标已不存在
-    [*] --> ready: 解析当前详情范围并生成完整文档
-    unavailable --> ready: 有效内容加载
-    ready --> copying: 用户点击复制 / 捕获本次文档，拒绝重复点击
-    copying --> copied: 剪贴板确认且文档身份与内容仍相同
-    copying --> copyFailed: API不可用或拒绝 / 提示失败，保留导出入口
-    copying --> ready: 切换目标、页签或内容变化 / 隔离迟到回执
-    ready --> ready: 用户导出 / 创建UTF8文件并发起下载，回收临时资源
-    ready --> exportFailed: 创建下载失败 / 清理并允许重试
-    exportFailed --> ready: 重试导出成功发起
-    copied --> ready: 当前详情变化
-    copied --> ready: 提示到期
-    copyFailed --> copying: 重试复制
-    copying --> disposed: 关闭或卸载 / 丢弃回执反馈
-```
-
-复制与导出共用一个纯文档选择器，读取当前已加载快照，禁止从 DOM.innerText 截取可见摘要而遗漏折叠记录。消息详情包含原始全文、该消息关联的真实报告、该任务的依据与来源、执行事件完整内容及调度记录；不混入其他任务或未关联报告正文。任务详情带任务资料和同任务记录；成员执行过程与产物页签分别按成员筛选。缺失指定任务、消息或产物时返回不可用，禁止回退新任务；只有成员资料但暂无工作记录时仍可导出当前资料。普通详情使用 Markdown，产物预览复制原文并保留原文件格式，顶栏复用导出入口，不重复放置同一文件下载按钮；产物列表仍可单独下载各文件。建议文件名清理路径及控制字符，保留合法点文件名；浏览器仍可能调整实际下载名称。正文不截断、不改写。
-
-本次浏览器 I/O 仅由用户点击触发，不发送模型、工具或任务命令，不生成新的黑板产物，也不修改额度。读取快照期间不会执行新的业务，因此沿用现有任务 XState，无需修改 src/task.machine.ts。文档身份、复制等待、反馈和资源清理均为页面状态。导出提示只确认已发起下载，不声称文件已保存到磁盘。反馈短暂显示且至少14px，窄面板保留原关闭入口与可访问按钮。
-
-## 页面侧栏与字号
-
-对应 BT_P01–BT_P21。采用常规可调整分隔条，提供键盘和可访问尺寸；参考 [WAI Window Splitter](https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter/)。桌面拖宽右栏达到现有360px聊天区下限时自动收起左栏，以释放空间；沿用360px而不增加第二个阈值，收起时保持右栏宽度与指针位置一致。顶栏复用现有品牌 SVG。保留现有 Grid 与窄屏抽屉，只使用本地布局状态，无需额外布局依赖或业务 XState 状态。
-
-BT_P20–BT_P21：聊天与详情标题栏共用64px高度并禁止纵向压缩，所有断点保持一致。删除聊天标题栏下方的 team-bar、重复头像和人数；连接状态移入聊天标题栏，断线提示沿用原状态。查看成员仍走「导航成员 → 现有成员详情」；关闭详情、选择任务和移动抽屉的状态转换均沿用原图。这里只调整渲染与尺寸，没有新增任务事件、守卫、上下文或布局模型转换；模型层无新增可执行行为，先复验既有纯面板转换，再验收DOM与真实浏览器几何。
-
-```mermaid
-stateDiagram-v2
-    [*] --> idle: 加载有效偏好 / 存储异常回退默认
-    idle --> dragging: 按下已展开面板分隔条 / 捕获指针并保存起始偏好
-    dragging --> dragging: 指针移动 / 在可用宽度内临时调整
-    dragging --> autoCollapsed: 桌面右栏增宽且聊天区触及360px / 预览收起导航，保持指针捕获
-    autoCollapsed --> autoCollapsed: 继续或反向拖拽 / 保持收起并限幅右栏
-    autoCollapsed --> idle: 松开 / 一并保存右栏宽度和收起偏好
-    autoCollapsed --> idle: Escape、取消、失焦、关闭或窗口变化 / 恢复保存布局并清理
-    autoCollapsed --> idle: 手动展开导航 / 取消拖拽并应用展开选择，忽略迟到松手
-    autoCollapsed --> disposed: 卸载 / 释放捕获与全局样式
-    dragging --> idle: 松开 / 提交偏好并释放捕获与样式
-    dragging --> idle: Escape、取消、失焦、关闭或断点变化 / 回退临时调整并清理
-    dragging --> disposed: 卸载 / 释放捕获与全局样式
-    idle --> idle: 方向键或Home、End / 限幅并保存偏好
-    idle --> idle: 收起导航 / 顶栏首位显示品牌图形，释放桌面列并增大详情上限
-    idle --> idle: 展开导航 / 隐藏顶栏品牌图形，恢复导航宽度并临时限幅详情
-    idle --> idle: 关闭再开详情 / 恢复保存宽度
-    idle --> idle: 从导航选择成员详情 / 聊天与详情标题栏共用64px高度
-    idle --> idle: 窗口变化 / 仅计算有效宽度，不覆盖偏好
-```
-
-布局模型区分保存偏好与当前有效宽度：左侧默认252px、范围220–420px；右侧默认352px、最小300px。大于990px时详情上限为工作区可用宽度减去当前导航宽度与360px聊天区，不再固定为680px；1440px工作区中导航展开时上限828px，收起时1080px。调整时不得挤掉另一侧最小宽度；721–990px时右侧覆盖且仍以680px为上限，720px及以下左右均沿用覆盖层，最大宽度保留32px外部空间，必要时降低面板最小值以适应窗口。已保存的更宽详情在重新展开导航、缩窄窗口时只临时限幅，恢复空间或刷新后仍读取完整偏好。尺寸与模式均依据工作区实测可用宽度，模式通过页面类名传给样式；即使滚动条等导致视窗与工作区宽度不同，也不得混用两个断点依据。拖拽和键盘操作共用边界计算；右面板的左方向键增宽，右方向键缩窄。分隔条带可聚焦的 separator 语义、垂直方向、尺寸和目标面板引用。
-
-自动收起只由桌面已打开详情的右栏增宽拖拽触发；不由左栏拖拽、键盘调整、加载偏好或窗口缩窄触发，覆盖层也不修改桌面导航偏好。一次拖拽中收起后不会因反向拖拽反复展开；松手后保留收起偏好，用户可手动恢复。预览不写 localStorage，取消时同时恢复导航与右栏；手动导航操作可中止当前拖拽。`autoCollapsed` 是页面手势预览态，沿用全部业务 XState 状态。先以 `web/src/panel-layout.ts` 的纯布局转换验证阈值、连续拖拽、边界和非触发路径，再接入 React；可重复命令为 `node node_modules/vitest/vitest.mjs run tests/panel-layout.test.ts --maxWorkers=1`。DOM验收另外验证捕获、提交、取消和顶栏同步。
-
-顶栏仅在左侧导航收起时显示同一份 `/logo.svg` 图形，并位于顶栏首位、导航按钮之前，提供 Squad 替代文本；导航展开时不渲染顶栏图形，侧栏继续展示原品牌标识。桌面依据当前有效布局（包括自动收起预览），窄屏依据抽屉实际打开状态，打开或关闭导航后同步更新。长群聊标题可截断，导航与详情按钮保持可见。BT_P12–BT_P19 只读写本地布局偏好并读取品牌资源，不产生任务事件，也不存在应执行的业务 XState 路径；因此业务状态机验证不适用，纯布局转换与DOM交互分别验收。
-
-桌面收起偏好与移动导航打开状态独立；移动端选群或遮罩点击关闭导航，不修改桌面偏好。详情打开状态沿用原页面状态，不因记住宽度而自动打开历史报告。拖拽、键盘和收起不会发出模型、工具、任务或取消请求，也不修改群聊、草稿、任务状态和预算，因此沿用所有已有业务 XState 状态，无需修改 src/task.machine.ts。localStorage 拒绝访问或数据无效时不阻止交互。
-
-字号直接在样式规则中保证最小14px，包括媒体查询、代码、表格、时间、状态、提示和下标脚注；更大的标题保留。随字号调整卡片最小高度、必要换行和长内容溢出，不以缩放容器或缩小文字解决拥挤。自动化直接绑定布局模型、DOM交互与样式规则；真实浏览器布局验证与模拟DOM结果分别报告。
-
-## 简短结果与产物发布
-
-对应 BT_A01–BT_A11。复用 running、waitingAssistance、checking、ended 和既有操作状态；摘要、报告和引用是同一结果的上下文，不增加顶层状态。新增行为先经以下结果事件事务，再由网页展示。
-
-```mermaid
-stateDiagram-v2
-    [*] --> inflight: 已保存意图经 CLAIM 领取
-    inflight --> committed: DELIVER 或 RECORD_RESULT / 校验身份、版本和报告草稿 / 原子保存全文、摘要及产物
-    inflight --> rejected: 停止、旧版本、无效草稿或重复结果 / 不创建产物
-    inflight --> inflight: 事务提交失败 / 回滚且停止新增派发
-    committed --> checking: 负责人候选和报告已保存 / 检查获准后执行
-    committed --> handoff: 核查报告已保存 / HELP_RESULT 原子消费并接续负责人
-    committed --> handoff: 重启 / 补消费已保存核查结果
-    checking --> published: 检查通过或按原规则部分结束 / 消息关联已保存产物
-    handoff --> published: 群中显示核查结论和报告入口
-    rejected --> [*]
-```
-
-检查与负责人接续使用完整候选、核查文本和产物，不使用展示摘要替代。报告按事件和工作确定身份，重复回执不重复保存。旧协议长结果可在同一结果事务中生成报告；旧快照新增字段均可省略。未生成报告的短答不创建空文档。首次与后续外部请求沿用现有预算，生成本地产物不调用额外模型。
-
-```mermaid
-stateDiagram-v2
-    [*] --> feed: 展示短结论与真实产物入口
-    feed --> messageDetails: 点击详情 / 固定 taskId 和 messageId
-    feed --> artifactPreview: 点击报告 / 固定 taskId 和 artifactId
-    messageDetails --> artifactPreview: 选择关联报告
-    artifactPreview --> messageDetails: 返回结果详情
-    messageDetails --> feed: 关闭或切群
-    artifactPreview --> feed: 关闭或切群
-```
-
-网页仅读取对应任务的全文、来源和可观察执行记录。报告预览复用安全 Markdown 渲染，下载使用相同持久内容。历史消息不能回退到当前任务的报告；不存在的引用显示不可用，不创建产物或调度。旧长消息只缩短主视图显示，其原文仍能在详情查看。
-
-## 协助重试与结果交接
+### 协助重试与结果交接
 
 对应 BT_H10–BT_H20、BT_U16；复用 running、waitingAssistance、waitingHuman、ended 顶层状态。以下为协助上下文及提交边界。原负责人保持任务所有权；网页仅提交命令，不直接调用成员。
 
+**图型：上下文生命周期；所有者：`taskMachine / Assistance.status`。**
+
 ```mermaid
 stateDiagram-v2
-    [*] --> pending: HELP / 保存问题、预期、权限和负责人
-    pending --> running: CLAIM / 预算及版本有效
-    running --> answered: RECORD_RESULT / 保存结果并释放执行操作
-    answered --> settled: HELP_RESULT / 原子消费、合并补充、安排负责人
-    running --> interrupted: 失败、超时或停止 / 保留原尝试
-    interrupted --> pending: 明确 RETRY_ASSISTANCE / 新 ID 关联 retryOf
-    answered --> settled: 明确重试 / 复用已保存有效结果
-    interrupted --> interrupted: 目标过期、额度不足、在途或未知结果 / 拒绝
-    answered --> archived: STOP 或版本过期 / 禁止推进
-    pending --> pending: 安全恢复 / 接续已保存意图
-    answered --> settled: 重启 / 补消费并只安排一次负责人
+    [*] --> pending: HELP [valid] / 保存固定身份的问题
+    pending --> running: CLAIM [claimHelp] / 预占ordinary
+    running --> answered: RECORD_RESULT [valid] / 保存未消费结果
+    answered --> success: HELP_RESULT [valid且status为success] / consumed设为true
+    answered --> partial: HELP_RESULT [valid且status为partial] / consumed设为true
+    answered --> failed: HELP_RESULT [valid且status为failed] / consumed设为true
+    answered --> timeout: HELP_RESULT [valid且status为timeout] / consumed设为true
+    running --> failed: WORK_FAILED [不可重试且结果确定] / 结算失败并交回负责人
+    pending --> cancelled: STOP或目标变更 / 取消当前记录
 ```
+
+**图型：处理流程；所有者：`taskMachine` 的 `RETRY_ASSISTANCE` / `acceptHelpResult`。**
+
+```mermaid
+flowchart TD
+    R["明确重试原 requestId"] --> G{"权限、目标版本、在途、未知结果与额度允许"}
+    G -->|否| N["拒绝并保留原记录"]
+    G -->|是| S{"有已保存的有效结果"}
+    S -->|是| C["消费原结果，原子安排一次后继"]
+    S -->|否| P["保留旧尝试，创建新 pending 记录与意图，retryOf 关联旧 ID"]
+```
+
+`pending / running / answered` 在 STOP 或目标变更时成为 `cancelled`；已答结果的 `RecordedResult.consumed` 单独记录是否消费。上图只画执行器常用的“先保存再消费”路径，受信任的有效 HELP_RESULT 也可直接结算允许的原记录。重试的新记录不是旧记录的回跳，`settled / interrupted / archived` 不是 Assistance.status 枚举值。
 
 - 未结算的协助及有效待消费结果阻止用户补充抢先触发 BOUNDARY。读取和消费结果使用同一事务；普通结果消费、输入应用、负责人意图和“结果已交给负责人”的提示一起持久化。临时状态不允许消费时保留结果，不写永久拒绝回执；只有已停止、版本过期、已结算或重复结果可归档。
 - 手动重试创建新协助 ID 和独立执行意图，记录 `retryOf`、原负责人和所需权限；保留失败记录，消耗重试及求助额度，并为负责人保留一次普通请求。核查额外请求、自动重试和恢复领取都不能使用该保留额度，触限按失败结算并交回负责人。停止或结束的任务在明确重试时才开启新 epoch；目标版本变化拒绝沿用旧问题。未结算的外部请求必须先结算，不能并发重放。
 - 成员评审重试保留同轮其他成员结果，只重试选中成员；结果返回后接续未完成队列或负责人汇总，并重新计算失败缺口。属于旧评审轮次的协助不能用于恢复当前评审。
 - WorkRunner 只执行通过 CLAIM 的持久化意图；重试与结果交接均由 XState 产生。失败和超时仍回到原负责人；停止、旧请求迟到及重复提交不能产生额外推进。
+
+**图型：UI 投影；所有者：`网页协助重试入口及服务器快照`。**
 
 ```mermaid
 stateDiagram-v2
@@ -236,9 +135,11 @@ stateDiagram-v2
 
 “B 重试”只解析直接用户的完整重试指令；引用、历史、模型输出和任意包含该词的句子均不获得重试权限。路由保留原协助的成员身份，成员撤销后仍识别命令并由权限守卫拒绝。只有一个候选时提交同一命令；多个候选或没有候选时给出明确原因，用户可使用关联原协助的入口。事务保存失败回滚消息、意图和回执，禁止宣称重试成功或发起外部操作。
 
-## 成员评审
+### 成员评审
 
 对应 `TaskContext.review.status`。目标成员只由直接用户请求确定，促进者不能替换名单，也不能用 continue、assist、replan 或 finish 跳过待组织的评审。
+
+**图型：上下文生命周期；所有者：`taskMachine / TaskContext.review.status`。**
 
 ```mermaid
 stateDiagram-v2
@@ -266,72 +167,219 @@ stateDiagram-v2
 - 完成检查使用独立 checks 额度；若用户配置的总额度连组织和汇总都不足，或停止、故障、检查额度不足，则可直接结束或等待用户，不能承诺完成汇总。
 - 结果必须先 RECORD_RESULT 持久化，再以 HELP_RESULT 消费；结果 ID 防止重复消费，epoch/goalVersion 隔离迟到结果。用户补充在 HELP_RESULT 消费边界应用，已保存的成员意见保留为重新组织的上下文。配置撤销成员或权限时暂停恢复。初次评审直接进入组织阶段，避免负责人先回答一次才拉人。
 
-## 外部执行操作
+### 工作期间的后台讨论
 
-对应 `Intent.status`。网页只提交用户命令；状态机产生操作意图，事务保存后由 `WorkRunner` 领取，只有领取成功的操作才可调用模型或工具。
+对应 BT_T01–BT_T17。沿用任务顶层状态，在 src/task.machine.ts 增加持久化 discussion 上下文和带 discussionId 的操作；主工作与讨论分别推进，讨论不能变更负责人或主目标。需求依据和替代方案见 [评估](background-discussion.md)。
+
+**图型：上下文生命周期；所有者：`taskMachine / TaskContext.discussion.status`。**
 
 ```mermaid
 stateDiagram-v2
-    [*] --> pending: 状态机生成意图并持久化
-    pending --> inflight: CLAIM / 状态与成员权限有效 / 预算允许
-    pending --> done: 评审汇总额度保留导致领取被拒 / WORK_FAILED 结算
-    pending --> cancelled: STOP / 目标变更 / 操作被替代
-    inflight --> inflight: CONSUME / 初次已预占或额外请求获准
-    inflight --> done: 合法模型输出转成状态机事件
-    inflight --> done: 非重试故障 / 额外请求触及保留额度
-    inflight --> done: 迟到或过期输出 / 只结算自身并留历史
-    inflight --> pending: 瞬态故障且重试额度与执行额度允许
-    inflight --> pending: RECOVER / 可安全重新请求
-    inflight --> uncertain: 外部操作结果不确定
-    uncertain --> done: RECONCILE / 等待明确继续
-    inflight --> done: STOP 生成取消意图 / 执行器确认结算
+    [*] --> planning: 直接邀请 [成员与预留预算允许] / 保存讨论轮次
+    [*] --> delivered: 直接邀请 [无法安排] / 保存跳过原因
+    planning --> collecting: DISCUSSION_PLAN [valid] / 保存成员意图
+    collecting --> collecting: DISCUSSION_RESULT [valid] / 保存成员意见
+    collecting --> summarizing: DISCUSSION_RESULT或WORK_FAILED [全部成员结算] / 保存汇总意图
+    summarizing --> ready: DISCUSSION_RESULT [valid] / 保存汇总与来源
+    planning --> ready: WORK_FAILED [不能重试] / 保存失败交接
+    summarizing --> ready: WORK_FAILED [不能重试] / 保留原始意见
+    ready --> delivered: always [discussionHandoffReady] / handoffDiscussion
+    planning --> cancelled: STOP或目标变更 / 取消当前轮次
 ```
+
+`planning / collecting / summarizing / ready` 在 STOP 或目标版本改变时统一变为 `cancelled`；等待用户、主请求未结算或仍有待应用输入时，ready 保持不交接。它与主阶段可同时推进，但不是已实现的 XState parallel 或子 actor。
+
+每次外部请求都先保存意图，再经 CLAIM 检查轮次、epoch、goalVersion、期限、成员互斥和预算，之后 CONSUME 才调用适配器。成员复用 assistance 协议但不进入主流程单一 assists 等待关系；协调员安排复用 facilitator 协议，汇总使用 discussionSummary 的只读 answer 协议。结果携带已领取 workId 与 discussionId，保存原文、报告、状态和下一步意图同事务提交，重复或旧结果拒绝。讨论无权重新邀请、修改目标、发起嵌套协助或提前发布最终交付。
+
+主流程 running 的 DELIVER 在讨论尚未交接时只保存候选草稿，不进入 checking；其他需要负责人接续的结果也等待讨论。ready 且无主请求、无未结算主协助和待解析输入时交接一次，恢复原 running 工作，最后沿用 checking。等待用户不会被后台结果擅自解除。讨论失败和跳过原因进入交接，最终交付如实标为部分完成。
+
+主请求在讨论期间报告 BLOCKED 或达到重复失败阈值时，保持 running 并保存阻塞原因和延后协调标记，等待正在收集的新依据；不另发可能提前结束任务的监督请求。讨论交接清除延后协调标记，将原阻塞与意见一起交给负责人。
+
+取消、结束与硬约束变化覆盖全部操作，普通主工作切换只取消主操作。重启重新校验成员、权限、版本和模型绑定，仅恢复未完成安全意图；已提交意见不重放。网页执行器按具体工作启动有界异步请求，不再按整个群阻塞；调度资格始终来自状态机和事务领取，宿主不自行选择成员或修改讨论状态。
+
+宿主中的在途工作以群 ID 与工作 ID 共同标识，避免不同群的相同输入编号互相阻塞。没有成功领取或消费结果时让出执行，等待已有请求结算、下一条命令或定时检查，不递归空转领取。宿主或存储故障暂停该群本进程中的后续派发，沿用 waitingHuman 与存储故障保护；这些是执行器互斥与生命周期规则，不新增业务 XState 状态。
+
+讨论结果的拒绝边界对应 BT_V14：缺少 fence、错误讨论轮次、过期版本或将讨论结果关联到主工作时，只保存拒绝记录，不能结算当前有效在途工作。只有工作 ID、讨论轮次和工作自身版本边界完整匹配的真实完成事件，才可结算该工作；当前轮次内的协议错误按原失败分支结算，旧轮次的有效迟到完成只结算自身并留存历史。
+
+**图型：结果处理流程；所有者：`WorkRunner / taskMachine`。**
+
+```mermaid
+flowchart TD
+    R["收到讨论结果"] --> I{"工作身份与版本是否匹配"}
+    I -->|缺失或不匹配| N["拒绝事件，保留当前有效在途工作"]
+    I -->|当前工作| P{"角色协议是否有效"}
+    P -->|是| A["保存结果并推进讨论上下文"]
+    P -->|否| F["WORK_FAILED：结算当前工作"]
+    I -->|匹配旧工作| L["只结算旧工作并保留历史，不推进新轮次"]
+```
+
+### 简短结果与产物发布
+
+对应 BT_A01–BT_A11。复用 running、waitingAssistance、checking、ended 和既有操作状态；摘要、报告和引用是同一结果的上下文，不增加顶层状态。新增行为先经以下结果事件事务，再由网页展示。
+
+**图型：事务处理流程；所有者：`taskMachine / TeamEngine`。**
+
+```mermaid
+flowchart TD
+    R["DELIVER 或 RECORD_RESULT"] --> V{"身份、版本、当前阶段与草稿有效"}
+    V -->|否| N["拒绝或只结算旧工作，不创建产物"]
+    V -->|是| T["同一事务保存全文、摘要、产物和后继意图"]
+    T --> C{"提交成功"}
+    C -->|否| X["全部回滚，禁止后续派发"]
+    C -->|负责人候选| K["无待交接讨论时进入 checking，否则保留草稿"]
+    C -->|协助结果| H["等待 HELP_RESULT 原子消费并安排后继"]
+    H -->|重启| H
+    K --> P["按完成检查发布真实结果与报告入口"]
+```
+
+检查与负责人接续使用完整候选、核查文本和产物，不使用展示摘要替代。报告按事件和工作确定身份，重复回执不重复保存。旧协议长结果可在同一结果事务中生成报告；旧快照新增字段均可省略。未生成报告的短答不创建空文档。首次与后续外部请求沿用现有预算，生成本地产物不调用额外模型。
+
+**图型：UI 投影；所有者：`Workspace / Details 的固定 taskId 和产物引用`。**
+
+```mermaid
+stateDiagram-v2
+    [*] --> feed: 展示短结论与真实产物入口
+    feed --> messageDetails: 点击详情 / 固定 taskId 和 messageId
+    feed --> artifactPreview: 点击报告 / 固定 taskId 和 artifactId
+    messageDetails --> artifactPreview: 选择关联报告
+    artifactPreview --> messageDetails: 返回结果详情
+    messageDetails --> feed: 关闭或切群
+    artifactPreview --> feed: 关闭或切群
+```
+
+网页仅读取对应任务的全文、来源和可观察执行记录。报告预览复用安全 Markdown 渲染，下载使用相同持久内容。历史消息不能回退到当前任务的报告；不存在的引用显示不可用，不创建产物或调度。旧长消息只缩短主视图显示，其原文仍能在详情查看。
+
+## 执行与适配器边界
+
+### 外部执行操作
+
+对应 `Intent.status`。网页只提交用户命令；状态机产生操作意图，事务保存后由 `WorkRunner` 领取，只有领取成功的操作才可调用模型或工具。
+
+**图型：上下文生命周期；所有者：`taskMachine / Intent.status；执行器为 WorkRunner`。**
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: 纯转换 / 保存意图后提交
+    pending --> inflight: CLAIM [状态、权限、版本与额度允许] / 增加attempt并预占预算
+    pending --> cancelled: STOP或目标变更 / 取消未领取工作
+    pending --> done: WORK_FAILED [领取被拒需结算] / 保留缺口并安排汇总
+    inflight --> inflight: CONSUME [valid] / 初次使用预占，额外请求扣额
+    inflight --> inflight: STOP或目标变更 / 保存独立cancel意图
+    inflight --> done: 合法结果或SETTLE [校验通过且物理操作已决] / release
+    inflight --> done: WORK_FAILED [确定失败且不可重试] / release
+    inflight --> pending: WORK_FAILED [retryable] / 保留消耗并增加重试
+    inflight --> pending: RECOVER [安全且版本兼容] / 等待重新领取
+    inflight --> uncertain: WORK_FAILED或RECOVER [效果未知] / 禁止自动重放
+    uncertain --> done: RECONCILE [valid] / 等待明确继续
+```
+
+STOP 不会立即把原 inflight 置 done；cancel 意图发出或结算也不等于原工作已决。迟到结果只有在身份验证后才能结算自身，不能推动新目标。LOCAL_RESULT / LOCAL_RECONCILE 在证明子操作已决且目标有效时，还可能使原 uncertain 父意图回到 pending；见本地子操作图。
 
 每个额外模型请求、技能搜索和网页工具调用都先经 CONSUME 检查。被拒后禁止发起 I/O。模型 HTTP 408、429、5xx 或网络故障可有限重试；协议错误与不可恢复故障按任务图转移。技能搜索不会安装技能。停止首先持久化并派发取消意图，AbortSignal 传入模型和工具；取消请求发出不等于原操作已结算。外部结果不确定时必须核对，不能直接重放。
 
 OpenCode 会话标识只影响传输：网页使用群 ID，CLI 使用持久任务 ID，适配器哈希后添加请求头，不创建另一条调度路径。HTTP 错误只保留已校验的短代码；MissingSessionID 即使附带参数标识，也应提供缺少会话头的提示，仍沿用 WORK_FAILED 转移。瞬态故障到达重试上限时，等待原因应同时说明原错误和额度限制。执行日志是观察记录，不驱动业务转移。
 
-## 模型消息风格
+### 本地技能与 CLI 子操作
 
-对应 BT_M07–BT_M09。以下是 `OpenAICompatibleAdapter` 内部的请求阶段，不是新增的 XState 状态。owner、assistance、facilitator 和 check 均沿用状态机已持久化的意图；只有 WorkRunner 领取成功后才构造并发送请求。
+对应 BT_L01–BT_L13。沿用主任务顶层阶段，子状态与检查点保存在父 Intent 内，由真实 taskMachine 纯转换验证。服务先建立有界共享目录，再恢复任务。listSkills 只读内存元数据免费；正文、资源和 CLI 每次领取扣一次 ordinary（即使父工作为 check），继续模型按父工作原 bucket 计费。讨论、评审与负责人续办保留额度继续有效。
+
+**图型：上下文生命周期；所有者：`taskMachine / Intent.localOperations[].status；src/local-operation.ts`。**
 
 ```mermaid
 stateDiagram-v2
-    [*] --> requesting: CLAIM 成功 / 角色协议与统一风格进入系统提示词
-    requesting --> tool: 合法工具动作且 CONSUME 获准 / 执行工具
-    tool --> requesting: 后续模型请求获准 / 保留系统提示词并附工具资料
-    requesting --> validated: 合法 JSON 动作 / 保留可读文本原样
-    validated --> settled: WorkRunner 回传事件 / 原版本与状态守卫校验
-    requesting --> settled: 协议错误、请求失败或停止 / 沿用故障与取消结算
-    tool --> settled: 工具失败、额度耗尽或停止 / 沿用故障与取消结算
+    [*] --> queued: LOCAL_REQUEST [valid] / 保存动作与检查点
+    queued --> claimed: LOCAL_CLAIM [权限、父工作、额度与租约允许] / 固定sessionId
+    queued --> failed: LOCAL_REJECTED [未启动且拒绝有效] / 保存失败
+    queued --> cancelled: STOP或目标失效 / 取消未启动操作
+    claimed --> running: LOCAL_STARTED [会话匹配] / 保存工程版本
+    claimed --> failed: LOCAL_RESULT [确认未启动或确定失败] / 保存回执
+    running --> succeeded: LOCAL_RESULT [settled且effectsKnown且成功] / 原子保存回执和检查点
+    running --> failed: LOCAL_RESULT [settled且effectsKnown且失败] / 保存实际失败
+    claimed --> cancelling: STOP或目标改变 / 保存取消意图
+    running --> cancelling: STOP或目标改变 / 保存取消意图
+    claimed --> uncertain: RECOVER或LOCAL_RESULT [效果未知] / 核对会话
+    running --> uncertain: RECOVER或LOCAL_RESULT [效果未知] / 保留租约
+    cancelling --> uncertain: RECOVER或LOCAL_RESULT [效果未知] / 保留租约
+    cancelling --> cancelled: LOCAL_RESULT [settled且effectsKnown且code为cancelled] / 保存取消回执
+    uncertain --> queued: LOCAL_RECONCILE [notStarted且目标仍有效] / 允许重新领取
+    uncertain --> succeeded: LOCAL_RECONCILE或LOCAL_RESULT [可信成功回执] / 保存回执
+    uncertain --> failed: LOCAL_RECONCILE或LOCAL_RESULT [可信失败回执] / 保存失败
+    uncertain --> cancelled: LOCAL_RECONCILE [notStarted且已停止或目标失效] / 只结算旧操作
 ```
 
-风格只约束可读文本：默认用简洁自然段落，短回复无需标题，减少装饰性排版；用户要求或内容确有需要时保留列表、表格、代码与来源链接。JSON 外层结构、动作枚举、工具参数和角色权限由现有协议决定，不受风格偏好覆盖。工具资料不能改写系统风格或取得调度权限；完成检查仍不开工具。
+已知回执统一由 `finishOperation` 按实际结果结算：`code=cancelled → cancelled`，否则 `ok=true → succeeded`，其余 `→ failed`；适用于 claimed、running、cancelling 和 uncertain 中合法收到的结果，包括停止后才返回的真实成功或失败。停止、旧目标及版本不兼容阻止父工作续办，不把历史成功伪写成取消。
 
-不增加状态、事件或调度入口。首次请求与后续模型/工具请求沿用原预算；失败、停止、迟到结果、目标版本隔离和恢复均使用「外部执行操作」的守卫与转移，安全重放时重新构造同一风格提示。可执行场景使用注入的模型传输核对各角色请求、工具后续请求及格式保留，不把预设响应当成真实模型的风格质量验收。
+LOCAL_REQUEST 固定 operationId、请求摘要、父会话 attempt、技能版本与模型动作。LOCAL_CLAIM 与跨群共享的工作区租约在同一存储事务中提交；竞争者保持 queued，不消费预算。租约到期不是进程结束证明，不自动接管。实际执行前再次确认当前父工作、权限、取消和领取身份。回执只能结算自己的 operationId 与 sessionId；迟到回执不恢复候选或新目标。SETTLE、普通最终输出、重试、目标边界和新父工作均不能释放尚有未决子操作的工作锁。
 
-## 默认网页工具
+停止会将已领取子操作置 cancelling 并发取消意图，执行器等待沙箱会话和后代退出；可能写入的取消/崩溃保留 uncertain，直到核对回执/效果。重启先核对本地会话日志与存储，再调度父工作；没有会话启动记录可证明未执行，已有回执可补交，缺少证据则保持 uncertain 和租约，不重放写入。旧任务缺失能力默认不授权；显式恢复核对通过后仅为兼容版本的新动作启用当前配置。
+
+技能注册表固定启动 manifest；激活原子发布同版本只读快照，资源按包内相对路径读取；正文和资源不是调度权限。所有 Bot 默认获得四个本地接口，解析/纯汇总阶段不执行。check 与后台讨论的 CLI 用可写隔离副本并标记工程 revision；主工作区仍为权威来源。执行后端不可用返回真实失败，不退回无沙箱进程。文件、日志、环境、网络和进程 I/O 在执行器完成，状态机不访问文件或启动进程。
+
+可信 LOCAL_RECONCILE 或 uncertain 操作的 LOCAL_RESULT 回执全部结算后，若目标仍有效且未停止，返回原主工作的阶段（owner→running、assistance→waitingAssistance、facilitator→coordinating、check→checking），复用检查点继续。旧目标和停止任务只结算旧操作，不恢复执行。
+
+BT_L14 的宿主 `local:operations` 命令读取未决会话与当前工作区清单，只有进程已退出、会话身份和审阅摘要匹配时才把操作者确认转换为 LOCAL_RECONCILE(receipt)。未退出、身份不明或摘要过期时不发事件。停止任务完成结算，活动任务由既有恢复守卫回到原工作阶段；此入口不重新执行命令。
+
+工作区命名空间在 LOCAL_REQUEST 中固定为群 ID 与任务 ID 的宿主摘要；默认目录和核查副本均绑定此命名空间。即使两个群使用相同消息/工作 ID，也不会共用默认目录或副本。显式指定同一 canonical 工程时才共享工作区租约。
+
+BT_L15 的调试模板沿用同一 taskMachine 与局部操作状态，不新增调度规则。LOCAL_* 模板绑定父工作、operationId、attempt、命名空间、会话身份和 fence；离线沙箱仍只进行纯转换，CLI 文本是合成资料。模板与形状校验属于图的输入投影，先复验上述真实模型后接入。
+
+BT_L16：活跃后台讨论成员的 LOCAL_RESULT(uncertain) 只保留该子操作与成员锁，不改变仍在执行的主阶段。方案师照常将草稿存入 candidate，因讨论未完成而暂停最终检查；核对并完成讨论后再汇总交接。服务重启时仍统一先恢复未决物理会话，禁止重放未知写入。
+
+BT_L17：check 使用 CLI 后，在提交正面的最终 CHECK_RESULT 前执行宿主内部 verifyWorkspace 子操作，沿用 LOCAL_REQUEST → LOCAL_CLAIM → LOCAL_RESULT 的持久化、ordinary 额度及工作区租约，不向模型开放此动作。比较首次复制时绑定的源版本、当前权威工程与当前检查副本；忽略宿主明确的输出目录 dist/test-results/reports/coverage。任何源文件变化都将检查结论降为未通过，包含版本差异，且不重跑 CLI。复核无法领取或完成时不提交正面检查。每次恢复/重试提交前重新复核，旧成功回执不能证明当前工程仍是该版本。
+
+check 的沙箱只开放输出目录与任务临时目录可写，源文件保持只读；即便受控执行夹具或外部编辑曾改变副本输入再恢复，也会由每次 CLI 回执中的输入变化标记阻止正面检查。后台讨论可在副本进行试验，但不合回权威工程。
+
+工程副本保留包内工具的相对链接（包括 node_modules/.bin），解析后的目标必须在工程内；拒绝逃逸和循环。此为受领取后执行的文件副作用，沿用同一局部操作模型，不增加调度转移。BT_L09 同时运行真实 npm build，检验链接、可写输出与源版本复核的接线。
+
+BT_L18：成功激活同时记录 TaskContext.localSkillVersions；新意图、领取和 LOCAL_REQUEST 都继承当前任务绑定，避免同一任务换 Bot/续办后改用重启时的新版本。来源 ID 与内容版本独立，名称先解析为来源 ID 再选择已固定版本。明确的用户目标版本变化或协调员 replan 可重建任务绑定；旧 Work 自身仍保留原绑定，用于结算和审计。
+
+版本不兼容的恢复只允许核对并结算已存在的物理操作；LOCAL_RESULT/LOCAL_RECONCILE 必须保留不兼容原因，不将父工作重新置 pending，也不返回执行阶段。可信旧回执不授予新协议或新模型配置的执行权限（BT_L12）。
+
+### 模型输出格式修正
+
+对应 BT_M10–BT_M20。完整响应未通过 JSON/角色协议校验时，采用[校验反馈回路](https://docs.langchain.com/oss/javascript/langgraph/thinking-in-langgraph)：保留原任务和已取得的工具资料，指出字段校验问题后请求新结果；不把格式错误转为用户信息不足，也不放宽验证。兼容第三方服务，继续使用原响应格式配置，不强制供应商支持新的严格 schema 参数。
+
+**图型：适配器处理流程；所有者：`WorkRunner / OpenAICompatibleAdapter；父 Intent.outputRepair`。**
+
+```mermaid
+flowchart TD
+    R["已领取意图的模型返回"] --> V{"JSON与角色协议有效"}
+    V -->|是| E["WorkRunner 转成既有结果事件"]
+    V -->|否| A{"REGENERATE_MODEL_OUTPUT 守卫通过"}
+    A -->|是| S["事务保存 outputRepair 与 retries 消耗"]
+    S --> C{"后续 CONSUME 获准且提交成功"}
+    C -->|是| H["适配器携带受控问题代码再次请求"]
+    H --> R
+    A -->|否| F["WORK_FAILED：原失败分支"]
+    C -->|否| F
+    S -->|停止或版本失效| N["禁止下一次 I/O，沿原取消与结算规则"]
+```
+
+整个校验和修正循环中，父意图仍为 inflight；图中保存与校验节点不是新增持久化状态。重启仅按原安全意图恢复并重新领取，已用次数与问题代码保留。
+
+保留 running、waitingAssistance、coordinating、checking 等既有业务顶层状态；使用 REGENERATE_MODEL_OUTPUT 事件及操作上下文 outputRepair。状态机只保存修正次数与受控校验代码，使用现有 usage.retries/config.limits.retries，不新增独立预算。后续模型请求仍通过 CONSUME，扣所属 ordinary 或 checks 额度；修正不重置本次工作截止时间，也不重新执行已完成的工具。停止、旧轮次/目标版本、非在途或非模型工作、额度耗尽时拒绝。重复事件回执不重复计数；重启保留修正信息，不绕过恢复和模型绑定校验。
+
+错误 type、passed 类型、gaps 缺失/null/非字符串数组、无效 JSON、其他角色协议及已获准工具的参数格式错误触发重新生成；不自动将字符串转换为布尔、不补空数组、不发布无效返回中的产物或动作。反馈仅包含宿主生成的问题代码和允许的协议，不回显原始错误返回或凭据。合法 passed:false 按普通检查不通过推进。工具权限拒绝、HTTP 鉴权/网络故障、响应截断和供应商响应损坏沿用原处理，不走格式回路。网页执行器透传授权钩子并记录格式修正；群消息不因一次格式修正而发布长篇报错。存储事务失败后禁止继续请求。
+
+### 默认网页工具
 
 对应 `BT_W01`–`BT_W14`，以下是已领取意图内部的一次请求循环，不是新增的任务顶层状态。状态机在 owner / assistance / facilitator 的 payload 中持久化 `capabilities.webSearch`、`capabilities.webFetch`。最终 check 不开放联网，保留原有 checks 预算语义。
 
+**图型：适配器处理流程；所有者：`WorkRunner / CloudflareWebTools`。**
+
 ```mermaid
-stateDiagram-v2
-    [*] --> claimed: CLAIM 成功且首次请求已预占
-    claimed --> requested: 模型返回 web_search 或 web_fetch
-    requested --> rejected: 参数无效 / 关闭 / 过期 / 版本不匹配 / 已停止
-    requested --> rejected: 普通额度耗尽 / 评审汇总保留额度
-    requested --> configuring: CONSUME capability 成功并持久化
-    configuring --> fetching: 重载环境文件 / 固定本次配置
-    configuring --> failed: 文件读取失败 / 不发出 HTTP 请求
-    fetching --> evidence: SDK 返回来源与有界内容
-    evidence --> claimed: 下次模型请求经 CONSUME / 资料不获得调度权限
-    fetching --> failed: HTTP / 超时 / 转换 / 凭据错误
-    failed --> [*]: WORK_FAILED / 有限重试或既有失败转移
-    rejected --> [*]: 无外部 I/O / 既有失败结算
-    fetching --> cancelled: STOP 的取消意图 / AbortSignal
-    cancelled --> [*]: SETTLE / 迟到结果只结算旧工作
-    fetching --> recoverable: 进程退出且工作可安全重放
-    recoverable --> claimed: RECOVER 后重新 CLAIM / 再次计入预算
+flowchart TD
+    W["已领取的模型意图返回网页工具动作"] --> P{"参数、capability与CONSUME获准"}
+    P -->|否| N["无网页 I/O，沿原失败结算"]
+    P -->|是| E["重读环境文件，固定本次配置快照"]
+    E -->|读取失败| F["WORK_FAILED：有限重试或等待用户"]
+    E --> H["WorkRunner 调用搜索或抓取 SDK"]
+    H -->|成功| R["有界来源资料，无调度权限"]
+    H -->|超时或HTTP等失败| F
+    R --> C{"后续模型请求 CONSUME 获准"}
+    C -->|是| M["模型继续，输出经原事件守卫回传"]
+    C -->|否| N
+    H -->|停止| S["持久化取消并传递 AbortSignal，等实际结算"]
 ```
 
 - 两种工具每次各消耗一次普通额度；分页续读是新的抓取。后续模型请求另外计费，评审汇总的保留额度同样适用。CONSUME 校验 inflight、epoch/goalVersion、期限、工具开关与工作类型，不能由适配器绕过。
@@ -342,95 +390,289 @@ stateDiagram-v2
 - 恢复时更新当前开关，并刷新 pending 和重新入队的 inflight 意图能力。途中尚未提交的模型循环可能重新搜索或抓取，重新调用可能收费；不承诺缓存或恰好一次外部请求。已结算意图不重放。
 - 网页只观察工具开始、来源结果、失败与完成，不另建调度路径。
 
-## 群历史与消息路由
+### 技能搜索结果解析
+
+对应 BT_M21–BT_M22。沿用 `src/task.machine.ts` 的真实执行意图与顶层状态，无需修改 XState：来源格式是只读适配器的返回数据契约，不产生业务状态、事件或新的操作意图。以下细化图中的请求与解析阶段属于已领取的同一个 inflight 意图。
+
+**图型：适配器处理流程；所有者：`WorkRunner.findSkills / src/skills.ts`。**
+
+```mermaid
+flowchart TD
+    W["已领取的同一个 inflight 意图"] --> A{"findSkills 的 CONSUME 获准"}
+    A -->|否| F["无搜索 I/O，WORK_FAILED"]
+    A -->|是| H["WorkRunner 发搜索 HTTP"]
+    H --> V{"HTTP 与返回数据契约有效"}
+    V -->|是| R["排序只读资料，仓库或域名来源均可"]
+    V -->|否| F
+    R --> M{"后续模型请求 CONSUME 获准"}
+    M -->|是| N["向模型提供资料，再校验模型输出"]
+    M -->|否| F
+    H -->|停止| C["持久化取消，传递 AbortSignal，等待实际结算"]
+    N --> E["回传既有业务事件，仍受身份与版本校验"]
+```
+
+有效空数组仍是零结果；同批仓库与域名结果均保留，任何真正畸形项仍令搜索失败。来源不获得安装、命令执行或任务调度权限；链接固定为 skills.sh 的来源路径与编码后的技能标识。初次模型请求由 CLAIM 预占，每次搜索和后续模型请求各经一次 CONSUME 扣额；预算不足、停止和过期版本仍由原状态机拒绝。恢复只按现有安全意图规则重新领取，不保存供应商返回值为新调度依据。
+
+2026-10-30 的故障复现：查询 `general purpose assistant skills` 返回 HTTP 200，包含 `source=skills.volces.com`，原仓库来源正则导致整批抛出 `Invalid skill search result`。一手依据：[实时搜索接口](https://skills.sh/api/search?q=general%20purpose%20assistant%20skills&limit=20)、[上游 CLI](https://github.com/vercel-labs/skills/blob/main/src/find.ts)。
+
+### 模型消息风格
+
+对应 BT_M07–BT_M09。以下是 `OpenAICompatibleAdapter` 内部的请求阶段，不是新增的 XState 状态。owner、assistance、facilitator 和 check 均沿用状态机已持久化的意图；只有 WorkRunner 领取成功后才构造并发送请求。
+
+**图型：适配器处理流程；所有者：`OpenAICompatibleAdapter / WorkRunner`。**
+
+```mermaid
+flowchart LR
+    C["CLAIM 成功"] --> P["构造角色协议与系统风格"]
+    P --> M["已授权模型请求"]
+    M --> V{"合法的返回类型"}
+    V -->|工具动作且额外CONSUME获准| T["执行工具，保留资料"]
+    T -->|后续模型请求获准| M
+    V -->|角色输出| R["WorkRunner 回传既有事件"]
+    V -->|协议错误| F["格式修正或 WORK_FAILED"]
+    M -->|失败或停止| F
+```
+
+风格只约束可读文本：默认用简洁自然段落，短回复无需标题，减少装饰性排版；用户要求或内容确有需要时保留列表、表格、代码与来源链接。JSON 外层结构、动作枚举、工具参数和角色权限由现有协议决定，不受风格偏好覆盖。工具资料不能改写系统风格或取得调度权限；完成检查仍不开工具。
+
+不增加状态、事件或调度入口。首次请求与后续模型/工具请求沿用原预算；失败、停止、迟到结果、目标版本隔离和恢复均使用「外部执行操作」的守卫与转移，安全重放时重新构造同一风格提示。可执行场景使用注入的模型传输核对各角色请求、工具后续请求及格式保留，不把预设响应当成真实模型的风格质量验收。
+
+### 本地工具宿主启动与平台边界
+
+对应 BT_L19–BT_L22。沿用 `src/task.machine.ts` 与 `src/local-operation.ts`，无业务转移变更：进程身份、沙箱包装和系统路径别名是宿主实现契约；只有已持久化、领取并再次校验的 LOCAL_* 意图可以触发 I/O。以下启动状态由宿主管理，不加入任务 XState。
+
+**图型：宿主启动流程；所有者：`LocalRuntime / NativeCliBackend / 服务锁`。**
+
+```mermaid
+flowchart TD
+    E{"本地工具显式开启"} -->|是| P["探测原生进程身份"]
+    E -->|否| D["不启动本地执行后端"]
+    P -->|失败或平台不兼容| N["启动失败，不创建锁"]
+    P --> I{"现有锁的身份"}
+    I -->|仍活跃或未知| N
+    I -->|无锁或证明旧进程退出| L["原子领取服务锁并持久化完整身份"]
+    L --> M["规范化技能根目录并固定清单"]
+    M --> R["核对会话日志与持久化任务"]
+    M -->|失败| F["只清理本次token持有的锁"]
+    R --> S["宿主就绪；可执行性仍由任务与操作守卫决定"]
+    S -->|关闭| C["只删除本次token匹配的锁"]
+```
+
+宿主就绪不代表某项 CLI 已执行或未知写入已解决。并发工作及 uncertain/租约属于各自的持久化子操作，见[本地子操作图](#本地技能与-cli-子操作)，不把整个宿主画成一个 executing/uncertain 任务状态。
+
+macOS 身份通过 `/usr/bin/python3 -I` 调用系统 libproc 的 `proc_pidinfo(PROC_PIDTBSDINFO)`，采用微秒启动时间与 `kern.bootsessionuuid`；不使用秒级 ps 时间或裸 PID 证明身份。Linux 保留 PID 命名空间、启动 ticks 与 boot_id，并兼容原有未带平台字段的 Linux 回执。平台不匹配、查询异常或畸形身份是 unknown，不能发送恢复信号或接管锁；当前平台下明确缺失或启动身份不符才视为旧身份已退出。
+
+macOS 复用固定版本 SRT 的 Seatbelt 后端，Linux 保留命名空间探测。最小子进程环境不继承宿主密钥；macOS 仅读取系统运行依赖、工作区与技能快照，网络仍默认拒绝，check 源文件只读。取消继续终止所属进程组并等待会话结算，效果未知则保留 uncertain；没有静默改成宿主执行的分支。
+
+技能边界先将根目录规范为 realpath，再与资源真实路径比较；`/var` 与 `/private/var` 等同源别名不再触发误报，包外链接与 `..` 仍拒绝。此变化不增设调度事件，沿用技能版本、快照与领取守卫。
+
+一手依据：[Apple proc_bsdinfo](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/proc_info.h)、[SRT 原生后端](https://github.com/anthropic-experimental/sandbox-runtime)。本地固定版本源码为核验依据，不升级依赖。
+
+## 房间与可信命令
+
+### 群历史与消息路由
 
 以下是 `TeamEngine.submit` 的单次事务处理路径，节点是处理阶段，不另行持久化为任务状态。
 
+**图型：事务处理流程；所有者：`TeamEngine.submit`。**
+
 ```mermaid
-stateDiagram-v2
-    [*] --> receipt: 用户命令
-    receipt --> returned: 相同 ID 与内容 / 返回已保存回执
-    receipt --> rejected: 相同 ID 但内容不同
-    receipt --> route: 新请求
-    route --> created: 群空闲 / 创建新任务并附同群历史
-    route --> supplemented: 活动任务 / USER_INPUT 或 HUMAN_DECISION
-    route --> continued: 明确 CONTINUE / 现有任务与轮次守卫通过
-    route --> rejected: 群忙却要求新建 / 已结束任务缺少明确继续
-    created --> committed: 初始化任务状态与操作意图
-    supplemented --> committed: 补齐群历史 / 等安全边界应用输入
-    continued --> committed: 新 epoch / 按任务图接续
-    committed --> returned: 原子保存任务与回执
-    returned --> [*]
-    rejected --> [*]
+flowchart TD
+    U["直接用户命令"] --> I{"事务内检查回执指纹"}
+    I -->|同ID同内容| O["返回已保存回执"]
+    I -->|同ID不同内容| N["拒绝"]
+    I -->|新请求| R{"可信路由与活动任务"}
+    R -->|空闲的新请求| T["初始化新任务，附同群有界历史"]
+    R -->|活动任务补充| S["USER_INPUT 或 HUMAN_DECISION，等待安全边界"]
+    R -->|明确继续或重试| G["原任务的 CONTINUE 或 RETRY_ASSISTANCE 守卫"]
+    R -->|不符合路由条件| N
+    T --> C["原子提交任务、消息、意图和回执"]
+    S --> C
+    G -->|允许| C
+    G -->|拒绝| N
+    C --> O
+    C -->|提交失败| F["全部回滚并停止后续派发"]
 ```
 
 历史仅来自同群其他任务，保留来源 taskId，限制消息、产物、黑板和目标摘要数量及总文本量。历史只作为模型上下文，不计为本轮交付产物，不复活已结束任务，不从历史中的指令发起调度。成员评审识别仅处理直接用户文本及编辑器实际选中的点名；代码、引用和 Bot 消息不触发全员评审。
 
 HANDOFF 沿用 running 的状态内转移：先确认边界和新成员权限，再记录原负责人、新负责人、目标版本及产物/黑板引用，取消旧待执行意图并准备新负责人输入。群提示与持久记录必须能还原交接双方，不能只保存接任者。
 
-## 网页交互
+### 群聊归档
 
-对应 React 状态和服务器快照的投影，不直接修改业务状态或调用模型。连接、发送与详情面板分别变化。
+BT_G15–BT_G22 解决普通列表随群聊积累变长的问题。归档是可逆的列表整理，复用原群聊和全部任务，不复制或删除数据。用户已确认在途工作继续；新消息沿用原路由、保持归档。与禁止新活动的频道关闭不同，此处不改变执行权限或增加停止/恢复工作。
+
+**图型：真实 XState；所有者：`roomMachine（room-organization）；RoomData.archive`。**
 
 ```mermaid
 stateDiagram-v2
-    state "网页" as Web {
-      state "连接" as Connection {
-        [*] --> loading: 展示本地品牌资源
-        loading --> connected: 群列表或快照读取成功
-        loading --> disconnected: 读取失败
-        connected --> disconnected: 快照轮询失败
-        disconnected --> connected: 自动重试成功
-      }
-      --
-      state "消息" as Composer {
-        [*] --> drafting
-        drafting --> sending: 已连接且提交 / 必要时先创建群
-        sending --> drafting: 成功清空草稿 / 失败保留草稿与请求 ID
-        drafting --> drafting: 切群 / 使用各群独立草稿和实际点名
-      }
-      --
-      state "详情" as Details {
-        [*] --> closed
-        closed --> agentDetails: 点击成员、消息作者或头像、Markdown 中成员点名
-        closed --> taskDetails: 点击任务状态
-        agentDetails --> agentDetails: 选择其他成员 / 展开可观察执行输出
-        agentDetails --> closed: 关闭或切群
-        taskDetails --> closed: 关闭或切群
-      }
-    }
+    [*] --> active
+    active --> archived: ARCHIVE [valid] / changed
+    archived --> active: RESTORE [valid] / changed
 ```
 
-品牌展示对应 BT_U14：侧栏保留 squad. 文字，欢迎区仅显示图标，浏览器图标引用同一份本地 SVG。资源使用正方形视口等比缩放，不依赖外部图片服务。展示沿用 loading / connected / disconnected 及原有消息、详情状态，不产生业务事件或外部操作意图，因此无需新增 XState 状态或转移。
+`valid` 只检查时间与 revision 可递增，可信命令权限由 TeamEngine 入口负责；重复目标事件没有转移，revision 不变。新群和无 archive 字段的旧群默认 active，已保存状态按原值恢复；任务事件不发送给此机器。
 
-消息正文对应 BT_U15：在原有消息展示中以 14px 基础字号渲染 Markdown，各布局均沿用该字号，保留段内换行与语义结构。仅调整现有状态下的样式，不产生事件或 XState 转移。
+归档模型位于 `src/room.machine.ts`，持久化到原 RoomData 的可选字段；未携带该字段的旧数据解析为active，无需修改任务快照或搬迁历史。`src/task.machine.ts` 无需增加任务状态。房间归档命令与现有引擎命令共用事务和请求指纹：同一请求重放不再次转移，不同内容复用标识拒绝；恢复之后重放旧归档回执也不重新归档。存储故障原状态与回执一并回滚，重新打开存储后才能重试。
 
-界面精简对应 BT_U17–BT_U19：导航、成员、消息和输入区通过分组、间距与明确的操作名称区分；欢迎区只保留品牌、主标题和快捷提问。消息作者使用展开图标并保留可访问名称，替代每条消息底部重复的过程按钮；侧栏与头像入口继续可用。详情空状态只显示简短状态，正常连接不重复解释自动同步，离线时保留提示。连接状态、等待回复、发送失败、停止与继续、协助重试原因、执行身份和预算等影响操作的信息仍然显示。
+**图型：UI 投影与提交过程；所有者：`Workspace.showArchived / roomAction / useWorkspace`。**
+
+```mermaid
+flowchart TD
+    T["用户切换群聊或已归档列表"] --> L["showArchived 决定筛选，独立保留选中群与草稿"]
+    L --> A["用户归档或恢复指定群"]
+    A --> P["roomAction 等待可信 HTTP 命令提交"]
+    P -->|失败| F["保留原列表、选择和草稿，反馈错误"]
+    P -->|归档成功| C["按 revision 合并元数据，普通列表移除该群"]
+    P -->|恢复成功| R["按 revision 合并元数据，移回普通列表并选择原群"]
+    C --> S["返回普通列表；若移出当前群，选其他普通群或空页"]
+    R --> S
+    L -->|打开归档群| H["查看历史或发送消息，仍保持归档"]
+```
+
+网页通过明确归档/恢复按钮发送可信HTTP命令，不从消息内容、Bot或工具结果获得归档权限。数据先经Room XState纯转换，再由TeamEngine事务保存；这是房间元数据更新，没有外部模型/工具操作意图，不调用执行器。所有群（包括已归档）仍参与原有启动恢复、唤醒和WorkRunner领取；停止、失败、额度、迟到结果和任务版本隔离均沿用任务状态机，归档不改变这些边界。归档列表只筛选显示，不允许过滤掉后台调度源。
+
+两类列表互斥、状态与服务器重启持久化；列表和快照按单调归档revision合并，避免旧响应覆盖已确认的归档或恢复。切群隔离轮询返回，草稿继续按roomId保存；失败不提前隐藏群。模型层须先验证真实房间模型全部转移、版本和恢复，及真实任务在途/停止路径的状态、意图与预算隔离，通过后才接入存储、HTTP与界面。
+
+模型版本、既有门槛轨迹和集成证据见[归档验收记录](room-archive-verification.md)。
+
+## 网页与观察
+
+### 网页交互
+
+对应 React 状态和服务器快照的投影，不直接修改业务状态或调用模型。连接、发送与详情面板分别变化，分为三张图；它们不是一个实际 XState parallel 机器。
+
+**图型：UI 投影；所有者：`useWorkspace 的连接标志与快照`。**
+
+```mermaid
+stateDiagram-v2
+    [*] --> loading
+    loading --> connected: 群列表或快照读取成功
+    loading --> disconnected: 读取失败
+    connected --> disconnected: 轮询失败
+    disconnected --> connected: 自动重试成功
+```
+
+**图型：UI 投影；所有者：`Workspace` 的 sending 与按 roomId 保存的草稿。**
+
+```mermaid
+stateDiagram-v2
+    [*] --> drafting
+    drafting --> sending: 用户发送 [连接与输入有效] / 必要时先创建群
+    sending --> drafting: 成功 / 清空本群草稿
+    sending --> drafting: 失败 / 保留草稿与重试身份
+    drafting --> drafting: 切群 / 切换独立草稿
+```
+
+**图型：UI 投影；所有者：`Workspace` 的 detailOpen、selectedAgent 与 detailTarget。**
+
+```mermaid
+stateDiagram-v2
+    [*] --> closed
+    closed --> agentDetails: 用户选择成员、作者、头像或正文点名
+    closed --> taskDetails: 用户选择任务或消息详情
+    agentDetails --> taskDetails: 用户选择任务或消息
+    taskDetails --> agentDetails: 用户选择成员
+    agentDetails --> agentDetails: 选择另一成员
+    agentDetails --> closed: 关闭或切群
+    taskDetails --> closed: 关闭或切群
+```
+
+品牌展示对应 BT_U14：页面与浏览器使用一致的本地品牌资源，品牌名称应能被识别；资源格式、比例及文字的视觉呈现见[界面样式规范](ui-style.md)。展示沿用 loading / connected / disconnected 及原有消息、详情状态，不产生业务事件或外部操作意图，因此无需新增 XState 状态或转移。
+
+消息正文的 Markdown 语义、换行和安全渲染仍由 BT_U10–BT_U13 验收。原 BT_U15 只规定静态字号与文字颜色，已退出 Gherkin；样式规范、检查和历史浏览器证据见[界面样式规范](ui-style.md)。这些静态规则不生成业务状态、事件或操作意图。
+
+界面精简对应 BT_U17–BT_U19：导航、成员、消息和输入区通过分组、间距与明确的操作名称区分；欢迎区只保留品牌、主标题和快捷提问。消息作者保留可访问的过程入口，替代每条消息底部重复的过程按钮；侧栏与头像入口继续可用。详情空状态只显示简短状态，正常连接不重复解释自动同步，离线时保留提示。连接状态、等待回复、发送失败、停止与继续、协助重试原因、执行身份和预算等影响操作的信息仍然显示。
 
 上述调整只改变原有 loading / connected / disconnected、drafting / sending 和详情状态的渲染，不新增 XState 状态或转移，也不改变 HTTP 命令与副作用边界。测试直接渲染视图和详情组件，验证内容、可访问入口与禁用状态；完整浏览器交互仍按原有待验收项单列。
 
 快照提供群消息、任务状态、评审进度和成员执行日志。消息经 Markdown/GFM 渲染，跳过原始 HTML，代码和已有链接不转成成员按钮。等待用户时发送消息映射 HUMAN_DECISION；继续按钮提交 CONTINUE，停止按钮提交 STOP，均通过 HTTP 服务进入 TeamEngine。HTTP 不接受客户端任意状态机事件。产物下载只读取实际持久化内容。
 
-## 验收执行与覆盖报告
+### 详情复制与导出
 
-这是测试宿主的处理流程，不增加业务 XState 状态。群历史与评审对应 BT_G01–BT_G14，模型传输对应 BT_M01–BT_M06，Markdown 对应 BT_U10–BT_U13；前述业务状态和交互状态继续复用。协调判断应在转移时保留选择原因及所依据记录，供 BT_O02 核查；监督输入及负责人接续输入应携带已保存的重复失败记录，供 BT_O01、BT_E02 核查。上述修正沿用既有状态转移，仅补齐上下文和记录。
+对应 BT_A12–BT_A21。当前详情可以复制全文、依据和折叠过程，或导出文件。采用常规的浏览器[剪贴板写入](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText)与[Blob文件下载](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a#download)，不引入导出服务或格式选择菜单。Clipboard API可能因非安全上下文或浏览器权限失败，必须等待写入确认；[对象URL](https://developer.mozilla.org/en-US/docs/Web/API/URL/revokeObjectURL_static)使用后回收。
+
+**图型：UI 投影；所有者：`DetailActions 的文档身份、pending、copying、feedback`。**
 
 ```mermaid
 stateDiagram-v2
-    [*] --> discovered: 读取全部 feature
-    discovered --> invalid: 场景身份重复或排除登记不一致
-    discovered --> deferred: 标签与登记匹配 / 保留待验收原因
-    discovered --> executing: 其余场景默认执行
-    executing --> failed: 步骤未定义 / 断言失败
-    executing --> passed: 每个展开用例全部通过
-    passed --> reported: 汇总直接执行和回归关联
-    deferred --> reported: 单列未执行数量与原因
-    reported --> [*]
+    [*] --> ready: 当前文档可用
+    ready --> copying: 用户复制 [同视图无待完成请求] / 捕获文档身份
+    copying --> copied: 剪贴板成功 [仍是当前视图与请求] / 成功反馈
+    copying --> copyFailed: 写入拒绝或不可用 [仍是当前视图] / 错误反馈
+    copying --> ready: 文档身份变化 / 隔离旧回执
+    copyFailed --> copying: 用户重试 [文档可用]
+    copied --> ready: 提示到期或文档变化
+    copyFailed --> ready: 文档变化
+    ready --> unavailable: 当前目标不存在
+    unavailable --> ready: 有效文档加载
+    copying --> disposed: 卸载 / 旧回执不再反馈
 ```
 
-## 浏览器状态机调试
+**图型：浏览器处理流程；所有者：`DetailActions.exportFile` / `downloadDetailDocument`。**
+
+```mermaid
+flowchart LR
+    D["用户导出当前文档"] --> A{"文档可用"}
+    A -->|是| B["创建 Blob 与对象 URL，发起下载"]
+    B --> S["提示已开始导出，回收节点和对象 URL"]
+    B -->|异常| F["清理资源，错误反馈，允许重试"]
+    A -->|否| N["入口禁用"]
+```
+
+复制的 pending、copying、feedback 和文档身份独立于导出，复制等待不禁用导出；以上是派生交互状态，不是新的 XState 机器。任何视图都可关闭，卸载只隔离反馈，不宣称撤销了系统剪贴板写入。
+
+复制与导出共用一个纯文档选择器，读取当前已加载快照，禁止从 DOM.innerText 截取可见摘要而遗漏折叠记录。消息详情包含原始全文、该消息关联的真实报告、该任务的依据与来源、执行事件完整内容及调度记录；不混入其他任务或未关联报告正文。任务详情带任务资料和同任务记录；成员执行过程与产物页签分别按成员筛选。缺失指定任务、消息或产物时返回不可用，禁止回退新任务；只有成员资料但暂无工作记录时仍可导出当前资料。普通详情使用 Markdown，产物预览复制原文并保留原文件格式，顶栏复用导出入口，不重复放置同一文件下载按钮；产物列表仍可单独下载各文件。建议文件名清理路径及控制字符，保留合法点文件名；浏览器仍可能调整实际下载名称。正文不截断、不改写。
+
+本次浏览器 I/O 仅由用户点击触发，不发送模型、工具或任务命令，不生成新的黑板产物，也不修改额度。读取快照期间不会执行新的业务，因此沿用现有任务 XState，无需修改 src/task.machine.ts。文档身份、复制等待、反馈和资源清理均为页面状态。导出提示只确认已发起下载，不声称文件已保存到磁盘。反馈短暂显示并可被感知，窄面板保留原关闭入口与可访问按钮；静态尺寸见[界面样式规范](ui-style.md)。
+
+<a id="页面侧栏与字号"></a>
+
+### 页面面板交互
+
+对应 BT_P01–BT_P09、BT_P11–BT_P19、BT_P21。采用常规可调整分隔条，提供键盘和可访问尺寸；参考 [WAI Window Splitter](https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter/)。桌面拖宽详情触及聊天区下限时预览收起导航，保持拖拽连续。保留现有 Grid 与窄屏抽屉，只使用本地布局状态，无需额外布局依赖或业务 XState 状态。
+
+BT_P21：连接状态可见，从导航查看成员仍进入现有成员详情；关闭详情、选择任务和移动抽屉沿用原状态。去除重复成员入口不改变操作能力。原 BT_P20 的标题栏尺寸检查已移至[界面样式规范](ui-style.md)，不再列为交互转移。
+
+**图型：UI 投影；所有者：`usePanelLayout / PanelSeparator / panel-layout 纯转换`。**
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle: 加载有效偏好 / 存储异常回退默认
+    idle --> dragging: 按下已展开面板分隔条 / 捕获指针并保存起始偏好
+    dragging --> dragging: 指针移动 / 在可用宽度内临时调整
+    dragging --> autoCollapsed: 桌面右栏增宽且聊天区触及可用下限 / 预览收起导航，保持指针捕获
+    autoCollapsed --> autoCollapsed: 继续或反向拖拽 / 保持收起并限幅右栏
+    autoCollapsed --> idle: 松开 / 一并保存右栏宽度和收起偏好
+    autoCollapsed --> idle: Escape、取消、失焦、关闭或窗口变化 / 恢复保存布局并清理
+    autoCollapsed --> idle: 手动展开导航 / 取消拖拽并应用展开选择，忽略迟到松手
+    autoCollapsed --> disposed: 卸载 / 释放捕获与全局样式
+    dragging --> idle: 松开 / 提交偏好并释放捕获与样式
+    dragging --> idle: Escape、取消、失焦、关闭或断点变化 / 回退临时调整并清理
+    dragging --> disposed: 卸载 / 释放捕获与全局样式
+    idle --> idle: 方向键或Home、End / 限幅并保存偏好
+    idle --> idle: 收起导航 / 提供品牌标识，释放桌面空间并增大详情上限
+    idle --> idle: 展开导航 / 隐藏顶栏品牌图形，恢复导航宽度并临时限幅详情
+    idle --> idle: 关闭再开详情 / 恢复保存宽度
+    idle --> idle: 从导航选择成员详情 / 显示对应成员的记录与操作
+    idle --> idle: 窗口变化 / 仅计算有效宽度，不覆盖偏好
+```
+
+保存偏好与当前有效宽度分开：拖拽、键盘和展示模式共用工作区可用空间；临时限幅不覆盖保存值。分隔条提供可聚焦的 separator 语义、尺寸和目标引用，具体边界样本在 `web/src/panel-layout.ts` 及其测试中。
+
+自动收起只由桌面已打开详情的右栏增宽拖拽触发；不由左栏拖拽、键盘调整、加载偏好或窗口缩窄触发，覆盖层也不修改桌面导航偏好。一次拖拽中收起后不会因反向拖拽反复展开；松手后保留收起偏好，用户可手动恢复。预览不写 localStorage，取消时同时恢复导航与右栏；手动导航操作可中止当前拖拽。`autoCollapsed` 是页面手势预览态，沿用全部业务 XState 状态。先以 `web/src/panel-layout.ts` 的纯布局转换验证阈值、连续拖拽、边界和非触发路径，再接入 React；可重复命令为 `node node_modules/vitest/vitest.mjs run tests/panel-layout.unit.test.ts tests/panel-layout-simulation.test.ts --maxWorkers=1`。DOM验收另外验证捕获、提交、取消和顶栏同步。
+
+导航状态与品牌可识别性同步，群聊标题及操作入口保持可用；尺寸、位置和资源比例归[样式规范](ui-style.md)。这些行为只读写本地偏好，不产生业务事件。
+
+桌面收起偏好与移动导航打开状态独立；移动端选群或遮罩点击关闭导航，不修改桌面偏好。详情打开状态沿用原页面状态，不因记住宽度而自动打开历史报告。拖拽、键盘和收起不会发出模型、工具、任务或取消请求，也不修改群聊、草稿、任务状态和预算，因此沿用所有已有业务 XState 状态，无需修改 src/task.machine.ts。localStorage 拒绝访问或数据无效时不阻止交互。
+
+静态字号、颜色、标题栏高度和品牌资源比例由[界面样式规范](ui-style.md)及专门样式测试维护；原 BT_P10、BT_P20 不再作为 Gherkin 执行，编号保留在迁移登记中。布局模型和交互仍按上述场景直接执行，真实浏览器验证与模拟 DOM 结果分别报告。
+
+### 浏览器状态机调试
 
 对应 BT_V01–BT_V26。这是观察与沙箱界面，沿用 src/task.machine.ts 的全部业务状态、守卫、意图和拒绝边界，包括 interpreting、协助、额度、停止、版本隔离与恢复；不新增正式业务调度状态。默认当前运行视图呈现主工作及讨论等待事项、顺序轨迹与步骤解释；稳定 SVG 全图和转移规则共享选择，官方 Inspector 是可选高级入口。官方资料：https://stately.ai/docs/inspector 。
+
+**图型：UI 投影；所有者：`TaskDebug 的模式、运行选择与沙箱`。**
 
 ```mermaid
 stateDiagram-v2
@@ -452,6 +694,8 @@ stateDiagram-v2
     沙箱 --> 关闭: 关闭或Escape
 ```
 
+**图型：事务处理流程；所有者：`TeamEngine 的提交观测 / WebService 调试日志`。**
+
 ```mermaid
 flowchart TD
     A["可信命令或执行结果"] --> B["事务内计算状态与暂存观测"]
@@ -466,9 +710,60 @@ flowchart TD
 
 调试读取端点只在宿主开启时提供完整快照，客户端不能向真实任务发送任意机器事件。沙箱复用真实任务模型的纯转换与诊断投影、独立快照、受控时钟与合成结果，不连接 SQLite、WorkRunner、模型或网页工具。外部操作仍只能由正式引擎在事务中保存意图，执行器领取校验后执行并回传；状态图中的虚线或候选事件不表示守卫已通过。停止、错误、额度耗尽及恢复的结果均由原状态机决定，界面不补造通过结果。
 
-### 当前运行与可信解释
+#### 官方 Inspector 观察通道
+
+BT_V27–BT_V31 使用官方 [Inspector 手动发送接口](https://stately.ai/docs/inspector)和独立标签页。401 来自托管 `machines.getDigraphConfigs` 的认证检查，实测响应为 `Sign in to view hosted work`；新标签页允许顶层登录和第一方会话，不声称匿名请求因此获得权限。沿用现有 SDK 与官方实际可用的 `/inspect` 地址，不引入 API 密钥、代理或 SDK 迁移。观察模型位于 `src/inspector.machine.ts`，业务 `src/task.machine.ts` 不增加状态或改变转移。
+
+**图型：真实 XState；所有者：`inspectorWindowMachine（inspector-window）`。**
+
+```mermaid
+stateDiagram-v2
+    [*] --> closed
+    closed --> opening: OPEN / open意图
+    blocked --> opening: OPEN / open意图
+    opening --> open: OPENED
+    opening --> blocked: BLOCKED
+    open --> closed: WINDOW_CLOSED / disconnect意图
+    open --> disposed: DISPOSE / disconnect意图
+    disposed --> [*]
+```
+
+**图型：真实 XState；所有者：`inspectorMachine`（`inspector-observer`）。**
+
+```mermaid
+stateDiagram-v2
+    [*] --> waiting
+    waiting --> connected: CONNECT [trusted] / register
+    waiting --> closed: CLOSE
+    connected --> closed: CLOSE / disconnect
+    closed --> [*]
+```
+
+| 模型与范围 | 事件 | 状态与更新 |
+| --- | --- | --- |
+| 标签页所有非 final 状态 | DISPOSE | 根级转移到 disposed，生成 disconnect；图中以 open 为代表 |
+| 标签页 open | OPEN | 无 target，保持 open，生成 focus 意图 |
+| 观察 waiting | UPDATE / SELECT | 无 target，remember 最新帧 |
+| 观察 connected | UPDATE | 无 target，update 并生成发送意图 |
+| 观察 connected | SELECT | 无 target，先 remember 再 register，发送前注册新身份 |
+| 观察 connected | CONNECT [trusted] | 无 target，重发当前身份注册 |
+| 观察 waiting / connected | CONNECT [不可信] | 无转移、无发送 |
+
+两张图对应两个真实模型，不是任务机器下的两个区域。观察连接的终态名为 `closed`，标签页机器的 `closed` 则允许重新 OPEN；只有观察 `closed` 与窗口 `disposed` 是真正 final。非可信 CONNECT 无转移，未消费的旧异步返回由控制器隔离。
+
+点击事件中先通过纯标签页模型生成open意图，再立即执行 `window.open('about:blank', '_blank')`，不等待动态导入或React effect，避免丢失用户激活。不开启 popup 特性；保留官方接收器使用的 opener。同步获得目标窗口后，先装监听，再导航到官方页面。窗口来源与origin均须校验；数据发送固定为 `https://stately.ai`。页面load不参与握手守卫，保留BT_V27的早握手修复。
+
+重复点击只聚焦，不覆盖正在登录的页面；切换实时任务或沙箱身份沿用同一观察连接，在新身份首帧前注册新元数据actor，不重载标签页。窗口关闭检测只停止旧通道，下次点击创建新窗口；被阻止时没有发送、导航或业务副作用，重试使用最新选择。关闭面板或卸载组件解除监听和关闭检测，迟到握手或异步加载均不得再发送。已打开的官方标签页保留给用户，不强制关闭。
+
+两层模型只产生瞬时观察/窗口意图，由浏览器适配器执行，不写业务SQLite、不领取任务工作，不调用WorkRunner。观察只读取持久化快照或纯内存沙箱结果，元数据业务actor从不start或send。停止、失败、额度耗尽、任务版本与重启恢复沿用原业务机器；打开或重连不会重放业务I/O或修改预算。模型层先验证打开/被阻止/重试/聚焦/关闭/释放、身份切换前注册与来源拒绝，再接入网页。真实登录需要用户在官方页面完成，匿名401与协议验证单独报告。
+
+标签页模型版本、门槛轨迹与真实官方协议证据见[Inspector 验收记录](inspector-verification.md)。
+
+#### 当前运行与可信解释
 
 BT_V16–BT_V26 沿用八个业务状态，只增加调试证据契约和本地交互状态。模型层先验证同一真实机器定义的诊断投影：每次纯转换只计算一次，命名守卫复用原函数，保留分支顺序，自动微步来自 XState 的 getMicrosteps/getInitialMicrosteps。诊断使用独立 collector 及正确绑定的快照，不向业务上下文注入字段；返回的业务快照重新绑定原机器。与原 initialTransition/transition 的持久化结果等价后才接入引擎与 UI。采集不启动 actor 或执行外部动作；诊断失败降级为原转换和未采集证据，不能改变提交结果。
+
+**图型：UI 投影；所有者：`当前运行的执行头与历史选择`。**
 
 ```mermaid
 stateDiagram-v2
@@ -481,6 +776,8 @@ stateDiagram-v2
     查看历史 --> 独立实验: 从此步新建沙箱 / 标明来源基线
     独立实验 --> 跟随最新: 选择源运行
 ```
+
+**图型：UI 投影；所有者：`沙箱事件草稿与预演结果`。**
 
 ```mermaid
 stateDiagram-v2
@@ -507,53 +804,25 @@ stateDiagram-v2
 
 BT_V15 校验图的守卫分支投影：局部事件只有带守卫的分支时，失败后仍可能由父级全局转移处理，状态详情必须保留这些全局分支，例如 running 的 CLAIM 还可领取讨论和取消工作。局部存在无条件分支时才完全遮蔽同名全局事件，例如 stopping 的 STOP。该修正只读取真实机器结构，沿用 XState 的原有事件冒泡语义，不改变业务转移。
 
+## 验证模型与文档
 
-## 本地技能与 CLI 子操作
+本次原则与图示重构的模型版本、117 项回归、35 个图的解析渲染及核对限制见[重构核对记录](state-diagrams-verification.md)。
 
-对应 BT_L01–BT_L13。沿用主任务顶层阶段，子状态与检查点保存在父 Intent 内，由真实 taskMachine 纯转换验证。服务先建立有界共享目录，再恢复任务。listSkills 只读内存元数据免费；正文、资源和 CLI 每次领取扣一次 ordinary（即使父工作为 check），继续模型按父工作原 bucket 计费。讨论、评审与负责人续办保留额度继续有效。
+### 验收执行与覆盖报告
+
+这是测试宿主的处理流程，不增加业务 XState 状态。群历史与评审对应 BT_G01–BT_G14，模型传输对应 BT_M01–BT_M06，Markdown 对应 BT_U10–BT_U13；前述业务状态和交互状态继续复用。协调判断应在转移时保留选择原因及所依据记录，供 BT_O02 核查；监督输入及负责人接续输入应携带已保存的重复失败记录，供 BT_O01、BT_E02 核查。上述修正沿用既有状态转移，仅补齐上下文和记录。
+
+**图型：测试处理流程；所有者：`run-bdd.mjs / spec-coverage.ts`。**
 
 ```mermaid
-stateDiagram-v2
-    [*] --> queued: LOCAL_REQUEST 保存动作和续办检查点
-    queued --> claimed: LOCAL_CLAIM 当前权限/父工作/额度/工作区租约通过
-    queued --> cancelled: 停止/目标失效
-    queued --> failed: LOCAL_REJECTED 领取拒绝且未启动
-    claimed --> running: LOCAL_STARTED 会话身份和工程版本
-    claimed --> failed: LOCAL_RESULT 确认未启动
-    claimed --> cancelling: STOP/目标改变
-    running --> succeeded: LOCAL_RESULT 回执与检查点原子保存
-    running --> failed: LOCAL_RESULT 确认失败
-    running --> cancelling: STOP/超时/目标改变
-    claimed --> uncertain: RECOVER 缺少可靠回执
-    running --> uncertain: RECOVER 缺少可靠回执
-    cancelling --> cancelled: LOCAL_RESULT 确认会话退出及效果
-    cancelling --> uncertain: 无法确认退出或效果
-    uncertain --> succeeded: LOCAL_RECONCILE 宿主可信回执
-    uncertain --> queued: LOCAL_RECONCILE 证明尚未执行
+flowchart TD
+    D["发现全部 feature 与展开用例"] --> V{"编号、绑定和排除登记有效"}
+    V -->|否| F["检查失败"]
+    V -->|是| A{"已登记待验收"}
+    A -->|是| G["保留原因及数量"]
+    A -->|否| E["直接执行全部步骤"]
+    E -->|步骤缺失或断言失败| F
+    E -->|通过| R["报告直接执行结果"]
+    G --> R
+    R --> S["分别列出回归关联、已执行与待验收范围"]
 ```
-
-LOCAL_REQUEST 固定 operationId、请求摘要、父会话 attempt、技能版本与模型动作。LOCAL_CLAIM 与跨群共享的工作区租约在同一存储事务中提交；竞争者保持 queued，不消费预算。租约到期不是进程结束证明，不自动接管。实际执行前再次确认当前父工作、权限、取消和领取身份。回执只能结算自己的 operationId 与 sessionId；迟到回执不恢复候选或新目标。SETTLE、普通最终输出、重试、目标边界和新父工作均不能释放尚有未决子操作的工作锁。
-
-停止会将已领取子操作置 cancelling 并发取消意图，执行器等待沙箱会话和后代退出；可能写入的取消/崩溃保留 uncertain，直到核对回执/效果。重启先核对本地会话日志与存储，再调度父工作；没有会话启动记录可证明未执行，已有回执可补交，缺少证据则保持 uncertain 和租约，不重放写入。旧任务缺失能力默认不授权；显式恢复核对通过后仅为兼容版本的新动作启用当前配置。
-
-技能注册表固定启动 manifest；激活原子发布同版本只读快照，资源按包内相对路径读取；正文和资源不是调度权限。所有 Bot 默认获得四个本地接口，解析/纯汇总阶段不执行。check 与后台讨论的 CLI 用可写隔离副本并标记工程 revision；主工作区仍为权威来源。执行后端不可用返回真实失败，不退回无沙箱进程。文件、日志、环境、网络和进程 I/O 在执行器完成，状态机不访问文件或启动进程。
-
-可信 LOCAL_RECONCILE 或 uncertain 操作的 LOCAL_RESULT 回执全部结算后，若目标仍有效且未停止，返回原主工作的阶段（owner→running、assistance→waitingAssistance、facilitator→coordinating、check→checking），复用检查点继续。旧目标和停止任务只结算旧操作，不恢复执行。
-
-BT_L14 的宿主 `local:operations` 命令读取未决会话与当前工作区清单，只有进程已退出、会话身份和审阅摘要匹配时才把操作者确认转换为 LOCAL_RECONCILE(receipt)。未退出、身份不明或摘要过期时不发事件。停止任务完成结算，活动任务由既有恢复守卫回到原工作阶段；此入口不重新执行命令。
-
-工作区命名空间在 LOCAL_REQUEST 中固定为群 ID 与任务 ID 的宿主摘要；默认目录和核查副本均绑定此命名空间。即使两个群使用相同消息/工作 ID，也不会共用默认目录或副本。显式指定同一 canonical 工程时才共享工作区租约。
-
-BT_L15 的调试模板沿用同一 taskMachine 与局部操作状态，不新增调度规则。LOCAL_* 模板绑定父工作、operationId、attempt、命名空间、会话身份和 fence；离线沙箱仍只进行纯转换，CLI 文本是合成资料。模板与形状校验属于图的输入投影，先复验上述真实模型后接入。
-
-BT_L16：活跃后台讨论成员的 LOCAL_RESULT(uncertain) 只保留该子操作与成员锁，不改变仍在执行的主阶段。方案师照常将草稿存入 candidate，因讨论未完成而暂停最终检查；核对并完成讨论后再汇总交接。服务重启时仍统一先恢复未决物理会话，禁止重放未知写入。
-
-BT_L17：check 使用 CLI 后，在提交正面的最终 CHECK_RESULT 前新增宿主内部 verifyWorkspace 子操作，沿用 LOCAL_REQUEST → LOCAL_CLAIM → LOCAL_RESULT 的持久化、ordinary 额度及工作区租约，不向模型开放此动作。比较首次复制时绑定的源版本、当前权威工程与当前检查副本；忽略宿主明确的输出目录 dist/test-results/reports/coverage。任何源文件变化都将检查结论降为未通过，包含版本差异，且不重跑 CLI。复核无法领取或完成时不提交正面检查。每次恢复/重试提交前重新复核，旧成功回执不能证明当前工程仍是该版本。
-
-check 的沙箱只开放输出目录与任务临时目录可写，源文件保持只读；即便受控执行夹具或外部编辑曾改变副本输入再恢复，也会由每次 CLI 回执中的输入变化标记阻止正面检查。后台讨论可在副本进行试验，但不合回权威工程。
-
-工程副本保留包内工具的相对链接（包括 node_modules/.bin），解析后的目标必须在工程内；拒绝逃逸和循环。此为受领取后执行的文件副作用，沿用同一局部操作模型，不增加调度转移。BT_L09 同时运行真实 npm build，检验链接、可写输出与源版本复核的接线。
-
-BT_L18：成功激活同时记录 TaskContext.localSkillVersions；新意图、领取和 LOCAL_REQUEST 都继承当前任务绑定，避免同一任务换 Bot/续办后改用重启时的新版本。来源 ID 与内容版本独立，名称先解析为来源 ID 再选择已固定版本。明确的用户目标版本变化或协调员 replan 可重建任务绑定；旧 Work 自身仍保留原绑定，用于结算和审计。
-
-版本不兼容的恢复只允许核对并结算已存在的物理操作；LOCAL_RESULT/LOCAL_RECONCILE 必须保留不兼容原因，不将父工作重新置 pending，也不返回执行阶段。可信旧回执不授予新协议或新模型配置的执行权限（BT_L12）。

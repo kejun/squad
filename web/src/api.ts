@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RoomSnapshot, WebRoom } from "../../src/web/contracts";
+import { mergeRooms, roomList } from './room-list';
 
 export async function api<T>(
   path: string,
@@ -35,22 +36,30 @@ export function useWorkspace() {
   const [snapshot, setSnapshot] = useState<RoomSnapshot | null>(null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState("");
+  const roomCache = useRef<WebRoom[]>([]);
+  const acceptRooms = useCallback((incoming: WebRoom[]) => {
+    roomCache.current = mergeRooms(roomCache.current, incoming);
+    setRooms(roomCache.current);
+    return roomCache.current;
+  }, []);
   const activeRoom = useRef(roomId);
   activeRoom.current = roomId;
-  const chooseRoom = useCallback((id: string) => {
+  const selectRoom = useCallback((id: string | null) => {
+    activeRoom.current = id;
     setRoomId(id);
     try {
-      localStorage.setItem("squad-room", id);
+      if (id) localStorage.setItem("squad-room", id);
+      else localStorage.removeItem("squad-room");
     } catch {
       /* Storage is optional. */
     }
     setError("");
   }, []);
+  const chooseRoom = useCallback((id: string) => selectRoom(id), [selectRoom]);
   const refreshRooms = useCallback(async () => {
     const result = await api<{ rooms: WebRoom[] }>("/rooms");
-    setRooms(result.rooms);
-    return result.rooms;
-  }, []);
+    return acceptRooms(result.rooms);
+  }, [acceptRooms]);
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -62,15 +71,7 @@ export function useWorkspace() {
           !activeRoom.current ||
           !list.some((room) => room.id === activeRoom.current)
         ) {
-          if (list[0]) chooseRoom(list[0].id);
-          else {
-            setRoomId(null);
-            try {
-              localStorage.removeItem("squad-room");
-            } catch {
-              /* Storage is optional. */
-            }
-          }
+          selectRoom(roomList(list, false)[0]?.id ?? null);
         }
         setConnected(true);
       } catch {
@@ -87,7 +88,7 @@ export function useWorkspace() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [chooseRoom, refreshRooms]);
+  }, [selectRoom, refreshRooms]);
   useEffect(() => {
     if (!roomId) {
       setSnapshot(null);
@@ -103,16 +104,14 @@ export function useWorkspace() {
           undefined,
           controller.signal,
         );
-        if (controller.signal.aborted) return;
-        setSnapshot(next);
+        if (controller.signal.aborted || activeRoom.current !== roomId) return;
+        const merged = acceptRooms([next.room]).find(room => room.id === roomId)!;
+        setSnapshot({ ...next, room: merged });
         setConnected(true);
-        setRooms((previous) =>
-          previous.map((room) => (room.id === next.room.id ? next.room : room)),
-        );
       } catch {
         if (!controller.signal.aborted) setConnected(false);
       } finally {
-        if (!controller.signal.aborted)
+        if (!controller.signal.aborted && activeRoom.current === roomId)
           timer = setTimeout(() => {
             void poll();
           }, 1000);
@@ -123,16 +122,21 @@ export function useWorkspace() {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [roomId]);
+  }, [roomId, acceptRooms]);
   const createRoom = useCallback(async () => {
     const room = await api<WebRoom>("/rooms", {});
-    setRooms((previous) => [
-      ...previous.filter((existing) => existing.id !== room.id),
-      room,
-    ]);
+    acceptRooms([room]);
     chooseRoom(room.id);
     return room.id;
-  }, [chooseRoom]);
+  }, [chooseRoom, acceptRooms]);
+  const setRoomArchived = useCallback(async (id: string, archived: boolean) => {
+    const room = await api<WebRoom>(`/rooms/${encodeURIComponent(id)}/${archived ? 'archive' : 'restore'}`, { id: crypto.randomUUID() });
+    const list = acceptRooms([room]);
+    const current = list.find(room => room.id === id)!;
+    if (!current.archived) selectRoom(id);
+    else if (activeRoom.current === id) selectRoom(roomList(list, false)[0]?.id ?? null);
+    return current;
+  }, [acceptRooms, selectRoom]);
   return {
     rooms,
     roomId,
@@ -143,5 +147,6 @@ export function useWorkspace() {
     chooseRoom,
     createRoom,
     refreshRooms,
+    setRoomArchived,
   };
 }

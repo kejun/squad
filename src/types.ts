@@ -116,7 +116,7 @@ export interface TaskContext extends Fence {
   localSkillVersions?: SkillBinding[];
 }
 export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[] }
-export interface Envelope { id: string; at: number; fence?: Fence; workId?: string }
+export interface Envelope { id: string; at: number; fence?: Fence; workId?: string; attempt?: number }
 export type Decision =
   | { action: 'continue'; reason: string }
   | { action: 'assist'; target: string; question: string; expected: string; reason: string }
@@ -154,6 +154,9 @@ export type TaskEvent = Envelope & (
   | { type: 'BOARD_WRITE'; author: string; entryId: string; baseRevision?: number; text: string; kind: BoardEntry['kind']; sources: string[] }
   | { type: 'ARTIFACT'; artifact: Omit<Artifact, 'goalVersion'> }
   | { type: 'CLAIM'; intentId: string }
+  /** Host-only actor protocol; public command and sandbox adapters must not authorize it. */
+  | { type: 'EXECUTION_START'; intentId: string; attempt: number }
+  | { type: 'EXECUTION_RECONCILE' }
   | { type: 'CONSUME'; intentId: string; capability?: 'web_search' | 'web_fetch' }
   | { type: 'WORK_FAILED'; intentId: string; reason: string; transient: boolean; resultUncertain?: boolean }
   | { type: 'RECOVER'; config: TeamConfig }

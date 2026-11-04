@@ -6,6 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { SandboxManager, type SandboxRuntimeConfig } from '@anthropic-ai/sandbox-runtime';
 import { digest, LocalToolError } from './local-skills.js';
 import type { LocalToolResult } from './local-operation.js';
+import { darwinProcessIdentity } from './darwin-process.js';
 
 export interface CliInvocation {
   executable: string; args: string[]; cwd: string; workspace: string; skillPath?: string; writeRoots?: string[];
@@ -17,42 +18,54 @@ export interface CliBackend {
   execute(input: CliInvocation, signal: AbortSignal, onSpawn: (identity: ProcessIdentity) => Promise<void>): Promise<CliCompletion>;
   close?(): Promise<void>;
 }
-export interface ProcessIdentity { pid: number; procPid: string; pidNamespace: string; startTime: string; bootId: string }
+export interface ProcessIdentity { platform?: 'linux' | 'darwin'; pid: number; procPid: string; pidNamespace: string; startTime: string; bootId: string }
 const literal = (path: string) => ({ path, literal: true as const });
 export function sandboxPolicy(input: Pick<CliInvocation, 'workspace' | 'skillPath' | 'writeRoots'>): SandboxRuntimeConfig {
-  const reads = ['/usr', '/bin', '/sbin', '/lib', '/lib64', '/etc/ld.so.cache', '/etc/alternatives', '/etc/ssl/certs', '/dev/null', '/dev/urandom', dirname(dirname(process.execPath)), input.workspace, ...(input.skillPath ? [input.skillPath] : [])];
+  const reads = ['/usr', '/bin', '/sbin', '/lib', '/lib64', '/etc/ld.so.cache', '/etc/alternatives', '/etc/ssl/certs', '/dev/null', '/dev/urandom',
+    ...(process.platform === 'darwin' ? ['/System/Library', '/Library/Apple', '/opt/homebrew', '/dev/fd', '/dev/zero'] : []),
+    dirname(dirname(process.execPath)), input.workspace, ...(input.skillPath ? [input.skillPath] : [])];
   return { network: { allowedDomains: [], deniedDomains: ['*'], strictAllowlist: true, allowLocalBinding: false, allowAllUnixSockets: false },
     filesystem: { denyRead: ['/', literal(process.cwd()), literal(join(input.workspace, '.env')), join(input.workspace, '**/.env'), join(input.workspace, '**/.env.*'), join(input.workspace, '**/*.sqlite'), join(input.workspace, '**/*.sqlite-*')], allowRead: reads.map(literal), allowWrite: (input.writeRoots ?? [input.workspace]).map(literal), denyWrite: [literal(join(input.workspace, '.env')), ...['**/.env', '**/.env.*', '**/*.sqlite', '**/*.sqlite-*', '**/.git/config', '**/.git/hooks/**'].map(pattern => join(input.workspace, pattern))] },
     enableWeakerNestedSandbox: false, allowNestedUserNamespaces: false };
 }
 export function minimalCliEnvironment(workspace: string, extra: Record<string, string> = {}): Record<string, string> {
   // Host-only explicit command profiles may add credentials; never inherit process.env.
-  return { PATH: `${dirname(process.execPath)}:/usr/local/bin:/usr/bin:/bin`, LANG: 'C.UTF-8', HOME: join(workspace, '.home'), TMPDIR: join(workspace, '.tmp'),
+  return { PATH: `${dirname(process.execPath)}:${process.platform === 'darwin' ? '/opt/homebrew/bin:' : ''}/usr/local/bin:/usr/bin:/bin`, LANG: 'C.UTF-8', HOME: join(workspace, '.home'), TMPDIR: join(workspace, '.tmp'),
     ...extra, NODE_OPTIONS: '', BASH_ENV: '', ENV: '', LD_PRELOAD: '', DYLD_INSERT_LIBRARIES: '' };
 }
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
-/** Pinned SRT; no unsandboxed fallback. Linux PID namespaces are required for descendant settlement. */
+/** Pinned native SRT; no unsandboxed fallback on either supported host. */
 export class SandboxCliBackend implements CliBackend {
   private constructor(readonly available: boolean, readonly unavailableReason?: string) {}
   private initialized = false;
   static async create(): Promise<SandboxCliBackend> {
-    if (process.platform !== 'linux') return new SandboxCliBackend(false, 'Linux PID namespace backend required');
+    if (process.platform !== 'linux' && process.platform !== 'darwin') return new SandboxCliBackend(false, 'Supported native sandbox host required');
     try {
-      const probe = spawnSync('bwrap', ['--unshare-user', '--unshare-pid', '--unshare-net', '--ro-bind', '/', '/', '--', '/usr/bin/true'], { timeout: 1500, stdio: 'ignore', env: { PATH: '/usr/bin:/bin' } });
-      if (probe.error || probe.status !== 0) return new SandboxCliBackend(false, 'Required OS namespaces are unavailable');
+      if (process.platform === 'linux') {
+        const probe = spawnSync('bwrap', ['--unshare-user', '--unshare-pid', '--unshare-net', '--ro-bind', '/', '/', '--', '/usr/bin/true'], { timeout: 1500, stdio: 'ignore', env: { PATH: '/usr/bin:/bin' } });
+        if (probe.error || probe.status !== 0) return new SandboxCliBackend(false, 'Required OS namespaces are unavailable');
+      } else {
+        await processIdentity(process.pid);
+        const probe = spawnSync('/usr/bin/sandbox-exec', ['-p', '(version 1)(allow default)', '/usr/bin/true'], { timeout: 1500, stdio: 'ignore', env: { PATH: '/usr/bin:/bin' } });
+        if (probe.error || probe.status !== 0) return new SandboxCliBackend(false, 'Native macOS sandbox unavailable');
+      }
       const dependencies = await SandboxManager.checkDependenciesAsync();
       if (dependencies.errors.length) return new SandboxCliBackend(false, dependencies.errors.join('; ').slice(0, 300));
       return new SandboxCliBackend(true);
-    } catch { return new SandboxCliBackend(false, 'Sandbox dependencies unavailable'); }
+    } catch { return new SandboxCliBackend(false, 'Native process identity or sandbox dependencies unavailable'); }
   }
   async execute(input: CliInvocation, signal: AbortSignal, onSpawn: (identity: ProcessIdentity) => Promise<void>): Promise<CliCompletion> {
     if (!this.available) return { result: { ok: false, code: 'CLI_SANDBOX_UNAVAILABLE', data: { reason: this.unavailableReason ?? '' } }, settled: true, effectsKnown: true };
     let launched = false;
     try {
+      // Seatbelt compares physical paths; /var and /private/var are the same macOS tree.
+      input = { ...input, workspace: await realpath(input.workspace), cwd: await realpath(input.cwd),
+        ...(input.skillPath ? { skillPath: await realpath(input.skillPath) } : {}),
+        ...(input.writeRoots ? { writeRoots: await Promise.all(input.writeRoots.map(path => realpath(path))) } : {}) };
       if (!this.initialized) { await SandboxManager.initialize(sandboxPolicy(input)); this.initialized = true; }
       // SRT accepts shell command text internally. Every token is host-quoted from structured argv;
       // the model never supplies a shell program. Outer spawn always uses shell:false.
-      const wrapped = await SandboxManager.wrapWithSandboxArgv([input.executable, ...input.args].map(quote).join(' '), undefined,
+      const wrapped = await SandboxManager.wrapWithSandboxArgv([input.executable, ...input.args].map(quote).join(' '), '/bin/bash',
         sandboxPolicy(input), signal, input.cwd, { commandId: input.sessionId });
       // On pinned SRT Linux, wrapped.env IS process.env; proxy settings are already
       // encoded in the wrapped argv. Never copy the host environment back into the child.
@@ -72,6 +85,12 @@ async function namespacePid(path: string): Promise<number> {
   return Number(line?.trim().split(/\s+/).at(-1));
 }
 export async function processIdentity(pid: number): Promise<ProcessIdentity> {
+  if (process.platform === 'darwin') {
+    const identity = await darwinProcessIdentity(pid);
+    if (!identity) throw Object.assign(new Error('Process already exited'), { code: 'ENOENT' });
+    return identity;
+  }
+  if (process.platform !== 'linux') throw new Error('Unsupported process identity platform');
   const namespace = await namespaceOf('/proc/self');
   let procPid = pid === process.pid ? await readlink('/proc/self') : String(pid);
   if (pid !== process.pid) {
@@ -88,9 +107,22 @@ export async function processIdentity(pid: number): Promise<ProcessIdentity> {
   }
   const content = await readFile(`/proc/${procPid}/stat`, 'utf8');
   const fields = content.slice(content.lastIndexOf(')') + 2).split(' ');
-  return { pid, procPid, pidNamespace: namespace, startTime: fields[19]!, bootId: (await readFile('/proc/sys/kernel/random/boot_id', 'utf8')).trim() };
+  return { platform: 'linux', pid, procPid, pidNamespace: namespace, startTime: fields[19]!, bootId: (await readFile('/proc/sys/kernel/random/boot_id', 'utf8')).trim() };
 }
 export async function identityAlive(identity: ProcessIdentity): Promise<boolean | 'unknown'> {
+  if (!identity || !Number.isSafeInteger(identity.pid) || identity.pid <= 0 || typeof identity.procPid !== 'string'
+    || !/^\d+$/.test(identity.procPid) || typeof identity.bootId !== 'string' || !identity.bootId
+    || typeof identity.startTime !== 'string' || !identity.startTime || typeof identity.pidNamespace !== 'string' || !identity.pidNamespace) return 'unknown';
+  // Legacy persisted identities are Linux procfs records; a foreign host is never proof of exit.
+  if ((identity.platform ?? 'linux') !== process.platform) return 'unknown';
+  if (process.platform === 'darwin') {
+    if (identity.procPid !== String(identity.pid) || identity.pidNamespace !== 'darwin'
+      || !/^\d+:\d{1,6}$/.test(identity.startTime) || !/^[0-9a-f-]{36}$/i.test(identity.bootId)) return 'unknown';
+    try {
+      const current = await darwinProcessIdentity(identity.pid);
+      return current !== null && current.startTime === identity.startTime && current.bootId === identity.bootId;
+    } catch { return 'unknown'; }
+  }
   try {
     const content = await readFile(`/proc/${identity.procPid}/stat`, 'utf8');
     const fields = content.slice(content.lastIndexOf(')') + 2).split(' ');

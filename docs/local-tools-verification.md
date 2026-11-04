@@ -1,5 +1,9 @@
 # 本地技能与 CLI 验证记录
 
+> 本页保留当时实跑的命令和数量。2026-10-30 测试治理后的文件对照、当前入口与数量见[测试治理记录](test-governance.md)；历史结果不代表当前用例数量。
+
+2026-10-30 追加 macOS 原生后端与目录别名适配：BT_L19–BT_L22 的模型门槛、真实沙箱和本机服务结果见 [macOS 验证记录](macos-local-tools-verification.md)。以下 Linux 不可用记录保留当时的真实结果，不代表当前 macOS 适配结果。
+
 实现从 `d526aac` 开始，遵循 Gherkin → 状态图 → 真实 XState → 模型仿真 → I/O 接入顺序。BT_L01–BT_L13 在 `features/24_local_skills_cli.feature`；细化图在 `docs/state-diagrams.md` 的「本地技能与 CLI 子操作」。
 
 ## 接入前模型门槛

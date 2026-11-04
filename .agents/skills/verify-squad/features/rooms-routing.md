@@ -22,6 +22,8 @@ Preconditions: 按 SKILL.md 构建，空数据库、可显示中文的浏览器�
 - **两种补全。** Ctrl+N 创建第二群，点「点名成员」再选 option「Builder 2 @builder-2」；输入 `@builder-2` 后 Enter 应补全而非发送。输入 `@builder-2 VERIFY_ROOMS 点名负责人验证` 后 Enter，第二群只有一个任务、owner=builder-2。
 - **切群与重启。** 点击 navigation「群聊列表」内第一群标题，显示第一群消息。关闭本轮宿主后应显示「连接中断」并禁用发送；同库重启、刷新后消息和任务与原快照逐项相等。只读 SQLite 中也有用户输入。
 - **证据。** 查看 `rooms-before`、`rooms-switched`、`rooms-offline`、`rooms-after-restart` 的 PNG/ARIA，`rooms.sqlite-proof.json`、房间快照和 trace。
+- **归档。** 在第一群保留未发送草稿，悬停其列表行并点击「归档群聊 {标题}」，普通列表移出后在「已归档 1」打开同一群，核对草稿、消息、任务及产物。重启真实服务再刷新，归档仍保留；390px下打开导航并通过「恢复群聊 {标题}」移回普通列表。证据为 `rooms-archived`、`rooms-archived-mobile`、`rooms-restored`。
+- **在途归档。** 新群发送 `VERIFY_ARCHIVE 归档时继续执行`，真实模型HTTP夹具暂时保留负责人请求；在请求在途时经网页归档。夹具返回后任务应正常完成、ordinary=1/checks=1；在归档群再次发送正常请求，群仍归档。`rooms-archive-inflight`、`rooms-archive-complete` 与 `rooms-archive.sqlite-proof.json`保留证据。
 - **扩展。** 输入文本后 `textbox.press('Shift+Enter')`，发送前任务数不得增加；切群再回原群检查草稿。引用/代码中的 @B 不调度需按 BT_R 规格另验；不计入本组自动覆盖。
 
 ## Gotchas

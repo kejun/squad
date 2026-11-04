@@ -19,14 +19,14 @@ JAR_SHA256 = '936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88'
 JAR_URL = 'https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar'
 PROPERTIES = ['TypeOK', 'AtomicHandoff', 'AtMostOnce', 'StopCancelsResume']
 CONTROLS = {
-    'drop-marker': ('AtomicHandoff', 'src/task.machine.ts',
+    'drop-marker': ('AtomicHandoff', 'src/task/assistance.ts',
                     'if (recorded) recorded.consumed = true;',
                     'if (recorded) recorded.consumed = false;'),
-    'double-resume': ('AtMostOnce', 'src/task.machine.ts',
+    'double-resume': ('AtMostOnce', 'src/task/assistance.ts',
                      '    owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer: e.answer, artifactIds, requiresAssessment: true });',
                      '    owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer: e.answer, artifactIds, requiresAssessment: true });\n'
                      '    owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer: e.answer, artifactIds, requiresAssessment: true });'),
-    'skip-cancel': ('StopCancelsResume', 'src/task.machine.ts',
+    'skip-cancel': ('StopCancelsResume', 'src/task/operations.ts',
                    "if (item.status === 'pending') item.status = 'cancelled';",
                    "if (item.status === 'pending' && item.kind !== 'owner') item.status = 'cancelled';"),
     'starve-flush': ('RunnerProgress', 'src/runner.ts',

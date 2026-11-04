@@ -47,4 +47,4 @@ export function scriptedModel(config = webModelConfig(), outputs: unknown[] = [
   } });
   return { adapter, requests };
 }
-export const answer: WorkOutput = { type: 'answer', text: '联网工作已完成' };
+export const answer = { type: 'answer', text: '联网工作已完成' } satisfies WorkOutput;

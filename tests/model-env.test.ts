@@ -62,11 +62,16 @@ describe('model services from .env', () => {
   });
 
   it.each([
-    { MODEL_BASE_URL: '' }, { MODEL_JSON_MODE: 'sometimes' }, { MODEL_TEMPERATURE: 'Infinity' },
-    { MODEL_MAX_TOKENS: '-1' }, { MODEL_EXTRA_BODY: '{private-invalid-value' }, { MODEL_EXTRA_BODY: '{"messages":[]}' },
-  ])('rejects invalid environment configuration without echoing its value %#', change => {
-    expect(() => createTeamConfig({ ...defaults, ...change })).toThrow();
-    try { createTeamConfig({ ...defaults, ...change }); } catch (error) { expect(String(error)).not.toContain('private-invalid-value'); }
+    { name: 'empty endpoint', change: { MODEL_BASE_URL: '' } },
+    { name: 'invalid JSON mode', change: { MODEL_JSON_MODE: 'sometimes' } },
+    { name: 'infinite temperature', change: { MODEL_TEMPERATURE: 'Infinity' } },
+    { name: 'negative token limit', change: { MODEL_MAX_TOKENS: '-1' } },
+    { name: 'malformed JSON body', change: { MODEL_EXTRA_BODY: '{private-invalid-value' } },
+    { name: 'reserved request field', change: { MODEL_EXTRA_BODY: '{"messages":[]}' } },
+  ])('rejects $name without echoing the invalid value', ({ change }) => {
+    expect(() => createTeamConfig({ ...defaults, ...change })).toThrow(
+      expect.objectContaining({ message: expect.not.stringContaining('private-invalid-value') }),
+    );
   });
 
   it('does not mutate an existing team when resolving environment settings', () => {

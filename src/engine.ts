@@ -1,6 +1,6 @@
 import { localPhysicalPending, type LocalAction, type LocalMessage, type LocalOperation } from './local-operation.js';
 import { createHash, randomUUID } from 'node:crypto';
-import { initialTask, persistTask, restoreTask, stepTask, taskPhase, workLaneAvailable, type TaskSnapshot } from './task.machine.js';
+import { initialTask, persistTask, restoreTask, stepTask, taskPhase, startTaskExecution, executionState, workLaneAvailable, type TaskSnapshot } from './task.machine.js';
 import type { Store, Transaction } from './store.js';
 import { conversationHistory, requestedReviewTargets } from './conversation.js';
 import { requestedRetryTarget, retryableAssistance, retryProblemText } from './assistance-retry.js';
@@ -8,6 +8,8 @@ import { inputControl, leadingInputMention } from './input-intent.js';
 import { debugFrame, type DebugEvent, type DebugFrame } from './task-debug.js';
 import { inspectInitialTask, inspectTask, type DebugEvidence } from './task-inspection.js';
 import { validateConfig, type Goal, type Intent, type Reply, type TaskContext, type TaskEvent, type TeamConfig } from './types.js';
+import { recoveryIssue } from './task/facts.js';
+import { restoreRoomArchive, stepRoomArchive } from './room.machine.js';
 
 interface StoredTask { version: 1; snapshot: unknown }
 export interface CommandResult extends Reply { taskId?: string; duplicate?: boolean }
@@ -92,6 +94,17 @@ export class TeamEngine {
     tx.remember(id, hash, result);
     return result;
   }
+  roomArchive(roomId: string) {
+    const state = restoreRoomArchive(this.store.read(roomId).archive);
+    return { archived: state.value === 'archived', archiveVersion: state.context.revision };
+  }
+  setRoomArchived(roomId: string, id: string, archived: boolean): CommandResult {
+    if (!id || id.length > 120) return { ok: false, code: 'INVALID_REQUEST', detail: '缺少请求标识。' };
+    return this.transact(roomId, tx => this.receipt(tx, id, { type: archived ? 'archiveRoom' : 'restoreRoom', id }, () => {
+      tx.room.archive = stepRoomArchive(tx.room.archive, { type: archived ? 'ARCHIVE' : 'RESTORE', at: this.clock() });
+      return { ok: true, code: 'OK', detail: archived ? '已归档' : '已恢复' };
+    }));
+  }
   submit(roomId: string, input: Submission): CommandResult {
     return this.transact(roomId, tx => this.receipt(tx, input.id, input, () => {
       const control = input.intent === undefined || input.intent === 'decision' || input.intent === 'supplement' ? inputControl(input.text) : undefined;
@@ -170,6 +183,7 @@ export class TeamEngine {
     }));
   }
   send(roomId: string, taskId: string, event: TaskEvent): CommandResult {
+    if (event.type.startsWith('EXECUTION_')) return { ok: false, code: 'HOST_ONLY_EVENT', detail: 'Execution protocol requires the trusted runner' };
     const { at: _at, ...identity } = event;
     return this.transact(roomId, tx => this.receipt(tx, event.id, { taskId, event: identity }, () => {
       if (!tx.room.tasks[taskId]) return { ok: false, code: 'TASK_NOT_FOUND', detail: taskId };
@@ -253,6 +267,23 @@ export class TeamEngine {
     const result = this.send(roomId, taskId, { id: `claim:${intentId}:${item.attempt + 1}`, type: 'CLAIM', intentId, at: this.clock() });
     if (!result.ok) return null;
     return this.view(roomId, taskId)!.context.intents.find(i => i.id === intentId)!;
+  }
+  /** The claim and one-use execution permit must both commit before any external adapter call. */
+  beginExecution(roomId: string, taskId: string, work: Intent): boolean {
+    return this.transact(roomId, tx => {
+      if (!tx.room.tasks[taskId]) return false;
+      const current = decode(tx.room.tasks[taskId]);
+      const actual = current.context.intents.find(intent => intent.id === work.id && intent.attempt === work.attempt);
+      if (!actual || actual.kind !== 'cancel' && recoveryIssue(current.context, this.config)) return false;
+      const result = startTaskExecution(current, work.id, work.attempt, this.clock(), (snapshot, event) => this.step(snapshot, event));
+      if (!result.allowed) return false;
+      storeTask(tx, result.snapshot);
+      return true;
+    });
+  }
+  executionPhase(roomId: string, taskId: string, work: Pick<Intent, 'id' | 'attempt'>) {
+    const value = this.store.read(roomId).tasks[taskId];
+    return value ? executionState(decode(value), work.id, work.attempt) : undefined;
   }
   flushResults(roomId: string, taskId: string): boolean {
     if (!this.view(roomId, taskId)?.context.results.some(r => !r.consumed)) return false;

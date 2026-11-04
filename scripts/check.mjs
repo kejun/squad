@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 for (const args of [
   ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.json'],
   ['node_modules/typescript/bin/tsc', '-p', 'web/tsconfig.json'],
-  ['node_modules/typescript/bin/tsc', '-p', 'tests/bdd/tsconfig.json'],
+  ['node_modules/typescript/bin/tsc', '-p', 'tests/tsconfig.json'],
   ['scripts/test.mjs'],
   ['--import', 'tsx', 'scripts/spec-coverage.ts'],
 ]) {

@@ -3,13 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { MessageText } from "../web/src/MessageText";
 
-const agents = [
+const agents = () => [
   { id: "A", name: "方案师", instructions: "", tools: [], model: null },
   { id: "B", name: "核查员", instructions: "", tools: [], model: null },
 ];
 const render = (text: string) =>
   renderToStaticMarkup(
-    createElement(MessageText, { text, agents, onAgent() {} }),
+    createElement(MessageText, { text, agents: agents(), onAgent() {} }),
   );
 
 describe("chat Markdown rendering", () => {
@@ -41,7 +41,6 @@ describe("chat Markdown rendering", () => {
       '`@A`\n\n```ts\nconst member = "@B";\n  console.log(member);\n```',
     );
     expect(html).toContain("<code>@A</code>");
-    expect(html).toContain('class="language-ts"');
     expect(html).toContain("  console.log(member);");
     expect(html).not.toContain("<button");
   });

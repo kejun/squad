@@ -67,7 +67,7 @@ export function validWorkOutput(value: unknown): value is WorkOutput {
 
 /** Host driver: persisted claim precedes every adapter call. No XState entry action starts I/O. */
 export class WorkRunner {
-  private controllers = new Map<string, AbortController>();
+  private controllers = new Map<string, { roomId: string; intentId: string; controller: AbortController }>();
   constructor(readonly engine: TeamEngine, private readonly adapter: WorkAdapter, private readonly clock: () => number = Date.now,
     private readonly skillSearchTransport: SkillSearchTransport = globalThis.fetch,
     private readonly webTools: WebTools = new CloudflareWebTools(),
@@ -80,21 +80,28 @@ export class WorkRunner {
     const work = this.engine.claim(roomId, taskId, pending.id);
     // A denied recovery claim may settle a reviewer and schedule synthesis in the same transaction.
     if (!work) return this.engine.pending(roomId, taskId).some(item => item.id !== pending.id);
+    const executionKey = JSON.stringify([roomId, taskId, work.id, work.attempt]);
+    const send = (event: TaskEvent) => this.engine.send(roomId, taskId, { ...event, attempt: work.attempt });
+    if (!this.engine.beginExecution(roomId, taskId, work)) {
+      // No adapter or local process has started for this attempt; retire its reservation safely.
+      send({ type: 'SETTLE', id: `not-started:${work.id}:${work.attempt}`, at: this.clock(), intentId: work.id });
+      return true;
+    }
     if (work.kind === 'cancel') {
       const id = String(work.payload.intentId);
-      this.controllers.get(id)?.abort();
+      for (const execution of this.controllers.values()) if (execution.roomId === roomId && execution.intentId === id) execution.controller.abort();
       try {
         const original = this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === id)!;
         if (this.adapter.cancel) await this.adapter.cancel(original);
         // Cancellation acknowledgement only means settled when the worker confirms it.
-        this.engine.send(roomId, taskId, { id: `${work.id}:cancelSent`, at: this.clock(), type: 'SETTLE', intentId: work.id });
+        send({ id: `${work.id}:cancelSent:${work.attempt}`, at: this.clock(), type: 'SETTLE', intentId: work.id });
       } catch (error) {
-        this.engine.send(roomId, taskId, { id: `${work.id}:cancelFailed`, at: this.clock(), type: 'WORK_FAILED', intentId: work.id, reason: String(error), transient: false });
+        send({ id: `${work.id}:cancelFailed:${work.attempt}`, at: this.clock(), type: 'WORK_FAILED', intentId: work.id, reason: String(error), transient: false });
       }
       return true;
     }
     const controller = new AbortController();
-    this.controllers.set(work.id, controller);
+    this.controllers.set(executionKey, { roomId, intentId: work.id, controller });
     let output: WorkOutput;
     let skillSearchSequence = 0;
     let webSequence = 0;
@@ -102,17 +109,17 @@ export class WorkRunner {
     const authorizeWeb = (capability: 'web_search' | 'web_fetch', signal: AbortSignal) => {
       signal.throwIfAborted();
       if (this.engine.config.webTools?.enabled === false) throw new WorkFailure('WEB_TOOLS_DISABLED');
-      const response = this.engine.send(roomId, taskId, { type: 'CONSUME', capability, intentId: work.id,
+      const response = send({ type: 'CONSUME', capability, intentId: work.id,
         id: `request:${work.id}:${work.attempt}:${capability}:${++webSequence}`, at: this.clock(),
         fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       if (!response.ok) throw new WorkFailure(response.code);
     };
     const scope: WorkScope = { sessionId: taskId, authorizeAdditionalRequest: requestId => {
-      const response = this.engine.send(roomId, taskId, { type: 'CONSUME', intentId: work.id, id: `request:${work.id}:${work.attempt}:${requestId}`, at: this.clock(), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
+      const response = send({ type: 'CONSUME', intentId: work.id, id: `request:${work.id}:${work.attempt}:${requestId}`, at: this.clock(), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       if (!response.ok) throw new WorkFailure(response.code);
     }, regenerateModelOutput: issue => {
       controller.signal.throwIfAborted();
-      const response = this.engine.send(roomId, taskId, { type: 'REGENERATE_MODEL_OUTPUT', intentId: work.id, issue,
+      const response = send({ type: 'REGENERATE_MODEL_OUTPUT', intentId: work.id, issue,
         id: `repair:${work.id}:${work.attempt}:${++repairSequence}`, at: this.clock(),
         fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       if (!response.ok) throw new WorkFailure(`模型输出格式不合规，无法继续重新生成 (${response.code})`);
@@ -157,7 +164,7 @@ export class WorkRunner {
           if (claim.response.ok) { op = claim.operation!; break; }
           if (claim.response.code !== 'WORKSPACE_BUSY') {
             const result = { ok: false, code: claim.response.code, data: {} };
-            this.engine.send(roomId, taskId, { type: 'LOCAL_REJECTED', id: `local-reject:${randomUUID()}`, at: this.clock(), intentId: work.id,
+            send({ type: 'LOCAL_REJECTED', id: `local-reject:${randomUUID()}`, at: this.clock(), intentId: work.id,
               operationId: op.id, parentAttempt: op.parentAttempt, result });
             throw new WorkFailure(claim.response.code);
           }
@@ -173,7 +180,7 @@ export class WorkRunner {
           if (context.stopped || context.epoch !== work.epoch || context.goalVersion !== work.goalVersion || !localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_EXECUTION_REVOKED');
           enteredRuntime = true;
           execution = await runtime.execute(currentWork(), op, signal, metadata => {
-            const started = this.engine.send(roomId, taskId, { type: 'LOCAL_STARTED', id: `local-start:${op!.sessionId}`, at: this.clock(),
+            const started = send({ type: 'LOCAL_STARTED', id: `local-start:${op!.sessionId}`, at: this.clock(),
               intentId: work.id, operationId: op!.id, sessionId: op!.sessionId!, ...metadata });
             if (!started.ok) throw new WorkFailure(started.code);
           });
@@ -182,7 +189,7 @@ export class WorkRunner {
           const safe = !enteredRuntime || op.action.type !== 'runCli';
           execution = { result: { ok: false, code: signal.aborted ? 'cancelled' : 'LOCAL_EXECUTION_FAILED', data: {} }, settled: safe, effectsKnown: safe };
         }
-        const response = this.engine.send(roomId, taskId, { type: 'LOCAL_RESULT', id: `local-result:${op.sessionId}`, at: this.clock(),
+        const response = send({ type: 'LOCAL_RESULT', id: `local-result:${op.sessionId}`, at: this.clock(),
           intentId: work.id, operationId: op.id, sessionId: op.sessionId!, ...execution });
         if (response.ok && execution.settled && execution.effectsKnown && op.workspaceId) runtime.notifyWorkspace(op.workspaceId);
         if (!response.ok || !execution.settled || !execution.effectsKnown) throw new WorkFailure(response.ok ? 'LOCAL_OPERATION_UNCERTAIN' : response.code, false, true);
@@ -206,24 +213,24 @@ export class WorkRunner {
     }
     catch (error) {
       if (controller.signal.aborted && !this.engine.view(roomId, taskId)!.context.intents.some(i => i.id === work.id && localPhysicalPending(i))) {
-        this.engine.send(roomId, taskId, { id: `${work.id}:cancelled`, at: this.clock(), type: 'SETTLE', intentId: work.id });
+        send({ id: `${work.id}:cancelled:${work.attempt}`, at: this.clock(), type: 'SETTLE', intentId: work.id });
       } else {
-        this.engine.send(roomId, taskId, { id: `${work.id}:failed:${work.attempt}`, at: this.clock(), type: 'WORK_FAILED', intentId: work.id,
+        send({ id: `${work.id}:failed:${work.attempt}`, at: this.clock(), type: 'WORK_FAILED', intentId: work.id,
           reason: String(error), transient: error instanceof WorkFailure && error.transient,
           resultUncertain: work.replay === 'unsafe' || (error instanceof WorkFailure && error.resultUncertain), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       }
-      this.controllers.delete(work.id);
+      this.controllers.delete(executionKey);
       return true;
     }
-    const base = { id: `result:${work.id}`, at: this.clock(), workId: work.id, fence: { epoch: work.epoch, goalVersion: work.goalVersion } };
+    const base = { id: `result:${work.id}:${work.attempt}`, at: this.clock(), workId: work.id, fence: { epoch: work.epoch, goalVersion: work.goalVersion } };
     const allowed: Record<Intent['kind'], WorkOutput['type'][]> = {
       interpretation: ['interpretation'], owner: ['help', 'answer', 'deliver', 'blocked', 'askUser'], assistance: ['answer'], facilitator: ['decision'], discussionSummary: ['answer'], check: ['check'], tool: ['settled'], cancel: ['settled'],
     };
     if (!validWorkOutput(output) || !allowed[work.kind].includes(output.type)
       || (output.type === 'interpretation' && !validInputIntent(output.spec,
         (work.payload.input as { action: unknown }).action, work.payload.references as InputReference[]))) {
-      this.engine.send(roomId, taskId, { ...base, id: `${base.id}:invalid`, type: 'WORK_FAILED', intentId: work.id, reason: 'Invalid worker output', transient: false });
-      this.controllers.delete(work.id);
+      send({ ...base, id: `${base.id}:invalid`, type: 'WORK_FAILED', intentId: work.id, reason: 'Invalid worker output', transient: false });
+      this.controllers.delete(executionKey);
       return true;
     }
     let event: TaskEvent;
@@ -235,8 +242,8 @@ export class WorkRunner {
       if (output.type === 'decision') event = { ...base, type: 'DISCUSSION_PLAN', discussionId: work.discussionId, decision: output.decision };
       else if (output.type === 'answer') event = { ...base, ...presentation, type: 'DISCUSSION_RESULT', discussionId: work.discussionId, text: output.text, status: output.status ?? 'success' };
       else throw new Error('Unexpected discussion output after role validation');
-      this.engine.send(roomId, taskId, event);
-      this.controllers.delete(work.id);
+      send(event);
+      this.controllers.delete(executionKey);
       return true;
     }
     switch (output.type) {
@@ -267,16 +274,16 @@ export class WorkRunner {
           }
           if (!verification.ok) event = { ...event, passed: false, gaps: [...event.gaps, `工程验证版本已失效：${JSON.stringify(verification.data)} (${verification.code})`] };
         } catch (error) {
-          this.engine.send(roomId, taskId, { ...base, id: `${base.id}:validation-failed:${work.attempt}`, type: 'WORK_FAILED', intentId: work.id,
+          send({ ...base, id: `${base.id}:validation-failed:${work.attempt}`, type: 'WORK_FAILED', intentId: work.id,
             reason: error instanceof WorkFailure ? error.message : 'Workspace validation failed', transient: false });
-          this.controllers.delete(work.id);
+          this.controllers.delete(executionKey);
           return true;
         }
       }
     }
     // If this commit fails, the error escapes. It is not misreported as a model failure.
-    this.engine.send(roomId, taskId, event);
-    this.controllers.delete(work.id);
+    send(event);
+    this.controllers.delete(executionKey);
     return true;
   }
 }

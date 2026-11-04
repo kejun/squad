@@ -14,6 +14,8 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpRight,
+  Archive,
+  ArchiveRestore,
   AtSign,
   Bug,
   Check,
@@ -42,6 +44,7 @@ import { ResultLinks, type DetailTarget } from "./ResultLinks";
 import { PanelSeparator, usePanelLayout } from "./PanelLayout";
 import { Logo } from "./Logo";
 import { AgentAvatar, agentStatus, IconButton, phaseLabel, time } from "./ui";
+import { roomList } from './room-list';
 
 const MessageText = lazy(() =>
   import("./MessageText").then((module) => ({ default: module.MessageText })),
@@ -96,6 +99,11 @@ export function Workspace({
   const [sending, setSending] = useState(false);
   const [creating, setCreating] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const roomListInitialized = useRef(false);
+  const [roomAction, setRoomAction] = useState<string | null>(null);
+  const visibleRooms = roomList(rooms, showArchived);
+  const archivedCount = roomList(rooms, true).length;
   const textarea = useRef<HTMLTextAreaElement>(null);
   const navigationToggle = useRef<HTMLButtonElement>(null);
   const detailsToggle = useRef<HTMLDivElement>(null);
@@ -131,6 +139,11 @@ export function Workspace({
     setDetailTarget(null);
     atBottom.current = true;
   }, [roomId]);
+  useEffect(() => {
+    if (roomListInitialized.current || !rooms.length) return;
+    roomListInitialized.current = true;
+    setShowArchived(!!rooms.find(room => room.id === roomId)?.archived);
+  }, [rooms, roomId]);
   useEffect(() => {
     if (chat.current && atBottom.current)
       chat.current.scrollTop = chat.current.scrollHeight;
@@ -178,11 +191,21 @@ export function Workspace({
     setCreating(true);
     try {
       await createRoom();
+      setShowArchived(false);
     } catch (error) {
       setError((error as Error).message);
     } finally {
       setCreating(false);
     }
+  };
+  const organizeRoom = async (id: string, archived: boolean) => {
+    if (roomAction || !connected) return;
+    setRoomAction(id); setError('');
+    try {
+      await workspace.setRoomArchived(id, archived);
+      setShowArchived(false);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '群聊操作失败，请重试。'); }
+    finally { setRoomAction(null); }
   };
   useEffect(() => {
     const onShortcut = (event: globalThis.KeyboardEvent) => {
@@ -192,7 +215,7 @@ export function Workspace({
         connected
       ) {
         event.preventDefault();
-        void createRoom().catch((error) => setError((error as Error).message));
+        void createRoom().then(() => setShowArchived(false)).catch((error) => setError((error as Error).message));
       }
     };
     window.addEventListener("keydown", onShortcut);
@@ -363,14 +386,15 @@ export function Workspace({
             <Plus size={16} />
             新建群聊<span>⌘ N</span>
           </Button>
-          <div className="sidebar-section-title">
-            <span>群聊</span>
+          <div className="sidebar-section-title room-list-tabs" role="group" aria-label="群聊分类">
+            <Button aria-pressed={!showArchived} onClick={() => setShowArchived(false)}>群聊</Button>
+            <Button aria-pressed={showArchived} onClick={() => setShowArchived(true)}>已归档{archivedCount ? ` ${archivedCount}` : ''}</Button>
           </div>
-          <nav className="room-list" aria-label="群聊列表">
-            {rooms.length ? (
-              rooms.map((room) => (
+          <nav className="room-list" aria-label={showArchived ? '归档群聊列表' : '群聊列表'}>
+            {visibleRooms.length ? (
+              visibleRooms.map((room) => (
+                <div className="room-row" key={room.id}>
                 <Button
-                  key={room.id}
                   className={`room-button ${room.id === roomId ? "selected" : ""}`}
                   onClick={() => chooseRoom(room.id)}
                   aria-current={room.id === roomId ? "page" : undefined}
@@ -379,9 +403,15 @@ export function Workspace({
                   <span>{room.title}</span>
                   {room.id === roomId && <i />}
                 </Button>
+                <IconButton label={`${showArchived ? '恢复' : '归档'}群聊 ${room.title}`} className="room-archive-action"
+                  disabled={!!roomAction || !connected || sending}
+                  onClick={() => { void organizeRoom(room.id, !showArchived); }}>
+                  {roomAction === room.id ? <LoaderCircle className="spin" size={15} /> : showArchived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
+                </IconButton>
+                </div>
               ))
             ) : (
-              <p className="no-rooms">暂无群聊</p>
+              <p className="no-rooms">{showArchived ? '暂无已归档群聊' : '暂无群聊'}</p>
             )}
           </nav>
           <div className="sidebar-section-title members-title">

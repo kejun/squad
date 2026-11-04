@@ -13,6 +13,7 @@
     "dev": "node scripts/dev.mjs",
     "start": "node --import tsx scripts/web.ts",
     "test": "node scripts/test.mjs",
+    "test:unit": "vitest run .unit.test.ts --maxWorkers=1",
     "demo": "node --import tsx examples/collaboration.ts",
     "model:run": "node --import tsx examples/model-service.ts",
     "coverage:specs": "node --import tsx scripts/spec-coverage.ts",

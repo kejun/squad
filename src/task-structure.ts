@@ -28,6 +28,8 @@ export function taskGraph(): MachineGraph {
   const collect = (node: ConfigNode, source: string) => {
     const entries = [...Object.entries(node.on ?? {}), ...(node.always ? [['@always', node.always] as const] : [])];
     for (const [event, value] of entries) {
+      // Internal actor transport has a separate lifecycle; preserve public business rule identities.
+      if (event.startsWith('EXECUTION_') || event.startsWith('xstate.')) continue;
       (Array.isArray(value) ? value : [value]).forEach((raw, order) => {
         const t = typeof raw === 'string' ? { target: raw } : (raw ?? {}) as { target?: string | string[]; guard?: unknown; actions?: unknown };
         const targets = t.target === undefined ? [null] : Array.isArray(t.target) ? t.target : [t.target];
