@@ -437,6 +437,35 @@ flowchart LR
 
 不增加状态、事件或调度入口。首次请求与后续模型/工具请求沿用原预算；失败、停止、迟到结果、目标版本隔离和恢复均使用「外部执行操作」的守卫与转移，安全重放时重新构造同一风格提示。可执行场景使用注入的模型传输核对各角色请求、工具后续请求及格式保留，不把预设响应当成真实模型的风格质量验收。
 
+### 宿主命令按次授权
+
+BT_L23–BT_L30。在 `runCli` 上显式请求 `execution: host` 和 `reason`，只表达申请，不能批准。默认仍使用沙箱；普通失败不自动重跑。审批生命周期属于 `src/local-operation.ts` 的持久上下文，由真实 `taskMachine` 的 LOCAL_* 事件驱动，不另造顶层任务阶段。
+
+**图型：任务拥有的上下文生命周期；所有者：`taskMachine / LocalOperation`。**
+
+```mermaid
+stateDiagram-v2
+    queued --> claimed: LOCAL_CLAIM [当前工作与租约有效] / 准备命令
+    claimed --> awaitingApproval: LOCAL_APPROVAL_REQUIRED [尚未启动] / 保存命令与期限，释放租约
+    awaitingApproval --> queued: LOCAL_APPROVAL_DECISION [当前用户批准且标识匹配] / 保存一次批准
+    awaitingApproval --> failed: LOCAL_APPROVAL_DECISION [用户拒绝] / 拒绝回执
+    awaitingApproval --> failed: LOCAL_APPROVAL_EXPIRED [过期] / 过期回执
+    awaitingApproval --> cancelled: STOP 或版本撤销 / 使批准失效
+    queued --> awaitingApproval: RECOVER [存在未消费批准] / 换批准标识，重新确认
+    claimed --> running: LOCAL_STARTED [批准与实际命令仍匹配] / 保存进程身份
+    claimed --> failed: LOCAL_RESULT [命令或工程改变且未启动] / 失效回执
+    running --> succeeded: LOCAL_RESULT [退出且效果确定] / 保存结果
+    running --> uncertain: LOCAL_RESULT 或 RECOVER [效果不明] / 保持租约待核对
+```
+
+宿主预备读取也在已持久化领取之后执行；预备不启动进程、不扣 CLI 执行额度。等待保持原模型检查点，释放工程租约，通过通知唤醒，不重复请求模型或促进者。宿主真正执行前再次领取、扣一次 ordinary、核对可执行文件、完整 argv、真实 cwd、工程内容、宿主环境及工作版本；任一变化返回失效，不自动扩大批准范围。批准使用不可替换的请求标识，重复命令有事务回执；模型、技能、日志和普通消息不能产生批准事件。
+
+拒绝返回原 Bot；停止、过期、权限撤销与旧目标不能执行。重启后未消费的批准回到等待，并更换标识；已领取或运行的操作沿原持久日志核对，不重放宿主副作用。保留执行身份、取消后代、额度与未知效果约束。宿主环境指服务所在机器及账号，使用真实 HOME 和认证环境，不承诺继承其他机器、其他账号或尚未授予的系统权限。
+
+**图型：UI 投影；所有者：`HostApprovals / WebService`。**
+
+待批准快照触发授权对话框；关闭只收起提示，待处理卡片仍可重新打开。允许本次或拒绝通过同源 JSON HTTP 命令提交任务、工作、操作和批准标识，不接收替换命令参数。提交失败保留请求并可重试；切群后的旧响应不更新当前群。可信命令经 TeamEngine 事务及状态机守卫提交后通知原运行器；服务端没有从网页绕过状态机启动进程的路径。
+
 ### 本地工具宿主启动与平台边界
 
 对应 BT_L19–BT_L22。沿用 `src/task.machine.ts` 与 `src/local-operation.ts`，无业务转移变更：进程身份、沙箱包装和系统路径别名是宿主实现契约；只有已持久化、领取并再次校验的 LOCAL_* 意图可以触发 I/O。以下启动状态由宿主管理，不加入任务 XState。

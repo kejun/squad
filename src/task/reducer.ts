@@ -258,7 +258,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const issue = recoveryIssue(c, e.config);
       c.config.bots = e.config.bots; // Current permissions always win.
       c.config.localTools = { enabled: e.config.localTools?.enabled !== false };
-      for (const work of c.intents) recoverLocalOperations(work);
+      for (const work of c.intents) recoverLocalOperations(work, e.id);
       c.config.skillSearch = { enabled: e.config.skillSearch?.enabled !== false };
       c.config.webTools = { enabled: e.config.webTools?.enabled !== false };
       for (const work of c.intents.filter(i => ['pending', 'inflight'].includes(i.status) && ['owner', 'assistance', 'facilitator', 'check'].includes(i.kind))) {

@@ -1,5 +1,5 @@
 import { modelOutputIssues, type InputReference, type TaskContext, type TaskEvent } from '../types.js';
-import { localEventProblem, localPhysicalPending, localUnsettled } from '../local-operation.js';
+import { localAwaitingApproval, localEventProblem, localPhysicalPending, localUnsettled } from '../local-operation.js';
 import { requestBudgetProblem } from './budget.js';
 import { allInflight, discussionActive, fresh, hasOrdinary, incompatibleExecution, isBot, workLaneAvailable } from './facts.js';
 import { validArtifactDrafts, validSummary } from '../presentation.js';
@@ -79,6 +79,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       const i = c.intents.find(i => i.id === e.intentId);
       if (!i || i.status !== 'pending') return 'WORK_NOT_PENDING';
       if (i.kind === 'cancel') return null;
+      if (localAwaitingApproval(i)) return 'HOST_APPROVAL_REQUIRED';
       if (c.stopped) return 'STOPPED';
       if (i.epoch !== c.epoch || i.goalVersion !== c.goalVersion) return 'STALE_WORK';
       if (['owner', 'assistance', 'tool'].includes(i.kind) && !isBot(c, i.target)) return 'UNKNOWN_BOT';

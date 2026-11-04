@@ -139,6 +139,7 @@ stateDiagram-v2
 | --- | --- |
 | 输入、协助、评审、后台讨论、交付 | [任务上下文](docs/state-diagrams.md#任务拥有的上下文生命周期)：BT_I、BT_H、BT_G01–G14、BT_T、BT_A01–A11 |
 | 意图领取、工具、格式修正、本地操作与宿主 | [执行与适配器](docs/state-diagrams.md#执行与适配器边界)：BT_M、BT_W、BT_L |
+| 按次批准宿主 CLI、拒绝与恢复 | [宿主命令授权](docs/state-diagrams.md#宿主命令按次授权)：BT_L23–BT_L30；默认仍为沙箱 |
 | 群历史、可信路由、归档 | [房间与命令](docs/state-diagrams.md#房间与可信命令)：BT_R、BT_G15–G22；归档不打断在途任务 |
 | 草稿、详情、导出、布局、调试与 Inspector | [网页与观察](docs/state-diagrams.md#网页与观察)：BT_U、BT_P、BT_A12–A21、BT_V；UI 仅读取快照或提交可信命令 |
 
