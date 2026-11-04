@@ -205,6 +205,9 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
       else {
         op!.status = c.stopped || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion ? 'cancelled' : 'queued';
         delete op!.sessionId;
+        if (op!.status === 'queued' && op!.approval) {
+          op!.status = 'awaitingApproval'; op!.approval!.status = 'pending'; op!.approval!.id = `${e.id}:${op!.id}`;
+        }
       }
       if (!localPhysicalPending(work) && work.status === 'uncertain') {
         work.status = c.stopped || localRecoveryBlocked(c) || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion ? 'done' : 'pending';

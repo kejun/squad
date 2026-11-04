@@ -45,6 +45,7 @@ import { PanelSeparator, usePanelLayout } from "./PanelLayout";
 import { Logo } from "./Logo";
 import { AgentAvatar, agentStatus, IconButton, phaseLabel, time } from "./ui";
 import { roomList } from './room-list';
+import { HostApprovals } from './HostApprovals';
 
 const MessageText = lazy(() =>
   import("./MessageText").then((module) => ({ default: module.MessageText })),
@@ -713,6 +714,7 @@ export function Workspace({
             </Button>
           )}
           <div className="composer-area">
+            {roomId && <HostApprovals key={roomId} roomId={roomId} requests={snapshot?.hostApprovals ?? []} connected={connected} />}
             {latestTask && (
               <div className="task-status-row">
                 <Button

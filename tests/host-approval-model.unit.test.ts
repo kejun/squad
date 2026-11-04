@@ -98,6 +98,14 @@ describe('按次宿主命令授权（真实 taskMachine，每步持久化恢复�
     expect(decide(m).ok).toBe(false);
     expect(m.claim().ok).toBe(false);
   });
+  it('[BT_L27] requires a fresh permit even after trusted reconciliation proves no process started', () => {
+    const m = approvalModel(); decide(m); m.claim(); m.send({ type: 'RECOVER', config: localModelInput().config });
+    expect(m.send({ type: 'LOCAL_RECONCILE', intentId: m.work.id, operationId: 'op1', sessionId: 'session1', resolution: 'notStarted', detail: 'No durable launch journal' }).ok).toBe(true);
+    expect(m.op?.status).toBe('awaitingApproval');
+    expect(m.op?.approval?.status).toBe('pending');
+    expect(m.op?.approval?.id).not.toBe('approval1');
+    expect(m.claim().ok).toBe(false);
+  });
   it('[BT_L28] treats a claimed host command without a permit as preparation only', () => {
     const m = new LocalModel(); m.request(hostAction); m.claim();
     expect(m.started().code).toBe('HOST_APPROVAL_REQUIRED');

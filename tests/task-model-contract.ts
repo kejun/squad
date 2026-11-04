@@ -11,6 +11,16 @@ interface Trace { name: string; input: TaskInput; events: TaskEvent[]; frames: F
 interface LegacyContract { schema: 1; sourceSha: string; xstate: string; graph: MachineGraph; seeds: Record<Phase, unknown>; savedResult: unknown; traces: Trace[] }
 export const legacyTaskContract = JSON.parse(readFileSync(new URL('./fixtures/task-model-v1.json', import.meta.url), 'utf8')) as LegacyContract;
 assert.equal(legacyTaskContract.sourceSha, 'dd5ec71b41a82a13c831938e5401783214db76aa07d9e0ab80487b03b7dd42f9');
+// BT_L23–L30 deliberately add exactly these six rules. The frozen graph/traces stay untouched.
+const approvalDefinition = '5011474c';
+const approvalRules = ['LOCAL_APPROVAL_REQUIRED', 'LOCAL_APPROVAL_DECISION', 'LOCAL_APPROVAL_EXPIRED'].flatMap(event => [
+  { id: `*:${event}:0`, order: 0, source: '*', event, target: null, guards: ['valid'], actions: ['apply'] },
+  { id: `*:${event}:1`, order: 1, source: '*', event, target: null, guards: [], actions: ['reject'] },
+]);
+function assertLegacyEvidence(actual: DebugEvidence, expected: DebugEvidence, label: string) {
+  assert.equal(actual.definition, approvalDefinition);
+  assert.deepEqual(actual, { ...expected, definition: approvalDefinition }, label);
+}
 
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
@@ -59,7 +69,7 @@ export function replayLegacyTrace(name: string, diagnostics = false): TaskSnapsh
   if (diagnostics) {
     const initial = inspectInitialTask(input);
     assert.equal(snapshotDigest(initial.snapshot), snapshotDigest(snapshot));
-    assert.deepEqual(initial.evidence, trace.frames[0]!.evidence, `${name}:initial diagnostics`);
+    assertLegacyEvidence(initial.evidence, trace.frames[0]!.evidence, `${name}:initial diagnostics`);
   }
   for (const [index, event] of trace.events.entries()) {
     const before = snapshot;
@@ -69,7 +79,7 @@ export function replayLegacyTrace(name: string, diagnostics = false): TaskSnapsh
     if (diagnostics) {
       const inspected = inspectTask(before, structuredClone(event));
       assert.equal(snapshotDigest(inspected.snapshot), snapshotDigest(snapshot));
-      assert.deepEqual(inspected.evidence, frame.evidence, `${name}:${index}:diagnostics`);
+      assertLegacyEvidence(inspected.evidence, frame.evidence, `${name}:${index}:diagnostics`);
     }
     snapshot = restoreTask(structuredClone(persistTask(snapshot)));
     assertFrame(snapshot, frame, `${name}:${index}:persist/restore`);
@@ -78,6 +88,8 @@ export function replayLegacyTrace(name: string, diagnostics = false): TaskSnapsh
   return snapshot;
 }
 export function verifyLegacyDiagnostics() {
-  assert.deepEqual(taskGraph(), legacyTaskContract.graph);
+  const graph = legacyTaskContract.graph, insertion = graph.transitions.findIndex(t => t.event === 'LOCAL_RESULT');
+  assert.deepEqual(taskGraph(), { ...graph, definition: approvalDefinition,
+    transitions: [...graph.transitions.slice(0, insertion), ...approvalRules, ...graph.transitions.slice(insertion)] });
   for (const trace of legacyTaskContract.traces) replayLegacyTrace(trace.name, true);
 }

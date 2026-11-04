@@ -1,4 +1,5 @@
 import type { LocalRuntime } from "../local-runtime.js";
+import { localAwaitingApproval } from '../local-operation.js';
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { TeamEngine, type Submission } from "../engine.js";
@@ -24,6 +25,7 @@ import type {
   WebRoom,
   WebTask,
   WebWork,
+  WebHostApproval,
 } from "./contracts.js";
 
 export class WebError extends Error {
@@ -160,11 +162,20 @@ export class WebService {
     // A repeated old receipt returns current metadata, never reapplies its old target state.
     return this.room(roomId);
   }
+  decideHostApproval(roomId: string, data: { id: string; taskId: string; workId: string; operationId: string; approvalId: string; decision: 'approve' | 'deny' }) {
+    this.room(roomId);
+    const result = this.engine.decideHostApproval(roomId, data.taskId, data.workId, data.operationId, data.approvalId, data.decision, data.id);
+    if (!result.ok) throw new WebError(409, `授权请求已失效或不可用 (${result.code})`);
+    this.localRuntime?.notifyWorkspace(`approval:${data.operationId}`);
+    this.kick(roomId);
+    return result;
+  }
   snapshot(roomId: string): RoomSnapshot {
     const room = this.room(roomId);
     const stored = this.store.read(roomId);
     const tasks: WebTask[] = [];
     const works: WebWork[] = [];
+    const hostApprovals: WebHostApproval[] = [];
     const agents: WebAgent[] = this.config.bots.map((bot) => ({
       id: bot.id,
       name: bot.name,
@@ -211,6 +222,14 @@ export class WebService {
           agents.push({ ...bot, model: null, retired: true });
       }
       for (const i of c.intents) {
+        if (!c.stopped && c.outcome === null && ['pending', 'inflight'].includes(i.status) && i.epoch === c.epoch && i.goalVersion === c.goalVersion)
+          for (const op of i.localOperations ?? []) {
+            const a = op.approval;
+            if (op.status !== 'awaitingApproval' || !a || a.status !== 'pending' || a.expiresAt <= Date.now()) continue;
+            const { executable, args, cwd, host, account, reason } = a.plan;
+            const visible = { taskId, workId: i.id, operationId: op.id, approvalId: a.id, expiresAt: a.expiresAt, executable, args, cwd, host, account, reason };
+            hostApprovals.push(this.localRuntime ? this.localRuntime.clean(visible) : visible);
+          }
         works.push({
           id: i.id,
           agentId: i.target,
@@ -246,6 +265,7 @@ export class WebService {
       tasks,
       works,
       events,
+      hostApprovals,
       messages: this.engine.timeline(roomId),
       activeTaskId: stored.activeTaskId,
       modelConfigured: !!this.config.models,
@@ -509,6 +529,11 @@ export class WebService {
     for (const roomId of new Set([...this.running.values()].map(work => work.roomId))) {
       const taskId = this.store.read(roomId).activeTaskId;
       if (taskId) {
+        const active = this.engine.view(roomId, taskId)!.context.intents.filter(work => work.kind !== 'cancel' && work.status === 'inflight');
+        if (active.length && active.every(localAwaitingApproval)) {
+          this.runner(roomId).suspendApprovals(roomId, taskId);
+          continue;
+        }
         this.engine.send(roomId, taskId, {
           type: "STOP",
           id: randomUUID(),

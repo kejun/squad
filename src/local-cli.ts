@@ -2,6 +2,8 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { constants } from 'node:fs';
 import { access, mkdir, open, readFile, readlink, realpath, rename, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, join } from 'node:path';
+import { hostname, userInfo, tmpdir } from 'node:os';
+import { StringDecoder } from 'node:string_decoder';
 import { setTimeout as delay } from 'node:timers/promises';
 import { SandboxManager, type SandboxRuntimeConfig } from '@anthropic-ai/sandbox-runtime';
 import { digest, LocalToolError } from './local-skills.js';
@@ -10,7 +12,7 @@ import { darwinProcessIdentity } from './darwin-process.js';
 
 export interface CliInvocation {
   executable: string; args: string[]; cwd: string; workspace: string; skillPath?: string; writeRoots?: string[];
-  env: Record<string, string>; timeoutMs: number; sessionId: string; logPath: string;
+  env: Record<string, string>; timeoutMs: number; sessionId: string; logPath: string; redact?: string[];
 }
 export interface CliCompletion { result: LocalToolResult; settled: boolean; effectsKnown: boolean }
 export interface CliBackend {
@@ -32,6 +34,16 @@ export function minimalCliEnvironment(workspace: string, extra: Record<string, s
   // Host-only explicit command profiles may add credentials; never inherit process.env.
   return { PATH: `${dirname(process.execPath)}:${process.platform === 'darwin' ? '/opt/homebrew/bin:' : ''}/usr/local/bin:/usr/bin:/bin`, LANG: 'C.UTF-8', HOME: join(workspace, '.home'), TMPDIR: join(workspace, '.tmp'),
     ...extra, NODE_OPTIONS: '', BASH_ENV: '', ENV: '', LD_PRELOAD: '', DYLD_INSERT_LIBRARIES: '' };
+}
+export const hostIdentity = () => ({ host: hostname(), account: userInfo().username });
+/** Only a committed one-command approval may use this environment. Never launch a login shell. */
+export function hostCliEnvironment(extra: Record<string, string> = {}, privateValues: string[] = []): Record<string, string> {
+  const entries = Object.entries({ ...process.env, ...extra }).filter(([key, value]) => value !== undefined
+    && !/^(SQUAD_|SRT_|MODEL_|WEB_|CLOUDFLARE_|OPENAI_|ANTHROPIC_)/.test(key) && !privateValues.includes(value));
+  const user = userInfo();
+  return { ...Object.fromEntries(entries) as Record<string, string>, HOME: user.homedir, USER: user.username, LOGNAME: user.username,
+    PATH: extra.PATH ?? process.env.PATH ?? `${dirname(process.execPath)}:/usr/local/bin:/usr/bin:/bin`, TMPDIR: tmpdir(),
+    NODE_OPTIONS: '', BASH_ENV: '', ENV: '', LD_PRELOAD: '', DYLD_INSERT_LIBRARIES: '' };
 }
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 /** Pinned native SRT; no unsandboxed fallback on either supported host. */
@@ -139,8 +151,7 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
   let child: ChildProcess | undefined; let timedOut = false, aborted = false, stdout = '', stderr = '', logBytes = 0, truncated = false;
   let spawnError = false; let identity: ProcessIdentity | undefined; let spawnedRecorded = false;
   const outputLimit = 16_000, logLimit = 128_000;
-  const write = (kind: 'stdout' | 'stderr', chunk: Buffer) => {
-    const text = chunk.toString('utf8');
+  const writeText = (kind: 'stdout' | 'stderr', text: string) => {
     if ((kind === 'stdout' ? stdout : stderr).length + text.length > outputLimit) truncated = true;
     if (kind === 'stdout') stdout = (stdout + text).slice(0, outputLimit); else stderr = (stderr + text).slice(0, outputLimit);
     const data = Buffer.from(`[${kind}] ${text}`); const allowed = data.subarray(0, Math.max(0, logLimit - logBytes));
@@ -148,6 +159,21 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
     if (allowed.length) { /* fd writes are synchronous and bounded; avoids a queue proportional to attacker output. */
       writeBounded(log.fd, allowed);
     }
+  };
+  // Keep a bounded tail so a credential split across pipe chunks is scrubbed before disk writes.
+  const secrets = [...new Set(input.redact ?? [])].filter(s => s.length >= 4).sort((a, b) => b.length - a.length);
+  const tail = Math.max(1, ...secrets.map(s => s.length));
+  const buffers = { stdout: '', stderr: '' }, decoders = { stdout: new StringDecoder('utf8'), stderr: new StringDecoder('utf8') };
+  const write = (kind: 'stdout' | 'stderr', chunk?: Buffer) => {
+    buffers[kind] += chunk ? decoders[kind].write(chunk) : decoders[kind].end();
+    const boundary = chunk ? Math.max(0, buffers[kind].length - tail + 1) : buffers[kind].length;
+    let at = 0, text = '';
+    while (at < boundary) {
+      const secret = secrets.find(s => buffers[kind].startsWith(s, at));
+      if (secret) { text += '[redacted]'; at += secret.length; } else text += buffers[kind][at++]!;
+    }
+    buffers[kind] = buffers[kind].slice(at);
+    if (text) writeText(kind, text);
   };
   let killTimer: ReturnType<typeof setTimeout> | undefined;
   let hardTimer: ReturnType<typeof setTimeout> | undefined;
@@ -182,6 +208,7 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
     }
     if (signal.aborted) cancel();
     const exit = await Promise.race([close.then(value => ({ ...value, closed: true })), settlementDeadline]);
+    write('stdout'); write('stderr');
     // No process group survives normal completion, timeout or explicit cancellation.
     kill('SIGKILL');
     const result: LocalToolResult = { ok: !spawnError && !aborted && exit.code === 0,

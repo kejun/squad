@@ -77,6 +77,7 @@ export interface WebAssistance {
   reason: string;
 }
 export interface RoomSnapshot {
+  hostApprovals?: WebHostApproval[];
   room: WebRoom;
   agents: WebAgent[];
   messages: Message[];
@@ -86,4 +87,8 @@ export interface RoomSnapshot {
   events: ExecutionEvent[];
   modelConfigured: boolean;
   serverTime: number;
+}
+export interface WebHostApproval {
+  taskId: string; workId: string; operationId: string; approvalId: string; expiresAt: number;
+  executable: string; args: string[]; cwd: string; host: string; account: string; reason: string;
 }
