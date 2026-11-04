@@ -1,15 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LocalModel } from './local-model-fixture.js';
-import type { TaskContext } from '../src/types.js';
 
-function failedSandbox(ended = false) {
-  const m = new LocalModel(); m.request(); m.claim(); m.result({ result: { ok: false, code: 'failed', data: { exitCode: 1, stderr: 'Operation not permitted', execution: 'sandbox' } } });
-  if (ended) { m.send({ type: 'DELIVER', workId: m.work.id, fence: m.work, text: '请粘贴内容', artifactIds: [] });
-    const check = m.c.intents.at(-1)!; m.send({ type: 'CLAIM', intentId: check.id }); m.send({ type: 'CHECK_RESULT', workId: check.id, fence: check, resultId: 'check1', passed: true, gaps: [] }); }
-  return m;
-}
-const request = (m: LocalModel, sourceRequestHash = 'a'.repeat(64)) => m.send({ type: 'REQUEST_HOST_RETRY', sourceWorkId: m.work.id,
-  sourceOperationId: 'op1', sourceRequestHash, requestHash: 'b'.repeat(64), fence: { epoch: m.c.epoch, goalVersion: m.c.goalVersion } });
+import { failedSandbox, request } from './host-retry-model-fixture.js';
 describe('用户从失败沙箱记录续办（真实XState，每步持久化）', () => {
   it('[BT_L32] revives an ended round with a fixed, unapproved host operation and a saved model checkpoint', () => {
     const m = failedSandbox(true); expect(m.c.outcome).toBe('complete');
@@ -30,6 +22,13 @@ describe('用户从失败沙箱记录续办（真实XState，每步持久化）'
     const m = failedSandbox(); request(m);
     expect(m.c.intents.some(work => work.kind === 'cancel' && work.payload.intentId === m.work.id)).toBe(true);
     expect(m.c.intents.at(-1)?.localOperations?.[0]?.status).toBe('queued');
+  });
+  it('[BT_L32] retires outstanding assistance when the user explicitly continues from a failed command', () => {
+    const m = failedSandbox();
+    m.send({ type: 'HELP', workId: m.work.id, fence: m.work, caller: 'A', requestId: 'H', target: 'B', question: '核查', expected: '证据' });
+    expect(request(m).ok).toBe(true);
+    expect(m.c.assists[0]?.status).toBe('cancelled');
+    expect(m.c.intents.at(-1)?.target).toBe('A');
   });
   it.each([
     { name: 'stopped', change: (m: LocalModel) => { m.c.stopped = true; } },

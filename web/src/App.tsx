@@ -46,6 +46,7 @@ import { Logo } from "./Logo";
 import { AgentAvatar, agentStatus, IconButton, phaseLabel, time } from "./ui";
 import { roomList } from './room-list';
 import { HostApprovals } from './HostApprovals';
+import { HostRetryButton } from './HostRetryButton';
 
 const MessageText = lazy(() =>
   import("./MessageText").then((module) => ({ default: module.MessageText })),
@@ -714,6 +715,8 @@ export function Workspace({
             </Button>
           )}
           <div className="composer-area">
+            {roomId && snapshot?.failedSandboxCommands?.filter(command => command.canRequest).slice(-1).map(command =>
+              <HostRetryButton key={`${roomId}:${command.operationId}`} roomId={roomId} command={command} connected={connected} />)}
             {roomId && <HostApprovals key={roomId} roomId={roomId} requests={snapshot?.hostApprovals ?? []} connected={connected} />}
             {latestTask && (
               <div className="task-status-row">

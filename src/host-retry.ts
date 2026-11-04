@@ -34,6 +34,7 @@ export function applyHostRetry(c: TaskContext, e: Extract<TaskEvent, { type: 'RE
   const action = hostRetryAction(original);
   cancelWork(c, e, true);
   c.epoch++; c.outcome = null; c.candidate = null; c.reason = ''; c.deferredCoordination = false;
+  for (const help of c.assists) if (['pending', 'running', 'answered'].includes(help.status)) help.status = 'cancelled';
   message(c, e, 'user', '请求在宿主重试这条失败命令，取得结果后继续整理。', 'user');
   owner(c, e, { manualHostRetry: true, sourceWorkId: source.id, sourceOperationId: original.id,
     reason: '先续办已保存的宿主命令申请，取得真实回执后继续原目标；不要重新选择或重复执行该命令。' });

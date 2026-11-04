@@ -33,6 +33,7 @@ import type { DetailTarget } from "./ResultLinks";
 import { artifactsForAgent, messageArtifacts } from "./ResultLinks";
 import { DetailActions, downloadDetailDocument } from "./DetailActions";
 import { artifactDocument, buildDetailDocument } from "./detail-document";
+import { HostRetryButton } from './HostRetryButton';
 
 const kindLabel: Record<WebWork["kind"], string> = {
   interpretation: "理解输入",
@@ -206,6 +207,8 @@ export function Details({
                               </span>
                             </div>
                             <div className="events">
+                              {snapshot?.failedSandboxCommands?.filter(command => command.workId === work.id).map(command =>
+                                <HostRetryButton key={`${snapshot.room.id}:${command.operationId}`} roomId={snapshot.room.id} command={command} connected={connected} />)}
                               {events.map((event) => (
                                 <Collapsible.Root
                                   className={`execution-event ${event.kind}`}

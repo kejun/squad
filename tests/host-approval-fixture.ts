@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir, userInfo } from 'node:os';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { LocalRuntime } from '../src/local-runtime.js';
+import type { CliBackend } from '../src/local-cli.js';
 import { OpenAICompatibleAdapter } from '../src/model-adapter.js';
 import { WebService } from '../src/web/service.js';
 import { createWebServer } from '../src/web/http.js';
@@ -24,12 +25,13 @@ export class HostApprovalFixture {
   root = ''; source = ''; executable = ''; url = ''; taskId = ''; service!: WebService; server!: Server; runtime!: LocalRuntime; room!: WebRoom;
   requests: { messages: { role: string; content: string }[] }[] = [];
   action!: LocalAction;
+  sandboxBackend?: CliBackend;
   private previousToken = process.env.EXAMPLE_CLI_TOKEN;
   private previousModelKey = process.env.FIXTURE_MODEL_KEY;
   readonly token = 'fixture-cli-secret-' + randomUUID();
   readonly modelKey = 'fixture-model-secret-' + randomUUID();
   async open() {
-    this.root = await mkdtemp(join(tmpdir(), 'squad-host-approval-')); this.source = join(this.root, 'source');
+    this.root = await realpath(await mkdtemp(join(tmpdir(), 'squad-host-approval-'))); this.source = join(this.root, 'source');
     await mkdir(this.source); this.executable = join(this.root, 'fixture-cli');
     await writeFile(this.executable, `#!/usr/bin/env node
 const fs = require('node:fs');
@@ -45,7 +47,7 @@ setTimeout(() => { process.stdout.write(token.slice(9) + '\\n'); }, 5);
   }
   async start() {
     this.runtime = await LocalRuntime.create({ dataRoot: join(this.root, 'runtime'), workspaceRoot: this.source, skillRoots: [], redact: [this.modelKey],
-      backend: { available: false, async execute() { throw new Error('No automatic sandbox fallback'); } } });
+      backend: this.sandboxBackend ?? { available: false, async execute() { throw new Error('No automatic sandbox fallback'); } } });
     const config = localConfig(); config.limits.workTimeoutMs = 60_000; config.limits.progressIntervalMs = 60_000;
     const adapter = new OpenAICompatibleAdapter(config, { transport: async (_url, init) => {
       const request = JSON.parse(String(init?.body)) as typeof this.requests[number]; this.requests.push(request);

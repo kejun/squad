@@ -77,6 +77,7 @@ export interface WebAssistance {
   reason: string;
 }
 export interface RoomSnapshot {
+  failedSandboxCommands?: WebFailedSandboxCommand[];
   hostApprovals?: WebHostApproval[];
   room: WebRoom;
   agents: WebAgent[];
@@ -87,6 +88,10 @@ export interface RoomSnapshot {
   events: ExecutionEvent[];
   modelConfigured: boolean;
   serverTime: number;
+}
+export interface WebFailedSandboxCommand {
+  taskId: string; workId: string; operationId: string; sourceRequestHash: string;
+  executable: string; args: string[]; error: string; canRequest: boolean; unavailableReason: string;
 }
 export interface WebHostApproval {
   taskId: string; workId: string; operationId: string; approvalId: string; expiresAt: number;

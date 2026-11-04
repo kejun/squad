@@ -10,6 +10,7 @@ import { inspectInitialTask, inspectTask, type DebugEvidence } from './task-insp
 import { validateConfig, type Goal, type Intent, type Reply, type TaskContext, type TaskEvent, type TeamConfig } from './types.js';
 import { recoveryIssue } from './task/facts.js';
 import { restoreRoomArchive, stepRoomArchive } from './room.machine.js';
+import { hostRetryAction } from './host-retry.js';
 
 interface StoredTask { version: 1; snapshot: unknown }
 export interface CommandResult extends Reply { taskId?: string; duplicate?: boolean }
@@ -223,6 +224,20 @@ export class TeamEngine {
     }));
   }
   localNamespace(roomId: string, taskId: string): string { return fingerprint({ roomId, taskId }); }
+  requestHostRetry(roomId: string, taskId: string, sourceWorkId: string, sourceOperationId: string, sourceRequestHash: string, commandId: string): CommandResult {
+    return this.transact(roomId, tx => this.receipt(tx, commandId, { taskId, sourceWorkId, sourceOperationId, sourceRequestHash }, () => {
+      if (!tx.room.tasks[taskId]) return { ok: false, code: 'TASK_NOT_FOUND', detail: '找不到原任务' };
+      if ((tx.room.activeTaskId ?? Object.keys(tx.room.tasks).at(-1)) !== taskId) return { ok: false, code: 'ROOM_BUSY', detail: '另一任务已成为当前任务' };
+      const current = decode(tx.room.tasks[taskId]), c = current.context;
+      if (recoveryIssue(c, this.config)) return { ok: false, code: 'INCOMPATIBLE_EXECUTION', detail: '运行配置已变化，请先恢复任务' };
+      const source = c.intents.find(w => w.id === sourceWorkId), op = source?.localOperations?.find(o => o.id === sourceOperationId);
+      if (!op || op.action.type !== 'runCli') return { ok: false, code: 'NOT_FAILED_SANDBOX_COMMAND', detail: '找不到失败的沙箱命令' };
+      if (!localEnabled(this.config, c.owner) || source && !localEnabled(this.config, source.target)) return { ok: false, code: 'LOCAL_TOOLS_DISABLED', detail: '本地工具权限已关闭' };
+      const next = this.step(current, { type: 'REQUEST_HOST_RETRY', id: commandId, at: this.clock(), sourceWorkId, sourceOperationId, sourceRequestHash,
+        requestHash: fingerprint({ action: hostRetryAction(op), workspaceId: op.workspaceId, namespace: op.namespace }), fence: { epoch: c.epoch, goalVersion: c.goalVersion } });
+      storeTask(tx, next); return { ...next.context.reply, taskId };
+    }));
+  }
   decideHostApproval(roomId: string, taskId: string, intentId: string, operationId: string, approvalId: string, decision: 'approve' | 'deny', commandId: string): CommandResult {
     const work = this.view(roomId, taskId)?.context.intents.find(i => i.id === intentId);
     if (!work) return { ok: false, code: 'UNKNOWN_WORK', detail: '找不到授权请求' };
