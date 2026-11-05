@@ -79,11 +79,15 @@ export const localAwaitingApproval = (work: Intent) => work.localOperations?.som
 export const localUnsettled = (work: Intent) => localAwaitingApproval(work) || (work.localOperations?.some(op => ['queued', 'claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false);
 export const localPhysicalPending = (work: Intent) => work.localOperations?.some(op => ['claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false;
 export const localEnabled = (config: TeamConfig, target: string) => config.localTools?.enabled !== false && config.bots.find(b => b.id === target)?.localTools !== false;
+export function hostRetryMemberAllowed(config: TeamConfig, source: Intent): boolean {
+  return (source.kind === 'facilitator' || source.kind === 'check' || config.bots.some(bot => bot.id === source.target))
+    && localEnabled(config, source.target);
+}
 export function hostRetrySourceAllowed(c: TaskContext, op: LocalOperation, config = c.config): boolean {
   if (!op.hostRetryRequestId) return true;
   const request = c.hostRetryRequests?.find(r => r.id === op.hostRetryRequestId);
   const source = c.intents.find(w => w.id === request?.sourceWorkId);
-  return !!source && localEnabled(config, source.target);
+  return !!source && hostRetryMemberAllowed(config, source);
 }
 export const localRecoveryBlocked = (c: TaskContext) => ['Execution version incompatible', 'Tool permission revoked',
   'Execution member unavailable', 'Model configuration changed', 'Input analysis configuration changed'].includes(c.reason);

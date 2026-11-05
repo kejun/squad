@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { initialTask, stepTask, persistTask, restoreTask, taskMachine, type TaskSnapshot } from '../src/task.machine.js';
 import { inspectInitialTask, inspectTask, type DebugEvidence } from '../src/task-inspection.js';
 import { taskGraph, type MachineGraph } from '../src/task-structure.js';
-import type { Intent, Phase, TaskContext, TaskEvent, TaskInput } from '../src/types.js';
+import type { Candidate, Intent, Phase, TaskContext, TaskEvent, TaskInput } from '../src/types.js';
 
 interface Frame { digest: string; phase: Phase; usage: TaskContext['usage']; reply: TaskContext['reply']; evidence: DebugEvidence }
 interface Trace { name: string; input: TaskInput; events: TaskEvent[]; frames: Frame[] }
@@ -13,23 +13,82 @@ export const legacyTaskContract = JSON.parse(readFileSync(new URL('./fixtures/ta
 assert.equal(legacyTaskContract.sourceSha, 'dd5ec71b41a82a13c831938e5401783214db76aa07d9e0ab80487b03b7dd42f9');
 // BT_L23–L30 add six approval rules; BT_L32–L34 add two manual retry rules. BT_L37 adds session revocation. Frozen traces stay untouched.
 // BT_M23–M29 add one explanation action to the existing current-coordination rejection.
-const extendedDefinition = '676b3aa7';
+const extendedDefinition = '477383cd';
 const coordinationRejectionId = 'coordinating:COORDINATE:6';
 const sessionRules = [
   { id: '*:REVOKE_HOST_SESSION:0', order: 0, source: '*', event: 'REVOKE_HOST_SESSION', target: null, guards: ['valid'], actions: ['apply'] },
   { id: '*:REVOKE_HOST_SESSION:1', order: 1, source: '*', event: 'REVOKE_HOST_SESSION', target: null, guards: [], actions: ['reject'] },
 ];
-const manualRetryRules = [
-  { id: '*:REQUEST_HOST_RETRY:0', order: 0, source: '*', event: 'REQUEST_HOST_RETRY', target: 'running', guards: ['valid'], actions: ['apply'] },
-  { id: '*:REQUEST_HOST_RETRY:1', order: 1, source: '*', event: 'REQUEST_HOST_RETRY', target: null, guards: [], actions: ['reject'] },
+const hostRetryRules = [
+  { id: '*:REQUEST_HOST_RETRY:0', order: 0, source: '*', event: 'REQUEST_HOST_RETRY', target: 'running', guards: ['reactivateHostRetry'], actions: ['apply'] },
+  { id: '*:REQUEST_HOST_RETRY:1', order: 1, source: '*', event: 'REQUEST_HOST_RETRY', target: null, guards: ['valid'], actions: ['apply'] },
+  { id: '*:REQUEST_HOST_RETRY:2', order: 2, source: '*', event: 'REQUEST_HOST_RETRY', target: null, guards: [], actions: ['reject'] },
+  { id: '*:HOST_RETRY_EXPIRE:0', order: 0, source: '*', event: 'HOST_RETRY_EXPIRE', target: null, guards: ['valid'], actions: ['apply'] },
+  { id: '*:LOCAL_RETRY_EXPIRED:0', order: 0, source: '*', event: 'LOCAL_RETRY_EXPIRED', target: null, guards: ['valid'], actions: ['apply'] },
+  { id: '*:LOCAL_RETRY_EXPIRED:1', order: 1, source: '*', event: 'LOCAL_RETRY_EXPIRED', target: null, guards: [], actions: ['reject'] },
 ];
+const hostRetryAlwaysRules = [
+  { id: '*:@always:2', order: 2, source: '*', event: '@always', target: 'running', guards: ['hostRetryReady'], actions: ['startHostRetry'] },
+  { id: '*:@always:3', order: 3, source: '*', event: '@always', target: 'ended', guards: ['hostRetryBoundary'], actions: ['failHostRetry'] },
+];
+const heldCompletionRules = [
+  { id: 'coordinating:COORDINATE:4', order: 4, source: 'coordinating', event: 'COORDINATE', target: 'running', guards: ['hostRetryHoldsFinish'], actions: ['apply'] },
+  { id: 'checking:CHECK_RESULT:0', order: 0, source: 'checking', event: 'CHECK_RESULT', target: 'running', guards: ['hostRetryHoldsCheck'], actions: ['apply'] },
+];
+const deliveryRules = [
+  { guard: 'deliveryConflictExhausted', target: 'ended' },
+  { guard: 'deliveryConflict', target: null },
+  { guard: 'holdingDelivery', target: null },
+  { guard: 'hostRetryHoldsDelivery', target: null },
+  { guard: 'deliveryReady', target: 'checking' },
+  { guard: 'deliveryCanRevise', target: null },
+  { guard: 'valid', target: 'ended' },
+].map(({ guard, target }, order) => ({
+  id: `running:DELIVER:${order}`, order, source: 'running', event: 'DELIVER', target, guards: [guard], actions: ['apply'],
+}));
+const checkRevisionRule = { id: 'checking:CHECK_RESULT:4', order: 4, source: 'checking', event: 'CHECK_RESULT',
+  target: 'running', guards: ['checkCanRevise'], actions: ['apply'] };
+function heldRule(ruleId: string) {
+  return heldCompletionRules.find(rule => ruleId.startsWith(`${rule.source}:${rule.event}:`) && Number(ruleId.split(':').at(-1)) >= rule.order);
+}
+function nextRuleId(ruleId: string) {
+  const parts = ruleId.split(':');
+  parts[parts.length - 1] = String(Number(parts.at(-1)) + 1);
+  return parts.join(':');
+}
 const approvalRules = ['LOCAL_APPROVAL_REQUIRED', 'LOCAL_APPROVAL_DECISION', 'LOCAL_APPROVAL_EXPIRED'].flatMap(event => [
   { id: `*:${event}:0`, order: 0, source: '*', event, target: null, guards: ['valid'], actions: ['apply'] },
   { id: `*:${event}:1`, order: 1, source: '*', event, target: null, guards: [], actions: ['reject'] },
 ]);
-function assertLegacyEvidence(actual: DebugEvidence, expected: DebugEvidence, label: string) {
+function assertLegacyEvidence(actual: DebugEvidence, expected: DebugEvidence, label: string, published = false) {
   assert.equal(actual.definition, extendedDefinition);
-  assert.deepEqual(actual, { ...expected, definition: extendedDefinition }, label);
+  const evaluations = expected.evaluations.flatMap((evaluation, index, all) => {
+    if (evaluation.ruleId === 'running:DELIVER:0') return deliveryRules.slice(0, 3).map((rule, i) => ({
+      ...evaluation, ruleId: rule.id, guard: rule.guards[0], passed: i === 2 && evaluation.passed,
+    }));
+    if (evaluation.ruleId === 'running:DELIVER:1') return deliveryRules.slice(3, evaluation.passed ? 5 : 7).map((rule, i) => ({
+      ...evaluation, ruleId: rule.id, guard: rule.guards[0], passed: i === 1 && evaluation.passed,
+    }));
+    const added = heldRule(evaluation.ruleId);
+    if (added) {
+      const revisableCheck = evaluation.ruleId.startsWith('checking:CHECK_RESULT:') && Number(evaluation.ruleId.split(':').at(-1)) >= 3;
+      return [
+      ...(all.slice(0, index).some(previous => heldRule(previous.ruleId) === added) ? [] : [
+        { ...evaluation, ruleId: added.id, guard: added.guards[0], passed: false },
+      ]),
+      ...(evaluation.ruleId === 'checking:CHECK_RESULT:3' ? [
+        { ...evaluation, ruleId: checkRevisionRule.id, guard: checkRevisionRule.guards[0], passed: false },
+      ] : []),
+      { ...evaluation, ruleId: revisableCheck ? nextRuleId(nextRuleId(evaluation.ruleId)) : nextRuleId(evaluation.ruleId) },
+      ];
+    }
+    return evaluation.ruleId === '*:@always:1' && evaluation.passed === false ? [evaluation,
+      ...hostRetryAlwaysRules.map(rule => ({ ...evaluation, ruleId: rule.id, guard: rule.guards[0], passed: false }))] : [evaluation];
+  });
+  const changed = published ? [...expected.changed, 'publishedDelivery'] : expected.changed;
+  const microsteps = published ? expected.microsteps.map(step => step.changed.includes('outcome')
+    ? { ...step, changed: [...step.changed, 'publishedDelivery'] } : step) : expected.microsteps;
+  assert.deepEqual(actual, { ...expected, definition: extendedDefinition, evaluations, changed, microsteps }, label);
 }
 
 function canonical(value: unknown): unknown {
@@ -75,8 +134,25 @@ function assertFrame(snapshot: TaskSnapshot, expected: Frame, label: string, own
   assert.deepEqual(snapshot.context.usage, expected.usage, label);
   assert.deepEqual(snapshot.context.reply, expected.reply, label);
   const value = businessSnapshot(snapshot) as { context: TaskContext };
-  // The only approved snapshot addition is the owner pinned when each facilitator was created.
-  // Validate it before projecting it out; every other payload and persisted field stays frozen.
+  // Assert the new identifiers and publication, then compare all remaining legacy data byte-for-byte by digest.
+  const { context } = value;
+  const revisions = new Set(context.trace.filter(entry => entry.event === 'DELIVER').map(entry => `${context.taskId}:candidate:${entry.detail}`));
+  const candidates = [context.candidate, ...context.intents.map(item => item.payload.candidate as Candidate | undefined)];
+  for (const candidate of candidates) if (candidate?.revision) {
+    assert(revisions.has(candidate.revision), `${label}: candidate identity must reference a delivered event`);
+    if (candidate.requiresBoundCheck !== undefined) assert.equal(candidate.requiresBoundCheck, true);
+    delete candidate.revision;
+    delete candidate.requiresBoundCheck;
+  }
+  if (context.outcome === 'complete') {
+    const published = context.publishedDelivery;
+    assert(published && context.candidate && published.revision === snapshot.context.candidate?.revision);
+    assert.deepEqual(published.artifactIds, context.candidate.artifactIds);
+    assert.equal(published.goalVersion, context.goalVersion);
+    assert.equal(published.at, context.trace.filter(entry => entry.event === 'CHECK_RESULT').at(-1)?.at);
+    delete context.publishedDelivery;
+  }
+  // The facilitator owner remains pinned to the moment the work was created.
   for (const [id, owner] of owners) {
     const work = value.context.intents.find(item => item.id === id);
     assert(work?.kind === 'facilitator', `${label}: missing facilitator ${id}`);
@@ -107,7 +183,8 @@ export function replayLegacyTrace(name: string, diagnostics = false): TaskSnapsh
     if (diagnostics) {
       const inspected = inspectTask(before, structuredClone(event));
       assert.equal(snapshotDigest(inspected.snapshot), snapshotDigest(snapshot));
-      assertLegacyEvidence(inspected.evidence, frame.evidence, `${name}:${index}:diagnostics`);
+      assertLegacyEvidence(inspected.evidence, frame.evidence, `${name}:${index}:diagnostics`,
+        before.context.outcome !== 'complete' && snapshot.context.outcome === 'complete');
     }
     snapshot = restoreTask(structuredClone(persistTask(snapshot)));
     assertFrame(snapshot, frame, `${name}:${index}:persist/restore`, owners);
@@ -135,8 +212,19 @@ export function verifyLegacyDiagnostics() {
   assert.deepEqual(graph.transitions.find(rule => rule.id === coordinationRejectionId), {
     id: coordinationRejectionId, order: 6, source: 'coordinating', event: 'COORDINATE', target: 'waitingHuman', guards: ['isCurrent'], actions: ['reject'],
   });
-  const transitions = [...sessionRules, ...manualRetryRules, ...graph.transitions.slice(0, insertion), ...approvalRules, ...graph.transitions.slice(insertion)]
-    .map(rule => rule.id === coordinationRejectionId ? { ...rule, actions: ['reject', 'explainCoordinationRejection'] } : rule);
+  const transitions = [...sessionRules, ...hostRetryRules, ...graph.transitions.slice(0, insertion), ...approvalRules, ...graph.transitions.slice(insertion)]
+    .flatMap(original => {
+      const rule = original.id === coordinationRejectionId ? { ...original, actions: ['reject', 'explainCoordinationRejection'] } : original;
+      if (rule.source === 'running' && rule.event === 'DELIVER') return rule.order === 0 ? deliveryRules : [];
+      const added = heldRule(rule.id);
+      if (added) {
+        const extra = rule.source === 'checking' && rule.order >= 3 ? 1 : 0;
+        const shifted = { ...rule, order: rule.order + 1 + extra, id: extra ? nextRuleId(nextRuleId(rule.id)) : nextRuleId(rule.id) };
+        if (added.order === rule.order) return [added, shifted];
+        return extra && rule.order === 3 ? [checkRevisionRule, shifted] : [shifted];
+      }
+      return rule.id === '*:@always:1' ? [rule, ...hostRetryAlwaysRules] : [rule];
+    });
   assert.deepEqual(taskGraph(), { ...graph, definition: extendedDefinition, transitions });
   for (const trace of legacyTaskContract.traces) replayLegacyTrace(trace.name, true);
   verifyCoordinationExtensionFaultDetection();

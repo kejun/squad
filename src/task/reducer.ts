@@ -31,6 +31,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'REVOKE_HOST_SESSION': revokeHostSession(c, e.id); break;
     case 'REQUEST_HOST_RETRY':
       adoptLegacyTerminalConfig(c, e.currentConfig);
+      retainLegacyPublication(c, e.at);
       applyHostRetry(c, e);
       break;
     case 'HOST_RETRY_EXPIRE': expireHostRetry(c, e.at); break;

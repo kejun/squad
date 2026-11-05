@@ -1,6 +1,6 @@
 /** Task-owned host retry requests and batches. Execution is entirely outside this module. */
 import type { Intent, TaskContext, TaskEvent } from './types.js';
-import { localEnabled, localPhysicalPending, localRecoveryBlocked, localUnsettled, type LocalAction, type LocalOperation } from './local-operation.js';
+import { hostRetryMemberAllowed, localEnabled, localPhysicalPending, localRecoveryBlocked, localUnsettled, type LocalAction, type LocalOperation } from './local-operation.js';
 import { activeHelp, allInflight, discussionActive, ok, unresolvedInput } from './task/facts.js';
 import { finish, message, owner } from './task/operations.js';
 
@@ -48,7 +48,7 @@ export function hostRetryProblem(c: TaskContext, sourceWorkId: string, sourceOpe
   if (work.kind === 'check' || work.discussionId || op.isolated) return 'HOST_RETRY_ISOLATED_SOURCE';
   if (!op.workspaceId) return 'WORKSPACE_REQUIRED';
   if (!['owner', 'assistance', 'facilitator', 'check'].includes(work.kind)) return 'LOCAL_TOOLS_NOT_ALLOWED';
-  if (!localEnabled(c.config, c.owner) || !localEnabled(c.config, work.target)) return 'LOCAL_TOOLS_DISABLED';
+  if (!localEnabled(c.config, c.owner) || !hostRetryMemberAllowed(c.config, work)) return 'LOCAL_TOOLS_DISABLED';
   if (!c.config.bots.some(bot => bot.id === c.owner)) return 'OWNER_UNAVAILABLE';
   if (c.intents.some(w => w.status === 'uncertain' || localPhysicalPending(w)
     || w.localOperations?.some(op => op.status === 'awaitingApproval' || op.status === 'queued' && !op.hostRetryRequestId)
@@ -86,7 +86,7 @@ export function hostRetryBoundary(c: TaskContext) {
 
 function waitingRequests(c: TaskContext, at: number) {
   return (c.hostRetryRequests ?? []).filter(r => r.status === 'pending' && r.goalVersion === c.goalVersion
-    && r.deadline > at && localEnabled(c.config, c.owner) && localEnabled(c.config, sourceOf(c, r.sourceWorkId, r.sourceOperationId).work?.target ?? ''));
+    && r.deadline > at && localEnabled(c.config, c.owner) && hostRetryMemberAllowed(c.config, sourceOf(c, r.sourceWorkId, r.sourceOperationId).work!));
 }
 
 export function canStartHostRetry(c: TaskContext, at: number) {
@@ -102,7 +102,7 @@ function rejectWaiting(c: TaskContext, at: number, accepted: HostRetryRequest[])
     request.status = request.deadline <= at ? 'expired' : 'cancelled';
     request.reported = true;
     request.reason = request.status === 'expired' ? 'WORK_EXPIRED' : !localEnabled(c.config, c.owner)
-      || !localEnabled(c.config, sourceOf(c, request.sourceWorkId, request.sourceOperationId).work?.target ?? '') ? 'LOCAL_TOOLS_DISABLED' : 'BUDGET_EXHAUSTED';
+      || !hostRetryMemberAllowed(c.config, sourceOf(c, request.sourceWorkId, request.sourceOperationId).work!) ? 'LOCAL_TOOLS_DISABLED' : 'BUDGET_EXHAUSTED';
   }
 }
 
@@ -119,7 +119,7 @@ function queueNext(c: TaskContext, work: Intent, at: number) {
     const source = sourceOf(c, request.sourceWorkId, request.sourceOperationId);
     const original = source.op!;
     const deadline = Math.min(request.deadline, work.deadline ?? Infinity);
-    if (at >= deadline || !localEnabled(c.config, source.work!.target) || !localEnabled(c.config, work.target)) {
+    if (at >= deadline || !hostRetryMemberAllowed(c.config, source.work!) || !localEnabled(c.config, work.target)) {
       request.status = at >= deadline ? 'expired' : 'cancelled';
       request.reason = at >= deadline ? 'WORK_EXPIRED' : 'LOCAL_TOOLS_DISABLED';
       continue;

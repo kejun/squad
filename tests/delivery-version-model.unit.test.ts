@@ -82,6 +82,20 @@ describe('candidate versions in taskMachine', () => {
     expect(stale.context.artifacts).toEqual(second.context.artifacts);
   });
 
+  it('refuses an unbound old judgment after a second candidate before first publication', () => {
+    const first = deliver(task(), original);
+    const failed = check(first, false).next;
+    const coordinator = claim(failed, 'facilitator');
+    const owner = send(coordinator.next, { type: 'COORDINATE', workId: coordinator.work.id, decision: { action: 'continue', reason: 'revise' } });
+    const current = deliver(owner, { ...original, content: 'new independent draft' });
+
+    const late = send(current, { type: 'CHECK_RESULT', resultId: 'unbound-late', passed: true, gaps: [] });
+
+    expect(late.context.reply.code).toBe('CHECK_WORK_REQUIRED');
+    expect(late.context.publishedDelivery).toBeUndefined();
+    expect(taskPhase(late)).toBe('checking');
+  });
+
   it('derives separate document identities for old reports and retains their published selection', () => {
     const completed = check(deliver(task(), original, { ...original, content: 'second report' })).next;
     const legacy = structuredClone(persistTask(completed)) as { context: TaskSnapshot['context'] };
