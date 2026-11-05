@@ -1,8 +1,10 @@
+import { publishObservation } from './measurement.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { constants, createReadStream } from 'node:fs';
 import { chmod, copyFile, lstat, mkdir, open, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { Intent } from './types.js';
+import { attachCapturedEvidence } from './evidence-reader.js';
 import type { HostApproval, HostCommandPlan, LocalOperation, LocalToolResult, SkillBinding } from './local-operation.js';
 import { digest, LocalToolError, SkillRegistry, within, type RegistryOptions, type SkillPage } from './local-skills.js';
 import { CliJournal, hostCliEnvironment, hostIdentity, identityAlive, minimalCliEnvironment, processIdentity, resolveExecutable, runProcess, SandboxCliBackend, type CliBackend, type CliCompletion } from './local-cli.js';
@@ -161,8 +163,11 @@ export class LocalRuntime {
     return { ok: false, code: 'LOCAL_RESULT_LIMIT', data: { originalCode: cleaned.code } };
   }
   async execute(work: Intent, op: LocalOperation, signal: AbortSignal,
-    started: (metadata: { workspaceRevision?: string; isolated?: boolean }) => void): Promise<LocalExecution> {
+    started: (metadata: { workspaceRevision?: string; isolated?: boolean }) => void,
+    observe?: (phase: 'local.prepareStarted' | 'local.prepareFinished' | 'local.processStarted' | 'local.processFinished') => void): Promise<LocalExecution> {
     const action = op.action; signal.throwIfAborted();
+    if (action.type === 'readArtifact') return { result: { ok: false, code: 'ARTIFACT_UNAVAILABLE', data: {} }, settled: true, effectsKnown: true };
+    if (action.type === 'readEvidence') return { result: { ok: false, code: 'EVIDENCE_SOURCE_REQUIRED', data: {} }, settled: true, effectsKnown: true };
     if (action.type !== 'runCli') {
       try {
         let data: object;
@@ -190,6 +195,13 @@ export class LocalRuntime {
       }
     }
     const sessionId = op.sessionId!;
+    publishObservation(observe, 'local.prepareStarted');
+    let prepared = false;
+    const finishPreparation = () => {
+      if (prepared) return;
+      prepared = true;
+      publishObservation(observe, 'local.prepareFinished');
+    };
     await this.journal.write({ operationId: op.id, sessionId, phase: 'prepared' });
     let launched = false;
     let completion: LocalExecution;
@@ -199,7 +211,8 @@ export class LocalRuntime {
       const workspace = await this.workspace(work, op); signal.throwIfAborted();
       let skillPath: string | undefined;
       if (action.skillId) {
-        const binding = this.binding(work, action.skillId); if (!binding) throw new LocalToolError('SKILL_NOT_ACTIVE');
+        const binding = this.binding(op.skillBindings ? { ...work, localSkills: op.skillBindings } : work, action.skillId);
+        if (!binding) throw new LocalToolError('SKILL_NOT_ACTIVE');
         skillPath = (await this.registry.snapshot(binding.skillId, binding.skillVersion)).path;
       }
       const cwd = await realpath(resolve(workspace.path, action.cwd ?? '.'));
@@ -225,34 +238,44 @@ export class LocalRuntime {
         const commandDigest = digest(JSON.stringify({ plan, action, requestHash: op.requestHash, workId: work.id, epoch: work.epoch, goalVersion: work.goalVersion }));
         const now = (this.options.clock ?? Date.now)();
         if (!op.approval) {
-          const approval: HostApproval = { id: randomUUID(), digest: commandDigest, plan, status: 'pending', expiresAt: Math.min(now + 600_000, work.deadline ?? Infinity) };
+          const approval: HostApproval = { id: randomUUID(), digest: commandDigest, plan, status: 'pending', expiresAt: Math.min(now + 600_000, work.deadline ?? Infinity, op.deadline ?? Infinity) };
           const prepared = { result: { ok: false, code: 'HOST_APPROVAL_REQUIRED', data: {} }, settled: true, effectsKnown: true };
           await this.journal.write({ operationId: op.id, sessionId, phase: 'settled', completion: prepared });
+          finishPreparation();
           return { ...prepared, approval };
         }
         if (op.approval.status !== 'approved') throw new LocalToolError('HOST_APPROVAL_REQUIRED');
         if (now >= op.approval.expiresAt) throw new LocalToolError('HOST_APPROVAL_EXPIRED');
         if (op.approval.digest !== commandDigest) throw new LocalToolError('HOST_APPROVAL_STALE');
       }
-      const remaining = work.deadline === null ? 120_000 : work.deadline - (this.options.clock ?? Date.now)();
+      const deadline = Math.min(work.deadline ?? Infinity, op.deadline ?? Infinity);
+      const remaining = deadline === Infinity ? 120_000 : deadline - (this.options.clock ?? Date.now)();
       const timeoutMs = Math.min(action.timeoutMs ?? this.options.commandTimeoutMs ?? 120_000, Math.max(1, remaining));
       if (work.kind === 'check') for (const dir of validationOutputs) await mkdir(join(workspace.path, dir), { recursive: true });
-      started({ workspaceRevision: workspace.revision, isolated: workspace.isolated }); signal.throwIfAborted();
-      launched = true;
       const baseline = new Map((await workspaceManifest(workspace.path)).map(file => [file.path, file.hash]));
-      const execute = host ? runProcess : this.backend.execute.bind(this.backend);
+      const markStarted = () => {
+        signal.throwIfAborted();
+        started({ workspaceRevision: workspace.revision, isolated: workspace.isolated });
+        launched = true;
+      };
+      const execute: typeof runProcess = host ? runProcess : (input, executionSignal, onSpawn) => {
+        markStarted(); return this.backend.execute(input, executionSignal, onSpawn);
+      };
+      finishPreparation();
       const result = await execute({ executable, args, cwd, workspace: workspace.path, ...(skillPath ? { skillPath } : {}), env, timeoutMs, sessionId, redact: this.secrets(),
+        ...(observe ? { observeProcess: observe } : {}),
         ...(work.kind === 'check' ? { writeRoots: [...validationOutputs, '.home', '.tmp'].map(dir => join(workspace.path, dir)) } : {}),
         logPath: join(this.options.dataRoot, 'logs', `${digest(sessionId)}.log`) }, signal,
-        async identity => { await this.journal.write({ operationId: op.id, sessionId, phase: 'spawned', identity }); });
+        async identity => { await this.journal.write({ operationId: op.id, sessionId, phase: 'spawned', identity }); }, markStarted);
       let outputFiles: Awaited<ReturnType<typeof workspaceManifest>> = [], outputFilesTruncated = false;
       try { const changed = (await workspaceManifest(workspace.path)).filter(file => baseline.get(file.path) !== file.hash); outputFiles = changed.slice(0, 100); outputFilesTruncated = changed.length > 100; } catch { outputFilesTruncated = true; }
       const validationInputsChanged = work.kind === 'check' && sourceRevision(await workspaceManifest(workspace.path)) !== workspace.revision;
       // A terminated sandbox may have written files. Their bounded content fingerprint makes the effect
       // observable; it is still not a proof of arbitrary network effects (network is denied by default).
-      completion = { ...result, result: this.boundedResult({ ...result.result, ...(validationInputsChanged ? { ok: false, code: 'CHECK_INPUTS_CHANGED' } : {}), data: { ...result.result.data, workspaceRevision: workspace.revision, isolated: workspace.isolated,
-        outputFiles, outputFilesTruncated, validationInputsChanged, execution: host ? 'host' : 'sandbox' } }), workspaceRevision: workspace.revision, isolated: workspace.isolated };
+      completion = { ...result, result: attachCapturedEvidence(this.boundedResult({ ...result.result, ...(validationInputsChanged ? { ok: false, code: 'CHECK_INPUTS_CHANGED' } : {}), data: { ...result.result.data, workspaceRevision: workspace.revision, isolated: workspace.isolated,
+        outputFiles, outputFilesTruncated, validationInputsChanged, execution: host ? 'host' : 'sandbox' } })), workspaceRevision: workspace.revision, isolated: workspace.isolated };
     } catch (error) {
+      finishPreparation();
       completion = { result: { ok: false, code: signal.aborted ? 'cancelled' : error instanceof LocalToolError ? error.code : 'CLI_EXECUTION_FAILED', data: {} }, settled: !launched, effectsKnown: !launched };
     }
     await this.journal.write({ operationId: op.id, sessionId, phase: 'settled', completion });

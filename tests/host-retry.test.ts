@@ -24,9 +24,30 @@ describe('失败沙箱记录的手动宿主申请（真实HTTP/SQLite/模型协�
   it('[BT_L33] deduplicates identical clicks and prevents a second retry with a new request ID', async () => {
     await failed(); const data = f.retryData();
     expect((await f.requestRetry(data)).status).toBe(200); expect((await f.requestRetry(data)).status).toBe(200);
-    expect((await f.requestRetry({ ...data, id: 'another-click' })).status).toBe(409);
+    expect((await f.requestRetry({ ...data, id: 'another-click' })).status).toBe(200);
     const approval = await f.approval(); expect(f.snapshot().hostApprovals).toHaveLength(1);
     expect((await f.request(f.decisionData(approval, 'approve'))).status).toBe(200); await f.complete(); expect(await f.runs()).toBe('once\n');
+  });
+  it('[BT_L45] batches two in-flight requests and returns both real receipts with one owner synthesis', async () => {
+    f = new HostRetryFixture(); const [first, second] = await f.pauseAfterTwoFailures();
+    const workBefore = f.service.engine.view(f.room.id, f.taskId)!.context.intents[0]!;
+    const initial = await f.requestRetry(f.retryData(first)); const other = await f.requestRetry(f.retryData(second));
+    expect(initial.status).toBe(200); expect(other.status).toBe(200);
+    const repeated = await f.requestRetry(f.retryData(first));
+    expect(repeated.data).toEqual(initial.data);
+    expect(f.snapshot().failedSandboxCommands?.map(row => row.retry?.status)).toEqual(['pending', 'pending']);
+    expect(f.snapshot().hostApprovals).toEqual([]);
+    expect(f.service.engine.view(f.room.id, f.taskId)!.context.intents[0]).toMatchObject({ id: workBefore.id, epoch: workBefore.epoch, status: 'inflight' });
+    f.resumeMain();
+    const approveFirst = await f.approval(); expect(approveFirst.args.at(-1)).toBe('command-1');
+    expect((await f.request(f.decisionData(approveFirst, 'approve'))).status).toBe(200);
+    const approveSecond = await hostUntil(() => f.snapshot().hostApprovals?.[0], approval => approval?.operationId !== approveFirst.operationId && approval?.args.at(-1) === 'command-2');
+    expect(await f.runs()).toBe('once\n');
+    expect((await f.request(f.decisionData(approveSecond!, 'approve'))).status).toBe(200);
+    const result = await f.complete(); expect(result.tasks.at(-1)?.outcome).toBe('complete'); expect(await f.runs()).toBe('once\nonce\n');
+    expect(f.requests).toHaveLength(4);
+    expect(f.requests.at(-1)!.messages.filter(m => m.content.startsWith('{"type":"local_tool_result",') && m.content.includes('"execution":"host"'))).toHaveLength(2);
+    expect(f.snapshot().failedSandboxCommands?.map(row => row.retry?.status)).toEqual(['settled', 'settled']);
   });
   it('[BT_L34] rejects cross-origin requests and client-supplied replacement arguments', async () => {
     await failed(); const data = f.retryData();

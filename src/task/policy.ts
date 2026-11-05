@@ -1,11 +1,14 @@
 import { modelOutputIssues, type InputReference, type TaskContext, type TaskEvent } from '../types.js';
 import { localAwaitingApproval, localEventProblem, localPhysicalPending, localUnsettled } from '../local-operation.js';
+import { boundCheckProblem } from './delivery.js';
 import { requestBudgetProblem } from './budget.js';
 import { allInflight, discussionActive, fresh, hasOrdinary, incompatibleExecution, isBot, workLaneAvailable } from './facts.js';
 import { validArtifactDrafts, validSummary } from '../presentation.js';
 import { validInputIntent } from '../input-intent.js';
 import { assistanceRetryProblem, helpProblem } from './assistance.js';
+import { acceptanceCheckProblem, validCriterionCoverage, validCriterionJudgments } from '../delivery-acceptance.js';
 import { hostRetryProblem } from '../host-retry.js';
+import { legacyTerminalConfig, taskProtocolChanged } from './protocol.js';
 
 export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
   if (e.type.startsWith('LOCAL_')) return localEventProblem(c, e, work => requestBudgetProblem(c, work));
@@ -13,7 +16,9 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
   if (e.type === 'REQUEST_HOST_RETRY') {
     if (!e.fence || !fresh(c, e)) return 'STALE_FENCE';
     if (!/^[a-f0-9]{64}$/.test(e.requestHash)) return 'INVALID_LOCAL_REQUEST';
-    return hostRetryProblem(c, e.sourceWorkId, e.sourceOperationId, e.sourceRequestHash);
+    const upgraded = legacyTerminalConfig(c, e.currentConfig);
+    if (e.currentConfig && taskProtocolChanged(c.config, e.currentConfig) && !upgraded) return 'INCOMPATIBLE_EXECUTION';
+    return hostRetryProblem(upgraded ? { ...c, config: upgraded } : c, e.sourceWorkId, e.sourceOperationId, e.sourceRequestHash);
   }
   const attemptWorkId = e.workId ?? ('intentId' in e ? e.intentId : undefined);
   if (e.attempt !== undefined && c.intents.find(work => work.id === attemptWorkId)?.attempt !== e.attempt) return 'STALE_ATTEMPT';
@@ -94,6 +99,8 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (!workLaneAvailable(c, i)) return 'WORK_BUSY';
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
       if (i.kind === 'tool' && !c.config.bots.find(b => b.id === i.target)?.tools.includes(String(i.payload.tool))) return 'TOOL_PERMISSION';
+      // Recovery can reuse the claim only until the batch has authorized its first model request.
+      if (c.hostRetryBatch?.workId === i.id && c.hostRetryBatch.ownerClaimed && i.requestCount === 0) return null;
       return requestBudgetProblem(c, i);
     }
     case 'REGENERATE_MODEL_OUTPUT': {
@@ -111,6 +118,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (!i || i.status !== 'inflight' || i.bucket === 'none') return 'WORK_NOT_INFLIGHT';
       if (i.epoch !== c.epoch || i.goalVersion !== c.goalVersion) return 'STALE_WORK';
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
+      if (c.hostRetryBatch?.workId === i.id && localUnsettled(i)) return 'LOCAL_OPERATION_PENDING';
       if (e.capability) {
         if (!['owner', 'assistance', 'facilitator'].includes(i.kind)) return 'WEB_TOOLS_NOT_ALLOWED';
         if (c.config.webTools?.enabled === false) return 'WEB_TOOLS_DISABLED';
@@ -130,17 +138,22 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       return e.reviewTargets?.some(target => target === c.owner || !isBot(c, target)) ? 'INVALID_REVIEW_TARGET' : null;
     case 'HANDOFF': return !isBot(c, e.owner) ? 'UNKNOWN_BOT' : allInflight(c).length || discussionActive(c) ? 'WAIT_FOR_BOUNDARY' : null;
     case 'CONTINUE': {
-      if (incompatibleExecution(c)) return 'INCOMPATIBLE_EXECUTION';
+      const upgraded = legacyTerminalConfig(c, e.currentConfig);
+      if (!upgraded && (incompatibleExecution(c) || e.currentConfig && taskProtocolChanged(c.config, e.currentConfig))) return 'INCOMPATIBLE_EXECUTION';
       if (allInflight(c).length || c.intents.some(i => i.status === 'uncertain')) return 'UNRESOLVED_WORK';
-      if (!isBot(c, c.owner)) return 'OWNER_UNAVAILABLE';
+      if (!(upgraded ?? c.config).bots.some(bot => bot.id === c.owner)) return 'OWNER_UNAVAILABLE';
       if (e.extraOrdinary !== undefined && (!Number.isSafeInteger(e.extraOrdinary) || e.extraOrdinary <= 0)) return 'INVALID_BUDGET';
       return hasOrdinary(c) || e.extraOrdinary ? null : 'BUDGET_EXHAUSTED';
     }
     case 'TOOL': return c.config.bots.find(b => b.id === c.owner)?.tools.includes(e.tool) ? null : 'TOOL_PERMISSION';
     case 'PROGRESS': return e.refs.length && e.refs.some(ref => !c.progressRefs.includes(ref) && (c.artifacts.some(a => a.id === ref) || c.board.some(b => b.id === ref) || c.messages.some(m => m.id === ref))) ? null : 'MISSING_NEW_PROGRESS_EVIDENCE';
     case 'ARTIFACT': return c.artifacts.some(a => a.id === e.artifact.id) ? 'ARTIFACT_ID_CONFLICT' : null;
-    case 'DELIVER': return e.text.trim() ? null : 'NO_DELIVERY';
-    case 'CHECK_RESULT': return c.consumedResults.includes(e.resultId) ? 'DUPLICATE_RESULT' : null;
+    case 'DELIVER':
+      if (c.trace.some(entry => entry.event === 'DELIVER' && entry.detail === e.id)) return 'DUPLICATE_RESULT';
+      return !validCriterionCoverage(e.coverage) ? 'INVALID_COVERAGE' : e.text.trim() ? null : 'NO_DELIVERY';
+    case 'CHECK_RESULT':
+      if (c.consumedResults.includes(e.resultId)) return 'DUPLICATE_RESULT';
+      return !validCriterionJudgments(e.criteriaResults) ? 'INVALID_CRITERION_JUDGMENTS' : boundCheckProblem(c, e) ?? acceptanceCheckProblem(c, e);
     case 'WORK_FAILED': {
       const work = c.intents.find(i => i.id === e.intentId);
       if (!work || !['pending', 'inflight'].includes(work.status)) return 'UNKNOWN_OR_SETTLED_WORK';

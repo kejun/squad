@@ -1,3 +1,4 @@
+import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
@@ -71,7 +72,7 @@ describe('third-party model configuration and transport', () => {
       { type: 'deliver', text: 'plan', artifactIds: [] },
       { type: 'check', passed: true, gaps: [] },
     ];
-    const http = vi.fn<typeof fetch>(async () => completion(replies.shift()));
+    const http = vi.fn<typeof fetch>(async (_url, init) => completion(withFixtureAcceptance(replies.shift(), String(init?.body))));
     const { h, runner, adapter } = setup(c, http);
     await runner.runOne(h.room, h.task);
     h.reopen();
@@ -256,7 +257,7 @@ describe('third-party model configuration and transport', () => {
       const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(Buffer.from(chunk));
       received.push({ path: req.url, auth: req.headers.authorization, body: JSON.parse(Buffer.concat(chunks).toString()) });
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(replies[received.length - 1]) } }] }));
+      res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(withFixtureAcceptance(replies[received.length - 1], received.at(-1)!.body)) } }] }));
     });
     server.listen(0, '127.0.0.1'); await once(server, 'listening');
     try {

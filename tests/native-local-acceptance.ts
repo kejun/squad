@@ -1,3 +1,4 @@
+import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -27,7 +28,7 @@ export async function nativeStartupAcceptance() {
       { type: 'runCli', executable: 'node', args: ['@skill/scripts/run.mjs'], skillId: id },
       { type: 'deliver', text: '原生沙箱命令已完成', artifactIds: [] }, { type: 'check', passed: true, gaps: [] }];
     const config = localConfig(); let calls = 0;
-    const adapter = new OpenAICompatibleAdapter(config, { env: {}, transport: async () => modelResponse(replies[calls++]) });
+    const adapter = new OpenAICompatibleAdapter(config, { env: {}, transport: async (_url, init) => modelResponse(withFixtureAcceptance(replies[calls++], String(init?.body))) });
     service = new WebService(config, join(root, 'team.sqlite'), adapter, undefined, true, runtime); await service.ready();
     const room = service.createRoom('原生本地工具验收'); service.submit(room.id, { id: 'native', text: '执行本地验证' });
     for (let n = 0; n < 200 && service.snapshot(room.id).tasks[0]?.outcome !== 'complete'; n++) await new Promise(resolve => setTimeout(resolve, 20));

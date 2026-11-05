@@ -1,3 +1,4 @@
+import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import assert from 'node:assert/strict';
 import { chmod, mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -50,11 +51,12 @@ export class LocalFixture {
   readonly replies: unknown[] = [];
   runtime!: LocalRuntime; h!: Harness; source!: string; skills!: string; skillId!: string;
   private constructor(readonly root: string) {}
-  static async create(role = '方案师', sqlite = false, serviceClock = false, options: { backend?: CliBackend } = {}): Promise<LocalFixture> {
+  static async create(role = '方案师', sqlite = false, serviceClock = false, options: { backend?: CliBackend; ordinaryLimit?: number } = {}): Promise<LocalFixture> {
     const f = new LocalFixture(await mkdtemp(join(tmpdir(), 'squad-local-')));
     f.source = join(f.root, 'source'); f.skills = join(f.root, 'skills'); await mkdir(f.source); await mkdir(f.skills); await writeSkill(f.skills);
     await writeFile(join(f.source, 'source.txt'), 'authoritative'); await writeFile(join(f.source, '.env'), 'SECRET_FILE=do-not-copy');
     const config = localConfig();
+    if (options.ordinaryLimit !== undefined) config.limits.ordinary = options.ordinaryLimit;
     if (serviceClock) { config.limits.workTimeoutMs = Date.now() + 60_000; config.limits.progressIntervalMs = Date.now() + 60_000; }
     if (role === '核查员') config.defaultBot = 'B';
     if (role === 'Builder') config.defaultBot = 'builder-1';
@@ -81,7 +83,7 @@ export class LocalFixture {
   runner(final?: unknown) {
     const adapter = new OpenAICompatibleAdapter(this.h.config, { clock: () => this.h.now, transport: async (_url, init) => {
       this.requests.push(JSON.parse(String(init?.body)) as typeof this.requests[number]);
-      assert(this.replies.length || final, 'scripted model exhausted'); return modelResponse(this.replies.length ? this.replies.shift() : final);
+      assert(this.replies.length || final, 'scripted model exhausted'); return modelResponse(withFixtureAcceptance(this.replies.length ? this.replies.shift() : final, this.requests.at(-1)));
     } });
     return new WorkRunner(this.h.engine, adapter, () => this.h.now, globalThis.fetch, undefined, this.runtime);
   }

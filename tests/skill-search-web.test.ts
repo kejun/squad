@@ -1,3 +1,4 @@
+import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -22,8 +23,8 @@ describe('skill search execution logs through HTTP and SQLite', () => {
       { type: 'check', passed: true, gaps: [] },
     ];
     let requests = 0; let searches = 0;
-    const adapter = new OpenAICompatibleAdapter(config, { env: {}, transport: async () =>
-      Response.json({ choices: [{ message: { content: JSON.stringify(outputs[requests++]) }, finish_reason: 'stop' }] }) });
+    const adapter = new OpenAICompatibleAdapter(config, { env: {}, transport: async (_url, init) =>
+      Response.json({ choices: [{ message: { content: JSON.stringify(withFixtureAcceptance(outputs[requests++], String(init?.body))) }, finish_reason: 'stop' }] }) });
     const service = new WebService(config, join(directory, 'team.sqlite'), adapter);
     const server = createWebServer(service);
     const realFetch = globalThis.fetch;

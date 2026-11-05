@@ -120,8 +120,9 @@ describe('budget and delivery', () => {
   it('[BT_F07] text claiming files exist cannot satisfy missing artifacts', () => {
     const h = new Harness(); h.event({ type: 'USER_INPUT', text: 'two files', goal: { ...h.context().goal, requiredArtifacts: 2 } });
     h.event({ type: 'DELIVER', text: 'files are done', artifactIds: ['missing1', 'missing2'] });
-    h.event({ type: 'CHECK_RESULT', passed: true, gaps: [], resultId: 'check' });
-    expect(h.view().phase).toBe('coordinating'); expect(h.context().outcome).toBeNull();
+    expect(h.view().phase).toBe('running'); expect(h.context().outcome).toBeNull();
+    expect(h.context().intents.some(work => work.kind === 'check')).toBe(false);
+    expect(h.context().deliveryGaps).toEqual(expect.arrayContaining([expect.objectContaining({ reason: 'MISSING_OR_STALE_ARTIFACT' })]));
   });
   it('[BT_F08] a semantic gap triggers bounded correction', () => {
     const h = new Harness(); h.event({ type: 'DELIVER', text: 'draft', artifactIds: [] });

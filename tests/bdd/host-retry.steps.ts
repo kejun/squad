@@ -43,7 +43,7 @@ Given('模型未申请宿主执行且失败命令旁显示手动入口', async f
 });
 When('用户重复点击对应记录的宿主请求入口', async function (this: SpecWorld) {
   const f = state(this).f!, data = f.retryData(); assert.equal((await f.requestRetry(data)).status, 200);
-  assert.equal((await f.requestRetry(data)).status, 200); assert.equal((await f.requestRetry({ ...data, id: 'another-click' })).status, 409);
+  assert.equal((await f.requestRetry(data)).status, 200); assert.equal((await f.requestRetry({ ...data, id: 'another-click' })).status, 200);
 });
 Then('只应存在一条关联的宿主操作且必须等待用户批准', async function (this: SpecWorld) {
   const f = state(this).f!; await f.approval(); assert.equal(f.snapshot().hostApprovals!.length, 1); assert.equal(await f.runs(), '');
@@ -66,6 +66,8 @@ When('用户尝试从该记录申请宿主执行', async function (this: SpecWor
     else if (s.boundary === '权限关闭') m.c.config.localTools = { enabled: false };
     else if (s.boundary === '原命令已成功') { m.op!.status = 'succeeded'; m.op!.result!.ok = true; }
     else if (s.boundary === '原命令本来就是宿主执行' && m.op!.action.type === 'runCli') m.op!.action.execution = 'host';
+    else if (s.boundary === '隔离检查副本') m.c.intents[0]!.kind = 'check';
+    else if (s.boundary === '隔离讨论副本') m.c.intents[0]!.discussionId = 'discussion';
     else throw new Error('Unknown boundary: ' + s.boundary);
     assert.equal(request(m).ok, false); assert.equal(m.c.intents.length, count);
     assert.equal(m.c.intents.flatMap(w => w.localOperations ?? []).filter(op => op.hostRetryOf).length, 0);

@@ -48,6 +48,11 @@ export function discussionIncomplete(c: TaskContext) {
   return round && round.epoch === c.epoch && round.goalVersion === c.goalVersion ? round.incomplete : undefined;
 }
 
+export function deliveryHandoffPending(c: TaskContext): boolean {
+  return discussionActive(c) || unresolvedInput(c) || c.inputs.some(input => !input.applied) || !!activeHelp(c)
+    || !!c.review && !['summarizing', 'complete', 'cancelled'].includes(c.review.status);
+}
+
 export function completeProblem(c: TaskContext): string | null {
   if (discussionActive(c)) return 'UNFINISHED_DISCUSSION';
   if (unresolvedInput(c)) return 'UNRESOLVED_INPUT_INTENT';

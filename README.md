@@ -107,8 +107,8 @@ stateDiagram-v2
     interpreting --> running: INTERPRETATION_RESULT [valid且无需澄清] / apply
     running --> waitingAssistance: HELP [valid] / apply
     waitingAssistance --> running: HELP_RESULT [valid且不继续评审] / apply
-    running --> checking: DELIVER [valid且非holdingDelivery] / apply
-    checking --> ended: CHECK_RESULT [checkComplete] / apply
+    running --> checking: DELIVER [候选预检通过且无待交接] / 保存绑定候选的检查意图
+    checking --> ended: CHECK_RESULT [当前候选且独立验收通过] / 发布
 ```
 
 控制路径（与上图为同一个 taskMachine，不是另一台机器或父状态）：
@@ -134,6 +134,7 @@ stateDiagram-v2
 | EXHAUSTED | `[valid] → ended`，保留真实结果与已用预算，不承诺额度外的汇总或重试 |
 | RECOVER | 配置、成员、权限、模型、版本和未决物理操作均须核对；安全恢复保留当前阶段，否则转 `waitingHuman`；`ended` 使用其局部恢复规则 |
 | LOCAL_RESULT / LOCAL_RECONCILE | 仅可信且已结算的当前结果可按父工作种类恢复阶段；旧目标和停止任务只结算旧操作 |
+| REQUEST_HOST_RETRY | 活动任务在同一 epoch 登记固定续办。已正常结束的任务首次续办时进入 running。仅安全边界可固定批次并生成首条本地操作 |
 | RETRY_ASSISTANCE | 先尝试消费已保存有效结果，否则创建关联旧尝试的新记录；分支目标由评审队列和真实守卫决定，不重置预算 |
 | 无效、重复或迟到事件 | 按权限、身份、fence、期限及回执守卫拒绝或只结算自身，不推进新目标；局部无条件处理会遮蔽同名根事件 |
 
@@ -142,15 +143,22 @@ stateDiagram-v2
 | 关心的问题 | 详细模型与验收范围 |
 | --- | --- |
 | 输入、协助、评审、后台讨论、交付 | [任务上下文](docs/state-diagrams.md#任务拥有的上下文生命周期)：BT_I、BT_H、BT_G01–G14、BT_T、BT_A01–A11 |
+| 当前交付、文档修订与历史报告 | [候选版本与当前交付](docs/state-diagrams.md#候选版本与当前交付)，BT_A22–BT_A26 |
+| 候选预检、独立验收与修订 | [交付验收](docs/state-diagrams.md#候选预检与独立验收)，BT_F07–F08、BT_F14–F16 |
 | 意图领取、工具、格式修正、本地操作与宿主 | [执行与适配器](docs/state-diagrams.md#执行与适配器边界)：BT_M、BT_W、BT_L |
+| 任务内证据查读、刷新与历史观测 | [任务级证据读取](docs/state-diagrams.md#任务级证据读取)：BT_L38–BT_L43 |
 | 按次/本次任务会话批准宿主 CLI、拒绝与恢复（BT_L35–BT_L37） | [宿主命令授权](docs/state-diagrams.md#宿主命令按次授权)：BT_L23–BT_L30；默认仍为沙箱 |
-| 沙箱失败后的主动申请与用户手动续办 | [宿主命令授权](docs/state-diagrams.md#宿主命令按次授权)：BT_L31–BT_L34；申请与批准分别处理 |
+| 沙箱失败后的主动申请与用户手动续办 | [失败命令的宿主续办](docs/state-diagrams.md#失败命令的宿主续办)（BT_L31–BT_L34、BT_L45–BT_L52） |
+| 模型请求、实际本地执行与耗时 | [执行测量](docs/state-diagrams.md#执行测量)：BT_Z01–BT_Z05；原业务状态不变 |
+| 工具与交付协议升级及旧任务续办 | [任务快照协议与回退](docs/state-diagrams.md#任务快照协议与回退)：BT_A27–BT_A28 |
 | 群历史、可信路由、归档 | [房间与命令](docs/state-diagrams.md#房间与可信命令)：BT_R、BT_G15–G22；归档不打断在途任务 |
 | 草稿、详情、导出、布局、调试与 Inspector | [网页与观察](docs/state-diagrams.md#网页与观察)：BT_U、BT_P、BT_A12–A21、BT_V；UI 仅读取快照或提交可信命令 |
 
 调试默认关闭；`npm run dev` 默认开启，或使用 `SQUAD_DEBUG=1 npm start`。宿主允许后从顶栏或 `?debug=1` 打开，本地运行视图和沙箱复用真实机器，不能向真实任务写入任意事件。官方 Inspector 在独立标签页打开，需要的托管认证仍在 Stately 完成；详见[观察通道](docs/state-diagrams.md#官方-inspector-观察通道)及[验收记录](docs/inspector-verification.md)。
 
 浏览器验收先 `npm run build`，再 `npm run test:debug-browser`；可用 `SQUAD_PLAYWRIGHT_MODULE`、`SQUAD_CHROMIUM` 指定依赖，`SQUAD_VERIFY_INSPECTOR=1` 加验官方协议。脚本使用独立数据库和模型 HTTP 夹具，完整退出且报告为 verified、清理项全为 true 才算通过；登录后的托管绘图单独报告。静态字号、颜色与几何约定见[样式规范](docs/ui-style.md)，不列为业务状态。
+
+本机可用 `node --import tsx scripts/execution-measurement.ts <task-id> [database]` 读取指定任务的结构化执行记录。对照试验可用 `SQUAD_MEASUREMENT_DATASET` 标记资料快照。报告按服务运行分组，列出模型传输、命令准备、人工决定及子进程时长，并单列工作阶段和综合等待。只有已配对的同运行端点进入观测并集，报告保留缺失端点和未分类时长。记录可由证据读取追溯原操作，并按续办请求、候选版本和验收项核对已提交结果。
 
 ## 接入接口
 

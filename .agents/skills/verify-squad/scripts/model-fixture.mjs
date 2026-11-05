@@ -29,7 +29,15 @@ export async function startFixture(log) {
       counts.set(key, count);
       const repair = request.messages.some(m => m.content.includes('model_output_validation_error'));
       appendFileSync(log, JSON.stringify({ workId, goal, target, kind, count, repair }) + '\n');
-      const respond = output => res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }] }));
+      const respond = output => {
+        if (output.type === 'deliver' && context.acceptanceCriteria) output.coverage = context.acceptanceCriteria.map(item => ({
+          criterionId: item.id, refs: [{ kind: 'draft', index: 0 }],
+        }));
+        if (output.type === 'check' && output.passed === true && context.candidate?.acceptance) {
+          output.criteriaResults = context.candidate.acceptance.criteria.map(item => ({ criterionId: item.id, status: 'passed' }));
+        }
+        res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }] }));
+      };
       if (goal.includes('VERIFY_ARCHIVE') && kind === 'owner' && count === 1) {
         pending.add(res);
         archivePending.set(res, () => {

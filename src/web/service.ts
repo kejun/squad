@@ -1,13 +1,15 @@
+import { publicationIds } from '../task/delivery.js';
 import { hostSessionActive } from '../host-session.js';
 import type { LocalRuntime } from "../local-runtime.js";
-import { localAwaitingApproval } from '../local-operation.js';
-import { hostRetryProblem } from '../host-retry.js';
-import { randomUUID } from "node:crypto";
+import { isSavedRead, localAwaitingApproval } from '../local-operation.js';
+import { findHostRetry, hostRetryProblem } from '../host-retry.js';
+import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { TeamEngine, type Submission } from "../engine.js";
 import { assistanceRetryProblem } from "../task.machine.js";
 import { retryableAssistance, retryProblemText } from "../assistance-retry.js";
 import { OpenAICompatibleAdapter } from "../model-adapter.js";
+import { measurementRun, type ExecutionObservation, type MeasurementContext, type MeasurementIdentity, type MeasurementRecord, type MeasurementRun } from "../measurement.js";
 import { resolveModel } from "../model-config.js";
 import {
   WorkFailure,
@@ -54,6 +56,7 @@ export class WebService {
   private startup: Promise<void> = Promise.resolve();
   private initialized = true;
   private readonly debugJournal: DebugJournal | null;
+  private readonly measurement: MeasurementRun;
 
   constructor(
     readonly config: TeamConfig,
@@ -62,7 +65,9 @@ export class WebService {
     private readonly webTools?: WebTools,
     readonly debugEnabled = false,
     private readonly localRuntime?: LocalRuntime,
+    measurementIdentity?: MeasurementIdentity,
   ) {
+    this.measurement = measurementRun(config, measurementIdentity);
     this.store = new SqliteStore(path);
     this.debugJournal = debugEnabled ? new DebugJournal() : null;
     this.engine = new TeamEngine(this.store, config, Date.now,
@@ -126,7 +131,10 @@ export class WebService {
         for (const work of latest.intents) for (const op of work.localOperations ?? []) {
           if (!op.result || !['succeeded', 'failed', 'cancelled'].includes(op.status)) continue;
           const shown = this.db.prepare("SELECT 1 FROM web_events WHERE roomId=? AND workId=? AND kind='tool-result' AND instr(detail,?)>0 LIMIT 1").get(room.id, work.id, op.id);
-          if (!shown) this.append(room.id, work, 'tool-result', '本地操作持久回执', JSON.stringify({ operationId: op.id, ...op.result }));
+          if (!shown) {
+            const receipt = isSavedRead(op.action) ? { ok: op.result.ok, code: op.result.code } : op.result;
+            this.append(room.id, work, 'tool-result', '本地操作持久回执', JSON.stringify({ operationId: op.id, ...receipt }));
+          }
         }
       }
     }
@@ -167,8 +175,20 @@ export class WebService {
   }
   decideHostApproval(roomId: string, data: { id: string; taskId: string; workId: string; operationId: string; approvalId: string; decision: 'approve' | 'approveSession' | 'deny' }) {
     this.room(roomId);
+    let work: Intent | undefined;
+    try { work = this.engine.view(roomId, data.taskId)?.context.intents.find(item => item.id === data.workId); }
+    catch { /* Recording the approval is best effort. */ }
+    const operation = work?.localOperations?.find(op => op.id === data.operationId);
+    const approval = operation?.approval;
     const result = this.engine.decideHostApproval(roomId, data.taskId, data.workId, data.operationId, data.approvalId, data.decision, data.id);
     if (!result.ok) throw new WebError(409, `授权请求已失效或不可用 (${result.code})`);
+    if (work && approval?.id === data.approvalId && approval.status === "pending") {
+      this.recordMeasurement({ roomId, taskId: data.taskId, workId: work.id, agentId: work.target, attempt: work.attempt,
+        epoch: work.epoch, goalVersion: work.goalVersion },
+      { phase: "local.approvalDecision", action: "runCli", operationId: data.operationId, approvalId: data.approvalId,
+        ...(operation?.hostRetryRequestId ? { retryRequestId: operation.hostRetryRequestId } : {}),
+        decisionId: createHash("sha256").update(data.id).digest("hex"), decision: data.decision });
+    }
     this.localRuntime?.notifyWorkspace(`approval:${data.operationId}`);
     if (data.decision === 'approveSession') for (const work of this.engine.view(roomId, data.taskId)?.context.intents ?? [])
       for (const op of work.localOperations ?? []) if (op.approval?.sessionGrantId) this.localRuntime?.notifyWorkspace(`approval:${op.id}`);
@@ -184,9 +204,26 @@ export class WebService {
   requestHostRetry(roomId: string, data: { id: string; taskId: string; workId: string; operationId: string; sourceRequestHash: string }) {
     this.room(roomId);
     if (!this.localRuntime) throw new WebError(409, '本地运行时未开启。');
+    let previousRequest: string | null | undefined;
+    try {
+      const before = this.engine.view(roomId, data.taskId)?.context;
+      if (before) previousRequest = findHostRetry(before, data.workId, data.operationId)?.id ?? null;
+    } catch { /* Recording the accepted request is best effort. */ }
     const reply = this.engine.requestHostRetry(roomId, data.taskId, data.workId, data.operationId, data.sourceRequestHash, data.id);
     if (!reply.ok) throw new WebError(409, `无法从该记录申请宿主执行 (${reply.code})`);
-    void this.drainCancellation(roomId, data.taskId).then(() => this.kick(roomId)).catch(error => this.hostError(roomId, error));
+    if (previousRequest === null) {
+      try {
+        const after = this.engine.view(roomId, data.taskId)?.context;
+        const request = after && findHostRetry(after, data.workId, data.operationId);
+        const source = request && after?.intents.find(work => work.id === request.sourceWorkId);
+        if (request && source && reply.detail === request.id) {
+          this.recordMeasurement({ roomId, taskId: data.taskId, workId: source.id, agentId: source.target, attempt: source.attempt,
+            epoch: source.epoch, goalVersion: request.goalVersion },
+          { phase: 'local.retryQueued', action: 'runCli', operationId: request.sourceOperationId,
+            sourceOperationId: request.sourceOperationId, retryRequestId: request.id });
+        }
+      } catch { /* Recording the accepted request is best effort. */ }
+    }
     this.kick(roomId); return reply;
   }
   snapshot(roomId: string): RoomSnapshot {
@@ -206,6 +243,7 @@ export class WebService {
     }));
     for (const taskId of Object.keys(stored.tasks)) {
       const { phase, context: c } = this.engine.view(roomId, taskId)!;
+      const currentArtifactIds = publicationIds(c);
       tasks.push({
         id: taskId,
         goal: c.goal.text,
@@ -219,6 +257,8 @@ export class WebService {
           checks: c.config.limits.checks,
         },
         artifacts: c.artifacts,
+        ...(currentArtifactIds ? { currentArtifactIds } : {}),
+        ...(c.deliveryGaps?.length ? { deliveryGaps: c.deliveryGaps } : {}),
         board: c.board,
         trace: c.trace,
         ...(c.inputAnalyses ? { inputAnalyses: c.inputAnalyses } : {}),
@@ -249,9 +289,14 @@ export class WebService {
         for (const op of i.localOperations ?? []) {
           if (op.action.type !== 'runCli' || op.action.execution === 'host' || op.status !== 'failed' || op.result?.ok !== false) continue;
           const currentTask = stored.activeTaskId ?? Object.keys(stored.tasks).at(-1);
+          const request = findHostRetry(c, i.id, op.id);
+          const retryOp = c.intents.find(w => w.id === request?.workId)?.localOperations?.find(child => child.id === request?.operationId);
+          const status = retryOp?.status === 'awaitingApproval' || retryOp?.status === 'running' ? retryOp.status : request?.status;
           const problem = !this.localRuntime ? 'LOCAL_RUNTIME_NOT_CONFIGURED' : currentTask !== taskId ? 'ROOM_BUSY' : hostRetryProblem(c, i.id, op.id, op.requestHash);
-          const visible = { taskId, workId: i.id, operationId: op.id, sourceRequestHash: op.requestHash, executable: op.action.executable, args: op.action.args,
-            error: String(op.result.data.stderr ?? op.result.code).slice(0, 1000), canRequest: !problem, unavailableReason: problem ?? '' };
+          const visible: WebFailedSandboxCommand = { taskId, workId: i.id, operationId: op.id, sourceRequestHash: op.requestHash, executable: op.action.executable, args: op.action.args,
+            error: String(op.result.data.stderr ?? op.result.code).slice(0, 1000), canRequest: !problem && !request, unavailableReason: problem ?? '',
+            ...(request && status ? { retry: { id: request.id, status, ...(request.reason ? { reason: request.reason } : {}),
+              ...(request.workId ? { workId: request.workId } : {}), ...(request.operationId ? { operationId: request.operationId } : {}) } } : {}) };
           failedSandboxCommands.push(this.localRuntime ? this.localRuntime.clean(visible) : visible);
         }
         if (!c.stopped && c.outcome === null && ['pending', 'inflight'].includes(i.status) && i.epoch === c.epoch && i.goalVersion === c.goalVersion)
@@ -281,14 +326,16 @@ export class WebService {
         });
       }
       for (const work of c.intents) for (const op of work.localOperations ?? []) {
-        if (op.action.type !== 'verifyWorkspace' || !op.result) continue;
-        const shown = this.db.prepare("SELECT 1 FROM web_events WHERE roomId=? AND workId=? AND kind='tool-result' AND instr(detail,?)>0 LIMIT 1").get(roomId, work.id, op.id);
-        if (!shown) this.append(roomId, work, 'tool-result', '工程版本复核', JSON.stringify({ operationId: op.id, ...op.result }));
+        if (!op.result || (op.action.type !== 'verifyWorkspace' && !op.hostRetryRequestId)) continue;
+        const shown = this.db.prepare(`SELECT 1 FROM web_events WHERE roomId=? AND workId=? AND kind='tool-result'
+          AND CASE WHEN json_valid(detail) THEN json_extract(detail,'$.operationId') END = ? LIMIT 1`).get(roomId, work.id, op.id);
+        if (!shown) this.append(roomId, work, 'tool-result', op.hostRetryRequestId ? '宿主续办回执' : '工程版本复核',
+          JSON.stringify({ operationId: op.id, ...op.result }));
       }
     }
     const events = this.db
       .prepare(
-        "SELECT id, taskId, workId, agentId, at, kind, title, detail FROM web_events WHERE roomId = ? ORDER BY id",
+        "SELECT id, taskId, workId, agentId, at, kind, title, detail FROM web_events WHERE roomId = ? AND kind != 'measurement' ORDER BY id",
       )
       .all(roomId) as unknown as ExecutionEvent[];
     return {
@@ -401,6 +448,13 @@ export class WebService {
         detail.slice(0, 64_000),
       );
   }
+  private recordMeasurement(context: MeasurementContext, observation: ExecutionObservation) {
+    const record: MeasurementRecord = { ...context, run: this.measurement, at: Date.now(), monotonicMs: performance.now(), observation };
+    try {
+      this.db.prepare("INSERT INTO web_events(roomId, taskId, workId, agentId, at, kind, title, detail) VALUES(?, ?, ?, ?, ?, ?, ?, ?)")
+        .run(record.roomId, record.taskId, record.workId, record.agentId, record.at, "measurement", observation.phase, JSON.stringify(record));
+    } catch { /* Failed observation must never affect a completed operation or retry policy. */ }
+  }
   private runner(roomId: string): WorkRunner {
     let runner = this.runners.get(roomId);
     if (runner) return runner;
@@ -420,19 +474,26 @@ export class WebService {
         );
         const tracedScope: WorkScope = {
           sessionId: roomId,
+          ...(scope.observeModel ? { observeModel: scope.observeModel } : {}),
           ...(scope.localTools ? { localTools: {
             catalog: scope.localTools.catalog, checkpoint: scope.localTools.checkpoint,
-            invoke: async (action, messages, toolSignal) => {
-              const labels = { listSkills: "查看本地技能", loadSkill: "激活本地技能", readSkillResource: "读取技能资源", runCli: "执行本地命令", verifyWorkspace: "核对工程版本" };
+            invoke: async (action, messages, toolSignal, requested) => {
+              const labels = { listSkills: "查看本地技能", loadSkill: "激活本地技能", readSkillResource: "读取技能资源", readEvidence: "查读执行证据", readArtifact: "查读历史产物", runCli: "执行本地命令", verifyWorkspace: "核对工程版本" };
               this.append(roomId, work, "tool-start", labels[action.type], JSON.stringify(this.localRuntime!.clean(action)));
-              const result = await scope.localTools!.invoke(action, messages, toolSignal);
-              this.append(roomId, work, "tool-result", action.type === "runCli" ? "本地命令结束" : "本地技能操作完成", JSON.stringify({ operationId: this.engine.view(roomId)!.context.intents.find(w => w.id === work.id)?.localOperations?.at(-1)?.id, ...result }));
+              let operationId: string | undefined;
+              const result = await scope.localTools!.invoke(action, messages, toolSignal, id => {
+                operationId = id;
+                requested?.(id);
+              });
+              const receipt = isSavedRead(action) ? { ok: result.ok, code: result.code } : result;
+              this.append(roomId, work, "tool-result", action.type === "runCli" ? "本地命令结束" : isSavedRead(action) ? "保存内容查读结束" : "本地技能操作完成", JSON.stringify({ operationId, ...receipt }));
               return result;
             },
             resume: async (operationId, toolSignal) => {
               this.append(roomId, work, "tool-start", "续办本地操作", operationId);
               const result = await scope.localTools!.resume(operationId, toolSignal);
-              this.append(roomId, work, "tool-result", "已读取本地操作回执", JSON.stringify({ operationId: this.engine.view(roomId)!.context.intents.find(w => w.id === work.id)?.localOperations?.at(-1)?.id, ...result }));
+              const receipt = (result.code.startsWith("EVIDENCE_") || result.code.startsWith("ARTIFACT_")) ? { ok: result.ok, code: result.code } : result;
+              this.append(roomId, work, "tool-result", "已读取本地操作回执", JSON.stringify({ operationId, ...receipt }));
               return result;
             },
           } satisfies NonNullable<WorkScope["localTools"]> } : {}),
@@ -510,7 +571,8 @@ export class WebService {
         await this.adapter.cancel?.(work);
       },
     };
-    runner = new WorkRunner(this.engine, observed, Date.now, globalThis.fetch, this.webTools, this.localRuntime);
+    runner = new WorkRunner(this.engine, observed, Date.now, globalThis.fetch, this.webTools, this.localRuntime,
+      (context, observation) => this.recordMeasurement(context, observation));
     this.runners.set(roomId, runner);
     return runner;
   }

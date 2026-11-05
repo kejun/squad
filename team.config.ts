@@ -1,4 +1,5 @@
 import type { TeamConfig } from './src/types.js';
+import { currentExecutionVersion, currentToolVersion } from './src/task/protocol.js';
 import { configureModelsFromEnv, loadModelEnvFile, type ModelEnvironment } from './src/model-env.js';
 
 loadModelEnvFile();
@@ -11,7 +12,7 @@ export function createTeamConfig(env: ModelEnvironment = process.env): TeamConfi
   const localEnabled = env.SQUAD_LOCAL_TOOLS_ENABLED?.trim().toLowerCase();
   if (localEnabled && !['true', 'false'].includes(localEnabled)) throw new Error('SQUAD_LOCAL_TOOLS_ENABLED must be true or false');
   return configureModelsFromEnv({
-  version: 'team-v1', toolVersion: 'tools-v1', defaultBot: 'A',
+  version: currentExecutionVersion, toolVersion: currentToolVersion, defaultBot: 'A',
   skillSearch: { enabled: true },
   localTools: { enabled: env.SQUAD_LOCAL_TOOLS_ENABLED?.trim().toLowerCase() !== 'false' },
   webTools: { enabled: webEnabled !== 'false' },

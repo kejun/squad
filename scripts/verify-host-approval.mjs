@@ -22,25 +22,60 @@ const result = { status: 'running', source: execFileSync('git', ['rev-parse', 'H
 const requests = [], errors = [], posts = [];
 const manualRetry = process.env.SQUAD_VERIFY_HOST_RETRY === '1';
 const sessionMode = process.env.SQUAD_VERIFY_HOST_SESSION === '1';
-assert(!(manualRetry && sessionMode), 'Run retry and session verification separately');
+const queueMode = process.env.SQUAD_VERIFY_HOST_QUEUE === '1';
+assert([manualRetry, sessionMode, queueMode].filter(Boolean).length <= 1, 'Run each authorization mode separately');
 let releaseSessionResponse, sessionPause = true, sessionGateSeen = false;
+let releaseQueueOwner, queueOwnerBlocked = false;
 const privateAuth = join(state, 'private', 'auth.txt'); await mkdir(dirname(privateAuth)); await writeFile(privateAuth, 'synthetic-host-login');
 const executable = process.execPath;
 const action = { type: 'runCli', executable, args: ['-e', `require("node:fs").readFileSync(${JSON.stringify(privateAuth)}); require("node:fs").appendFileSync("runs.txt", "once\\n"); console.log("host-proof", process.env.HOME)`], execution: manualRetry ? 'sandbox' : 'host', reason: '复用本机账号与已有授权，验证按次批准' };
+const queueRelease = join(state, 'release-queue-second');
+const queueProgram = `
+  const fs = require("node:fs");
+  const command = process.argv[1];
+  fs.readFileSync(${JSON.stringify(privateAuth)});
+  fs.appendFileSync("runs.txt", command + "\\n");
+  if (command === "queue-2") {
+    const gate = setInterval(() => {
+      if (fs.existsSync(${JSON.stringify(queueRelease)})) {
+        clearInterval(gate);
+        console.log(command);
+      }
+    }, 20);
+  } else console.log(command);
+`;
+function fixtureAcceptance(output, work) {
+  if (output.type === 'answer' && work.acceptanceCriteria) {
+    return { ...output, coverage: work.acceptanceCriteria.map(item => ({ criterionId: item.id, refs: [{ kind: 'candidateText' }] })) };
+  }
+  const checked = work.candidate?.acceptance?.criteria;
+  if (output.type === 'check' && checked) {
+    return { ...output, criteriaResults: checked.map(item => ({ criterionId: item.id, status: 'passed' })) };
+  }
+  return output;
+}
 const fixture = createServer((req, res) => { void (async () => {
   let text = ''; for await (const chunk of req) text += chunk;
   const body = JSON.parse(text); requests.push(body);
   const system = body.messages[0]?.content ?? '';
+  const work = JSON.parse(body.messages[1].content).context;
   const receipts = body.messages.filter(m => m.role === 'user' && m.content.startsWith('{"type":"local_tool_result",'));
+  const checking = system.includes('executing check work');
+  if (queueMode && !checking && !work.manualHostRetry && receipts.length === 3) {
+    queueOwnerBlocked = true;
+    await new Promise(resolve => { releaseQueueOwner = resolve; });
+  }
   if (sessionMode && receipts.length === 1 && sessionPause && !system.includes('executing check work')) {
     sessionGateSeen = true;
     await new Promise(resolve => { releaseSessionResponse = resolve; });
   }
-  const output = system.includes('executing check work') ? { type: 'check', passed: true, gaps: [] }
+  const output = checking ? { type: 'check', passed: true, gaps: [] }
+    : queueMode && !work.manualHostRetry && receipts.length < 3
+      ? { ...action, execution: 'sandbox', args: ['-e', queueProgram, `queue-${receipts.length + 1}`] }
     : (sessionMode ? receipts.length >= 2 : receipts.length > 0)
       ? { type: 'answer', text: '命令回执已收到', artifacts: [{ name: 'receipt.md', content: body.messages.at(-1).content }] } : sessionMode && receipts.length === 1
         ? { ...action, args: [...action.args.slice(0, -1), action.args.at(-1) + '; console.log("session-command-2")'] } : action;
-  res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }] }));
+  res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(fixtureAcceptance(output, work)) } }] }));
 })().catch(error => { errors.push(String(error)); res.writeHead(500); res.end(); }); });
 await new Promise(resolve => fixture.listen(0, '127.0.0.1', resolve));
 const socket = portServer(); await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve));
@@ -75,11 +110,14 @@ async function capture(name) {
   await page.screenshot({ path: join(evidence, name + '.png'), fullPage: true });
   await writeFile(join(evidence, name + '.aria.txt'), await page.locator('body').ariaSnapshot());
 }
-async function requestCommand() {
+async function submitCommand() {
   await page.getByRole('textbox', { name: '群聊消息输入框' }).fill('执行本次宿主验证命令');
   const sent = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/messages'));
   await page.getByRole('button', { name: '发送消息', exact: true }).click();
-  const reply = await (await sent).json();
+  return (await sent).json();
+}
+async function requestCommand() {
+  const reply = await submitCommand();
   if (manualRetry) {
     await until(room, snapshot => snapshot.tasks.find(task => task.id === reply.taskId)?.outcome === 'complete', 'model finishes without requesting host');
     assert.equal((await room()).hostApprovals.length, 0);
@@ -87,6 +125,98 @@ async function requestCommand() {
   }
   await page.getByRole('dialog').waitFor();
   assert((await page.getByLabel('请求执行的完整命令').textContent()).includes(executable));
+}
+const button = (name, scope = page) => scope.getByRole('button', { name, exact: true });
+const approval = () => page.getByRole('dialog', { name: '请求在宿主执行命令' });
+const fixedCommand = index => approval().getByLabel('请求执行的完整命令').filter({ hasText: `"queue-${index}"` });
+async function keyboardActivate(control) {
+  await control.waitFor();
+  for (let index = 0; index < 80; index++) {
+    if (await control.evaluate(el => el === document.activeElement)) {
+      await page.keyboard.press('Enter');
+      return;
+    }
+    await page.keyboard.press('Tab');
+  }
+  throw new Error('Authorization control is unreachable by keyboard');
+}
+async function requestQueue() {
+  const { taskId } = await submitCommand();
+  await until(() => queueOwnerBlocked, Boolean, 'safe owner request held at transport');
+  const snapshot = await until(room, value => value.failedSandboxCommands.filter(item => item.taskId === taskId && item.canRequest).length === 3, 'three fixed failed source records');
+  const owner = snapshot.agents.find(agent => agent.id === snapshot.tasks.find(task => task.id === taskId).owner);
+  const details = () => page.getByRole('complementary', { name: owner.name + '的执行过程' });
+  const openDetails = async () => {
+    if (!await details().isVisible()) {
+      await button('查看' + owner.name + '的执行过程', page.getByRole('complementary', { name: '群聊和成员' })).click();
+    }
+    await details().waitFor();
+  };
+  const source = index => details().getByRole('region', { name: '失败的沙箱命令' }).filter({ hasText: `"queue-${index}"` });
+  await openDetails();
+  for (const index of [1, 2, 3]) {
+    await keyboardActivate(button('请求在宿主执行', source(index)));
+    await source(index).getByText('已排队，等待当前轮次完成', { exact: true }).waitFor();
+  }
+  assert.equal((await room()).hostApprovals.length, 0);
+  assert.equal(await runs(), '');
+  assert.equal(posts.filter(post => post.url.endsWith('/host-retry')).length, 3);
+  await page.reload();
+  await openDetails();
+  for (const index of [1, 2, 3]) await source(index).getByText('已排队，等待当前轮次完成', { exact: true }).waitFor();
+  await capture('queue-after-refresh');
+  releaseQueueOwner();
+  await fixedCommand(1).waitFor();
+  return taskId;
+}
+async function verifyQueue(taskId) {
+  const decisions = () => posts.filter(post => post.url.endsWith('/host-approval')).map(post => post.body.decision);
+  await keyboardActivate(button('允许本次会话', approval()));
+  await until(runs, value => value === 'queue-1\nqueue-2\n', 'second real process starts in the session');
+  assert.deepEqual(decisions(), ['approveSession']);
+  assert.equal((await room()).hostApprovals.length, 0);
+  await page.reload();
+  const revoke = button('撤销会话授权');
+  await revoke.waitFor();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await keyboardActivate(revoke);
+  await until(room, value => value.hostSessions.length === 0, 'durable revocation');
+  await writeFile(queueRelease, '');
+  await fixedCommand(3).waitFor();
+  const oldApproval = (await room()).hostApprovals[0];
+  await page.keyboard.press('Escape');
+  await approval().waitFor({ state: 'hidden' });
+  assert.deepEqual(decisions(), ['approveSession']);
+  const crashed = once(child, 'exit'); child.kill('SIGKILL'); await crashed;
+  await start(); await page.reload();
+  await fixedCommand(3).waitFor();
+  const restoredApproval = (await room()).hostApprovals[0];
+  assert.equal(restoredApproval.operationId, oldApproval.operationId);
+  assert.notEqual(restoredApproval.approvalId, oldApproval.approvalId);
+  assert.equal(await runs(), 'queue-1\nqueue-2\n');
+  await capture('queue-narrow-after-recovery');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  await keyboardActivate(button('允许本次', approval()));
+  const snapshot = await until(room, value => value.tasks.find(task => task.id === taskId)?.outcome === 'complete', 'queued task passes its check');
+  assert.deepEqual(decisions(), ['approveSession', 'approve']);
+  assert.equal(await runs(), 'queue-1\nqueue-2\nqueue-3\n');
+  assert.equal(snapshot.hostSessions.length, 0);
+  const synthesis = requests.filter(request => JSON.parse(request.messages[1].content).context.manualHostRetry);
+  assert.equal(synthesis.length, 1);
+  assert.equal(synthesis[0].messages.filter(message => message.content.startsWith('{"type":"local_tool_result",')).length, 3);
+  assert.equal(requests.filter(request => request.messages[0].content.includes('executing check work')).length, 1);
+  const db = new DatabaseSync(database, { readOnly: true });
+  try {
+    const task = JSON.parse(db.prepare('SELECT data FROM rooms WHERE id=?').get(roomId).data).tasks[taskId].snapshot.context;
+    const retries = task.intents.flatMap(work => work.localOperations ?? []).filter(op => op.hostRetryOf);
+    assert.deepEqual(retries.map(op => [op.status, op.result.data.execution]), Array(3).fill(['succeeded', 'host']));
+    assert.equal(new Set(retries.map(op => op.hostRetryOf)).size, 3);
+    const grant = retries[0].approval.sessionGrantId;
+    assert(grant);
+    assert.deepEqual(retries.map(op => op.approval.sessionGrantId), [grant, grant, undefined]);
+  } finally { db.close(); }
+  await writeFile(join(evidence, 'snapshot.json'), JSON.stringify(snapshot, null, 2));
+  result.checks.push('three fixed requests persist through refresh, two serial host commands share one grant, narrow-screen keyboard revocation restores approval, recovery preserves settled effects, one synthesis and independent check');
 }
 try {
   await start();
@@ -102,12 +232,18 @@ try {
   timer = setTimeout(() => { errors.push('Browser verification deadline exceeded'); void browser?.close(); child?.kill('SIGTERM'); }, 120000);
   await page.goto(url); await page.getByRole('button', { name: /新建群聊/ }).click();
   roomId = (await (await page.request.get(url + '/api/rooms')).json()).rooms[0].id;
-  await requestCommand(); await capture('01-pending');
+  const queuedTask = queueMode ? await requestQueue() : undefined;
+  if (!queueMode) await requestCommand();
+  await capture('01-pending');
   const cdp = await context.newCDPSession(page); await cdp.send('DOM.enable'); await cdp.send('CSS.enable');
   const dom = await cdp.send('DOM.getDocument'); const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: dom.root.nodeId, selector: '.host-approval-heading h2' });
   const fonts = await cdp.send('CSS.getPlatformFontsForNode', { nodeId }); await writeFile(join(evidence, 'fonts.json'), JSON.stringify(fonts, null, 2));
   assert(fonts.fonts.some(font => /Noto Sans CJK/.test(font.familyName) && font.glyphCount > 0), 'Chinese platform font must actually render');
-  if (sessionMode) {
+  if (queueMode) {
+    await verifyQueue(queuedTask);
+    assert.deepEqual(errors, []);
+    result.status = 'verified';
+  } else if (sessionMode) {
     const decisions = () => posts.filter(post => post.url.endsWith('/host-approval'));
     const pauseAtFirstResult = async () => {
       await until(() => sessionGateSeen, Boolean, 'first host result reaches controlled model boundary');
@@ -187,7 +323,8 @@ try {
   if (page && roomId) await writeFile(join(evidence, 'failure.snapshot.json'), JSON.stringify(await room().catch(() => null), null, 2));
   process.exitCode = 1;
 } finally {
-  clearTimeout(timer); releaseSessionResponse?.();
+  clearTimeout(timer); releaseSessionResponse?.(); releaseQueueOwner?.();
+  if (queueMode) await writeFile(queueRelease, '');
   await context?.tracing.stop({ path: join(evidence, 'trace.zip') }).catch(() => {});
   await browser?.close(); result.cleanup.browser = true;
   await stopChild(); result.cleanup.application = true;

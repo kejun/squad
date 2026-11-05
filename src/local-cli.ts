@@ -9,10 +9,12 @@ import { SandboxManager, type SandboxRuntimeConfig } from '@anthropic-ai/sandbox
 import { digest, LocalToolError } from './local-skills.js';
 import type { LocalToolResult } from './local-operation.js';
 import { darwinProcessIdentity } from './darwin-process.js';
+import { publishObservation } from './measurement.js';
 
 export interface CliInvocation {
   executable: string; args: string[]; cwd: string; workspace: string; skillPath?: string; writeRoots?: string[];
   env: Record<string, string>; timeoutMs: number; sessionId: string; logPath: string; redact?: string[];
+  observeProcess?: (phase: 'local.processStarted' | 'local.processFinished') => void;
 }
 export interface CliCompletion { result: LocalToolResult; settled: boolean; effectsKnown: boolean }
 export interface CliBackend {
@@ -144,7 +146,7 @@ export async function identityAlive(identity: ProcessIdentity): Promise<boolean 
   } catch (error) { return (error as NodeJS.ErrnoException).code === 'ENOENT' ? false : 'unknown'; }
 }
 /** Real process lifecycle, also used by the controlled integration fixture (which is NOT an OS sandbox). */
-export async function runProcess(input: CliInvocation, signal: AbortSignal, onSpawn: (identity: ProcessIdentity) => Promise<void>): Promise<CliCompletion> {
+export async function runProcess(input: CliInvocation, signal: AbortSignal, onSpawn: (identity: ProcessIdentity) => Promise<void>, beforeSpawn?: () => void): Promise<CliCompletion> {
   signal.throwIfAborted();
   await mkdir(dirname(input.logPath), { recursive: true, mode: 0o700 });
   const log = await open(input.logPath, 'wx', 0o600);
@@ -193,10 +195,19 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
   const timer = setTimeout(() => { timedOut = true; cancel(); }, input.timeoutMs);
   signal.addEventListener('abort', cancel, { once: true });
   try {
+    signal.throwIfAborted(); beforeSpawn?.();
     child = spawn(input.executable, input.args, { cwd: input.cwd, env: input.env, shell: false, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    let spawned = false;
+    child.once('spawn', () => {
+      spawned = true;
+      publishObservation(input.observeProcess, 'local.processStarted');
+    });
     const close = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(resolveClose => {
       child!.once('error', () => { spawnError = true; });
-      child!.once('close', (code, exitSignal) => resolveClose({ code, signal: exitSignal }));
+      child!.once('close', (code, exitSignal) => {
+        if (spawned) publishObservation(input.observeProcess, 'local.processFinished');
+        resolveClose({ code, signal: exitSignal });
+      });
     });
     child.stdout!.on('data', (data: Buffer) => write('stdout', data)); child.stderr!.on('data', (data: Buffer) => write('stderr', data));
     if (child.pid) {

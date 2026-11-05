@@ -1,3 +1,4 @@
+import type { DeliveryGap } from '../delivery-acceptance.js';
 import type {
   Artifact,
   BoardEntry,
@@ -63,6 +64,8 @@ export interface WebTask {
   usage: { ordinary: number; checks: number };
   limits: { ordinary: number; checks: number };
   artifacts: Artifact[];
+  currentArtifactIds?: string[];
+  deliveryGaps?: DeliveryGap[];
   board: BoardEntry[];
   trace: { event: string; detail: string; at: number }[];
   inputAnalyses?: InputAnalysis[];
@@ -93,6 +96,7 @@ export interface RoomSnapshot {
 export interface WebFailedSandboxCommand {
   taskId: string; workId: string; operationId: string; sourceRequestHash: string;
   executable: string; args: string[]; error: string; canRequest: boolean; unavailableReason: string;
+  retry?: { id: string; status: 'pending' | 'active' | 'awaitingApproval' | 'running' | 'uncertain' | 'settled' | 'expired' | 'cancelled'; reason?: string; workId?: string; operationId?: string };
 }
 export interface WebHostApproval {
   taskId: string; workId: string; operationId: string; approvalId: string; expiresAt: number;

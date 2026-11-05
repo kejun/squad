@@ -1,3 +1,4 @@
+import { failHostRetryBoundary, startHostRetryBatch } from '../host-retry.js';
 import { type TaskContext, type TaskEvent } from '../types.js';
 import { assign } from 'xstate';
 import { reduce } from './reducer.js';
@@ -26,6 +27,16 @@ const coordinationProblems: Record<string, string> = {
 
 export const taskActions = {
     apply: taskAssign(({ context, event }) => reduce(context, event)),
+    startHostRetry: taskAssign(({ context, event }) => {
+      const c = structuredClone(context);
+      startHostRetryBatch(c, { ...event, at: event.at ?? c.lastActivityAt });
+      return c;
+    }),
+    failHostRetry: taskAssign(({ context, event }) => {
+      const c = structuredClone(context);
+      failHostRetryBoundary(c, { ...event, at: event.at ?? c.lastActivityAt });
+      return c;
+    }),
     reject: taskAssign(({ context, event }) => {
       const c = structuredClone(context); reject(c, permissionProblem(c, event) ?? 'INVALID_STATE');
       // A stale completion may retire its own physical work, never advance the new round.
@@ -34,7 +45,7 @@ export const taskActions = {
       const isDiscussionResult = event.type === 'DISCUSSION_PLAN' || event.type === 'DISCUSSION_RESULT';
       const belongsToDiscussion = isDiscussionResult && !!work?.discussionId && event.discussionId === work.discussionId;
       const mayRetire = isDiscussionResult ? belongsToDiscussion && !!event.fence : !work?.discussionId || event.type === 'WORK_FAILED';
-      if (work && (event.attempt === undefined || event.attempt === work.attempt) && mayRetire && (!event.fence || (event.fence.epoch === work.epoch && event.fence.goalVersion === work.goalVersion))) {
+      if (work && c.reply.code !== 'STALE_CANDIDATE_CHECK' && (event.attempt === undefined || event.attempt === work.attempt) && mayRetire && (!event.fence || (event.fence.epoch === work.epoch && event.fence.goalVersion === work.goalVersion))) {
         if (work.discussionId && work.status === 'inflight' && fresh(context, event) && !context.stopped && discussionActive(c)
           && ['INVALID_DISCUSSION_PLAN', 'INVALID_DISCUSSION_RESULT', 'WORK_EXPIRED'].includes(c.reply.code)) discussionFailed(c, event, c.intents.find(item => item.id === work.id)!, c.reply.code);
         else release(c, work.id);

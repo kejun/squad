@@ -1,3 +1,5 @@
+import type { HostRetryBatch, HostRetryRequest } from './host-retry.js';
+import type { CriterionCoverage, CriterionJudgment, DeliveryAcceptance, DeliveryAssessment, DeliveryGap } from './delivery-acceptance.js';
 import type { HostSessionGrant } from './host-session.js';
 import type { LocalCheckpoint, LocalEvent, LocalOperation, SkillBinding } from './local-operation.js';
 import type { InputIntentSpec } from './input-intent.js';
@@ -40,8 +42,11 @@ export interface BoardEntry {
   kind: 'evidence' | 'hypothesis' | 'opinion' | 'decision' | 'deadEnd';
   sources: string[]; verified: boolean; goalVersion: number;
 }
-export interface ArtifactDraft { name: string; content: string }
-export interface Artifact { id: string; name: string; content: string; goalVersion: number; author?: string; workId?: string }
+export interface ArtifactDraft { name: string; content: string; replacesArtifactId?: string }
+export interface Artifact {
+  id: string; name: string; content: string; goalVersion: number; author?: string; workId?: string;
+  documentId?: string; revision?: number; replacesArtifactId?: string;
+}
 export interface Assistance extends Fence {
   id: string; target: string; question: string; expected: string; refs: string[];
   status: 'pending' | 'running' | 'answered' | 'success' | 'partial' | 'failed' | 'timeout' | 'cancelled';
@@ -65,6 +70,8 @@ export interface Intent extends Fence {
   localOperations?: LocalOperation[];
   localCheckpoint?: LocalCheckpoint;
   localSkills?: SkillBinding[];
+  /** Task-local settled evidence selected by the host for this assignment. */
+  evidenceRefs?: string[];
   /** Persisted format-repair authorization; never stores the rejected model body. */
   outputRepair?: { count: number; issue: ModelOutputIssue };
 }
@@ -78,7 +85,11 @@ export interface InputAnalysis extends Fence {
   spec?: InputIntentSpec; workId?: string; error?: string;
 }
 export interface RecordedResult extends Fence { requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; consumed: boolean; summary?: string; artifactIds?: string[]; workId?: string }
-export interface Candidate { text: string; artifactIds: string[]; goalVersion: number; summary?: string; workId?: string }
+export interface Candidate {
+  text: string; artifactIds: string[]; goalVersion: number; summary?: string; workId?: string;
+  revision?: string; requiresBoundCheck?: boolean; backgroundArtifactIds?: string[]; acceptance?: DeliveryAcceptance;
+}
+export interface PublishedDelivery { revision?: string; goalVersion: number; artifactIds: string[]; at: number }
 export interface ConversationHistory {
   messages: Message[];
   artifacts: (Artifact & { taskId: string })[];
@@ -106,7 +117,8 @@ export interface TaskContext extends Fence {
   lateResults: TaskEvent[];
   results: RecordedResult[];
   usage: { ordinary: number; checks: number; assists: number; replans: number; retries: number };
-  candidate: Candidate | null; outcome: Outcome | null; reason: string;
+  deliveryGaps?: DeliveryGap[]; deliveryAssessments?: DeliveryAssessment[];
+  candidate: Candidate | null; publishedDelivery?: PublishedDelivery; outcome: Outcome | null; reason: string;
   stopped: boolean; nextSeq: number; lastActivityAt: number; lastProgressAt: number;
   nextCheckAt: number; repeat: { fingerprint: string; count: number };
   deferredCoordination: boolean; reply: Reply;
@@ -116,6 +128,8 @@ export interface TaskContext extends Fence {
   inputAnalyses?: InputAnalysis[];
   localSkillVersions?: SkillBinding[];
   hostSession?: HostSessionGrant | undefined;
+  hostRetryRequests?: HostRetryRequest[];
+  hostRetryBatch?: HostRetryBatch;
 }
 export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[] }
 export interface Envelope { id: string; at: number; fence?: Fence; workId?: string; attempt?: number }
@@ -128,7 +142,8 @@ export type Decision =
   | { action: 'finish'; reason: string };
 export type TaskEvent = Envelope & (
   | { type: 'REVOKE_HOST_SESSION'; grantId: string }
-  | { type: 'REQUEST_HOST_RETRY'; sourceWorkId: string; sourceOperationId: string; sourceRequestHash: string; requestHash: string }
+  | { type: 'HOST_RETRY_EXPIRE' }
+  | { type: 'REQUEST_HOST_RETRY'; sourceWorkId: string; sourceOperationId: string; sourceRequestHash: string; requestHash: string; currentConfig?: TeamConfig }
   | LocalEvent
   | { type: 'DISCUSSION_PLAN'; discussionId: string; decision: Decision }
   | { type: 'DISCUSSION_RESULT'; discussionId: string; text: string; status: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[] }
@@ -146,17 +161,17 @@ export type TaskEvent = Envelope & (
   | { type: 'BOUNDARY' }
   | { type: 'HANDOFF'; owner: string }
   | { type: 'WAIT_USER'; question: string }
-  | { type: 'DELIVER'; text: string; artifactIds: string[]; summary?: string; artifacts?: ArtifactDraft[] }
-  | { type: 'CHECK_RESULT'; passed: boolean; gaps: string[]; resultId: string }
+  | { type: 'DELIVER'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[]; coverage?: CriterionCoverage[] }
+  | { type: 'CHECK_RESULT'; passed: boolean; gaps: string[]; resultId: string; candidateRevision?: string; criteriaResults?: CriterionJudgment[] }
   | { type: 'STOP'; text?: string }
   | { type: 'SETTLE'; intentId: string }
-  | { type: 'CONTINUE'; extraOrdinary?: number; text?: string }
+  | { type: 'CONTINUE'; extraOrdinary?: number; text?: string; currentConfig?: TeamConfig }
   | { type: 'TICK' }
   | { type: 'ACTIVITY'; text: string }
   | { type: 'PROGRESS'; detail: string; refs: string[] }
   | { type: 'FAILURE_SIGNAL'; operation: string; parameters: string; resource: string; error: string; result: string }
   | { type: 'BOARD_WRITE'; author: string; entryId: string; baseRevision?: number; text: string; kind: BoardEntry['kind']; sources: string[] }
-  | { type: 'ARTIFACT'; artifact: Omit<Artifact, 'goalVersion'> }
+  | { type: 'ARTIFACT'; artifact: Omit<Artifact, 'goalVersion' | 'documentId' | 'revision' | 'replacesArtifactId'> }
   | { type: 'CLAIM'; intentId: string }
   /** Host-only actor protocol; public command and sandbox adapters must not authorize it. */
   | { type: 'EXECUTION_START'; intentId: string; attempt: number }

@@ -1,14 +1,17 @@
 import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
-import { capabilities, completeProblem, discussionActive, discussionIncomplete, fence, fresh, hasOrdinary, inflight, ok, recoveryIssue, reject } from './facts.js';
-import { cancelWork, conversationInput, coordinate, finish, intent, message, owner, release, saveReports } from './operations.js';
+import { capabilities, completeProblem, deliveryHandoffPending, discussionActive, discussionIncomplete, fence, fresh, hasOrdinary, inflight, ok, recoveryIssue, reject } from './facts.js';
+import { cancelWork, conversationInput, coordinate, deliveryArtifacts, finish, intent, message, owner, release, saveReports } from './operations.js';
 import { applyLocalEvent, localEnabled, localPhysicalPending, recoverLocalOperations, type LocalEvent } from '../local-operation.js';
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
 import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requestReview, resetReviewAtBoundary, savedHelpResult, startHelp } from './assistance.js';
 import { recordInput } from './input.js';
+import { deliveryVersionProblem, retainLegacyPublication } from './delivery.js';
 import { canRetryWork } from './budget.js';
-import { applyHostRetry } from '../host-retry.js';
+import { bindDraftReferences, deliveryCheckGaps, deliveryPreflight, deliveryRevision } from '../delivery-acceptance.js';
+import { adoptLegacyTerminalConfig } from './protocol.js';
+import { applyHostRetry, cancelHostRetries, expireHostRetry, pendingHostRetry, settleHostRetryOperation } from '../host-retry.js';
 
 export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
   const c = structuredClone(original);
@@ -17,10 +20,21 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
   if (['INTERPRETATION_RESULT', 'HELP', 'HELP_RESULT', 'RECORD_RESULT', 'COORDINATE', 'BLOCKED', 'WAIT_USER', 'DELIVER', 'CHECK_RESULT', 'TOOL', 'SETTLE'].includes(e.type)) release(c, e.workId);
   ok(c); c.lastActivityAt = e.at;
   c.trace.push({ event: e.type, detail: e.id, at: e.at });
-  if (e.type.startsWith('LOCAL_')) { applyLocalEvent(c, e as TaskEvent & LocalEvent); return c; }
+  if (e.type.startsWith('LOCAL_')) {
+    const local = e as TaskEvent & LocalEvent;
+    applyLocalEvent(c, local);
+    settleHostRetryOperation(c, local.intentId, local.operationId, e.at);
+    return c;
+  }
+  if (e.workId === c.hostRetryBatch?.workId && e.workId && ['HELP', 'BLOCKED', 'WAIT_USER', 'DELIVER', 'TOOL'].includes(e.type)) delete c.hostRetryBatch;
   switch (e.type) {
     case 'REVOKE_HOST_SESSION': revokeHostSession(c, e.id); break;
-    case 'REQUEST_HOST_RETRY': applyHostRetry(c, e); break;
+    case 'REQUEST_HOST_RETRY':
+      adoptLegacyTerminalConfig(c, e.currentConfig);
+      retainLegacyPublication(c, e.at);
+      applyHostRetry(c, e);
+      break;
+    case 'HOST_RETRY_EXPIRE': expireHostRetry(c, e.at); break;
     case 'DISCUSSION_PLAN': planDiscussion(c, e); break;
     case 'DISCUSSION_RESULT': acceptDiscussion(c, e); break;
     case 'DISCUSSION_HANDOFF':
@@ -89,7 +103,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         owner(c, e, { plan: d.plan, retainedEvidence: c.board.map(b => b.id), reason: d.reason });
       }
       if (d.action === 'askUser') { cancelWork(c, e); c.reason = d.question; message(c, e, 'facilitator', d.question, 'notice'); }
-      if (d.action === 'finish') finish(c, e, c.artifacts.length || c.candidate ? 'partial' : 'failed', d.reason);
+      if (d.action === 'finish' && !pendingHostRetry(c)) finish(c, e, c.artifacts.length || c.candidate ? 'partial' : 'failed', d.reason);
       break;
     }
     case 'WAIT_USER': cancelWork(c, e); c.reason = e.question; message(c, e, c.owner, e.question, 'answer'); break;
@@ -103,8 +117,8 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       else {
         c.inputs.push({ id: e.id, text: e.text, applied: false });
         if (e.goal) {
-          c.goal = e.goal; c.goalVersion++; c.localSkillVersions = []; c.candidate = null;
-          cancelWork(c, e, true);
+          c.goal = e.goal; c.goalVersion++; c.localSkillVersions = []; c.candidate = null; delete c.deliveryGaps;
+          cancelWork(c, e, true); cancelHostRetries(c, 'STALE_WORK');
           for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight', 'clarification', 'failed'].includes(input.status)) input.status = 'cancelled';
           for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
         }
@@ -118,9 +132,9 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       message(c, e, 'user', e.text, 'user');
       c.board.push({ id: e.id, kind: 'decision', text: e.text, author: 'user', sources: [e.id], verified: false, revision: 1, goalVersion: c.goalVersion });
       if (c.outcome === null) {
-        c.goal.constraints.push(`用户决定：${e.text}`); c.goalVersion++; c.localSkillVersions = []; c.candidate = null;
+        c.goal.constraints.push(`用户决定：${e.text}`); c.goalVersion++; c.localSkillVersions = []; c.candidate = null; delete c.deliveryGaps;
         for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight'].includes(input.status)) input.status = 'cancelled';
-        c.inputs.push({ id: e.id, text: e.text, applied: false }); cancelWork(c, e, true);
+        c.inputs.push({ id: e.id, text: e.text, applied: false }); cancelWork(c, e, true); cancelHostRetries(c, 'STALE_WORK');
         for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
         if (e.reviewTargets) requestReview(c, e.id, e.text, e.reviewTargets);
         recordInput(c, e.id, e.text, e.reviewTargets?.length ? 'review' : 'decision');
@@ -141,24 +155,62 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       owner(c, e, { handoff: true, boardRefs: c.board.map(b => b.id) }); break;
     }
     case 'DELIVER': {
+      const versionProblem = deliveryVersionProblem(c, e);
+      if (versionProblem) {
+        c.reason = versionProblem;
+        if (hasOrdinary(c)) owner(c, e, { deliveryConflict: versionProblem });
+        else finish(c, e, c.candidate || c.artifacts.length ? 'partial' : 'failed', versionProblem);
+        reject(c, versionProblem.split(':')[0]!);
+        break;
+      }
+      const { acceptance, gaps, repeated } = deliveryPreflight(c, e);
       const artifactIds = saveReports(c, e, e.text, c.owner, e.artifacts);
+      const requiresBoundCheck = !!c.candidate || !!c.publishedDelivery || e.artifacts?.some(artifact => !!artifact.replacesArtifactId);
       cancelWork(c, e); c.candidate = { text: e.text, artifactIds: [...new Set([...e.artifactIds, ...artifactIds])], goalVersion: c.goalVersion,
-        ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}) };
-      if (discussionActive(c)) break;
-      intent(c, e.at, 'check', 'facilitator', { goal: c.goal, artifacts: c.artifacts, board: c.board, ...conversationInput(c), deterministicGap: completeProblem(c) });
+        revision: deliveryRevision(c, e), ...(e.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(e.backgroundArtifactIds)] } : {}), ...(requiresBoundCheck ? { requiresBoundCheck: true } : {}),
+        ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}),
+        ...(acceptance ? { acceptance: bindDraftReferences(acceptance, artifactIds) } : {}) };
+      if (gaps.length) c.deliveryGaps = gaps;
+      else if (c.deliveryGaps) delete c.deliveryGaps;
+      if (deliveryHandoffPending(c) || pendingHostRetry(c)) break;
+      if (gaps.length) {
+        const reason = gaps.map(gap => gap.reason).join('；');
+        if (hasOrdinary(c) && !repeated) {
+          c.reason = reason;
+          owner(c, e, { reason, deliveryGaps: gaps });
+        } else finish(c, e, 'partial', reason);
+        break;
+      }
+      intent(c, e.at, 'check', 'facilitator', { goal: c.goal, ...deliveryArtifacts(c), board: c.board, ...conversationInput(c), deterministicGap: completeProblem(c) });
       break;
     }
-    case 'CHECK_RESULT':
+    case 'CHECK_RESULT': {
       c.consumedResults.push(e.resultId);
+      const gaps = deliveryCheckGaps(c, e);
+      const problem = completeProblem(c);
+      if (c.candidate?.acceptance) {
+        c.deliveryGaps = gaps;
+        (c.deliveryAssessments ??= []).push({ candidateRevision: c.candidate.acceptance.revision, judgments: e.criteriaResults ?? [], gaps });
+      }
+      if (pendingHostRetry(c)) break;
       if (discussionIncomplete(c)) finish(c, e, 'partial', discussionIncomplete(c)!);
       else if (c.review?.incomplete) finish(c, e, 'partial', c.review.incomplete);
-      else if (e.passed && !completeProblem(c)) finish(c, e, 'complete', '');
-      else if (hasOrdinary(c)) coordinate(c, e, [completeProblem(c), ...e.gaps].filter(Boolean).join('; ') || 'Incomplete delivery');
-      else finish(c, e, c.candidate || c.artifacts.length ? 'partial' : 'failed', e.gaps.join('; ') || completeProblem(c) || 'Budget exhausted');
+      else if (e.passed && !problem && !gaps.length) {
+        if (c.deliveryGaps) delete c.deliveryGaps;
+        finish(c, e, 'complete', '');
+      } else if (c.candidate?.acceptance && hasOrdinary(c) && !deliveryHandoffPending(c) && !c.intents.some(localPhysicalPending)) {
+        c.reason = [problem, ...gaps.map(gap => gap.reason)].filter(Boolean).join('；') || 'Incomplete delivery';
+        owner(c, e, { reason: c.reason, deliveryGaps: gaps });
+      } else if (hasOrdinary(c)) coordinate(c, e, [problem, ...e.gaps].filter(Boolean).join('; ') || 'Incomplete delivery');
+      else {
+        finish(c, e, c.candidate || c.artifacts.length ? 'partial' : 'failed',
+          [problem, ...(gaps.length ? gaps.map(gap => gap.reason) : e.gaps)].filter(Boolean).join('；') || 'Budget exhausted');
+      }
       break;
+    }
     case 'STOP':
       if (e.text) message(c, e, 'user', e.text, 'user');
-      c.stopped = true; c.reason = 'User requested stop'; cancelWork(c, e, true);
+      c.stopped = true; c.reason = 'User requested stop'; cancelWork(c, e, true); cancelHostRetries(c, 'STOPPED');
       for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight', 'clarification', 'failed'].includes(input.status)) input.status = 'cancelled';
       if (c.review) c.review.status = 'cancelled';
       for (const h of c.assists) if (['pending', 'running', 'answered'].includes(h.status)) h.status = 'cancelled';
@@ -166,12 +218,15 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'SETTLE': {
       const work = c.intents.find(i => i.id === e.intentId);
       release(c, e.intentId);
+      if (c.hostRetryBatch?.workId === e.intentId) cancelHostRetries(c, 'WORK_NOT_STARTED');
       if (work?.kind === 'tool' && !c.stopped && fresh(c, { ...e, fence: { epoch: work.epoch, goalVersion: work.goalVersion } })) owner(c, e, { toolResult: work.id });
       break;
     }
     case 'CONTINUE':
+      adoptLegacyTerminalConfig(c, e.currentConfig);
       if (e.text) message(c, e, 'user', e.text, 'user');
       if (e.extraOrdinary) c.config.limits.ordinary += e.extraOrdinary;
+      retainLegacyPublication(c, e.at);
       c.epoch++; c.stopped = false; c.outcome = null; c.reason = '';
       for (const input of c.inputAnalyses ?? []) if (input.source === 'model' && input.goalVersion === c.goalVersion
         && ['failed', 'clarification', 'cancelled'].includes(input.status) && input.error !== 'SUPERSEDED_INPUT') {
@@ -200,14 +255,25 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (old) { c.boardHistory.push(old); c.board[c.board.indexOf(old)] = item; } else c.board.push(item);
       break;
     }
-    case 'ARTIFACT': c.artifacts.push({ ...e.artifact, goalVersion: c.goalVersion }); c.progressRefs.push(e.artifact.id); c.repeat.count = 0; c.lastProgressAt = e.at; c.nextCheckAt = e.at + c.config.limits.progressIntervalMs; break;
+    case 'ARTIFACT': {
+      const { id, name, content, author, workId } = e.artifact;
+      c.artifacts.push({ id, name, content, goalVersion: c.goalVersion, documentId: id, revision: 1,
+        ...(author ? { author } : {}), ...(workId ? { workId } : {}) });
+      c.progressRefs.push(id);
+      c.repeat.count = 0; c.lastProgressAt = e.at; c.nextCheckAt = e.at + c.config.limits.progressIntervalMs;
+      break;
+    }
     case 'CLAIM': {
       const work = c.intents.find(i => i.id === e.intentId)!;
       // Legacy work receives trusted identity in the same pure transition as its claim.
       if (work.kind === 'facilitator' && work.payload.owner === undefined) work.payload.owner = c.owner;
       work.localSkills = [...(work.localSkills ?? []).filter(s => !c.localSkillVersions?.some(p => p.skillId === s.skillId)), ...(c.localSkillVersions ?? [])];
+      const previousRequests = work.requestCount;
       work.status = 'inflight'; work.attempt++; work.requestCount = 0;
-      if (work.bucket !== 'none') c.usage[work.bucket]++;
+      if (c.hostRetryBatch?.workId === work.id) {
+        if (!c.hostRetryBatch.ownerClaimed || previousRequests > 0) c.usage.ordinary++;
+        c.hostRetryBatch.ownerClaimed = true;
+      } else if (work.bucket !== 'none') c.usage[work.bucket]++;
       if (work.kind === 'interpretation') c.inputAnalyses!.find(input => input.workId === work.id)!.status = 'inflight';
       if (work.kind === 'assistance' && !work.discussionId) c.assists.find(h => h.id === work.payload.requestId)!.status = 'running';
       break;
@@ -242,6 +308,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       } else {
         const failureReason = e.transient && c.usage.retries >= c.config.limits.retries ? `${e.reason}（重试额度已用尽）` : e.reason;
         release(c, work.id); c.reason = failureReason;
+        if (c.hostRetryBatch?.workId === work.id) cancelHostRetries(c, failureReason);
         if (work.kind === 'facilitator') {
           c.reason = `协调工作未能完成：${failureReason}。请重试或补充处理方式。`;
           message(c, e, 'facilitator', c.reason, 'notice');
@@ -276,7 +343,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         const legacy = (work.payload.capabilities as { localTools?: boolean } | undefined)?.localTools === undefined;
         work.payload.capabilities = { ...capabilities(c, work.target), localTools: !legacy && localEnabled(e.config, work.target) };
       }
-      if (issue) { cancelWork(c, e, true); c.reason = issue; reject(c, 'INCOMPATIBLE_EXECUTION'); break; }
+      if (issue) { cancelWork(c, e, true); cancelHostRetries(c, 'INCOMPATIBLE_EXECUTION'); c.reason = issue; reject(c, 'INCOMPATIBLE_EXECUTION'); break; }
       for (const work of c.intents.filter(i => i.status === 'inflight' && i.kind !== 'cancel')) {
         if (localPhysicalPending(work) || work.replay === 'unsafe') { work.status = 'uncertain'; c.reason = 'Reconcile uncertain external result'; }
         else {

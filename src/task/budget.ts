@@ -1,16 +1,19 @@
+import { hostRetryReservation } from '../host-retry.js';
 import { type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { discussionActive, hasOrdinary } from './facts.js';
 
 export function requestBudgetProblem(c: TaskContext, work: Intent): string | null {
   if (work.bucket === 'none') return null;
   if (c.usage[work.bucket] >= c.config.limits[work.bucket]) return 'BUDGET_EXHAUSTED';
+  const hostReserve = work.id === c.hostRetryBatch?.workId ? 0 : hostRetryReservation(c);
+  if (work.bucket === 'ordinary' && c.usage.ordinary + 1 + hostReserve > c.config.limits.ordinary) return 'BUDGET_EXHAUSTED';
   if (work.bucket === 'ordinary' && discussionActive(c)) {
     const round = c.discussion!;
     const pending = c.intents.filter(i => i.discussionId === round.id && i.status === 'pending' && i.id !== work.id).length;
     // Reserve every already-promised participant, coordinator synthesis and one owner continuation.
     const reserve = 1 + pending + (round.status === 'planning' ? 2
       : round.status === 'collecting' ? 1 : 0);
-    if (c.usage.ordinary + 1 + reserve > c.config.limits.ordinary) return 'DISCUSSION_BUDGET_RESERVED';
+    if (c.usage.ordinary + 1 + reserve + hostReserve > c.config.limits.ordinary) return 'DISCUSSION_BUDGET_RESERVED';
   }
   if (work.kind === 'assistance' && c.assists.some(h => h.id === work.payload.requestId && h.retryOf)
     && c.usage.ordinary + 1 >= c.config.limits.ordinary) return 'ASSISTANCE_SYNTHESIS_RESERVED';

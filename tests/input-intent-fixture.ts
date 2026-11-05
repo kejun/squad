@@ -8,6 +8,7 @@ import {
 } from '../src/index.js';
 import { configuration, type EventBody } from './helpers.js';
 import { modelResponse } from './model-regeneration-fixture.js';
+import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
 
 export const complexInput = '请比较这两个设计方案；必须仅使用公开资料并保留出处；分别列出成本与恢复风险，最后交付 Markdown 计划。';
 export function intentConfig(limits: Partial<TeamConfig['limits']> = {}): TeamConfig {
@@ -50,7 +51,7 @@ export class InputIntentFixture {
         : kind === 'check' ? { type: 'check', passed: true, gaps: [] }
         : kind === 'facilitator' ? { type: 'decision', decision: { action: 'continue', reason: '按原目标继续' } }
         : { type: 'answer', text: '完整方案与成本风险，来源 https://example.com/source' };
-      return output instanceof Response ? output : modelResponse(output);
+      return output instanceof Response ? output : modelResponse(withFixtureAcceptance(output, body));
     } });
   }
   submit(text = complexInput, change: Partial<Submission> = {}) {
