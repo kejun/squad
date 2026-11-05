@@ -350,15 +350,21 @@ export class WorkRunner {
       }
       scope.authorizeAdditionalRequest(initialModelRequestId);
       const context = this.engine.view(roomId, taskId)!.context;
-      const claimedWork = hostRetry ? context.intents.find(i => i.id === work.id)! : work;
-      const projectEvidence = scope.localTools && localEnabled(this.engine.config, work.target)
-        && (work.payload.capabilities as { localTools?: boolean } | undefined)?.localTools === true;
-      const modelWork = { ...claimedWork, payload: { ...claimedWork.payload,
-        ...(projectEvidence ? { evidenceIndex: evidenceIndex(context, claimedWork) } : {}),
-        ...(work.kind === 'owner' ? { acceptanceCriteria: acceptanceCriteria(context),
-          ...(context.deliveryGaps?.length ? { deliveryGaps: context.deliveryGaps } : {}) } : {}),
-      } };
-      output = await this.adapter.execute(modelWork, controller.signal, scope);
+      // The claimed copy is detached from storage. Keep it shared with its bound tool scope.
+      if (hostRetry) {
+        const refreshed = context.intents.find(intent => intent.id === work.id);
+        if (refreshed?.localOperations) work.localOperations = refreshed.localOperations;
+        if (refreshed?.localCheckpoint) work.localCheckpoint = refreshed.localCheckpoint;
+      }
+      if (scope.localTools && localEnabled(this.engine.config, work.target)
+        && (work.payload.capabilities as { localTools?: boolean } | undefined)?.localTools === true) {
+        work.payload.evidenceIndex = evidenceIndex(context, work);
+      }
+      if (work.kind === 'owner') {
+        work.payload.acceptanceCriteria = acceptanceCriteria(context);
+        if (context.deliveryGaps?.length) work.payload.deliveryGaps = context.deliveryGaps;
+      }
+      output = await this.adapter.execute(work, controller.signal, scope);
     }
     catch (error) {
       if (controller.signal.reason instanceof ApprovalSuspended) { this.controllers.delete(executionKey); return true; }
