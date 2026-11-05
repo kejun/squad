@@ -17,3 +17,13 @@
 本次治理的基线、删除依据和前后统计见 [测试治理记录](../docs/test-governance.md)。
 
 全部现有用例的规范审查见 [全量测试审查](../docs/test-case-audit.md)。文件后缀只是运行入口，不能作为符合 FIRST、AAA 或单一行为原则的证明。默认 `check` 通过 `tests/tsconfig.json` 检查所有 Vitest、BDD 和夹具的类型。
+
+## 检查进程时限
+
+完整检查直接串联各阶段，不再对嵌套的整套测试重复套用 60/90 秒总时限。Vitest 和 Gherkin 各自保留框架的单例/步骤时限，另有 60 秒无输出时限和独立的 5 分钟硬时限；持续输出也不能绕过硬时限。类型检查与覆盖报告仍保留 90 秒硬时限。
+
+这不是测试成功条件的放宽：755 个既有 Vitest 用例的分层基线合计约 96 秒，已超过旧的 60 秒整套时限；约 705 个 Gherkin 场景也在持续执行时被截断。5 分钟给串行全套留下运行余量，无输出时限仍能更早报告卡住的阶段。失败状态与 JSON 报告原样保留，不跳过环境相关失败。
+
+超时或中断后先发 SIGTERM，最多等待 1 秒再发 SIGKILL。在 POSIX 上以独立进程组清理子孙进程，避免只杀外层包装器；Windows 使用 Node 的直接子进程终止能力，不宣称提供 POSIX 进程组隔离。回归入口：`node node_modules/vitest/vitest.mjs run tests/check-runner.test.js --maxWorkers=1`（真实进程集成测试，不属于单元测试）。
+
+依据：[Node 子进程的 detached/进程组语义](https://nodejs.org/api/child_process.html#optionsdetached)和 [spawnSync 超时限制](https://nodejs.org/api/child_process.html#child_processspawnsynccommand-args-options)。同步超时仅发送终止信号，子进程若处理 SIGTERM 后不退出，调用仍可能一直等待；异步监督可以在宽限期后升级终止。

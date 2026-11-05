@@ -1,12 +1,15 @@
-import { spawnSync } from 'node:child_process';
+import { runNode } from './check-runner.mjs';
+import { runTests } from './test.mjs';
+
 for (const args of [
   ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.json'],
   ['node_modules/typescript/bin/tsc', '-p', 'web/tsconfig.json'],
   ['node_modules/typescript/bin/tsc', '-p', 'tests/tsconfig.json'],
-  ['scripts/test.mjs'],
-  ['--import', 'tsx', 'scripts/spec-coverage.ts'],
 ]) {
-  const result = spawnSync(process.execPath, args, { stdio: 'inherit', timeout: 90000 });
-  if (result.error) console.error(result.error);
-  if (result.status !== 0) process.exit(result.status ?? 1);
+  const result = await runNode(args, { idleTimeout: 90000, maxDuration: 90000 });
+  if (result.status !== 0) process.exit(result.status);
 }
+const status = await runTests();
+if (status !== 0) process.exit(status);
+const coverage = await runNode(['--import', 'tsx', 'scripts/spec-coverage.ts'], { idleTimeout: 90000, maxDuration: 90000 });
+process.exitCode = coverage.status;

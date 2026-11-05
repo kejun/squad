@@ -1,11 +1,16 @@
 import { mkdirSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
-mkdirSync('test-results', { recursive: true });
-for (const args of [
-  ['node_modules/vitest/vitest.mjs', 'run', '--maxWorkers=1', '--reporter=default', '--reporter=json', '--outputFile=test-results/vitest.json'],
-  ['scripts/run-bdd.mjs'],
-]) {
-  const result = spawnSync(process.execPath, args, { stdio: 'inherit', timeout: 60000 });
-  if (result.error) console.error(result.error);
-  if (result.status !== 0) process.exit(result.status ?? 1);
+import { pathToFileURL } from 'node:url';
+import { runNode } from './check-runner.mjs';
+import { runBdd } from './run-bdd.mjs';
+
+export async function runTests() {
+  mkdirSync('test-results', { recursive: true });
+  const result = await runNode([
+    'node_modules/vitest/vitest.mjs', 'run', '--maxWorkers=1',
+    '--reporter=default', '--reporter=json', '--outputFile=test-results/vitest.json',
+  ]);
+  if (result.status !== 0) return result.status;
+  return runBdd();
 }
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = await runTests();
