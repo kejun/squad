@@ -636,6 +636,23 @@ macOS 复用固定版本 SRT 的 Seatbelt 后端，Linux 保留命名空间探�
 
 一手依据：[Apple proc_bsdinfo](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/proc_info.h)、[SRT 原生后端](https://github.com/anthropic-experimental/sandbox-runtime)。本地固定版本源码为核验依据，不升级依赖。
 
+### 任务快照协议与回退
+
+**图型　恢复流程。所有者　`taskMachine` 管理恢复守卫与续办，`TeamEngine` 管理快照封装。验收　BT_A27–BT_A28。**
+
+```mermaid
+flowchart TD
+    Legacy["旧协议快照"] -->|"RECOVER [旧任务仍活动] / 保留旧协议并要求核对"| Blocked["恢复阻塞"]
+    Blocked -->|"LOCAL_RECONCILE [匹配可信回执] / 结算原操作"| Blocked
+    Legacy -->|"启动读取 [旧任务已结束] / 原样保留"| Archived["可读的历史交付"]
+    Archived -->|"CONTINUE 或 REQUEST_HOST_RETRY [用户明确请求且已结算] / 采用当前配置并增加 epoch"| Upgraded["当前协议任务"]
+    Upgraded -->|"事务提交 [当前协议] / 保存 v2 封装"| Stored["当前执行器领取"]
+```
+
+旧协议的活动任务按原规则阻塞，未决物理效果仍可核对。核对只更新原记录，不唤醒旧工作。已结束任务在服务启动时保持原快照和交付历史。宿主只在可信继续入口提供当前配置，任务模型只接受已结算的 `team-v1/tools-v1 → team-v2/tools-v2` 升级。续办沿用同一目标和任务额度，当前成员、模型和权限生效。旧授权失效，新任务从独立 epoch 创建操作。
+
+存储层接受 v1 与 v2 封装。当前协议写入 v2，旧执行器的 v1 解码器会拒绝该封装。上线前应结算或暂停未决操作并保留快照，回退时只向旧执行器提供其支持的快照。当前发布历史保存在原消息和不可变产物中，仍由新协议的检查决定本轮交付。
+
 ## 房间与可信命令
 
 ### 群历史与消息路由
