@@ -24,3 +24,5 @@ Then('取消应结算真实进程会话并对未知写入效果保持待核对',
 Then('可信沙箱运行时辅助程序应可执行且只读而其安装目录仍不可读取', function (this: SpecWorld) { assert(completed.has(this)); });
 
 Then('输出目录内和其祖先的显式拒写限制仍应优先', function (this: SpecWorld) { assert(completed.has(this)); });
+
+Then('工作区尚未建立仓库元数据时也不得向 Git hooks 目录写入', function (this: SpecWorld) { assert(completed.has(this)); });
