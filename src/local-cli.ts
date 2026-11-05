@@ -146,7 +146,7 @@ export async function identityAlive(identity: ProcessIdentity): Promise<boolean 
   } catch (error) { return (error as NodeJS.ErrnoException).code === 'ENOENT' ? false : 'unknown'; }
 }
 /** Real process lifecycle, also used by the controlled integration fixture (which is NOT an OS sandbox). */
-export async function runProcess(input: CliInvocation, signal: AbortSignal, onSpawn: (identity: ProcessIdentity) => Promise<void>): Promise<CliCompletion> {
+export async function runProcess(input: CliInvocation, signal: AbortSignal, onSpawn: (identity: ProcessIdentity) => Promise<void>, beforeSpawn?: () => void): Promise<CliCompletion> {
   signal.throwIfAborted();
   await mkdir(dirname(input.logPath), { recursive: true, mode: 0o700 });
   const log = await open(input.logPath, 'wx', 0o600);
@@ -195,6 +195,7 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
   const timer = setTimeout(() => { timedOut = true; cancel(); }, input.timeoutMs);
   signal.addEventListener('abort', cancel, { once: true });
   try {
+    signal.throwIfAborted(); beforeSpawn?.();
     child = spawn(input.executable, input.args, { cwd: input.cwd, env: input.env, shell: false, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
     let spawned = false;
     child.once('spawn', () => {

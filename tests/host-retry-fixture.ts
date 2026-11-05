@@ -3,6 +3,22 @@ import { randomUUID } from 'node:crypto';
 import { HostApprovalFixture, hostUntil } from './host-approval-fixture.js';
 
 export class HostRetryFixture extends HostApprovalFixture {
+  private releaseMain?: () => void;
+  async pauseAfterTwoFailures() {
+    this.hostCommands = 2;
+    const gate = new Promise<void>(resolve => { this.releaseMain = resolve; });
+    this.beforeOwnerResponse = async request => {
+      if (request.messages.filter(m => m.role === 'user' && m.content.startsWith('{"type":"local_tool_result",') && m.content.includes('CLI_SANDBOX_UNAVAILABLE')).length === 2)
+        await gate;
+    };
+    await this.open();
+    assert(this.action.type === 'runCli');
+    this.action = { ...this.action, execution: 'sandbox' };
+    this.submit();
+    return hostUntil(() => this.snapshot().failedSandboxCommands ?? [], list => list.length === 2 && this.requests.length === 3);
+  }
+  resumeMain() { this.releaseMain?.(); }
+  async close() { this.resumeMain(); await super.close(); }
   async failedRound() {
     await this.open();
     assert.equal(this.action.type, 'runCli'); if (this.action.type !== 'runCli') throw new Error('fixture CLI required');

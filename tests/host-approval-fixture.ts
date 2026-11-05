@@ -26,6 +26,7 @@ export class HostApprovalFixture {
   requests: { messages: { role: string; content: string }[] }[] = [];
   action!: LocalAction;
   hostCommands = 1;
+  beforeOwnerResponse?: (request: HostApprovalFixture['requests'][number]) => Promise<void>;
   sandboxBackend?: CliBackend;
   private previousToken = process.env.EXAMPLE_CLI_TOKEN;
   private previousModelKey = process.env.FIXTURE_MODEL_KEY;
@@ -52,6 +53,7 @@ setTimeout(() => { process.stdout.write(token.slice(9) + '\\n'); }, 5);
     const config = localConfig(); config.limits.workTimeoutMs = 60_000; config.limits.progressIntervalMs = 60_000;
     const adapter = new OpenAICompatibleAdapter(config, { transport: async (_url, init) => {
       const request = JSON.parse(String(init?.body)) as typeof this.requests[number]; this.requests.push(request);
+      await this.beforeOwnerResponse?.(request);
       const receipts = request.messages.filter(m => m.role === 'user' && m.content.startsWith('{"type":"local_tool_result",')).length;
       if (receipts >= this.hostCommands) return modelResponse({ type: 'answer', text: '已处理真实命令回执' });
       return modelResponse(this.hostCommands > 1 && this.action.type === 'runCli' ? { ...this.action, args: [...this.action.args, `command-${receipts + 1}`] } : this.action);

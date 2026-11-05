@@ -268,7 +268,10 @@ export class WorkRunner {
           effectsKnown: execution.effectsKnown, code: response.ok ? 'LOCAL_RESULT_RECORDED' : response.code });
         if (response.ok && execution.settled && execution.effectsKnown && op.workspaceId) runtime.notifyWorkspace(op.workspaceId);
         if (!response.ok || !execution.settled || !execution.effectsKnown) throw new WorkFailure(response.ok ? 'LOCAL_OPERATION_UNCERTAIN' : response.code, false, true);
-        if (op.hostRetryRequestId && currentWork().localOperations?.find(o => o.id === op!.id)?.status === 'awaitingApproval') return executeLocal(operationId, externalSignal);
+        if (op.hostRetryRequestId) {
+          const status = currentWork().localOperations?.find(o => o.id === op!.id)?.status;
+          if (status === 'awaitingApproval' || status === 'queued') return executeLocal(operationId, externalSignal);
+        }
         if (op.hostRetryRequestId) { controller.signal.throwIfAborted(); externalSignal.throwIfAborted(); }
         else signal.throwIfAborted();
         return execution.result;

@@ -251,16 +251,21 @@ export class LocalRuntime {
       const remaining = deadline === Infinity ? 120_000 : deadline - (this.options.clock ?? Date.now)();
       const timeoutMs = Math.min(action.timeoutMs ?? this.options.commandTimeoutMs ?? 120_000, Math.max(1, remaining));
       if (work.kind === 'check') for (const dir of validationOutputs) await mkdir(join(workspace.path, dir), { recursive: true });
-      started({ workspaceRevision: workspace.revision, isolated: workspace.isolated }); signal.throwIfAborted();
-      launched = true;
       const baseline = new Map((await workspaceManifest(workspace.path)).map(file => [file.path, file.hash]));
-      const execute = host ? runProcess : this.backend.execute.bind(this.backend);
+      const markStarted = () => {
+        signal.throwIfAborted();
+        started({ workspaceRevision: workspace.revision, isolated: workspace.isolated });
+        launched = true;
+      };
+      const execute: typeof runProcess = host ? runProcess : (input, executionSignal, onSpawn) => {
+        markStarted(); return this.backend.execute(input, executionSignal, onSpawn);
+      };
       finishPreparation();
       const result = await execute({ executable, args, cwd, workspace: workspace.path, ...(skillPath ? { skillPath } : {}), env, timeoutMs, sessionId, redact: this.secrets(),
         ...(observe ? { observeProcess: observe } : {}),
         ...(work.kind === 'check' ? { writeRoots: [...validationOutputs, '.home', '.tmp'].map(dir => join(workspace.path, dir)) } : {}),
         logPath: join(this.options.dataRoot, 'logs', `${digest(sessionId)}.log`) }, signal,
-        async identity => { await this.journal.write({ operationId: op.id, sessionId, phase: 'spawned', identity }); });
+        async identity => { await this.journal.write({ operationId: op.id, sessionId, phase: 'spawned', identity }); }, markStarted);
       let outputFiles: Awaited<ReturnType<typeof workspaceManifest>> = [], outputFilesTruncated = false;
       try { const changed = (await workspaceManifest(workspace.path)).filter(file => baseline.get(file.path) !== file.hash); outputFiles = changed.slice(0, 100); outputFilesTruncated = changed.length > 100; } catch { outputFilesTruncated = true; }
       const validationInputsChanged = work.kind === 'check' && sourceRevision(await workspaceManifest(workspace.path)) !== workspace.revision;
