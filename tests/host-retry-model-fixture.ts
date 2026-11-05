@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import type { HostApproval } from '../src/local-operation.js';
+import type { Intent } from '../src/types.js';
 import { LocalModel } from './local-model-fixture.js';
 
 export function failedSandbox(ended = false, multiple = false) {
@@ -12,12 +13,24 @@ export function failedSandbox(ended = false, multiple = false) {
     assert(m.result({ operationId: 'op2', sessionId: 'session2', result: { ok: false, code: 'failed', data: { execution: 'sandbox' } } }).ok);
   }
   if (ended) {
-    deliver(m);
-    const check = m.c.intents.at(-1)!;
-    m.send({ type: 'CLAIM', intentId: check.id });
-    m.send({ type: 'CHECK_RESULT', workId: check.id, fence: check, resultId: 'check1', passed: true, gaps: [] });
+    assert(deliver(m).ok);
+    assert(passCheck(m, claimCheck(m), 'check1').ok);
   }
   return m;
+}
+
+export function claimCheck(m: LocalModel): Intent {
+  const pending = m.c.intents.find(work => work.kind === 'check' && work.status === 'pending')!;
+  assert(m.send({ type: 'CLAIM', intentId: pending.id }).ok);
+  const work = m.c.intents.find(item => item.id === pending.id)!;
+  assert(m.send({ type: 'CONSUME', intentId: work.id, fence: work, attempt: work.attempt }).ok);
+  return work;
+}
+
+export function passCheck(m: LocalModel, check: Intent, resultId: string) {
+  const candidate = m.c.candidate!;
+  return m.send({ type: 'CHECK_RESULT', workId: check.id, fence: check, attempt: check.attempt, resultId,
+    candidateRevision: candidate.revision, criteriaResults: candidate.acceptance!.criteria.map(item => ({ criterionId: item.id, status: 'passed' })) });
 }
 
 export const request = (m: LocalModel, sourceRequestHash = 'a'.repeat(64), sourceOperationId = 'op1') => m.send({ type: 'REQUEST_HOST_RETRY', sourceWorkId: m.work.id,

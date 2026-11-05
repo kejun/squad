@@ -1,14 +1,14 @@
 import { modelOutputIssues, type InputReference, type TaskContext, type TaskEvent } from '../types.js';
 import { localAwaitingApproval, localEventProblem, localPhysicalPending, localUnsettled } from '../local-operation.js';
-import { boundCheckProblem } from './delivery.js';
+import { boundCheckProblem, isBoundedCheck } from './delivery.js';
 import { requestBudgetProblem } from './budget.js';
 import { allInflight, discussionActive, fresh, hasOrdinary, incompatibleExecution, isBot, workLaneAvailable } from './facts.js';
 import { validArtifactDrafts, validSummary } from '../presentation.js';
 import { validInputIntent } from '../input-intent.js';
 import { assistanceRetryProblem, helpProblem } from './assistance.js';
-import { acceptanceCheckProblem, validCriterionCoverage, validCriterionJudgments } from '../delivery-acceptance.js';
 import { hostRetryProblem } from '../host-retry.js';
 import { legacyTerminalConfig, taskProtocolChanged } from './protocol.js';
+import { deliveryVerificationProblem } from './verification.js';
 
 export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
   if (e.type.startsWith('LOCAL_')) return localEventProblem(c, e, work => requestBudgetProblem(c, work));
@@ -99,6 +99,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (!workLaneAvailable(c, i)) return 'WORK_BUSY';
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
       if (i.kind === 'tool' && !c.config.bots.find(b => b.id === i.target)?.tools.includes(String(i.payload.tool))) return 'TOOL_PERMISSION';
+      if (i.kind === 'check' && !isBoundedCheck(i)) return 'CHECK_PROTOCOL_CHANGED';
       // Recovery can reuse the claim only until the batch has authorized its first model request.
       if (c.hostRetryBatch?.workId === i.id && c.hostRetryBatch.ownerClaimed && i.requestCount === 0) return null;
       return requestBudgetProblem(c, i);
@@ -111,6 +112,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (!modelOutputIssues.includes(e.issue)) return 'INVALID_OUTPUT_ISSUE';
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
       if (c.usage.retries >= c.config.limits.retries) return 'OUTPUT_REPAIR_EXHAUSTED';
+      if (isBoundedCheck(i)) return 'OUTPUT_REPAIR_NOT_ALLOWED';
       return requestBudgetProblem(c, i);
     }
     case 'CONSUME': {
@@ -122,6 +124,12 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (e.capability) {
         if (!['owner', 'assistance', 'facilitator'].includes(i.kind)) return 'WEB_TOOLS_NOT_ALLOWED';
         if (c.config.webTools?.enabled === false) return 'WEB_TOOLS_DISABLED';
+      }
+      if (i.kind === 'check') {
+        if (!isBoundedCheck(i)) return 'CHECK_PROTOCOL_CHANGED';
+        if (c.trace.some(entry => entry.event === 'CONSUME' && entry.detail === e.id)) return 'DUPLICATE_RESULT';
+        if (i.requestCount > 0 && !i.checkRetryPending) return 'CHECK_REQUEST_NOT_AUTHORIZED';
+        return requestBudgetProblem(c, i) ?? deliveryVerificationProblem(i, false);
       }
       return i.requestCount > 0 ? requestBudgetProblem(c, i) : null;
     }
@@ -150,14 +158,16 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     case 'ARTIFACT': return c.artifacts.some(a => a.id === e.artifact.id) ? 'ARTIFACT_ID_CONFLICT' : null;
     case 'DELIVER':
       if (c.trace.some(entry => entry.event === 'DELIVER' && entry.detail === e.id)) return 'DUPLICATE_RESULT';
-      return !validCriterionCoverage(e.coverage) ? 'INVALID_COVERAGE' : e.text.trim() ? null : 'NO_DELIVERY';
+      return !c.deliveryCycle ? 'CHECK_PROTOCOL_CHANGED' : e.text.trim() ? null : 'NO_DELIVERY';
     case 'CHECK_RESULT':
       if (c.consumedResults.includes(e.resultId)) return 'DUPLICATE_RESULT';
-      return !validCriterionJudgments(e.criteriaResults) ? 'INVALID_CRITERION_JUDGMENTS' : boundCheckProblem(c, e) ?? acceptanceCheckProblem(c, e);
+      return boundCheckProblem(c, e);
     case 'WORK_FAILED': {
       const work = c.intents.find(i => i.id === e.intentId);
       if (!work || !['pending', 'inflight'].includes(work.status)) return 'UNKNOWN_OR_SETTLED_WORK';
       if (work.kind !== 'cancel' && (work.epoch !== c.epoch || work.goalVersion !== c.goalVersion)) return 'STALE_WORK';
+      if (isBoundedCheck(work) && c.trace.some(entry => entry.event === 'WORK_FAILED' && entry.detail === e.id)) return 'DUPLICATE_RESULT';
+      if (isBoundedCheck(work) && work.status === 'pending' && work.checkRetryPending && e.attempt !== undefined) return 'STALE_ATTEMPT';
       return null;
     }
     case 'RECONCILE': return c.intents.find(i => i.id === e.intentId)?.status === 'uncertain' ? null : 'NOT_UNCERTAIN';

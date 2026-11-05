@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { initialTask, persistTask, restoreTask, stepTask, taskPhase, type TaskSnapshot } from '../src/task.machine.js';
 import type { ArtifactDraft, Intent, TaskEvent } from '../src/types.js';
+import type { CriterionJudgment } from '../src/delivery-acceptance.js';
 import { configuration, type EventBody } from './helpers.js';
 
 const original = { name: 'report.md', content: 'original content' };
@@ -33,11 +34,15 @@ function deliver(state: TaskSnapshot, ...drafts: ArtifactDraft[]) {
 
 function check(state: TaskSnapshot, passed = true) {
   const { next, work } = claim(state, 'check');
-  const output = {
-    type: 'CHECK_RESULT' as const, workId: work.id, candidateRevision: next.context.candidate!.revision!,
-    resultId: `result:${work.id}`, passed, gaps: passed ? [] : ['revise'],
-  };
-  return { next: send(next, output), output };
+  const candidate = next.context.candidate!;
+  const consumed = send(next, { type: 'CONSUME', intentId: work.id, fence: work, attempt: work.attempt });
+  expect(consumed.context.reply.ok).toBe(true);
+  const criteriaResults: CriterionJudgment[] = candidate.acceptance!.criteria.map(item => passed
+    ? { criterionId: item.id, status: 'passed' }
+    : { criterionId: item.id, status: 'failed', reason: 'revise' });
+  const output = { type: 'CHECK_RESULT' as const, workId: work.id, fence: work, attempt: work.attempt,
+    candidateRevision: candidate.revision!, resultId: `result:${work.id}`, criteriaResults };
+  return { next: send(consumed, output), output };
 }
 
 describe('candidate versions in taskMachine', () => {
@@ -65,17 +70,16 @@ describe('candidate versions in taskMachine', () => {
     const first = deliver(task(), original);
     const artifactId = first.context.artifacts[0]!.id;
     const old = check(first, false);
-    const coordinator = claim(old.next, 'facilitator');
-    const owner = send(coordinator.next, { type: 'COORDINATE', workId: coordinator.work.id, decision: { action: 'continue', reason: 'revise' } });
-    const second = deliver(owner, { ...original, content: 'revision', replacesArtifactId: artifactId });
-    const rejectedCheck = send(second, { ...old.output, resultId: 'late-check', passed: true });
+    const second = deliver(old.next, { ...original, content: 'revision', replacesArtifactId: artifactId });
+    const rejectedCheck = send(second, { ...old.output, resultId: 'late-check',
+      criteriaResults: old.output.criteriaResults.map(item => ({ criterionId: item.criterionId, status: 'passed' })) });
 
     expect(rejectedCheck.context.reply.ok).toBe(false);
     expect(taskPhase(rejectedCheck)).toBe('checking');
     expect(rejectedCheck.context.publishedDelivery).toBeUndefined();
     const failed = check(rejectedCheck, false).next;
-    const facilitator = claim(failed, 'facilitator');
-    const pending = send(facilitator.next, { type: 'COORDINATE', workId: facilitator.work.id, decision: { action: 'continue', reason: 'revise' } });
+    expect(failed.context.outcome).toBe('partial');
+    const pending = send(failed, { type: 'CONTINUE' });
     const stale = deliver(pending, { ...original, content: 'stale revision', replacesArtifactId: artifactId });
     expect(stale.context.reply.ok).toBe(false);
     expect(stale.context.candidate?.revision).toBe(second.context.candidate?.revision);
@@ -85,11 +89,9 @@ describe('candidate versions in taskMachine', () => {
   it('refuses an unbound old judgment after a second candidate before first publication', () => {
     const first = deliver(task(), original);
     const failed = check(first, false).next;
-    const coordinator = claim(failed, 'facilitator');
-    const owner = send(coordinator.next, { type: 'COORDINATE', workId: coordinator.work.id, decision: { action: 'continue', reason: 'revise' } });
-    const current = deliver(owner, { ...original, content: 'new independent draft' });
+    const current = deliver(failed, { ...original, content: 'new independent draft' });
 
-    const late = send(current, { type: 'CHECK_RESULT', resultId: 'unbound-late', passed: true, gaps: [] });
+    const late = send(current, { type: 'CHECK_RESULT', resultId: 'unbound-late', criteriaResults: [] });
 
     expect(late.context.reply.code).toBe('CHECK_WORK_REQUIRED');
     expect(late.context.publishedDelivery).toBeUndefined();

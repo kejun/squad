@@ -1,29 +1,50 @@
 import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
-import { capabilities, completeProblem, deliveryHandoffPending, discussionActive, discussionIncomplete, fence, fresh, hasOrdinary, inflight, ok, recoveryIssue, reject } from './facts.js';
-import { cancelWork, conversationInput, coordinate, deliveryArtifacts, finish, intent, message, owner, release, saveReports } from './operations.js';
+import { capabilities, deliveryHandoffPending, discussionActive, fence, fresh, inflight, ok, recoveryIssue, reject } from './facts.js';
+import { cancelWork, coordinate, finish, intent, message, owner, release, saveReports } from './operations.js';
 import { applyLocalEvent, localEnabled, localPhysicalPending, recoverLocalOperations, type LocalEvent } from '../local-operation.js';
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
 import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requestReview, resetReviewAtBoundary, savedHelpResult, startHelp } from './assistance.js';
 import { recordInput } from './input.js';
-import { deliveryVersionProblem, retainLegacyPublication } from './delivery.js';
-import { canRetryWork } from './budget.js';
-import { bindDraftReferences, deliveryCheckGaps, deliveryPreflight, deliveryRevision } from '../delivery-acceptance.js';
+import { canReviseDelivery, checkDisposition, deliverySubmissionProblem, deliveryVersionProblem, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication } from './delivery.js';
+import { canRetryDeliveryCheck, canRetryWork, reserveDeliveryRetry } from './budget.js';
+import { deliveryJudgments, deliveryPreflight } from '../delivery-acceptance.js';
 import { adoptLegacyTerminalConfig } from './protocol.js';
 import { applyHostRetry, cancelHostRetries, expireHostRetry, pendingHostRetry, settleHostRetryOperation } from '../host-retry.js';
+import { deliveryEvidence } from './evidence.js';
+import { deliveryVerificationPlan } from './verification.js';
+
+function finishDelivery(c: TaskContext, e: TaskEvent, detail: string, code?: string) {
+  if (c.candidate && code) c.candidate.deliveryIssue = { code, detail };
+  const usable = c.candidate?.text.trim() || c.artifacts.some(item => item.goalVersion === c.goalVersion && item.content.trim());
+  finish(c, e, usable ? 'partial' : 'failed', detail);
+}
+
+function reviseDelivery(c: TaskContext, e: TaskEvent, reason: string) {
+  c.deliveryCycle!.revisionUsed = true;
+  c.reason = reason;
+  owner(c, e, { deliveryRevision: true, reason });
+}
 
 export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
   const c = structuredClone(original);
   const problem = permissionProblem(c, e);
   if (problem) { reject(c, problem); return c; }
-  if (['INTERPRETATION_RESULT', 'HELP', 'HELP_RESULT', 'RECORD_RESULT', 'COORDINATE', 'BLOCKED', 'WAIT_USER', 'DELIVER', 'CHECK_RESULT', 'TOOL', 'SETTLE'].includes(e.type)) release(c, e.workId);
+  if (['INTERPRETATION_RESULT', 'HELP', 'HELP_RESULT', 'RECORD_RESULT', 'COORDINATE', 'BLOCKED', 'WAIT_USER', 'DELIVER', 'TOOL', 'SETTLE'].includes(e.type)) release(c, e.workId);
   ok(c); c.lastActivityAt = e.at;
   c.trace.push({ event: e.type, detail: e.id, at: e.at });
   if (e.type.startsWith('LOCAL_')) {
     const local = e as TaskEvent & LocalEvent;
+    const work = c.intents.find(item => item.id === local.intentId);
+    const resumeCheck = isBoundedCheck(work) && work.status === 'uncertain';
     applyLocalEvent(c, local);
     settleHostRetryOperation(c, local.intentId, local.operationId, e.at);
+    if (resumeCheck && work.status === 'pending' && work.requestCount > 0 && !work.checkRetryPending) {
+      if (deliveryHandoffPending(c) || pendingHostRetry(c)) release(c, work.id);
+      else if (canRetryDeliveryCheck(c, work, e.at)) reserveDeliveryRetry(c, work);
+      else finishDelivery(c, e, '检查未完成，无法重新授权中断的检查请求', 'CHECK_RECOVERY_EXHAUSTED');
+    }
     return c;
   }
   if (e.workId === c.hostRetryBatch?.workId && e.workId && ['HELP', 'BLOCKED', 'WAIT_USER', 'DELIVER', 'TOOL'].includes(e.type)) delete c.hostRetryBatch;
@@ -33,6 +54,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       adoptLegacyTerminalConfig(c, e.currentConfig);
       retainLegacyPublication(c, e.at);
       applyHostRetry(c, e);
+      if (!c.deliveryCycle && c.outcome === null) c.deliveryCycle = newDeliveryCycle();
       break;
     case 'HOST_RETRY_EXPIRE': expireHostRetry(c, e.at); break;
     case 'DISCUSSION_PLAN': planDiscussion(c, e); break;
@@ -84,7 +106,9 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     }
     case 'BLOCKED':
-      if (inflight(c).length || discussionActive(c)) { c.deferredCoordination = true; c.reason = e.reason; }
+      if (c.intents.some(work => work.id === e.workId && work.payload.deliveryRevision === true) && !deliveryHandoffPending(c)) {
+        finishDelivery(c, e, e.reason, 'DELIVERY_REVISION_FAILED');
+      } else if (inflight(c).length || discussionActive(c)) { c.deferredCoordination = true; c.reason = e.reason; }
       else coordinate(c, e, e.reason);
       break;
     case 'COORDINATE': {
@@ -118,6 +142,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         c.inputs.push({ id: e.id, text: e.text, applied: false });
         if (e.goal) {
           c.goal = e.goal; c.goalVersion++; c.localSkillVersions = []; c.candidate = null; delete c.deliveryGaps;
+          if (c.deliveryCycle) delete c.deliveryCycle.evidence;
           cancelWork(c, e, true); cancelHostRetries(c, 'STALE_WORK');
           for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight', 'clarification', 'failed'].includes(input.status)) input.status = 'cancelled';
           for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
@@ -133,6 +158,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       c.board.push({ id: e.id, kind: 'decision', text: e.text, author: 'user', sources: [e.id], verified: false, revision: 1, goalVersion: c.goalVersion });
       if (c.outcome === null) {
         c.goal.constraints.push(`用户决定：${e.text}`); c.goalVersion++; c.localSkillVersions = []; c.candidate = null; delete c.deliveryGaps;
+        if (c.deliveryCycle) delete c.deliveryCycle.evidence;
         for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight'].includes(input.status)) input.status = 'cancelled';
         c.inputs.push({ id: e.id, text: e.text, applied: false }); cancelWork(c, e, true); cancelHostRetries(c, 'STALE_WORK');
         for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
@@ -142,6 +168,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     }
     case 'BOUNDARY':
+      if (c.deliveryCycle && c.inputs.some(note => !note.applied)) delete c.deliveryCycle.evidence;
       for (const note of c.inputs) note.applied = true;
       if (c.review && !['cancelled', 'complete'].includes(c.review.status)) resetReviewAtBoundary(c, e);
       else owner(c, e, { reason: 'Apply latest user input' });
@@ -157,55 +184,58 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'DELIVER': {
       const versionProblem = deliveryVersionProblem(c, e);
       if (versionProblem) {
-        c.reason = versionProblem;
-        if (hasOrdinary(c)) owner(c, e, { deliveryConflict: versionProblem });
-        else finish(c, e, c.candidate || c.artifacts.length ? 'partial' : 'failed', versionProblem);
+        if (!deliveryHandoffPending(c) && !pendingHostRetry(c)) {
+          if (canReviseDelivery(c)) reviseDelivery(c, e, versionProblem);
+          else finishDelivery(c, e, versionProblem, versionProblem);
+        }
         reject(c, versionProblem.split(':')[0]!);
         break;
       }
-      const { acceptance, gaps, repeated } = deliveryPreflight(c, e);
+      const problem = deliverySubmissionProblem(c, e);
+      const { acceptance } = deliveryPreflight(c, e);
       const artifactIds = saveReports(c, e, e.text, c.owner, e.artifacts);
-      const requiresBoundCheck = !!c.candidate || !!c.publishedDelivery || e.artifacts?.some(artifact => !!artifact.replacesArtifactId);
-      cancelWork(c, e); c.candidate = { text: e.text, artifactIds: [...new Set([...e.artifactIds, ...artifactIds])], goalVersion: c.goalVersion,
-        revision: deliveryRevision(c, e), ...(e.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(e.backgroundArtifactIds)] } : {}), ...(requiresBoundCheck ? { requiresBoundCheck: true } : {}),
-        ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}),
-        ...(acceptance ? { acceptance: bindDraftReferences(acceptance, artifactIds) } : {}) };
-      if (gaps.length) c.deliveryGaps = gaps;
-      else if (c.deliveryGaps) delete c.deliveryGaps;
+      const priorFindings = deliveryJudgments(c, c.candidate?.revision).filter(item => item.status !== 'passed');
+      cancelWork(c, e);
+      c.candidate = { text: e.text, artifactIds: [...new Set([...e.artifactIds, ...artifactIds])], goalVersion: c.goalVersion,
+        revision: acceptance.revision, ...(e.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(e.backgroundArtifactIds)] } : {}),
+        ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}), acceptance };
       if (deliveryHandoffPending(c) || pendingHostRetry(c)) break;
-      if (gaps.length) {
-        const reason = gaps.map(gap => gap.reason).join('；');
-        if (hasOrdinary(c) && !repeated) {
-          c.reason = reason;
-          owner(c, e, { reason, deliveryGaps: gaps });
-        } else finish(c, e, 'partial', reason);
+      if (problem) {
+        c.candidate.deliveryIssue = { code: problem.code };
+        if (problem.mechanical && canReviseDelivery(c)) reviseDelivery(c, e, problem.code);
+        else finishDelivery(c, e, problem.code, problem.code);
         break;
       }
-      intent(c, e.at, 'check', 'facilitator', { goal: c.goal, ...deliveryArtifacts(c), board: c.board, ...conversationInput(c), deterministicGap: completeProblem(c) });
+      const selected = new Set([...c.candidate.artifactIds, ...(c.candidate.backgroundArtifactIds ?? [])]);
+      for (const artifact of c.artifacts) {
+        if (c.candidate.artifactIds.includes(artifact.id) && artifact.replacesArtifactId) selected.add(artifact.replacesArtifactId);
+      }
+      const artifacts = c.artifacts.filter(artifact => selected.has(artifact.id) && artifact.goalVersion === c.goalVersion);
+      const inputIds = new Set(acceptance.criteria.flatMap(criterion => criterion.sources.map(source => source.id)));
+      const rawInputs = new Map((c.inputAnalyses ?? []).filter(input => inputIds.has(input.id)).map(input => [input.id, input.rawText]));
+      for (const item of c.messages) if (item.author === 'user' && inputIds.has(item.id) && !rawInputs.has(item.id)) rawInputs.set(item.id, item.text);
+      const verification = deliveryVerificationPlan(c);
+      const work = intent(c, e.at, 'check', 'facilitator', { deliveryProtocol: 'bounded', candidate: c.candidate, artifacts,
+        rawInputs: [...rawInputs].map(([id, text]) => ({ id, text })), priorFindings,
+        ...(verification ? { verification } : {}) });
+      c.deliveryCycle!.evidence ??= deliveryEvidence(c, work)?.refs ?? [];
       break;
     }
     case 'CHECK_RESULT': {
+      const work = c.intents.find(item => item.id === e.workId)!;
+      const outcome = checkDisposition(c, e, work);
       c.consumedResults.push(e.resultId);
-      const gaps = deliveryCheckGaps(c, e);
-      const problem = completeProblem(c);
-      if (c.candidate?.acceptance) {
-        c.deliveryGaps = gaps;
-        (c.deliveryAssessments ??= []).push({ candidateRevision: c.candidate.acceptance.revision, judgments: e.criteriaResults ?? [], gaps });
+      if (outcome.kind === 'retry') {
+        reserveDeliveryRetry(c, work);
+        work.status = 'pending';
+        break;
       }
-      if (pendingHostRetry(c)) break;
-      if (discussionIncomplete(c)) finish(c, e, 'partial', discussionIncomplete(c)!);
-      else if (c.review?.incomplete) finish(c, e, 'partial', c.review.incomplete);
-      else if (e.passed && !problem && !gaps.length) {
-        if (c.deliveryGaps) delete c.deliveryGaps;
-        finish(c, e, 'complete', '');
-      } else if (c.candidate?.acceptance && hasOrdinary(c) && !deliveryHandoffPending(c) && !c.intents.some(localPhysicalPending)) {
-        c.reason = [problem, ...gaps.map(gap => gap.reason)].filter(Boolean).join('；') || 'Incomplete delivery';
-        owner(c, e, { reason: c.reason, deliveryGaps: gaps });
-      } else if (hasOrdinary(c)) coordinate(c, e, [problem, ...e.gaps].filter(Boolean).join('; ') || 'Incomplete delivery');
-      else {
-        finish(c, e, c.candidate || c.artifacts.length ? 'partial' : 'failed',
-          [problem, ...(gaps.length ? gaps.map(gap => gap.reason) : e.gaps)].filter(Boolean).join('；') || 'Budget exhausted');
-      }
+      release(c, work.id);
+      if (outcome.kind === 'handoff') break;
+      if (!outcome.code) work.criteriaResults = e.criteriaResults!;
+      if (outcome.kind === 'complete') finish(c, e, 'complete', '');
+      if (outcome.kind === 'revise') reviseDelivery(c, e, outcome.detail!);
+      if (outcome.kind === 'finish') finishDelivery(c, e, outcome.detail ?? `检查未完成（${outcome.code}）`, outcome.code);
       break;
     }
     case 'STOP':
@@ -228,6 +258,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (e.extraOrdinary) c.config.limits.ordinary += e.extraOrdinary;
       retainLegacyPublication(c, e.at);
       c.epoch++; c.stopped = false; c.outcome = null; c.reason = '';
+      c.deliveryCycle = newDeliveryCycle();
       for (const input of c.inputAnalyses ?? []) if (input.source === 'model' && input.goalVersion === c.goalVersion
         && ['failed', 'clarification', 'cancelled'].includes(input.status) && input.error !== 'SUPERSEDED_INPUT') {
         input.epoch = c.epoch; input.status = 'pending'; delete input.workId; delete input.error;
@@ -269,18 +300,23 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (work.kind === 'facilitator' && work.payload.owner === undefined) work.payload.owner = c.owner;
       work.localSkills = [...(work.localSkills ?? []).filter(s => !c.localSkillVersions?.some(p => p.skillId === s.skillId)), ...(c.localSkillVersions ?? [])];
       const previousRequests = work.requestCount;
-      work.status = 'inflight'; work.attempt++; work.requestCount = 0;
+      work.status = 'inflight'; work.attempt++;
+      if (!isBoundedCheck(work)) work.requestCount = 0;
       if (c.hostRetryBatch?.workId === work.id) {
         if (!c.hostRetryBatch.ownerClaimed || previousRequests > 0) c.usage.ordinary++;
         c.hostRetryBatch.ownerClaimed = true;
-      } else if (work.bucket !== 'none') c.usage[work.bucket]++;
+      } else if (work.bucket !== 'none' && !isBoundedCheck(work)) c.usage[work.bucket]++;
       if (work.kind === 'interpretation') c.inputAnalyses!.find(input => input.workId === work.id)!.status = 'inflight';
       if (work.kind === 'assistance' && !work.discussionId) c.assists.find(h => h.id === work.payload.requestId)!.status = 'running';
       break;
     }
     case 'CONSUME': {
       const work = c.intents.find(i => i.id === e.intentId)!;
-      if (work.requestCount > 0 && work.bucket !== 'none') c.usage[work.bucket]++;
+      if (isBoundedCheck(work)) {
+        c.deliveryCycle!.requests++;
+        c.usage.checks++;
+        delete work.checkRetryPending;
+      } else if (work.requestCount > 0 && work.bucket !== 'none') c.usage[work.bucket]++;
       work.requestCount++;
       break;
     }
@@ -302,13 +338,19 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (work.kind === 'cancel') { work.status = 'done'; c.reason = `Cancellation not confirmed: ${e.reason}`; break; }
       if (e.resultUncertain || work.replay === 'unsafe') {
         work.status = 'uncertain'; c.reason = `Result uncertain; reconcile before retry: ${e.reason}`;
-      } else if (canRetryWork(c, e)) {
-        c.usage.retries++; work.status = 'pending'; work.deadline = e.at + c.config.limits.workTimeoutMs;
+      } else if (canRetryWork(c, e) && !(isBoundedCheck(work) && (deliveryHandoffPending(c) || pendingHostRetry(c)))) {
+        if (isBoundedCheck(work)) reserveDeliveryRetry(c, work);
+        else { c.usage.retries++; work.deadline = e.at + c.config.limits.workTimeoutMs; }
+        work.status = 'pending';
         if (work.kind === 'interpretation') c.inputAnalyses!.find(input => input.workId === work.id)!.status = 'pending';
       } else {
         const failureReason = e.transient && c.usage.retries >= c.config.limits.retries ? `${e.reason}（重试额度已用尽）` : e.reason;
         release(c, work.id); c.reason = failureReason;
         if (c.hostRetryBatch?.workId === work.id) cancelHostRetries(c, failureReason);
+        if (!c.stopped && !deliveryHandoffPending(c) && !pendingHostRetry(c)) {
+          if (isBoundedCheck(work)) finishDelivery(c, e, `检查未完成（${failureReason}）`, 'DELIVERY_CHECK_FAILED');
+          if (work.payload.deliveryRevision === true) finishDelivery(c, e, failureReason, 'DELIVERY_REVISION_FAILED');
+        }
         if (work.kind === 'facilitator') {
           c.reason = `协调工作未能完成：${failureReason}。请重试或补充处理方式。`;
           message(c, e, 'facilitator', c.reason, 'notice');
@@ -343,10 +385,21 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         const legacy = (work.payload.capabilities as { localTools?: boolean } | undefined)?.localTools === undefined;
         work.payload.capabilities = { ...capabilities(c, work.target), localTools: !legacy && localEnabled(e.config, work.target) };
       }
-      if (issue) { cancelWork(c, e, true); cancelHostRetries(c, 'INCOMPATIBLE_EXECUTION'); c.reason = issue; reject(c, 'INCOMPATIBLE_EXECUTION'); break; }
+      if (issue) {
+        for (const work of c.intents.filter(item => item.status === 'inflight' && item.kind !== 'cancel')) {
+          if (work.replay === 'unsafe') work.status = 'uncertain';
+          else release(c, work.id);
+        }
+        cancelWork(c, e, true); cancelHostRetries(c, 'INCOMPATIBLE_EXECUTION'); c.reason = issue; reject(c, 'INCOMPATIBLE_EXECUTION'); break;
+      }
+      if (recoveryCheckExhausted(c, e.at)) {
+        finishDelivery(c, e, '检查未完成，无法重新授权中断的检查请求', 'CHECK_RECOVERY_EXHAUSTED');
+        break;
+      }
       for (const work of c.intents.filter(i => i.status === 'inflight' && i.kind !== 'cancel')) {
         if (localPhysicalPending(work) || work.replay === 'unsafe') { work.status = 'uncertain'; c.reason = 'Reconcile uncertain external result'; }
         else {
+          if (isBoundedCheck(work) && work.requestCount > 0 && !work.checkRetryPending) reserveDeliveryRetry(c, work);
           work.status = 'pending';
           if (work.kind === 'interpretation') c.inputAnalyses!.find(input => input.workId === work.id)!.status = 'pending';
         }

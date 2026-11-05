@@ -10,11 +10,23 @@ function queuedOperation(change?: (input: TaskInput) => void) {
 function claimedOperation() { const m = queuedOperation(); m.claim(); return m; }
 function runningOperation() { const m = claimedOperation(); m.started(); return m; }
 function completedOperation() { const m = runningOperation(); m.result(); return m; }
+const testCommand = { type: 'runCli', executable: 'npm', args: ['run', 'build'], execution: 'sandbox' } as const;
+const workspaceRevision = 'b'.repeat(64);
 function checkWork() {
-  const m = new LocalModel(); m.c.intents[0]!.status = 'done';
-  m.send({ type: 'DELIVER', text: 'candidate', artifactIds: [] });
-  const check = m.c.intents.at(-1)!; m.send({ type: 'CLAIM', intentId: check.id });
-  m.work = m.c.intents.at(-1)!; return m;
+  const m = new LocalModel(input => { input.goal.text = 'Run npm run build'; input.message.text = input.goal.text; });
+  const owner = m.work;
+  expect(m.send({ type: 'DELIVER', workId: owner.id, fence: owner, text: 'candidate', artifactIds: [] }).ok).toBe(true);
+  const check = m.c.intents.find(work => work.kind === 'check' && work.status === 'pending')!;
+  expect(m.send({ type: 'CLAIM', intentId: check.id }).ok).toBe(true);
+  m.work = m.c.intents.find(work => work.id === check.id)!;
+  return m;
+}
+
+function completeValidationCommand(m: LocalModel) {
+  expect(m.request({ ...testCommand, args: [...testCommand.args] }).ok).toBe(true);
+  expect(m.claim().ok).toBe(true);
+  expect(m.send({ type: 'LOCAL_STARTED', intentId: m.work.id, operationId: 'op1', sessionId: 'session1', workspaceRevision, isolated: true }).ok).toBe(true);
+  expect(m.result({ result: { ok: true, code: 'succeeded', data: { exitCode: 0 } } }).ok).toBe(true);
 }
 function activatedSkill() {
   const m = new LocalModel(); m.request({ type: 'loadSkill', skillId: 'skill1' }); m.claim(); return m;
@@ -91,11 +103,69 @@ describe('persisted local operations in the real taskMachine', () => {
   });
 
   it('[BT_L03] charges ordinary quota for a local child of final checking', () => {
-    const m = checkWork(); m.request();
+    const m = checkWork();
+    m.request({ ...testCommand, args: [...testCommand.args] });
+
     const reply = m.claim();
+
     expect(reply.ok).toBe(true);
-    expect(m.c.usage.checks).toBe(1);
     expect(m.c.usage.ordinary).toBe(2);
+  });
+
+  it('[BT_L17] rejects a checker command that differs from the user-requested test', () => {
+    const m = checkWork();
+
+    const reply = m.request({ type: 'runCli', executable: 'npm', args: ['test'], execution: 'sandbox' });
+
+    expect(reply.code).toBe('CHECK_LOCAL_TOOLS_NOT_ALLOWED');
+    expect(m.c.intents.find(work => work.id === m.work.id)?.localOperations).toBeUndefined();
+  });
+
+  it('[BT_L17] will not send a semantic check before a successful isolated test', () => {
+    const m = checkWork();
+
+    const reply = m.send({ type: 'CONSUME', intentId: m.work.id, fence: m.work });
+
+    expect(reply.code).toBe('WORKSPACE_VALIDATION_REQUIRED');
+    expect(m.c.intents.find(work => work.id === m.work.id)?.requestCount).toBe(0);
+  });
+
+  it('[BT_L17] retains the candidate without publishing when a semantic pass lacks final version verification', () => {
+    const m = checkWork();
+    completeValidationCommand(m);
+    expect(m.send({ type: 'CONSUME', intentId: m.work.id, fence: m.work }).ok).toBe(true);
+    const candidate = m.c.candidate!;
+    const criteriaResults = candidate.acceptance!.criteria.map(criterion => ({ criterionId: criterion.id, status: 'passed' }));
+
+    const reply = m.send({ type: 'CHECK_RESULT', workId: m.work.id, fence: m.work, candidateRevision: candidate.revision, resultId: 'check', criteriaResults });
+
+    expect(reply.ok).toBe(true);
+    expect(m.c.outcome).toBe('partial');
+    expect(m.c.reason).toContain('WORKSPACE_VERIFICATION_REQUIRED');
+    expect(m.c.publishedDelivery).toBeUndefined();
+  });
+
+  it('[BT_L17] ends without a check when required tests have no trusted command', () => {
+    const m = new LocalModel(input => { input.goal.text = 'Run tests'; input.message.text = input.goal.text; });
+
+    const reply = m.send({ type: 'DELIVER', workId: m.work.id, fence: m.work, text: 'candidate', artifactIds: [] });
+
+    expect(reply.ok).toBe(true);
+    expect(m.c.outcome).toBe('partial');
+    expect(m.c.reason).toContain('WORKSPACE_VALIDATION_UNAVAILABLE');
+    expect(m.c.intents.some(work => work.kind === 'check')).toBe(false);
+  });
+
+  it('[BT_L17] keeps command examples from quoted source material out of the verification plan', () => {
+    const text = 'Explain the following output\n```text\nrun npm test\n```\n> run npm run build\nThe example reads “then run npm run verify, twice”';
+    const m = new LocalModel(input => { input.goal.text = text; input.message.text = text; });
+
+    const reply = m.send({ type: 'DELIVER', workId: m.work.id, fence: m.work, text: 'candidate', artifactIds: [] });
+
+    expect(reply.ok).toBe(true);
+    const check = m.c.intents.find(work => work.kind === 'check' && work.status === 'pending');
+    expect(check?.status).toBe('pending');
+    expect(check?.payload.verification).toBeUndefined();
   });
 
   it('[BT_L05] stops queued local work without waiting for a physical process', () => {
@@ -221,16 +291,20 @@ describe('persisted local operations in the real taskMachine', () => {
   });
 
   it('[BT_L17] reserves a workspace and ordinary quota for final version verification', () => {
-    const m = checkWork(); m.request({ type: 'verifyWorkspace', expectedRevision: 'b'.repeat(64) });
-    expect(m.claim(false).code).toBe('WORKSPACE_BUSY');
-    expect(m.c.usage.ordinary).toBe(1);
+    const m = checkWork();
+    completeValidationCommand(m);
+    expect(m.send({ type: 'CONSUME', intentId: m.work.id, fence: m.work }).ok).toBe(true);
+    expect(m.send({ type: 'LOCAL_REQUEST', intentId: m.work.id, operationId: 'op2', namespace: 'c'.repeat(64), requestHash: 'd'.repeat(64),
+      action: { type: 'verifyWorkspace', expectedRevision: workspaceRevision }, parentAttempt: m.work.attempt, messages: [], workspaceId: 'project', fence: m.work }).ok).toBe(true);
+    const claim = { type: 'LOCAL_CLAIM', intentId: m.work.id, operationId: 'op2', sessionId: 'session2', parentAttempt: m.work.attempt, fence: m.work };
+    expect(m.send({ ...claim, leaseAvailable: false }).code).toBe('WORKSPACE_BUSY');
+    expect(m.c.usage.ordinary).toBe(2);
 
-    const reply = m.claim();
+    const reply = m.send({ ...claim, leaseAvailable: true });
 
     expect(reply.ok).toBe(true);
-    expect(m.c.usage.ordinary).toBe(2);
+    expect(m.c.usage.ordinary).toBe(3);
     expect(m.c.usage.checks).toBe(1);
-    expect(m.result().ok).toBe(true);
   });
 
   it('[BT_L03] settles a denied queued operation without an I/O budget charge', () => {

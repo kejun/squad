@@ -10,8 +10,12 @@ export class ActorModel {
   sequence = 0;
   workId = '';
   constructor(readonly name = '负责人') {
-    const phase: Record<string, Phase> = { 协助: 'waitingAssistance', 协调: 'coordinating', 检查: 'checking', 输入解析: 'interpreting' };
+    const phase: Record<string, Phase> = { 协助: 'waitingAssistance', 协调: 'coordinating', 输入解析: 'interpreting' };
     this.snapshot = phase[name] ? restoreTask(structuredClone(legacyTaskContract.seeds[phase[name]!])) : initialTask(localModelInput());
+    if (name === '检查') {
+      const owner = this.claim();
+      assert(this.send({ type: 'DELIVER', workId: owner.id, fence: owner, attempt: owner.attempt, text: '候选报告', artifactIds: [] }).ok);
+    }
     if (name === '工具') this.send({ type: 'TOOL', tool: 'read', replay: 'safe', payload: {} });
     if (name === '取消') { this.claim(); this.send({ type: 'STOP' }); }
     if (name === '讨论汇总') {
@@ -135,9 +139,11 @@ export const deniedActor = (problem: string) => prepareDeniedActor(problem)();
 
 export function prepareStaleAttemptMessage(kind = '负责人') {
   const m = new ActorModel(kind); const first = structuredClone(m.claim()); assert(m.start());
+  if (kind === '检查') assert(m.send({ type: 'CONSUME', intentId: first.id, fence: first, attempt: first.attempt }).ok);
   if (kind === '讨论汇总') assert(m.send({ type: 'RECOVER', config: m.c.config }).ok);
   else assert(m.send({ type: 'WORK_FAILED', intentId: first.id, attempt: first.attempt, reason: '暂时故障', transient: true }).ok);
   const next = structuredClone(m.claim()); assert(m.start()); assert.equal(next.attempt, first.attempt + 1);
+  if (kind === '检查') assert(m.send({ type: 'CONSUME', intentId: next.id, fence: next, attempt: next.attempt }).ok);
   const before = structuredClone(m.c.usage), phase = m.snapshot.value, analyses = structuredClone(m.c.inputAnalyses);
   return (type: string) => {
     const body: Record<string, unknown> = { type, attempt: first.attempt };
@@ -150,7 +156,11 @@ export function prepareStaleAttemptMessage(kind = '负责人') {
     } else if (type === 'COORDINATE') Object.assign(body, addressed, { decision: m.c.review?.status === 'pending'
       ? { action: 'review', question: '核查依据', expected: '事实', reason: '受控评审' } : { action: 'continue', reason: '受控判断' } });
     else if (type === 'RECORD_RESULT') Object.assign(body, addressed, { requestId: first.payload.requestId, resultId: 'attempt-result', status: 'success', answer: '核查结果' });
-    else if (type === 'CHECK_RESULT') Object.assign(body, addressed, { resultId: 'check-result', passed: true, gaps: [] });
+    else if (type === 'CHECK_RESULT') {
+      const candidate = m.c.candidate!;
+      Object.assign(body, addressed, { resultId: 'check-result', candidateRevision: candidate.revision,
+        criteriaResults: candidate.acceptance!.criteria.map(item => ({ criterionId: item.id, status: 'passed' })) });
+    }
     else if (type === 'DISCUSSION_RESULT') Object.assign(body, addressed, { discussionId: first.discussionId, status: 'success', text: '受控讨论结果' });
     else Object.assign(body, { intentId: first.id, reason: '旧错误', transient: false, issue: 'invalid_json' });
     assert.equal(m.send(body).code, 'STALE_ATTEMPT'); assert.equal(m.stage(), 'running'); assert.equal(m.snapshot.value, phase);

@@ -1,26 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import { acceptanceCriteria, type CriterionCoverage, type CriterionJudgment, type DeliveryReference } from '../src/delivery-acceptance.js';
+import { acceptanceCriteria, deliveryJudgments, type CriterionJudgment } from '../src/delivery-acceptance.js';
+import type { Intent } from '../src/types.js';
 import { LocalModel } from './local-model-fixture.js';
 
-const support: DeliveryReference = { kind: 'candidateText' };
-const cover = (model: LocalModel, ref: DeliveryReference = support): CriterionCoverage[] => acceptanceCriteria(model.c).map(criterion => ({ criterionId: criterion.id, refs: [ref] }));
-const judgments = (model: LocalModel): CriterionJudgment[] => acceptanceCriteria(model.c).map(criterion => ({ criterionId: criterion.id, status: 'passed' }));
-function deliver(model: LocalModel, id: string, coverage: CriterionCoverage[], text = '当前候选') {
-  const work = model.c.intents.find(item => item.kind === 'owner' && item.status === 'inflight')!;
-  return model.send({ type: 'DELIVER', id, workId: work.id, text, artifactIds: [], coverage, fence: work, attempt: work.attempt });
+function submit(model: LocalModel, work = model.work, id = 'candidate', text = '当前候选') {
+  return model.send({ type: 'DELIVER', id, workId: work.id, text, artifactIds: [], fence: work, attempt: work.attempt });
 }
+
 function claim(model: LocalModel, kind: 'owner' | 'check') {
   const work = model.c.intents.find(item => item.kind === kind && item.status === 'pending')!;
   expect(model.send({ type: 'CLAIM', intentId: work.id }).ok).toBe(true);
   return model.c.intents.find(item => item.id === work.id)!;
 }
-function check(model: LocalModel, results: CriterionJudgment[], passed = true) {
+
+function requestCheck(model: LocalModel) {
   const work = claim(model, 'check');
-  return model.send({ type: 'CHECK_RESULT', workId: work.id, fence: work, attempt: work.attempt,
-    resultId: work.id, passed, gaps: [], criteriaResults: results });
+  expect(model.send({ type: 'CONSUME', intentId: work.id, fence: work, attempt: work.attempt }).ok).toBe(true);
+  return work;
 }
 
-describe('versioned delivery acceptance model', () => {
+function accept(model: LocalModel): CriterionJudgment[] {
+  return model.c.candidate!.acceptance!.criteria.map(criterion => ({ criterionId: criterion.id, status: 'passed' }));
+}
+
+function report(model: LocalModel, work: Intent, criteriaResults?: CriterionJudgment[], resultId = `${work.id}:${work.attempt}`) {
+  return model.send({ type: 'CHECK_RESULT', workId: work.id, fence: work, attempt: work.attempt, resultId,
+    candidateRevision: model.c.candidate!.revision, criteriaResults });
+}
+
+const pendingOwner = (model: LocalModel) => model.c.intents.filter(work => work.kind === 'owner' && work.status === 'pending');
+
+describe('bounded delivery acceptance model', () => {
   it('[BT_F14] retains direct requirements omitted by a validated input interpretation', () => {
     const model = new LocalModel(input => { input.goal.constraints = ['保留每一条用户硬约束']; });
 
@@ -29,108 +39,172 @@ describe('versioned delivery acceptance model', () => {
     expect(criteria).toContainEqual(expect.objectContaining({ text: '保留每一条用户硬约束', goalVersion: 1, sources: [{ kind: 'goal', id: 'M' }, { kind: 'input', id: 'M' }] }));
   });
 
-  it('[BT_F14] records missing coverage and schedules only one owner repair across duplicate delivery', () => {
+  it('[BT_F15] publishes the candidate after one independent all-pass request', () => {
     const model = new LocalModel();
-    const coverage = cover(model).slice(0, 1);
-    const missing = acceptanceCriteria(model.c)[1]!.id;
+    expect(submit(model).ok).toBe(true);
+    const work = requestCheck(model);
+    const results = accept(model);
 
-    expect(deliver(model, 'delivery-1', coverage).ok).toBe(true);
-    const duplicate = model.send({ type: 'DELIVER', id: 'delivery-1', text: '当前候选', artifactIds: [], coverage });
-
-    expect(model.snapshot.value).toBe('running');
-    expect(model.c.deliveryGaps).toEqual([expect.objectContaining({ criterionId: missing, kind: 'missing_requirement' })]);
-    expect(model.c.intents.filter(item => item.kind === 'owner' && item.status === 'pending')).toHaveLength(1);
-    expect(model.c.intents.some(item => item.kind === 'check')).toBe(false);
-    expect(duplicate.code).toBe('DUPLICATE_RESULT');
-  });
-
-  it('[BT_F14] cannot use a failed receipt as coverage for evidence acquisition', () => {
-    const model = new LocalModel();
-    expect(model.request().ok).toBe(true);
-    expect(model.claim().ok).toBe(true);
-    expect(model.started().ok).toBe(true);
-    expect(model.result({ result: { ok: false, code: 'EXIT_NONZERO', data: { stdout: 'partial', truncated: false } } }).ok).toBe(true);
-
-    expect(deliver(model, 'failed-evidence', cover(model, { kind: 'evidence', id: 'op1' })).ok).toBe(true);
-
-    expect(model.c.deliveryGaps).toContainEqual(expect.objectContaining({ kind: 'missing_evidence', refs: [{ kind: 'evidence', id: 'op1' }] }));
-    expect(model.c.intents.some(item => item.kind === 'check')).toBe(false);
-  });
-
-  it('[BT_F14] settles the candidate and unmet requirement when repair is out of budget', () => {
-    const model = new LocalModel(input => { input.config.limits.ordinary = 1; });
-
-    expect(deliver(model, 'out-of-budget', []).ok).toBe(true);
-
-    expect(model.snapshot.value).toBe('ended');
-    expect(model.c.outcome).toBe('partial');
-    expect(model.c.candidate?.text).toBe('当前候选');
-    expect(model.c.deliveryGaps).toHaveLength(2);
-    expect(model.c.intents.some(item => item.kind === 'check' || item.status === 'pending')).toBe(false);
-  });
-
-  it('[BT_F15] refuses a positive overall judgment that omits a required criterion', () => {
-    const model = new LocalModel();
-    expect(deliver(model, 'candidate', cover(model)).ok).toBe(true);
-
-    expect(check(model, judgments(model).slice(0, 1)).ok).toBe(true);
-
-    expect(model.c.outcome).toBeNull();
-    expect(model.c.deliveryGaps).toEqual([expect.objectContaining({
-      criterionId: acceptanceCriteria(model.c)[1]!.id, candidateRevision: model.c.candidate!.acceptance!.revision,
-    })]);
-    expect(model.snapshot.value).toBe('running');
-  });
-
-  it('[BT_F16] preserves the input handoff when a negative check arrives after an update', () => {
-    const model = new LocalModel();
-    expect(deliver(model, 'candidate', cover(model)).ok).toBe(true);
-    const work = claim(model, 'check');
-    expect(model.send({ type: 'USER_INPUT', text: '补充新的限制' }).ok).toBe(true);
-
-    expect(model.send({ type: 'CHECK_RESULT', workId: work.id, fence: work, attempt: work.attempt, resultId: work.id,
-      passed: false, gaps: ['仍需核实'], criteriaResults: [] }).ok).toBe(true);
-
-    expect(model.c.outcome).toBeNull();
-    expect(model.c.inputs.every(input => input.applied)).toBe(true);
-    expect(model.c.intents.filter(item => item.status === 'pending' && item.kind === 'owner')).toEqual([
-      expect.objectContaining({ payload: expect.objectContaining({ reason: 'Apply latest user input' }) }),
-    ]);
-  });
-
-  it('[BT_F15] only publishes a positive judgment on every required criterion', () => {
-    const model = new LocalModel();
-    expect(deliver(model, 'candidate', cover(model)).ok).toBe(true);
-
-    expect(check(model, judgments(model)).ok).toBe(true);
+    expect(report(model, work, results).ok).toBe(true);
 
     expect(model.c.outcome).toBe('complete');
-    expect(model.c.deliveryAssessments?.[0]?.judgments).toEqual(judgments(model));
-  });
-
-  it('[BT_F16] requires an earlier passing criterion after a different criterion is repaired', () => {
-    const model = new LocalModel();
-    const criteria = acceptanceCriteria(model.c);
-    expect(deliver(model, 'candidate', cover(model)).ok).toBe(true);
-    expect(check(model, [{ criterionId: criteria[0]!.id, status: 'gap', reason: '已完成的说法没有依据' },
-      { criterionId: criteria[1]!.id, status: 'passed' }], false).ok).toBe(true);
-    claim(model, 'owner');
-
-    expect(deliver(model, 'updated', cover(model).slice(0, 1), '补了第一项但遗漏另一项').ok).toBe(true);
-
-    expect(model.c.outcome).toBeNull();
-    expect(model.c.deliveryGaps).toEqual([expect.objectContaining({ criterionId: criteria[1]!.id, kind: 'missing_requirement' })]);
+    expect(model.c.publishedDelivery?.revision).toBe(model.c.candidate?.revision);
+    expect(deliveryJudgments(model.c, model.c.candidate?.revision)).toEqual(results);
     expect(model.c.usage.checks).toBe(1);
   });
 
-  it('[BT_F14] stops a new submission with the same unresolved candidate from creating another repair', () => {
-    const model = new LocalModel();
-    expect(deliver(model, 'original', []).ok).toBe(true);
-    claim(model, 'owner');
+  it('[BT_F14] lets a missing artifact consume the only automatic correction opportunity', () => {
+    const model = new LocalModel(input => { input.goal.requiredArtifacts = 1; });
+    expect(submit(model).ok).toBe(true);
+    const repair = claim(model, 'owner');
 
-    expect(deliver(model, 'unchanged', []).ok).toBe(true);
+    expect(submit(model, repair, 'unrepaired').ok).toBe(true);
 
     expect(model.c.outcome).toBe('partial');
-    expect(model.c.intents.filter(item => item.kind === 'owner')).toHaveLength(2);
+    expect(model.c.candidate?.deliveryIssue?.code).toBe('MISSING_ARTIFACTS');
+    expect(model.c.deliveryCycle?.revisionUsed).toBe(true);
+    expect(model.c.usage.checks).toBe(0);
+    expect(pendingOwner(model)).toEqual([]);
+  });
+
+  it('[BT_F14] settles missing artifacts without spending a correction when there is no check budget', () => {
+    const model = new LocalModel(input => { input.goal.requiredArtifacts = 1; input.config.limits.checks = 0; });
+
+    expect(submit(model).ok).toBe(true);
+
+    expect(model.c.outcome).toBe('partial');
+    expect(model.c.candidate?.deliveryIssue?.code).toBe('MISSING_ARTIFACTS');
+    expect(pendingOwner(model)).toEqual([]);
+  });
+
+  it('[BT_F15] treats a missing criterion as a check failure, without scheduling author work', () => {
+    const model = new LocalModel();
+    expect(submit(model).ok).toBe(true);
+    const check = requestCheck(model);
+
+    expect(report(model, check, accept(model).slice(0, 1)).ok).toBe(true);
+
+    expect(model.snapshot.value).toBe('checking');
+    expect(model.c.intents.find(item => item.id === check.id)?.status).toBe('pending');
+    expect(model.c.deliveryCycle).toMatchObject({ requests: 1, retryUsed: true, revisionUsed: false });
+    expect(pendingOwner(model)).toEqual([]);
+  });
+
+  it('[BT_F15] treats a quotation attributed to the wrong source as a technical failure', () => {
+    const model = new LocalModel();
+    expect(submit(model).ok).toBe(true);
+    const check = requestCheck(model);
+    const [first, ...rest] = accept(model);
+
+    expect(report(model, check, [{ ...first!, source: { id: 'wrong-source', quote: '原话' } }, ...rest]).ok).toBe(true);
+
+    expect(model.c.deliveryCycle?.retryUsed).toBe(true);
+    expect(deliveryJudgments(model.c, model.c.candidate?.revision)).toEqual([]);
+    expect(model.c.outcome).toBeNull();
+    expect(pendingOwner(model)).toEqual([]);
+  });
+
+  it('[BT_F15] settles an unverified finding without automatically rewriting the candidate', () => {
+    const model = new LocalModel();
+    expect(submit(model).ok).toBe(true);
+    const check = requestCheck(model);
+    const [first, ...rest] = accept(model);
+
+    expect(report(model, check, [{ ...first!, status: 'unverified', reason: '没有可核实的原资料' }, ...rest]).ok).toBe(true);
+
+    expect(model.c.outcome).toBe('partial');
+    expect(deliveryJudgments(model.c, model.c.candidate?.revision)?.[0]).toMatchObject({ status: 'unverified' });
+    expect(pendingOwner(model)).toEqual([]);
+  });
+
+  it('[BT_F16] rechecks earlier passing requirements and settles a new regression after the only correction', () => {
+    const model = new LocalModel();
+    expect(submit(model).ok).toBe(true);
+    const first = requestCheck(model);
+    const [a, b] = accept(model);
+    expect(report(model, first, [{ ...a!, status: 'failed', reason: '把计划写成已完成' }, b!]).ok).toBe(true);
+    const repair = claim(model, 'owner');
+    expect(submit(model, repair, 'revised', '修订候选')).toMatchObject({ ok: true });
+    const review = requestCheck(model);
+
+    expect(report(model, review, [a!, { ...b!, status: 'failed', reason: '修订遗漏此前内容' }]).ok).toBe(true);
+
+    expect(model.c.outcome).toBe('partial');
+    expect(deliveryJudgments(model.c, model.c.candidate?.revision)?.[1]).toMatchObject({ reason: '修订遗漏此前内容' });
+    expect(model.c.usage.checks).toBe(2);
+    expect(pendingOwner(model)).toEqual([]);
+  });
+
+  it('[BT_F16] preserves an accepted user supplement before releasing the checked candidate', () => {
+    const model = new LocalModel();
+    expect(submit(model).ok).toBe(true);
+    const check = requestCheck(model);
+    expect(model.send({ type: 'USER_INPUT', text: '补充新的限制' }).ok).toBe(true);
+
+    expect(report(model, check, accept(model)).ok).toBe(true);
+
+    expect(model.c.outcome).toBeNull();
+    expect(model.c.inputs.every(input => input.applied)).toBe(true);
+    expect(pendingOwner(model)).toEqual([expect.objectContaining({ payload: expect.objectContaining({ reason: 'Apply latest user input' }) })]);
+  });
+
+  it('[BT_F16] retains the finding when the remaining check budget cannot reserve a review', () => {
+    const model = new LocalModel(input => { input.config.limits.checks = 1; });
+    expect(submit(model).ok).toBe(true);
+    const check = requestCheck(model);
+    const [first, ...rest] = accept(model);
+
+    expect(report(model, check, [{ ...first!, status: 'failed', reason: '缺少必需内容' }, ...rest]).ok).toBe(true);
+
+    expect(model.c.outcome).toBe('partial');
+    expect(deliveryJudgments(model.c, model.c.candidate?.revision)?.[0]?.reason).toBe('缺少必需内容');
+    expect(pendingOwner(model)).toEqual([]);
+  });
+
+  it('[BT_M12] shares one technical retry across the first check, repair, and review', () => {
+    const model = new LocalModel();
+    expect(submit(model).ok).toBe(true);
+    const first = requestCheck(model);
+    expect(report(model, first).ok).toBe(true);
+    const retry = requestCheck(model);
+    const [a, b] = accept(model);
+    expect(report(model, retry, [{ ...a!, status: 'failed', reason: '需要修订' }, b!]).ok).toBe(true);
+    const repair = claim(model, 'owner');
+    expect(submit(model, repair, 'revised').ok).toBe(true);
+    const review = requestCheck(model);
+
+    expect(model.send({ type: 'WORK_FAILED', intentId: review.id, attempt: review.attempt, transient: true, reason: 'network timeout' }).ok).toBe(true);
+
+    expect(model.snapshot.value).toBe('ended');
+    expect(model.c.outcome).toBe('partial');
+    expect(model.c.deliveryCycle).toMatchObject({ requests: 3, retryUsed: true, revisionUsed: true });
+    expect(model.c.usage).toMatchObject({ checks: 3, retries: 1 });
+  });
+
+  it('[BT_M12] makes an authorized request survive recovery without restoring the technical retry', () => {
+    const model = new LocalModel();
+    expect(submit(model).ok).toBe(true);
+    const original = requestCheck(model);
+    expect(model.send({ type: 'RECOVER', config: model.c.config }).ok).toBe(true);
+    const replay = requestCheck(model);
+
+    expect(model.send({ type: 'RECOVER', config: model.c.config }).ok).toBe(true);
+
+    expect(replay.id).toBe(original.id);
+    expect(model.c.outcome).toBe('partial');
+    expect(model.c.usage).toMatchObject({ checks: 2, retries: 1 });
+  });
+
+  it('[BT_F10] rejects a result arriving after the user stopped the task', () => {
+    const model = new LocalModel();
+    expect(submit(model).ok).toBe(true);
+    const check = requestCheck(model);
+    expect(model.send({ type: 'STOP', text: '停止' }).ok).toBe(true);
+
+    expect(report(model, check, accept(model)).ok).toBe(false);
+
+    expect(model.c.outcome).toBe('stopped');
+    expect(model.c.publishedDelivery).toBeUndefined();
+    expect(model.c.usage.checks).toBe(1);
   });
 });

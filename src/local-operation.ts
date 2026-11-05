@@ -1,8 +1,10 @@
 import { artifactForWork } from './task/delivery.js';
 import { hostSessionMatches } from './host-session.js';
 import { evidenceSource, type EvidenceStream } from './task/evidence.js';
+import { verificationActionProblem } from './task/verification.js';
 /** Persisted child-operation contract. This module has no filesystem, process or network I/O. */
-import type { Intent, TaskContext, TaskEvent, TeamConfig } from './types.js';
+import { localEnabled, type Intent, type TaskContext, type TaskEvent, type TeamConfig } from './types.js';
+export { localEnabled } from './types.js';
 
 export type LocalAction =
   | { type: 'verifyWorkspace'; expectedRevision: string }
@@ -78,7 +80,6 @@ export function validLocalAction(value: unknown): value is LocalAction {
 export const localAwaitingApproval = (work: Intent) => work.localOperations?.some(op => op.status === 'awaitingApproval') ?? false;
 export const localUnsettled = (work: Intent) => localAwaitingApproval(work) || (work.localOperations?.some(op => ['queued', 'claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false);
 export const localPhysicalPending = (work: Intent) => work.localOperations?.some(op => ['claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false;
-export const localEnabled = (config: TeamConfig, target: string) => config.localTools?.enabled !== false && config.bots.find(b => b.id === target)?.localTools !== false;
 export function hostRetryMemberAllowed(config: TeamConfig, source: Intent): boolean {
   return (source.kind === 'facilitator' || source.kind === 'check' || config.bots.some(bot => bot.id === source.target))
     && localEnabled(config, source.target);
@@ -89,8 +90,10 @@ export function hostRetrySourceAllowed(c: TaskContext, op: LocalOperation, confi
   const source = c.intents.find(w => w.id === request?.sourceWorkId);
   return !!source && hostRetryMemberAllowed(config, source);
 }
-export const localRecoveryBlocked = (c: TaskContext) => ['Execution version incompatible', 'Tool permission revoked',
-  'Execution member unavailable', 'Model configuration changed', 'Input analysis configuration changed'].includes(c.reason);
+export function localRecoveryBlocked(c: TaskContext): boolean {
+  return ['Execution version incompatible', 'Tool permission revoked', 'Execution member unavailable',
+    'Model configuration changed', 'Input analysis configuration changed'].includes(c.reason);
+}
 export function localParentProblem(c: TaskContext, work: Intent | undefined, at: number, attempt?: number): string | null {
   if (c.stopped) return 'STOPPED';
   if (localRecoveryBlocked(c)) return 'INCOMPATIBLE_EXECUTION';
@@ -125,11 +128,13 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
       if (isSavedRead(event.action) && event.workspaceId !== undefined) return 'INVALID_LOCAL_REQUEST';
       if (event.action.type === 'verifyWorkspace' && work.kind !== 'check') return 'WORKSPACE_VALIDATION_NOT_ALLOWED';
       if (['runCli', 'verifyWorkspace'].includes(event.action.type) && !event.workspaceId) return 'WORKSPACE_REQUIRED';
-      return null;
+      return verificationActionProblem(work, event.action, event.workspaceId);
     case 'LOCAL_REJECTED':
       return op?.status === 'queued' && op.parentAttempt === event.parentAttempt && event.result?.ok === false ? null : 'LOCAL_NOT_QUEUED';
-    case 'LOCAL_CLAIM':
+    case 'LOCAL_CLAIM': {
       if (!op || op.status !== 'queued') return 'LOCAL_NOT_QUEUED';
+      const problem = verificationActionProblem(work, op.action, op.workspaceId, op.id);
+      if (problem) return problem;
       if (op.deadline !== undefined && e.at >= op.deadline) return 'WORK_EXPIRED';
       if (!event.sessionId) return 'LOCAL_SESSION_REQUIRED';
       if (['runCli', 'verifyWorkspace'].includes(op.action.type) && !event.leaseAvailable) return 'WORKSPACE_BUSY';
@@ -141,6 +146,7 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
       if (op.action.type === 'readEvidence' && !evidenceSource(c, work, op.action.sourceOperationId)) return 'EVIDENCE_UNAVAILABLE';
       if (op.action.type === 'readArtifact' && !artifactForWork(c, work, op.action.artifactId)) return 'ARTIFACT_UNAVAILABLE';
       return freeLocalClaim(op) ? null : budget({ ...work, bucket: 'ordinary' });
+    }
     case 'LOCAL_APPROVAL_REQUIRED': {
       const problem = localParentProblem(c, work, e.at);
       if (problem) return problem;

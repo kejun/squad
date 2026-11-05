@@ -21,8 +21,8 @@ export const taskLifecycle = {
     LOCAL_APPROVAL_REQUIRED: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     LOCAL_APPROVAL_DECISION: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     LOCAL_APPROVAL_EXPIRED: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
-    LOCAL_RESULT: [{ guard: 'localResumeOwner', target: '.running', actions: 'apply' }, { guard: 'localResumeHelp', target: '.waitingAssistance', actions: 'apply' }, { guard: 'localResumeFacilitator', target: '.coordinating', actions: 'apply' }, { guard: 'localResumeCheck', target: '.checking', actions: 'apply' }, { guard: 'uncertainLocalResult', target: '.waitingHuman', actions: 'apply' }, { guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
-    LOCAL_RECONCILE: [{ guard: 'localResumeOwner', target: '.running', actions: 'apply' }, { guard: 'localResumeHelp', target: '.waitingAssistance', actions: 'apply' }, { guard: 'localResumeFacilitator', target: '.coordinating', actions: 'apply' }, { guard: 'localResumeCheck', target: '.checking', actions: 'apply' }, { guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+    LOCAL_RESULT: [{ guard: 'localResumeOwner', target: '.running', actions: 'apply' }, { guard: 'localResumeHelp', target: '.waitingAssistance', actions: 'apply' }, { guard: 'localResumeFacilitator', target: '.coordinating', actions: 'apply' }, { guard: 'localCheckExhausted', target: '.ended', actions: 'apply' }, { guard: 'localResumeCheck', target: '.checking', actions: 'apply' }, { guard: 'uncertainLocalResult', target: '.waitingHuman', actions: 'apply' }, { guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+    LOCAL_RECONCILE: [{ guard: 'localResumeOwner', target: '.running', actions: 'apply' }, { guard: 'localResumeHelp', target: '.waitingAssistance', actions: 'apply' }, { guard: 'localResumeFacilitator', target: '.coordinating', actions: 'apply' }, { guard: 'localCheckExhausted', target: '.ended', actions: 'apply' }, { guard: 'localResumeCheck', target: '.checking', actions: 'apply' }, { guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     DISCUSSION_PLAN: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     DISCUSSION_RESULT: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     RETRY_ASSISTANCE: [
@@ -46,7 +46,7 @@ export const taskLifecycle = {
     CONSUME: { guard: 'valid', actions: 'apply' },
     REGENERATE_MODEL_OUTPUT: { guard: 'valid', actions: 'apply' },
     SETTLE: { guard: 'valid', actions: 'apply' },
-    RECOVER: [{ guard: 'recoveredSafe', actions: 'apply' }, { target: '.waitingHuman', actions: 'apply' }],
+    RECOVER: [{ guard: 'recoveredCheckExhausted', target: '.ended', actions: 'apply' }, { guard: 'recoveredSafe', actions: 'apply' }, { target: '.waitingHuman', actions: 'apply' }],
     EXHAUSTED: { guard: 'valid', target: '.ended', actions: 'apply' },
     RECONCILE: { guard: 'valid', actions: 'apply' },
     '*': { actions: 'reject' },
@@ -68,14 +68,11 @@ export const taskLifecycle = {
       on: {
         CLAIM: { guard: 'claimOwner', actions: 'apply' },
         HELP: { guard: 'valid', target: 'waitingAssistance', actions: 'apply' },
-        BLOCKED: [{ guard: 'canCoordinate', target: 'coordinating', actions: 'apply' }, { guard: 'valid', actions: 'apply' }],
+        BLOCKED: [{ guard: 'revisionFailed', target: 'ended', actions: 'apply' }, { guard: 'canCoordinate', target: 'coordinating', actions: 'apply' }, { guard: 'valid', actions: 'apply' }],
         WAIT_USER: { guard: 'valid', target: 'waitingHuman', actions: 'apply' },
         HANDOFF: { guard: 'valid', actions: 'apply' },
         DELIVER: [
-          { guard: 'deliveryConflictExhausted', target: 'ended', actions: 'apply' },
-          { guard: 'deliveryConflict', actions: 'apply' },
           { guard: 'holdingDelivery', actions: 'apply' },
-          { guard: 'hostRetryHoldsDelivery', actions: 'apply' },
           { guard: 'deliveryReady', target: 'checking', actions: 'apply' },
           { guard: 'deliveryCanRevise', actions: 'apply' },
           { guard: 'valid', target: 'ended', actions: 'apply' },
@@ -83,7 +80,7 @@ export const taskLifecycle = {
         TOOL: { guard: 'valid', actions: 'apply' },
         TICK: { guard: 'shouldTick', target: 'coordinating', actions: 'apply' },
         FAILURE_SIGNAL: [{ guard: 'repeated', target: 'coordinating', actions: 'apply' }, { guard: 'valid', actions: 'apply' }],
-        WORK_FAILED: [{ guard: 'failedDiscussion', actions: 'apply' }, { guard: 'retryable', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
+        WORK_FAILED: [{ guard: 'failedDiscussion', actions: 'apply' }, { guard: 'retryable', actions: 'apply' }, { guard: 'revisionFailed', target: 'ended', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
       },
     },
     waitingAssistance: {
@@ -113,17 +110,13 @@ export const taskLifecycle = {
     waitingHuman: { on: { CONTINUE: { guard: 'valid', target: 'running', actions: 'apply' } } },
     checking: {
       on: {
-        CLAIM: { guard: 'claimCheck', actions: 'apply' },
+        CLAIM: [{ guard: 'claimCheckUnavailable', target: 'ended', actions: 'failCheckClaim' }, { guard: 'claimCheck', actions: 'apply' }],
         CHECK_RESULT: [
-          { guard: 'hostRetryHoldsCheck', target: 'running', actions: 'apply' },
-          { guard: 'incompleteDiscussion', target: 'ended', actions: 'apply' },
-          { guard: 'incompleteReview', target: 'ended', actions: 'apply' },
-          { guard: 'checkComplete', target: 'ended', actions: 'apply' },
-          { guard: 'checkCanRevise', target: 'running', actions: 'apply' },
-          { guard: 'canCorrect', target: 'coordinating', actions: 'apply' },
+          { guard: 'checkCanRetry', actions: 'apply' },
+          { guard: 'checkContinues', target: 'running', actions: 'apply' },
           { guard: 'valid', target: 'ended', actions: 'apply' },
         ],
-        WORK_FAILED: [{ guard: 'failedDiscussion', actions: 'apply' }, { guard: 'retryable', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
+        WORK_FAILED: [{ guard: 'failedDiscussion', actions: 'apply' }, { guard: 'checkFailureHandoff', target: 'running', actions: 'apply' }, { guard: 'retryable', actions: 'apply' }, { guard: 'checkFailed', target: 'ended', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
       },
     },
     stopping: {

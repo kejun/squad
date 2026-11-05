@@ -1,5 +1,6 @@
 import type { HostRetryBatch, HostRetryRequest } from './host-retry.js';
 import type { CriterionCoverage, CriterionJudgment, DeliveryAcceptance, DeliveryAssessment, DeliveryGap } from './delivery-acceptance.js';
+import type { DeliveryEvidenceRef } from './task/evidence.js';
 import type { HostSessionGrant } from './host-session.js';
 import type { LocalCheckpoint, LocalEvent, LocalOperation, SkillBinding } from './local-operation.js';
 import type { InputIntentSpec } from './input-intent.js';
@@ -8,7 +9,7 @@ export type { InputIntentSpec, InputReference } from './input-intent.js';
 export interface Bot { id: string; name: string; instructions: string; tools: string[]; model?: string; localTools?: boolean }
 export interface ModelService {
   baseUrl: string; model: string; apiKeyEnv?: string;
-  jsonMode?: boolean; temperature?: number; maxTokens?: number;
+  jsonMode?: boolean; temperature?: number; maxTokens?: number; contextWindowTokens?: number;
   extraBody?: Record<string, unknown>;
 }
 export interface ModelConfiguration {
@@ -28,6 +29,8 @@ export interface TeamConfig {
   inputAnalysis?: { enabled: boolean };
   models?: ModelConfiguration;
 }
+export const localEnabled = (config: TeamConfig, target: string) => config.localTools?.enabled !== false
+  && config.bots.find(bot => bot.id === target)?.localTools !== false;
 export interface Fence { epoch: number; goalVersion: number }
 export interface Goal { text: string; constraints: string[]; criteria: string[]; requiredArtifacts: number }
 export type Phase = 'interpreting' | 'running' | 'waitingAssistance' | 'coordinating' | 'waitingHuman' | 'checking' | 'stopping' | 'ended';
@@ -74,6 +77,10 @@ export interface Intent extends Fence {
   evidenceRefs?: string[];
   /** Persisted format-repair authorization; never stores the rejected model body. */
   outputRepair?: { count: number; issue: ModelOutputIssue };
+  /** A persisted technical retry authorization for this delivery cycle. */
+  checkRetryPending?: boolean;
+  /** The independently checked criteria for this work's fixed candidate revision. */
+  criteriaResults?: CriterionJudgment[];
 }
 export interface Reply { ok: boolean; code: string; detail: string }
 export interface InputNote { id: string; text: string; applied: boolean }
@@ -88,6 +95,13 @@ export interface RecordedResult extends Fence { requestId: string; resultId: str
 export interface Candidate {
   text: string; artifactIds: string[]; goalVersion: number; summary?: string; workId?: string;
   revision?: string; requiresBoundCheck?: boolean; backgroundArtifactIds?: string[]; acceptance?: DeliveryAcceptance;
+  deliveryIssue?: { code: string; detail?: string };
+}
+export interface DeliveryCycle {
+  requests: number;
+  retryUsed: boolean;
+  revisionUsed: boolean;
+  evidence?: DeliveryEvidenceRef[];
 }
 export interface PublishedDelivery { revision?: string; goalVersion: number; artifactIds: string[]; at: number }
 export interface ConversationHistory {
@@ -117,7 +131,9 @@ export interface TaskContext extends Fence {
   lateResults: TaskEvent[];
   results: RecordedResult[];
   usage: { ordinary: number; checks: number; assists: number; replans: number; retries: number };
+  /** Read compatibility for snapshots written before bounded checking. */
   deliveryGaps?: DeliveryGap[]; deliveryAssessments?: DeliveryAssessment[];
+  deliveryCycle?: DeliveryCycle;
   candidate: Candidate | null; publishedDelivery?: PublishedDelivery; outcome: Outcome | null; reason: string;
   stopped: boolean; nextSeq: number; lastActivityAt: number; lastProgressAt: number;
   nextCheckAt: number; repeat: { fingerprint: string; count: number };
@@ -162,7 +178,7 @@ export type TaskEvent = Envelope & (
   | { type: 'HANDOFF'; owner: string }
   | { type: 'WAIT_USER'; question: string }
   | { type: 'DELIVER'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[]; coverage?: CriterionCoverage[] }
-  | { type: 'CHECK_RESULT'; passed: boolean; gaps: string[]; resultId: string; candidateRevision?: string; criteriaResults?: CriterionJudgment[] }
+  | { type: 'CHECK_RESULT'; resultId: string; candidateRevision?: string; criteriaResults?: CriterionJudgment[]; passed?: boolean; gaps?: string[] }
   | { type: 'STOP'; text?: string }
   | { type: 'SETTLE'; intentId: string }
   | { type: 'CONTINUE'; extraOrdinary?: number; text?: string; currentConfig?: TeamConfig }
@@ -220,6 +236,7 @@ export function validateModels(config: TeamConfig): void {
     if (service.jsonMode !== undefined && typeof service.jsonMode !== 'boolean') throw new Error('Invalid model JSON mode');
     if (service.temperature !== undefined && (!Number.isFinite(service.temperature) || service.temperature < 0 || service.temperature > 2)) throw new Error('Invalid model temperature');
     if (service.maxTokens !== undefined && (!Number.isSafeInteger(service.maxTokens) || service.maxTokens <= 0)) throw new Error('Invalid model token limit');
+    if (service.contextWindowTokens !== undefined && (!Number.isSafeInteger(service.contextWindowTokens) || service.contextWindowTokens <= 0)) throw new Error('Invalid model context window');
     if (service.extraBody !== undefined) {
       if (!service.extraBody || typeof service.extraBody !== 'object' || Array.isArray(service.extraBody)) throw new Error('Invalid extra model parameters');
       const reserved = ['model', 'messages', 'stream', 'response_format', 'tools', 'tool_choice', 'n', 'api_key', 'apiKey'];
