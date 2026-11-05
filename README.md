@@ -131,6 +131,7 @@ stateDiagram-v2
 | STOP | 根级 `[valid] → stopping` 保存取消意图；`stopping`、`ended` 的局部 STOP 为空处理。只有无在途及未知操作才经 `stoppedSettled` 结束 |
 | USER_INPUT / HUMAN_DECISION | 先保存输入，安全边界才应用；根级 `always` 按 `analysisReady → inputsReady` 顺序处理；复杂输入优先解析 |
 | CLAIM / WORK_FAILED | 优先检查当前状态的分支，未命中才回退根级讨论或取消分支；已提交意图才可执行，失败按重试、未知结果或等待用户分支处理 |
+| TICK | 执行中到达进展期限时复用协调检查；活动阶段无后续意图且无真实等待时保留已有成果并明确结算 |
 | EXHAUSTED | `[valid] → ended`，保留真实结果与已用预算，不承诺额度外的汇总或重试 |
 | RECOVER | 配置、成员、权限、模型、版本和未决物理操作均须核对；安全恢复保留当前阶段，否则转 `waitingHuman`；`ended` 使用其局部恢复规则 |
 | LOCAL_RESULT / LOCAL_RECONCILE | 仅可信且已结算的当前结果可按父工作种类恢复阶段；旧目标和停止任务只结算旧操作 |
@@ -148,7 +149,8 @@ stateDiagram-v2
 | 意图领取、工具、格式修正、本地操作与宿主 | [执行与适配器](docs/state-diagrams.md#执行与适配器边界)：BT_M、BT_W、BT_L |
 | 任务内证据查读、刷新与历史观测 | [任务级证据读取](docs/state-diagrams.md#任务级证据读取)：BT_L38–BT_L43 |
 | 按次/本次任务会话批准宿主 CLI、拒绝与恢复（BT_L35–BT_L37） | [宿主命令授权](docs/state-diagrams.md#宿主命令按次授权)：BT_L23–BT_L30；默认仍为沙箱 |
-| 沙箱失败后的主动申请与用户手动续办 | [失败命令的宿主续办](docs/state-diagrams.md#失败命令的宿主续办)（BT_L31–BT_L34、BT_L45–BT_L52） |
+| 沙箱失败后的主动申请与用户手动续办 | [失败命令的宿主续办](docs/state-diagrams.md#失败命令的宿主续办)（BT_L31–BT_L34、BT_L45–BT_L54） |
+| 进展检查、无后续工作与真实等待 | [任务推进监督](docs/state-diagrams.md#任务推进监督)（BT_X01–BT_X03） |
 | 模型请求、实际本地执行与耗时 | [执行测量](docs/state-diagrams.md#执行测量)：BT_Z01–BT_Z05；原业务状态不变 |
 | 工具与交付协议升级及旧任务续办 | [任务快照协议与回退](docs/state-diagrams.md#任务快照协议与回退)：BT_A27–BT_A28 |
 | 群历史、可信路由、归档 | [房间与命令](docs/state-diagrams.md#房间与可信命令)：BT_R、BT_G15–G22；归档不打断在途任务 |
