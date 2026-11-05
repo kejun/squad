@@ -1,3 +1,7 @@
+import type { Phase } from '../types.js';
+
+const settleStall = (phase: Phase) => ({ guard: { type: 'workflowStalled', params: { phase } }, target: 'ended', actions: 'settleStall' } as const);
+
 // Ordered transition arrays are part of the persisted/debugging contract.
 // `ended` remains resumable; only the execution epoch has ended.
 export const taskLifecycle = {
@@ -6,6 +10,7 @@ export const taskLifecycle = {
   always: [
     { guard: 'analysisReady', target: '.interpreting', actions: 'beginInterpretation' },
     { guard: 'inputsReady', target: '.running', actions: 'boundary' },
+    { guard: 'hostRetryBatchRetired', actions: 'retireHostRetry' },
     { guard: 'hostRetryReady', target: '.running', actions: 'startHostRetry' },
     { guard: 'hostRetryBoundary', target: '.ended', actions: 'failHostRetry' },
   ],
@@ -54,6 +59,7 @@ export const taskLifecycle = {
   states: {
     interpreting: {
       on: {
+        TICK: settleStall('interpreting'),
         CLAIM: { guard: 'claimInterpretation', actions: 'apply' },
         INTERPRETATION_RESULT: [
           { guard: 'interpretationClarifies', target: 'waitingHuman', actions: 'apply' },
@@ -78,13 +84,14 @@ export const taskLifecycle = {
           { guard: 'valid', target: 'ended', actions: 'apply' },
         ],
         TOOL: { guard: 'valid', actions: 'apply' },
-        TICK: { guard: 'shouldTick', target: 'coordinating', actions: 'apply' },
+        TICK: [{ guard: 'shouldTick', target: 'coordinating', actions: 'apply' }, settleStall('running')],
         FAILURE_SIGNAL: [{ guard: 'repeated', target: 'coordinating', actions: 'apply' }, { guard: 'valid', actions: 'apply' }],
         WORK_FAILED: [{ guard: 'failedDiscussion', actions: 'apply' }, { guard: 'retryable', actions: 'apply' }, { guard: 'revisionFailed', target: 'ended', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
       },
     },
     waitingAssistance: {
       on: {
+        TICK: settleStall('waitingAssistance'),
         CLAIM: { guard: 'claimHelp', actions: 'apply' },
         RECORD_RESULT: { guard: 'valid', actions: 'apply' },
         HELP_RESULT: [{ guard: 'reviewResultContinues', actions: 'apply' }, { guard: 'valid', target: 'running', actions: 'apply' }],
@@ -93,6 +100,7 @@ export const taskLifecycle = {
     },
     coordinating: {
       on: {
+        TICK: settleStall('coordinating'),
         CLAIM: { guard: 'claimFacilitator', actions: 'apply' },
         COORDINATE: [
           { guard: 'decisionReviewDispatch', target: 'waitingAssistance', actions: 'apply' },
@@ -110,6 +118,7 @@ export const taskLifecycle = {
     waitingHuman: { on: { CONTINUE: { guard: 'valid', target: 'running', actions: 'apply' } } },
     checking: {
       on: {
+        TICK: settleStall('checking'),
         CLAIM: [{ guard: 'claimCheckUnavailable', target: 'ended', actions: 'failCheckClaim' }, { guard: 'claimCheck', actions: 'apply' }],
         CHECK_RESULT: [
           { guard: 'checkCanRetry', actions: 'apply' },

@@ -25,11 +25,14 @@ function diagnosticMachine(evaluations: GuardObservation[]) {
     const transitions = (value: unknown, event: string) => (Array.isArray(value) ? value : [value]).map((raw, order) => {
       const original: { guard?: unknown; target?: string } = typeof raw === 'string' ? { target: raw } : (raw ?? {});
       const guard = original.guard;
-      const name = typeof guard === 'string' ? guard : null;
+      const reference = guard && typeof guard === 'object' && 'type' in guard ? guard : undefined;
+      const name = typeof guard === 'string' ? guard : typeof reference?.type === 'string' ? reference.type : null;
       const implementation = name ? taskMachine.implementations.guards[name] : guard;
       if (guard !== undefined && typeof implementation !== 'function') throw new Error('Unsupported diagnostic guard');
+      const params = reference && 'params' in reference ? reference.params : undefined;
       return { ...original, guard: (args: GuardArgs) => {
-        const passed = guard === undefined || (implementation as (args: GuardArgs, params: undefined) => boolean)(args, undefined);
+        const passed = guard === undefined || (implementation as (args: GuardArgs, params: unknown) => boolean)(
+          args, typeof params === 'function' ? params(args) : params);
         if (!args.event.type.startsWith('EXECUTION_') && !args.event.type.startsWith('xstate.done.actor.') && String(args.event.type) !== 'xstate.stop') evaluations.push({ ruleId: ruleId(source, event, order), source, event, guard: name, passed });
         return passed;
       } };

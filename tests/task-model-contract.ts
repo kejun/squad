@@ -16,7 +16,8 @@ export const legacyTaskContract = JSON.parse(readFileSync(new URL('./fixtures/ta
 assert.equal(legacyTaskContract.sourceSha, 'dd5ec71b41a82a13c831938e5401783214db76aa07d9e0ab80487b03b7dd42f9');
 // BT_L23–L30 add six approval rules; BT_L32–L34 add two manual retry rules. BT_L37 adds session revocation. Frozen traces stay untouched.
 // BT_M23–M29 add one explanation action to the existing current-coordination rejection.
-const extendedDefinition = 'd22b23bc';
+// BT_L53–L54 add host retry retirement; BT_X01–X03 add stall supervision.
+const extendedDefinition = '11136bc2';
 const coordinationRejectionId = 'coordinating:COORDINATE:6';
 const sessionRules = [
   { id: '*:REVOKE_HOST_SESSION:0', order: 0, source: '*', event: 'REVOKE_HOST_SESSION', target: null, guards: ['valid'], actions: ['apply'] },
@@ -31,9 +32,15 @@ const hostRetryRules = [
   { id: '*:LOCAL_RETRY_EXPIRED:1', order: 1, source: '*', event: 'LOCAL_RETRY_EXPIRED', target: null, guards: [], actions: ['reject'] },
 ];
 const hostRetryAlwaysRules = [
-  { id: '*:@always:2', order: 2, source: '*', event: '@always', target: 'running', guards: ['hostRetryReady'], actions: ['startHostRetry'] },
-  { id: '*:@always:3', order: 3, source: '*', event: '@always', target: 'ended', guards: ['hostRetryBoundary'], actions: ['failHostRetry'] },
+  { id: '*:@always:2', order: 2, source: '*', event: '@always', target: null, guards: ['hostRetryBatchRetired'], actions: ['retireHostRetry'] },
+  { id: '*:@always:3', order: 3, source: '*', event: '@always', target: 'running', guards: ['hostRetryReady'], actions: ['startHostRetry'] },
+  { id: '*:@always:4', order: 4, source: '*', event: '@always', target: 'ended', guards: ['hostRetryBoundary'], actions: ['failHostRetry'] },
 ];
+const supervisionInsertions = new Map([
+  ['interpreting:CLAIM:0', 'interpreting:TICK:0'], ['running:TICK:0', 'running:TICK:1'],
+  ['waitingAssistance:CLAIM:0', 'waitingAssistance:TICK:0'], ['coordinating:CLAIM:0', 'coordinating:TICK:0'],
+  ['checking:CLAIM:0', 'checking:TICK:0'],
+]);
 const heldFinish = { id: 'coordinating:COORDINATE:4', order: 4, source: 'coordinating', event: 'COORDINATE', target: 'running', guards: ['hostRetryHoldsFinish'], actions: ['apply'] };
 const rules = (source: string, event: string, branches: [string | null, string | null, string?][]) => branches.map(([guard, target, action], order) => ({
   id: `${source}:${event}:${order}`, order, source, event, target, guards: guard ? [guard] : [], actions: [action ?? 'apply'],
@@ -318,6 +325,12 @@ export function verifyLegacyDiagnostics() {
         return rule.order === heldFinish.order ? [heldFinish, shifted] : [shifted];
       }
       return rule.id === '*:@always:1' ? [rule, ...hostRetryAlwaysRules] : [rule];
+    }).flatMap(rule => {
+      const id = supervisionInsertions.get(rule.id);
+      if (!id) return [rule];
+      const watchdog = { id, order: rule.source === 'running' ? 1 : 0, source: rule.source, event: 'TICK',
+        target: 'ended', guards: ['workflowStalled'], actions: ['settleStall'] };
+      return rule.source === 'running' ? [rule, watchdog] : [watchdog, rule];
     });
   assert.deepEqual(taskGraph(), { ...graph, definition: extendedDefinition, transitions });
   for (const trace of legacyTaskContract.traces) replayLegacyTrace(trace.name, true);

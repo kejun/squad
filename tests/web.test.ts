@@ -16,10 +16,10 @@ afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close();
 });
 const configuration = () => createTeamConfig({});
-async function host(adapter: WorkAdapter, path?: string) {
+async function host(adapter: WorkAdapter, path?: string, config = configuration()) {
   const directory = mkdtempSync(join(tmpdir(), "squad-web-"));
   const database = path ?? join(directory, "team.sqlite");
-  const service = new WebService(configuration(), database, adapter);
+  const service = new WebService(config, database, adapter);
   const server = createWebServer(service);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -49,8 +49,8 @@ async function host(adapter: WorkAdapter, path?: string) {
   };
   return { service, server, url, request, database, close };
 }
-async function until<T>(get: () => T, test: (value: T) => boolean): Promise<T> {
-  for (let n = 0; n < 100; n++) {
+async function until<T>(get: () => T, test: (value: T) => boolean, polls = 100): Promise<T> {
+  for (let n = 0; n < polls; n++) {
     const value = get();
     if (test(value)) return value;
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -58,6 +58,46 @@ async function until<T>(get: () => T, test: (value: T) => boolean): Promise<T> {
   throw new Error("Expected host state was not reached");
 }
 describe("Web host and HTTP boundary", () => {
+  it("[BT_X01] detects a retired owner on the next service tick and completes one coordination", async () => {
+    const config = configuration();
+    config.limits.progressIntervalMs = 10;
+    const calls: string[] = [];
+    let reason: unknown;
+    let releaseOwner = () => {};
+    const held = new Promise<void>(resolve => { releaseOwner = resolve; });
+    const app = await host({ execute: async work => {
+      calls.push(work.kind);
+      if (work.kind === 'owner') {
+        await held;
+        return { type: 'help', requestId: 'invalid-self', target: work.target, question: '核对方案', expected: '依据' };
+      }
+      expect(work.kind).toBe('facilitator');
+      reason = work.payload.reason;
+      return { type: 'decision', decision: { action: 'finish', reason: '没有可继续的工作' } };
+    } }, undefined, config);
+
+    try {
+      const room = (await app.request<WebRoom>('/api/rooms', { title: '推进监督' })).data;
+      const route = `/api/rooms/${room.id}`;
+      expect((await app.request(`${route}/messages`, { id: 'watchdog', text: '检验任务推进' })).status).toBe(200);
+      await until(() => calls.length, count => count === 1);
+      // Keep the owner active across a real one-second service tick before its rejected completion.
+      await new Promise<void>(resolve => setTimeout(resolve, 1100));
+      expect(calls).toEqual(['owner']);
+      const trace = app.service.engine.view(room.id)?.context.trace;
+      expect(trace?.some(entry => entry.event === 'REJECTED' && /^(progress|supervision):/u.test(entry.detail))).toBe(false);
+      releaseOwner();
+      await until(() => app.service.snapshot(room.id).tasks[0]?.phase, phase => phase === 'ended', 250);
+
+      const { data } = await app.request<RoomSnapshot>(route);
+      expect(data.tasks[0]).toMatchObject({ phase: 'ended', outcome: 'failed', reason: '没有可继续的工作' });
+      expect(calls).toEqual(['owner', 'facilitator']);
+      expect(reason).toBe('No evidenced progress by deadline');
+    } finally {
+      releaseOwner();
+    }
+  });
+
   it.each(["button", "B 重试"])("[BT_H11] [BT_U16] resumes A after B retry through HTTP (%s)", async (entry) => {
     const calls: string[] = []; let ownerCalls = 0; let helperCalls = 0;
     const app = await host({ execute: async (work) => {

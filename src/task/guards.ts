@@ -1,11 +1,12 @@
-import { canStartHostRetry, findHostRetry, hostRetryBoundary, pendingHostRetry } from '../host-retry.js';
-import { type TaskContext, type TaskEvent } from '../types.js';
+import { canStartHostRetry, findHostRetry, hostRetryBoundary, pendingHostRetry, retiredHostRetryBatch } from '../host-retry.js';
+import { type Phase, type TaskContext, type TaskEvent } from '../types.js';
 import { localResumeKind, permissionProblem, valid } from './policy.js';
 import { activeHelp, allInflight, d, discussionActive, fresh, incompatibleExecution, inflight, isBot, pendingInput, recoveryIssue, remainingInflight, unresolvedInput } from './facts.js';
-import { localAwaitingApproval, localPhysicalPending } from '../local-operation.js';
+import { localPhysicalPending } from '../local-operation.js';
 import { helpResultContinuesReview, nextReviewer, reviewCanDispatch, savedHelpResult } from './assistance.js';
 import { automaticRevisionActive, canReviseDelivery, checkDisposition, deliveryInterruptionPending, deliverySubmissionProblem, hasDeliveryRetryPermit, isBoundedCheck, recoveryCheckExhausted, settlingDeliveryCheck } from './delivery.js';
 import { canRetryDeliveryCheck, canRetryWork } from './budget.js';
+import { canCoordinateByProgress, workflowStalled } from './supervision.js';
 
 type TaskGuardArgs = { context: TaskContext; event: TaskEvent };
 const resultKind = ({ context, event }: TaskGuardArgs) => event.type === 'CHECK_RESULT' && valid({ context, event })
@@ -17,6 +18,7 @@ export const taskGuards = {
     valid,
     reactivateHostRetry: args => valid(args) && args.event.type === 'REQUEST_HOST_RETRY' && args.context.outcome !== null
       && !findHostRetry(args.context, args.event.sourceWorkId, args.event.sourceOperationId),
+    hostRetryBatchRetired: ({ context }) => retiredHostRetryBatch(context),
     hostRetryReady: ({ context, event }) => canStartHostRetry(context, event.at ?? context.lastActivityAt),
     hostRetryBoundary: ({ context }) => hostRetryBoundary(context),
     hostRetryHoldsFinish: args => valid(args) && d(args.event)?.action === 'finish' && pendingHostRetry(args.context),
@@ -76,7 +78,10 @@ export const taskGuards = {
       && context.intents.some(work => work.id === event.intentId && isBoundedCheck(work))
       && ['CHECK_BUDGET_EXHAUSTED', 'WORK_EXPIRED'].includes(permissionProblem(context, event) ?? ''),
     claimCancel: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'cancel',
-    shouldTick: ({ context, event }) => valid({ context, event }) && !automaticRevisionActive(context) && !discussionActive(context) && event.at >= context.nextCheckAt && inflight(context).length === 0 && !context.intents.some(work => localPhysicalPending(work) || localAwaitingApproval(work)) && !context.processedSignals.includes(event.id),
+    shouldTick: ({ context, event }) => valid({ context, event }) && event.at >= context.nextCheckAt
+      && canCoordinateByProgress(context) && !context.processedSignals.includes(event.id),
+    workflowStalled: ({ context, event }, { phase }: { phase: Phase }) => valid({ context, event })
+      && event.at >= context.nextCheckAt && workflowStalled(context, phase),
     repeated: ({ context, event }) => {
       if (event.type !== 'FAILURE_SIGNAL' || !valid({ context, event }) || automaticRevisionActive(context) || discussionActive(context) || remainingInflight(context, event).length) return false;
       const f = JSON.stringify([event.operation, event.parameters, event.resource, event.error, event.result]).normalize('NFKC');
@@ -105,4 +110,4 @@ export const taskGuards = {
     failedAssistance: args => valid(args) && args.event.type === 'WORK_FAILED' && !args.event.resultUncertain && args.context.intents.find(i => i.id === (args.event as Extract<TaskEvent, { type: 'WORK_FAILED' }>).intentId)?.kind === 'assistance',
     recoveredSafe: ({ context, event }) => event.type === 'RECOVER' && !recoveryIssue(context, event.config) && !context.intents.some(i => localPhysicalPending(i) || i.status === 'uncertain' || i.status === 'inflight' && i.replay === 'unsafe'),
     recoveredCheckExhausted: ({ context, event }) => event.type === 'RECOVER' && !recoveryIssue(context, event.config) && !!recoveryCheckExhausted(context, event.at),
-  } satisfies Record<string, (args: TaskGuardArgs) => boolean>;
+  } satisfies Record<string, (args: TaskGuardArgs, params: never) => boolean>;

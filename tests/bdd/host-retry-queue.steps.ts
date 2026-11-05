@@ -3,8 +3,9 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 import type { SpecWorld } from './steps.js';
 import { HostRetryFixture } from '../host-retry-fixture.js';
 import { hostUntil } from '../host-approval-fixture.js';
-import { claimCheck, claimRetryWork, decideRetry, deliver, failedSandbox, passCheck, prepareRetry, request, retryOp, retryWork, settleRetry, startRetry, twoQueued } from '../host-retry-model-fixture.js';
+import { claimCheck, claimRetryWork, decideRetry, deliver, failedSandbox, passCheck, prepareRetry, request, retryOp, retryWork, secondWaitingBehindFirstBatch, settleRetry, startRetry, twoQueued } from '../host-retry-model-fixture.js';
 import { localModelInput, type LocalModel } from '../local-model-fixture.js';
+import { modelResponse } from '../model-regeneration-fixture.js';
 
 interface State {
   fixture?: HostRetryFixture;
@@ -12,6 +13,7 @@ interface State {
   work?: string;
   originalOrdinary?: number;
   first?: string;
+  candidate?: string;
 }
 const states = new WeakMap<SpecWorld, State>();
 function state(world: SpecWorld) {
@@ -199,4 +201,71 @@ When('请求到达截止时间', function (this: SpecWorld) {
 Then('应显示到期未执行且该命令不得再被批准启动', function (this: SpecWorld) {
   const m = model(this); assert.equal(m.c.hostRetryRequests?.[0]?.status, 'expired');
   assert.equal(decideRetry(m).ok, false); assert.equal(retryOp(m).startedAt, undefined);
+});
+
+Given('第一批宿主命令已有保存回执且另一条续办已经受理', async function (this: SpecWorld) {
+  const s = state(this), fixture = new HostRetryFixture(); s.fixture = fixture;
+  await fixture.pauseAfterFirstRetryReceipt();
+  const c = fixture.service.engine.view(fixture.room.id, fixture.taskId)!.context;
+  assert(c.hostRetryBatch && c.candidate);
+  assert.deepEqual(c.hostRetryRequests?.map(r => r.status), ['settled', 'pending']);
+  s.first = c.hostRetryBatch.workId;
+  s.candidate = c.candidate.text;
+});
+
+When('第一批负责人以{string}结算', async function (this: SpecWorld, interruption: string) {
+  const s = state(this), f = s.fixture!;
+  if (interruption === '恢复旧快照') await f.restartWithLegacyBatch(s.first!);
+  else if (interruption === '综合失败') f.resumeSynthesis(new Response(null, { status: 400 }));
+  else {
+    assert.equal(interruption, '无效协助');
+    const owner = f.service.engine.view(f.room.id, f.taskId)!.context.owner;
+    f.resumeSynthesis(modelResponse({ type: 'help', target: owner, question: '核查', expected: '证据' }));
+  }
+});
+
+Then('应记录旧批次释放并派发下一条请求一次', async function (this: SpecWorld) {
+  const s = state(this), f = s.fixture!, approval = await f.approval();
+  assert.equal(approval.args.at(-1), 'command-2');
+  const c = f.service.engine.view(f.room.id, f.taskId)!.context;
+  assert.deepEqual(c.trace.filter(entry => entry.event === 'HOST_RETRY_BATCH_RETIRED').map(entry => JSON.parse(entry.detail).workId), [s.first]);
+  assert.equal(c.hostRetryBatch?.workId, approval.workId);
+  assert.equal(c.intents.find(work => work.id === approval.workId)?.localOperations?.length, 1);
+  assert.equal(await f.runs(), 'once\n');
+});
+
+Then('应保留原回执和候选并按原权限核对新命令', async function (this: SpecWorld) {
+  const s = state(this), f = s.fixture!, approval = await f.approval();
+  const c = f.service.engine.view(f.room.id, f.taskId)!.context;
+  assert.equal(c.candidate?.text, s.candidate);
+  assert.equal(c.intents.find(work => work.id === s.first)?.localOperations?.[0]?.status, 'succeeded');
+  assert.deepEqual(f.snapshot().failedSandboxCommands?.map(row => row.retry?.status), ['settled', 'awaitingApproval']);
+  assert.equal((await f.request(f.decisionData(approval, 'approve'))).status, 200);
+  assert.equal((await f.complete()).tasks.at(-1)?.outcome, 'complete');
+  assert.equal(await f.runs(), 'once\nonce\n');
+});
+
+Given('宿主命令的物理效果尚待核对且另一条续办已经受理', function (this: SpecWorld) {
+  const s = state(this), m = secondWaitingBehindFirstBatch(); s.model = m;
+  prepareRetry(m); assert(decideRetry(m).ok); assert(startRetry(m).ok);
+  assert(settleRetry(m, { uncertain: true }).ok);
+  s.work = retryWork(m).id;
+  s.first = retryOp(m).id;
+});
+
+When('后端重新检查当前批次', function (this: SpecWorld) {
+  assert(model(this).send({ type: 'RECOVER', config: localModelInput().config }).ok);
+});
+
+Then('应保留待核对记录及后续请求', function (this: SpecWorld) {
+  const m = model(this);
+  assert.equal(m.snapshot.value, 'waitingHuman');
+  assert.deepEqual(m.c.hostRetryRequests?.map(r => r.status), ['uncertain', 'pending']);
+});
+
+Then('不应重新执行旧命令或提前派发新命令', function (this: SpecWorld) {
+  const s = state(this), m = model(this);
+  assert.equal(retryWork(m).id, s.work);
+  assert.deepEqual(m.c.intents.flatMap(work => work.localOperations ?? []).filter(op => op.hostRetryOf).map(op => op.id), [s.first]);
+  assert.equal(retryOp(m).status, 'uncertain');
 });

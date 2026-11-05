@@ -1,11 +1,11 @@
-import { failHostRetryBoundary, startHostRetryBatch } from '../host-retry.js';
+import { failHostRetryBoundary, retireHostRetryBatch, startHostRetryBatch } from '../host-retry.js';
 import { type TaskContext, type TaskEvent } from '../types.js';
 import { assign } from 'xstate';
 import { reduce } from './reducer.js';
-import { discussionActive, fresh, reject } from './facts.js';
+import { discussionActive, fresh, ok, reject } from './facts.js';
 import { permissionProblem } from './policy.js';
 import { discussionFailed } from './discussion.js';
-import { cancelWork, coordinate, message, release } from './operations.js';
+import { cancelWork, coordinate, finish, message, release } from './operations.js';
 import { prepareInterpretation } from './input.js';
 
 // The root machine remains the sole owner of the context returned by each pure action.
@@ -39,9 +39,23 @@ export const taskActions = {
       startHostRetryBatch(c, { ...event, at: event.at ?? c.lastActivityAt });
       return c;
     }),
+    retireHostRetry: taskAssign(({ context, event }) => {
+      const c = structuredClone(context);
+      retireHostRetryBatch(c, { ...event, at: event.at ?? c.lastActivityAt });
+      return c;
+    }),
     failHostRetry: taskAssign(({ context, event }) => {
       const c = structuredClone(context);
       failHostRetryBoundary(c, { ...event, at: event.at ?? c.lastActivityAt });
+      return c;
+    }),
+    settleStall: taskAssign(({ context, event }) => {
+      const c = structuredClone(context);
+      ok(c);
+      c.lastActivityAt = event.at;
+      c.trace.push({ event: 'WORKFLOW_STALLED', detail: event.id, at: event.at });
+      const usable = c.candidate?.goalVersion === c.goalVersion || c.artifacts.some(item => item.goalVersion === c.goalVersion);
+      finish(c, event, usable ? 'partial' : 'failed', '推进中断：当前阶段没有可执行的后续工作。');
       return c;
     }),
     reject: taskAssign(({ context, event }) => {

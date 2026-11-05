@@ -48,6 +48,8 @@ export const guardDescriptions: Record<string, string> = {
   claimFacilitator: '领取的是有效非讨论协调工作',
   claimCheck: '领取的是有效检查工作',
   shouldTick: '到达进展检查时刻，事件未处理且讨论、执行及本地授权均不阻塞',
+  workflowStalled: '已到检查时刻，当前阶段没有可执行的后续工作或需要保留的等待',
+  hostRetryBatchRetired: '旧宿主续办批次已无在途工作，且没有待核对的宿主效果',
   repeated: '同一失败达到重复阈值且当前允许进入协调',
   decisionAssist: '有效协调决定要求协助',
   decisionAsk: '有效协调决定要求询问用户',

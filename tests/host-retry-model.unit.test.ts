@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LocalModel, localModelInput } from './local-model-fixture.js';
 
-import { claimCheck, claimRetryOp, claimRetryWork, decideRetry, deliver, failedSandbox, passCheck, prepareRetry, request, requestSecond, retryOp, retryWork, settleRetry, startRetry, twoQueued } from './host-retry-model-fixture.js';
+import { claimCheck, claimRetryOp, claimRetryWork, decideRetry, deliver, failedSandbox, firstBatchReceiptSaved, passCheck, prepareRetry, request, requestSecond, retryOp, retryWork, secondWaitingBehindFirstBatch, settleRetry, startRetry, twoQueued } from './host-retry-model-fixture.js';
 describe('用户从失败沙箱记录续办（真实XState，每步持久化）', () => {
   it('[BT_L32] revives an ended round with a fixed, unapproved host operation and a saved model checkpoint', () => {
     const m = failedSandbox(true); expect(m.c.outcome).toBe('complete');
@@ -202,6 +202,71 @@ describe('用户从失败沙箱记录续办（真实XState，每步持久化）'
     expect(m.c.intents[0]?.status).toBe('inflight');
     expect(deliver(m).ok).toBe(true);
     expect(m.c.outcome).toBe('partial');
+  });
+  it.each([
+    { name: 'rejected self-help', code: 'SELF_DEPENDENCY', finish: (m: LocalModel) => {
+      const work = retryWork(m);
+      return m.send({ type: 'HELP', workId: work.id, fence: work, caller: 'A', target: 'A', requestId: 'self-help', question: '核查', expected: '证据' });
+    } },
+    { name: 'failed synthesis', code: 'OK', finish: (m: LocalModel) => m.send({ type: 'WORK_FAILED', intentId: retryWork(m).id, reason: '综合失败', transient: false }) },
+    { name: 'restored legacy batch', code: 'OK', finish: (m: LocalModel) => {
+      retryWork(m).status = 'done'; // A snapshot persisted before the batch lifetime was repaired.
+      return m.send({ type: 'RECOVER', config: localModelInput().config });
+    } },
+  ])('[BT_L53] releases the previous batch and dispatches the accepted successor after $name', ({ finish, code }) => {
+    const m = firstBatchReceiptSaved();
+    const previousWorkId = retryWork(m).id, previousOp = retryOp(m), candidate = m.c.candidate;
+
+    expect(finish(m).code).toBe(code);
+
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['settled', 'active']);
+    expect(retryWork(m).id).not.toBe(previousWorkId);
+    expect(retryOp(m)).toMatchObject({ hostRetryOf: 'op2', status: 'queued' });
+    expect(retryOp(m).approval).toBeUndefined();
+    expect(m.c.intents.find(work => work.id === previousWorkId)?.localOperations).toEqual([previousOp]);
+    expect(m.c.candidate).toEqual(candidate);
+    expect(m.c.outcome).toBeNull();
+    expect(m.c.trace.filter(entry => entry.event === 'HOST_RETRY_BATCH_RETIRED').map(entry => JSON.parse(entry.detail).workId)).toEqual([previousWorkId]);
+  });
+  it('[BT_L54] leaves a newly accepted retry waiting while a previous host command has unknown effects', () => {
+    const m = secondWaitingBehindFirstBatch();
+    prepareRetry(m);
+    decideRetry(m);
+    startRetry(m);
+    settleRetry(m, { uncertain: true });
+    const work = retryWork(m), operation = retryOp(m);
+
+    expect(m.send({ type: 'RECOVER', config: localModelInput().config }).ok).toBe(true);
+
+    expect(m.snapshot.value).toBe('waitingHuman');
+    expect(retryWork(m).id).toBe(work.id);
+    expect(retryOp(m)).toEqual(operation);
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['uncertain', 'pending']);
+    expect(m.c.intents.flatMap(w => w.localOperations ?? []).filter(op => op.hostRetryOf).map(op => op.id)).toEqual([operation.id]);
+  });
+  it('[BT_L54] leaves a live batch waiting for approval while an independent retry queues', () => {
+    const m = secondWaitingBehindFirstBatch();
+    prepareRetry(m);
+    const work = retryWork(m), approval = retryOp(m).approval;
+
+    expect(m.send({ type: 'HOST_RETRY_EXPIRE' }).ok).toBe(true);
+
+    expect(retryWork(m).id).toBe(work.id);
+    expect(retryOp(m)).toMatchObject({ status: 'awaitingApproval', approval });
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['active', 'pending']);
+  });
+  it('[BT_L53] cancels only unstarted items of a recovered owner superseded by new input', () => {
+    const m = twoQueued();
+    prepareRetry(m);
+    expect(m.send({ type: 'RECOVER', config: localModelInput().config }).ok).toBe(true);
+    const work = retryWork(m);
+
+    expect(m.send({ type: 'USER_INPUT', text: '保留已有证据' }).ok).toBe(true);
+
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['cancelled', 'cancelled']);
+    expect(m.c.intents.find(item => item.id === work.id)?.localOperations?.[0]).toMatchObject({ status: 'cancelled', approval: { status: 'expired' } });
+    expect(m.c.intents.at(-1)).toMatchObject({ kind: 'owner', status: 'pending' });
+    expect(m.c.hostRetryBatch).toBeUndefined();
   });
   it.each([
     { name: 'stopped', change: (m: LocalModel) => { m.c.stopped = true; } },

@@ -74,3 +74,21 @@ export function twoQueued() {
   assert(request(m).ok); assert(requestSecond(m).ok); assert(deliver(m).ok); claimRetryWork(m);
   return m;
 }
+
+export function secondWaitingBehindFirstBatch() {
+  const m = failedSandbox(false, true);
+  assert(request(m).ok);
+  assert(deliver(m).ok);
+  assert(requestSecond(m).ok);
+  claimRetryWork(m);
+  return m;
+}
+
+export function firstBatchReceiptSaved() {
+  const m = secondWaitingBehindFirstBatch();
+  prepareRetry(m);
+  assert(decideRetry(m).ok);
+  assert(startRetry(m).ok);
+  assert(settleRetry(m).ok);
+  return m;
+}

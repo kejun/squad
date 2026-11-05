@@ -143,7 +143,7 @@ export interface TaskContext extends Fence {
   localSkillVersions?: SkillBinding[];
   hostSession?: HostSessionGrant | undefined;
   hostRetryRequests?: HostRetryRequest[];
-  hostRetryBatch?: HostRetryBatch;
+  hostRetryBatch?: HostRetryBatch | undefined;
 }
 export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[] }
 export interface Envelope { id: string; at: number; fence?: Fence; workId?: string; attempt?: number }

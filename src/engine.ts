@@ -1,6 +1,6 @@
-import { localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalMessage, type LocalOperation } from './local-operation.js';
+import { localEnabled, localPhysicalPending, type LocalAction, type LocalMessage, type LocalOperation } from './local-operation.js';
 import { createHash, randomUUID } from 'node:crypto';
-import { initialTask, persistTask, restoreTask, stepTask, taskPhase, startTaskExecution, executionState, workLaneAvailable, type TaskSnapshot } from './task.machine.js';
+import { initialTask, persistTask, restoreTask, stepTask, taskPhase, startTaskExecution, executionState, type TaskSnapshot } from './task.machine.js';
 import type { Store, Transaction } from './store.js';
 import { conversationHistory, requestedReviewTargets } from './conversation.js';
 import { requestedRetryTarget, retryableAssistance, retryProblemText } from './assistance-retry.js';
@@ -12,6 +12,7 @@ import { recoveryIssue } from './task/facts.js';
 import { legacyTerminalConfig, taskProtocolChanged, taskStorageVersion } from './task/protocol.js';
 import { restoreRoomArchive, stepRoomArchive } from './room.machine.js';
 import { hostRetryAction } from './host-retry.js';
+import { canSuperviseProgress, pendingInPhase } from './task/supervision.js';
 
 interface StoredTask { version: 1 | 2 | 3; snapshot: unknown }
 const protocolBoundEvents = new Set<TaskEvent['type']>([
@@ -301,12 +302,8 @@ export class TeamEngine {
   pending(roomId: string, taskId: string): Intent[] {
     const view = this.view(roomId, taskId);
     if (!view) return [];
-    const kind: Partial<Record<TaskView['phase'], Intent['kind'][]>> = {
-      interpreting: ['interpretation'], running: ['owner', 'tool'], waitingAssistance: ['assistance'], coordinating: ['facilitator'], checking: ['check'],
-    };
     const compatible = !taskProtocolChanged(view.context.config, this.config);
-    return view.context.intents.filter(i => i.status === 'pending' && !localAwaitingApproval(i) && (i.kind === 'cancel'
-      || (compatible && !view.context.stopped && view.context.outcome === null && (i.discussionId || kind[view.phase]?.includes(i.kind)) && workLaneAvailable(view.context, i))));
+    return view.context.intents.filter(work => (compatible || work.kind === 'cancel') && pendingInPhase(view.context, view.phase, work));
   }
   claim(roomId: string, taskId: string, intentId: string): Intent | null {
     const view = this.view(roomId, taskId);
@@ -390,23 +387,27 @@ export class TeamEngine {
       }
     }
     const latest = this.view(roomId, c.taskId)!;
-    if (latest.phase === 'running' && (!latest.context.discussion || ['delivered', 'cancelled'].includes(latest.context.discussion.status))
-      && latest.context.nextCheckAt <= at) this.send(roomId, c.taskId, { type: 'TICK', id: `progress:${c.taskId}:${latest.context.epoch}:${latest.context.nextCheckAt}`, at });
+    if (latest.context.nextCheckAt <= at && canSuperviseProgress(latest.context, latest.phase)) {
+      const { epoch, goalVersion, nextCheckAt } = latest.context;
+      // Older drivers could persist a rejected progress receipt while the work was still running.
+      this.send(roomId, c.taskId, { type: 'TICK', id: `supervision:${c.taskId}:${epoch}:${nextCheckAt}`, at, fence: { epoch, goalVersion } });
+    }
   }
   nextWake(roomId: string): number | null {
     const view = this.view(roomId);
     if (!view || view.phase === 'ended' || taskProtocolChanged(view.context.config, this.config)) return null;
     const discussing = view.context.discussion && !['delivered', 'cancelled'].includes(view.context.discussion.status);
-    const retryDeadlines = (view.context.hostRetryRequests ?? []).filter(r => r.status === 'pending' || r.status === 'active' && !r.operationId).map(r => r.deadline);
-    if (view.phase === 'waitingHuman' && !discussing) return retryDeadlines.length ? Math.min(...retryDeadlines) : null;
-    if (view.context.results.some(r => !r.consumed)) return this.clock();
-    const work = view.context.intents.filter(i => ['pending', 'inflight'].includes(i.status) && i.deadline !== null).map(i => i.deadline!);
-    work.push(...retryDeadlines);
+    const deadlines = (view.context.hostRetryRequests ?? []).filter(r => r.status === 'pending' || r.status === 'active' && !r.operationId).map(r => r.deadline);
     for (const intent of view.context.intents) for (const op of intent.localOperations ?? []) {
-      if (op.status === 'awaitingApproval' && op.approval) work.push(op.approval.expiresAt);
-      if (op.deadline !== undefined && ['queued', 'awaitingApproval'].includes(op.status)) work.push(op.deadline);
+      if (op.status === 'awaitingApproval' && op.approval) deadlines.push(op.approval.expiresAt);
+      if (op.deadline !== undefined && ['queued', 'awaitingApproval'].includes(op.status)) deadlines.push(op.deadline);
     }
-    if (view.phase === 'running' && !discussing && !view.context.intents.some(localAwaitingApproval)) work.push(view.context.nextCheckAt);
-    return work.length ? Math.min(...work) : null;
+    if (view.phase === 'waitingHuman' && !discussing) return deadlines.length ? Math.min(...deadlines) : null;
+    if (view.context.results.some(r => !r.consumed)) return this.clock();
+    for (const work of view.context.intents) {
+      if (work.deadline !== null && ['pending', 'inflight'].includes(work.status)) deadlines.push(work.deadline);
+    }
+    if (canSuperviseProgress(view.context, view.phase)) deadlines.push(view.context.nextCheckAt);
+    return deadlines.length ? Math.min(...deadlines) : null;
   }
 }

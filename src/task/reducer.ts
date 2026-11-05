@@ -48,7 +48,6 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     }
     return c;
   }
-  if (e.workId === c.hostRetryBatch?.workId && e.workId && ['HELP', 'BLOCKED', 'WAIT_USER', 'DELIVER', 'TOOL'].includes(e.type)) delete c.hostRetryBatch;
   switch (e.type) {
     case 'REVOKE_HOST_SESSION': revokeHostSession(c, e.id); break;
     case 'REQUEST_HOST_RETRY':
@@ -252,7 +251,6 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const work = c.intents.find(i => i.id === e.intentId);
       const unfinishedCheck = settlingDeliveryCheck(c, work) && !deliveryInterruptionPending(c);
       release(c, e.intentId);
-      if (c.hostRetryBatch?.workId === e.intentId) cancelHostRetries(c, 'WORK_NOT_STARTED');
       if (unfinishedCheck) finishDelivery(c, e, '检查工作已结算，未收到可发布的检查结果', 'CHECK_NOT_COMPLETED');
       if (work?.kind === 'tool' && !c.stopped && fresh(c, { ...e, fence: { epoch: work.epoch, goalVersion: work.goalVersion } })) owner(c, e, { toolResult: work.id });
       break;
@@ -351,7 +349,6 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       } else {
         const failureReason = e.transient && c.usage.retries >= c.config.limits.retries ? `${e.reason}（重试额度已用尽）` : e.reason;
         release(c, work.id); c.reason = failureReason;
-        if (c.hostRetryBatch?.workId === work.id) cancelHostRetries(c, failureReason);
         if (!c.stopped && !deliveryInterruptionPending(c)) {
           if (isBoundedCheck(work)) finishDelivery(c, e, `检查未完成（${failureReason}）`, 'DELIVERY_CHECK_FAILED');
           if (work.payload.deliveryRevision === true) finishDelivery(c, e, failureReason, 'DELIVERY_REVISION_FAILED');
