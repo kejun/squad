@@ -5,7 +5,7 @@ import { api } from './api';
 
 const reasons: Record<string, string> = { STOPPED: '任务已停止', STALE_WORK: '任务目标已变化', ROOM_BUSY: '另一任务已成为当前任务',
   UNRESOLVED_WORK: '等待当前操作结算或核对', WAIT_FOR_BOUNDARY: '等待讨论或评审结束', LOCAL_TOOLS_DISABLED: '本地工具权限已关闭',
-  BUDGET_EXHAUSTED: '执行额度不足', HOST_RETRY_EFFECTS_REVIEW_REQUIRED: '请先核对上次命令的写入效果',
+  BUDGET_EXHAUSTED: '执行额度不足', HOST_RETRY_ISOLATED_SOURCE: '此命令属于独立检查或讨论副本', HOST_RETRY_EFFECTS_REVIEW_REQUIRED: '请先核对上次命令的写入效果',
   WORK_EXPIRED: '等待已到期', HOST_APPROVAL_DENIED: '用户已拒绝', HOST_APPROVAL_EXPIRED: '授权已到期',
   INCOMPATIBLE_EXECUTION: '请先恢复任务', OWNER_UNAVAILABLE: '负责人不可用', LOCAL_RUNTIME_NOT_CONFIGURED: '本地运行时未开启' };
 

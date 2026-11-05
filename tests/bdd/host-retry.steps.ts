@@ -66,6 +66,8 @@ When('用户尝试从该记录申请宿主执行', async function (this: SpecWor
     else if (s.boundary === '权限关闭') m.c.config.localTools = { enabled: false };
     else if (s.boundary === '原命令已成功') { m.op!.status = 'succeeded'; m.op!.result!.ok = true; }
     else if (s.boundary === '原命令本来就是宿主执行' && m.op!.action.type === 'runCli') m.op!.action.execution = 'host';
+    else if (s.boundary === '隔离检查副本') m.c.intents[0]!.kind = 'check';
+    else if (s.boundary === '隔离讨论副本') m.c.intents[0]!.discussionId = 'discussion';
     else throw new Error('Unknown boundary: ' + s.boundary);
     assert.equal(request(m).ok, false); assert.equal(m.c.intents.length, count);
     assert.equal(m.c.intents.flatMap(w => w.localOperations ?? []).filter(op => op.hostRetryOf).length, 0);

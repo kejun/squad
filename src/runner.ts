@@ -3,7 +3,7 @@ import { initialModelRequestId, publishObservation, type ExecutionObservation, t
 import { readSavedArtifact, readSavedEvidence } from './evidence-reader.js';
 import { evidenceIndex } from './task/evidence.js';
 import { acceptanceCriteria, validCriterionCoverage, validCriterionJudgments, type CriterionCoverage, type CriterionJudgment } from './delivery-acceptance.js';
-import { isSavedRead, localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
+import { hostRetrySourceAllowed, isSavedRead, localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
 import type { LocalRuntime } from './local-runtime.js';
 import { LocalToolError, type SkillPage } from './local-skills.js';
 import type { TeamEngine } from './engine.js';
@@ -242,7 +242,8 @@ export class WorkRunner {
           signal.throwIfAborted();
           // Permission and cancellation are checked again after the durable claim, before filesystem/process I/O.
           const context = this.engine.view(roomId, taskId)!.context;
-          if (context.stopped || context.epoch !== work.epoch || context.goalVersion !== work.goalVersion || !localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_EXECUTION_REVOKED');
+          if (context.stopped || context.epoch !== work.epoch || context.goalVersion !== work.goalVersion || !localEnabled(this.engine.config, work.target)
+            || !hostRetrySourceAllowed(context, operation, this.engine.config)) throw new WorkFailure('LOCAL_EXECUTION_REVOKED');
           if (isSavedRead(operation.action)) {
             const result = operation.action.type === 'readEvidence'
               ? readSavedEvidence(context, currentWork(), operation.action)
@@ -252,6 +253,7 @@ export class WorkRunner {
           } else {
             enteredRuntime = true;
             execution = await runtime.execute(currentWork(), operation, signal, metadata => {
+              if (!hostRetrySourceAllowed(context, operation, this.engine.config)) throw new LocalToolError('LOCAL_TOOLS_DISABLED');
               const started = send({ type: 'LOCAL_STARTED', id: `local-start:${operation.sessionId}`, at: this.clock(),
                 intentId: work.id, operationId: operation.id, sessionId: operation.sessionId!, ...metadata });
               if (!started.ok) throw new LocalToolError(started.code);
