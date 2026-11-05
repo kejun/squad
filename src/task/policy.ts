@@ -6,6 +6,7 @@ import { allInflight, discussionActive, fresh, hasOrdinary, incompatibleExecutio
 import { validArtifactDrafts, validSummary } from '../presentation.js';
 import { validInputIntent } from '../input-intent.js';
 import { assistanceRetryProblem, helpProblem } from './assistance.js';
+import { acceptanceCheckProblem, validCriterionCoverage, validCriterionJudgments } from '../delivery-acceptance.js';
 import { hostRetryProblem } from '../host-retry.js';
 
 export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
@@ -141,8 +142,12 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     case 'TOOL': return c.config.bots.find(b => b.id === c.owner)?.tools.includes(e.tool) ? null : 'TOOL_PERMISSION';
     case 'PROGRESS': return e.refs.length && e.refs.some(ref => !c.progressRefs.includes(ref) && (c.artifacts.some(a => a.id === ref) || c.board.some(b => b.id === ref) || c.messages.some(m => m.id === ref))) ? null : 'MISSING_NEW_PROGRESS_EVIDENCE';
     case 'ARTIFACT': return c.artifacts.some(a => a.id === e.artifact.id) ? 'ARTIFACT_ID_CONFLICT' : null;
-    case 'DELIVER': return e.text.trim() ? null : 'NO_DELIVERY';
-    case 'CHECK_RESULT': return c.consumedResults.includes(e.resultId) ? 'DUPLICATE_RESULT' : boundCheckProblem(c, e);
+    case 'DELIVER':
+      if (c.trace.some(entry => entry.event === 'DELIVER' && entry.detail === e.id)) return 'DUPLICATE_RESULT';
+      return !validCriterionCoverage(e.coverage) ? 'INVALID_COVERAGE' : e.text.trim() ? null : 'NO_DELIVERY';
+    case 'CHECK_RESULT':
+      if (c.consumedResults.includes(e.resultId)) return 'DUPLICATE_RESULT';
+      return !validCriterionJudgments(e.criteriaResults) ? 'INVALID_CRITERION_JUDGMENTS' : boundCheckProblem(c, e) ?? acceptanceCheckProblem(c, e);
     case 'WORK_FAILED': {
       const work = c.intents.find(i => i.id === e.intentId);
       if (!work || !['pending', 'inflight'].includes(work.status)) return 'UNKNOWN_OR_SETTLED_WORK';

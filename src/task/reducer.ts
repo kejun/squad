@@ -9,6 +9,7 @@ import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requ
 import { recordInput } from './input.js';
 import { deliveryVersionProblem, retainLegacyPublication } from './delivery.js';
 import { canRetryWork } from './budget.js';
+import { bindDraftReferences, deliveryCheckGaps, deliveryPreflight, deliveryRevision } from '../delivery-acceptance.js';
 import { applyHostRetry, cancelHostRetries, expireHostRetry, pendingHostRetry, settleHostRetryOperation } from '../host-retry.js';
 
 export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
@@ -111,7 +112,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       else {
         c.inputs.push({ id: e.id, text: e.text, applied: false });
         if (e.goal) {
-          c.goal = e.goal; c.goalVersion++; c.localSkillVersions = []; c.candidate = null;
+          c.goal = e.goal; c.goalVersion++; c.localSkillVersions = []; c.candidate = null; delete c.deliveryGaps;
           cancelWork(c, e, true); cancelHostRetries(c, 'STALE_WORK');
           for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight', 'clarification', 'failed'].includes(input.status)) input.status = 'cancelled';
           for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
@@ -126,7 +127,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       message(c, e, 'user', e.text, 'user');
       c.board.push({ id: e.id, kind: 'decision', text: e.text, author: 'user', sources: [e.id], verified: false, revision: 1, goalVersion: c.goalVersion });
       if (c.outcome === null) {
-        c.goal.constraints.push(`用户决定：${e.text}`); c.goalVersion++; c.localSkillVersions = []; c.candidate = null;
+        c.goal.constraints.push(`用户决定：${e.text}`); c.goalVersion++; c.localSkillVersions = []; c.candidate = null; delete c.deliveryGaps;
         for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight'].includes(input.status)) input.status = 'cancelled';
         c.inputs.push({ id: e.id, text: e.text, applied: false }); cancelWork(c, e, true); cancelHostRetries(c, 'STALE_WORK');
         for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
@@ -157,24 +158,51 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         reject(c, versionProblem.split(':')[0]!);
         break;
       }
+      const { acceptance, gaps, repeated } = deliveryPreflight(c, e);
       const artifactIds = saveReports(c, e, e.text, c.owner, e.artifacts);
       const requiresBoundCheck = !!c.publishedDelivery || e.artifacts?.some(artifact => !!artifact.replacesArtifactId);
       cancelWork(c, e); c.candidate = { text: e.text, artifactIds: [...new Set([...e.artifactIds, ...artifactIds])], goalVersion: c.goalVersion,
-        revision: `${c.taskId}:candidate:${e.id}`, ...(e.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(e.backgroundArtifactIds)] } : {}), ...(requiresBoundCheck ? { requiresBoundCheck: true } : {}),
-        ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}) };
+        revision: deliveryRevision(c, e), ...(e.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(e.backgroundArtifactIds)] } : {}), ...(requiresBoundCheck ? { requiresBoundCheck: true } : {}),
+        ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}),
+        ...(acceptance ? { acceptance: bindDraftReferences(acceptance, artifactIds) } : {}) };
+      if (gaps.length) c.deliveryGaps = gaps;
       if (discussionActive(c) || pendingHostRetry(c)) break;
+      if (gaps.length) {
+        const reason = gaps.map(gap => gap.reason).join('；');
+        if (hasOrdinary(c) && !repeated) {
+          c.reason = reason;
+          owner(c, e, { reason, deliveryGaps: gaps });
+        } else finish(c, e, 'partial', reason);
+        break;
+      }
       intent(c, e.at, 'check', 'facilitator', { goal: c.goal, ...deliveryArtifacts(c), board: c.board, ...conversationInput(c), deterministicGap: completeProblem(c) });
       break;
     }
-    case 'CHECK_RESULT':
+    case 'CHECK_RESULT': {
       c.consumedResults.push(e.resultId);
+      const gaps = deliveryCheckGaps(c, e);
+      const problem = completeProblem(c);
+      if (c.candidate?.acceptance) (c.deliveryAssessments ??= []).push({
+        candidateRevision: c.candidate.acceptance.revision, judgments: e.criteriaResults ?? [], gaps,
+      });
       if (pendingHostRetry(c)) break;
       if (discussionIncomplete(c)) finish(c, e, 'partial', discussionIncomplete(c)!);
       else if (c.review?.incomplete) finish(c, e, 'partial', c.review.incomplete);
-      else if (e.passed && !completeProblem(c)) finish(c, e, 'complete', '');
-      else if (hasOrdinary(c)) coordinate(c, e, [completeProblem(c), ...e.gaps].filter(Boolean).join('; ') || 'Incomplete delivery');
-      else finish(c, e, c.candidate || c.artifacts.length ? 'partial' : 'failed', e.gaps.join('; ') || completeProblem(c) || 'Budget exhausted');
+      else if (e.passed && !problem && !gaps.length) {
+        if (c.deliveryGaps) delete c.deliveryGaps;
+        finish(c, e, 'complete', '');
+      } else if (c.candidate?.acceptance && hasOrdinary(c)) {
+        c.deliveryGaps = gaps;
+        c.reason = [problem, ...gaps.map(gap => gap.reason)].filter(Boolean).join('；') || 'Incomplete delivery';
+        owner(c, e, { reason: c.reason, deliveryGaps: gaps });
+      } else if (hasOrdinary(c)) coordinate(c, e, [problem, ...e.gaps].filter(Boolean).join('; ') || 'Incomplete delivery');
+      else {
+        if (c.candidate?.acceptance) c.deliveryGaps = gaps;
+        finish(c, e, c.candidate || c.artifacts.length ? 'partial' : 'failed',
+          [problem, ...(gaps.length ? gaps.map(gap => gap.reason) : e.gaps)].filter(Boolean).join('；') || 'Budget exhausted');
+      }
       break;
+    }
     case 'STOP':
       if (e.text) message(c, e, 'user', e.text, 'user');
       c.stopped = true; c.reason = 'User requested stop'; cancelWork(c, e, true); cancelHostRetries(c, 'STOPPED');

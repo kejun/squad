@@ -5,6 +5,7 @@ import { activeHelp, allInflight, completeProblem, d, discussionActive, discussi
 import { localAwaitingApproval, localPhysicalPending } from '../local-operation.js';
 import { helpResultContinuesReview, nextReviewer, reviewCanDispatch, savedHelpResult } from './assistance.js';
 import { deliveryVersionProblem } from './delivery.js';
+import { deliveryCheckGaps, deliveryPreflight } from '../delivery-acceptance.js';
 import { canRetryWork } from './budget.js';
 
 type TaskGuardArgs = { context: TaskContext; event: TaskEvent };
@@ -79,7 +80,11 @@ export const taskGuards = {
     decisionAsk: args => valid(args) && d(args.event)?.action === 'askUser',
     decisionFinish: args => valid(args) && d(args.event)?.action === 'finish',
     decisionRun: args => valid(args) && ['continue', 'replan'].includes(d(args.event)?.action ?? ''),
-    checkComplete: ({ context, event }) => valid({ context, event }) && event.type === 'CHECK_RESULT' && event.passed && !completeProblem(context),
+    deliveryReady: ({ context, event }) => event.type === 'DELIVER' && valid({ context, event }) && !deliveryPreflight(context, event).gaps.length,
+    deliveryCanRevise: ({ context, event }) => event.type === 'DELIVER' && valid({ context, event }) && hasOrdinary(context)
+      && !deliveryPreflight(context, event).repeated,
+    checkCanRevise: ({ context, event }) => event.type === 'CHECK_RESULT' && valid({ context, event }) && !!context.candidate?.acceptance && hasOrdinary(context),
+    checkComplete: ({ context, event }) => valid({ context, event }) && event.type === 'CHECK_RESULT' && event.passed && !completeProblem(context) && !deliveryCheckGaps(context, event).length,
     canCorrect: ({ context, event }) => valid({ context, event }) && hasOrdinary(context),
     retryable: args => valid(args) && canRetryWork(args.context, args.event),
     failedAssistance: args => valid(args) && args.event.type === 'WORK_FAILED' && !args.event.resultUncertain && args.context.intents.find(i => i.id === (args.event as Extract<TaskEvent, { type: 'WORK_FAILED' }>).intentId)?.kind === 'assistance',
