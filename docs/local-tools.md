@@ -47,7 +47,7 @@
 
 元数据查询不扣额度；技能正文、资源读取及 CLI 每次领取扣一次 ordinary。继续模型按原工作 bucket 计费，check 仍扣 checks；子操作不重复走通用请求扣费。保留现有评审、讨论汇总和负责人续办额度。
 
-owner、assistance、facilitator、check 均可使用；纯输入解析和讨论汇总不执行本地动作。check 和后台讨论使用绑定工程版本的副本；check 的源文件只读，仅 dist/test-results/reports/coverage 及任务临时目录可写，后台讨论可在副本试验，但不自动合回权威工程。正面检查提交前另领取一次 ordinary 的宿主版本复核，同时核对权威工程与副本输入；变化则检查不通过。`Bot.tools` 仍是业务权限，不能把 `writeArtifact` 当成 OS 写权限。
+owner、assistance、facilitator 在授权范围内可使用本地工具。输入解析、讨论汇总和独立检查模型只读已提供的材料。工程验证由宿主从用户明确给出的受支持命令生成意图，领取后在绑定工程版本的隔离副本中执行，并将回执交给检查模型。源文件只读，仅 dist/test-results/reports/coverage 及任务临时目录可写。独立检查通过后，宿主另领取一次计入 ordinary 的 `verifyWorkspace`，同时核对权威工程与副本输入。版本变化会阻止发布。后台讨论也可在副本试验，其结果留在副本中。`Bot.tools` 管理业务权限，OS 写权限由执行沙箱决定。
 
 ## 执行边界
 
