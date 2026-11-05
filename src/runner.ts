@@ -4,7 +4,7 @@ import { readSavedEvidence } from './evidence-reader.js';
 import { evidenceIndex } from './task/evidence.js';
 import { localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
 import type { LocalRuntime } from './local-runtime.js';
-import type { SkillPage } from './local-skills.js';
+import { LocalToolError, type SkillPage } from './local-skills.js';
 import type { TeamEngine } from './engine.js';
 import type { ArtifactDraft, Decision, InputIntentSpec, InputReference, Intent, ModelOutputIssue, TaskEvent } from './types.js';
 import { inputIntentSchema, validInputIntent } from './input-intent.js';
@@ -178,26 +178,38 @@ export class WorkRunner {
       combined.throwIfAborted();
       return result;
     } };
+    const currentWork = () => this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === work.id)!;
+    const hostRetry = this.engine.view(roomId, taskId)?.context.hostRetryBatch?.workId === work.id;
     if (this.localRuntime) {
       const runtime = this.localRuntime;
       const executeLocal = async (operationId: string, externalSignal: AbortSignal): Promise<LocalToolResult> => {
-        const remaining = work.deadline === null ? this.engine.config.limits.workTimeoutMs : work.deadline - this.clock();
-        const signal = AbortSignal.any([controller.signal, externalSignal, AbortSignal.timeout(Math.max(1, Math.min(remaining, 2_147_483_647)))]);
+        const retryDeadline = currentWork().localOperations?.find(op => op.id === operationId)?.deadline;
+        const remaining = Math.min(work.deadline ?? Infinity, retryDeadline ?? Infinity) - this.clock();
+        const maxWait = Number.isFinite(remaining) ? remaining : this.engine.config.limits.workTimeoutMs;
+        const signal = AbortSignal.any([controller.signal, externalSignal, AbortSignal.timeout(Math.max(1, Math.min(maxWait, 2_147_483_647)))]);
+        const expireRetry = () => {
+          const response = send({ type: 'LOCAL_RETRY_EXPIRED', id: `host-retry-expiry:${operationId}`, at: this.clock(), intentId: work.id, operationId });
+          if (!response.ok) throw new WorkFailure(response.code);
+          return currentWork().localOperations!.find(op => op.id === operationId)!.result!;
+        };
         let op: LocalOperation | undefined;
         while (true) {
-          signal.throwIfAborted();
-          if (!localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_TOOLS_DISABLED');
-          const approvalKey = `approval:${operationId}`, approvalGeneration = runtime.workspaceGeneration(approvalKey);
-          op = this.engine.view(roomId, taskId)?.context.intents.find(i => i.id === work.id)?.localOperations?.find(o => o.id === operationId);
+          controller.signal.throwIfAborted(); externalSignal.throwIfAborted();
+          op = currentWork().localOperations?.find(o => o.id === operationId);
           if (!op) throw new WorkFailure('LOCAL_OPERATION_MISSING');
           if (['succeeded', 'failed', 'cancelled'].includes(op.status) && op.result) {
             report({ phase: 'local.receiptRead', operationId, action: op.action.type, ...(op.sessionId ? { sessionId: op.sessionId } : {}) });
             return op.result;
           }
+          if (retryDeadline !== undefined && this.clock() >= retryDeadline) return expireRetry();
+          signal.throwIfAborted();
+          if (!localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_TOOLS_DISABLED');
+          const approvalKey = `approval:${operationId}`, approvalGeneration = runtime.workspaceGeneration(approvalKey);
           if (op.status === 'awaitingApproval' && op.approval) {
             const until = Math.max(1, op.approval.expiresAt - this.clock());
             try { await runtime.waitForWorkspace(approvalKey, approvalGeneration, AbortSignal.any([signal, AbortSignal.timeout(Math.min(until, 2_147_483_647))])); }
             catch (error) {
+              if (retryDeadline !== undefined && this.clock() >= retryDeadline && !controller.signal.aborted && !externalSignal.aborted) continue;
               if (signal.aborted) throw error;
               send({ type: 'LOCAL_APPROVAL_EXPIRED', id: `expire:${op.approval.id}`, at: this.clock(), intentId: work.id, operationId: op.id });
             }
@@ -211,15 +223,18 @@ export class WorkRunner {
             const result = { ok: false, code: claim.response.code, data: {} };
             const rejected = send({ type: 'LOCAL_REJECTED', id: `local-reject:${randomUUID()}`, at: this.clock(), intentId: work.id,
               operationId: op.id, parentAttempt: op.parentAttempt, result });
-            if (rejected.ok && op.action.type === 'readEvidence' && result.code === 'EVIDENCE_UNAVAILABLE') return result;
+            if (rejected.ok && (op.hostRetryRequestId || op.action.type === 'readEvidence' && result.code === 'EVIDENCE_UNAVAILABLE')) return result;
             throw new WorkFailure(claim.response.code);
           }
-          await runtime.waitForWorkspace(op.workspaceId!, generation, signal);
+          try { await runtime.waitForWorkspace(op.workspaceId!, generation, signal); }
+          catch (error) {
+            if (retryDeadline !== undefined && this.clock() >= retryDeadline && !controller.signal.aborted && !externalSignal.aborted) continue;
+            throw error;
+          }
         }
         const operation = op;
         const local = { operationId, action: operation.action.type, sessionId: operation.sessionId! };
         report({ phase: 'local.claimed', ...local });
-        const currentWork = () => this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === work.id)!;
         let execution;
         let enteredRuntime = false;
         try {
@@ -227,18 +242,6 @@ export class WorkRunner {
           // Permission and cancellation are checked again after the durable claim, before filesystem/process I/O.
           const context = this.engine.view(roomId, taskId)!.context;
           if (context.stopped || context.epoch !== work.epoch || context.goalVersion !== work.goalVersion || !localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_EXECUTION_REVOKED');
-          if (operation.action.type === 'readEvidence') {
-            execution = { result: readSavedEvidence(context, currentWork(), operation.action), settled: true, effectsKnown: true };
-            report({ phase: 'local.receiptRead', ...local });
-          } else {
-            enteredRuntime = true;
-            execution = await runtime.execute(currentWork(), operation, signal, metadata => {
-              const started = send({ type: 'LOCAL_STARTED', id: `local-start:${operation.sessionId}`, at: this.clock(),
-                intentId: work.id, operationId: operation.id, sessionId: operation.sessionId!, ...metadata });
-              if (!started.ok) throw new WorkFailure(started.code);
-              report({ phase: 'local.startAuthorized', ...local });
-            }, phase => report({ phase, ...local }));
-          }
         } catch (error) {
           // An unknown host failure after a claim is never converted to permission to replay a write.
           const safe = !enteredRuntime || op.action.type !== 'runCli';
@@ -265,11 +268,13 @@ export class WorkRunner {
           effectsKnown: execution.effectsKnown, code: response.ok ? 'LOCAL_RESULT_RECORDED' : response.code });
         if (response.ok && execution.settled && execution.effectsKnown && op.workspaceId) runtime.notifyWorkspace(op.workspaceId);
         if (!response.ok || !execution.settled || !execution.effectsKnown) throw new WorkFailure(response.ok ? 'LOCAL_OPERATION_UNCERTAIN' : response.code, false, true);
-        signal.throwIfAborted();
+        if (op.hostRetryRequestId && currentWork().localOperations?.find(o => o.id === op!.id)?.status === 'awaitingApproval') return executeLocal(operationId, externalSignal);
+        if (op.hostRetryRequestId) { controller.signal.throwIfAborted(); externalSignal.throwIfAborted(); }
+        else signal.throwIfAborted();
         return execution.result;
       };
       Object.defineProperty(scope, 'localTools', { value: {
-        catalog: runtime.catalog(), checkpoint: work.localCheckpoint,
+        catalog: runtime.catalog(), get checkpoint() { return currentWork().localCheckpoint; },
         invoke: async (action: LocalAction, messages: LocalMessage[], signal: AbortSignal, requested?: (operationId: string) => void) => {
           signal.throwIfAborted(); controller.signal.throwIfAborted();
           if (!localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_TOOLS_DISABLED');
@@ -282,11 +287,24 @@ export class WorkRunner {
       } satisfies LocalWorkTools, enumerable: true });
     }
     try {
+      if (hostRetry) {
+        if (!scope.localTools) throw new WorkFailure('LOCAL_RUNTIME_NOT_CONFIGURED');
+        // The state machine persists exactly one next operation after each trusted receipt.
+        // The runner only follows that checkpoint and does not choose or schedule commands.
+        let operationId = currentWork().localCheckpoint?.pendingOperationId;
+        while (operationId) {
+          await scope.localTools.resume(operationId, controller.signal);
+          const next = currentWork().localCheckpoint?.pendingOperationId;
+          if (next === operationId) throw new WorkFailure('LOCAL_OPERATION_PENDING');
+          operationId = next;
+        }
+      }
       scope.authorizeAdditionalRequest(initialModelRequestId);
       const context = this.engine.view(roomId, taskId)!.context;
+      const claimedWork = hostRetry ? context.intents.find(i => i.id === work.id)! : work;
       const projectEvidence = scope.localTools && localEnabled(this.engine.config, work.target)
         && (work.payload.capabilities as { localTools?: boolean } | undefined)?.localTools === true;
-      const modelWork = projectEvidence ? { ...work, payload: { ...work.payload, evidenceIndex: evidenceIndex(context, work) } } : work;
+      const modelWork = projectEvidence ? { ...claimedWork, payload: { ...claimedWork.payload, evidenceIndex: evidenceIndex(context, claimedWork) } } : claimedWork;
       output = await this.adapter.execute(modelWork, controller.signal, scope);
     }
     catch (error) {

@@ -93,6 +93,7 @@ export interface RoomSnapshot {
 export interface WebFailedSandboxCommand {
   taskId: string; workId: string; operationId: string; sourceRequestHash: string;
   executable: string; args: string[]; error: string; canRequest: boolean; unavailableReason: string;
+  retry?: { id: string; status: 'pending' | 'active' | 'awaitingApproval' | 'running' | 'uncertain' | 'settled' | 'expired' | 'cancelled'; reason?: string; workId?: string; operationId?: string };
 }
 export interface WebHostApproval {
   taskId: string; workId: string; operationId: string; approvalId: string; expiresAt: number;

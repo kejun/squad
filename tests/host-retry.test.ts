@@ -24,7 +24,7 @@ describe('失败沙箱记录的手动宿主申请（真实HTTP/SQLite/模型协�
   it('[BT_L33] deduplicates identical clicks and prevents a second retry with a new request ID', async () => {
     await failed(); const data = f.retryData();
     expect((await f.requestRetry(data)).status).toBe(200); expect((await f.requestRetry(data)).status).toBe(200);
-    expect((await f.requestRetry({ ...data, id: 'another-click' })).status).toBe(409);
+    expect((await f.requestRetry({ ...data, id: 'another-click' })).status).toBe(200);
     const approval = await f.approval(); expect(f.snapshot().hostApprovals).toHaveLength(1);
     expect((await f.request(f.decisionData(approval, 'approve'))).status).toBe(200); await f.complete(); expect(await f.runs()).toBe('once\n');
   });

@@ -715,7 +715,8 @@ export function Workspace({
             </Button>
           )}
           <div className="composer-area">
-            {roomId && snapshot?.failedSandboxCommands?.filter(command => command.canRequest).slice(-1).map(command =>
+            {roomId && snapshot?.failedSandboxCommands?.filter(command => command.taskId === latestTask?.id
+              && (command.canRequest || command.retry && ['pending', 'active', 'awaitingApproval', 'running', 'uncertain'].includes(command.retry.status))).slice(-2).map(command =>
               <HostRetryButton key={`${roomId}:${command.operationId}`} roomId={roomId} command={command} connected={connected} />)}
             {roomId && <HostApprovals key={roomId} roomId={roomId} requests={snapshot?.hostApprovals ?? []} sessions={snapshot?.hostSessions ?? []} connected={connected} />}
             {latestTask && (

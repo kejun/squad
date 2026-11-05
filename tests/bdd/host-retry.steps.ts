@@ -43,7 +43,7 @@ Given('模型未申请宿主执行且失败命令旁显示手动入口', async f
 });
 When('用户重复点击对应记录的宿主请求入口', async function (this: SpecWorld) {
   const f = state(this).f!, data = f.retryData(); assert.equal((await f.requestRetry(data)).status, 200);
-  assert.equal((await f.requestRetry(data)).status, 200); assert.equal((await f.requestRetry({ ...data, id: 'another-click' })).status, 409);
+  assert.equal((await f.requestRetry(data)).status, 200); assert.equal((await f.requestRetry({ ...data, id: 'another-click' })).status, 200);
 });
 Then('只应存在一条关联的宿主操作且必须等待用户批准', async function (this: SpecWorld) {
   const f = state(this).f!; await f.approval(); assert.equal(f.snapshot().hostApprovals!.length, 1); assert.equal(await f.runs(), '');

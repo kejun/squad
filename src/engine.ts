@@ -352,8 +352,12 @@ export class TeamEngine {
     const view = this.view(roomId);
     if (!view) return;
     const c = view.context; const at = this.clock();
+    if (c.hostRetryRequests?.some(r => r.deadline <= at && (r.status === 'pending' || r.status === 'active' && !r.operationId)))
+      this.send(roomId, c.taskId, { type: 'HOST_RETRY_EXPIRE', id: `host-retry-sweep:${at}`, at });
     for (const work of c.intents) for (const op of work.localOperations ?? []) {
-      if (op.approval && ['awaitingApproval', 'queued'].includes(op.status) && op.approval.expiresAt <= at)
+      if (op.deadline !== undefined && op.deadline <= at && ['queued', 'awaitingApproval'].includes(op.status))
+        this.send(roomId, c.taskId, { type: 'LOCAL_RETRY_EXPIRED', id: `host-retry-expiry:${op.id}`, at, intentId: work.id, operationId: op.id });
+      else if (op.approval && ['awaitingApproval', 'queued'].includes(op.status) && op.approval.expiresAt <= at)
         this.send(roomId, c.taskId, { type: 'LOCAL_APPROVAL_EXPIRED', id: `expire:${op.approval.id}`, at, intentId: work.id, operationId: op.id });
     }
     for (const op of c.intents.filter(i => ['pending', 'inflight'].includes(i.status) && i.kind !== 'cancel' && i.deadline !== null && i.deadline <= at)) {
@@ -372,11 +376,15 @@ export class TeamEngine {
     const view = this.view(roomId);
     if (!view || view.phase === 'ended') return null;
     const discussing = view.context.discussion && !['delivered', 'cancelled'].includes(view.context.discussion.status);
-    if (view.phase === 'waitingHuman' && !discussing) return null;
+    const retryDeadlines = (view.context.hostRetryRequests ?? []).filter(r => r.status === 'pending' || r.status === 'active' && !r.operationId).map(r => r.deadline);
+    if (view.phase === 'waitingHuman' && !discussing) return retryDeadlines.length ? Math.min(...retryDeadlines) : null;
     if (view.context.results.some(r => !r.consumed)) return this.clock();
     const work = view.context.intents.filter(i => ['pending', 'inflight'].includes(i.status) && i.deadline !== null).map(i => i.deadline!);
-    for (const intent of view.context.intents) for (const op of intent.localOperations ?? [])
+    work.push(...retryDeadlines);
+    for (const intent of view.context.intents) for (const op of intent.localOperations ?? []) {
       if (op.status === 'awaitingApproval' && op.approval) work.push(op.approval.expiresAt);
+      if (op.deadline !== undefined && ['queued', 'awaitingApproval'].includes(op.status)) work.push(op.deadline);
+    }
     if (view.phase === 'running' && !discussing && !view.context.intents.some(localAwaitingApproval)) work.push(view.context.nextCheckAt);
     return work.length ? Math.min(...work) : null;
   }

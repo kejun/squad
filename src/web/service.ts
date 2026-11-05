@@ -1,7 +1,7 @@
 import { hostSessionActive } from '../host-session.js';
 import type { LocalRuntime } from "../local-runtime.js";
 import { localAwaitingApproval } from '../local-operation.js';
-import { hostRetryProblem } from '../host-retry.js';
+import { findHostRetry, hostRetryProblem } from '../host-retry.js';
 import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { TeamEngine, type Submission } from "../engine.js";
@@ -200,7 +200,6 @@ export class WebService {
     if (!this.localRuntime) throw new WebError(409, '本地运行时未开启。');
     const reply = this.engine.requestHostRetry(roomId, data.taskId, data.workId, data.operationId, data.sourceRequestHash, data.id);
     if (!reply.ok) throw new WebError(409, `无法从该记录申请宿主执行 (${reply.code})`);
-    void this.drainCancellation(roomId, data.taskId).then(() => this.kick(roomId)).catch(error => this.hostError(roomId, error));
     this.kick(roomId); return reply;
   }
   snapshot(roomId: string): RoomSnapshot {
@@ -263,9 +262,14 @@ export class WebService {
         for (const op of i.localOperations ?? []) {
           if (op.action.type !== 'runCli' || op.action.execution === 'host' || op.status !== 'failed' || op.result?.ok !== false) continue;
           const currentTask = stored.activeTaskId ?? Object.keys(stored.tasks).at(-1);
+          const request = findHostRetry(c, i.id, op.id);
+          const retryOp = c.intents.find(w => w.id === request?.workId)?.localOperations?.find(child => child.id === request?.operationId);
+          const status = retryOp?.status === 'awaitingApproval' || retryOp?.status === 'running' ? retryOp.status : request?.status;
           const problem = !this.localRuntime ? 'LOCAL_RUNTIME_NOT_CONFIGURED' : currentTask !== taskId ? 'ROOM_BUSY' : hostRetryProblem(c, i.id, op.id, op.requestHash);
-          const visible = { taskId, workId: i.id, operationId: op.id, sourceRequestHash: op.requestHash, executable: op.action.executable, args: op.action.args,
-            error: String(op.result.data.stderr ?? op.result.code).slice(0, 1000), canRequest: !problem, unavailableReason: problem ?? '' };
+          const visible: WebFailedSandboxCommand = { taskId, workId: i.id, operationId: op.id, sourceRequestHash: op.requestHash, executable: op.action.executable, args: op.action.args,
+            error: String(op.result.data.stderr ?? op.result.code).slice(0, 1000), canRequest: !problem && !request, unavailableReason: problem ?? '',
+            ...(request && status ? { retry: { id: request.id, status, ...(request.reason ? { reason: request.reason } : {}),
+              ...(request.workId ? { workId: request.workId } : {}), ...(request.operationId ? { operationId: request.operationId } : {}) } } : {}) };
           failedSandboxCommands.push(this.localRuntime ? this.localRuntime.clean(visible) : visible);
         }
         if (!c.stopped && c.outcome === null && ['pending', 'inflight'].includes(i.status) && i.epoch === c.epoch && i.goalVersion === c.goalVersion)

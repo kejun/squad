@@ -210,7 +210,8 @@ export class LocalRuntime {
       const workspace = await this.workspace(work, op); signal.throwIfAborted();
       let skillPath: string | undefined;
       if (action.skillId) {
-        const binding = this.binding(work, action.skillId); if (!binding) throw new LocalToolError('SKILL_NOT_ACTIVE');
+        const binding = this.binding(op.skillBindings ? { ...work, localSkills: op.skillBindings } : work, action.skillId);
+        if (!binding) throw new LocalToolError('SKILL_NOT_ACTIVE');
         skillPath = (await this.registry.snapshot(binding.skillId, binding.skillVersion)).path;
       }
       const cwd = await realpath(resolve(workspace.path, action.cwd ?? '.'));
@@ -236,7 +237,7 @@ export class LocalRuntime {
         const commandDigest = digest(JSON.stringify({ plan, action, requestHash: op.requestHash, workId: work.id, epoch: work.epoch, goalVersion: work.goalVersion }));
         const now = (this.options.clock ?? Date.now)();
         if (!op.approval) {
-          const approval: HostApproval = { id: randomUUID(), digest: commandDigest, plan, status: 'pending', expiresAt: Math.min(now + 600_000, work.deadline ?? Infinity) };
+          const approval: HostApproval = { id: randomUUID(), digest: commandDigest, plan, status: 'pending', expiresAt: Math.min(now + 600_000, work.deadline ?? Infinity, op.deadline ?? Infinity) };
           const prepared = { result: { ok: false, code: 'HOST_APPROVAL_REQUIRED', data: {} }, settled: true, effectsKnown: true };
           await this.journal.write({ operationId: op.id, sessionId, phase: 'settled', completion: prepared });
           finishPreparation();
@@ -246,7 +247,8 @@ export class LocalRuntime {
         if (now >= op.approval.expiresAt) throw new LocalToolError('HOST_APPROVAL_EXPIRED');
         if (op.approval.digest !== commandDigest) throw new LocalToolError('HOST_APPROVAL_STALE');
       }
-      const remaining = work.deadline === null ? 120_000 : work.deadline - (this.options.clock ?? Date.now)();
+      const deadline = Math.min(work.deadline ?? Infinity, op.deadline ?? Infinity);
+      const remaining = deadline === Infinity ? 120_000 : deadline - (this.options.clock ?? Date.now)();
       const timeoutMs = Math.min(action.timeoutMs ?? this.options.commandTimeoutMs ?? 120_000, Math.max(1, remaining));
       if (work.kind === 'check') for (const dir of validationOutputs) await mkdir(join(workspace.path, dir), { recursive: true });
       started({ workspaceRevision: workspace.revision, isolated: workspace.isolated }); signal.throwIfAborted();
