@@ -282,9 +282,10 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
           if (!validLocalAction(output)) throw new OutputValidationError('invalid_tool_request');
           protocol(true);
           messages.push({ role: 'assistant', content: choice.message.content });
-          const result = await scope.localTools.invoke(output, messages.slice(2) as LocalMessage[], requestSignal);
+          let operationId: string | undefined;
+          const result = await scope.localTools.invoke(output, messages.slice(2) as LocalMessage[], requestSignal, id => { operationId = id; });
           requestSignal.throwIfAborted();
-          messages.push({ role: 'user', content: JSON.stringify({ type: 'local_tool_result', untrusted: true, ...result }) });
+          messages.push({ role: 'user', content: JSON.stringify({ type: 'local_tool_result', untrusted: true, ...result, operationId }) });
           continue;
         }
         if (output.type === 'web_search' || output.type === 'web_fetch') {

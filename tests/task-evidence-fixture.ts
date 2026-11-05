@@ -36,6 +36,9 @@ export async function acquireEvidence(fixture: LocalFixture, action = evidenceCo
   const work = await runPending(fixture, action, delivery);
   const operation = operations(fixture).find(item => item.id.startsWith(work.id) && item.action.type === 'runCli');
   assert(operation?.result);
+  const liveReceipt = fixture.requests.at(-1)?.messages.at(-1)?.content;
+  assert(liveReceipt);
+  assert.equal((JSON.parse(liveReceipt) as { operationId?: string }).operationId, operation.id);
   assert.equal(fixture.h.view().phase, 'checking');
   return operation;
 }
