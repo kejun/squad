@@ -134,6 +134,7 @@ stateDiagram-v2
 | EXHAUSTED | `[valid] → ended`，保留真实结果与已用预算，不承诺额度外的汇总或重试 |
 | RECOVER | 配置、成员、权限、模型、版本和未决物理操作均须核对；安全恢复保留当前阶段，否则转 `waitingHuman`；`ended` 使用其局部恢复规则 |
 | LOCAL_RESULT / LOCAL_RECONCILE | 仅可信且已结算的当前结果可按父工作种类恢复阶段；旧目标和停止任务只结算旧操作 |
+| REQUEST_HOST_RETRY | 活动任务在同一 epoch 登记固定续办。已正常结束的任务首次续办时进入 running。仅安全边界可固定批次并生成首条本地操作 |
 | RETRY_ASSISTANCE | 先尝试消费已保存有效结果，否则创建关联旧尝试的新记录；分支目标由评审队列和真实守卫决定，不重置预算 |
 | 无效、重复或迟到事件 | 按权限、身份、fence、期限及回执守卫拒绝或只结算自身，不推进新目标；局部无条件处理会遮蔽同名根事件 |
 
@@ -145,7 +146,7 @@ stateDiagram-v2
 | 意图领取、工具、格式修正、本地操作与宿主 | [执行与适配器](docs/state-diagrams.md#执行与适配器边界)：BT_M、BT_W、BT_L |
 | 任务内证据查读、刷新与历史观测 | [任务级证据读取](docs/state-diagrams.md#任务级证据读取)：BT_L38–BT_L43 |
 | 按次/本次任务会话批准宿主 CLI、拒绝与恢复（BT_L35–BT_L37） | [宿主命令授权](docs/state-diagrams.md#宿主命令按次授权)：BT_L23–BT_L30；默认仍为沙箱 |
-| 沙箱失败后的主动申请与用户手动续办 | [宿主命令授权](docs/state-diagrams.md#宿主命令按次授权)：BT_L31–BT_L34；申请与批准分别处理 |
+| 沙箱失败后的主动申请与用户手动续办 | [失败命令的宿主续办](docs/state-diagrams.md#失败命令的宿主续办)（BT_L31–BT_L34、BT_L45–BT_L52） |
 | 模型请求、实际本地执行与耗时 | [执行测量](docs/state-diagrams.md#执行测量)：BT_Z01–BT_Z03；原业务状态不变 |
 | 群历史、可信路由、归档 | [房间与命令](docs/state-diagrams.md#房间与可信命令)：BT_R、BT_G15–G22；归档不打断在途任务 |
 | 草稿、详情、导出、布局、调试与 Inspector | [网页与观察](docs/state-diagrams.md#网页与观察)：BT_U、BT_P、BT_A12–A21、BT_V；UI 仅读取快照或提交可信命令 |
