@@ -1,16 +1,17 @@
 import { canStartHostRetry, findHostRetry, hostRetryBoundary, pendingHostRetry } from '../host-retry.js';
 import { type TaskContext, type TaskEvent } from '../types.js';
 import { localResumeKind, permissionProblem, valid } from './policy.js';
-import { activeHelp, allInflight, d, deliveryHandoffPending, discussionActive, fresh, incompatibleExecution, inflight, isBot, pendingInput, recoveryIssue, remainingInflight, unresolvedInput } from './facts.js';
+import { activeHelp, allInflight, d, discussionActive, fresh, incompatibleExecution, inflight, isBot, pendingInput, recoveryIssue, remainingInflight, unresolvedInput } from './facts.js';
 import { localAwaitingApproval, localPhysicalPending } from '../local-operation.js';
 import { helpResultContinuesReview, nextReviewer, reviewCanDispatch, savedHelpResult } from './assistance.js';
-import { canReviseDelivery, checkDisposition, deliverySubmissionProblem, isBoundedCheck, recoveryCheckExhausted } from './delivery.js';
+import { automaticRevisionActive, canReviseDelivery, checkDisposition, deliveryInterruptionPending, deliverySubmissionProblem, hasDeliveryRetryPermit, isBoundedCheck, recoveryCheckExhausted, settlingDeliveryCheck } from './delivery.js';
 import { canRetryDeliveryCheck, canRetryWork } from './budget.js';
 
 type TaskGuardArgs = { context: TaskContext; event: TaskEvent };
-const needsHandoff = (c: TaskContext) => deliveryHandoffPending(c) || pendingHostRetry(c);
 const resultKind = ({ context, event }: TaskGuardArgs) => event.type === 'CHECK_RESULT' && valid({ context, event })
   ? checkDisposition(context, event, context.intents.find(work => work.id === event.workId)!).kind : null;
+const settlingCheck = ({ context, event }: TaskGuardArgs) => event.type === 'SETTLE' && valid({ context, event })
+  && settlingDeliveryCheck(context, context.intents.find(work => work.id === event.intentId));
 
 export const taskGuards = {
     valid,
@@ -26,13 +27,13 @@ export const taskGuards = {
     localCheckExhausted: ({ context, event }) => {
       if ((event.type !== 'LOCAL_RECONCILE' && event.type !== 'LOCAL_RESULT') || localResumeKind(context, event) !== 'check') return false;
       const work = context.intents.find(item => item.id === event.intentId);
-      return isBoundedCheck(work) && work.status === 'uncertain' && work.requestCount > 0 && !work.checkRetryPending && !needsHandoff(context)
+      return isBoundedCheck(work) && work.status === 'uncertain' && work.requestCount > 0 && !hasDeliveryRetryPermit(context, work) && !deliveryInterruptionPending(context, work.id)
         && !canRetryDeliveryCheck(context, work, event.at);
     },
     uncertainLocalResult: args => valid(args) && !args.context.stopped && args.event.type === 'LOCAL_RESULT' && !args.context.intents.find(w => w.id === (args.event as Extract<TaskEvent, { type: 'LOCAL_RESULT' }>).intentId)?.discussionId && (!args.event.settled || !args.event.effectsKnown),
     claimDiscussion: args => valid(args) && args.event.type === 'CLAIM' && args.context.intents.some(work => work.id === (args.event.type === 'CLAIM' ? args.event.intentId : '') && !!work.discussionId),
     failedDiscussion: args => valid(args) && args.event.type === 'WORK_FAILED' && args.context.intents.some(work => work.id === (args.event.type === 'WORK_FAILED' ? args.event.intentId : '') && !!work.discussionId),
-    holdingDelivery: args => valid(args) && needsHandoff(args.context),
+    holdingDelivery: args => valid(args) && deliveryInterruptionPending(args.context),
     discussionHandoffReady: ({ context }) => context.discussion?.status === 'ready' && !context.stopped && !incompatibleExecution(context)
       && inflight(context).length === 0 && !context.intents.some(localPhysicalPending) && !activeHelp(context) && !unresolvedInput(context) && !context.inputs.some(input => !input.applied),
     safeBoundary: ({ context }) => inflight(context).length === 0 && !context.intents.some(localPhysicalPending),
@@ -75,9 +76,9 @@ export const taskGuards = {
       && context.intents.some(work => work.id === event.intentId && isBoundedCheck(work))
       && ['CHECK_BUDGET_EXHAUSTED', 'WORK_EXPIRED'].includes(permissionProblem(context, event) ?? ''),
     claimCancel: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'cancel',
-    shouldTick: ({ context, event }) => valid({ context, event }) && !discussionActive(context) && event.at >= context.nextCheckAt && inflight(context).length === 0 && !context.intents.some(work => localPhysicalPending(work) || localAwaitingApproval(work)) && !context.processedSignals.includes(event.id),
+    shouldTick: ({ context, event }) => valid({ context, event }) && !automaticRevisionActive(context) && !discussionActive(context) && event.at >= context.nextCheckAt && inflight(context).length === 0 && !context.intents.some(work => localPhysicalPending(work) || localAwaitingApproval(work)) && !context.processedSignals.includes(event.id),
     repeated: ({ context, event }) => {
-      if (event.type !== 'FAILURE_SIGNAL' || !valid({ context, event }) || discussionActive(context) || remainingInflight(context, event).length) return false;
+      if (event.type !== 'FAILURE_SIGNAL' || !valid({ context, event }) || automaticRevisionActive(context) || discussionActive(context) || remainingInflight(context, event).length) return false;
       const f = JSON.stringify([event.operation, event.parameters, event.resource, event.error, event.result]).normalize('NFKC');
       return (f === context.repeat.fingerprint ? context.repeat.count + 1 : 1) >= context.config.limits.repeatThreshold;
     },
@@ -90,12 +91,15 @@ export const taskGuards = {
       && !!deliverySubmissionProblem(context, event)?.mechanical && canReviseDelivery(context),
     checkCanRetry: args => resultKind(args) === 'retry',
     checkContinues: args => ['handoff', 'revise'].includes(resultKind(args) ?? ''),
-    checkFailureHandoff: ({ context, event }) => event.type === 'WORK_FAILED' && !event.resultUncertain && valid({ context, event }) && needsHandoff(context),
+    settlingCheck,
+    settlingCheckHandoff: args => settlingCheck(args) && deliveryInterruptionPending(args.context),
+    checkFailureHandoff: ({ context, event }) => event.type === 'WORK_FAILED' && !event.resultUncertain && valid({ context, event })
+      && isBoundedCheck(context.intents.find(work => work.id === event.intentId)) && deliveryInterruptionPending(context),
     checkFailed: ({ context, event }) => event.type === 'WORK_FAILED' && !event.resultUncertain && valid({ context, event })
       && isBoundedCheck(context.intents.find(work => work.id === event.intentId)),
     revisionFailed: ({ context, event }) => {
       const id = event.type === 'WORK_FAILED' && !event.resultUncertain ? event.intentId : event.type === 'BLOCKED' ? event.workId : undefined;
-      return !!id && valid({ context, event }) && !needsHandoff(context) && context.intents.some(work => work.id === id && work.payload.deliveryRevision === true);
+      return !!id && valid({ context, event }) && !deliveryInterruptionPending(context) && context.intents.some(work => work.id === id && work.payload.deliveryRevision === true);
     },
     retryable: args => valid(args) && canRetryWork(args.context, args.event),
     failedAssistance: args => valid(args) && args.event.type === 'WORK_FAILED' && !args.event.resultUncertain && args.context.intents.find(i => i.id === (args.event as Extract<TaskEvent, { type: 'WORK_FAILED' }>).intentId)?.kind === 'assistance',

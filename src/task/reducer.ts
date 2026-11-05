@@ -1,13 +1,13 @@
 import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
-import { capabilities, deliveryHandoffPending, discussionActive, fence, fresh, inflight, ok, recoveryIssue, reject } from './facts.js';
+import { capabilities, discussionActive, fence, fresh, inflight, ok, recoveryIssue, reject } from './facts.js';
 import { cancelWork, coordinate, finish, intent, message, owner, release, saveReports } from './operations.js';
 import { applyLocalEvent, localEnabled, localPhysicalPending, recoverLocalOperations, type LocalEvent } from '../local-operation.js';
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
 import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requestReview, resetReviewAtBoundary, savedHelpResult, startHelp } from './assistance.js';
 import { recordInput } from './input.js';
-import { canReviseDelivery, checkDisposition, deliverySubmissionProblem, deliveryVersionProblem, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication } from './delivery.js';
+import { automaticRevisionActive, canReviseDelivery, checkDisposition, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication, settlingDeliveryCheck } from './delivery.js';
 import { canRetryDeliveryCheck, canRetryWork, reserveDeliveryRetry } from './budget.js';
 import { deliveryJudgments, deliveryPreflight } from '../delivery-acceptance.js';
 import { adoptLegacyTerminalConfig } from './protocol.js';
@@ -24,14 +24,15 @@ function finishDelivery(c: TaskContext, e: TaskEvent, detail: string, code?: str
 function reviseDelivery(c: TaskContext, e: TaskEvent, reason: string) {
   c.deliveryCycle!.revisionUsed = true;
   c.reason = reason;
-  owner(c, e, { deliveryRevision: true, reason });
+  const priorFindings = deliveryJudgments(c, c.candidate?.revision).filter(item => item.status !== 'passed');
+  owner(c, e, { deliveryRevision: true, reason, priorFindings });
 }
 
 export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
   const c = structuredClone(original);
   const problem = permissionProblem(c, e);
   if (problem) { reject(c, problem); return c; }
-  if (['INTERPRETATION_RESULT', 'HELP', 'HELP_RESULT', 'RECORD_RESULT', 'COORDINATE', 'BLOCKED', 'WAIT_USER', 'DELIVER', 'TOOL', 'SETTLE'].includes(e.type)) release(c, e.workId);
+  if (['INTERPRETATION_RESULT', 'HELP', 'HELP_RESULT', 'RECORD_RESULT', 'COORDINATE', 'BLOCKED', 'WAIT_USER', 'DELIVER', 'TOOL'].includes(e.type)) release(c, e.workId);
   ok(c); c.lastActivityAt = e.at;
   c.trace.push({ event: e.type, detail: e.id, at: e.at });
   if (e.type.startsWith('LOCAL_')) {
@@ -40,8 +41,8 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     const resumeCheck = isBoundedCheck(work) && work.status === 'uncertain';
     applyLocalEvent(c, local);
     settleHostRetryOperation(c, local.intentId, local.operationId, e.at);
-    if (resumeCheck && work.status === 'pending' && work.requestCount > 0 && !work.checkRetryPending) {
-      if (deliveryHandoffPending(c) || pendingHostRetry(c)) release(c, work.id);
+    if (resumeCheck && work.status === 'pending' && work.requestCount > 0 && !hasDeliveryRetryPermit(c, work)) {
+      if (deliveryInterruptionPending(c)) release(c, work.id);
       else if (canRetryDeliveryCheck(c, work, e.at)) reserveDeliveryRetry(c, work);
       else finishDelivery(c, e, '检查未完成，无法重新授权中断的检查请求', 'CHECK_RECOVERY_EXHAUSTED');
     }
@@ -106,7 +107,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     }
     case 'BLOCKED':
-      if (c.intents.some(work => work.id === e.workId && work.payload.deliveryRevision === true) && !deliveryHandoffPending(c)) {
+      if (c.intents.some(work => work.id === e.workId && work.payload.deliveryRevision === true) && !deliveryInterruptionPending(c)) {
         finishDelivery(c, e, e.reason, 'DELIVERY_REVISION_FAILED');
       } else if (inflight(c).length || discussionActive(c)) { c.deferredCoordination = true; c.reason = e.reason; }
       else coordinate(c, e, e.reason);
@@ -184,7 +185,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'DELIVER': {
       const versionProblem = deliveryVersionProblem(c, e);
       if (versionProblem) {
-        if (!deliveryHandoffPending(c) && !pendingHostRetry(c)) {
+        if (!deliveryInterruptionPending(c)) {
           if (canReviseDelivery(c)) reviseDelivery(c, e, versionProblem);
           else finishDelivery(c, e, versionProblem, versionProblem);
         }
@@ -199,7 +200,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       c.candidate = { text: e.text, artifactIds: [...new Set([...e.artifactIds, ...artifactIds])], goalVersion: c.goalVersion,
         revision: acceptance.revision, ...(e.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(e.backgroundArtifactIds)] } : {}),
         ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}), acceptance };
-      if (deliveryHandoffPending(c) || pendingHostRetry(c)) break;
+      if (deliveryInterruptionPending(c)) break;
       if (problem) {
         c.candidate.deliveryIssue = { code: problem.code };
         if (problem.mechanical && canReviseDelivery(c)) reviseDelivery(c, e, problem.code);
@@ -232,7 +233,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       }
       release(c, work.id);
       if (outcome.kind === 'handoff') break;
-      if (!outcome.code) work.criteriaResults = e.criteriaResults!;
+      if (outcome.checked) work.criteriaResults = e.criteriaResults!;
       if (outcome.kind === 'complete') finish(c, e, 'complete', '');
       if (outcome.kind === 'revise') reviseDelivery(c, e, outcome.detail!);
       if (outcome.kind === 'finish') finishDelivery(c, e, outcome.detail ?? `检查未完成（${outcome.code}）`, outcome.code);
@@ -247,8 +248,10 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     case 'SETTLE': {
       const work = c.intents.find(i => i.id === e.intentId);
+      const unfinishedCheck = settlingDeliveryCheck(c, work) && !deliveryInterruptionPending(c);
       release(c, e.intentId);
       if (c.hostRetryBatch?.workId === e.intentId) cancelHostRetries(c, 'WORK_NOT_STARTED');
+      if (unfinishedCheck) finishDelivery(c, e, '检查工作已结算，未收到可发布的检查结果', 'CHECK_NOT_COMPLETED');
       if (work?.kind === 'tool' && !c.stopped && fresh(c, { ...e, fence: { epoch: work.epoch, goalVersion: work.goalVersion } })) owner(c, e, { toolResult: work.id });
       break;
     }
@@ -274,7 +277,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'FAILURE_SIGNAL': {
       const fingerprint = JSON.stringify([e.operation, e.parameters, e.resource, e.error, e.result]).normalize('NFKC');
       c.repeat = { fingerprint, count: c.repeat.fingerprint === fingerprint ? c.repeat.count + 1 : 1 };
-      if (c.repeat.count >= c.config.limits.repeatThreshold) {
+      if (c.repeat.count >= c.config.limits.repeatThreshold && !automaticRevisionActive(c)) {
         if (inflight(c).length || discussionActive(c)) { c.deferredCoordination = true; c.reason = 'Repeated failure without progress'; }
         else coordinate(c, e, 'Repeated failure without progress');
       }
@@ -315,7 +318,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (isBoundedCheck(work)) {
         c.deliveryCycle!.requests++;
         c.usage.checks++;
-        delete work.checkRetryPending;
+        if (hasDeliveryRetryPermit(c, work)) c.deliveryCycle!.retry!.status = 'used';
       } else if (work.requestCount > 0 && work.bucket !== 'none') c.usage[work.bucket]++;
       work.requestCount++;
       break;
@@ -338,7 +341,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (work.kind === 'cancel') { work.status = 'done'; c.reason = `Cancellation not confirmed: ${e.reason}`; break; }
       if (e.resultUncertain || work.replay === 'unsafe') {
         work.status = 'uncertain'; c.reason = `Result uncertain; reconcile before retry: ${e.reason}`;
-      } else if (canRetryWork(c, e) && !(isBoundedCheck(work) && (deliveryHandoffPending(c) || pendingHostRetry(c)))) {
+      } else if (canRetryWork(c, e) && !(isBoundedCheck(work) && deliveryInterruptionPending(c))) {
         if (isBoundedCheck(work)) reserveDeliveryRetry(c, work);
         else { c.usage.retries++; work.deadline = e.at + c.config.limits.workTimeoutMs; }
         work.status = 'pending';
@@ -347,7 +350,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         const failureReason = e.transient && c.usage.retries >= c.config.limits.retries ? `${e.reason}（重试额度已用尽）` : e.reason;
         release(c, work.id); c.reason = failureReason;
         if (c.hostRetryBatch?.workId === work.id) cancelHostRetries(c, failureReason);
-        if (!c.stopped && !deliveryHandoffPending(c) && !pendingHostRetry(c)) {
+        if (!c.stopped && !deliveryInterruptionPending(c)) {
           if (isBoundedCheck(work)) finishDelivery(c, e, `检查未完成（${failureReason}）`, 'DELIVERY_CHECK_FAILED');
           if (work.payload.deliveryRevision === true) finishDelivery(c, e, failureReason, 'DELIVERY_REVISION_FAILED');
         }
@@ -398,8 +401,9 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       }
       for (const work of c.intents.filter(i => i.status === 'inflight' && i.kind !== 'cancel')) {
         if (localPhysicalPending(work) || work.replay === 'unsafe') { work.status = 'uncertain'; c.reason = 'Reconcile uncertain external result'; }
+        else if (isBoundedCheck(work) && deliveryInterruptionPending(c)) release(c, work.id);
         else {
-          if (isBoundedCheck(work) && work.requestCount > 0 && !work.checkRetryPending) reserveDeliveryRetry(c, work);
+          if (isBoundedCheck(work) && work.requestCount > 0 && !hasDeliveryRetryPermit(c, work)) reserveDeliveryRetry(c, work);
           work.status = 'pending';
           if (work.kind === 'interpretation') c.inputAnalyses!.find(input => input.workId === work.id)!.status = 'pending';
         }

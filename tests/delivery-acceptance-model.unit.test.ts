@@ -53,6 +53,32 @@ describe('bounded delivery acceptance model', () => {
     expect(model.c.usage.checks).toBe(1);
   });
 
+  it('[BT_F15] keeps the current check alive when a result has no attempt identity', () => {
+    const model = new LocalModel();
+    expect(submit(model).ok).toBe(true);
+    const work = requestCheck(model);
+
+    const rejected = model.send({ type: 'CHECK_RESULT', workId: work.id, fence: work, candidateRevision: model.c.candidate!.revision,
+      resultId: 'unbound', criteriaResults: accept(model) });
+
+    expect(rejected.code).toBe('CHECK_WORK_REQUIRED');
+    expect(report(model, work, accept(model)).ok).toBe(true);
+    expect(model.c.outcome).toBe('complete');
+  });
+
+  it('[BT_M12] settles a claimed check without a model receipt as incomplete', () => {
+    const model = new LocalModel();
+    expect(submit(model).ok).toBe(true);
+    const work = claim(model, 'check');
+
+    expect(model.send({ type: 'SETTLE', intentId: work.id, attempt: work.attempt }).ok).toBe(true);
+
+    expect(model.snapshot.value).toBe('ended');
+    expect(model.c.outcome).toBe('partial');
+    expect(model.c.candidate?.deliveryIssue?.code).toBe('CHECK_NOT_COMPLETED');
+    expect(model.c.usage.checks).toBe(0);
+  });
+
   it('[BT_F14] lets a missing artifact consume the only automatic correction opportunity', () => {
     const model = new LocalModel(input => { input.goal.requiredArtifacts = 1; });
     expect(submit(model).ok).toBe(true);
@@ -86,7 +112,7 @@ describe('bounded delivery acceptance model', () => {
 
     expect(model.snapshot.value).toBe('checking');
     expect(model.c.intents.find(item => item.id === check.id)?.status).toBe('pending');
-    expect(model.c.deliveryCycle).toMatchObject({ requests: 1, retryUsed: true, revisionUsed: false });
+    expect(model.c.deliveryCycle).toMatchObject({ requests: 1, retry: { status: 'reserved' }, revisionUsed: false });
     expect(pendingOwner(model)).toEqual([]);
   });
 
@@ -98,7 +124,7 @@ describe('bounded delivery acceptance model', () => {
 
     expect(report(model, check, [{ ...first!, source: { id: 'wrong-source', quote: '原话' } }, ...rest]).ok).toBe(true);
 
-    expect(model.c.deliveryCycle?.retryUsed).toBe(true);
+    expect(model.c.deliveryCycle?.retry?.status).toBe('reserved');
     expect(deliveryJudgments(model.c, model.c.candidate?.revision)).toEqual([]);
     expect(model.c.outcome).toBeNull();
     expect(pendingOwner(model)).toEqual([]);
@@ -177,7 +203,7 @@ describe('bounded delivery acceptance model', () => {
 
     expect(model.snapshot.value).toBe('ended');
     expect(model.c.outcome).toBe('partial');
-    expect(model.c.deliveryCycle).toMatchObject({ requests: 3, retryUsed: true, revisionUsed: true });
+    expect(model.c.deliveryCycle).toMatchObject({ requests: 3, retry: { status: 'used' }, revisionUsed: true });
     expect(model.c.usage).toMatchObject({ checks: 3, retries: 1 });
   });
 
@@ -193,6 +219,69 @@ describe('bounded delivery acceptance model', () => {
     expect(replay.id).toBe(original.id);
     expect(model.c.outcome).toBe('partial');
     expect(model.c.usage).toMatchObject({ checks: 2, retries: 1 });
+  });
+
+  it('[BT_F16] spends no third ordinary check when trusted supplements interrupt two checked candidates', () => {
+    const model = new LocalModel();
+    expect(submit(model).ok).toBe(true);
+    const first = requestCheck(model);
+    expect(model.send({ type: 'USER_INPUT', text: '补充第一项要求' }).ok).toBe(true);
+    expect(report(model, first, accept(model)).ok).toBe(true);
+    expect(submit(model, claim(model, 'owner'), 'second').ok).toBe(true);
+    const second = requestCheck(model);
+    expect(model.send({ type: 'USER_INPUT', text: '补充第二项要求' }).ok).toBe(true);
+    expect(report(model, second, accept(model)).ok).toBe(true);
+
+    expect(submit(model, claim(model, 'owner'), 'third').ok).toBe(true);
+
+    expect(model.c.outcome).toBe('partial');
+    expect(model.c.candidate?.deliveryIssue?.code).toBe('CHECK_BUDGET_EXHAUSTED');
+    expect(model.c.usage.checks).toBe(2);
+  });
+
+  it('[BT_M12] rejects a repeated invalid check result without settling the retry permit', () => {
+    const model = new LocalModel();
+    expect(submit(model).ok).toBe(true);
+    const original = requestCheck(model);
+    expect(report(model, original).ok).toBe(true);
+
+    expect(report(model, original).ok).toBe(false);
+
+    const replay = requestCheck(model);
+    expect(report(model, replay, accept(model)).ok).toBe(true);
+    expect(model.c.outcome).toBe('complete');
+    expect(model.c.usage).toMatchObject({ checks: 2, retries: 1 });
+  });
+
+  it('[BT_M12] rejects a repeated transient failure without settling the retry permit', () => {
+    const model = new LocalModel();
+    expect(submit(model).ok).toBe(true);
+    const original = requestCheck(model);
+    const failure = { type: 'WORK_FAILED', id: 'network:1', intentId: original.id, attempt: original.attempt, transient: true, reason: 'network timeout' };
+    expect(model.send(failure).ok).toBe(true);
+
+    expect(model.send(failure).ok).toBe(false);
+
+    expect(model.c.outcome).toBeNull();
+    expect(model.c.intents.find(work => work.id === original.id)?.status).toBe('pending');
+    expect(model.c.usage).toMatchObject({ checks: 1, retries: 1 });
+  });
+
+  it('[BT_F16] applies a trusted supplement after restart even when the interrupted check has no retry left', () => {
+    const model = new LocalModel();
+    expect(submit(model).ok).toBe(true);
+    const first = requestCheck(model);
+    expect(report(model, first).ok).toBe(true);
+    requestCheck(model);
+    expect(model.send({ type: 'USER_INPUT', text: '补充交付要求' }).ok).toBe(true);
+
+    expect(model.send({ type: 'RECOVER', config: model.c.config }).ok).toBe(true);
+
+    expect(model.snapshot.value).toBe('running');
+    expect(model.c.outcome).toBeNull();
+    expect(model.c.inputs[0]?.applied).toBe(true);
+    expect(model.c.usage).toMatchObject({ checks: 2, retries: 1 });
+    expect(pendingOwner(model)).toHaveLength(1);
   });
 
   it('[BT_F10] rejects a result arriving after the user stopped the task', () => {

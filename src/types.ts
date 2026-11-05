@@ -77,8 +77,6 @@ export interface Intent extends Fence {
   evidenceRefs?: string[];
   /** Persisted format-repair authorization; never stores the rejected model body. */
   outputRepair?: { count: number; issue: ModelOutputIssue };
-  /** A persisted technical retry authorization for this delivery cycle. */
-  checkRetryPending?: boolean;
   /** The independently checked criteria for this work's fixed candidate revision. */
   criteriaResults?: CriterionJudgment[];
 }
@@ -99,7 +97,7 @@ export interface Candidate {
 }
 export interface DeliveryCycle {
   requests: number;
-  retryUsed: boolean;
+  retry?: { workId: string; status: 'reserved' | 'used' };
   revisionUsed: boolean;
   evidence?: DeliveryEvidenceRef[];
 }

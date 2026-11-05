@@ -1,12 +1,12 @@
 import { hostRetryReservation } from '../host-retry.js';
 import { type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { discussionActive, hasOrdinary } from './facts.js';
-import { deliveryCheckBudgetProblem, isBoundedCheck } from './delivery.js';
+import { deliveryCheckBudgetProblem, hasDeliveryRetryPermit, isBoundedCheck } from './delivery.js';
 import { deliveryVerificationPlan } from './verification.js';
 
 export function requestBudgetProblem(c: TaskContext, work: Intent): string | null {
   if (work.bucket === 'none') return null;
-  if (work.bucket === 'checks') return deliveryCheckBudgetProblem(c);
+  if (work.bucket === 'checks') return deliveryCheckBudgetProblem(c, hasDeliveryRetryPermit(c, work));
   if (c.usage[work.bucket] >= c.config.limits[work.bucket]) return 'BUDGET_EXHAUSTED';
   const hostReserve = work.id === c.hostRetryBatch?.workId ? 0 : hostRetryReservation(c);
   if (work.bucket === 'ordinary' && c.usage.ordinary + 1 + hostReserve > c.config.limits.ordinary) return 'BUDGET_EXHAUSTED';
@@ -36,13 +36,12 @@ export function canRetryWork(c: TaskContext, e: TaskEvent): boolean {
 }
 
 export function canRetryDeliveryCheck(c: TaskContext, work: Intent, at: number): boolean {
-  return !!c.deliveryCycle && !c.deliveryCycle.retryUsed && !c.stopped && work.requestCount > 0
-    && c.usage.retries < c.config.limits.retries && !deliveryCheckBudgetProblem(c)
+  return !!c.deliveryCycle && !c.deliveryCycle.retry && !c.stopped && work.requestCount > 0
+    && c.usage.retries < c.config.limits.retries && !deliveryCheckBudgetProblem(c, true)
     && (work.deadline === null || at < work.deadline);
 }
 
 export function reserveDeliveryRetry(c: TaskContext, work: Intent): void {
-  c.deliveryCycle!.retryUsed = true;
+  c.deliveryCycle!.retry = { workId: work.id, status: 'reserved' };
   c.usage.retries++;
-  work.checkRetryPending = true;
 }

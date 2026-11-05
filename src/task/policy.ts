@@ -1,6 +1,6 @@
 import { modelOutputIssues, type InputReference, type TaskContext, type TaskEvent } from '../types.js';
 import { localAwaitingApproval, localEventProblem, localPhysicalPending, localUnsettled } from '../local-operation.js';
-import { boundCheckProblem, isBoundedCheck } from './delivery.js';
+import { boundCheckProblem, hasDeliveryRetryPermit, isBoundedCheck } from './delivery.js';
 import { requestBudgetProblem } from './budget.js';
 import { allInflight, discussionActive, fresh, hasOrdinary, incompatibleExecution, isBot, workLaneAvailable } from './facts.js';
 import { validArtifactDrafts, validSummary } from '../presentation.js';
@@ -128,7 +128,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (i.kind === 'check') {
         if (!isBoundedCheck(i)) return 'CHECK_PROTOCOL_CHANGED';
         if (c.trace.some(entry => entry.event === 'CONSUME' && entry.detail === e.id)) return 'DUPLICATE_RESULT';
-        if (i.requestCount > 0 && !i.checkRetryPending) return 'CHECK_REQUEST_NOT_AUTHORIZED';
+        if (i.requestCount > 0 && !hasDeliveryRetryPermit(c, i)) return 'CHECK_REQUEST_NOT_AUTHORIZED';
         return requestBudgetProblem(c, i) ?? deliveryVerificationProblem(i, false);
       }
       return i.requestCount > 0 ? requestBudgetProblem(c, i) : null;
@@ -167,7 +167,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (!work || !['pending', 'inflight'].includes(work.status)) return 'UNKNOWN_OR_SETTLED_WORK';
       if (work.kind !== 'cancel' && (work.epoch !== c.epoch || work.goalVersion !== c.goalVersion)) return 'STALE_WORK';
       if (isBoundedCheck(work) && c.trace.some(entry => entry.event === 'WORK_FAILED' && entry.detail === e.id)) return 'DUPLICATE_RESULT';
-      if (isBoundedCheck(work) && work.status === 'pending' && work.checkRetryPending && e.attempt !== undefined) return 'STALE_ATTEMPT';
+      if (isBoundedCheck(work) && work.status === 'pending' && hasDeliveryRetryPermit(c, work) && e.attempt !== undefined) return 'STALE_ATTEMPT';
       return null;
     }
     case 'RECONCILE': return c.intents.find(i => i.id === e.intentId)?.status === 'uncertain' ? null : 'NOT_UNCERTAIN';

@@ -116,6 +116,7 @@ export const taskLifecycle = {
           { guard: 'checkContinues', target: 'running', actions: 'apply' },
           { guard: 'valid', target: 'ended', actions: 'apply' },
         ],
+        SETTLE: [{ guard: 'settlingCheckHandoff', target: 'running', actions: 'apply' }, { guard: 'settlingCheck', target: 'ended', actions: 'apply' }, { guard: 'valid', actions: 'apply' }],
         WORK_FAILED: [{ guard: 'failedDiscussion', actions: 'apply' }, { guard: 'checkFailureHandoff', target: 'running', actions: 'apply' }, { guard: 'retryable', actions: 'apply' }, { guard: 'checkFailed', target: 'ended', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
       },
     },
