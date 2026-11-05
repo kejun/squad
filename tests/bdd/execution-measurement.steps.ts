@@ -6,7 +6,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { After, Given, Then, When } from '@cucumber/cucumber';
 import { OpenAICompatibleAdapter } from '../../src/model-adapter.js';
 import { WorkRunner } from '../../src/runner.js';
-import { coveredDuration, type ExecutionObservation } from '../../src/measurement.js';
+import { coveredDuration, type ExecutionObservation, type MeasurementRecord } from '../../src/measurement.js';
+import { summarizeMeasurements } from '../../src/measurement-report.js';
 import { WebService } from '../../src/web/service.js';
 import { Harness } from '../helpers.js';
 import { hostUntil } from '../host-approval-fixture.js';
@@ -26,6 +27,8 @@ interface MeasurementState {
   taskId?: string;
   roomId?: string;
   modelCalls?: number;
+  timingRecords?: MeasurementRecord[];
+  timingSummary?: ReturnType<typeof summarizeMeasurements>;
 }
 
 const states = new WeakMap<SpecWorld, MeasurementState>();
@@ -152,4 +155,54 @@ Then('任务应接收并只处理一次合法结果', function (this: SpecWorld)
   assert.equal(context.outcome, 'complete');
   assert.equal(context.trace.filter(entry => entry.event === 'CHECK_RESULT').length, 1);
   assert.equal(s.database!.prepare("SELECT count(*) AS count FROM web_events WHERE kind = 'measurement'").get()?.count, 0);
+});
+
+function measurementRecord(runId: string, monotonicMs: number, observation: ExecutionObservation): MeasurementRecord {
+  return {
+    roomId: 'test-room', taskId: 'test-task', workId: 'test-work', agentId: 'A', epoch: 1, goalVersion: 1, attempt: 1,
+    run: { runId, commit: null, dirty: null, dataset: 'fixed-clock', executionVersion: 'fixture', toolVersion: 'fixture',
+      timezone: 'UTC', configDigest: 'fixture', measurementVersion: 1 },
+    at: (runId === 'first-run' ? 1000 : 2000) + monotonicMs,
+    monotonicMs, observation,
+  };
+}
+
+Given('模型传输与人工决定等待在同一次运行中重叠', function (this: SpecWorld) {
+  const operation = { operationId: 'test-operation', action: 'runCli', approvalId: 'test-approval' };
+  const timingRecords = [
+    measurementRecord('first-run', 0, { phase: 'model.transport', requestId: 'request-1', serviceId: 'fixture', model: 'fixture' }),
+    measurementRecord('first-run', 10, { phase: 'local.approvalRequired', ...operation, sessionApproved: false }),
+    measurementRecord('first-run', 30, { phase: 'model.responseBody', requestId: 'request-1', durationMs: 30 }),
+    measurementRecord('first-run', 40, { phase: 'local.approvalDecision', ...operation, decisionId: 'decision-1', decision: 'approve' }),
+  ];
+  states.set(this, { records: [], timingRecords });
+});
+
+Given('重启时另一个请求只保留开始和结束各一端', function (this: SpecWorld) {
+  state(this).timingRecords!.push(
+    measurementRecord('first-run', 60, { phase: 'model.transport', requestId: 'request-2', serviceId: 'fixture', model: 'fixture' }),
+    measurementRecord('second-run', 10, { phase: 'model.responseBody', requestId: 'request-2', durationMs: 10 }),
+  );
+});
+
+When('我汇总两次运行的观测时段', function (this: SpecWorld) {
+  const s = state(this);
+  s.timingSummary = summarizeMeasurements(s.timingRecords!);
+});
+
+Then('应按阶段列出完整区间和缺失端点', function (this: SpecWorld) {
+  const [first, second] = state(this).timingSummary!;
+  assert.deepEqual(first?.durations.modelTransport, { coveredMs: 30, complete: 1, missingStart: 0, missingEnd: 1 });
+  assert.deepEqual(first?.durations.humanDecision, { coveredMs: 30, complete: 1, missingStart: 0, missingEnd: 0 });
+  assert.deepEqual(second?.durations.modelTransport, { coveredMs: null, complete: 0, missingStart: 1, missingEnd: 0 });
+});
+
+Then('同一次运行的观测并集只覆盖一次已知时段', function (this: SpecWorld) {
+  const [first, second] = state(this).timingSummary!;
+  assert.equal(first?.observedWindowMs, 60);
+  assert.equal(first?.observedIntervalUnionMs, 40);
+  assert.equal(first?.unclassifiedInWindowMs, 20);
+  assert.equal(second?.observedWindowMs, null);
+  assert.equal(second?.observedIntervalUnionMs, null);
+  assert.equal(second?.unclassifiedInWindowMs, null);
 });
