@@ -52,6 +52,7 @@ export function TaskDebug({ roomId, onClose }: { roomId: string | null; onClose:
   const previous = frame ? previousFrame(frame, frames) : undefined;
   const rule = graph.transitions.find(item => item.id === selectedRule);
   const focused = focus ?? phase ?? graph.initial;
+  const chartFocus = graph.states.includes(focused) ? focused : phase ?? graph.initial;
   const validPreview = mode === 'sandbox' && preview && sandbox.isPreviewCurrent(preview, draft.text) ? preview : null;
   const events = useMemo(() => [...new Set(graph.transitions.map(t => t.event).filter(e => e !== '@always' && e !== '*'))].sort(), [graph]);
   const waits = useMemo(() => snapshot ? waitingItems(snapshot.context) : [], [snapshot]);
@@ -187,9 +188,9 @@ export function TaskDebug({ roomId, onClose }: { roomId: string | null; onClose:
               {!frames.length && <p>从当前基线开始观测，尚无可用的执行记录。</p>}
             </section>
           </>}
-          {view === 'graph' && <><StateGraph graph={graph} active={phase} historical={history ? frame?.phase : undefined} focus={focused} onFocus={setFocus}
+          {view === 'graph' && <><StateGraph graph={graph} active={phase} historical={history ? frame?.phase : undefined} focus={chartFocus} frame={frame} onFocus={setFocus}
             onRule={id => { setSelectedRule(id); }} onGlobals={() => { setFocus('*'); setView('rules'); }} />
-            <button className="debug-graph-rule-link" onClick={() => setView('rules')}>查看所选状态的全部规则 · {focused}</button></>}
+            <button className="debug-graph-rule-link" onClick={() => { setFocus(chartFocus); setView('rules'); }}>查看所选状态的全部规则 · {chartFocus}</button></>}
           {view === 'rules' && <DebugRules graph={graph} focus={focused} onFocus={setFocus} selected={selectedRule} onSelect={selectRule} />}
         </main>
         <aside className="debug-side" aria-label="调试详情" hidden={view === 'graph' && !rule}>
