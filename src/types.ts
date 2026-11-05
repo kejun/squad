@@ -115,7 +115,7 @@ export interface TaskContext extends Fence {
   discussion?: DiscussionRound;
   inputAnalyses?: InputAnalysis[];
   localSkillVersions?: SkillBinding[];
-  hostSession?: HostSessionGrant;
+  hostSession?: HostSessionGrant | undefined;
 }
 export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[] }
 export interface Envelope { id: string; at: number; fence?: Fence; workId?: string; attempt?: number }

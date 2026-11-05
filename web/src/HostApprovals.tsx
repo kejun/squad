@@ -5,18 +5,23 @@ import { ShieldAlert, X } from 'lucide-react';
 import type { WebHostApproval } from '../../src/web/contracts';
 import { api } from './api';
 
+interface HostSession { taskId: string; grantId: string; host: string; account: string }
+
 /** A projection of durable requests. Closing the dialog never sends a decision. */
-export function HostApprovals({ roomId, requests, connected }: { roomId: string; requests: WebHostApproval[]; connected: boolean }) {
+export function HostApprovals({ roomId, requests, sessions = [], connected }: { roomId: string; requests: WebHostApproval[]; sessions?: HostSession[]; connected: boolean }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [resolved, setResolved] = useState<string[]>([]);
+  const [revoked, setRevoked] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [sessionError, setSessionError] = useState('');
   const seen = useRef(new Set<string>());
   const inFlight = useRef(false);
   const commandIds = useRef(new Map<string, string>());
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const pending = requests.filter(r => !resolved.includes(r.approvalId));
+  const allowedSessions = sessions.filter(session => !revoked.includes(session.grantId));
   const active = pending.find(r => r.approvalId === activeId);
   const identity = pending.map(r => r.approvalId).join('\n');
   useEffect(() => {
@@ -25,7 +30,7 @@ export function HostApprovals({ roomId, requests, connected }: { roomId: string;
     if (next) { seen.current.add(next.approvalId); setActiveId(next.approvalId); setError(''); }
     else setActiveId(null);
   }, [identity, activeId]); // IDs identify immutable requests; polling doesn't reopen dismissed dialogs.
-  const decide = async (request: WebHostApproval, decision: 'approve' | 'deny') => {
+  const decide = async (request: WebHostApproval, decision: 'approve' | 'approveSession' | 'deny') => {
     if (inFlight.current) return;
     inFlight.current = true; setBusy(true); setError('');
     const key = `${request.approvalId}:${decision}`;
@@ -37,8 +42,24 @@ export function HostApprovals({ roomId, requests, connected }: { roomId: string;
     } catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : '提交失败，请重试。'); }
     finally { inFlight.current = false; if (mounted.current) setBusy(false); }
   };
-  if (!pending.length) return null;
+  const revoke = async (session: HostSession) => {
+    if (inFlight.current) return;
+    inFlight.current = true; setBusy(true); setSessionError('');
+    const key = `revoke:${session.grantId}`;
+    const id = commandIds.current.get(key) ?? crypto.randomUUID(); commandIds.current.set(key, id);
+    try {
+      await api(`/rooms/${encodeURIComponent(roomId)}/host-session-revoke`, { id, taskId: session.taskId, grantId: session.grantId });
+      if (mounted.current) setRevoked(previous => [...previous, session.grantId]);
+    } catch (cause) { if (mounted.current) setSessionError(cause instanceof Error ? cause.message : '撤销失败，请重试。'); }
+    finally { inFlight.current = false; if (mounted.current) setBusy(false); }
+  };
+  if (!pending.length && !allowedSessions.length) return null;
   return <div className="host-approvals">
+    {allowedSessions.map(session => <section key={session.grantId} className="host-session" aria-label="当前任务的宿主会话授权">
+      <span>本次会话已允许宿主执行 <code>{session.account}@{session.host}</code></span>
+      <Button disabled={busy || !connected} onClick={() => { void revoke(session); }}>撤销会话授权</Button>
+    </section>)}
+    {sessionError && <p className="host-session-error" role="alert">{sessionError}</p>}
     {pending.map(request => <Button key={request.approvalId} className="host-approval-card" onClick={() => { setActiveId(request.approvalId); setError(''); }}>
       <ShieldAlert size={16} aria-hidden="true" />等待宿主执行授权 <code>{request.executable.split('/').at(-1)}</code>
     </Button>)}
@@ -51,9 +72,11 @@ export function HostApprovals({ roomId, requests, connected }: { roomId: string;
             <Dialog.Description>本次将以 {active.account}@{active.host} 的权限执行，可访问工作区外的文件与网络。</Dialog.Description>
             <pre aria-label="请求执行的完整命令">{[active.executable, ...active.args].map(v => JSON.stringify(v)).join(' ')}</pre>
             <dl><dt>工作目录</dt><dd>{active.cwd}</dd><dt>请求原因</dt><dd>{active.reason}</dd></dl>
+            <p className="host-session-explanation">选择“允许本次会话”后，当前任务的所有 Bot 可在同一宿主账号与执行环境中继续执行宿主命令，无需逐次确认。任务结束、停止或服务重启后失效，也可随时撤销。</p>
             {error && <p role="alert">{error}</p>}
             <div className="host-approval-actions">
               <Button disabled={busy || !connected} onClick={() => { void decide(active, 'deny'); }}>拒绝</Button>
+              <Button disabled={busy || !connected} onClick={() => { void decide(active, 'approveSession'); }}>允许本次会话</Button>
               <Button className="primary" disabled={busy || !connected} onClick={() => { void decide(active, 'approve'); }}>{busy ? '提交中…' : '允许本次'}</Button>
             </div>
           </>}

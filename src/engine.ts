@@ -238,12 +238,18 @@ export class TeamEngine {
       storeTask(tx, next); return { ...next.context.reply, taskId };
     }));
   }
-  decideHostApproval(roomId: string, taskId: string, intentId: string, operationId: string, approvalId: string, decision: 'approve' | 'deny', commandId: string): CommandResult {
+  decideHostApproval(roomId: string, taskId: string, intentId: string, operationId: string, approvalId: string, decision: 'approve' | 'approveSession' | 'deny', commandId: string): CommandResult {
     const work = this.view(roomId, taskId)?.context.intents.find(i => i.id === intentId);
     if (!work) return { ok: false, code: 'UNKNOWN_WORK', detail: '找不到授权请求' };
     if (!localEnabled(this.config, work.target)) return { ok: false, code: 'LOCAL_TOOLS_DISABLED', detail: '本地工具权限已关闭' };
     return this.send(roomId, taskId, { type: 'LOCAL_APPROVAL_DECISION', id: commandId, at: this.clock(), intentId, operationId, approvalId, decision,
       fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
+  }
+  revokeHostSession(roomId: string, taskId: string, grantId: string, commandId: string): CommandResult {
+    const c = this.view(roomId, taskId)?.context;
+    if (!c) return { ok: false, code: 'TASK_NOT_FOUND', detail: taskId };
+    return this.send(roomId, taskId, { type: 'REVOKE_HOST_SESSION', id: commandId, at: this.clock(), grantId,
+      fence: { epoch: c.epoch, goalVersion: c.goalVersion } });
   }
   requestLocal(roomId: string, taskId: string, intentId: string, parentAttempt: number, action: LocalAction, messages: LocalMessage[], workspaceId?: string): LocalOperation {
     const work = this.view(roomId, taskId)?.context.intents.find(i => i.id === intentId);
