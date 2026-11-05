@@ -107,8 +107,8 @@ stateDiagram-v2
     interpreting --> running: INTERPRETATION_RESULT [valid且无需澄清] / apply
     running --> waitingAssistance: HELP [valid] / apply
     waitingAssistance --> running: HELP_RESULT [valid且不继续评审] / apply
-    running --> checking: DELIVER [候选预检通过且无待交接] / 保存绑定候选的检查意图
-    checking --> ended: CHECK_RESULT [当前候选且独立验收通过] / 发布
+    running --> checking: DELIVER [机械门禁通过且交接已结算] / 保存绑定候选及证据的检查意图
+    checking --> ended: CHECK_RESULT [当前候选全部必需项通过且门禁有效] / 发布
 ```
 
 控制路径（与上图为同一个 taskMachine，不是另一台机器或父状态）：
@@ -144,7 +144,7 @@ stateDiagram-v2
 | --- | --- |
 | 输入、协助、评审、后台讨论、交付 | [任务上下文](docs/state-diagrams.md#任务拥有的上下文生命周期)：BT_I、BT_H、BT_G01–G14、BT_T、BT_A01–A11 |
 | 当前交付、文档修订与历史报告 | [候选版本与当前交付](docs/state-diagrams.md#候选版本与当前交付)，BT_A22–BT_A26 |
-| 候选预检、独立验收与修订 | [交付验收](docs/state-diagrams.md#候选预检与独立验收)，BT_F07–F08、BT_F14–F16 |
+| 候选预检、固定材料独立验收与一次修订 | [交付验收](docs/state-diagrams.md#候选预检与独立验收)，BT_F03–F04、BT_F07–F08、BT_F10–F11、BT_F14–F21 |
 | 意图领取、工具、格式修正、本地操作与宿主 | [执行与适配器](docs/state-diagrams.md#执行与适配器边界)：BT_M、BT_W、BT_L |
 | 任务内证据查读、刷新与历史观测 | [任务级证据读取](docs/state-diagrams.md#任务级证据读取)：BT_L38–BT_L43 |
 | 按次/本次任务会话批准宿主 CLI、拒绝与恢复（BT_L35–BT_L37） | [宿主命令授权](docs/state-diagrams.md#宿主命令按次授权)：BT_L23–BT_L30；默认仍为沙箱 |
