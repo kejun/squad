@@ -1,3 +1,4 @@
+import { startMapReduce } from './map-reduce.js';
 import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
@@ -73,7 +74,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       c.trace.push({ event: 'INPUT_INTERPRETED', at: e.at, detail: JSON.stringify({ inputId: input.id, workId: input.workId, status: input.status }) });
       if (e.spec.clarification) {
         c.reason = e.spec.clarification; message(c, e, 'facilitator', e.spec.clarification, 'notice');
-      } else if (!c.inputs.some(note => !note.applied) && c.review?.status !== 'pending') {
+      } else if (!c.inputs.some(note => !note.applied) && c.review?.status !== 'pending' && !startMapReduce(c, e)) {
         owner(c, e, { reason: 'Plan from the validated user intent and preserve the original goal' });
       }
       break;
@@ -172,7 +173,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (c.deliveryCycle && c.inputs.some(note => !note.applied)) delete c.deliveryCycle.evidence;
       for (const note of c.inputs) note.applied = true;
       if (c.review && !['cancelled', 'complete'].includes(c.review.status)) resetReviewAtBoundary(c, e);
-      else owner(c, e, { reason: 'Apply latest user input' });
+      else if (!startMapReduce(c, e)) owner(c, e, { reason: 'Apply latest user input' });
       c.deferredCoordination = false; break;
     case 'HANDOFF': {
       const from = c.owner;

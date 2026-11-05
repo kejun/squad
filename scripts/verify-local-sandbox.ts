@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
 import { SandboxCliBackend, minimalCliEnvironment, identityAlive, type ProcessIdentity } from '../src/local-cli.js';
 
 /** Production SRT backend, never the injected process fixture. Exit 78 means host unavailable. */
@@ -19,9 +20,13 @@ try {
     const workspace = join(root, 'workspace'), snapshot = join(root, 'skill'); await mkdir(workspace); await mkdir(snapshot);
     await mkdir(join(workspace, '.home')); await mkdir(join(workspace, '.tmp'));
     const secret = join(root, 'private.txt'); await writeFile(secret, 'must-not-read'); await writeFile(join(snapshot, 'readonly.txt'), 'skill-body');
+    const runtimeRoot = dirname(createRequire(import.meta.url).resolve('@anthropic-ai/sandbox-runtime/package.json'));
+    const helper = process.platform === 'linux' ? join(runtimeRoot, 'vendor', 'seccomp', process.arch, 'apply-seccomp') : undefined;
     const program = `const fs=require('fs'),net=require('net');
       fs.writeFileSync('output.txt','workspace-write-ok');
-      for(const path of ${JSON.stringify([secret, join(workspace, '.env')])}) { try { fs.readFileSync(path); process.exit(11); } catch{} }
+      const helper=${JSON.stringify(helper ?? null)};
+      if(helper) { fs.accessSync(helper,fs.constants.R_OK|fs.constants.X_OK);try{const fd=fs.openSync(helper,'r+');fs.closeSync(fd);process.exit(17)}catch{} }
+      for(const path of ${JSON.stringify([secret, join(workspace, '.env'), join(process.cwd(), 'package.json'), join(runtimeRoot, 'package.json')])}) { try { fs.readFileSync(path); process.exit(11); } catch{} }
       try { fs.writeFileSync(${JSON.stringify(join(snapshot, 'readonly.txt'))},'overwritten'); process.exit(12); } catch{}
       if(fs.readFileSync(${JSON.stringify(join(snapshot, 'readonly.txt'))},'utf8')!=='skill-body')process.exit(13);
       if(process.env.SQUAD_SANDBOX_TEST_SECRET || process.env.SRT_PRIVATE_SENTINEL)process.exit(14);
@@ -32,12 +37,22 @@ try {
     assert(completion.settled); assert(completion.result.ok, JSON.stringify(completion.result)); assert(String(completion.result.data.stdout).includes('boundaries-ok'));
     assert.equal(await readFile(join(workspace, 'output.txt'), 'utf8'), 'workspace-write-ok');
     const buildOutput = join(workspace, 'dist'); await mkdir(buildOutput);
+    await writeFile(join(buildOutput, '.env'), 'must-not-change');
     const readOnlyCheck = await backend.execute({ executable: process.execPath,
-      args: ['-e', `const fs=require('fs');try{fs.writeFileSync('output.txt','mutated');process.exit(21)}catch{}fs.writeFileSync('dist/build.txt','build-ok');`],
+      args: ['-e', `const fs=require('fs');try{fs.writeFileSync('output.txt','mutated');process.exit(21)}catch{}try{fs.writeFileSync('dist/.env','mutated');process.exit(22)}catch{}fs.writeFileSync('dist/build.txt','build-ok');`],
       workspace, cwd: workspace, env: minimalCliEnvironment(workspace), writeRoots: [buildOutput], timeoutMs: 3000,
       sessionId: 'verify-readonly-check-inputs', logPath: join(root, 'check.log') }, new AbortController().signal, async () => {});
     assert(readOnlyCheck.result.ok, JSON.stringify(readOnlyCheck.result));
     assert.equal(await readFile(join(buildOutput, 'build.txt'), 'utf8'), 'build-ok');
+    assert.equal(await readFile(join(buildOutput, '.env'), 'utf8'), 'must-not-change');
+    const deniedOutput = join(workspace, '.git', 'hooks', 'output'); await mkdir(deniedOutput, { recursive: true });
+    const ancestorCheck = await backend.execute({ executable: process.execPath,
+      args: ['-e', `const fs=require('fs');try{fs.writeFileSync('.git/hooks/output/forbidden.txt','bad');process.exit(23)}catch{console.log('ancestor-deny-ok')}`],
+      workspace, cwd: workspace, env: minimalCliEnvironment(workspace), writeRoots: [deniedOutput], timeoutMs: 3000,
+      sessionId: 'verify-ancestor-write-deny', logPath: join(root, 'ancestor-check.log') }, new AbortController().signal, async () => {});
+    assert(ancestorCheck.result.ok, JSON.stringify(ancestorCheck.result));
+    assert(String(ancestorCheck.result.data.stdout).includes('ancestor-deny-ok'));
+    await assert.rejects(readFile(join(deniedOutput, 'forbidden.txt')), { code: 'ENOENT' });
     const controller = new AbortController(); let identity: ProcessIdentity | undefined;
     const cancelled = await backend.execute({ executable: process.execPath,
       args: ['-e', "require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});setInterval(()=>{},1000)"],

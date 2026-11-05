@@ -23,7 +23,8 @@
     "test:debug-browser": "node scripts/verify-state-debug.mjs",
     "simulate:local-tools": "node --import tsx scripts/simulate-local-tools.ts",
     "local:operations": "node --import tsx scripts/local-operations.ts",
-    "verify:local-sandbox": "node --import tsx scripts/verify-local-sandbox.ts"
+    "verify:local-sandbox": "node --import tsx scripts/verify-local-sandbox.ts",
+    "postinstall": "node scripts/patch-sandbox-runtime.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.81",

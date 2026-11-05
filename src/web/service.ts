@@ -480,7 +480,7 @@ export class WebService {
           ...(scope.localTools ? { localTools: {
             catalog: scope.localTools.catalog, checkpoint: scope.localTools.checkpoint,
             invoke: async (action, messages, toolSignal, requested) => {
-              const labels = { listSkills: "查看本地技能", loadSkill: "激活本地技能", readSkillResource: "读取技能资源", readEvidence: "查读执行证据", readArtifact: "查读历史产物", runCli: "执行本地命令", verifyWorkspace: "核对工程版本" };
+              const labels = { discoverHost: "发现宿主能力", listSkills: "查看本地技能", loadSkill: "激活本地技能", readSkillResource: "读取技能资源", readEvidence: "查读执行证据", readArtifact: "查读历史产物", runCli: "执行本地命令", verifyWorkspace: "核对工程版本" };
               this.append(roomId, work, "tool-start", labels[action.type], JSON.stringify(this.localRuntime!.clean(action)));
               let operationId: string | undefined;
               const result = await scope.localTools!.invoke(action, messages, toolSignal, id => {

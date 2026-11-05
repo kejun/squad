@@ -2,7 +2,7 @@ import { type Decision, type Intent, type TaskContext, type TaskEvent } from '..
 import { conversationInput, intent, message, release, saveReports } from './operations.js';
 import { capabilities, discussionActive, fence } from './facts.js';
 
-function discussionIntent(c: TaskContext, e: TaskEvent, kind: Intent['kind'], target: string) {
+export function discussionIntent(c: TaskContext, e: TaskEvent, kind: Intent['kind'], target: string) {
   const work = intent(c, e.at, kind, target, { goal: c.goal, board: c.board, artifacts: c.artifacts,
     ...conversationInput(c), roster: c.config.bots, capabilities: capabilities(c) });
   work.discussionId = c.discussion!.id;
