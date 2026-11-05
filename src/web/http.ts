@@ -77,7 +77,7 @@ export function createWebServer(
             201,
           );
         }
-        const match = /^\/api\/rooms\/([^/]+)(?:\/(messages|stop|archive|restore|host-approval|host-retry))?$/.exec(
+        const match = /^\/api\/rooms\/([^/]+)(?:\/(messages|stop|archive|restore|host-approval|host-retry|host-session-revoke))?$/.exec(
           url.pathname,
         );
         if (!match?.[1]) throw new WebError(404, "接口不存在。");
@@ -94,12 +94,18 @@ export function createWebServer(
             if (Object.keys(data).some(key => !keys.includes(key)) || keys.some(key => typeof data[key] !== 'string' || !data[key] || String(data[key]).length > 1024)) throw new WebError(400, '宿主申请格式不正确。');
             return json(res, service.requestHostRetry(roomId, data as unknown as Parameters<WebService['requestHostRetry']>[1]));
           }
+          if (match[2] === 'host-session-revoke') {
+            if (!origin || !req.headers['content-type']?.startsWith('application/json') || req.headers['sec-fetch-site'] === 'cross-site') throw new WebError(403, '撤销宿主授权必须由同源页面提交。');
+            const keys = ['id', 'taskId', 'grantId'];
+            if (Object.keys(data).some(key => !keys.includes(key)) || keys.some(key => typeof data[key] !== 'string' || !data[key] || String(data[key]).length > 1024)) throw new WebError(400, '撤销请求格式不正确。');
+            return json(res, service.revokeHostSession(roomId, data as unknown as Parameters<WebService['revokeHostSession']>[1]));
+          }
           if (match[2] === 'host-approval') {
             if (!origin || !req.headers['content-type']?.startsWith('application/json') || req.headers['sec-fetch-site'] === 'cross-site')
               throw new WebError(403, '宿主授权必须由同源页面提交。');
             const keys = ['id', 'taskId', 'workId', 'operationId', 'approvalId', 'decision'];
             if (Object.keys(data).some(key => !keys.includes(key)) || keys.some(key => typeof data[key] !== 'string' || !data[key] || String(data[key]).length > 1024)
-              || !['approve', 'deny'].includes(String(data.decision))) throw new WebError(400, '授权请求格式不正确。');
+              || !['approve', 'approveSession', 'deny'].includes(String(data.decision))) throw new WebError(400, '授权请求格式不正确。');
             return json(res, service.decideHostApproval(roomId, data as unknown as Parameters<WebService['decideHostApproval']>[1]));
           }
           if (match[2] === "archive" || match[2] === "restore")

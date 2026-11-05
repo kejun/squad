@@ -2146,10 +2146,16 @@ svg {
 .host-approval-dialog dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 16px; }
 .host-approval-dialog dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .host-approval-dialog [role="alert"] { color: #a22727; }
-.host-approval-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.host-approval-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 .host-approval-actions button { padding: 8px 16px; border: 1px solid #d6d6d6; border-radius: 6px; background: #fff; cursor: pointer; font-size: 14px; }
 .host-approval-actions .primary { background: #202020; color: #fff; border-color: #202020; }
 .host-approval-actions button:disabled { opacity: .5; cursor: default; }
+.host-session { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); font-size: 14px; }
+.host-session span { min-width: 0; overflow-wrap: anywhere; }
+.host-session button { flex-shrink: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-size: 14px; cursor: pointer; }
+.host-session button:disabled { opacity: .5; cursor: default; }
+.host-session-error { margin: 0; color: #a22727; font-size: 14px; }
+.host-session-explanation { margin: 16px 0 0; line-height: 1.6; }
 .sandbox-failure { display: grid; gap: 8px; padding: 10px 12px; margin-bottom: 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; font-size: 14px; }
 .sandbox-failure code { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 100px; overflow: auto; }
 .sandbox-failure p { margin: 0; color: #8c4825; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 72px; overflow: auto; }

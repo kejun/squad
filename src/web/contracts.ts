@@ -79,6 +79,7 @@ export interface WebAssistance {
 export interface RoomSnapshot {
   failedSandboxCommands?: WebFailedSandboxCommand[];
   hostApprovals?: WebHostApproval[];
+  hostSessions?: { taskId: string; grantId: string; host: string; account: string }[];
   room: WebRoom;
   agents: WebAgent[];
   messages: Message[];

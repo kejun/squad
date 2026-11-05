@@ -1,3 +1,4 @@
+import { hostSessionActive } from '../host-session.js';
 import type { LocalRuntime } from "../local-runtime.js";
 import { localAwaitingApproval } from '../local-operation.js';
 import { hostRetryProblem } from '../host-retry.js';
@@ -164,13 +165,21 @@ export class WebService {
     // A repeated old receipt returns current metadata, never reapplies its old target state.
     return this.room(roomId);
   }
-  decideHostApproval(roomId: string, data: { id: string; taskId: string; workId: string; operationId: string; approvalId: string; decision: 'approve' | 'deny' }) {
+  decideHostApproval(roomId: string, data: { id: string; taskId: string; workId: string; operationId: string; approvalId: string; decision: 'approve' | 'approveSession' | 'deny' }) {
     this.room(roomId);
     const result = this.engine.decideHostApproval(roomId, data.taskId, data.workId, data.operationId, data.approvalId, data.decision, data.id);
     if (!result.ok) throw new WebError(409, `授权请求已失效或不可用 (${result.code})`);
     this.localRuntime?.notifyWorkspace(`approval:${data.operationId}`);
+    if (data.decision === 'approveSession') for (const work of this.engine.view(roomId, data.taskId)?.context.intents ?? [])
+      for (const op of work.localOperations ?? []) if (op.approval?.sessionGrantId) this.localRuntime?.notifyWorkspace(`approval:${op.id}`);
     this.kick(roomId);
     return result;
+  }
+  revokeHostSession(roomId: string, data: { id: string; taskId: string; grantId: string }) {
+    this.room(roomId);
+    const result = this.engine.revokeHostSession(roomId, data.taskId, data.grantId, data.id);
+    if (!result.ok) throw new WebError(409, `无法撤销会话授权 (${result.code})`);
+    this.kick(roomId); return result;
   }
   requestHostRetry(roomId: string, data: { id: string; taskId: string; workId: string; operationId: string; sourceRequestHash: string }) {
     this.room(roomId);
@@ -186,6 +195,7 @@ export class WebService {
     const tasks: WebTask[] = [];
     const works: WebWork[] = [];
     const hostApprovals: WebHostApproval[] = [];
+    const hostSessions: { taskId: string; grantId: string; host: string; account: string }[] = [];
     const failedSandboxCommands: WebFailedSandboxCommand[] = [];
     const agents: WebAgent[] = this.config.bots.map((bot) => ({
       id: bot.id,
@@ -231,6 +241,9 @@ export class WebService {
       for (const bot of c.config.bots) {
         if (!agents.some((agent) => agent.id === bot.id))
           agents.push({ ...bot, model: null, retired: true });
+      }
+      if (hostSessionActive(c)) {
+        const g = c.hostSession!; hostSessions.push({ taskId, grantId: g.id, host: g.host, account: g.account });
       }
       for (const i of c.intents) {
         for (const op of i.localOperations ?? []) {
@@ -285,6 +298,7 @@ export class WebService {
       works,
       events,
       hostApprovals,
+      hostSessions,
       failedSandboxCommands,
       messages: this.engine.timeline(roomId),
       activeTaskId: stored.activeTaskId,

@@ -21,6 +21,9 @@ const result = { status: 'running', source: execFileSync('git', ['rev-parse', 'H
   dirty: execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(), checks: [], cleanup: {} };
 const requests = [], errors = [], posts = [];
 const manualRetry = process.env.SQUAD_VERIFY_HOST_RETRY === '1';
+const sessionMode = process.env.SQUAD_VERIFY_HOST_SESSION === '1';
+assert(!(manualRetry && sessionMode), 'Run retry and session verification separately');
+let releaseSessionResponse, sessionPause = true, sessionGateSeen = false;
 const privateAuth = join(state, 'private', 'auth.txt'); await mkdir(dirname(privateAuth)); await writeFile(privateAuth, 'synthetic-host-login');
 const executable = process.execPath;
 const action = { type: 'runCli', executable, args: ['-e', `require("node:fs").readFileSync(${JSON.stringify(privateAuth)}); require("node:fs").appendFileSync("runs.txt", "once\\n"); console.log("host-proof", process.env.HOME)`], execution: manualRetry ? 'sandbox' : 'host', reason: '复用本机账号与已有授权，验证按次批准' };
@@ -28,9 +31,15 @@ const fixture = createServer((req, res) => { void (async () => {
   let text = ''; for await (const chunk of req) text += chunk;
   const body = JSON.parse(text); requests.push(body);
   const system = body.messages[0]?.content ?? '';
+  const receipts = body.messages.filter(m => m.role === 'user' && m.content.startsWith('{"type":"local_tool_result",'));
+  if (sessionMode && receipts.length === 1 && sessionPause && !system.includes('executing check work')) {
+    sessionGateSeen = true;
+    await new Promise(resolve => { releaseSessionResponse = resolve; });
+  }
   const output = system.includes('executing check work') ? { type: 'check', passed: true, gaps: [] }
-    : body.messages.some(m => m.role === 'user' && m.content.startsWith('{"type":"local_tool_result",'))
-      ? { type: 'answer', text: '命令回执已收到', artifacts: [{ name: 'receipt.md', content: body.messages.at(-1).content }] } : action;
+    : (sessionMode ? receipts.length >= 2 : receipts.length > 0)
+      ? { type: 'answer', text: '命令回执已收到', artifacts: [{ name: 'receipt.md', content: body.messages.at(-1).content }] } : sessionMode && receipts.length === 1
+        ? { ...action, args: [...action.args.slice(0, -1), action.args.at(-1) + '; console.log("session-command-2")'] } : action;
   res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }] }));
 })().catch(error => { errors.push(String(error)); res.writeHead(500); res.end(); }); });
 await new Promise(resolve => fixture.listen(0, '127.0.0.1', resolve));
@@ -98,6 +107,57 @@ try {
   const dom = await cdp.send('DOM.getDocument'); const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: dom.root.nodeId, selector: '.host-approval-heading h2' });
   const fonts = await cdp.send('CSS.getPlatformFontsForNode', { nodeId }); await writeFile(join(evidence, 'fonts.json'), JSON.stringify(fonts, null, 2));
   assert(fonts.fonts.some(font => /Noto Sans CJK/.test(font.familyName) && font.glyphCount > 0), 'Chinese platform font must actually render');
+  if (sessionMode) {
+    const decisions = () => posts.filter(post => post.url.endsWith('/host-approval'));
+    const pauseAtFirstResult = async () => {
+      await until(() => sessionGateSeen, Boolean, 'first host result reaches controlled model boundary');
+      await until(room, snapshot => snapshot.hostSessions?.length === 1, 'session grant is visible');
+      await page.getByRole('button', { name: '撤销会话授权', exact: true }).waitFor();
+    };
+    const releaseNextCommand = () => { sessionPause = false; releaseSessionResponse?.(); releaseSessionResponse = undefined; };
+    const resetGate = () => { sessionPause = true; sessionGateSeen = false; };
+    const completeRound = async expected => {
+      const snapshot = await until(room, snapshot => snapshot.tasks.at(-1)?.outcome === 'complete', 'two host commands and final owner receipt');
+      assert.equal(await runs(), expected); assert.equal(snapshot.hostSessions.length, 0); return snapshot;
+    };
+    assert.equal(await runs(), '');
+    await page.getByRole('button', { name: '允许本次会话', exact: true }).click();
+    await pauseAtFirstResult(); assert.equal(await runs(), 'once\n');
+    await page.reload(); await page.getByRole('button', { name: '撤销会话授权', exact: true }).waitFor();
+    assert.equal((await room()).hostApprovals.length, 0); await capture('02-session-refreshed');
+    releaseNextCommand(); await completeRound('once\nonce\n');
+    assert.equal(decisions().length, 1); assert.equal(decisions()[0].body.decision, 'approveSession');
+    assert.equal(await page.getByRole('dialog').count(), 0);
+    result.checks.push('one session approval, two distinct commands each once, no second popup or decision, page refresh preserves grant, completion clears grant');
+
+    resetGate(); await requestCommand(); assert.equal((await room()).hostSessions.length, 0);
+    await page.getByRole('button', { name: '允许本次会话', exact: true }).click(); await pauseAtFirstResult();
+    await page.getByRole('button', { name: '撤销会话授权', exact: true }).click();
+    await until(room, snapshot => snapshot.hostSessions.length === 0, 'UI revokes current session');
+    releaseNextCommand(); await page.getByRole('dialog').waitFor();
+    await page.setViewportSize({ width: 390, height: 844 }); await capture('03-mobile-after-revoke');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await page.getByRole('button', { name: '允许本次', exact: true }).click();
+    await completeRound('once\nonce\nonce\nonce\n');
+    result.checks.push('new task requires fresh approval; UI revocation restores per-command popup; allow-once remains available on mobile');
+
+    resetGate(); await requestCommand();
+    await page.getByRole('button', { name: '允许本次会话', exact: true }).click(); await pauseAtFirstResult();
+    // Crash the owned service only after the real host receipt is durable and no command is running.
+    // Graceful shutdown intentionally stops active model work; a crash exercises RECOVER instead.
+    const crashed = once(child, 'exit'); child.kill('SIGKILL'); await crashed;
+    releaseNextCommand(); await start(); await page.reload();
+    await page.getByRole('dialog').waitFor(); assert.equal((await room()).hostSessions.length, 0);
+    await capture('04-session-restart-requires-approval');
+    await page.getByRole('button', { name: '允许本次', exact: true }).click();
+    const snapshot = await completeRound('once\nonce\nonce\nonce\nonce\nonce\n');
+    await writeFile(join(evidence, 'snapshot.json'), JSON.stringify(snapshot, null, 2));
+    const db = new DatabaseSync(database, { readOnly: true });
+    try { const stored = String(db.prepare('SELECT data FROM rooms WHERE id=?').get(roomId).data); assert(stored.includes('sessionGrantId') && stored.includes('host-proof')); await writeFile(join(evidence, 'sqlite-proof.json'), stored); } finally { db.close(); }
+    assert.equal(errors.length, 0, errors.join('\n'));
+    result.checks.push('owned service crash/recovery revokes session; same task second command requires fresh direct approval; real HTTP, host processes and SQLite proof');
+    result.status = 'verified';
+  } else {
   assert.equal(await runs(), ''); const count = requests.length;
   await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({ state: 'hidden' });
   assert.equal(posts.filter(post => post.url.endsWith('/host-approval')).length, 0);
@@ -121,12 +181,13 @@ try {
   const db = new DatabaseSync(database, { readOnly: true });
   try { const stored = String(db.prepare('SELECT data FROM rooms WHERE id=?').get(roomId).data); assert(stored.includes('HOST_APPROVAL_DENIED') && stored.includes('host-proof')); await writeFile(join(evidence, 'sqlite-proof.json'), stored); } finally { db.close(); }
   assert.equal(errors.length, 0, errors.join('\n')); result.checks.push('graceful restart, fresh approval identity, mobile dialog, SQLite proof'); result.status = 'verified';
+  }
 } catch (error) {
   result.status = 'failed'; result.error = String(error); if (page && !page.isClosed()) await capture('failure').catch(() => {});
   if (page && roomId) await writeFile(join(evidence, 'failure.snapshot.json'), JSON.stringify(await room().catch(() => null), null, 2));
   process.exitCode = 1;
 } finally {
-  clearTimeout(timer);
+  clearTimeout(timer); releaseSessionResponse?.();
   await context?.tracing.stop({ path: join(evidence, 'trace.zip') }).catch(() => {});
   await browser?.close(); result.cleanup.browser = true;
   await stopChild(); result.cleanup.application = true;

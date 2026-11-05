@@ -25,6 +25,7 @@ export class HostApprovalFixture {
   root = ''; source = ''; executable = ''; url = ''; taskId = ''; service!: WebService; server!: Server; runtime!: LocalRuntime; room!: WebRoom;
   requests: { messages: { role: string; content: string }[] }[] = [];
   action!: LocalAction;
+  hostCommands = 1;
   sandboxBackend?: CliBackend;
   private previousToken = process.env.EXAMPLE_CLI_TOKEN;
   private previousModelKey = process.env.FIXTURE_MODEL_KEY;
@@ -51,8 +52,9 @@ setTimeout(() => { process.stdout.write(token.slice(9) + '\\n'); }, 5);
     const config = localConfig(); config.limits.workTimeoutMs = 60_000; config.limits.progressIntervalMs = 60_000;
     const adapter = new OpenAICompatibleAdapter(config, { transport: async (_url, init) => {
       const request = JSON.parse(String(init?.body)) as typeof this.requests[number]; this.requests.push(request);
-      if (request.messages.some(m => m.role === 'user' && m.content.startsWith('{"type":"local_tool_result",'))) return modelResponse({ type: 'answer', text: '已处理真实命令回执' });
-      return modelResponse(this.action);
+      const receipts = request.messages.filter(m => m.role === 'user' && m.content.startsWith('{"type":"local_tool_result",')).length;
+      if (receipts >= this.hostCommands) return modelResponse({ type: 'answer', text: '已处理真实命令回执' });
+      return modelResponse(this.hostCommands > 1 && this.action.type === 'runCli' ? { ...this.action, args: [...this.action.args, `command-${receipts + 1}`] } : this.action);
     } });
     // Keep final checking independent of the scripted owner transport.
     this.service = new WebService(config, join(this.root, 'team.sqlite'), {
@@ -67,7 +69,7 @@ setTimeout(() => { process.stdout.write(token.slice(9) + '\\n'); }, 5);
   snapshot() { return this.service.snapshot(this.room.id); }
   approval() { return hostUntil(() => this.snapshot().hostApprovals ?? [], list => list.length === 1).then(list => list[0]!); }
   operation() { return this.service.engine.view(this.room.id, this.taskId)?.context.intents.flatMap(w => w.localOperations ?? [])[0]; }
-  decisionData(a: WebHostApproval, decision: 'approve' | 'deny', id = randomUUID()) {
+  decisionData(a: WebHostApproval, decision: 'approve' | 'approveSession' | 'deny', id = randomUUID()) {
     return { id, taskId: a.taskId, workId: a.workId, operationId: a.operationId, approvalId: a.approvalId, decision };
   }
   async request(data: unknown, origin: string | null = this.url) {

@@ -1,3 +1,4 @@
+import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
 import { capabilities, completeProblem, discussionActive, discussionIncomplete, fence, fresh, hasOrdinary, inflight, ok, recoveryIssue, reject } from './facts.js';
@@ -18,6 +19,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
   c.trace.push({ event: e.type, detail: e.id, at: e.at });
   if (e.type.startsWith('LOCAL_')) { applyLocalEvent(c, e as TaskEvent & LocalEvent); return c; }
   switch (e.type) {
+    case 'REVOKE_HOST_SESSION': revokeHostSession(c, e.id); break;
     case 'REQUEST_HOST_RETRY': applyHostRetry(c, e); break;
     case 'DISCUSSION_PLAN': planDiscussion(c, e); break;
     case 'DISCUSSION_RESULT': acceptDiscussion(c, e); break;
@@ -257,6 +259,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     }
     case 'RECOVER': {
+      c.hostSession = undefined;
       const issue = recoveryIssue(c, e.config);
       c.config.bots = e.config.bots; // Current permissions always win.
       c.config.localTools = { enabled: e.config.localTools?.enabled !== false };
@@ -288,5 +291,6 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     }
   }
+  if (c.hostSession && !hostSessionActive(c)) revokeHostSession(c, e.id);
   return c;
 }

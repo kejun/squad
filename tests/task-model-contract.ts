@@ -11,8 +11,12 @@ interface Trace { name: string; input: TaskInput; events: TaskEvent[]; frames: F
 interface LegacyContract { schema: 1; sourceSha: string; xstate: string; graph: MachineGraph; seeds: Record<Phase, unknown>; savedResult: unknown; traces: Trace[] }
 export const legacyTaskContract = JSON.parse(readFileSync(new URL('./fixtures/task-model-v1.json', import.meta.url), 'utf8')) as LegacyContract;
 assert.equal(legacyTaskContract.sourceSha, 'dd5ec71b41a82a13c831938e5401783214db76aa07d9e0ab80487b03b7dd42f9');
-// BT_L23–L30 add six approval rules; BT_L32–L34 add two manual retry rules. Frozen traces stay untouched.
-const approvalDefinition = '77187119';
+// BT_L23–L30 add six approval rules; BT_L32–L34 add two manual retry rules. BT_L37 adds session revocation. Frozen traces stay untouched.
+const approvalDefinition = '2a015052';
+const sessionRules = [
+  { id: '*:REVOKE_HOST_SESSION:0', order: 0, source: '*', event: 'REVOKE_HOST_SESSION', target: null, guards: ['valid'], actions: ['apply'] },
+  { id: '*:REVOKE_HOST_SESSION:1', order: 1, source: '*', event: 'REVOKE_HOST_SESSION', target: null, guards: [], actions: ['reject'] },
+];
 const manualRetryRules = [
   { id: '*:REQUEST_HOST_RETRY:0', order: 0, source: '*', event: 'REQUEST_HOST_RETRY', target: 'running', guards: ['valid'], actions: ['apply'] },
   { id: '*:REQUEST_HOST_RETRY:1', order: 1, source: '*', event: 'REQUEST_HOST_RETRY', target: null, guards: [], actions: ['reject'] },
@@ -94,6 +98,6 @@ export function replayLegacyTrace(name: string, diagnostics = false): TaskSnapsh
 export function verifyLegacyDiagnostics() {
   const graph = legacyTaskContract.graph, insertion = graph.transitions.findIndex(t => t.event === 'LOCAL_RESULT');
   assert.deepEqual(taskGraph(), { ...graph, definition: approvalDefinition,
-    transitions: [...manualRetryRules, ...graph.transitions.slice(0, insertion), ...approvalRules, ...graph.transitions.slice(insertion)] });
+    transitions: [...sessionRules, ...manualRetryRules, ...graph.transitions.slice(0, insertion), ...approvalRules, ...graph.transitions.slice(insertion)] });
   for (const trace of legacyTaskContract.traces) replayLegacyTrace(trace.name, true);
 }
