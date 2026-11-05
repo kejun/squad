@@ -90,6 +90,8 @@ npm start
 
 ## 状态模型
 
+调试面板的状态图使用中文阶段、可展开的事件与条件分支，以及当次诊断证据中的执行路径。阶段概览只画局部跨状态连线；全局转移、内部更新和空处理保留独立规则入口，所选步骤包含真实自动微步。详见[调试图投影边界](docs/state-diagrams.md#调试图的结构与所选步骤)。
+
 任务根 actor 统一管理阶段、预算和结果交接，每次领取的执行请求使用独立子 actor；父子快照在同一事务提交。BT_N06–BT_N15 的边界、执行状态与恢复协议见[多 actor 设计](docs/task-actors.md)；前一轮模块拆分与 BT_N01–BT_N05 冻结业务基线见[重构记录](docs/task-machine-refactor.md)。
 
 设计遵循 [XState 八条原则](docs/xstate-design.md)：按状态所有者和生命周期划分，区分真实机器、上下文生命周期、执行流程与 UI 投影。以下两图合起来展示 `src/task.machine.ts` 的八个真实状态与选定路径，完整公共规则见表，细节见[分层索引](docs/state-diagrams.md)。它不是新增父状态或子 actor 的实现方案。

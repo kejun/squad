@@ -142,9 +142,43 @@ try {
   await dialog.getByRole('button', { name: '完整状态图', exact: true }).click();
   const points = () => dialog.locator('[aria-label^="查看状态 "]').evaluateAll(nodes => nodes.map(node => [node.getAttribute('aria-label'), node.getAttribute('transform')]));
   const before = await points(); assert.equal(before.length, 8);
+  await dialog.getByRole('button', { name: '所选步骤路径', exact: true }).click();
+  const selectedPath = dialog.getByRole('region', { name: '所选步骤路径', exact: true });
+  const stopSteps = await selectedPath.locator('ol li').allTextContents();
+  assert.equal(stopSteps.length, 2);
+  assert.match(stopSteps[0], /等待协助.*停止中/);
+  assert.match(stopSteps[1], /停止中.*本轮已结束/); assert.match(stopSteps[1], /自动处理/);
+  assert.equal(await dialog.locator('.debug-edge.is-recorded').count(), 2);
+  assert.equal(await dialog.locator('[data-testid="debug-phase"]').textContent(), 'ended');
+  await capture('selected-stop-path');
+  await dialog.getByRole('button', { name: '阶段概览', exact: true }).click();
+  const aggregate = dialog.getByRole('button', { name: '执行中 到 协调中 的5条规则', exact: true });
+  await aggregate.focus(); await aggregate.press('Enter');
+  const branches = dialog.getByRole('region', { name: '连线分支', exact: true });
+  assert.deepEqual(await branches.getByRole('button', { name: '查看规则 ', exact: false }).evaluateAll(nodes => nodes.map(node => node.getAttribute('aria-label'))), [
+    '查看规则 running:BLOCKED:0', '查看规则 running:TICK:0', '查看规则 running:FAILURE_SIGNAL:0',
+    '查看规则 running:@always:1', '查看规则 running:@always:2',
+  ]);
+  assert.equal(await dialog.getByRole('region', { name: '规则详情', exact: true }).count(), 0);
+  await branches.getByRole('button', { name: '查看规则 running:@always:2', exact: true }).focus();
+  await branches.getByRole('button', { name: '查看规则 running:@always:2', exact: true }).press('Space');
+  await dialog.getByRole('region', { name: '规则详情', exact: true }).getByText('deferredReady', { exact: true }).waitFor();
+  await capture('chart-branches');
+  await dialog.getByRole('button', { name: '关闭规则详情', exact: true }).click();
+  await dialog.getByRole('button', { name: '查看全局进入 interpreting', exact: true }).click();
+  await branches.getByRole('button', { name: '查看规则 *:@always:0', exact: true }).click();
+  await dialog.getByRole('region', { name: '规则详情', exact: true }).getByText('analysisReady', { exact: true }).waitFor();
+  await dialog.getByRole('button', { name: '关闭规则详情', exact: true }).click();
+  await dialog.getByRole('button', { name: '查看内部规则 ended', exact: true }).click();
+  await branches.getByRole('button', { name: '查看规则 ended:STOP:0', exact: true }).click();
+  await dialog.getByRole('region', { name: '规则详情', exact: true }).getByText('空处理', { exact: true }).waitFor();
+  await dialog.getByRole('button', { name: '关闭规则详情', exact: true }).click();
+  run.checks.push('captured STOP path, keyboard branch selection and global/internal rules are reachable');
   await dialog.getByLabel('事件类型', { exact: true }).selectOption('CONTINUE');
   await dialog.getByRole('button', { name: '单步执行', exact: true }).click();
   assert.deepEqual(await points(), before);
+  await dialog.getByRole('button', { name: '阶段概览', exact: true }).click();
+  await dialog.locator('.debug-chart-tools').scrollIntoViewIfNeeded();
   await dialog.getByLabel('状态图缩放', { exact: true }).focus();
   await dialog.getByLabel('状态图缩放', { exact: true }).press('Home');
   const smallText = await dialog.locator('svg text').evaluateAll(nodes => nodes.filter(node => {
@@ -164,6 +198,13 @@ try {
   await page.setViewportSize({ width: 390, height: 844 }); await capture('mobile-run');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   assert.equal(overflow, false);
+  await dialog.getByRole('button', { name: '完整状态图', exact: true }).click();
+  await dialog.getByRole('button', { name: '所选步骤路径', exact: true }).click();
+  assert.match(await dialog.getByRole('region', { name: '所选步骤路径', exact: true }).textContent(), /本轮已结束.*执行中/);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
+  await capture('mobile-graph');
+  await dialog.getByRole('button', { name: '当前运行', exact: true }).click();
+  run.checks.push('narrow-screen graph controls and path remain accessible without page overflow');
   if (process.env.SQUAD_VERIFY_INSPECTOR === '1') await verifyInspector({ page, context, dialog, evidence, capture, until, run });
   assert.equal(readRoom(), committed); assert.equal(posts.length, beforePosts);
   run.checks.push('sandbox makes no business writes and SQLite stays unchanged');

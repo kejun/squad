@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createElement } from 'react';
+import { act, createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { After, Given, When, Then } from '@cucumber/cucumber';
 import { debugEventTemplate, debugFrame, debugInput, TaskSandbox, taskGraph, type DebugFeed, type DebugFrame } from '../../src/task-debug.js';
@@ -8,6 +8,7 @@ import { TeamEngine } from '../../src/engine.js';
 import { MemoryStore } from '../../src/store.js';
 import { DebugJournal } from '../../src/web/debug-journal.js';
 import { Workspace } from '../../web/src/App.js';
+import { StateGraph } from '../../web/src/StateGraph.js';
 import { debugHost, sandboxBoundary } from '../task-debug-fixture.js';
 import { DebugUIFixture } from '../task-debug-ui-fixture.js';
 import type { SpecWorld } from './steps.js';
@@ -199,4 +200,95 @@ Then('顶部应更新到最新状态且步骤详情仍停在原历史', function
 When('返回最新观测步骤', async function (this: SpecWorld) { await state(this).ui!.click('返回最新'); });
 Then('详情应显示新事件及其当次条件证据', function () {
   const detail = document.querySelector('[aria-label="步骤详情"]')!.textContent!; assert(detail.includes('HELP')); assert(detail.includes('当次转换采集'));
+});
+
+function chartBranches() {
+  const region = document.querySelector('[aria-label="连线分支"]');
+  assert(region, '选择连线或规则入口后应显示完整分支'); return region;
+}
+async function activateChart(ui: DebugUIFixture, label: string) {
+  const element = document.querySelector('[aria-label="' + label + '"]');
+  assert(element, 'Missing chart control: ' + label);
+  await act(async () => { element.dispatchEvent(new ui.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }) as unknown as Event); });
+}
+When('选择执行中到协调中的聚合连线', async function (this: SpecWorld) {
+  const ui = state(this).ui!; await ui.click('完整状态图');
+  await activateChart(ui, '执行中 到 协调中 的5条规则');
+});
+Then('应能分别查看所有事件和条件分支而不是只打开第一条规则', async function (this: SpecWorld) {
+  const region = chartBranches();
+  assert.deepEqual([...region.querySelectorAll('button[aria-label^="查看规则 "]')].map(node => node.getAttribute('aria-label')), [
+    '查看规则 running:BLOCKED:0', '查看规则 running:TICK:0', '查看规则 running:FAILURE_SIGNAL:0',
+    '查看规则 running:@always:1', '查看规则 running:@always:2',
+  ]);
+  assert.equal(document.querySelector('[aria-label="规则详情"]'), null, '聚合连线不能自动冒选首分支');
+  await state(this).ui!.click('查看规则 running:@always:2');
+  assert(document.querySelector('[aria-label="规则详情"]')!.textContent!.includes('deferredReady'));
+});
+Then('应以中文说明状态事件和条件并保留源码标识', function () {
+  const branches = chartBranches().textContent!;
+  assert(branches.includes('报告阻塞')); assert(branches.includes('BLOCKED'));
+  assert(branches.includes('讨论和在途工作允许进入协调')); assert(branches.includes('canCoordinate'));
+  assert(document.querySelector('[aria-label="查看状态 running"]')!.textContent!.includes('执行中'));
+});
+When('在沙箱停止后查看所选步骤路径', async function (this: SpecWorld) {
+  const s = state(this), ui = s.ui!;
+  await ui.choose('STOP'); await ui.click('单步执行');
+  s.baseline = document.querySelector('.debug-state-summary')!.textContent;
+  await ui.click('完整状态图'); await ui.click('所选步骤路径');
+});
+Then('应依次显示执行中停止中和本轮已结束且标明自动处理', function () {
+  const region = document.querySelector('[aria-label="所选步骤路径"]'); assert(region);
+  const steps = [...region.querySelectorAll('ol li')].map(node => node.textContent!);
+  assert.equal(steps.length, 2);
+  assert(steps[0]!.includes('执行中') && steps[0]!.includes('停止中'));
+  assert(steps[1]!.includes('停止中') && steps[1]!.includes('本轮已结束') && steps[1]!.includes('自动处理'));
+  assert.equal(document.querySelectorAll('.debug-edge.is-recorded').length, 2);
+});
+Then('图中的路径应来自当次诊断证据且不改变执行头', async function (this: SpecWorld) {
+  const s = state(this), ui = s.ui!;
+  assert(document.querySelector('[aria-label="所选步骤路径"]')!.textContent!.includes('当次诊断证据'));
+  assert.equal(document.querySelector('.debug-state-summary')!.textContent, s.baseline);
+  assert.equal(ui.requests.length, 0);
+  await ui.click('当前运行');
+  assert.deepEqual([...document.querySelectorAll('.debug-history-event code')].map(node => node.textContent), ['0. @init', '1. STOP']);
+  assert.equal(ui.phase, 'ended');
+});
+When('查看阶段概览和聚焦图', async function (this: SpecWorld) {
+  const ui = state(this).ui!; await ui.click('完整状态图'); await ui.click('聚焦所选状态');
+});
+Then('应说明全局转移和内部处理的省略范围并提供对应规则入口', async function (this: SpecWorld) {
+  const ui = state(this).ui!;
+  assert(ui.text.includes('全局转移')); assert(ui.text.includes('内部处理')); assert(ui.text.includes('隐藏'));
+  assert(document.querySelector('[aria-label="查看全局进入 interpreting"]'));
+  await activateChart(ui, '查看内部规则 running');
+  assert(chartBranches().querySelector('[aria-label="查看规则 running:CLAIM:0"]'));
+  await ui.click('查看规则 running:CLAIM:0');
+  assert(document.querySelector('[aria-label="规则详情"]')!.textContent!.includes('claimOwner'));
+  await ui.click('关闭规则详情');
+});
+Then('输入解析的全局进入条件与结束后继续规则应可查看', async function (this: SpecWorld) {
+  const ui = state(this).ui!;
+  await ui.click('查看全局进入 interpreting');
+  assert(chartBranches().querySelector('[aria-label="查看规则 *:@always:0"]'));
+  await ui.click('查看规则 *:@always:0');
+  assert(document.querySelector('[aria-label="规则详情"]')!.textContent!.includes('analysisReady'));
+  await ui.click('关闭规则详情'); await ui.click('聚焦所选状态');
+  await activateChart(ui, '本轮已结束 到 执行中 的1条规则');
+  await ui.click('查看规则 ended:CONTINUE:0');
+  assert(document.querySelector('[aria-label="规则详情"]')!.textContent!.includes('CONTINUE'));
+});
+When('状态图读取{string}的所选步骤', function (this: SpecWorld, record: string) {
+  const sandbox = new TaskSandbox(); sandbox.send(JSON.stringify(debugEventTemplate(sandbox.snapshot, 'HELP')));
+  const current = sandbox.history.at(-1)!;
+  const { evidence, ...legacy } = current;
+  const frame = record === '没有诊断证据' ? legacy : { ...current, evidence: { ...evidence!, definition: 'older-structure' } };
+  state(this).result = renderToStaticMarkup(createElement(StateGraph, {
+    graph: taskGraph(), active: 'waitingAssistance', focus: 'waitingAssistance', frame, onFocus: () => {},
+  }));
+});
+Then('应说明{string}且不标记未经采集的执行路径', function (this: SpecWorld, note: string) {
+  const markup = state(this).result!;
+  assert(markup.includes(note)); assert(!markup.includes('is-recorded'));
+  assert(!markup.includes('当次诊断证据'));
 });

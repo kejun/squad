@@ -141,3 +141,59 @@
 .debug-edge.is-main text, .debug-edge.is-selected text, .debug-edge:hover text, .debug-edge:focus text { visibility: visible; }
 .debug-edge:not(.is-main):not(.is-related):not(.is-selected) { opacity: .5; }
 .debug-edge > path.debug-edge-hit { stroke: transparent; stroke-width: 16px; pointer-events: stroke; }
+
+/* Statechart: candidate structure and recorded steps have separate visual keys. */
+.debug-chart-modes { display: flex; gap: 6px; flex-wrap: wrap; }
+.debug-chart-caption { padding: 0 16px 10px; background: #f7faf8ed; }
+.debug-chart-caption p:first-child { font-weight: 600; color: #344b3c; }
+.debug-chart-caption p + p { margin-top: 4px; color: #536459; }
+.debug-chart-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; color: #536459; }
+.debug-chart-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.debug-chart-legend > span::before { content: ''; width: 15px; height: 9px; border-radius: 3px; border: 1px solid #b5c6ba; }
+.debug-chart-legend .legend-active::before { background: #e1efe5; border: 2px solid #416951; }
+.debug-chart-legend .legend-history::before { border: 2px dashed #806796; }
+.debug-chart-legend .legend-recorded::before { height: 0; border: 2px solid #276996; }
+.debug-chart-step { padding: 10px 16px; border-block: 1px solid var(--line); background: #fff; }
+.debug-chart-step .debug-section-title { margin-bottom: 5px; }
+.debug-chart-step .debug-section-title > span { color: #536459; }
+.debug-chart-step ol { display: flex; gap: 8px; list-style: none; flex-wrap: wrap; padding: 0; margin: 8px 0; }
+.debug-chart-step li { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px; border-left: 3px solid #276996; background: #f1f6fa; }
+.debug-chart-step li > span:last-child { color: #536459; }
+.debug-chart-step > button { margin-top: 8px; }
+.debug-chart-scroll { max-height: 675px; padding-top: 12px; }
+.debug-edge > path:not(.debug-edge-hit) { stroke-width: 1.6; stroke-dasharray: 5 4; }
+.debug-edge.is-main > path:not(.debug-edge-hit) { stroke-width: 2; }
+.debug-edge.is-related { opacity: 1; }
+.debug-edge.is-recorded { color: #276996; opacity: 1 !important; }
+.debug-edge.is-recorded > path:not(.debug-edge-hit) { stroke-width: 3; stroke-dasharray: none; }
+.debug-edge.is-recorded text { visibility: visible; fill: #205f89; }
+.debug-edge.is-selected, .debug-edge:focus { color: #275a3c; opacity: 1 !important; outline: none; }
+.debug-edge.is-selected > path:not(.debug-edge-hit), .debug-edge:focus > path:not(.debug-edge-hit) { stroke-width: 3; }
+.debug-node text { font-family: inherit; font-weight: 600; }
+.debug-node text.debug-node-info { font-family: ui-monospace, monospace; font-weight: 400; fill: #536459; }
+.debug-node .debug-node-status { font-weight: 500; }
+.debug-node.phase-interpreting rect { fill: #f3f0f8; }
+.debug-node.phase-checking rect { fill: #edf4f9; }
+.debug-node.phase-waitingHuman rect, .debug-node.phase-stopping rect { fill: #fbf3e7; }
+.debug-node.is-active rect { fill: #e5f0e8; }
+.debug-node-internal { cursor: pointer; fill: #536459; }
+.debug-node-internal text { font-family: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.debug-node-internal:hover, .debug-node-internal:focus { fill: #24583c; outline: none; }
+.debug-node-internal:focus text { stroke: #547b69; stroke-width: .5; }
+.debug-chart-branches { scroll-margin: 12px; border-block: 1px solid #afc8b8; padding: 14px 16px; background: #fff; }
+.debug-chart-branches > div:last-child { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 8px; }
+.debug-chart-branches > div > button { flex-direction: column; align-items: flex-start; text-align: left; line-height: 1.6; padding: 10px 12px; overflow-wrap: anywhere; }
+.debug-chart-branches > div > button span:first-child { font-weight: 600; }
+.debug-chart-branches > div > button span:last-child { color: #536459; }
+.debug-chart-globals { padding: 14px 16px; border-top: 1px solid var(--line); background: #f3f7f4; }
+.debug-chart-globals .debug-global-rules { margin: 0 0 8px; }
+.debug-chart-globals p { color: #536459; }
+.debug-global-targets { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+@media (max-width: 900px) {
+  .debug-body.is-graph .debug-side:not([hidden]) { position: static; width: auto; max-height: none; margin: 8px; }
+  .debug-chart-legend { gap: 10px; }
+  .debug-chart-scroll { max-height: 500px; }
+}
+.debug-chart-caption { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 16px; row-gap: 4px; padding-bottom: 8px; }
+.debug-chart-caption .debug-chart-legend { margin-top: 0; }
+.debug-chart-step .debug-section-title { margin-bottom: 0; }
