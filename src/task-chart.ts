@@ -29,7 +29,7 @@ const eventNames: Record<string, string> = {
   DISCUSSION_PLAN: '讨论安排返回', DISCUSSION_RESULT: '讨论结果返回',
   INTERPRETATION_RESULT: '输入理解结果返回', REGENERATE_MODEL_OUTPUT: '重新生成模型结果',
   RECOVER: '恢复任务', RECONCILE: '确认工作结果', EXHAUSTED: '额度耗尽',
-  REQUEST_HOST_RETRY: '申请宿主重试', LOCAL_REQUEST: '申请本地操作', LOCAL_CLAIM: '领取本地操作',
+  REQUEST_HOST_RETRY: '申请宿主重试', HOST_RETRY_RECONCILE: '核对宿主续办批次', LOCAL_REQUEST: '申请本地操作', LOCAL_CLAIM: '领取本地操作',
   LOCAL_REJECTED: '本地操作被拒绝', LOCAL_STARTED: '本地操作已开始', LOCAL_RESULT: '本地操作结果返回',
   LOCAL_RECONCILE: '确认本地操作结果', LOCAL_APPROVAL_REQUIRED: '本地操作需要授权',
   LOCAL_APPROVAL_DECISION: '收到本地操作授权决定', LOCAL_APPROVAL_EXPIRED: '本地操作授权已过期',
@@ -37,7 +37,7 @@ const eventNames: Record<string, string> = {
 const actionNames: Record<string, string> = {
   apply: '更新任务与操作意图', reject: '拒绝事件', explainCoordinationRejection: '说明协调决策拒绝原因', beginInterpretation: '开始理解输入',
   boundary: '应用执行边界输入', handoffDiscussion: '交接讨论汇总', beginReview: '开始评审协调',
-  deferred: '处理延后协调', stopped: '记录本轮已停止',
+  deferred: '处理延后协调', stopped: '记录本轮已停止', retireHostRetry: '解除旧批次占用并记录原因',
 };
 
 export const phaseLabel = (id: string): string => phaseNames[id as Phase] ?? id;

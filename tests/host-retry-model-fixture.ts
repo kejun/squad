@@ -74,3 +74,33 @@ export function twoQueued() {
   assert(request(m).ok); assert(requestSecond(m).ok); assert(deliver(m).ok); claimRetryWork(m);
   return m;
 }
+
+export function retryWithQueuedSuccessor() {
+  const m = failedSandbox(false, true);
+  assert(request(m).ok);
+  assert(deliver(m).ok);
+  claimRetryWork(m);
+  assert(requestSecond(m).ok);
+  return m;
+}
+
+export function startFirstRetry(m: LocalModel) {
+  prepareRetry(m);
+  assert(decideRetry(m).ok);
+  assert(startRetry(m).ok);
+}
+
+export function legacyBlockedHostRetry() {
+  const m = retryWithQueuedSuccessor();
+  startFirstRetry(m);
+  assert(settleRetry(m).ok);
+  // Older versions could save the terminal owner with the batch still attached.
+  retryWork(m).status = 'done';
+  return m;
+}
+
+export function rejectRetryOwner(m: LocalModel) {
+  const work = retryWork(m);
+  return m.send({ type: 'HELP', workId: work.id, fence: work, caller: work.target, target: work.target,
+    requestId: 'self-help', question: '核查续办结果', expected: '证据' });
+}

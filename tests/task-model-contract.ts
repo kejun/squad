@@ -14,9 +14,9 @@ interface Trace { name: string; input: TaskInput; events: TaskEvent[]; frames: F
 interface LegacyContract { schema: 1; sourceSha: string; xstate: string; graph: MachineGraph; seeds: Record<Phase, unknown>; savedResult: unknown; traces: Trace[] }
 export const legacyTaskContract = JSON.parse(readFileSync(new URL('./fixtures/task-model-v1.json', import.meta.url), 'utf8')) as LegacyContract;
 assert.equal(legacyTaskContract.sourceSha, 'dd5ec71b41a82a13c831938e5401783214db76aa07d9e0ab80487b03b7dd42f9');
-// BT_L23–L30 add six approval rules; BT_L32–L34 add two manual retry rules. BT_L37 adds session revocation. Frozen traces stay untouched.
+// Approval and host retry extensions add rules without changing the original frozen business traces.
 // BT_M23–M29 add one explanation action to the existing current-coordination rejection.
-const extendedDefinition = 'd22b23bc';
+const extendedDefinition = '58b04973';
 const coordinationRejectionId = 'coordinating:COORDINATE:6';
 const sessionRules = [
   { id: '*:REVOKE_HOST_SESSION:0', order: 0, source: '*', event: 'REVOKE_HOST_SESSION', target: null, guards: ['valid'], actions: ['apply'] },
@@ -26,6 +26,7 @@ const hostRetryRules = [
   { id: '*:REQUEST_HOST_RETRY:0', order: 0, source: '*', event: 'REQUEST_HOST_RETRY', target: 'running', guards: ['reactivateHostRetry'], actions: ['apply'] },
   { id: '*:REQUEST_HOST_RETRY:1', order: 1, source: '*', event: 'REQUEST_HOST_RETRY', target: null, guards: ['valid'], actions: ['apply'] },
   { id: '*:REQUEST_HOST_RETRY:2', order: 2, source: '*', event: 'REQUEST_HOST_RETRY', target: null, guards: [], actions: ['reject'] },
+  { id: '*:HOST_RETRY_RECONCILE:0', order: 0, source: '*', event: 'HOST_RETRY_RECONCILE', target: null, guards: ['valid'], actions: ['apply'] },
   { id: '*:HOST_RETRY_EXPIRE:0', order: 0, source: '*', event: 'HOST_RETRY_EXPIRE', target: null, guards: ['valid'], actions: ['apply'] },
   { id: '*:LOCAL_RETRY_EXPIRED:0', order: 0, source: '*', event: 'LOCAL_RETRY_EXPIRED', target: null, guards: ['valid'], actions: ['apply'] },
   { id: '*:LOCAL_RETRY_EXPIRED:1', order: 1, source: '*', event: 'LOCAL_RETRY_EXPIRED', target: null, guards: [], actions: ['reject'] },
@@ -33,6 +34,7 @@ const hostRetryRules = [
 const hostRetryAlwaysRules = [
   { id: '*:@always:2', order: 2, source: '*', event: '@always', target: 'running', guards: ['hostRetryReady'], actions: ['startHostRetry'] },
   { id: '*:@always:3', order: 3, source: '*', event: '@always', target: 'ended', guards: ['hostRetryBoundary'], actions: ['failHostRetry'] },
+  { id: '*:@always:4', order: 4, source: '*', event: '@always', target: null, guards: ['hostRetryBatchRetirable'], actions: ['retireHostRetry'] },
 ];
 const heldFinish = { id: 'coordinating:COORDINATE:4', order: 4, source: 'coordinating', event: 'COORDINATE', target: 'running', guards: ['hostRetryHoldsFinish'], actions: ['apply'] };
 const rules = (source: string, event: string, branches: [string | null, string | null, string?][]) => branches.map(([guard, target, action], order) => ({

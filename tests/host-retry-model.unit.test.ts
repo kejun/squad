@@ -2,7 +2,120 @@ import { describe, expect, it } from 'vitest';
 import { LocalModel, localModelInput } from './local-model-fixture.js';
 
 import { claimCheck, claimRetryOp, claimRetryWork, decideRetry, deliver, failedSandbox, passCheck, prepareRetry, request, requestSecond, retryOp, retryWork, settleRetry, startRetry, twoQueued } from './host-retry-model-fixture.js';
+import { legacyBlockedHostRetry, rejectRetryOwner, retryWithQueuedSuccessor, startFirstRetry } from './host-retry-model-fixture.js';
 describe('用户从失败沙箱记录续办（真实XState，每步持久化）', () => {
+  it.each([
+    { output: 'delivery', submit: (m: LocalModel) => deliver(m, retryWork(m)), code: 'OK' },
+    { output: 'rejected help', submit: rejectRetryOwner, code: 'SELF_DEPENDENCY' },
+  ])('[BT_L53] dispatches the queued successor after the settled batch owner submits $output', ({ submit, code }) => {
+    const m = retryWithQueuedSuccessor();
+    startFirstRetry(m);
+    expect(settleRetry(m).ok).toBe(true);
+    const first = retryOp(m);
+
+    const reply = submit(m);
+
+    expect(reply.code).toBe(code);
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['settled', 'active']);
+    expect(m.c.intents.find(work => work.id === m.c.hostRetryRequests?.[0]?.workId)?.localOperations).toContainEqual(first);
+    expect(retryOp(m)).toMatchObject({ hostRetryOf: 'op2', status: 'queued' });
+    expect(retryOp(m).approval).toBeUndefined();
+  });
+  it.each([
+    { type: 'SETTLE' },
+    { type: 'WORK_FAILED', reason: '已确认失败', transient: false },
+  ])('[BT_L53] $type retires only the unfinished commands of its own batch', event => {
+    const m = retryWithQueuedSuccessor();
+
+    const reply = m.send({ ...event, intentId: retryWork(m).id });
+
+    expect(reply.ok).toBe(true);
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['cancelled', 'active']);
+    expect(retryOp(m)).toMatchObject({ hostRetryOf: 'op2', status: 'queued' });
+  });
+  it('[BT_L53] records an unstarted request even if its batch never assigned it an operation', () => {
+    const m = twoQueued();
+
+    expect(m.send({ type: 'SETTLE', intentId: retryWork(m).id }).ok).toBe(true);
+
+    expect(m.c.hostRetryRequests?.[1]).toMatchObject({ status: 'cancelled', reason: 'WORK_NOT_STARTED' });
+    expect(m.c.intents.some(work => work.localOperations?.some(op => op.hostRetryOf === 'op2'))).toBe(false);
+  });
+  it.each([
+    { type: 'RECOVER', config: localModelInput().config },
+    { type: 'HOST_RETRY_RECONCILE' },
+  ])('[BT_L54] $type repairs the old snapshot once without replacing the candidate or charging usage', event => {
+    const m = legacyBlockedHostRetry();
+    const { candidate, usage, epoch, goalVersion } = m.c;
+    const oldBatch = m.c.hostRetryBatch!.id;
+
+    expect(m.send(event).ok).toBe(true);
+    expect(m.send(event).ok).toBe(true);
+
+    expect(m.c).toMatchObject({ candidate, usage, epoch, goalVersion, outcome: null });
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['settled', 'active']);
+    expect(m.c.intents.flatMap(work => work.localOperations ?? []).filter(op => op.hostRetryOf === 'op2')).toHaveLength(1);
+    const retirements = m.c.trace.filter(entry => entry.event === 'HOST_RETRY_BATCH_RETIRED');
+    expect(retirements.map(entry => JSON.parse(entry.detail).batchId)).toEqual([oldBatch]);
+  });
+  it('[BT_L54] recovers an orphaned batch pointer when all its command results are known', () => {
+    const m = legacyBlockedHostRetry();
+    m.c.hostRetryBatch!.workId = 'missing-owner';
+
+    expect(m.send({ type: 'HOST_RETRY_RECONCILE' }).ok).toBe(true);
+
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['settled', 'active']);
+    expect(retryOp(m)).toMatchObject({ hostRetryOf: 'op2', status: 'queued' });
+  });
+  it('[BT_L54] retains a denial saved before its deadline when reconciling a later snapshot', () => {
+    const m = retryWithQueuedSuccessor();
+    const queued = m.c.hostRetryRequests![1]!;
+    queued.deadline += 100;
+    prepareRetry(m);
+    expect(decideRetry(m, 'deny').ok).toBe(true);
+    retryWork(m).status = 'done';
+    // The persisted operation already has a receipt, while its request still has the earlier status.
+    m.c.hostRetryRequests![0]!.status = 'active';
+    m.at = retryOp(m).deadline!;
+
+    expect(m.send({ type: 'HOST_RETRY_RECONCILE' }).ok).toBe(true);
+
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['settled', 'active']);
+    expect(m.c.hostRetryRequests?.[0]?.reason).toBe('HOST_APPROVAL_DENIED');
+  });
+  it('[BT_L55] keeps a missing batch owner fenced when its command has no confirmed receipt', () => {
+    const m = retryWithQueuedSuccessor();
+    retryWork(m).status = 'done';
+    m.c.hostRetryBatch!.workId = 'missing-owner';
+
+    expect(m.send({ type: 'HOST_RETRY_RECONCILE' }).ok).toBe(true);
+
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['active', 'pending']);
+    expect(m.c.trace.some(entry => entry.event === 'HOST_RETRY_BATCH_RETIRED')).toBe(false);
+  });
+  it('[BT_L55] preserves a recorded uncertain execution when the batch owner reference is missing', () => {
+    const m = retryWithQueuedSuccessor();
+    startFirstRetry(m);
+    expect(settleRetry(m, { uncertain: true }).ok).toBe(true);
+    m.c.hostRetryBatch!.workId = 'missing-owner';
+
+    expect(m.send({ type: 'HOST_RETRY_RECONCILE' }).ok).toBe(true);
+
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['uncertain', 'pending']);
+    expect(m.c.trace.some(entry => entry.event === 'HOST_RETRY_BATCH_RETIRED')).toBe(false);
+  });
+  it('[BT_L55] keeps the active batch while the first command has unconfirmed effects', () => {
+    const m = retryWithQueuedSuccessor();
+    startFirstRetry(m);
+    expect(settleRetry(m, { uncertain: true }).ok).toBe(true);
+
+    expect(m.send({ type: 'RECOVER', config: localModelInput().config }).ok).toBe(true);
+
+    expect(m.snapshot.value).toBe('waitingHuman');
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['uncertain', 'pending']);
+    expect(retryOp(m)).toMatchObject({ hostRetryOf: 'op1', status: 'uncertain' });
+    expect(m.c.intents.flatMap(work => work.localOperations ?? []).some(op => op.hostRetryOf === 'op2')).toBe(false);
+  });
   it('[BT_L32] revives an ended round with a fixed, unapproved host operation and a saved model checkpoint', () => {
     const m = failedSandbox(true); expect(m.c.outcome).toBe('complete');
     expect(request(m).ok).toBe(true);

@@ -143,7 +143,7 @@ export interface TaskContext extends Fence {
   localSkillVersions?: SkillBinding[];
   hostSession?: HostSessionGrant | undefined;
   hostRetryRequests?: HostRetryRequest[];
-  hostRetryBatch?: HostRetryBatch;
+  hostRetryBatch?: HostRetryBatch | undefined;
 }
 export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[] }
 export interface Envelope { id: string; at: number; fence?: Fence; workId?: string; attempt?: number }
@@ -157,6 +157,7 @@ export type Decision =
 export type TaskEvent = Envelope & (
   | { type: 'REVOKE_HOST_SESSION'; grantId: string }
   | { type: 'HOST_RETRY_EXPIRE' }
+  | { type: 'HOST_RETRY_RECONCILE' }
   | { type: 'REQUEST_HOST_RETRY'; sourceWorkId: string; sourceOperationId: string; sourceRequestHash: string; requestHash: string; currentConfig?: TeamConfig }
   | LocalEvent
   | { type: 'DISCUSSION_PLAN'; discussionId: string; decision: Decision }
