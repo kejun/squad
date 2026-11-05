@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { isLongResult } from './presentation.js';
 import { documentIdentity } from './task/delivery.js';
 import { evidenceMetadata, evidenceSource } from './task/evidence.js';
@@ -13,34 +12,38 @@ export type DeliveryGapKind = typeof gapKinds[number];
 export type CriterionJudgment = { criterionId: string; status: 'passed' | 'gap' | 'unknown'; reason?: string; kind?: DeliveryGapKind; refs?: DeliveryReference[] };
 export type DeliveryGap = { criterionId: string | null; candidateRevision: string; kind: DeliveryGapKind; reason: string; refs: DeliveryReference[] };
 export type DeliveryAssessment = { candidateRevision: string; judgments: CriterionJudgment[]; gaps: DeliveryGap[] };
-export type DeliveryAcceptance = { revision: string; criteria: AcceptanceCriterion[]; coverage: CriterionCoverage[]; signature: string };
+export type DeliveryAcceptance = { revision: string; criteria: AcceptanceCriterion[]; coverage: CriterionCoverage[] };
 
 type Delivery = Extract<TaskEvent, { type: 'DELIVER' }>;
 type Check = Extract<TaskEvent, { type: 'CHECK_RESULT' }>;
 export const deliveryRevision = (c: TaskContext, e: Delivery) => `${c.taskId}:candidate:${e.id}`;
-const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
 export function acceptanceCriteria(c: TaskContext): AcceptanceCriterion[] {
   const criteria = new Map<string, AcceptanceCriterion>();
   const inputs = (c.inputAnalyses ?? []).filter(input => input.goalVersion === c.goalVersion && input.status === 'resolved');
   const goalSource: CriterionSource = { kind: 'goal', id: inputs[0]?.id ?? c.messages[0]?.id ?? c.taskId };
-  const add = (text: string, source: CriterionSource) => {
+  const add = (text: string, source: CriterionSource, key: string) => {
     const normalized = text.trim();
     if (!normalized) return;
     const current = criteria.get(normalized);
     if (current) {
       if (!current.sources.some(item => item.kind === source.kind && item.id === source.id)) current.sources.push(source);
     } else {
-      const id = `G${c.goalVersion}:${digest(normalized).slice(0, 24)}`;
+      const id = `G${c.goalVersion}:${key}`;
       criteria.set(normalized, { id, text: normalized, goalVersion: c.goalVersion, sources: [source] });
     }
   };
-  for (const text of [c.goal.text, ...c.goal.constraints, ...c.goal.criteria]) add(text, goalSource);
+  add(c.goal.text, goalSource, 'goal:text');
+  c.goal.constraints.forEach((text, i) => add(text, goalSource, `goal:constraint:${i}`));
+  c.goal.criteria.forEach((text, i) => add(text, goalSource, `goal:criterion:${i}`));
   for (const input of inputs) {
     const source: CriterionSource = { kind: 'input', id: input.id };
-    add(input.rawText, source);
+    const key = `input:${input.id}`;
+    add(input.rawText, source, `${key}:raw`);
     if (input.spec) {
-      for (const text of [...input.spec.constraints, ...input.spec.expectedOutputs, ...input.spec.acceptanceCriteria]) add(text, source);
+      input.spec.constraints.forEach((text, i) => add(text, source, `${key}:constraint:${i}`));
+      input.spec.expectedOutputs.forEach((text, i) => add(text, source, `${key}:output:${i}`));
+      input.spec.acceptanceCriteria.forEach((text, i) => add(text, source, `${key}:criterion:${i}`));
     }
   }
   return [...criteria.values()];
@@ -91,11 +94,35 @@ function supported(c: TaskContext, work: Intent | undefined, ref: DeliveryRefere
 const gap = (candidateRevision: string, kind: DeliveryGapKind, reason: string, criterionId: string | null = null, refs: DeliveryReference[] = []): DeliveryGap =>
   ({ candidateRevision, criterionId, kind, reason, refs });
 
+// Compare the submitted content with the saved candidate. Reordering coverage and
+// retained artifact references is not a revision; changing a draft's content is.
+function sameSubmission(c: TaskContext, e: Delivery, acceptance: DeliveryAcceptance, retainedIds: string[], drafts: { name: string; content: string }[]) {
+  const previous = c.candidate;
+  if (!previous?.acceptance || previous.goalVersion !== c.goalVersion || previous.text !== e.text) return false;
+  if (previous.artifactIds.length !== retainedIds.length + drafts.length) return false;
+  const savedRetainedIds = previous.artifactIds.slice(0, retainedIds.length);
+  if (savedRetainedIds.some(id => !retainedIds.includes(id))) return false;
+  const priorBackgroundIds = new Set(previous.backgroundArtifactIds ?? []);
+  const nextBackgroundIds = new Set(e.backgroundArtifactIds ?? []);
+  if (priorBackgroundIds.size !== nextBackgroundIds.size || [...priorBackgroundIds].some(id => !nextBackgroundIds.has(id))) return false;
+  const draftIds = previous.artifactIds.slice(retainedIds.length);
+  if (!drafts.every((draft, index) => c.artifacts.some(artifact =>
+    artifact.id === draftIds[index] && artifact.name === draft.name && artifact.content === draft.content))) return false;
+  const normalized = (a: DeliveryAcceptance) => JSON.stringify([
+    a.criteria.map(criterion => [criterion.id, criterion.text]),
+    a.coverage.map(item => JSON.stringify([item.criterionId, item.refs.map(ref => JSON.stringify(
+      ref.kind === 'candidateText' ? [ref.kind] : ref.kind === 'draft' ? [ref.kind, ref.index] : [ref.kind, ref.id],
+    )).sort()])).sort(),
+  ]);
+  return normalized(previous.acceptance) === normalized(bindDraftReferences(acceptance, draftIds));
+}
+
 export function deliveryPreflight(c: TaskContext, e: Delivery) {
   const revision = deliveryRevision(c, e);
   const work = c.intents.find(intent => intent.id === e.workId);
   const coverage = e.coverage ?? (c.candidate?.acceptance ? [] : undefined);
-  const draftCount = e.artifacts?.length || Number(isLongResult(e.text));
+  const drafts = e.artifacts?.length ? e.artifacts : isLongResult(e.text) ? [{ name: 'result.md', content: e.text }] : [];
+  const draftCount = drafts.length;
   const listed = [...new Set(e.artifactIds)];
   const gaps: DeliveryGap[] = [];
   if (listed.length + draftCount < c.goal.requiredArtifacts) gaps.push(gap(revision, 'missing_requirement', 'MISSING_ARTIFACTS'));
@@ -118,12 +145,10 @@ export function deliveryPreflight(c: TaskContext, e: Delivery) {
     if (!refs.length) gaps.push(gap(revision, 'missing_requirement', `缺少覆盖：${criterion.text}`, criterion.id));
     else if (refs.some(ref => !supported(c, work, ref, draftCount, e.backgroundArtifactIds ?? [], e.artifacts?.flatMap(draft => draft.replacesArtifactId ? [draft.replacesArtifactId] : []) ?? []))) gaps.push(gap(revision, 'missing_evidence', `凭证不可用：${criterion.text}`, criterion.id, refs));
   }
-  const signature = digest([e.text, listed.slice().sort(), e.artifacts ?? [], criteria.map(criterion => criterion.id),
-    [...coverage].sort((a, b) => a.criterionId.localeCompare(b.criterionId)).map(item =>
-      [item.criterionId, item.refs.map(ref => JSON.stringify(ref)).sort()])]);
-  const repeated = c.candidate?.acceptance?.signature === signature && (c.deliveryGaps?.length ?? 0) > 0;
+  const acceptance = { revision, criteria, coverage } satisfies DeliveryAcceptance;
+  const repeated = !!c.deliveryGaps?.length && sameSubmission(c, e, acceptance, listed, drafts);
   if (repeated && !gaps.length) gaps.push(gap(revision, 'content_error', '候选未处理上一轮缺口'));
-  return { gaps, repeated, acceptance: { revision, criteria, coverage, signature } satisfies DeliveryAcceptance };
+  return { gaps, repeated, acceptance };
 }
 
 export function bindDraftReferences(acceptance: DeliveryAcceptance, ids: string[]): DeliveryAcceptance {

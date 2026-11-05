@@ -175,6 +175,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         } else finish(c, e, 'partial', reason);
         break;
       }
+      if (c.deliveryGaps) delete c.deliveryGaps;
       intent(c, e.at, 'check', 'facilitator', { goal: c.goal, ...deliveryArtifacts(c), board: c.board, ...conversationInput(c), deterministicGap: completeProblem(c) });
       break;
     }
