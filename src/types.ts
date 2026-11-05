@@ -3,7 +3,7 @@ import type { CriterionJudgment, DeliveryAcceptance, DeliveryAssessment, Deliver
 import type { DeliveryEvidenceRef } from './task/evidence.js';
 import type { HostSessionGrant } from './host-session.js';
 import type { LocalCheckpoint, LocalEvent, LocalOperation, SkillBinding } from './local-operation.js';
-import type { InputIntentSpec } from './input-intent.js';
+import type { InputIntentSpec, MapReducePlan } from './input-intent.js';
 export type { InputIntentSpec, InputReference } from './input-intent.js';
 
 export interface Bot { id: string; name: string; instructions: string; tools: string[]; model?: string; localTools?: boolean }
@@ -87,7 +87,7 @@ export type InputAction = InputIntentSpec['action'];
 export interface InputAnalysis extends Fence {
   id: string; rawText: string; action: InputAction; source: 'rule' | 'model';
   status: 'pending' | 'inflight' | 'resolved' | 'clarification' | 'failed' | 'cancelled';
-  spec?: InputIntentSpec; workId?: string; error?: string;
+  spec?: InputIntentSpec; workId?: string; error?: string; decompositionApplied?: boolean;
 }
 export interface RecordedResult extends Fence { requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; consumed: boolean; summary?: string; artifactIds?: string[]; workId?: string }
 export interface Candidate {
@@ -115,6 +115,7 @@ export interface ReviewRound extends Fence {
   question?: string; expected?: string; incomplete?: string;
 }
 export interface DiscussionRound extends Fence {
+  mapReduce?: MapReducePlan & { inputId: string; assignments: { partitionId: string; target: string }[] };
   id: string; request: string; targets: string[];
   status: 'planning' | 'collecting' | 'summarizing' | 'ready' | 'delivered' | 'cancelled';
   skipped: { target: string; reason: string }[];

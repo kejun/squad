@@ -1,3 +1,4 @@
+import { discoverHostCapabilities } from './host-capabilities.js';
 import { publishObservation } from './measurement.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { constants, createReadStream } from 'node:fs';
@@ -7,7 +8,7 @@ import type { Intent } from './types.js';
 import { attachCapturedEvidence } from './evidence-reader.js';
 import type { HostApproval, HostCommandPlan, LocalOperation, LocalToolResult, SkillBinding } from './local-operation.js';
 import { digest, LocalToolError, SkillRegistry, within, type RegistryOptions, type SkillPage } from './local-skills.js';
-import { CliJournal, hostCliEnvironment, hostIdentity, identityAlive, minimalCliEnvironment, processIdentity, resolveExecutable, runProcess, SandboxCliBackend, type CliBackend, type CliCompletion } from './local-cli.js';
+import { CliJournal, cliSearchPath, hostCliEnvironment, hostIdentity, identityAlive, minimalCliEnvironment, processIdentity, resolveExecutable, runProcess, SandboxCliBackend, type CliBackend, type CliCompletion } from './local-cli.js';
 
 export interface LocalRuntimeOptions {
   dataRoot: string; skillRoots?: string[]; workspaceRoot?: string; commandTimeoutMs?: number;
@@ -171,7 +172,18 @@ export class LocalRuntime {
     if (action.type !== 'runCli') {
       try {
         let data: object;
-        if (action.type === 'listSkills') data = this.registry.list(action);
+        if (action.type === 'discoverHost') data = await discoverHostCapabilities({
+          platform: process.platform, arch: process.arch, runtimeVersion: process.version,
+          sandbox: { available: this.backend.available, ...(this.backend.unavailableReason ? { reason: this.backend.unavailableReason } : {}) },
+          skills: this.catalog(),
+          locate: async (command, execution) => {
+            const profile = this.options.commandEnv?.[command];
+            const env = { PATH: cliSearchPath(execution, profile) };
+            try { await resolveExecutable(command, env); return true; }
+            catch (error) { if (error instanceof LocalToolError && error.code === 'CLI_NOT_FOUND') return false; throw error; }
+          },
+        }, action.commands ?? [], signal);
+        else if (action.type === 'listSkills') data = this.registry.list(action);
         else if (action.type === 'verifyWorkspace') {
           if (op.workspaceId !== this.workspaceId(work, op.namespace)) throw new LocalToolError('WORKSPACE_IDENTITY_MISMATCH');
           const root = op.workspaceId.slice('workspace:'.length);

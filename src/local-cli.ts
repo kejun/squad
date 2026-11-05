@@ -32,9 +32,15 @@ export function sandboxPolicy(input: Pick<CliInvocation, 'workspace' | 'skillPat
     filesystem: { denyRead: ['/', literal(process.cwd()), literal(join(input.workspace, '.env')), join(input.workspace, '**/.env'), join(input.workspace, '**/.env.*'), join(input.workspace, '**/*.sqlite'), join(input.workspace, '**/*.sqlite-*')], allowRead: reads.map(literal), allowWrite: (input.writeRoots ?? [input.workspace]).map(literal), denyWrite: [literal(join(input.workspace, '.env')), ...['**/.env', '**/.env.*', '**/*.sqlite', '**/*.sqlite-*', '**/.git/config', '**/.git/hooks/**'].map(pattern => join(input.workspace, pattern))] },
     enableWeakerNestedSandbox: false, allowNestedUserNamespaces: false };
 }
+/** Capability discovery needs the search path, not the rest of the account environment. */
+export function cliSearchPath(execution: 'sandbox' | 'host', extra: Record<string, string> = {}): string {
+  if (extra.PATH !== undefined) return extra.PATH;
+  return execution === 'host' ? process.env.PATH ?? `${dirname(process.execPath)}:/usr/local/bin:/usr/bin:/bin`
+    : `${dirname(process.execPath)}:${process.platform === 'darwin' ? '/opt/homebrew/bin:' : ''}/usr/local/bin:/usr/bin:/bin`;
+}
 export function minimalCliEnvironment(workspace: string, extra: Record<string, string> = {}): Record<string, string> {
   // Host-only explicit command profiles may add credentials; never inherit process.env.
-  return { PATH: `${dirname(process.execPath)}:${process.platform === 'darwin' ? '/opt/homebrew/bin:' : ''}/usr/local/bin:/usr/bin:/bin`, LANG: 'C.UTF-8', HOME: join(workspace, '.home'), TMPDIR: join(workspace, '.tmp'),
+  return { PATH: cliSearchPath('sandbox', extra), LANG: 'C.UTF-8', HOME: join(workspace, '.home'), TMPDIR: join(workspace, '.tmp'),
     ...extra, NODE_OPTIONS: '', BASH_ENV: '', ENV: '', LD_PRELOAD: '', DYLD_INSERT_LIBRARIES: '' };
 }
 export const hostIdentity = () => ({ host: hostname(), account: userInfo().username });
@@ -44,7 +50,7 @@ export function hostCliEnvironment(extra: Record<string, string> = {}, privateVa
     && !/^(SQUAD_|SRT_|MODEL_|WEB_|CLOUDFLARE_|OPENAI_|ANTHROPIC_)/.test(key) && !privateValues.includes(value));
   const user = userInfo();
   return { ...Object.fromEntries(entries) as Record<string, string>, HOME: user.homedir, USER: user.username, LOGNAME: user.username,
-    PATH: extra.PATH ?? process.env.PATH ?? `${dirname(process.execPath)}:/usr/local/bin:/usr/bin:/bin`, TMPDIR: tmpdir(),
+    PATH: cliSearchPath('host', extra), TMPDIR: tmpdir(),
     NODE_OPTIONS: '', BASH_ENV: '', ENV: '', LD_PRELOAD: '', DYLD_INSERT_LIBRARIES: '' };
 }
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;

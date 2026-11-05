@@ -3,6 +3,12 @@ import type { Goal, InputAction, InputAnalysis, TaskContext } from './types.js';
 
 const text = z.string().trim().min(1).max(32_000);
 const list = z.array(text).max(64);
+export const mapReduceSchema = z.strictObject({
+  kind: z.literal('mapReduce'),
+  partitions: z.array(z.strictObject({ id: text, objective: text, expectedOutput: text })).min(2).max(8),
+  synthesis: text,
+}).refine(plan => new Set(plan.partitions.map(part => part.id)).size === plan.partitions.length);
+export type MapReducePlan = z.infer<typeof mapReduceSchema>;
 export const inputReferenceSchema = z.strictObject({ kind: z.enum(['message', 'artifact', 'board', 'task']), id: text, taskId: text });
 /** One contract is used at the HTTP protocol, worker and state-machine boundaries. */
 export const inputIntentSchema = z.strictObject({
@@ -10,6 +16,7 @@ export const inputIntentSchema = z.strictObject({
   constraints: list, expectedOutputs: list, acceptanceCriteria: list,
   references: z.array(inputReferenceSchema).max(64), confidence: z.number().min(0).max(1),
   clarification: text.nullable(),
+  decomposition: mapReduceSchema.nullable().optional(),
 }).refine(spec => spec.confidence >= 0.65 || spec.clarification !== null);
 export const inputIntentJsonSchema = z.toJSONSchema(inputIntentSchema);
 export type InputReference = z.infer<typeof inputReferenceSchema>;
@@ -30,7 +37,7 @@ export function leadingInputMention(text: string): string | undefined {
 
 export function needsInputAnalysis(text: string): boolean {
   return text.length >= 120 || (text.match(/[;；\n]/g)?.length ?? 0) >= 2
-    || /(?:上面|上次|之前|刚才|这个|那个|它|改为|改成|沿用|不要|必须|至少|最多|只能|同时|分别|如果|否则|再试一次|\b(?:above|previous|that|it|must|unless|instead|at least|at most)\b)/i.test(text);
+    || /(?:map[ -]?reduce|并行|汇总|逐个|逐一|上面|上次|之前|刚才|这个|那个|它|改为|改成|沿用|不要|必须|至少|最多|只能|同时|分别|如果|否则|再试一次|\b(?:above|previous|that|it|must|unless|instead|at least|at most)\b)/i.test(text);
 }
 
 export function createInputAnalysis(c: Pick<TaskContext, 'config' | 'epoch' | 'goalVersion'>,
