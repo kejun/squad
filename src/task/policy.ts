@@ -96,7 +96,9 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (!workLaneAvailable(c, i)) return 'WORK_BUSY';
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
       if (i.kind === 'tool' && !c.config.bots.find(b => b.id === i.target)?.tools.includes(String(i.payload.tool))) return 'TOOL_PERMISSION';
-      return c.hostRetryBatch?.workId === i.id && c.hostRetryBatch.ownerClaimed ? null : requestBudgetProblem(c, i);
+      // Recovery can reuse the claim only until the batch has authorized its first model request.
+      if (c.hostRetryBatch?.workId === i.id && c.hostRetryBatch.ownerClaimed && i.requestCount === 0) return null;
+      return requestBudgetProblem(c, i);
     }
     case 'REGENERATE_MODEL_OUTPUT': {
       const i = c.intents.find(i => i.id === e.intentId);

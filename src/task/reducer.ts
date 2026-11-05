@@ -262,9 +262,10 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       // Legacy work receives trusted identity in the same pure transition as its claim.
       if (work.kind === 'facilitator' && work.payload.owner === undefined) work.payload.owner = c.owner;
       work.localSkills = [...(work.localSkills ?? []).filter(s => !c.localSkillVersions?.some(p => p.skillId === s.skillId)), ...(c.localSkillVersions ?? [])];
+      const previousRequests = work.requestCount;
       work.status = 'inflight'; work.attempt++; work.requestCount = 0;
       if (c.hostRetryBatch?.workId === work.id) {
-        if (!c.hostRetryBatch.ownerClaimed) c.usage.ordinary++;
+        if (!c.hostRetryBatch.ownerClaimed || previousRequests > 0) c.usage.ordinary++;
         c.hostRetryBatch.ownerClaimed = true;
       } else if (work.bucket !== 'none') c.usage[work.bucket]++;
       if (work.kind === 'interpretation') c.inputAnalyses!.find(input => input.workId === work.id)!.status = 'inflight';

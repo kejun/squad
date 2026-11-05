@@ -114,6 +114,17 @@ describe('用户从失败沙箱记录续办（真实XState，每步持久化）'
     expect(decideRetry(m).ok).toBe(true); claimRetryWork(m);
     expect(m.c.usage.ordinary).toBe(before);
   });
+  it('[BT_L49] charges a new owner model attempt after recovery from an authorized synthesis', () => {
+    const m = failedSandbox(true); request(m); claimRetryWork(m); prepareRetry(m); decideRetry(m); startRetry(m); settleRetry(m);
+    const work = retryWork(m);
+    expect(m.send({ type: 'CONSUME', intentId: work.id, fence: work }).ok).toBe(true);
+    const before = m.c.usage.ordinary;
+    expect(m.send({ type: 'RECOVER', config: localModelInput().config }).ok).toBe(true);
+    claimRetryWork(m);
+    expect(m.c.usage.ordinary).toBe(before + 1);
+    expect(m.send({ type: 'CONSUME', intentId: work.id, fence: work }).ok).toBe(true);
+    expect(m.c.usage.ordinary).toBe(before + 1);
+  });
   it('[BT_L51] lets current work consume unreserved budget and reports boundary exhaustion', () => {
     const m = failedSandbox(); m.c.config.limits.ordinary = m.c.usage.ordinary + 2;
     expect(m.send({ type: 'CONSUME', intentId: m.work.id }).ok).toBe(true);
