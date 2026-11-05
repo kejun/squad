@@ -10,6 +10,7 @@ import { recordInput } from './input.js';
 import { deliveryVersionProblem, retainLegacyPublication } from './delivery.js';
 import { canRetryWork } from './budget.js';
 import { bindDraftReferences, deliveryCheckGaps, deliveryPreflight, deliveryRevision } from '../delivery-acceptance.js';
+import { adoptLegacyTerminalConfig } from './protocol.js';
 import { applyHostRetry, cancelHostRetries, expireHostRetry, pendingHostRetry, settleHostRetryOperation } from '../host-retry.js';
 
 export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
@@ -28,7 +29,10 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
   if (e.workId === c.hostRetryBatch?.workId && e.workId && ['HELP', 'BLOCKED', 'WAIT_USER', 'DELIVER', 'TOOL'].includes(e.type)) delete c.hostRetryBatch;
   switch (e.type) {
     case 'REVOKE_HOST_SESSION': revokeHostSession(c, e.id); break;
-    case 'REQUEST_HOST_RETRY': applyHostRetry(c, e); break;
+    case 'REQUEST_HOST_RETRY':
+      adoptLegacyTerminalConfig(c, e.currentConfig);
+      applyHostRetry(c, e);
+      break;
     case 'HOST_RETRY_EXPIRE': expireHostRetry(c, e.at); break;
     case 'DISCUSSION_PLAN': planDiscussion(c, e); break;
     case 'DISCUSSION_RESULT': acceptDiscussion(c, e); break;
@@ -218,6 +222,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     }
     case 'CONTINUE':
+      adoptLegacyTerminalConfig(c, e.currentConfig);
       if (e.text) message(c, e, 'user', e.text, 'user');
       if (e.extraOrdinary) c.config.limits.ordinary += e.extraOrdinary;
       retainLegacyPublication(c, e.at);

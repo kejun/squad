@@ -8,6 +8,7 @@ import { validInputIntent } from '../input-intent.js';
 import { assistanceRetryProblem, helpProblem } from './assistance.js';
 import { acceptanceCheckProblem, validCriterionCoverage, validCriterionJudgments } from '../delivery-acceptance.js';
 import { hostRetryProblem } from '../host-retry.js';
+import { legacyTerminalConfig, taskProtocolChanged } from './protocol.js';
 
 export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
   if (e.type.startsWith('LOCAL_')) return localEventProblem(c, e, work => requestBudgetProblem(c, work));
@@ -15,7 +16,9 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
   if (e.type === 'REQUEST_HOST_RETRY') {
     if (!e.fence || !fresh(c, e)) return 'STALE_FENCE';
     if (!/^[a-f0-9]{64}$/.test(e.requestHash)) return 'INVALID_LOCAL_REQUEST';
-    return hostRetryProblem(c, e.sourceWorkId, e.sourceOperationId, e.sourceRequestHash);
+    const upgraded = legacyTerminalConfig(c, e.currentConfig);
+    if (e.currentConfig && taskProtocolChanged(c.config, e.currentConfig) && !upgraded) return 'INCOMPATIBLE_EXECUTION';
+    return hostRetryProblem(upgraded ? { ...c, config: upgraded } : c, e.sourceWorkId, e.sourceOperationId, e.sourceRequestHash);
   }
   const attemptWorkId = e.workId ?? ('intentId' in e ? e.intentId : undefined);
   if (e.attempt !== undefined && c.intents.find(work => work.id === attemptWorkId)?.attempt !== e.attempt) return 'STALE_ATTEMPT';
@@ -135,9 +138,10 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       return e.reviewTargets?.some(target => target === c.owner || !isBot(c, target)) ? 'INVALID_REVIEW_TARGET' : null;
     case 'HANDOFF': return !isBot(c, e.owner) ? 'UNKNOWN_BOT' : allInflight(c).length || discussionActive(c) ? 'WAIT_FOR_BOUNDARY' : null;
     case 'CONTINUE': {
-      if (incompatibleExecution(c)) return 'INCOMPATIBLE_EXECUTION';
+      const upgraded = legacyTerminalConfig(c, e.currentConfig);
+      if (!upgraded && (incompatibleExecution(c) || e.currentConfig && taskProtocolChanged(c.config, e.currentConfig))) return 'INCOMPATIBLE_EXECUTION';
       if (allInflight(c).length || c.intents.some(i => i.status === 'uncertain')) return 'UNRESOLVED_WORK';
-      if (!isBot(c, c.owner)) return 'OWNER_UNAVAILABLE';
+      if (!(upgraded ?? c.config).bots.some(bot => bot.id === c.owner)) return 'OWNER_UNAVAILABLE';
       if (e.extraOrdinary !== undefined && (!Number.isSafeInteger(e.extraOrdinary) || e.extraOrdinary <= 0)) return 'INVALID_BUDGET';
       return hasOrdinary(c) || e.extraOrdinary ? null : 'BUDGET_EXHAUSTED';
     }

@@ -143,7 +143,7 @@ export type Decision =
 export type TaskEvent = Envelope & (
   | { type: 'REVOKE_HOST_SESSION'; grantId: string }
   | { type: 'HOST_RETRY_EXPIRE' }
-  | { type: 'REQUEST_HOST_RETRY'; sourceWorkId: string; sourceOperationId: string; sourceRequestHash: string; requestHash: string }
+  | { type: 'REQUEST_HOST_RETRY'; sourceWorkId: string; sourceOperationId: string; sourceRequestHash: string; requestHash: string; currentConfig?: TeamConfig }
   | LocalEvent
   | { type: 'DISCUSSION_PLAN'; discussionId: string; decision: Decision }
   | { type: 'DISCUSSION_RESULT'; discussionId: string; text: string; status: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[] }
@@ -165,7 +165,7 @@ export type TaskEvent = Envelope & (
   | { type: 'CHECK_RESULT'; passed: boolean; gaps: string[]; resultId: string; candidateRevision?: string; criteriaResults?: CriterionJudgment[] }
   | { type: 'STOP'; text?: string }
   | { type: 'SETTLE'; intentId: string }
-  | { type: 'CONTINUE'; extraOrdinary?: number; text?: string }
+  | { type: 'CONTINUE'; extraOrdinary?: number; text?: string; currentConfig?: TeamConfig }
   | { type: 'TICK' }
   | { type: 'ACTIVITY'; text: string }
   | { type: 'PROGRESS'; detail: string; refs: string[] }
