@@ -50,11 +50,12 @@ export class LocalFixture {
   readonly replies: unknown[] = [];
   runtime!: LocalRuntime; h!: Harness; source!: string; skills!: string; skillId!: string;
   private constructor(readonly root: string) {}
-  static async create(role = '方案师', sqlite = false, serviceClock = false, options: { backend?: CliBackend } = {}): Promise<LocalFixture> {
+  static async create(role = '方案师', sqlite = false, serviceClock = false, options: { backend?: CliBackend; ordinaryLimit?: number } = {}): Promise<LocalFixture> {
     const f = new LocalFixture(await mkdtemp(join(tmpdir(), 'squad-local-')));
     f.source = join(f.root, 'source'); f.skills = join(f.root, 'skills'); await mkdir(f.source); await mkdir(f.skills); await writeSkill(f.skills);
     await writeFile(join(f.source, 'source.txt'), 'authoritative'); await writeFile(join(f.source, '.env'), 'SECRET_FILE=do-not-copy');
     const config = localConfig();
+    if (options.ordinaryLimit !== undefined) config.limits.ordinary = options.ordinaryLimit;
     if (serviceClock) { config.limits.workTimeoutMs = Date.now() + 60_000; config.limits.progressIntervalMs = Date.now() + 60_000; }
     if (role === '核查员') config.defaultBot = 'B';
     if (role === 'Builder') config.defaultBot = 'builder-1';

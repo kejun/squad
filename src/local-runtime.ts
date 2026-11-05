@@ -4,6 +4,7 @@ import { constants, createReadStream } from 'node:fs';
 import { chmod, copyFile, lstat, mkdir, open, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { Intent } from './types.js';
+import { attachCapturedEvidence } from './evidence-reader.js';
 import type { HostApproval, HostCommandPlan, LocalOperation, LocalToolResult, SkillBinding } from './local-operation.js';
 import { digest, LocalToolError, SkillRegistry, within, type RegistryOptions, type SkillPage } from './local-skills.js';
 import { CliJournal, hostCliEnvironment, hostIdentity, identityAlive, minimalCliEnvironment, processIdentity, resolveExecutable, runProcess, SandboxCliBackend, type CliBackend, type CliCompletion } from './local-cli.js';
@@ -165,6 +166,7 @@ export class LocalRuntime {
     started: (metadata: { workspaceRevision?: string; isolated?: boolean }) => void,
     observe?: (phase: 'local.prepareStarted' | 'local.prepareFinished' | 'local.processStarted' | 'local.processFinished') => void): Promise<LocalExecution> {
     const action = op.action; signal.throwIfAborted();
+    if (action.type === 'readEvidence') return { result: { ok: false, code: 'EVIDENCE_SOURCE_REQUIRED', data: {} }, settled: true, effectsKnown: true };
     if (action.type !== 'runCli') {
       try {
         let data: object;
@@ -262,8 +264,8 @@ export class LocalRuntime {
       const validationInputsChanged = work.kind === 'check' && sourceRevision(await workspaceManifest(workspace.path)) !== workspace.revision;
       // A terminated sandbox may have written files. Their bounded content fingerprint makes the effect
       // observable; it is still not a proof of arbitrary network effects (network is denied by default).
-      completion = { ...result, result: this.boundedResult({ ...result.result, ...(validationInputsChanged ? { ok: false, code: 'CHECK_INPUTS_CHANGED' } : {}), data: { ...result.result.data, workspaceRevision: workspace.revision, isolated: workspace.isolated,
-        outputFiles, outputFilesTruncated, validationInputsChanged, execution: host ? 'host' : 'sandbox' } }), workspaceRevision: workspace.revision, isolated: workspace.isolated };
+      completion = { ...result, result: attachCapturedEvidence(this.boundedResult({ ...result.result, ...(validationInputsChanged ? { ok: false, code: 'CHECK_INPUTS_CHANGED' } : {}), data: { ...result.result.data, workspaceRevision: workspace.revision, isolated: workspace.isolated,
+        outputFiles, outputFilesTruncated, validationInputsChanged, execution: host ? 'host' : 'sandbox' } })), workspaceRevision: workspace.revision, isolated: workspace.isolated };
     } catch (error) {
       finishPreparation();
       completion = { result: { ok: false, code: signal.aborted ? 'cancelled' : error instanceof LocalToolError ? error.code : 'CLI_EXECUTION_FAILED', data: {} }, settled: !launched, effectsKnown: !launched };

@@ -445,20 +445,22 @@ export class WebService {
           ...(scope.localTools ? { localTools: {
             catalog: scope.localTools.catalog, checkpoint: scope.localTools.checkpoint,
             invoke: async (action, messages, toolSignal, requested) => {
-              const labels = { listSkills: "查看本地技能", loadSkill: "激活本地技能", readSkillResource: "读取技能资源", runCli: "执行本地命令", verifyWorkspace: "核对工程版本" };
+              const labels = { listSkills: "查看本地技能", loadSkill: "激活本地技能", readSkillResource: "读取技能资源", readEvidence: "查读执行证据", runCli: "执行本地命令", verifyWorkspace: "核对工程版本" };
               this.append(roomId, work, "tool-start", labels[action.type], JSON.stringify(this.localRuntime!.clean(action)));
               let operationId: string | undefined;
               const result = await scope.localTools!.invoke(action, messages, toolSignal, id => {
                 operationId = id;
                 requested?.(id);
               });
-              this.append(roomId, work, "tool-result", action.type === "runCli" ? "本地命令结束" : "本地技能操作完成", JSON.stringify({ operationId, ...result }));
+              const receipt = action.type === "readEvidence" ? { ok: result.ok, code: result.code } : result;
+              this.append(roomId, work, "tool-result", action.type === "runCli" ? "本地命令结束" : action.type === "readEvidence" ? "证据查读结束" : "本地技能操作完成", JSON.stringify({ operationId, ...receipt }));
               return result;
             },
             resume: async (operationId, toolSignal) => {
               this.append(roomId, work, "tool-start", "续办本地操作", operationId);
               const result = await scope.localTools!.resume(operationId, toolSignal);
-              this.append(roomId, work, "tool-result", "已读取本地操作回执", JSON.stringify({ operationId, ...result }));
+              const receipt = result.code.startsWith("EVIDENCE_") ? { ok: result.ok, code: result.code } : result;
+              this.append(roomId, work, "tool-result", "已读取本地操作回执", JSON.stringify({ operationId, ...receipt }));
               return result;
             },
           } satisfies NonNullable<WorkScope["localTools"]> } : {}),

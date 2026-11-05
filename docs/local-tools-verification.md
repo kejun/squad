@@ -45,3 +45,21 @@ BT_L17 在正面 CHECK_RESULT 提交前领取宿主 verifyWorkspace 子操作。
 BT_L18 跨 Bot、工作意图和运行时重启继承任务级技能版本；以更新后的目录按名称加载，仍使用旧正文、引用和脚本。迟到旧目标的激活回执不污染新目标绑定。明确目标变化或 replan 才重建任务绑定。
 
 BT_L12 另覆盖执行协议版本不兼容后的可信回执：只结算旧操作，保留不兼容原因与 waitingHuman，不恢复父工作或重新授予本地执行权限。
+
+## 任务级证据读取
+
+BT_L38–BT_L43 覆盖跨工作查读、显式刷新、缺失及截断回执、分工与目标隔离、停止和恢复，以及同目标旧 epoch 的历史观测。状态入口见[任务级证据读取](state-diagrams.md#任务级证据读取)。
+
+模型门槛以 `74a8da23d8855ded033005059103d3f1d4baddff` 的真实 XState 转换为被测对象。每步经过持久快照恢复。以下命令退出 0，5 个测试文件共 101 项通过。
+
+```bash
+node node_modules/vitest/vitest.mjs run tests/task-evidence-model.unit.test.ts tests/local-operation-model.unit.test.ts tests/host-retry-model.unit.test.ts tests/host-approval-model.unit.test.ts tests/host-session-model.unit.test.ts --maxWorkers=1
+```
+
+关键轨迹包括 `queued → claimed → succeeded` 后原回执恢复，`claimed → uncertain → queued → claimed` 下同一个分页操作只计一次 ordinary，以及来源不匹配或额度不足时在领取前拒绝。显式刷新保留新的 CLI 操作身份。旧目标和未分配证据不进入当前索引。
+
+具体接线通过 SQLite、受控模型传输和真实子进程验证。以下命令退出 0，13 个场景和 61 个步骤通过。真实子进程通过可注入的受控后端运行，覆盖原回执及脱敏内容、分页、实际刷新和重启，操作系统原生沙箱沿用独立验收入口。
+
+```bash
+TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/29_task_evidence.feature --import tests/bdd/task-evidence.steps.ts --format progress
+```

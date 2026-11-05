@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { initialModelRequestId, publishObservation, type ExecutionObservation, type MeasurementSink, type ModelObservation } from './measurement.js';
+import { readSavedEvidence } from './evidence-reader.js';
+import { evidenceIndex } from './task/evidence.js';
 import { localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
 import type { LocalRuntime } from './local-runtime.js';
 import type { SkillPage } from './local-skills.js';
@@ -207,8 +209,9 @@ export class WorkRunner {
           if (claim.response.ok) { op = claim.operation!; break; }
           if (claim.response.code !== 'WORKSPACE_BUSY') {
             const result = { ok: false, code: claim.response.code, data: {} };
-            send({ type: 'LOCAL_REJECTED', id: `local-reject:${randomUUID()}`, at: this.clock(), intentId: work.id,
+            const rejected = send({ type: 'LOCAL_REJECTED', id: `local-reject:${randomUUID()}`, at: this.clock(), intentId: work.id,
               operationId: op.id, parentAttempt: op.parentAttempt, result });
+            if (rejected.ok && op.action.type === 'readEvidence' && result.code === 'EVIDENCE_UNAVAILABLE') return result;
             throw new WorkFailure(claim.response.code);
           }
           await runtime.waitForWorkspace(op.workspaceId!, generation, signal);
@@ -224,13 +227,18 @@ export class WorkRunner {
           // Permission and cancellation are checked again after the durable claim, before filesystem/process I/O.
           const context = this.engine.view(roomId, taskId)!.context;
           if (context.stopped || context.epoch !== work.epoch || context.goalVersion !== work.goalVersion || !localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_EXECUTION_REVOKED');
-          enteredRuntime = true;
-          execution = await runtime.execute(currentWork(), op, signal, metadata => {
-            const started = send({ type: 'LOCAL_STARTED', id: `local-start:${op!.sessionId}`, at: this.clock(),
-              intentId: work.id, operationId: op!.id, sessionId: op!.sessionId!, ...metadata });
-            if (!started.ok) throw new WorkFailure(started.code);
-            report({ phase: 'local.startAuthorized', ...local });
-          }, phase => report({ phase, ...local }));
+          if (operation.action.type === 'readEvidence') {
+            execution = { result: readSavedEvidence(context, currentWork(), operation.action), settled: true, effectsKnown: true };
+            report({ phase: 'local.receiptRead', ...local });
+          } else {
+            enteredRuntime = true;
+            execution = await runtime.execute(currentWork(), operation, signal, metadata => {
+              const started = send({ type: 'LOCAL_STARTED', id: `local-start:${operation.sessionId}`, at: this.clock(),
+                intentId: work.id, operationId: operation.id, sessionId: operation.sessionId!, ...metadata });
+              if (!started.ok) throw new WorkFailure(started.code);
+              report({ phase: 'local.startAuthorized', ...local });
+            }, phase => report({ phase, ...local }));
+          }
         } catch (error) {
           // An unknown host failure after a claim is never converted to permission to replay a write.
           const safe = !enteredRuntime || op.action.type !== 'runCli';
@@ -275,7 +283,11 @@ export class WorkRunner {
     }
     try {
       scope.authorizeAdditionalRequest(initialModelRequestId);
-      output = await this.adapter.execute(work, controller.signal, scope);
+      const context = this.engine.view(roomId, taskId)!.context;
+      const projectEvidence = scope.localTools && localEnabled(this.engine.config, work.target)
+        && (work.payload.capabilities as { localTools?: boolean } | undefined)?.localTools === true;
+      const modelWork = projectEvidence ? { ...work, payload: { ...work.payload, evidenceIndex: evidenceIndex(context, work) } } : work;
+      output = await this.adapter.execute(modelWork, controller.signal, scope);
     }
     catch (error) {
       if (controller.signal.reason instanceof ApprovalSuspended) { this.controllers.delete(executionKey); return true; }
