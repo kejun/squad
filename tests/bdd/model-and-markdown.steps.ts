@@ -7,6 +7,7 @@ import { TeamEngine, WorkRunner, OpenAICompatibleAdapter } from '../../src/index
 import { Harness, configuration } from '../helpers.js';
 import { MessageText } from '../../web/src/MessageText.js';
 import type { SpecWorld } from './steps.js';
+import { withFixtureAcceptance } from '../delivery-protocol-fixture.js';
 
 interface ModelState { requests: { headers: Headers; body: Record<string, unknown> }[]; response?: string; status?: number; searches: number; secret: string; aborted: boolean; started?: Promise<void>; running?: Promise<boolean>; runner?: WorkRunner; transport?: typeof fetch }
 const models = new WeakMap<SpecWorld, ModelState>();
@@ -26,7 +27,7 @@ function driver(w: SpecWorld) {
     if (state.response === 'truncated') return response({ type: 'deliver', text: '截断结果', artifactIds: [] }, 'length');
     if (state.response === 'skills') return state.requests.length === 1 ? response({ type: 'findSkills', query: 'react testing' }) : response({ type: 'answer', text: '根据搜索资料给出建议' });
     const outputs = [{ type: 'help', target: 'B', question: '核查方案', expected: '依据' }, { type: 'answer', text: '核查结论' }, { type: 'deliver', text: '汇总方案', artifactIds: [] }, { type: 'check', passed: true, gaps: [] }];
-    return response(outputs[state.requests.length - 1]);
+    return response(withFixtureAcceptance(outputs[state.requests.length - 1], init?.body));
   } });
   return new WorkRunner(w.h.engine, adapter, () => 0, async () => { state.searches++; return new Response(JSON.stringify({ skills: [{ id: 'example/review', name: 'review-skill', installs: 7, source: 'example/review' }] })); });
 }

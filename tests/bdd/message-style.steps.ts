@@ -3,6 +3,7 @@ import { Given, When, Then } from '@cucumber/cucumber';
 import { OpenAICompatibleAdapter, WorkRunner, type WorkOutput } from '../../src/index.js';
 import { Harness, configuration } from '../helpers.js';
 import type { SpecWorld } from './steps.js';
+import { withFixtureAcceptance } from '../delivery-protocol-fixture.js';
 
 type ModelKind = 'owner' | 'assistance' | 'facilitator' | 'check';
 interface RequestBody {
@@ -40,7 +41,7 @@ async function run(world: SpecWorld) {
   const adapter = new OpenAICompatibleAdapter(world.h.config, { env: {}, clock: () => world.h.now, transport: async (_url, init) => {
     assert.equal(world.h.context().intents.find(work => work.id === pending.id)?.status, 'inflight');
     s.requests.push(JSON.parse(String(init?.body)) as RequestBody);
-    return completion(s.search && s.requests.length === 1 ? { type: 'findSkills', query: 'recovery verification' } : output);
+    return completion(withFixtureAcceptance(s.search && s.requests.length === 1 ? { type: 'findSkills', query: 'recovery verification' } : output, init?.body));
   } });
   const runner = new WorkRunner(world.h.engine, adapter, () => world.h.now, async () => {
     s.searches++;

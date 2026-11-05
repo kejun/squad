@@ -325,7 +325,8 @@ export class WorkRunner {
         && (work.payload.capabilities as { localTools?: boolean } | undefined)?.localTools === true;
       const modelWork = { ...claimedWork, payload: { ...claimedWork.payload,
         ...(projectEvidence ? { evidenceIndex: evidenceIndex(context, claimedWork) } : {}),
-        ...(work.kind === 'owner' ? { acceptanceCriteria: acceptanceCriteria(context) } : {}),
+        ...(work.kind === 'owner' ? { acceptanceCriteria: acceptanceCriteria(context),
+          ...(context.deliveryGaps?.length ? { deliveryGaps: context.deliveryGaps } : {}) } : {}),
       } };
       output = await this.adapter.execute(modelWork, controller.signal, scope);
     }

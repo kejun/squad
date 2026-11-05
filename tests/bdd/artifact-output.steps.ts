@@ -10,6 +10,7 @@ import { Details } from '../../web/src/Details.js';
 import { configuration, Harness } from '../helpers.js';
 import { artifactSnapshot, delivery, FULL_REPORT, HELPER_REPORT, HELPER_SUMMARY, helperDelivery, RESULT_SUMMARY } from '../artifact-fixture.js';
 import type { SpecWorld } from './steps.js';
+import { withFixtureAcceptance } from '../delivery-protocol-fixture.js';
 
 interface ResultState {
   work?: Intent; event?: TaskEvent; error?: unknown; directory?: string; sqlite?: SqliteStore;
@@ -163,7 +164,7 @@ When('执行支持产物的模型请求', async function (this: SpecWorld) {
   const adapter = new OpenAICompatibleAdapter(this.h.config, { env: {}, clock: () => this.h.now, transport: async (_url, init) => {
     s.requests!.push(JSON.parse(String(init?.body)));
     assert(this.h.context().intents.some(work => work.kind === 'owner' && work.status === 'inflight'));
-    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ type: 'deliver', text: FULL_REPORT, summary: RESULT_SUMMARY, artifactIds: [], artifacts: [{ name: '恢复方案.md', content: FULL_REPORT }] }) } }] });
+    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(withFixtureAcceptance({ type: 'deliver', text: FULL_REPORT, summary: RESULT_SUMMARY, artifactIds: [], artifacts: [{ name: '恢复方案.md', content: FULL_REPORT }] }, init?.body)) } }] });
   } });
   assert(await new WorkRunner(this.h.engine, adapter, () => this.h.now).runOne(this.h.room, this.h.task));
 });

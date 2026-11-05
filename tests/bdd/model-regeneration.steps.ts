@@ -139,7 +139,7 @@ Given('网页任务的模型检查先不合规再修正通过', function (this: 
   setup(this); const s = state(this), config = regenerationConfig();
   s.directory = mkdtempSync(join(tmpdir(), 'squad-web-schema-')); let calls = 0;
   const adapter = new OpenAICompatibleAdapter(config, { transport: async (_url, request) =>
-    modelResponse(withFixtureAcceptance(++calls === 1 ? goodModelOutput('owner') : calls === 2 ? badModelOutput('gaps缺失') : goodModelOutput('check'), request.body)) });
+    modelResponse(withFixtureAcceptance(++calls === 1 ? goodModelOutput('owner') : calls === 2 ? badModelOutput('gaps缺失') : goodModelOutput('check'), request?.body)) });
   s.web = new WebService(config, join(s.directory, 'team.sqlite'), adapter); s.room = s.web.createRoom().id;
 });
 When('通过网页执行器完成任务', async function (this: SpecWorld) {

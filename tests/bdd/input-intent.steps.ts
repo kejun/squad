@@ -11,6 +11,7 @@ import { buildDetailDocument } from '../../web/src/detail-document.js';
 import { complexInput, InputIntentFixture, intentConfig, parsedIntent } from '../input-intent-fixture.js';
 import { modelResponse } from '../model-regeneration-fixture.js';
 import type { SpecWorld } from './steps.js';
+import { acceptanceCriteria } from '../../src/delivery-acceptance.js';
 
 interface IntentState {
   f: InputIntentFixture; command?: string; expected?: string; kind?: Intent['kind']; stage?: string;
@@ -326,9 +327,22 @@ Given('用户直接指定目标硬约束且解析模型遗漏它们', async func
   const f = setup(this); assert(f.submit(complexInput, { goal: { text: '必须交付可下载报告', constraints: ['不得改用私有资料'], criteria: ['包含恢复风险'], requiredArtifacts: 1 } }).ok);
   f.replies = [{ type: 'interpretation', spec: parsedIntent('request', { constraints: [], expectedOutputs: [], acceptanceCriteria: [] }) }]; await f.run();
 });
-When('解析完成并进行交付检查', async function(this: SpecWorld) { const f = state(this).f; f.prepare('check'); await f.run(); });
+When('解析完成并进行交付检查', async function(this: SpecWorld) {
+  const f = state(this).f;
+  const criteria = acceptanceCriteria(f.context());
+  f.replies = [
+    { type: 'deliver', text: '已提供可下载报告。', artifactIds: [], artifacts: [{ name: '报告.md', content: '依据仅限内部资料，未列恢复风险。' }] },
+    { type: 'check', passed: false, gaps: [], criteriaResults: criteria.map(criterion => ({
+      criterionId: criterion.id, ...(criterion.text === '不得改用私有资料' || criterion.text === '包含恢复风险'
+        ? { status: 'gap', kind: 'content_error', reason: '报告内容与原始硬约束不符' } : { status: 'passed' }),
+    })) },
+  ];
+  await f.run();
+  await f.run();
+});
 Then('全部角色仍应收到原始目标硬约束并据此检查交付', function(this: SpecWorld) {
   const f = state(this).f, request = f.requests.at(-1)!; assert.equal(request.kind, 'check');
   assert.deepEqual(request.context.goal, f.context().goal); assert(JSON.stringify(request.context.goal).includes('不得改用私有资料'));
-  assert.equal(f.context().goal.requiredArtifacts, 1); assert.notEqual(f.context().outcome, 'complete'); assert.equal(f.view().phase, 'coordinating');
+  assert.equal(f.context().goal.requiredArtifacts, 1); assert.notEqual(f.context().outcome, 'complete'); assert.equal(f.view().phase, 'running');
+  assert.equal(f.context().deliveryGaps?.length, 2);
 });
