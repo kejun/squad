@@ -1,7 +1,7 @@
 import { Button } from "@base-ui/react/button";
 import { ChevronRight, FileText } from "lucide-react";
 import type { Message } from "../../src/types";
-import type { RoomSnapshot } from "../../src/web/contracts";
+import type { RoomSnapshot, WebTask } from "../../src/web/contracts";
 import { compactMessage } from "../../src/presentation";
 
 export interface DetailTarget {
@@ -14,6 +14,14 @@ export function messageArtifacts(snapshot: RoomSnapshot | null, message: Message
   const task = snapshot?.tasks.find((item) => item.id === message.taskId);
   const ids = new Set(message.artifactIds ?? []);
   return task?.artifacts.filter((artifact) => ids.has(artifact.id)) ?? [];
+}
+
+export function taskArtifacts(task?: WebTask) {
+  if (!task) return { current: [], history: [] };
+  const reports = task.artifacts.map(artifact => ({ ...artifact, taskId: task.id }));
+  if (!task.currentArtifactIds) return { current: reports, history: [] };
+  const selected = new Set(task.currentArtifactIds);
+  return { current: reports.filter(artifact => selected.has(artifact.id)), history: reports.filter(artifact => !selected.has(artifact.id)) };
 }
 
 export function artifactsForAgent(snapshot: RoomSnapshot | null, agentId: string) {

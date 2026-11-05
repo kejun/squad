@@ -63,6 +63,7 @@ export interface WebTask {
   usage: { ordinary: number; checks: number };
   limits: { ordinary: number; checks: number };
   artifacts: Artifact[];
+  currentArtifactIds?: string[];
   board: BoardEntry[];
   trace: { event: string; detail: string; at: number }[];
   inputAnalyses?: InputAnalysis[];

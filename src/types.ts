@@ -86,7 +86,7 @@ export interface InputAnalysis extends Fence {
 export interface RecordedResult extends Fence { requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; consumed: boolean; summary?: string; artifactIds?: string[]; workId?: string }
 export interface Candidate {
   text: string; artifactIds: string[]; goalVersion: number; summary?: string; workId?: string;
-  revision?: string; requiresBoundCheck?: boolean;
+  revision?: string; requiresBoundCheck?: boolean; backgroundArtifactIds?: string[];
 }
 export interface PublishedDelivery { revision?: string; goalVersion: number; artifactIds: string[]; at: number }
 export interface ConversationHistory {
@@ -159,7 +159,7 @@ export type TaskEvent = Envelope & (
   | { type: 'BOUNDARY' }
   | { type: 'HANDOFF'; owner: string }
   | { type: 'WAIT_USER'; question: string }
-  | { type: 'DELIVER'; text: string; artifactIds: string[]; summary?: string; artifacts?: ArtifactDraft[] }
+  | { type: 'DELIVER'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[] }
   | { type: 'CHECK_RESULT'; passed: boolean; gaps: string[]; resultId: string; candidateRevision?: string }
   | { type: 'STOP'; text?: string }
   | { type: 'SETTLE'; intentId: string }

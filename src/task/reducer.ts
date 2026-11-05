@@ -2,7 +2,7 @@ import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
 import { capabilities, completeProblem, discussionActive, discussionIncomplete, fence, fresh, hasOrdinary, inflight, ok, recoveryIssue, reject } from './facts.js';
-import { cancelWork, conversationInput, coordinate, finish, intent, message, owner, release, saveReports } from './operations.js';
+import { cancelWork, conversationInput, coordinate, deliveryArtifacts, finish, intent, message, owner, release, saveReports } from './operations.js';
 import { applyLocalEvent, localEnabled, localPhysicalPending, recoverLocalOperations, type LocalEvent } from '../local-operation.js';
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
 import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requestReview, resetReviewAtBoundary, savedHelpResult, startHelp } from './assistance.js';
@@ -160,10 +160,10 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const artifactIds = saveReports(c, e, e.text, c.owner, e.artifacts);
       const requiresBoundCheck = !!c.publishedDelivery || e.artifacts?.some(artifact => !!artifact.replacesArtifactId);
       cancelWork(c, e); c.candidate = { text: e.text, artifactIds: [...new Set([...e.artifactIds, ...artifactIds])], goalVersion: c.goalVersion,
-        revision: `${c.taskId}:candidate:${e.id}`, ...(requiresBoundCheck ? { requiresBoundCheck: true } : {}),
+        revision: `${c.taskId}:candidate:${e.id}`, ...(e.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(e.backgroundArtifactIds)] } : {}), ...(requiresBoundCheck ? { requiresBoundCheck: true } : {}),
         ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}) };
       if (discussionActive(c) || pendingHostRetry(c)) break;
-      intent(c, e.at, 'check', 'facilitator', { goal: c.goal, artifacts: c.artifacts, board: c.board, ...conversationInput(c), deterministicGap: completeProblem(c) });
+      intent(c, e.at, 'check', 'facilitator', { goal: c.goal, ...deliveryArtifacts(c), board: c.board, ...conversationInput(c), deterministicGap: completeProblem(c) });
       break;
     }
     case 'CHECK_RESULT':

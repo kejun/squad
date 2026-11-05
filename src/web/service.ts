@@ -1,3 +1,4 @@
+import { publicationIds } from '../task/delivery.js';
 import { hostSessionActive } from '../host-session.js';
 import type { LocalRuntime } from "../local-runtime.js";
 import { localAwaitingApproval } from '../local-operation.js';
@@ -219,6 +220,7 @@ export class WebService {
     }));
     for (const taskId of Object.keys(stored.tasks)) {
       const { phase, context: c } = this.engine.view(roomId, taskId)!;
+      const currentArtifactIds = publicationIds(c);
       tasks.push({
         id: taskId,
         goal: c.goal.text,
@@ -232,6 +234,7 @@ export class WebService {
           checks: c.config.limits.checks,
         },
         artifacts: c.artifacts,
+        ...(currentArtifactIds ? { currentArtifactIds } : {}),
         board: c.board,
         trace: c.trace,
         ...(c.inputAnalyses ? { inputAnalyses: c.inputAnalyses } : {}),

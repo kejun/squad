@@ -16,7 +16,7 @@ export type WorkOutput =
   | { type: 'interpretation'; spec: InputIntentSpec }
   | { type: 'help'; requestId: string; target: string; question: string; expected: string; refs?: string[] }
   | { type: 'answer'; text: string; status?: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[] }
-  | { type: 'deliver'; text: string; artifactIds: string[]; summary?: string; artifacts?: ArtifactDraft[] }
+  | { type: 'deliver'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[] }
   | { type: 'decision'; decision: Decision }
   | { type: 'check'; passed: boolean; gaps: string[] }
   | { type: 'blocked'; reason: string }
@@ -60,7 +60,7 @@ export function validWorkOutput(value: unknown): value is WorkOutput {
     case 'interpretation': return Object.keys(v).every(key => ['type', 'spec'].includes(key)) && inputIntentSchema.safeParse(v.spec).success;
     case 'help': return ['requestId', 'target', 'question', 'expected'].every(k => typeof v[k] === 'string' && (v[k] as string).trim().length > 0) && (v.refs === undefined || strings(v.refs));
     case 'answer': return typeof v.text === 'string' && validSummary(v.summary) && validArtifactDrafts(v.artifacts) && (v.status === undefined || ['success', 'partial', 'failed'].includes(String(v.status)));
-    case 'deliver': return typeof v.text === 'string' && strings(v.artifactIds) && validSummary(v.summary) && validArtifactDrafts(v.artifacts);
+    case 'deliver': return typeof v.text === 'string' && strings(v.artifactIds) && (v.backgroundArtifactIds === undefined || strings(v.backgroundArtifactIds)) && validSummary(v.summary) && validArtifactDrafts(v.artifacts);
     case 'decision': return !!v.decision && typeof v.decision === 'object';
     case 'check': return typeof v.passed === 'boolean' && strings(v.gaps);
     case 'blocked': return typeof v.reason === 'string';
@@ -354,9 +354,15 @@ export class WorkRunner {
           ? { ...base, ...presentation, type: 'RECORD_RESULT', requestId: String(work.payload.requestId), resultId: base.id, status: output.status ?? 'success', answer: output.text }
           : { ...base, ...presentation, type: 'DELIVER', text: output.text, artifactIds: [] };
         break;
-      case 'deliver': event = { ...base, ...presentation, type: 'DELIVER', text: output.text, artifactIds: output.artifactIds }; break;
+      case 'deliver': event = { ...base, ...presentation, type: 'DELIVER', text: output.text, artifactIds: output.artifactIds,
+        ...(output.backgroundArtifactIds?.length ? { backgroundArtifactIds: output.backgroundArtifactIds } : {}) }; break;
       case 'decision': event = { ...base, type: 'COORDINATE', decision: output.decision }; break;
-      case 'check': event = { ...base, type: 'CHECK_RESULT', resultId: base.id, passed: output.passed, gaps: output.gaps }; break;
+      case 'check': {
+        const candidateRevision = (work.payload.candidate as { revision?: string } | undefined)?.revision;
+        event = { ...base, type: 'CHECK_RESULT', resultId: base.id, passed: output.passed, gaps: output.gaps,
+          ...(candidateRevision ? { candidateRevision } : {}) };
+        break;
+      }
       case 'blocked': event = { ...base, type: 'BLOCKED', reason: output.reason }; break;
       case 'askUser': event = { ...base, type: 'WAIT_USER', question: output.question }; break;
       case 'settled': event = { ...base, type: 'SETTLE', intentId: work.id }; break;

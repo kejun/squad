@@ -67,8 +67,25 @@ export function release(c: TaskContext, id: string | undefined) {
   for (const cancel of c.intents.filter(i => i.kind === 'cancel' && i.payload.intentId === id)) cancel.status = 'done';
 }
 
+export function deliveryArtifacts(c: TaskContext, additional: string[] = []) {
+  const selection = c.candidate?.artifactIds ?? (c.publishedDelivery?.goalVersion === c.goalVersion ? c.publishedDelivery.artifactIds : undefined);
+  if (!selection) return { artifacts: c.artifacts };
+  const current = new Set([...selection, ...additional]);
+  const artifacts = c.artifacts.filter(artifact => current.has(artifact.id));
+  const artifactHistory = c.artifacts.filter(artifact => !current.has(artifact.id)).map(({ content, ...metadata }) => ({
+    ...metadata, summary: compactMessage(content),
+  }));
+  return { artifacts, ...(artifactHistory.length ? { artifactHistory } : {}) };
+}
+
 export function conversationInput(c: TaskContext) {
-  return { messages: [...(c.history?.messages ?? []), ...c.messages], candidate: c.candidate,
+  const current = new Set(c.candidate?.artifactIds ?? c.publishedDelivery?.artifactIds ?? []);
+  const messages = c.messages.map(message => {
+    if (message.kind !== 'final' || message.artifactIds?.some(id => current.has(id))) return message;
+    const { detailText: _history, ...summary } = message;
+    return summary;
+  });
+  return { messages: [...(c.history?.messages ?? []), ...messages], candidate: c.candidate,
     inputIntents: (c.inputAnalyses ?? []).filter(input => input.status === 'resolved'),
     conversation: { artifacts: c.history?.artifacts ?? [], board: c.history?.board ?? [], tasks: c.history?.tasks ?? [], truncated: c.history?.truncated ?? false },
     ...(c.review ? { review: { ...c.review, results: c.assists.filter(h => h.reviewId === c.review!.id).map(h => ({ target: h.target, requestId: h.id, status: h.status, answer: h.answer, artifactIds: h.artifactIds })) } } : {}),
@@ -80,7 +97,7 @@ export function owner(c: TaskContext, e: TaskEvent, payload: Record<string, unkn
   // Pending instructions are superseded, not executed in parallel.
   for (const i of c.intents) if (i.kind === 'owner' && i.status === 'pending') i.status = 'cancelled';
   intent(c, e.at, 'owner', c.owner, { ...payload, goal: c.goal, inputs: c.inputs.filter(n => n.applied),
-    board: c.board, artifacts: c.artifacts, repeat: c.repeat, ...conversationInput(c),
+    board: c.board, ...deliveryArtifacts(c, Array.isArray(payload.artifactIds) ? payload.artifactIds as string[] : []), repeat: c.repeat, ...conversationInput(c),
     capabilities: capabilities(c), roster: c.config.bots.map(b => ({ id: b.id, name: b.name, instructions: b.instructions, tools: b.tools })) });
   c.nextCheckAt = e.at + c.config.limits.progressIntervalMs;
 }
@@ -90,7 +107,7 @@ export function coordinate(c: TaskContext, e: TaskEvent, reason: string) {
   c.reason = reason;
   if (unresolvedInput(c)) { c.deferredCoordination = true; return; }
   c.deferredCoordination = false;
-  intent(c, e.at, 'facilitator', 'facilitator', { reason, goal: c.goal, board: c.board, artifacts: c.artifacts,
+  intent(c, e.at, 'facilitator', 'facilitator', { reason, goal: c.goal, board: c.board, ...deliveryArtifacts(c),
     ...conversationInput(c), repeat: c.repeat, roster: c.config.bots, usage: c.usage, limits: c.config.limits, capabilities: capabilities(c) });
   c.nextCheckAt = e.at + c.config.limits.progressIntervalMs;
 }
