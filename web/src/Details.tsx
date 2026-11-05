@@ -30,7 +30,7 @@ import {
 } from "./ui";
 import { MessageText } from "./MessageText";
 import type { DetailTarget } from "./ResultLinks";
-import { artifactsForAgent, messageArtifacts } from "./ResultLinks";
+import { artifactsForAgent, messageArtifacts, taskArtifacts } from "./ResultLinks";
 import { DetailActions, downloadDetailDocument } from "./DetailActions";
 import { artifactDocument, buildDetailDocument } from "./detail-document";
 import { HostRetryButton } from './HostRetryButton';
@@ -110,9 +110,8 @@ export function Details({
     snapshot?.works.filter(
       (work) => work.agentId === agent?.id && work.kind !== "cancel",
     ) ?? [];
-  const artifacts = agent
-    ? artifactsForAgent(snapshot, agent.id)
-    : (task?.artifacts.map((artifact) => ({ ...artifact, taskId: task.id })) ?? []);
+  const delivery = taskArtifacts(task);
+  const artifacts = agent ? artifactsForAgent(snapshot, agent.id) : delivery.current;
   const detailDocument = useMemo(() => focused ? null : buildDetailDocument(snapshot, { agent, tab }),
     [snapshot, agent, tab, focused]);
   if (focused) return <ResultDetails snapshot={snapshot} target={focused} connected={connected} onClose={onClose} onAgent={onAgent}
@@ -159,7 +158,7 @@ export function Details({
                 执行过程 <span>{works.length}</span>
               </Tabs.Tab>
               <Tabs.Tab value="artifacts">
-                产物 <span>{artifacts.length}</span>
+                {task?.currentArtifactIds ? '当前交付' : '产物'} <span>{artifacts.length}</span>
               </Tabs.Tab>
             </Tabs.List>
             <Tabs.Panel className="tab-panel" value="process">
@@ -261,6 +260,12 @@ export function Details({
             <Tabs.Panel className="tab-panel" value="artifacts">
               <Scroll>
                 <Artifacts artifacts={artifacts} onOpen={(artifact) => setOpened({ taskId: artifact.taskId, artifactId: artifact.id })} />
+                {!!delivery.history.length && (
+                  <details>
+                    <summary>历史产物（{delivery.history.length}）</summary>
+                    <Artifacts artifacts={delivery.history} onOpen={(artifact) => setOpened({ taskId: artifact.taskId, artifactId: artifact.id })} />
+                  </details>
+                )}
               </Scroll>
             </Tabs.Panel>
           </Tabs.Root>
