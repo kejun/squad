@@ -158,7 +158,7 @@ export function Details({
                 执行过程 <span>{works.length}</span>
               </Tabs.Tab>
               <Tabs.Tab value="artifacts">
-                {task?.currentArtifactIds ? '当前交付' : '产物'} <span>{artifacts.length}</span>
+                {!agent && task?.currentArtifactIds ? '当前交付' : '产物'} <span>{artifacts.length}</span>
               </Tabs.Tab>
             </Tabs.List>
             <Tabs.Panel className="tab-panel" value="process">
@@ -260,7 +260,7 @@ export function Details({
             <Tabs.Panel className="tab-panel" value="artifacts">
               <Scroll>
                 <Artifacts artifacts={artifacts} onOpen={(artifact) => setOpened({ taskId: artifact.taskId, artifactId: artifact.id })} />
-                {!!delivery.history.length && (
+                {!agent && !!delivery.history.length && (
                   <details>
                     <summary>历史产物（{delivery.history.length}）</summary>
                     <Artifacts artifacts={delivery.history} onOpen={(artifact) => setOpened({ taskId: artifact.taskId, artifactId: artifact.id })} />
@@ -434,7 +434,8 @@ function ResultDetails({ snapshot, target, onClose, onOpen, onBack, connected, o
   const message = target.messageId ? snapshot?.messages.find((item) => item.taskId === target.taskId && item.id === target.messageId) : undefined;
   const artifact = target.artifactId ? task?.artifacts.find((item) => item.id === target.artifactId) : undefined;
   const available = !!task && (!target.messageId || !!message) && (!target.artifactId || !!artifact);
-  const artifacts = (message ? messageArtifacts(snapshot, message) : task?.artifacts ?? []).map((item) => ({ ...item, taskId: target.taskId }));
+  const delivery = taskArtifacts(task);
+  const artifacts = message ? messageArtifacts(snapshot, message).map((item) => ({ ...item, taskId: target.taskId })) : delivery.current;
   const events = snapshot?.events.filter((event) => event.taskId === target.taskId) ?? [];
   const author = artifact?.author ?? message?.author;
   const agent = snapshot?.agents.find((item) => item.id === author);
@@ -459,7 +460,12 @@ function ResultDetails({ snapshot, target, onClose, onOpen, onBack, connected, o
             <span className="task-state">{connected ? phaseLabel(task) : "连接中断"}</span>
             {message && <MessageText text={message.detailText ?? message.text} agents={onAgent ? snapshot?.agents ?? [] : []} onAgent={onAgent ?? noAgentAction} />}
             {!message && task!.reason && <p className="task-reason">{task!.reason}</p>}
+            {!message && task!.currentArtifactIds && <h3 className="detail-section-heading">当前交付</h3>}
             {!!artifacts.length && <Artifacts artifacts={artifacts} onOpen={(item) => onOpen({ ...target, artifactId: item.id })} />}
+            {!message && !!delivery.history.length && <details>
+              <summary>历史产物（{delivery.history.length}）</summary>
+              <Artifacts artifacts={delivery.history} onOpen={(item) => onOpen({ ...target, artifactId: item.id })} />
+            </details>}
             {!!task!.board.length && <section className="result-evidence" aria-label="依据">
               <h3 className="detail-section-heading">依据</h3>
               {task!.board.map((entry) => <div className="board-entry" key={entry.id}>

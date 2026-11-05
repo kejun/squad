@@ -160,7 +160,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       }
       const { acceptance, gaps, repeated } = deliveryPreflight(c, e);
       const artifactIds = saveReports(c, e, e.text, c.owner, e.artifacts);
-      const requiresBoundCheck = !!c.publishedDelivery || e.artifacts?.some(artifact => !!artifact.replacesArtifactId);
+      const requiresBoundCheck = !!c.candidate || !!c.publishedDelivery || e.artifacts?.some(artifact => !!artifact.replacesArtifactId);
       cancelWork(c, e); c.candidate = { text: e.text, artifactIds: [...new Set([...e.artifactIds, ...artifactIds])], goalVersion: c.goalVersion,
         revision: deliveryRevision(c, e), ...(e.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(e.backgroundArtifactIds)] } : {}), ...(requiresBoundCheck ? { requiresBoundCheck: true } : {}),
         ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}),

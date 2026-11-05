@@ -306,9 +306,11 @@ export class WebService {
         });
       }
       for (const work of c.intents) for (const op of work.localOperations ?? []) {
-        if (op.action.type !== 'verifyWorkspace' || !op.result) continue;
-        const shown = this.db.prepare("SELECT 1 FROM web_events WHERE roomId=? AND workId=? AND kind='tool-result' AND instr(detail,?)>0 LIMIT 1").get(roomId, work.id, op.id);
-        if (!shown) this.append(roomId, work, 'tool-result', '工程版本复核', JSON.stringify({ operationId: op.id, ...op.result }));
+        if (!op.result || (op.action.type !== 'verifyWorkspace' && !op.hostRetryRequestId)) continue;
+        const shown = this.db.prepare(`SELECT 1 FROM web_events WHERE roomId=? AND workId=? AND kind='tool-result'
+          AND CASE WHEN json_valid(detail) THEN json_extract(detail,'$.operationId') END = ? LIMIT 1`).get(roomId, work.id, op.id);
+        if (!shown) this.append(roomId, work, 'tool-result', op.hostRetryRequestId ? '宿主续办回执' : '工程版本复核',
+          JSON.stringify({ operationId: op.id, ...op.result }));
       }
     }
     const events = this.db
