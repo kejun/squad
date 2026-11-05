@@ -653,6 +653,18 @@ flowchart TD
 
 存储层接受 v1 与 v2 封装。当前协议写入 v2，旧执行器的 v1 解码器会拒绝该封装。上线前应结算或暂停未决操作并保留快照，回退时只向旧执行器提供其支持的快照。当前发布历史保存在原消息和不可变产物中，仍由新协议的检查决定本轮交付。
 
+模型门槛使用 `ccc14682f12017889e5eab8065d069d2f6e17cfb` 的真实 XState，受控时间下逐步持久化并恢复，以下命令退出 0，73 项通过。轨迹覆盖旧活动任务 `running → waitingHuman → waitingHuman`，以及已结束任务 `ended → running` 时增加 epoch 并保存新配置。
+
+```bash
+node node_modules/vitest/vitest.mjs run tests/task-protocol-model.unit.test.ts tests/local-operation-model.unit.test.ts tests/host-retry-model.unit.test.ts --maxWorkers=1
+```
+
+BT_A27–BT_A28 接线使用实际 SQLite、受控真实子进程和保存的进程回执，验证旧封装、恢复阻塞、两条可信续办入口及领取隔离。以下命令退出 0，3 个场景和 22 个步骤通过。
+
+```bash
+TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/33_snapshot_protocol.feature --import tests/bdd/task-protocol.steps.ts --format progress
+```
+
 ## 房间与可信命令
 
 ### 群历史与消息路由

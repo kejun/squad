@@ -9,10 +9,11 @@ import { debugFrame, type DebugEvent, type DebugFrame } from './task-debug.js';
 import { inspectInitialTask, inspectTask, type DebugEvidence } from './task-inspection.js';
 import { validateConfig, type Goal, type Intent, type Reply, type TaskContext, type TaskEvent, type TeamConfig } from './types.js';
 import { recoveryIssue } from './task/facts.js';
+import { currentTaskProtocol, legacyTerminalConfig, taskProtocolChanged } from './task/protocol.js';
 import { restoreRoomArchive, stepRoomArchive } from './room.machine.js';
 import { hostRetryAction } from './host-retry.js';
 
-interface StoredTask { version: 1; snapshot: unknown }
+interface StoredTask { version: 1 | 2; snapshot: unknown }
 export interface CommandResult extends Reply { taskId?: string; duplicate?: boolean }
 export interface Submission {
   id: string; text: string; mentions?: string[]; goal?: Goal;
@@ -29,14 +30,14 @@ function canonical(value: unknown): string {
 function fingerprint(value: unknown) { return createHash('sha256').update(canonical(value)).digest('hex'); }
 function decode(value: unknown): TaskSnapshot {
   const record = value as StoredTask;
-  if (record?.version !== 1) throw new Error('Incompatible machine snapshot');
+  if (record?.version !== 1 && record?.version !== 2) throw new Error('Incompatible machine snapshot');
   const result = restoreTask(record.snapshot);
   if (result.context.schemaVersion !== 1) throw new Error('Incompatible task context');
   return result;
 }
 function storeTask(tx: Transaction, snapshot: TaskSnapshot) {
   const id = snapshot.context.taskId;
-  tx.room.tasks[id] = { version: 1, snapshot: persistTask(snapshot) } satisfies StoredTask;
+  tx.room.tasks[id] = { version: currentTaskProtocol(snapshot.context.config) ? 2 : 1, snapshot: persistTask(snapshot) } satisfies StoredTask;
   if (taskPhase(snapshot) === 'ended') { if (tx.room.activeTaskId === id) tx.room.activeTaskId = null; }
   else tx.room.activeTaskId = id;
 }
@@ -150,7 +151,8 @@ export class TeamEngine {
         }
         if (input.intent === 'continue') {
           if (tx.room.activeTaskId && tx.room.activeTaskId !== existingId) return { ok: false, code: 'ROOM_BUSY', detail: 'Another task is active' };
-          const event: TaskEvent = { type: 'CONTINUE', id: input.id, text: input.text, at, ...(input.extraOrdinary === undefined ? {} : { extraOrdinary: input.extraOrdinary }) };
+          const event: TaskEvent = { type: 'CONTINUE', id: input.id, text: input.text, at, currentConfig: this.config,
+            ...(input.extraOrdinary === undefined ? {} : { extraOrdinary: input.extraOrdinary }) };
           const next = this.step(current, event); storeTask(tx, next);
           return { ...next.context.reply, taskId: existingId };
         }
@@ -186,42 +188,53 @@ export class TeamEngine {
   send(roomId: string, taskId: string, event: TaskEvent): CommandResult {
     if (event.type.startsWith('EXECUTION_')) return { ok: false, code: 'HOST_ONLY_EVENT', detail: 'Execution protocol requires the trusted runner' };
     const { at: _at, ...identity } = event;
-    return this.transact(roomId, tx => this.receipt(tx, event.id, { taskId, event: identity }, () => {
-      if (!tx.room.tasks[taskId]) return { ok: false, code: 'TASK_NOT_FOUND', detail: taskId };
-      const current = decode(tx.room.tasks[taskId]);
-      let leasedKey: string | undefined;
-      let leasedOwner: string | undefined;
-      if (event.type === 'LOCAL_CLAIM') {
-        const local = event;
-        const op = current.context.intents.find(i => i.id === local.intentId)?.localOperations?.find(o => o.id === local.operationId);
-        if (op?.workspaceId && op.status === 'queued') {
-          leasedKey = op.workspaceId; leasedOwner = fingerprint({ roomId, taskId, operationId: event.operationId });
-          event = { ...event, leaseAvailable: tx.acquireWorkspace(leasedKey, leasedOwner) };
+    return this.transact(roomId, tx => {
+      const value = tx.room.tasks[taskId];
+      const claimsWork = event.type === 'CLAIM' || event.type === 'LOCAL_REQUEST' || event.type === 'LOCAL_CLAIM';
+      const checked = value && claimsWork ? decode(value) : undefined;
+      const claimedId = event.type === 'CLAIM' ? event.intentId : undefined;
+      if (checked && taskProtocolChanged(checked.context.config, this.config)
+        && (!claimedId || checked.context.intents.find(work => work.id === claimedId)?.kind !== 'cancel')) {
+        // A mismatched executor cannot reserve the idempotency key of a later valid claim.
+        return { ok: false, code: 'INCOMPATIBLE_EXECUTION', detail: '运行协议与任务不兼容', taskId };
+      }
+      return this.receipt(tx, event.id, { taskId, event: identity }, () => {
+        if (!value) return { ok: false, code: 'TASK_NOT_FOUND', detail: taskId };
+        const current = checked ?? decode(value);
+        let leasedKey: string | undefined;
+        let leasedOwner: string | undefined;
+        if (event.type === 'LOCAL_CLAIM') {
+          const local = event;
+          const op = current.context.intents.find(i => i.id === local.intentId)?.localOperations?.find(o => o.id === local.operationId);
+          if (op?.workspaceId && op.status === 'queued') {
+            leasedKey = op.workspaceId; leasedOwner = fingerprint({ roomId, taskId, operationId: event.operationId });
+            event = { ...event, leaseAvailable: tx.acquireWorkspace(leasedKey, leasedOwner) };
+          }
         }
-      }
-      let next = this.step(current, event);
-      if (event.type === 'LOCAL_CLAIM' && !next.context.reply.ok && leasedKey && leasedOwner) tx.releaseWorkspace(leasedKey, leasedOwner);
-      if (event.type === 'LOCAL_RESULT' || event.type === 'LOCAL_RECONCILE' || event.type === 'LOCAL_APPROVAL_REQUIRED') {
-        const local = event;
-        const op = next.context.intents.find(i => i.id === local.intentId)?.localOperations?.find(o => o.id === local.operationId);
-        if (op?.workspaceId && ['succeeded', 'failed', 'cancelled', 'queued', 'awaitingApproval'].includes(op.status) && next.context.reply.ok) {
-          tx.releaseWorkspace(op.workspaceId, fingerprint({ roomId, taskId, operationId: event.operationId }));
+        let next = this.step(current, event);
+        if (event.type === 'LOCAL_CLAIM' && !next.context.reply.ok && leasedKey && leasedOwner) tx.releaseWorkspace(leasedKey, leasedOwner);
+        if (event.type === 'LOCAL_RESULT' || event.type === 'LOCAL_RECONCILE' || event.type === 'LOCAL_APPROVAL_REQUIRED') {
+          const local = event;
+          const op = next.context.intents.find(i => i.id === local.intentId)?.localOperations?.find(o => o.id === local.operationId);
+          if (op?.workspaceId && ['succeeded', 'failed', 'cancelled', 'queued', 'awaitingApproval'].includes(op.status) && next.context.reply.ok) {
+            tx.releaseWorkspace(op.workspaceId, fingerprint({ roomId, taskId, operationId: event.operationId }));
+          }
         }
-      }
-      const reply = { ...next.context.reply, taskId };
-      if (event.type === 'CLAIM' && ['BUDGET_EXHAUSTED', 'DISCUSSION_BUDGET_RESERVED', 'WORK_EXPIRED'].includes(reply.code)
-        && current.context.intents.find(work => work.id === (event as Extract<TaskEvent, { type: 'CLAIM' }>).intentId)?.discussionId) {
-        next = this.step(next, { type: 'WORK_FAILED', id: `${event.id}:discussion`, at: event.at, intentId: event.intentId, reason: reply.code, transient: false });
-      } else if (event.type === 'CLAIM' && reply.code === 'BUDGET_EXHAUSTED') {
-        next = this.step(next, { type: 'EXHAUSTED', id: `${event.id}:budget`, at: event.at, reason: 'Execution budget exhausted' });
-      } else if (event.type === 'CLAIM' && ['REVIEW_SYNTHESIS_RESERVED', 'ASSISTANCE_SYNTHESIS_RESERVED'].includes(reply.code)) {
-        // A recovered reviewer must settle through the review queue, preserving the owner's final request.
-        next = this.step(next, { type: 'WORK_FAILED', id: `${event.id}:reserved`, at: event.at, intentId: event.intentId,
-          reason: `${reply.code}: 已保留负责人续办额度，当前协助工作无法继续`, transient: false });
-      }
-      storeTask(tx, next);
-      return reply;
-    }));
+        const reply = { ...next.context.reply, taskId };
+        if (event.type === 'CLAIM' && ['BUDGET_EXHAUSTED', 'DISCUSSION_BUDGET_RESERVED', 'WORK_EXPIRED'].includes(reply.code)
+          && current.context.intents.find(work => work.id === (event as Extract<TaskEvent, { type: 'CLAIM' }>).intentId)?.discussionId) {
+          next = this.step(next, { type: 'WORK_FAILED', id: `${event.id}:discussion`, at: event.at, intentId: event.intentId, reason: reply.code, transient: false });
+        } else if (event.type === 'CLAIM' && reply.code === 'BUDGET_EXHAUSTED') {
+          next = this.step(next, { type: 'EXHAUSTED', id: `${event.id}:budget`, at: event.at, reason: 'Execution budget exhausted' });
+        } else if (event.type === 'CLAIM' && ['REVIEW_SYNTHESIS_RESERVED', 'ASSISTANCE_SYNTHESIS_RESERVED'].includes(reply.code)) {
+          // A recovered reviewer must settle through the review queue, preserving the owner's final request.
+          next = this.step(next, { type: 'WORK_FAILED', id: `${event.id}:reserved`, at: event.at, intentId: event.intentId,
+            reason: `${reply.code}: 已保留负责人续办额度，当前协助工作无法继续`, transient: false });
+        }
+        storeTask(tx, next);
+        return reply;
+      });
+    });
   }
   localNamespace(roomId: string, taskId: string): string { return fingerprint({ roomId, taskId }); }
   requestHostRetry(roomId: string, taskId: string, sourceWorkId: string, sourceOperationId: string, sourceRequestHash: string, commandId: string): CommandResult {
@@ -229,12 +242,14 @@ export class TeamEngine {
       if (!tx.room.tasks[taskId]) return { ok: false, code: 'TASK_NOT_FOUND', detail: '找不到原任务' };
       if ((tx.room.activeTaskId ?? Object.keys(tx.room.tasks).at(-1)) !== taskId) return { ok: false, code: 'ROOM_BUSY', detail: '另一任务已成为当前任务' };
       const current = decode(tx.room.tasks[taskId]), c = current.context;
-      if (recoveryIssue(c, this.config)) return { ok: false, code: 'INCOMPATIBLE_EXECUTION', detail: '运行配置已变化，请先恢复任务' };
+      if (recoveryIssue(c, this.config) && !legacyTerminalConfig(c, this.config)) {
+        return { ok: false, code: 'INCOMPATIBLE_EXECUTION', detail: '运行配置已变化，请先恢复任务' };
+      }
       const source = c.intents.find(w => w.id === sourceWorkId), op = source?.localOperations?.find(o => o.id === sourceOperationId);
       if (!op || op.action.type !== 'runCli') return { ok: false, code: 'NOT_FAILED_SANDBOX_COMMAND', detail: '找不到失败的沙箱命令' };
       if (!localEnabled(this.config, c.owner) || source && !localEnabled(this.config, source.target)) return { ok: false, code: 'LOCAL_TOOLS_DISABLED', detail: '本地工具权限已关闭' };
       const next = this.step(current, { type: 'REQUEST_HOST_RETRY', id: commandId, at: this.clock(), sourceWorkId, sourceOperationId, sourceRequestHash,
-        requestHash: fingerprint({ action: hostRetryAction(op), workspaceId: op.workspaceId, namespace: op.namespace }), fence: { epoch: c.epoch, goalVersion: c.goalVersion } });
+        requestHash: fingerprint({ action: hostRetryAction(op), workspaceId: op.workspaceId, namespace: op.namespace }), currentConfig: this.config, fence: { epoch: c.epoch, goalVersion: c.goalVersion } });
       storeTask(tx, next); return { ...next.context.reply, taskId };
     }));
   }
@@ -285,8 +300,9 @@ export class TeamEngine {
     const kind: Partial<Record<TaskView['phase'], Intent['kind'][]>> = {
       interpreting: ['interpretation'], running: ['owner', 'tool'], waitingAssistance: ['assistance'], coordinating: ['facilitator'], checking: ['check'],
     };
+    const compatible = !taskProtocolChanged(view.context.config, this.config);
     return view.context.intents.filter(i => i.status === 'pending' && !localAwaitingApproval(i) && (i.kind === 'cancel'
-      || (!view.context.stopped && view.context.outcome === null && (i.discussionId || kind[view.phase]?.includes(i.kind)) && workLaneAvailable(view.context, i))));
+      || (compatible && !view.context.stopped && view.context.outcome === null && (i.discussionId || kind[view.phase]?.includes(i.kind)) && workLaneAvailable(view.context, i))));
   }
   claim(roomId: string, taskId: string, intentId: string): Intent | null {
     const view = this.view(roomId, taskId);
