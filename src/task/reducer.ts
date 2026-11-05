@@ -174,6 +174,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'SETTLE': {
       const work = c.intents.find(i => i.id === e.intentId);
       release(c, e.intentId);
+      if (c.hostRetryBatch?.workId === e.intentId) cancelHostRetries(c, 'WORK_NOT_STARTED');
       if (work?.kind === 'tool' && !c.stopped && fresh(c, { ...e, fence: { epoch: work.epoch, goalVersion: work.goalVersion } })) owner(c, e, { toolResult: work.id });
       break;
     }

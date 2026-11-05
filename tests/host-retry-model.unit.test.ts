@@ -164,6 +164,25 @@ describe('用户从失败沙箱记录续办（真实XState，每步持久化）'
     expect(retryOp(m).status).toBe('awaitingApproval');
     expect(retryOp(m).approval?.id).not.toBe(originalApproval);
     expect(retryWork(m).localOperations).toHaveLength(1);
+    const before = m.c.usage.ordinary; m.c.config.limits.ordinary = before + 1;
+    expect(decideRetry(m).ok).toBe(true);
+    expect(startRetry(m, 'run-fresh').ok).toBe(true);
+    expect(m.c.usage.ordinary).toBe(before);
+    expect(settleRetry(m).ok).toBe(true);
+    expect(retryOp(m).hostRetryOf).toBe('op2');
+  });
+  it('[BT_L36] an invalidated plan is prepared again and requires a fresh user decision', () => {
+    const m = twoQueued(); prepareRetry(m); decideRetry(m, 'approveSession');
+    expect(claimRetryOp(m, 'changed-plan').ok).toBe(true);
+    const work = retryWork(m), op = retryOp(m);
+    expect(m.send({ type: 'LOCAL_RESULT', intentId: work.id, operationId: op.id, sessionId: 'changed-plan',
+      result: { ok: false, code: 'HOST_APPROVAL_STALE', data: {} }, settled: true, effectsKnown: true }).ok).toBe(true);
+    expect(retryOp(m).status).toBe('queued');
+    expect(retryOp(m).approval).toBeUndefined();
+    prepareRetry(m, 'updated-plan');
+    expect(retryOp(m).status).toBe('awaitingApproval');
+    expect(retryOp(m).approval?.id).toBe('updated-plan');
+    expect(m.c.hostSession).toBeDefined();
   });
   it('[BT_L52] persists expiry while original work is still active and reports it at handoff', () => {
     const m = failedSandbox(); request(m); m.at = m.c.hostRetryRequests![0]!.deadline;

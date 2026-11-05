@@ -36,6 +36,7 @@ export interface LocalOperation {
   deadline?: number;
   skillBindings?: SkillBinding[];
   executionCharged?: boolean;
+  forceManualApproval?: boolean;
 }
 export type LocalEvent =
   | { type: 'LOCAL_REQUEST'; intentId: string; operationId: string; namespace: string; requestHash: string; action: LocalAction; parentAttempt: number; messages: LocalMessage[]; workspaceId?: string }
@@ -151,12 +152,13 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
       return op?.deadline !== undefined && e.at >= op.deadline && ['queued', 'awaitingApproval'].includes(op.status) && op.startedAt === undefined ? null : 'HOST_RETRY_NOT_EXPIRED';
     case 'LOCAL_STARTED':
       if (!op || op.sessionId !== event.sessionId || !['claimed', 'cancelling'].includes(op.status)) return 'LOCAL_SESSION_MISMATCH';
-      if (op.deadline !== undefined) {
-        const problem = localParentProblem(c, work, e.at);
-        if (problem || e.at >= op.deadline) return problem ?? 'WORK_EXPIRED';
-      }
       if (op.action.type === 'runCli' && op.action.execution === 'host' && op.approval?.status !== 'approved') return 'HOST_APPROVAL_REQUIRED';
       if (op.approval?.sessionGrantId && (op.approval.sessionGrantId !== c.hostSession?.id || !hostSessionMatches(c, work, op, op.approval))) return 'HOST_APPROVAL_REQUIRED';
+      if (op.deadline !== undefined || op.action.type === 'runCli' && op.action.execution === 'host') {
+        const problem = localParentProblem(c, work, e.at);
+        if (problem || op.deadline !== undefined && e.at >= op.deadline) return problem ?? 'WORK_EXPIRED';
+        if (op.approval && e.at >= op.approval.expiresAt) return 'HOST_APPROVAL_EXPIRED';
+      }
       return null;
     case 'LOCAL_RESULT':
       if (!op || op.sessionId !== event.sessionId || !['claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) return 'LOCAL_SESSION_MISMATCH';
@@ -169,7 +171,7 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
   }
 }
 function freeLocalClaim(op: LocalOperation): boolean {
-  return op.action.type === 'listSkills' || op.action.type === 'readEvidence' && op.attempt > 0;
+  return !!op.executionCharged || op.action.type === 'listSkills' || op.action.type === 'readEvidence' && op.attempt > 0;
 }
 
 function finishOperation(work: Intent, op: LocalOperation, result: LocalToolResult, at: number) {
@@ -180,7 +182,11 @@ function finishOperation(work: Intent, op: LocalOperation, result: LocalToolResu
     work.localSkills = [...(work.localSkills ?? []).filter(s => s.skillId !== skillId), { skillId, skillVersion: result.data.skillVersion }];
   }
   if (work.localCheckpoint?.pendingOperationId === op.id) {
-    work.localCheckpoint.messages.push({ role: 'user', content: JSON.stringify({ type: 'local_tool_result', operationId: op.id, untrusted: true, ...result }) });
+    const checkpointResult: LocalToolResult = op.hostRetryRequestId ? { ok: result.ok, code: result.code, data: {
+      execution: 'host', ...(typeof result.data.exitCode === 'number' ? { exitCode: result.data.exitCode } : {}),
+      ...(typeof result.data.truncated === 'boolean' ? { truncated: result.data.truncated } : {}),
+    } } : result;
+    work.localCheckpoint.messages.push({ role: 'user', content: JSON.stringify({ type: 'local_tool_result', operationId: op.id, untrusted: true, ...checkpointResult }) });
     delete work.localCheckpoint.pendingOperationId;
   }
 }
@@ -207,7 +213,7 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
       break;
     case 'LOCAL_APPROVAL_REQUIRED':
       op!.approval = structuredClone(e.approval); op!.status = 'awaitingApproval';
-      if (hostSessionMatches(c, work, op!, op!.approval)) { op!.approval.status = 'approved'; op!.approval.sessionGrantId = c.hostSession!.id; op!.status = 'queued'; }
+      if (!op!.forceManualApproval && hostSessionMatches(c, work, op!, op!.approval)) { op!.approval.status = 'approved'; op!.approval.sessionGrantId = c.hostSession!.id; op!.status = 'queued'; }
       break;
     case 'LOCAL_APPROVAL_DECISION':
       op!.approval!.status = e.decision !== 'deny' ? 'approved' : 'denied';
@@ -215,7 +221,7 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
         const p = op!.approval!.plan;
         c.hostSession = { id: e.id, epoch: c.epoch, goalVersion: c.goalVersion, namespace: op!.namespace, workspaceId: op!.workspaceId!, host: p.host, account: p.account, environmentHash: p.environmentHash };
         for (const candidate of c.intents) for (const pending of candidate.localOperations ?? [])
-          if (pending.approval && ['awaitingApproval', 'queued'].includes(pending.status) && hostSessionMatches(c, candidate, pending, pending.approval) && pending.approval.expiresAt > e.at) {
+          if (pending.approval && !pending.forceManualApproval && ['awaitingApproval', 'queued'].includes(pending.status) && hostSessionMatches(c, candidate, pending, pending.approval) && pending.approval.expiresAt > e.at) {
             pending.approval.status = 'approved'; pending.approval.sessionGrantId = c.hostSession.id; pending.status = 'queued';
           }
       }
@@ -237,6 +243,12 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
       if (e.isolated !== undefined) op!.isolated = e.isolated;
       break;
     case 'LOCAL_RESULT':
+      if (op!.hostRetryRequestId && op!.startedAt === undefined && op!.approval && e.settled && e.effectsKnown
+        && e.result.code === 'HOST_APPROVAL_STALE' && !c.stopped && work.epoch === c.epoch && work.goalVersion === c.goalVersion
+        && (op!.deadline === undefined || e.at < op!.deadline)) {
+        op!.status = 'queued'; op!.forceManualApproval = true; delete op!.approval;
+        break;
+      }
       if (op!.hostRetryRequestId && op!.startedAt === undefined && op!.approval?.sessionGrantId
         && e.settled && e.effectsKnown && e.result.code === 'HOST_APPROVAL_REQUIRED' && !c.stopped
         && work.epoch === c.epoch && work.goalVersion === c.goalVersion && e.at < op!.approval.expiresAt) {

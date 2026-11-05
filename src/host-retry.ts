@@ -49,7 +49,9 @@ export function hostRetryProblem(c: TaskContext, sourceWorkId: string, sourceOpe
   if (!['owner', 'assistance', 'facilitator', 'check'].includes(work.kind)) return 'LOCAL_TOOLS_NOT_ALLOWED';
   if (!localEnabled(c.config, c.owner) || !localEnabled(c.config, work.target)) return 'LOCAL_TOOLS_DISABLED';
   if (!c.config.bots.some(bot => bot.id === c.owner)) return 'OWNER_UNAVAILABLE';
-  if (c.intents.some(w => w.status === 'uncertain' || localUnsettled(w) || w.status === 'inflight' && (w.replay === 'unsafe' || w.kind === 'tool'))) return 'UNRESOLVED_WORK';
+  if (c.intents.some(w => w.status === 'uncertain' || localPhysicalPending(w)
+    || w.localOperations?.some(op => op.status === 'awaitingApproval' || op.status === 'queued' && !op.hostRetryRequestId)
+    || w.status === 'inflight' && (w.replay === 'unsafe' || w.kind === 'tool'))) return 'UNRESOLVED_WORK';
   if (op.result.data.outputFilesTruncated === true) return 'HOST_RETRY_EFFECTS_REVIEW_REQUIRED';
   if (!minimumBudget(c, 1)) return 'BUDGET_EXHAUSTED';
   return null;
@@ -129,8 +131,7 @@ function queueNext(c: TaskContext, work: Intent, at: number) {
     (work.localOperations ??= []).push(op);
     checkpoint.pendingOperationId = op.id;
     checkpoint.messages.push({ role: 'user', content: JSON.stringify({ type: 'host_retry_source', untrusted: true,
-      sourceOperationId: original.id, originalAction: original.action, previousResult: original.result }) },
-    { role: 'assistant', content: JSON.stringify(action) });
+      sourceOperationId: original.id, retryOperationId: op.id, previousResultCode: original.result?.code }) });
     request.operationId = op.id;
     return;
   }
