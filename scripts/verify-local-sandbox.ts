@@ -37,12 +37,22 @@ try {
     assert(completion.settled); assert(completion.result.ok, JSON.stringify(completion.result)); assert(String(completion.result.data.stdout).includes('boundaries-ok'));
     assert.equal(await readFile(join(workspace, 'output.txt'), 'utf8'), 'workspace-write-ok');
     const buildOutput = join(workspace, 'dist'); await mkdir(buildOutput);
+    await writeFile(join(buildOutput, '.env'), 'must-not-change');
     const readOnlyCheck = await backend.execute({ executable: process.execPath,
-      args: ['-e', `const fs=require('fs');try{fs.writeFileSync('output.txt','mutated');process.exit(21)}catch{}fs.writeFileSync('dist/build.txt','build-ok');`],
+      args: ['-e', `const fs=require('fs');try{fs.writeFileSync('output.txt','mutated');process.exit(21)}catch{}try{fs.writeFileSync('dist/.env','mutated');process.exit(22)}catch{}fs.writeFileSync('dist/build.txt','build-ok');`],
       workspace, cwd: workspace, env: minimalCliEnvironment(workspace), writeRoots: [buildOutput], timeoutMs: 3000,
       sessionId: 'verify-readonly-check-inputs', logPath: join(root, 'check.log') }, new AbortController().signal, async () => {});
     assert(readOnlyCheck.result.ok, JSON.stringify(readOnlyCheck.result));
     assert.equal(await readFile(join(buildOutput, 'build.txt'), 'utf8'), 'build-ok');
+    assert.equal(await readFile(join(buildOutput, '.env'), 'utf8'), 'must-not-change');
+    const deniedOutput = join(workspace, '.git', 'hooks', 'output'); await mkdir(deniedOutput, { recursive: true });
+    const ancestorCheck = await backend.execute({ executable: process.execPath,
+      args: ['-e', `const fs=require('fs');try{fs.writeFileSync('.git/hooks/output/forbidden.txt','bad');process.exit(23)}catch{console.log('ancestor-deny-ok')}`],
+      workspace, cwd: workspace, env: minimalCliEnvironment(workspace), writeRoots: [deniedOutput], timeoutMs: 3000,
+      sessionId: 'verify-ancestor-write-deny', logPath: join(root, 'ancestor-check.log') }, new AbortController().signal, async () => {});
+    assert(ancestorCheck.result.ok, JSON.stringify(ancestorCheck.result));
+    assert(String(ancestorCheck.result.data.stdout).includes('ancestor-deny-ok'));
+    await assert.rejects(readFile(join(deniedOutput, 'forbidden.txt')), { code: 'ENOENT' });
     const controller = new AbortController(); let identity: ProcessIdentity | undefined;
     const cancelled = await backend.execute({ executable: process.execPath,
       args: ['-e', "require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});setInterval(()=>{},1000)"],

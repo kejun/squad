@@ -22,3 +22,5 @@ Then('最终检查源文件只读且输出目录可写', function (this: SpecWor
 Then('取消应结算真实进程会话并对未知写入效果保持待核对', function (this: SpecWorld) { assert(completed.has(this)); });
 
 Then('可信沙箱运行时辅助程序应可执行且只读而其安装目录仍不可读取', function (this: SpecWorld) { assert(completed.has(this)); });
+
+Then('输出目录内和其祖先的显式拒写限制仍应优先', function (this: SpecWorld) { assert(completed.has(this)); });

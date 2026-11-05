@@ -1,0 +1,8 @@
+{
+  "version": "0.0.81",
+  "file": "dist/sandbox/linux-sandbox-utils.js",
+  "originalSha256": "3880ba176ec09e5fdda364b1135fbccd291df5dcd9dd1c3c70da02e15f4f6621",
+  "patchedSha256": "dc4e24a233c184692ff8dd37730f51ee3e599e7b19cb7ef42f31947e74814f92",
+  "anchor": "    return { restoredWrites, restoredReads };",
+  "insertion": "    // Squad compatibility patch for SRT 0.0.81: a restored read-only ancestor\n    // shadows earlier child writes. Reapply only already-vetted write mounts\n    // covered by these reads, before all subsequent denyWrite/masking passes.\n    for (const writeMount of restoredWrites) {\n        if (restoredReads.some(readMount => isAtOrUnder(writeMount.dest, readMount.dest))) {\n            args.push('--bind', writeMount.source, writeMount.dest);\n        }\n    }\n"
+}
