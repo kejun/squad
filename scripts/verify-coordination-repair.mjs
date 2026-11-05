@@ -58,6 +58,12 @@ async function startFixture() {
           : { action: 'assist', target: payload.owner, question: '核查当前方案', expected: '给出依据', reason: '合成自我求助错误' } };
       } else if (kind === 'check') output = { type: 'check', passed: true, gaps: [] };
       else throw new Error('Unexpected model role: ' + kind);
+      if (output.type === 'deliver' && payload.acceptanceCriteria) output.coverage = payload.acceptanceCriteria.map(item => ({
+        criterionId: item.id, refs: [{ kind: 'candidateText' }],
+      }));
+      if (output.type === 'check' && payload.candidate?.acceptance) {
+        output.criteriaResults = payload.candidate.acceptance.criteria.map(item => ({ criterionId: item.id, status: 'passed' }));
+      }
       const record = { workId, goal, kind, target, owner: payload.owner ?? null, count, repair, outputType: output.type,
         decision: output.type === 'decision' ? output.decision.action : undefined };
       provider.push(record); appendFileSync(join(evidence, 'model-http.jsonl'), JSON.stringify(record) + '\n');
