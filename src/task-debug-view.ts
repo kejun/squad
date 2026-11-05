@@ -56,6 +56,7 @@ export const guardDescriptions: Record<string, string> = {
   retryable: '失败是可安全重放的暂时错误，结果已确定且重试与工作额度允许',
   failedAssistance: '有效协助失败结果已确定',
   recoveredSafe: '恢复配置兼容且没有仍可能执行、结果不明或不可重放的在途工作',
+  hostRetryBatchRetirable: '续办负责人工作已终止或缺失，且没有待核对的执行效果',
 };
 const rejectionDescriptions: Record<string, string> = {
   SELF_DEPENDENCY: '不能向当前负责人本人求助', STALE_FENCE: '结果的轮次或目标版本已过期',

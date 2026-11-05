@@ -1,6 +1,6 @@
 /** Task-owned host retry requests and batches. Execution is entirely outside this module. */
 import type { Intent, TaskContext, TaskEvent } from './types.js';
-import { hostRetryMemberAllowed, localEnabled, localPhysicalPending, localRecoveryBlocked, localUnsettled, type LocalAction, type LocalOperation } from './local-operation.js';
+import { cancelLocalOperations, hostRetryMemberAllowed, localEnabled, localPhysicalPending, localRecoveryBlocked, localUnsettled, type LocalAction, type LocalOperation } from './local-operation.js';
 import { activeHelp, allInflight, discussionActive, ok, unresolvedInput } from './task/facts.js';
 import { finish, message, owner } from './task/operations.js';
 
@@ -77,6 +77,49 @@ export function pendingHostRetry(c: TaskContext) {
   return c.hostRetryRequests?.some(r => (r.status === 'pending' || r.status === 'expired' && !r.reported && !r.batchId) && r.goalVersion === c.goalVersion) ?? false;
 }
 
+function batchRequests(c: TaskContext, batchId: string) {
+  return (c.hostRetryRequests ?? []).filter(request => request.batchId === batchId);
+}
+
+function retryEffectUnconfirmed(request: HostRetryRequest, operations: LocalOperation[]): boolean {
+  if (request.status === 'uncertain') return true;
+  if (request.status !== 'active' || request.operationId === undefined) return false;
+  return !operations.some(op => op.id === request.operationId);
+}
+
+export function hostRetryBatchRetirable(c: TaskContext): boolean {
+  const batch = c.hostRetryBatch;
+  if (!batch) return false;
+  const work = c.intents.find(w => w.id === batch.workId);
+  if (work && (work.status !== 'done' && work.status !== 'cancelled' || localPhysicalPending(work))) return false;
+  const operations = work?.localOperations ?? [];
+  return !batchRequests(c, batch.id).some(request => retryEffectUnconfirmed(request, operations));
+}
+
+function closeUnfinishedRetry(request: HostRetryRequest, op: LocalOperation | undefined, at: number) {
+  if (op?.finishedAt !== undefined) {
+    recordHostRetryReceipt(request, op, op.finishedAt);
+    return;
+  }
+  const expired = request.deadline <= at;
+  request.status = expired ? 'expired' : 'cancelled';
+  request.reason = expired ? 'WORK_EXPIRED' : 'WORK_NOT_STARTED';
+}
+
+export function retireHostRetryBatch(c: TaskContext, e: TaskEvent) {
+  const batch = c.hostRetryBatch!;
+  const work = c.intents.find(w => w.id === batch.workId);
+  if (work) cancelLocalOperations(work);
+  const operations = work?.localOperations ?? [];
+  for (const request of batchRequests(c, batch.id)) {
+    if (request.status === 'active') closeUnfinishedRetry(request, operations.find(op => op.id === request.operationId), e.at);
+  }
+  // XState assign merges top-level fields, so clearing the field requires an explicit value.
+  c.hostRetryBatch = undefined;
+  c.trace.push({ event: 'HOST_RETRY_BATCH_RETIRED', at: e.at,
+    detail: JSON.stringify({ batchId: batch.id, workId: batch.workId, workStatus: work?.status ?? 'missing', trigger: e.type, eventId: e.id }) });
+}
+
 export function hostRetryBoundary(c: TaskContext) {
   return pendingHostRetry(c) && !c.hostRetryBatch && !c.stopped && c.outcome === null && !localRecoveryBlocked(c)
     && !allInflight(c).length && !c.intents.some(w => localUnsettled(w) || w.status === 'uncertain' || w.kind === 'tool' && w.status === 'pending')
@@ -114,7 +157,8 @@ export function failHostRetryBoundary(c: TaskContext, e: TaskEvent) {
 function queueNext(c: TaskContext, work: Intent, at: number) {
   const batch = c.hostRetryBatch;
   if (!batch || batch.workId !== work.id || work.localCheckpoint?.pendingOperationId) return;
-  const remaining = (c.hostRetryRequests ?? []).filter(r => r.batchId === batch.id && r.status === 'active' && !r.operationId);
+  const requests = batchRequests(c, batch.id);
+  const remaining = requests.filter(r => r.status === 'active' && !r.operationId);
   for (const request of remaining) {
     const source = sourceOf(c, request.sourceWorkId, request.sourceOperationId);
     const original = source.op!;
@@ -137,7 +181,7 @@ function queueNext(c: TaskContext, work: Intent, at: number) {
     return;
   }
   work.localCheckpoint?.messages.push({ role: 'user', content: JSON.stringify({ type: 'host_retry_batch_results', untrusted: true,
-    results: (c.hostRetryRequests ?? []).filter(r => r.batchId === batch.id).map(r => ({ sourceOperationId: r.sourceOperationId, operationId: r.operationId, status: r.status, reason: r.reason })) }) });
+    results: requests.map(r => ({ sourceOperationId: r.sourceOperationId, operationId: r.operationId, status: r.status, reason: r.reason })) }) });
 }
 
 export function startHostRetryBatch(c: TaskContext, e: TaskEvent) {
@@ -160,6 +204,12 @@ export function startHostRetryBatch(c: TaskContext, e: TaskEvent) {
   queueNext(c, work, e.at);
 }
 
+function recordHostRetryReceipt(request: HostRetryRequest, op: LocalOperation, at: number) {
+  const expiredBeforeStart = op.startedAt === undefined && op.deadline !== undefined && at >= op.deadline;
+  request.status = expiredBeforeStart ? 'expired' : 'settled';
+  request.reason = expiredBeforeStart ? 'WORK_EXPIRED' : op.result?.code ?? op.status;
+}
+
 export function settleHostRetryOperation(c: TaskContext, intentId: string, operationId: string, at: number) {
   if (!c.hostRetryRequests) return;
   const { work, op } = sourceOf(c, intentId, operationId);
@@ -168,9 +218,7 @@ export function settleHostRetryOperation(c: TaskContext, intentId: string, opera
   if (op.status === 'uncertain') request.status = 'uncertain';
   else if (op.status === 'queued' || op.status === 'awaitingApproval') request.status = 'active';
   else if (['succeeded', 'failed', 'cancelled'].includes(op.status) && ['active', 'uncertain'].includes(request.status)) {
-    const expiredBeforeStart = op.startedAt === undefined && op.deadline !== undefined && at >= op.deadline;
-    request.status = expiredBeforeStart ? 'expired' : 'settled';
-    request.reason = expiredBeforeStart ? 'WORK_EXPIRED' : op.result?.code ?? op.status;
+    recordHostRetryReceipt(request, op, at);
     if (!c.stopped && !localRecoveryBlocked(c) && request.goalVersion === c.goalVersion) queueNext(c, work, at);
   }
 }
@@ -183,7 +231,7 @@ export function cancelHostRetries(c: TaskContext, reason: string) {
       request.status = 'cancelled'; request.reason = reason;
     }
   }
-  if (c.hostRetryBatch) delete c.hostRetryBatch;
+  if (c.hostRetryBatch) c.hostRetryBatch = undefined;
 }
 
 export function hostRetryReservation(c: TaskContext) {

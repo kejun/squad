@@ -27,7 +27,7 @@ export class HostApprovalFixture {
   requests: { messages: { role: string; content: string }[] }[] = [];
   action!: LocalAction;
   hostCommands = 1;
-  beforeOwnerResponse?: (request: HostApprovalFixture['requests'][number]) => Promise<void>;
+  beforeOwnerResponse?: (request: HostApprovalFixture['requests'][number]) => Promise<Response | void>;
   sandboxBackend?: CliBackend;
   private previousToken = process.env.EXAMPLE_CLI_TOKEN;
   private previousModelKey = process.env.FIXTURE_MODEL_KEY;
@@ -54,7 +54,8 @@ setTimeout(() => { process.stdout.write(token.slice(9) + '\\n'); }, 5);
     const config = localConfig(); config.limits.workTimeoutMs = 60_000; config.limits.progressIntervalMs = 60_000;
     const adapter = new OpenAICompatibleAdapter(config, { transport: async (_url, init) => {
       const request = JSON.parse(String(init?.body)) as typeof this.requests[number]; this.requests.push(request);
-      await this.beforeOwnerResponse?.(request);
+      const override = await this.beforeOwnerResponse?.(request);
+      if (override) return override;
       const receipts = request.messages.filter(m => m.role === 'user' && m.content.startsWith('{"type":"local_tool_result",')).length;
       if (receipts >= this.hostCommands) return modelResponse(withFixtureAcceptance({ type: 'answer', text: '已处理真实命令回执' }, request));
       return modelResponse(this.hostCommands > 1 && this.action.type === 'runCli' ? { ...this.action, args: [...this.action.args, `command-${receipts + 1}`] } : this.action);
@@ -94,8 +95,12 @@ setTimeout(() => { process.stdout.write(token.slice(9) + '\\n'); }, 5);
     const db = new DatabaseSync(join(this.root, 'team.sqlite'), { readOnly: true });
     try { return String(db.prepare('SELECT data FROM rooms WHERE id=?').get(this.room.id)!.data); } finally { db.close(); }
   }
-  async restart(savedRoom?: string) {
-    await new Promise<void>(resolve => this.server.close(() => resolve())); await this.service.close(); await this.runtime.close();
+  async restart(savedRoom?: string, onClosing?: () => void) {
+    await new Promise<void>(resolve => this.server.close(() => resolve()));
+    const closing = this.service.close();
+    onClosing?.();
+    await closing;
+    await this.runtime.close();
     if (savedRoom !== undefined) {
       // Restore the committed crash-window snapshot; graceful teardown must not alter fault-injection evidence.
       const db = new DatabaseSync(join(this.root, 'team.sqlite'));

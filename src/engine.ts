@@ -11,7 +11,7 @@ import { validateConfig, type Goal, type Intent, type Reply, type TaskContext, t
 import { recoveryIssue } from './task/facts.js';
 import { legacyTerminalConfig, taskProtocolChanged, taskStorageVersion } from './task/protocol.js';
 import { restoreRoomArchive, stepRoomArchive } from './room.machine.js';
-import { hostRetryAction } from './host-retry.js';
+import { hostRetryAction, hostRetryBatchRetirable } from './host-retry.js';
 
 interface StoredTask { version: 1 | 2 | 3; snapshot: unknown }
 const protocolBoundEvents = new Set<TaskEvent['type']>([
@@ -375,6 +375,8 @@ export class TeamEngine {
     const c = view.context; const at = this.clock();
     if (c.hostRetryRequests?.some(r => r.deadline <= at && (r.status === 'pending' || r.status === 'active' && !r.operationId)))
       this.send(roomId, c.taskId, { type: 'HOST_RETRY_EXPIRE', id: `host-retry-sweep:${at}`, at });
+    else if (!c.stopped && hostRetryBatchRetirable(c))
+      this.send(roomId, c.taskId, { type: 'HOST_RETRY_RECONCILE', id: `host-retry-reconcile:${c.hostRetryBatch!.id}:${at}`, at });
     for (const work of c.intents) for (const op of work.localOperations ?? []) {
       if (op.deadline !== undefined && op.deadline <= at && ['queued', 'awaitingApproval'].includes(op.status))
         this.send(roomId, c.taskId, { type: 'LOCAL_RETRY_EXPIRED', id: `host-retry-expiry:${op.id}`, at, intentId: work.id, operationId: op.id });
@@ -396,6 +398,7 @@ export class TeamEngine {
   nextWake(roomId: string): number | null {
     const view = this.view(roomId);
     if (!view || view.phase === 'ended' || taskProtocolChanged(view.context.config, this.config)) return null;
+    if (!view.context.stopped && hostRetryBatchRetirable(view.context)) return this.clock();
     const discussing = view.context.discussion && !['delivered', 'cancelled'].includes(view.context.discussion.status);
     const retryDeadlines = (view.context.hostRetryRequests ?? []).filter(r => r.status === 'pending' || r.status === 'active' && !r.operationId).map(r => r.deadline);
     if (view.phase === 'waitingHuman' && !discussing) return retryDeadlines.length ? Math.min(...retryDeadlines) : null;

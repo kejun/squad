@@ -8,10 +8,12 @@ export const taskLifecycle = {
     { guard: 'inputsReady', target: '.running', actions: 'boundary' },
     { guard: 'hostRetryReady', target: '.running', actions: 'startHostRetry' },
     { guard: 'hostRetryBoundary', target: '.ended', actions: 'failHostRetry' },
+    { guard: 'hostRetryBatchRetirable', actions: 'retireHostRetry' },
   ],
   on: {
     REVOKE_HOST_SESSION: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     REQUEST_HOST_RETRY: [{ guard: 'reactivateHostRetry', target: '.running', actions: 'apply' }, { guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+    HOST_RETRY_RECONCILE: { guard: 'valid', actions: 'apply' },
     HOST_RETRY_EXPIRE: { guard: 'valid', actions: 'apply' },
     LOCAL_RETRY_EXPIRED: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     LOCAL_REQUEST: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],

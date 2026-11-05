@@ -1,4 +1,4 @@
-import { failHostRetryBoundary, startHostRetryBatch } from '../host-retry.js';
+import { failHostRetryBoundary, retireHostRetryBatch, startHostRetryBatch } from '../host-retry.js';
 import { type TaskContext, type TaskEvent } from '../types.js';
 import { assign } from 'xstate';
 import { reduce } from './reducer.js';
@@ -32,6 +32,11 @@ export const taskActions = {
       const code = permissionProblem(context, event)!;
       const c = reduce(context, { ...event, type: 'WORK_FAILED', transient: false, reason: code });
       reject(c, code);
+      return c;
+    }),
+    retireHostRetry: taskAssign(({ context, event }) => {
+      const c = structuredClone(context);
+      retireHostRetryBatch(c, { ...event, at: event.at ?? c.lastActivityAt });
       return c;
     }),
     startHostRetry: taskAssign(({ context, event }) => {
