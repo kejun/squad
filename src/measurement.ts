@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import type { CriterionJudgment, DeliveryGap, DeliveryGapKind } from './delivery-acceptance.js';
+import { currentDeliveryIssues, deliveryJudgments, type DeliveryGap, type DeliveryGapKind } from './delivery-acceptance.js';
 import { modelSignature } from './model-config.js';
 import type { Candidate, Intent, TaskContext, TaskEvent, TeamConfig } from './types.js';
 
@@ -26,10 +26,11 @@ export type LocalObservation = { operationId: string; action: string; sessionId?
 );
 
 type MeasurementGap = { criterionId: string | null; kind: DeliveryGapKind };
+type MeasurementJudgment = { criterionId: string; status: 'passed' | 'gap' | 'unknown' };
 type DeliveryObservation = { candidateRevision: string } & (
   | { phase: 'delivery.submitted' | 'delivery.published' }
   | { phase: 'delivery.preflightRejected'; gaps: MeasurementGap[] }
-  | { phase: 'delivery.checked'; passed: boolean; gaps: MeasurementGap[]; judgments: Pick<CriterionJudgment, 'criterionId' | 'status'>[] }
+  | { phase: 'delivery.checked'; passed: boolean; gaps: MeasurementGap[]; judgments: MeasurementJudgment[] }
 );
 
 export type ExecutionObservation = ModelObservation | LocalObservation | DeliveryObservation
@@ -94,20 +95,17 @@ export function deliveryObservations(before: TaskContext, after: TaskContext, ev
   const candidate = after.candidate;
   if (event.type === 'DELIVER' && candidate?.revision && candidate.workId === work.id && candidate.revision !== before.candidate?.revision) {
     events.push({ phase: 'delivery.submitted', candidateRevision: candidate.revision });
-    const gaps = gapMetadata(candidate, after.deliveryGaps ?? []);
+    const gaps = gapMetadata(candidate, currentDeliveryIssues(after));
     if (gaps.length) events.push({ phase: 'delivery.preflightRejected', candidateRevision: candidate.revision, gaps });
   }
   if (event.type === 'CHECK_RESULT' && !before.consumedResults.includes(event.resultId) && after.consumedResults.includes(event.resultId)) {
     const checked = work.payload.candidate as Candidate | undefined;
-    if (checked?.revision) {
-      const assessment = after.deliveryAssessments?.slice(before.deliveryAssessments?.length ?? 0)
-        .find(item => item.candidateRevision === checked.revision);
-      const judgments = (checked.acceptance?.criteria ?? []).flatMap(criterion => {
-        const result = assessment?.judgments.find(item => item.criterionId === criterion.id);
-        return result ? [{ criterionId: criterion.id, status: result.status }] : [];
-      });
-      const gaps = gapMetadata(checked, assessment?.gaps ?? []);
-      events.push({ phase: 'delivery.checked', candidateRevision: checked.revision, passed: event.passed && !gaps.length, gaps, judgments });
+    if (checked?.revision && candidate?.revision === checked.revision) {
+      const judgments: MeasurementJudgment[] = deliveryJudgments(after, checked.revision).map(({ criterionId, status }) => ({ criterionId,
+        status: status === 'passed' ? 'passed' : status === 'failed' ? 'gap' : 'unknown' }));
+      const gaps = gapMetadata(checked, currentDeliveryIssues(after));
+      const passed = after.outcome === 'complete' && after.publishedDelivery?.revision === checked.revision;
+      events.push({ phase: 'delivery.checked', candidateRevision: checked.revision, passed, gaps, judgments });
     }
   }
   const publication = after.publishedDelivery;

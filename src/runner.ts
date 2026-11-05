@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { deliveryObservations, initialModelRequestId, publishObservation, type ExecutionObservation, type MeasurementSink, type ModelObservation } from './measurement.js';
 import { readSavedArtifact, readSavedEvidence } from './evidence-reader.js';
-import { evidenceIndex } from './task/evidence.js';
-import { acceptanceCriteria, validCriterionCoverage, validCriterionJudgments, type CriterionCoverage, type CriterionJudgment } from './delivery-acceptance.js';
+import { deliveryEvidence, evidenceIndex } from './task/evidence.js';
+import { acceptanceCriteria, checkCitationSources, judgmentsProblem, validCriterionJudgments, type CheckMaterials, type CriterionJudgment } from './delivery-acceptance.js';
+import { deliveryValidationOperation, deliveryVerificationEvidence, deliveryVerificationProblem, type DeliveryVerificationPlan } from './task/verification.js';
 import { hostRetrySourceAllowed, isSavedRead, localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
 import type { LocalRuntime } from './local-runtime.js';
 import { LocalToolError, type SkillPage } from './local-skills.js';
 import type { TeamEngine } from './engine.js';
-import type { ArtifactDraft, Candidate, Decision, InputIntentSpec, InputReference, Intent, ModelOutputIssue, TaskContext, TaskEvent } from './types.js';
+import type { Artifact, ArtifactDraft, Candidate, Decision, InputIntentSpec, InputReference, Intent, ModelOutputIssue, TaskContext, TaskEvent } from './types.js';
 import { inputIntentSchema, validInputIntent } from './input-intent.js';
 import { validArtifactDrafts, validSummary } from './presentation.js';
 import { findSkills, type FoundSkill, type SkillSearchTransport } from './skills.js';
@@ -16,10 +17,10 @@ import { CloudflareWebTools, validWebFetchInput, validWebSearchInput, type WebTo
 export type WorkOutput =
   | { type: 'interpretation'; spec: InputIntentSpec }
   | { type: 'help'; requestId: string; target: string; question: string; expected: string; refs?: string[] }
-  | { type: 'answer'; text: string; status?: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[]; coverage?: CriterionCoverage[] }
-  | { type: 'deliver'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[]; coverage?: CriterionCoverage[] }
+  | { type: 'answer'; text: string; status?: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[] }
+  | { type: 'deliver'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[] }
   | { type: 'decision'; decision: Decision }
-  | { type: 'check'; passed: boolean; gaps: string[]; criteriaResults?: CriterionJudgment[] }
+  | { type: 'check'; criteriaResults: CriterionJudgment[] }
   | { type: 'blocked'; reason: string }
   | { type: 'askUser'; question: string }
   | { type: 'settled' };
@@ -38,7 +39,7 @@ export interface WorkScope {
   readonly localTools?: LocalWorkTools;
   /** Stable conversation identity for provider routing; defaults to the persisted task ID. */
   readonly sessionId?: string;
-  /** The first request is reserved on claim; call before each additional model/tool request. */
+  /** Call before additional model/tool requests. The runner authorizes the single check request itself. */
   authorizeAdditionalRequest(requestId: string): void;
   /** Authorize and persist a format repair before another request; absent hosts fail closed. */
   regenerateModelOutput?(issue: ModelOutputIssue): void;
@@ -60,15 +61,63 @@ export function validWorkOutput(value: unknown): value is WorkOutput {
   switch (v.type) {
     case 'interpretation': return Object.keys(v).every(key => ['type', 'spec'].includes(key)) && inputIntentSchema.safeParse(v.spec).success;
     case 'help': return ['requestId', 'target', 'question', 'expected'].every(k => typeof v[k] === 'string' && (v[k] as string).trim().length > 0) && (v.refs === undefined || strings(v.refs));
-    case 'answer': return typeof v.text === 'string' && validSummary(v.summary) && validArtifactDrafts(v.artifacts) && validCriterionCoverage(v.coverage) && (v.status === undefined || ['success', 'partial', 'failed'].includes(String(v.status)));
-    case 'deliver': return typeof v.text === 'string' && strings(v.artifactIds) && (v.backgroundArtifactIds === undefined || strings(v.backgroundArtifactIds)) && validSummary(v.summary) && validArtifactDrafts(v.artifacts) && validCriterionCoverage(v.coverage);
+    case 'answer': return typeof v.text === 'string' && validSummary(v.summary) && validArtifactDrafts(v.artifacts) && (v.status === undefined || ['success', 'partial', 'failed'].includes(String(v.status)));
+    case 'deliver': return typeof v.text === 'string' && strings(v.artifactIds) && (v.backgroundArtifactIds === undefined || strings(v.backgroundArtifactIds)) && validSummary(v.summary) && validArtifactDrafts(v.artifacts);
     case 'decision': return !!v.decision && typeof v.decision === 'object';
-    case 'check': return typeof v.passed === 'boolean' && strings(v.gaps) && validCriterionJudgments(v.criteriaResults);
+    case 'check': return Object.keys(v).every(key => key === 'type' || key === 'criteriaResults') && validCriterionJudgments(v.criteriaResults);
     case 'blocked': return typeof v.reason === 'string';
     case 'askUser': return typeof v.question === 'string' && !!v.question.trim();
     case 'settled': return true;
     default: return false;
   }
+}
+
+function fixedCheckMaterials(c: TaskContext, work: Intent): CheckMaterials {
+  const candidate = work.payload.candidate as Candidate | undefined;
+  if (!candidate?.revision || !candidate.acceptance || candidate.revision !== c.candidate?.revision
+    || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion || c.stopped) throw new WorkFailure('STALE_CANDIDATE_CHECK');
+  const refs = c.deliveryCycle?.evidence;
+  const evidence = refs && deliveryEvidence(c, work, refs);
+  if (!evidence) throw new WorkFailure('CHECK_EVIDENCE_CHANGED');
+  const artifacts = (work.payload.artifacts as Artifact[]).map(({ id, name, content }) => ({ id, name, content,
+    ...(!candidate.artifactIds.includes(id) ? { background: true } : {}) }));
+  const previousResults = work.payload.priorFindings as CriterionJudgment[];
+  const references = work.payload.references as CheckMaterials['references'];
+  const verification = deliveryVerificationEvidence(work);
+  return { requirements: candidate.acceptance.criteria, candidate: { revision: candidate.revision, text: candidate.text }, artifacts,
+    evidence: evidence.sources, rawInputs: work.payload.rawInputs as CheckMaterials['rawInputs'], previousResults,
+    ...(references?.length ? { references } : {}),
+    ...(previousResults.length && candidate.summary ? { revisionNotes: candidate.summary } : {}), ...(verification ? { verification } : {}) };
+}
+
+function readOnlyCheckScope(scope: WorkScope): WorkScope {
+  const denied = () => { throw new WorkFailure('CHECK_TOOLS_NOT_ALLOWED'); };
+  return { ...(scope.sessionId === undefined ? {} : { sessionId: scope.sessionId }),
+    ...(scope.observeModel ? { observeModel: scope.observeModel } : {}),
+    authorizeAdditionalRequest: denied, findSkills: denied, webSearch: denied, webFetch: denied };
+}
+
+async function prepareCheckVerification(work: () => Intent, tools: LocalWorkTools | undefined, signal: AbortSignal) {
+  const current = work();
+  const plan = current.payload.verification as DeliveryVerificationPlan | undefined;
+  if (!plan) return;
+  if (plan.status !== 'required' || !tools) throw new WorkFailure('WORKSPACE_VALIDATION_UNAVAILABLE');
+  const existing = deliveryValidationOperation(current);
+  if (!existing) await tools.invoke(plan.action, [], signal);
+  else if (existing.status === 'queued') await tools.resume(existing.id, signal);
+  const problem = deliveryVerificationProblem(work(), false);
+  if (problem) throw new WorkFailure(problem);
+}
+
+async function finishCheckVerification(work: () => Intent, tools: LocalWorkTools | undefined, signal: AbortSignal) {
+  const current = work();
+  const validation = deliveryValidationOperation(current);
+  if (!validation?.workspaceRevision || !tools) return;
+  const pending = current.localOperations?.find(op => op.action.type === 'verifyWorkspace' && op.status === 'queued');
+  if (pending) await tools.resume(pending.id, signal);
+  else await tools.invoke({ type: 'verifyWorkspace', expectedRevision: validation.workspaceRevision }, [], signal);
+  const problem = deliveryVerificationProblem(work(), true);
+  if (problem) throw new WorkFailure(problem);
 }
 
 /** Host driver: persisted claim precedes every adapter call. No XState entry action starts I/O. */
@@ -348,7 +397,6 @@ export class WorkRunner {
           operationId = next;
         }
       }
-      scope.authorizeAdditionalRequest(initialModelRequestId);
       const context = this.engine.view(roomId, taskId)!.context;
       // The claimed copy is detached from storage. Keep it shared with its bound tool scope.
       if (hostRetry) {
@@ -356,15 +404,31 @@ export class WorkRunner {
         if (refreshed?.localOperations) work.localOperations = refreshed.localOperations;
         if (refreshed?.localCheckpoint) work.localCheckpoint = refreshed.localCheckpoint;
       }
-      if (scope.localTools && localEnabled(this.engine.config, work.target)
+      if (work.kind !== 'check' && scope.localTools && localEnabled(this.engine.config, work.target)
         && (work.payload.capabilities as { localTools?: boolean } | undefined)?.localTools === true) {
         work.payload.evidenceIndex = evidenceIndex(context, work);
       }
       if (work.kind === 'owner') {
         work.payload.acceptanceCriteria = acceptanceCriteria(context);
-        if (context.deliveryGaps?.length) work.payload.deliveryGaps = context.deliveryGaps;
       }
-      output = await this.adapter.execute(work, controller.signal, scope);
+      if (work.kind === 'check') {
+        await prepareCheckVerification(currentWork, scope.localTools, controller.signal);
+        const current = this.engine.view(roomId, taskId)!.context;
+        if (!localEnabled(this.engine.config, work.target) && current.deliveryCycle?.evidence?.length) throw new WorkFailure('CHECK_EVIDENCE_REVOKED');
+        const materials = fixedCheckMaterials(current, currentWork());
+        work.payload.checkMaterials = materials;
+        scope.authorizeAdditionalRequest(initialModelRequestId);
+        output = await this.adapter.execute(work, controller.signal, readOnlyCheckScope(scope));
+        const sources = checkCitationSources(materials);
+        const problem = validWorkOutput(output) && output.type === 'check'
+          ? judgmentsProblem(materials.requirements, output.criteriaResults, sources) : 'CHECK_INVALID_CRITERIA_RESULTS';
+        if (problem) throw new WorkFailure(problem, true);
+        if (output.type === 'check' && output.criteriaResults.every(item => item.status === 'passed'))
+          await finishCheckVerification(currentWork, scope.localTools, controller.signal);
+      } else {
+        scope.authorizeAdditionalRequest(initialModelRequestId);
+        output = await this.adapter.execute(work, controller.signal, scope);
+      }
     }
     catch (error) {
       if (controller.signal.reason instanceof ApprovalSuspended) { this.controllers.delete(executionKey); return true; }
@@ -394,7 +458,6 @@ export class WorkRunner {
       ...(output.summary === undefined ? {} : { summary: output.summary }),
       ...(output.artifacts === undefined ? {} : { artifacts: output.artifacts }),
     } : {};
-    const coverage = (output.type === 'answer' || output.type === 'deliver') && output.coverage !== undefined ? { coverage: output.coverage } : {};
     if (work.discussionId) {
       if (output.type === 'decision') event = { ...base, type: 'DISCUSSION_PLAN', discussionId: work.discussionId, decision: output.decision };
       else if (output.type === 'answer') event = { ...base, ...presentation, type: 'DISCUSSION_RESULT', discussionId: work.discussionId, text: output.text, status: output.status ?? 'success' };
@@ -409,41 +472,20 @@ export class WorkRunner {
       case 'answer':
         event = work.kind === 'assistance'
           ? { ...base, ...presentation, type: 'RECORD_RESULT', requestId: String(work.payload.requestId), resultId: base.id, status: output.status ?? 'success', answer: output.text }
-          : { ...base, ...presentation, ...coverage, type: 'DELIVER', text: output.text, artifactIds: [] };
+          : { ...base, ...presentation, type: 'DELIVER', text: output.text, artifactIds: [] };
         break;
-      case 'deliver': event = { ...base, ...presentation, ...coverage, type: 'DELIVER', text: output.text, artifactIds: output.artifactIds,
+      case 'deliver': event = { ...base, ...presentation, type: 'DELIVER', text: output.text, artifactIds: output.artifactIds,
         ...(output.backgroundArtifactIds?.length ? { backgroundArtifactIds: output.backgroundArtifactIds } : {}) }; break;
       case 'decision': event = { ...base, type: 'COORDINATE', decision: output.decision }; break;
       case 'check': {
         const candidateRevision = (work.payload.candidate as { revision?: string } | undefined)?.revision;
-        event = { ...base, type: 'CHECK_RESULT', resultId: base.id, passed: output.passed, gaps: output.gaps,
-          ...(candidateRevision ? { candidateRevision } : {}),
-          ...(output.criteriaResults === undefined ? {} : { criteriaResults: output.criteriaResults }) };
+        event = { ...base, type: 'CHECK_RESULT', resultId: base.id, criteriaResults: output.criteriaResults,
+          ...(candidateRevision ? { candidateRevision } : {}) };
         break;
       }
       case 'blocked': event = { ...base, type: 'BLOCKED', reason: output.reason }; break;
       case 'askUser': event = { ...base, type: 'WAIT_USER', question: output.question }; break;
       case 'settled': event = { ...base, type: 'SETTLE', intentId: work.id }; break;
-    }
-    if (event.type === 'CHECK_RESULT' && event.passed && scope.localTools && this.localRuntime) {
-      const current = this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === work.id)!;
-      const validation = current.localOperations?.find(op => op.action.type === 'runCli' && op.isolated && op.workspaceRevision);
-      if (validation) {
-        try {
-          const verification = await scope.localTools.invoke({ type: 'verifyWorkspace', expectedRevision: validation.workspaceRevision! },
-            [...(current.localCheckpoint?.messages ?? []), { role: 'assistant', content: JSON.stringify(output) },
-              { role: 'user', content: JSON.stringify({ type: 'host_workspace_validation', expectedRevision: validation.workspaceRevision }) }], controller.signal);
-          if (current.localOperations?.some(op => op.result?.data.validationInputsChanged === true)) {
-            event = { ...event, passed: false, gaps: [...event.gaps, '检查过程中源文件已改变，结果不能证明原工程通过验证 (CHECK_INPUTS_CHANGED)'] };
-          }
-          if (!verification.ok) event = { ...event, passed: false, gaps: [...event.gaps, `工程验证版本已失效：${JSON.stringify(verification.data)} (${verification.code})`] };
-        } catch (error) {
-          submitResult({ ...base, id: `${base.id}:validation-failed:${work.attempt}`, type: 'WORK_FAILED', intentId: work.id,
-            reason: error instanceof WorkFailure ? error.message : 'Workspace validation failed', transient: false });
-          this.controllers.delete(executionKey);
-          return true;
-        }
-      }
     }
     // If this commit fails, the error escapes. It is not misreported as a model failure.
     submitResult(event);

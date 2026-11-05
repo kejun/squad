@@ -1,5 +1,5 @@
-import type { Artifact, Candidate, Intent, TaskContext, TaskEvent } from '../types.js';
-import { deliveryPreflight, judgmentsProblem } from '../delivery-acceptance.js';
+import type { Artifact, Candidate, InputReference, Intent, TaskContext, TaskEvent } from '../types.js';
+import { checkCitationSources, deliveryPreflight, judgmentsProblem, type CheckReferenceSource } from '../delivery-acceptance.js';
 import { hostRetryReservation, pendingHostRetry } from '../host-retry.js';
 import { localPhysicalPending } from '../local-operation.js';
 import { canRetryDeliveryCheck } from './budget.js';
@@ -37,11 +37,45 @@ export function deliveryOrdinaryAvailable(c: TaskContext, count: number): boolea
   return c.usage.ordinary + hostRetryReservation(c) + count <= c.config.limits.ordinary;
 }
 
+function historicalContent(c: TaskContext, ref: InputReference): string | undefined {
+  const sameRecord = (item: { taskId: string; id: string }) => item.taskId === ref.taskId && item.id === ref.id;
+  switch (ref.kind) {
+    case 'message': {
+      const message = c.history?.messages.find(sameRecord);
+      return message?.detailText ?? message?.text;
+    }
+    case 'artifact': return c.history?.artifacts.find(sameRecord)?.content;
+    case 'board': return c.history?.board.find(sameRecord)?.text;
+    case 'task': return ref.taskId === ref.id ? c.history?.tasks?.find(task => task.taskId === ref.taskId)?.goal.text : undefined;
+  }
+}
+
+export function checkReferenceSources(c: TaskContext): CheckReferenceSource[] | undefined {
+  const previous = c.deliveryCycle?.evidence && c.candidate?.revision
+    ? c.intents.find(work => isBoundedCheck(work) && work.criteriaResults
+      && (work.payload.candidate as Candidate | undefined)?.revision === c.candidate?.revision) : undefined;
+  if (previous) return (previous.payload.references as CheckReferenceSource[] | undefined) ?? [];
+  const sources = new Map<string, CheckReferenceSource>();
+  for (const input of c.inputAnalyses ?? []) {
+    if (input.goalVersion !== c.goalVersion || input.status !== 'resolved' || input.action === 'review') continue;
+    for (const ref of input.spec?.references ?? []) {
+      if (ref.taskId === c.taskId) continue;
+      const id = `history:${JSON.stringify([ref.kind, ref.taskId, ref.id])}`;
+      if (sources.has(id)) continue;
+      const content = historicalContent(c, ref);
+      if (content === undefined) return undefined;
+      sources.set(id, { id, taskId: ref.taskId, kind: ref.kind, content });
+    }
+  }
+  return [...sources.values()];
+}
+
 export function deliverySubmissionProblem(c: TaskContext, e: Delivery): { code: string; mechanical: boolean } | null {
   const problem = deliveryVersionProblem(c, e) ?? deliveryPreflight(c, e).gaps[0]?.reason;
   if (problem) return { code: problem, mechanical: true };
   const budget = deliveryCheckBudgetProblem(c);
   if (budget) return { code: budget, mechanical: false };
+  if (!checkReferenceSources(c)) return { code: 'CHECK_REFERENCE_UNAVAILABLE', mechanical: false };
   const verification = deliveryVerificationPlan(c);
   if (verification?.status === 'unavailable') return { code: 'WORKSPACE_VALIDATION_UNAVAILABLE', mechanical: false };
   if (verification?.status === 'required' && !deliveryOrdinaryAvailable(c, 2)) return { code: 'WORKSPACE_VALIDATION_BUDGET_EXHAUSTED', mechanical: false };
@@ -91,7 +125,8 @@ export function checkDisposition(c: TaskContext, e: CheckResult, work: Intent): 
   const evidence = c.deliveryCycle?.evidence && deliveryEvidence(c, work, c.deliveryCycle.evidence);
   if (!evidence) return { kind: 'finish', code: 'CHECK_EVIDENCE_CHANGED' };
   const test = deliveryVerificationEvidence(work);
-  const sources = test ? [...evidence.sources, test] : evidence.sources;
+  const references = (work.payload.references as CheckReferenceSource[] | undefined) ?? [];
+  const sources = checkCitationSources({ evidence: evidence.sources, references, ...(test ? { verification: test } : {}) });
   const protocol = e.passed !== undefined || e.gaps !== undefined ? 'CHECK_INVALID_CRITERIA_RESULTS'
     : judgmentsProblem(c.candidate!.acceptance!.criteria, e.criteriaResults, sources);
   if (protocol) return { kind: canRetryDeliveryCheck(c, work, e.at) ? 'retry' : 'finish', code: protocol };

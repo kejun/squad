@@ -20,7 +20,7 @@ export interface ChartStep {
 const eventNames: Record<string, string> = {
   '@init': '任务创建', '@baseline': '复制基线', '@always': '自动处理', '*': '其他事件',
   HELP: '请求协助', HELP_RESULT: '协助结果返回', RECORD_RESULT: '保存协助结果', RETRY_ASSISTANCE: '重试协助',
-  CLAIM: '领取工作', CONSUME: '消费工作结果', WORK_FAILED: '工作执行失败',
+  CLAIM: '领取工作', CONSUME: '授权一次请求', WORK_FAILED: '工作执行失败',
   WAIT_USER: '请求人工补充', CONTINUE: '继续执行', STOP: '停止任务', SETTLE: '确认在途工作已结算',
   USER_INPUT: '收到补充输入', HUMAN_DECISION: '收到人工决定', HANDOFF: '交接负责人',
   DELIVER: '提交交付', CHECK_RESULT: '检查结果返回', BLOCKED: '报告阻塞', COORDINATE: '协调决定返回',

@@ -82,6 +82,10 @@ export interface DeliveryEvidenceSource {
   stderr?: string;
 }
 
+function completeCapturedText(metadata: DeliveryEvidenceSource['metadata'], hash: string | null, text: unknown) {
+  return metadata.completeness === 'complete' && hash && typeof text === 'string' ? text : undefined;
+}
+
 /** Bind to the exact saved receipt and its captured content, without opening a process or log. */
 export function deliveryEvidence(c: TaskContext, work: Intent, refs?: readonly DeliveryEvidenceRef[]) {
   const available = localEnabled(c.config, work.target) ? settledSources(c).filter(source => canSeeEvidence(c, work, source.operation.id)
@@ -97,9 +101,9 @@ export function deliveryEvidence(c: TaskContext, work: Intent, refs?: readonly D
     const saved = { id, stdoutHash: metadata.capturedContentHash, stderrHash: metadata.stderrContentHash };
     const expected = refs?.[savedRefs.length];
     if (expected && (expected.stdoutHash !== saved.stdoutHash || expected.stderrHash !== saved.stderrHash)) return undefined;
-    sources.push({ id, metadata,
-      ...(metadata.status === 'succeeded' && saved.stdoutHash && typeof data.stdout === 'string' ? { stdout: data.stdout } : {}),
-      ...(metadata.status === 'succeeded' && saved.stderrHash && typeof data.stderr === 'string' ? { stderr: data.stderr } : {}) });
+    const stdout = completeCapturedText(metadata, saved.stdoutHash, data.stdout);
+    const stderr = completeCapturedText(metadata, saved.stderrHash, data.stderr);
+    sources.push({ id, metadata, ...(stdout === undefined ? {} : { stdout }), ...(stderr === undefined ? {} : { stderr }) });
     savedRefs.push(saved);
   }
   return { sources, refs: savedRefs };

@@ -1,4 +1,5 @@
 import { publicationIds } from '../task/delivery.js';
+import { currentDeliveryIssues } from '../delivery-acceptance.js';
 import { hostSessionActive } from '../host-session.js';
 import type { LocalRuntime } from "../local-runtime.js";
 import { isSavedRead, localAwaitingApproval } from '../local-operation.js';
@@ -244,6 +245,7 @@ export class WebService {
     for (const taskId of Object.keys(stored.tasks)) {
       const { phase, context: c } = this.engine.view(roomId, taskId)!;
       const currentArtifactIds = publicationIds(c);
+      const deliveryGaps = currentDeliveryIssues(c);
       tasks.push({
         id: taskId,
         goal: c.goal.text,
@@ -258,7 +260,7 @@ export class WebService {
         },
         artifacts: c.artifacts,
         ...(currentArtifactIds ? { currentArtifactIds } : {}),
-        ...(c.deliveryGaps?.length ? { deliveryGaps: c.deliveryGaps } : {}),
+        ...(deliveryGaps.length ? { deliveryGaps } : {}),
         board: c.board,
         trace: c.trace,
         ...(c.inputAnalyses ? { inputAnalyses: c.inputAnalyses } : {}),

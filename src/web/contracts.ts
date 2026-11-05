@@ -65,6 +65,7 @@ export interface WebTask {
   limits: { ordinary: number; checks: number };
   artifacts: Artifact[];
   currentArtifactIds?: string[];
+  /** Derived from the current candidate and its saved check result. */
   deliveryGaps?: DeliveryGap[];
   board: BoardEntry[];
   trace: { event: string; detail: string; at: number }[];

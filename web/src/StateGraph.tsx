@@ -30,6 +30,7 @@ const routes: Record<string, { path: string; label: Point }> = {
   'coordinating:ended': { path: 'M566 510 H950 V300 H984', label: { x: 950, y: 410 } },
   'waitingHuman:running': { path: 'M760 452 V375 H550 V318', label: { x: 680, y: 365 } },
   'checking:ended': { path: 'M886 280 H984', label: { x: 935, y: 265 } },
+  'checking:running': { path: 'M674 252 H566', label: { x: 620, y: 236 } },
   'checking:coordinating': { path: 'M760 318 V415 H540 V452', label: { x: 660, y: 405 } },
   'checking:waitingHuman': { path: 'M800 318 V452', label: { x: 830, y: 382 } },
   'stopping:ended': { path: 'M1090 138 V242', label: { x: 1090, y: 185 } },

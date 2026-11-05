@@ -7,7 +7,7 @@ import { applyLocalEvent, localEnabled, localPhysicalPending, recoverLocalOperat
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
 import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requestReview, resetReviewAtBoundary, savedHelpResult, startHelp } from './assistance.js';
 import { recordInput } from './input.js';
-import { automaticRevisionActive, canReviseDelivery, checkDisposition, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication, settlingDeliveryCheck } from './delivery.js';
+import { automaticRevisionActive, canReviseDelivery, checkDisposition, checkReferenceSources, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication, settlingDeliveryCheck } from './delivery.js';
 import { canRetryDeliveryCheck, canRetryWork, reserveDeliveryRetry } from './budget.js';
 import { deliveryJudgments, deliveryPreflight } from '../delivery-acceptance.js';
 import { adoptLegacyTerminalConfig } from './protocol.js';
@@ -196,6 +196,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const { acceptance } = deliveryPreflight(c, e);
       const artifactIds = saveReports(c, e, e.text, c.owner, e.artifacts);
       const priorFindings = deliveryJudgments(c, c.candidate?.revision).filter(item => item.status !== 'passed');
+      const references = checkReferenceSources(c);
       cancelWork(c, e);
       c.candidate = { text: e.text, artifactIds: [...new Set([...e.artifactIds, ...artifactIds])], goalVersion: c.goalVersion,
         revision: acceptance.revision, ...(e.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(e.backgroundArtifactIds)] } : {}),
@@ -218,6 +219,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const verification = deliveryVerificationPlan(c);
       const work = intent(c, e.at, 'check', 'facilitator', { deliveryProtocol: 'bounded', candidate: c.candidate, artifacts,
         rawInputs: [...rawInputs].map(([id, text]) => ({ id, text })), priorFindings,
+        ...(references?.length ? { references } : {}),
         ...(verification ? { verification } : {}) });
       c.deliveryCycle!.evidence ??= deliveryEvidence(c, work)?.refs ?? [];
       break;

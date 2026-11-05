@@ -1,4 +1,4 @@
-import type { LocalAction, LocalOperation } from '../local-operation.js';
+import type { LocalAction, LocalOperation, LocalToolResult } from '../local-operation.js';
 import type { Intent, TaskContext } from '../types.js';
 
 type ValidationCommand = Extract<LocalAction, { type: 'runCli' }>;
@@ -19,7 +19,7 @@ function directVerificationText(source: string): string {
   for (const line of source.split(/\r?\n/)) {
     const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1];
     if (fence) {
-      if (marker?.[0] === fence[0] && marker.length >= fence.length) fence = undefined;
+      if (marker && marker[0] === fence[0] && marker.length >= fence.length) fence = undefined;
     } else if (marker) fence = marker;
     else if (!/^\s*>/.test(line)) direct.push(line);
   }
@@ -65,41 +65,65 @@ export function deliveryValidationOperation(work: Intent): LocalOperation | unde
   return work.localOperations?.find(op => matchesCommand(op.action, plan.action));
 }
 
+type ValidationReceipt = { ok: true; operation: LocalOperation; revision: string; result: LocalToolResult }
+  | { ok: false; code: string };
+
+function validationReceipt(work: Intent): ValidationReceipt {
+  const operation = deliveryValidationOperation(work);
+  const result = operation?.result;
+  if (result?.data.validationInputsChanged === true) return { ok: false, code: 'CHECK_INPUTS_CHANGED' };
+  if (result?.ok === false) return { ok: false, code: result.code };
+  if (operation?.status !== 'succeeded' || !operation.sessionId || !operation.isolated || !operation.workspaceRevision || result?.data.exitCode !== 0) {
+    return { ok: false, code: 'WORKSPACE_VALIDATION_REQUIRED' };
+  }
+  return { ok: true, operation, revision: operation.workspaceRevision, result };
+}
+
 export function deliveryVerificationEvidence(work: Intent): { id: string; workspaceRevision: string; stdout?: string; stderr?: string } | undefined {
-  const test = deliveryValidationOperation(work);
-  if (!test || deliveryVerificationProblem(work, false)) return undefined;
-  const data = test.result!.data;
-  return { id: test.id, workspaceRevision: test.workspaceRevision!,
-    ...(data.truncated === false && typeof data.stdout === 'string' ? { stdout: data.stdout } : {}),
-    ...(data.truncated === false && typeof data.stderr === 'string' ? { stderr: data.stderr } : {}) };
+  const receipt = validationReceipt(work);
+  if (!receipt.ok) return undefined;
+  const evidence = { id: receipt.operation.id, workspaceRevision: receipt.revision };
+  const data = receipt.result.data;
+  if (data.truncated !== false) return evidence;
+  return { ...evidence, ...(typeof data.stdout === 'string' ? { stdout: data.stdout } : {}),
+    ...(typeof data.stderr === 'string' ? { stderr: data.stderr } : {}) };
+}
+
+function versionReceiptProblem(work: Intent, receipt: Extract<ValidationReceipt, { ok: true }>): string | null {
+  const check = work.localOperations?.find(op => op.action.type === 'verifyWorkspace'
+    && op.action.expectedRevision === receipt.revision && op.workspaceId === receipt.operation.workspaceId && op.parentAttempt === work.attempt);
+  if (check?.result?.ok === false) return check.result.code;
+  if (check?.status === 'succeeded' && check.sessionId && check.result?.ok) {
+    const { expectedRevision, currentRevision, copyRevision } = check.result.data;
+    if ([expectedRevision, currentRevision, copyRevision].every(value => value === receipt.revision)) return null;
+  }
+  return 'WORKSPACE_VERIFICATION_REQUIRED';
 }
 
 export function deliveryVerificationProblem(work: Intent, final: boolean): string | null {
   const plan = planFor(work);
   if (!plan) return null;
   if (plan.status === 'unavailable') return 'WORKSPACE_VALIDATION_UNAVAILABLE';
-  const test = deliveryValidationOperation(work);
-  if (test?.result?.data.validationInputsChanged === true) return 'CHECK_INPUTS_CHANGED';
-  if (test?.result?.ok === false) return test.result.code;
-  if (test?.status !== 'succeeded' || !test.sessionId || !test.isolated || !test.workspaceRevision || test.result?.data.exitCode !== 0) {
-    return 'WORKSPACE_VALIDATION_REQUIRED';
-  }
-  if (!final) return null;
-  const check = work.localOperations?.find(op => op.action.type === 'verifyWorkspace'
-    && op.action.expectedRevision === test.workspaceRevision && op.workspaceId === test.workspaceId && op.parentAttempt === work.attempt);
-  if (check?.result?.ok === false) return check.result.code;
-  return check?.status === 'succeeded' && check.sessionId && check.result?.ok
-    && check.result.data.expectedRevision === test.workspaceRevision && check.result.data.currentRevision === test.workspaceRevision
-    && check.result.data.copyRevision === test.workspaceRevision ? null : 'WORKSPACE_VERIFICATION_REQUIRED';
+  const receipt = validationReceipt(work);
+  if (!receipt.ok) return receipt.code;
+  return final ? versionReceiptProblem(work, receipt) : null;
+}
+
+function versionActionAllowed(work: Intent, action: Extract<LocalAction, { type: 'verifyWorkspace' }>, workspaceId: string | undefined, currentId?: string): boolean {
+  if (work.requestCount === 0) return false;
+  const receipt = validationReceipt(work);
+  if (!receipt.ok || action.expectedRevision !== receipt.revision || workspaceId !== receipt.operation.workspaceId) return false;
+  return !work.localOperations?.some(op => op.action.type === 'verifyWorkspace' && op.id !== currentId && op.parentAttempt === work.attempt);
 }
 
 export function verificationActionProblem(work: Intent, action: LocalAction, workspaceId: string | undefined, currentId?: string): string | null {
   if (work.kind !== 'check') return null;
   const plan = planFor(work);
   if (plan?.status !== 'required') return 'CHECK_LOCAL_TOOLS_NOT_ALLOWED';
-  const test = deliveryValidationOperation(work);
-  if (action.type === 'runCli' && matchesCommand(action, plan.action) && (!test || test.id === currentId)) return null;
-  if (action.type === 'verifyWorkspace' && work.requestCount > 0 && test?.workspaceRevision === action.expectedRevision && test.workspaceId === workspaceId
-    && !deliveryVerificationProblem(work, false) && !work.localOperations?.some(op => op.action.type === 'verifyWorkspace' && op.id !== currentId && op.parentAttempt === work.attempt)) return null;
+  if (action.type === 'runCli' && matchesCommand(action, plan.action)) {
+    const test = deliveryValidationOperation(work);
+    if (!test || test.id === currentId) return null;
+  }
+  if (action.type === 'verifyWorkspace' && versionActionAllowed(work, action, workspaceId, currentId)) return null;
   return 'CHECK_LOCAL_TOOLS_NOT_ALLOWED';
 }
