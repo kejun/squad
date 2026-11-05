@@ -1,7 +1,7 @@
 import { publicationIds } from '../task/delivery.js';
 import { hostSessionActive } from '../host-session.js';
 import type { LocalRuntime } from "../local-runtime.js";
-import { localAwaitingApproval } from '../local-operation.js';
+import { isSavedRead, localAwaitingApproval } from '../local-operation.js';
 import { findHostRetry, hostRetryProblem } from '../host-retry.js';
 import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
@@ -131,7 +131,10 @@ export class WebService {
         for (const work of latest.intents) for (const op of work.localOperations ?? []) {
           if (!op.result || !['succeeded', 'failed', 'cancelled'].includes(op.status)) continue;
           const shown = this.db.prepare("SELECT 1 FROM web_events WHERE roomId=? AND workId=? AND kind='tool-result' AND instr(detail,?)>0 LIMIT 1").get(room.id, work.id, op.id);
-          if (!shown) this.append(room.id, work, 'tool-result', '本地操作持久回执', JSON.stringify({ operationId: op.id, ...op.result }));
+          if (!shown) {
+            const receipt = isSavedRead(op.action) ? { ok: op.result.ok, code: op.result.code } : op.result;
+            this.append(room.id, work, 'tool-result', '本地操作持久回执', JSON.stringify({ operationId: op.id, ...receipt }));
+          }
         }
       }
     }
@@ -452,21 +455,21 @@ export class WebService {
           ...(scope.localTools ? { localTools: {
             catalog: scope.localTools.catalog, checkpoint: scope.localTools.checkpoint,
             invoke: async (action, messages, toolSignal, requested) => {
-              const labels = { listSkills: "查看本地技能", loadSkill: "激活本地技能", readSkillResource: "读取技能资源", readEvidence: "查读执行证据", runCli: "执行本地命令", verifyWorkspace: "核对工程版本" };
+              const labels = { listSkills: "查看本地技能", loadSkill: "激活本地技能", readSkillResource: "读取技能资源", readEvidence: "查读执行证据", readArtifact: "查读历史产物", runCli: "执行本地命令", verifyWorkspace: "核对工程版本" };
               this.append(roomId, work, "tool-start", labels[action.type], JSON.stringify(this.localRuntime!.clean(action)));
               let operationId: string | undefined;
               const result = await scope.localTools!.invoke(action, messages, toolSignal, id => {
                 operationId = id;
                 requested?.(id);
               });
-              const receipt = action.type === "readEvidence" ? { ok: result.ok, code: result.code } : result;
-              this.append(roomId, work, "tool-result", action.type === "runCli" ? "本地命令结束" : action.type === "readEvidence" ? "证据查读结束" : "本地技能操作完成", JSON.stringify({ operationId, ...receipt }));
+              const receipt = isSavedRead(action) ? { ok: result.ok, code: result.code } : result;
+              this.append(roomId, work, "tool-result", action.type === "runCli" ? "本地命令结束" : isSavedRead(action) ? "保存内容查读结束" : "本地技能操作完成", JSON.stringify({ operationId, ...receipt }));
               return result;
             },
             resume: async (operationId, toolSignal) => {
               this.append(roomId, work, "tool-start", "续办本地操作", operationId);
               const result = await scope.localTools!.resume(operationId, toolSignal);
-              const receipt = result.code.startsWith("EVIDENCE_") ? { ok: result.ok, code: result.code } : result;
+              const receipt = (result.code.startsWith("EVIDENCE_") || result.code.startsWith("ARTIFACT_")) ? { ok: result.ok, code: result.code } : result;
               this.append(roomId, work, "tool-result", "已读取本地操作回执", JSON.stringify({ operationId, ...receipt }));
               return result;
             },

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { LocalAction, LocalToolResult } from './local-operation.js';
+import { artifactForWork, documentIdentity } from './task/delivery.js';
 import { evidenceMetadata, evidenceSource, type CapturedEvidenceStream } from './task/evidence.js';
 import type { Intent, TaskContext } from './types.js';
 
@@ -27,17 +28,29 @@ export function readSavedEvidence(c: TaskContext, work: Intent, action: Extract<
   if (evidence.status === 'failed') return { ok: false, code: 'EVIDENCE_SOURCE_FAILED', data: { evidence, failureCode: source.operation.result!.code } };
   const text = source.operation.result!.data[action.stream];
   if (typeof text !== 'string') return { ok: false, code: 'EVIDENCE_CONTENT_MISSING', data: { evidence, stream: action.stream } };
+  return savedPage(text, [source.operation.id, action.stream], action.cursor, 'EVIDENCE', { evidence, stream: action.stream });
+}
+
+/** A distinct reference namespace prevents artifact IDs from being interpreted as operation IDs. */
+export function readSavedArtifact(c: TaskContext, work: Intent, action: Extract<LocalAction, { type: 'readArtifact' }>): LocalToolResult {
+  const artifact = artifactForWork(c, work, action.artifactId);
+  if (!artifact) return { ok: false, code: 'ARTIFACT_UNAVAILABLE', data: {} };
+  return savedPage(artifact.content, ['artifact', artifact.id], action.cursor, 'ARTIFACT', {
+    artifact: { artifactId: artifact.id, documentId: documentIdentity(artifact), revision: artifact.revision ?? 1, goalVersion: artifact.goalVersion },
+  });
+}
+
+function savedPage(text: string, identity: string[], cursor: string | undefined, type: 'EVIDENCE' | 'ARTIFACT', metadata: Record<string, unknown>): LocalToolResult {
   const codepoints = Array.from(text);
   const capturedContentHash = sha256(text);
-  const cursorKey = sha256(JSON.stringify([source.operation.id, action.stream, capturedContentHash]));
-  const offset = action.cursor === undefined ? 0 : Number(action.cursor.split(':')[1]);
-  if (action.cursor !== undefined && (action.cursor !== `${cursorKey}:${offset}` || offset >= codepoints.length || offset % pageSize !== 0)) {
-    return { ok: false, code: 'EVIDENCE_CURSOR_INVALID', data: { evidence, stream: action.stream } };
+  const cursorKey = sha256(JSON.stringify([...identity, capturedContentHash]));
+  const offset = cursor === undefined ? 0 : Number(cursor.split(':')[1]);
+  if (cursor !== undefined && (cursor !== `${cursorKey}:${offset}` || offset >= codepoints.length || offset % pageSize !== 0)) {
+    return { ok: false, code: `${type}_CURSOR_INVALID`, data: metadata };
   }
   const end = Math.min(offset + pageSize, codepoints.length);
   const nextCursor = end < codepoints.length ? `${cursorKey}:${end}` : null;
-  return { ok: true, code: 'EVIDENCE_PAGE', data: {
-    evidence, stream: action.stream, capturedContentHash, offset, text: codepoints.slice(offset, end).join(''), nextCursor,
-    atSavedBoundary: nextCursor === null,
+  return { ok: true, code: `${type}_PAGE`, data: {
+    ...metadata, capturedContentHash, offset, text: codepoints.slice(offset, end).join(''), nextCursor, atSavedBoundary: nextCursor === null,
   } };
 }

@@ -166,6 +166,7 @@ export class LocalRuntime {
     started: (metadata: { workspaceRevision?: string; isolated?: boolean }) => void,
     observe?: (phase: 'local.prepareStarted' | 'local.prepareFinished' | 'local.processStarted' | 'local.processFinished') => void): Promise<LocalExecution> {
     const action = op.action; signal.throwIfAborted();
+    if (action.type === 'readArtifact') return { result: { ok: false, code: 'ARTIFACT_UNAVAILABLE', data: {} }, settled: true, effectsKnown: true };
     if (action.type === 'readEvidence') return { result: { ok: false, code: 'EVIDENCE_SOURCE_REQUIRED', data: {} }, settled: true, effectsKnown: true };
     if (action.type !== 'runCli') {
       try {

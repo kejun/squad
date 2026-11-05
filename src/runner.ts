@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { initialModelRequestId, publishObservation, type ExecutionObservation, type MeasurementSink, type ModelObservation } from './measurement.js';
-import { readSavedEvidence } from './evidence-reader.js';
+import { readSavedArtifact, readSavedEvidence } from './evidence-reader.js';
 import { evidenceIndex } from './task/evidence.js';
-import { localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
+import { isSavedRead, localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
 import type { LocalRuntime } from './local-runtime.js';
 import { LocalToolError, type SkillPage } from './local-skills.js';
 import type { TeamEngine } from './engine.js';
@@ -223,7 +223,7 @@ export class WorkRunner {
             const result = { ok: false, code: claim.response.code, data: {} };
             const rejected = send({ type: 'LOCAL_REJECTED', id: `local-reject:${randomUUID()}`, at: this.clock(), intentId: work.id,
               operationId: op.id, parentAttempt: op.parentAttempt, result });
-            if (rejected.ok && (op.hostRetryRequestId || op.action.type === 'readEvidence' && result.code === 'EVIDENCE_UNAVAILABLE')) return result;
+            if (rejected.ok && (op.hostRetryRequestId || isSavedRead(op.action) && ['EVIDENCE_UNAVAILABLE', 'ARTIFACT_UNAVAILABLE'].includes(result.code))) return result;
             throw new WorkFailure(claim.response.code);
           }
           try { await runtime.waitForWorkspace(op.workspaceId!, generation, signal); }
@@ -242,6 +242,21 @@ export class WorkRunner {
           // Permission and cancellation are checked again after the durable claim, before filesystem/process I/O.
           const context = this.engine.view(roomId, taskId)!.context;
           if (context.stopped || context.epoch !== work.epoch || context.goalVersion !== work.goalVersion || !localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_EXECUTION_REVOKED');
+          if (isSavedRead(operation.action)) {
+            const result = operation.action.type === 'readEvidence'
+              ? readSavedEvidence(context, currentWork(), operation.action)
+              : readSavedArtifact(context, currentWork(), operation.action);
+            execution = { result, settled: true, effectsKnown: true };
+            report({ phase: 'local.receiptRead', ...local });
+          } else {
+            enteredRuntime = true;
+            execution = await runtime.execute(currentWork(), operation, signal, metadata => {
+              const started = send({ type: 'LOCAL_STARTED', id: `local-start:${operation.sessionId}`, at: this.clock(),
+                intentId: work.id, operationId: operation.id, sessionId: operation.sessionId!, ...metadata });
+              if (!started.ok) throw new LocalToolError(started.code);
+              report({ phase: 'local.startAuthorized', ...local });
+            }, phase => report({ phase, ...local }));
+          }
         } catch (error) {
           // An unknown host failure after a claim is never converted to permission to replay a write.
           const safe = !enteredRuntime || op.action.type !== 'runCli';
