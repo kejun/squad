@@ -4,6 +4,7 @@ import { localResumeKind, valid } from './policy.js';
 import { activeHelp, allInflight, completeProblem, d, discussionActive, discussionIncomplete, fresh, hasOrdinary, incompatibleExecution, inflight, isBot, pendingInput, recoveryIssue, remainingInflight, unresolvedInput } from './facts.js';
 import { localAwaitingApproval, localPhysicalPending } from '../local-operation.js';
 import { helpResultContinuesReview, nextReviewer, reviewCanDispatch, savedHelpResult } from './assistance.js';
+import { deliveryVersionProblem } from './delivery.js';
 import { canRetryWork } from './budget.js';
 
 type TaskGuardArgs = { context: TaskContext; event: TaskEvent };
@@ -24,6 +25,8 @@ export const taskGuards = {
     uncertainLocalResult: args => valid(args) && !args.context.stopped && args.event.type === 'LOCAL_RESULT' && !args.context.intents.find(w => w.id === (args.event as Extract<TaskEvent, { type: 'LOCAL_RESULT' }>).intentId)?.discussionId && (!args.event.settled || !args.event.effectsKnown),
     claimDiscussion: args => valid(args) && args.event.type === 'CLAIM' && args.context.intents.some(work => work.id === (args.event.type === 'CLAIM' ? args.event.intentId : '') && !!work.discussionId),
     failedDiscussion: args => valid(args) && args.event.type === 'WORK_FAILED' && args.context.intents.some(work => work.id === (args.event.type === 'WORK_FAILED' ? args.event.intentId : '') && !!work.discussionId),
+    deliveryConflict: ({ context, event }) => event.type === 'DELIVER' && valid({ context, event }) && deliveryVersionProblem(context, event) !== null,
+    deliveryConflictExhausted: ({ context, event }) => event.type === 'DELIVER' && valid({ context, event }) && !hasOrdinary(context) && deliveryVersionProblem(context, event) !== null,
     holdingDelivery: args => valid(args) && discussionActive(args.context),
     discussionHandoffReady: ({ context }) => context.discussion?.status === 'ready' && !context.stopped && !incompatibleExecution(context)
       && inflight(context).length === 0 && !context.intents.some(localPhysicalPending) && !activeHelp(context) && !unresolvedInput(context) && !context.inputs.some(input => !input.applied),

@@ -41,8 +41,11 @@ export interface BoardEntry {
   kind: 'evidence' | 'hypothesis' | 'opinion' | 'decision' | 'deadEnd';
   sources: string[]; verified: boolean; goalVersion: number;
 }
-export interface ArtifactDraft { name: string; content: string }
-export interface Artifact { id: string; name: string; content: string; goalVersion: number; author?: string; workId?: string }
+export interface ArtifactDraft { name: string; content: string; replacesArtifactId?: string }
+export interface Artifact {
+  id: string; name: string; content: string; goalVersion: number; author?: string; workId?: string;
+  documentId?: string; revision?: number; replacesArtifactId?: string;
+}
 export interface Assistance extends Fence {
   id: string; target: string; question: string; expected: string; refs: string[];
   status: 'pending' | 'running' | 'answered' | 'success' | 'partial' | 'failed' | 'timeout' | 'cancelled';
@@ -81,7 +84,11 @@ export interface InputAnalysis extends Fence {
   spec?: InputIntentSpec; workId?: string; error?: string;
 }
 export interface RecordedResult extends Fence { requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; consumed: boolean; summary?: string; artifactIds?: string[]; workId?: string }
-export interface Candidate { text: string; artifactIds: string[]; goalVersion: number; summary?: string; workId?: string }
+export interface Candidate {
+  text: string; artifactIds: string[]; goalVersion: number; summary?: string; workId?: string;
+  revision?: string; requiresBoundCheck?: boolean;
+}
+export interface PublishedDelivery { revision?: string; goalVersion: number; artifactIds: string[]; at: number }
 export interface ConversationHistory {
   messages: Message[];
   artifacts: (Artifact & { taskId: string })[];
@@ -109,7 +116,7 @@ export interface TaskContext extends Fence {
   lateResults: TaskEvent[];
   results: RecordedResult[];
   usage: { ordinary: number; checks: number; assists: number; replans: number; retries: number };
-  candidate: Candidate | null; outcome: Outcome | null; reason: string;
+  candidate: Candidate | null; publishedDelivery?: PublishedDelivery; outcome: Outcome | null; reason: string;
   stopped: boolean; nextSeq: number; lastActivityAt: number; lastProgressAt: number;
   nextCheckAt: number; repeat: { fingerprint: string; count: number };
   deferredCoordination: boolean; reply: Reply;
@@ -153,7 +160,7 @@ export type TaskEvent = Envelope & (
   | { type: 'HANDOFF'; owner: string }
   | { type: 'WAIT_USER'; question: string }
   | { type: 'DELIVER'; text: string; artifactIds: string[]; summary?: string; artifacts?: ArtifactDraft[] }
-  | { type: 'CHECK_RESULT'; passed: boolean; gaps: string[]; resultId: string }
+  | { type: 'CHECK_RESULT'; passed: boolean; gaps: string[]; resultId: string; candidateRevision?: string }
   | { type: 'STOP'; text?: string }
   | { type: 'SETTLE'; intentId: string }
   | { type: 'CONTINUE'; extraOrdinary?: number; text?: string }
@@ -162,7 +169,7 @@ export type TaskEvent = Envelope & (
   | { type: 'PROGRESS'; detail: string; refs: string[] }
   | { type: 'FAILURE_SIGNAL'; operation: string; parameters: string; resource: string; error: string; result: string }
   | { type: 'BOARD_WRITE'; author: string; entryId: string; baseRevision?: number; text: string; kind: BoardEntry['kind']; sources: string[] }
-  | { type: 'ARTIFACT'; artifact: Omit<Artifact, 'goalVersion'> }
+  | { type: 'ARTIFACT'; artifact: Omit<Artifact, 'goalVersion' | 'documentId' | 'revision' | 'replacesArtifactId'> }
   | { type: 'CLAIM'; intentId: string }
   /** Host-only actor protocol; public command and sandbox adapters must not authorize it. */
   | { type: 'EXECUTION_START'; intentId: string; attempt: number }

@@ -1,5 +1,6 @@
 import { modelOutputIssues, type InputReference, type TaskContext, type TaskEvent } from '../types.js';
 import { localAwaitingApproval, localEventProblem, localPhysicalPending, localUnsettled } from '../local-operation.js';
+import { boundCheckProblem } from './delivery.js';
 import { requestBudgetProblem } from './budget.js';
 import { allInflight, discussionActive, fresh, hasOrdinary, incompatibleExecution, isBot, workLaneAvailable } from './facts.js';
 import { validArtifactDrafts, validSummary } from '../presentation.js';
@@ -141,7 +142,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     case 'PROGRESS': return e.refs.length && e.refs.some(ref => !c.progressRefs.includes(ref) && (c.artifacts.some(a => a.id === ref) || c.board.some(b => b.id === ref) || c.messages.some(m => m.id === ref))) ? null : 'MISSING_NEW_PROGRESS_EVIDENCE';
     case 'ARTIFACT': return c.artifacts.some(a => a.id === e.artifact.id) ? 'ARTIFACT_ID_CONFLICT' : null;
     case 'DELIVER': return e.text.trim() ? null : 'NO_DELIVERY';
-    case 'CHECK_RESULT': return c.consumedResults.includes(e.resultId) ? 'DUPLICATE_RESULT' : null;
+    case 'CHECK_RESULT': return c.consumedResults.includes(e.resultId) ? 'DUPLICATE_RESULT' : boundCheckProblem(c, e);
     case 'WORK_FAILED': {
       const work = c.intents.find(i => i.id === e.intentId);
       if (!work || !['pending', 'inflight'].includes(work.status)) return 'UNKNOWN_OR_SETTLED_WORK';

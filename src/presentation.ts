@@ -16,7 +16,8 @@ export function compactMessage(text: string, summary?: string): string {
 export function validArtifactDrafts(value: unknown): value is ArtifactDraft[] | undefined {
   return value === undefined || Array.isArray(value) && value.every(item => item && typeof item === 'object'
     && typeof item.name === 'string' && !!item.name.trim() && !/[\r\n\0]/.test(item.name)
-    && typeof item.content === 'string' && !!item.content.trim());
+    && typeof item.content === 'string' && !!item.content.trim()
+    && (item.replacesArtifactId === undefined || typeof item.replacesArtifactId === 'string' && !!item.replacesArtifactId.trim()));
 }
 
 export function validSummary(value: unknown): value is string | undefined {

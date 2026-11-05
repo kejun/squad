@@ -2,6 +2,7 @@ import { cancelHostRetries } from '../host-retry.js';
 import { type ArtifactDraft, type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { compactMessage, isLongResult } from '../presentation.js';
 import { capabilities, discussionActive, fence, unresolvedInput } from './facts.js';
+import { documentIdentity } from './delivery.js';
 import { resolveModel } from '../model-config.js';
 import { assignedEvidenceRefs } from './evidence.js';
 import { cancelLocalOperations, localEnabled, localPhysicalPending } from '../local-operation.js';
@@ -19,7 +20,10 @@ export function saveReports(c: TaskContext, e: TaskEvent, text: string, author: 
   }
   return reports.map((draft, index) => {
     const id = `${c.taskId}:artifact:${e.id}:${index + 1}`;
-    c.artifacts.push({ id, name: draft.name, content: draft.content, author, goalVersion: c.goalVersion, ...(e.workId ? { workId: e.workId } : {}) });
+    const previous = e.type === 'DELIVER' && draft.replacesArtifactId ? c.artifacts.find(artifact => artifact.id === draft.replacesArtifactId) : undefined;
+    c.artifacts.push({ id, name: draft.name, content: draft.content, author, goalVersion: c.goalVersion,
+      documentId: previous ? documentIdentity(previous) : id, revision: (previous?.revision ?? (previous ? 1 : 0)) + 1,
+      ...(previous ? { replacesArtifactId: previous.id } : {}), ...(e.workId ? { workId: e.workId } : {}) });
     c.progressRefs.push(id);
     return id;
   });
@@ -98,6 +102,9 @@ export function finish(c: TaskContext, e: TaskEvent, outcome: TaskContext['outco
     input.status = outcome === 'stopped' ? 'cancelled' : 'failed'; input.error = reason;
   }
   if (c.review) c.review.status = outcome === 'stopped' ? 'cancelled' : 'complete';
+  if (outcome === 'complete' && c.candidate) {
+    c.publishedDelivery = { ...(c.candidate.revision ? { revision: c.candidate.revision } : {}), goalVersion: c.goalVersion, artifactIds: [...c.candidate.artifactIds], at: e.at };
+  }
   if (outcome !== 'stopped') {
     const full = `${c.candidate?.text ?? ''}${reason ? `\n${reason}` : ''}`.trim();
     const summary = reason ? `${reason}\n${c.candidate?.summary ?? compactMessage(c.candidate?.text ?? '')}`.trim() : c.candidate?.summary;
