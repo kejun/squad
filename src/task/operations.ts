@@ -2,6 +2,7 @@ import { type ArtifactDraft, type Intent, type TaskContext, type TaskEvent } fro
 import { compactMessage, isLongResult } from '../presentation.js';
 import { capabilities, discussionActive, fence, unresolvedInput } from './facts.js';
 import { resolveModel } from '../model-config.js';
+import { assignedEvidenceRefs } from './evidence.js';
 import { cancelLocalOperations, localEnabled, localPhysicalPending } from '../local-operation.js';
 
 export function message(c: TaskContext, e: TaskEvent, author: string, text: string, kind: TaskContext['messages'][number]['kind'], extra: Partial<TaskContext['messages'][number]> = {}, summary?: string) {
@@ -32,6 +33,10 @@ export function intent(c: TaskContext, at: number, kind: Intent['kind'], target:
   const model = resolveModel(c.config, kind, target);
   if (model) item.model = model;
   if (['owner', 'assistance', 'facilitator', 'check'].includes(kind)) item.payload.capabilities = { ...capabilities(c, target), ...(payload.capabilities as object ?? {}), localTools: localEnabled(c.config, target) };
+  if (kind === 'assistance' && Array.isArray(payload.refs) && localEnabled(c.config, target)) {
+    const refs = assignedEvidenceRefs(c, payload.refs);
+    if (refs.length) item.evidenceRefs = refs;
+  }
   c.intents.push(item);
   return item;
 }
