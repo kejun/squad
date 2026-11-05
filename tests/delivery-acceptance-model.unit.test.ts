@@ -3,7 +3,7 @@ import { acceptanceCriteria, type CriterionCoverage, type CriterionJudgment, typ
 import { LocalModel } from './local-model-fixture.js';
 
 const support: DeliveryReference = { kind: 'candidateText' };
-const cover = (model: LocalModel, ref = support): CriterionCoverage[] => acceptanceCriteria(model.c).map(criterion => ({ criterionId: criterion.id, refs: [ref] }));
+const cover = (model: LocalModel, ref: DeliveryReference = support): CriterionCoverage[] => acceptanceCriteria(model.c).map(criterion => ({ criterionId: criterion.id, refs: [ref] }));
 const judgments = (model: LocalModel): CriterionJudgment[] => acceptanceCriteria(model.c).map(criterion => ({ criterionId: criterion.id, status: 'passed' }));
 function deliver(model: LocalModel, id: string, coverage: CriterionCoverage[], text = '当前候选') {
   const work = model.c.intents.find(item => item.kind === 'owner' && item.status === 'inflight')!;
