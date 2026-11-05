@@ -1,3 +1,4 @@
+import { artifactForWork } from './task/delivery.js';
 import { hostSessionMatches } from './host-session.js';
 import { evidenceSource, type EvidenceStream } from './task/evidence.js';
 /** Persisted child-operation contract. This module has no filesystem, process or network I/O. */
@@ -5,6 +6,7 @@ import type { Intent, TaskContext, TaskEvent, TeamConfig } from './types.js';
 
 export type LocalAction =
   | { type: 'verifyWorkspace'; expectedRevision: string }
+  | { type: 'readArtifact'; artifactId: string; cursor?: string }
   | { type: 'readEvidence'; sourceOperationId: string; stream: EvidenceStream; cursor?: string }
   | { type: 'listSkills'; query?: string; cursor?: string }
   | { type: 'loadSkill'; skillId: string }
@@ -55,12 +57,14 @@ export function validLocalAction(value: unknown): value is LocalAction {
   const a = value as Record<string, unknown>;
   const text = (v: unknown, max = 4096) => typeof v === 'string' && !!v.trim() && v.length <= max && !v.includes('\0');
   const optional = (key: string) => a[key] === undefined || text(a[key]);
-  const keys: Record<string, string[]> = { verifyWorkspace: ['expectedRevision'], listSkills: ['query', 'cursor'], loadSkill: ['skillId'], readSkillResource: ['skillId', 'path', 'offset'], readEvidence: ['sourceOperationId', 'stream', 'cursor'], runCli: ['executable', 'args', 'cwd', 'timeoutMs', 'skillId', 'execution', 'reason'] };
+  const keys: Record<string, string[]> = { verifyWorkspace: ['expectedRevision'], listSkills: ['query', 'cursor'], loadSkill: ['skillId'], readSkillResource: ['skillId', 'path', 'offset'], readEvidence: ['sourceOperationId', 'stream', 'cursor'], readArtifact: ['artifactId', 'cursor'], runCli: ['executable', 'args', 'cwd', 'timeoutMs', 'skillId', 'execution', 'reason'] };
   if (typeof a.type !== 'string' || !keys[a.type] || Object.keys(a).some(k => k !== 'type' && !keys[a.type as string]!.includes(k))) return false;
   switch (a.type) {
     case 'verifyWorkspace': return typeof a.expectedRevision === 'string' && /^[a-f0-9]{64}$/.test(a.expectedRevision);
     case 'listSkills': return optional('query') && optional('cursor');
     case 'loadSkill': return text(a.skillId);
+    case 'readArtifact': return text(a.artifactId, 1024)
+      && (a.cursor === undefined || typeof a.cursor === 'string' && /^[a-f0-9]{64}:[1-9][0-9]{0,14}$/.test(a.cursor));
     case 'readEvidence': return text(a.sourceOperationId, 1024) && (a.stream === 'stdout' || a.stream === 'stderr')
       && (a.cursor === undefined || typeof a.cursor === 'string' && /^[a-f0-9]{64}:[1-9][0-9]{0,5}$/.test(a.cursor));
     case 'readSkillResource': return text(a.skillId) && text(a.path) && (a.offset === undefined || Number.isSafeInteger(a.offset) && Number(a.offset) >= 0);
@@ -106,7 +110,7 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
         || JSON.stringify(event.messages).length > 1_900_000) return 'INVALID_LOCAL_REQUEST';
       if (op) return op.requestHash === event.requestHash ? 'LOCAL_ALREADY_REQUESTED' : 'LOCAL_REQUEST_CONFLICT';
       if (localUnsettled(work)) return 'LOCAL_OPERATION_PENDING';
-      if (event.action.type === 'readEvidence' && event.workspaceId !== undefined) return 'INVALID_LOCAL_REQUEST';
+      if (isSavedRead(event.action) && event.workspaceId !== undefined) return 'INVALID_LOCAL_REQUEST';
       if (event.action.type === 'verifyWorkspace' && work.kind !== 'check') return 'WORKSPACE_VALIDATION_NOT_ALLOWED';
       if (['runCli', 'verifyWorkspace'].includes(event.action.type) && !event.workspaceId) return 'WORKSPACE_REQUIRED';
       return null;
@@ -123,6 +127,7 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
         if (op.approval.sessionGrantId && (op.approval.sessionGrantId !== c.hostSession?.id || !hostSessionMatches(c, work, op, op.approval))) return 'HOST_APPROVAL_REQUIRED';
       }
       if (op.action.type === 'readEvidence' && !evidenceSource(c, work, op.action.sourceOperationId)) return 'EVIDENCE_UNAVAILABLE';
+      if (op.action.type === 'readArtifact' && !artifactForWork(c, work, op.action.artifactId)) return 'ARTIFACT_UNAVAILABLE';
       return freeLocalClaim(op) ? null : budget({ ...work, bucket: 'ordinary' });
     case 'LOCAL_APPROVAL_REQUIRED': {
       const problem = localParentProblem(c, work, e.at);
@@ -170,8 +175,12 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
       return ['receipt', 'notStarted'].includes(event.resolution) ? null : 'INVALID_LOCAL_RESOLUTION';
   }
 }
+export function isSavedRead(action: LocalAction): action is Extract<LocalAction, { type: 'readEvidence' | 'readArtifact' }> {
+  return action.type === 'readEvidence' || action.type === 'readArtifact';
+}
+
 function freeLocalClaim(op: LocalOperation): boolean {
-  return !!op.executionCharged || op.action.type === 'listSkills' || op.action.type === 'readEvidence' && op.attempt > 0;
+  return !!op.executionCharged || op.action.type === 'listSkills' || isSavedRead(op.action) && op.attempt > 0;
 }
 
 function finishOperation(work: Intent, op: LocalOperation, result: LocalToolResult, at: number) {

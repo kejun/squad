@@ -1,4 +1,4 @@
-import type { Artifact, Candidate, TaskContext, TaskEvent } from '../types.js';
+import type { Artifact, Candidate, Intent, TaskContext, TaskEvent } from '../types.js';
 
 type Delivery = Extract<TaskEvent, { type: 'DELIVER' }>;
 type CheckResult = Extract<TaskEvent, { type: 'CHECK_RESULT' }>;
@@ -57,4 +57,11 @@ export function boundCheckProblem(c: TaskContext, e: CheckResult): string | null
   if (e.candidateRevision !== undefined && (!work || e.candidateRevision !== candidate?.revision)) return 'STALE_CANDIDATE_CHECK';
   if (candidate?.requiresBoundCheck && !work) return 'CHECK_WORK_REQUIRED';
   return null;
+}
+
+export function artifactForWork(c: TaskContext, work: Intent, id: string): Artifact | undefined {
+  if (work.goalVersion !== c.goalVersion || work.epoch !== c.epoch) return undefined;
+  if (work.kind === 'assistance' && !(work.payload.artifacts as Artifact[] | undefined)?.some(item => item.id === id)) return undefined;
+  if (!['owner', 'facilitator', 'check', 'assistance'].includes(work.kind)) return undefined;
+  return c.artifacts.find(artifact => artifact.id === id && artifact.goalVersion === c.goalVersion);
 }
