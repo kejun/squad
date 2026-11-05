@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { initialModelRequestId, publishObservation, type ExecutionObservation, type MeasurementSink, type ModelObservation } from './measurement.js';
 import { localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
 import type { LocalRuntime } from './local-runtime.js';
 import type { SkillPage } from './local-skills.js';
@@ -27,7 +28,7 @@ export interface WorkAdapter {
 export interface LocalWorkTools {
   readonly catalog: SkillPage;
   readonly checkpoint: LocalCheckpoint | undefined;
-  invoke(action: LocalAction, messages: LocalMessage[], signal: AbortSignal): Promise<LocalToolResult>;
+  invoke(action: LocalAction, messages: LocalMessage[], signal: AbortSignal, requested?: (operationId: string) => void): Promise<LocalToolResult>;
   resume(operationId: string, signal: AbortSignal): Promise<LocalToolResult>;
 }
 export interface WorkScope {
@@ -38,6 +39,7 @@ export interface WorkScope {
   authorizeAdditionalRequest(requestId: string): void;
   /** Authorize and persist a format repair before another request; absent hosts fail closed. */
   regenerateModelOutput?(issue: ModelOutputIssue): void;
+  observeModel?(observation: ModelObservation): void;
   /** Available to every member by default; each search reserves one execution unit. */
   findSkills(query: string, signal?: AbortSignal): Promise<FoundSkill[]>;
   webSearch: WebTools['search'];
@@ -72,7 +74,8 @@ export class WorkRunner {
   constructor(readonly engine: TeamEngine, private readonly adapter: WorkAdapter, private readonly clock: () => number = Date.now,
     private readonly skillSearchTransport: SkillSearchTransport = globalThis.fetch,
     private readonly webTools: WebTools = new CloudflareWebTools(),
-    private readonly localRuntime?: LocalRuntime) {}
+    private readonly localRuntime?: LocalRuntime,
+    private readonly observe?: MeasurementSink) {}
   /** Shutdown of an idle approval waiter preserves its durable checkpoint for the next service. */
   suspendApprovals(roomId: string, taskId: string) {
     const c = this.engine.view(roomId, taskId)?.context;
@@ -107,6 +110,19 @@ export class WorkRunner {
       }
       return true;
     }
+    const context = { roomId, taskId, workId: work.id, agentId: work.target, attempt: work.attempt, epoch: work.epoch, goalVersion: work.goalVersion };
+    const report = (observation: ExecutionObservation) => {
+      try { this.observe?.(context, observation); } catch { /* Observation is best effort. */ }
+    };
+    report({ phase: 'work.started', kind: work.kind });
+    let modelRequestId: string | null = null;
+    const submitResult = (event: TaskEvent) => {
+      const response = send(event);
+      report({ phase: 'work.result', requestId: modelRequestId, eventId: event.id, eventType: event.type,
+        accepted: response.ok && event.type !== 'WORK_FAILED' && event.type !== 'SETTLE',
+        code: response.ok && event.type === 'WORK_FAILED' ? 'WORKER_REJECTED_OUTPUT' : response.code });
+      return response;
+    };
     const controller = new AbortController();
     this.controllers.set(executionKey, { roomId, intentId: work.id, controller });
     let output: WorkOutput;
@@ -116,14 +132,21 @@ export class WorkRunner {
     const authorizeWeb = (capability: 'web_search' | 'web_fetch', signal: AbortSignal) => {
       signal.throwIfAborted();
       if (this.engine.config.webTools?.enabled === false) throw new WorkFailure('WEB_TOOLS_DISABLED');
+      const requestId = `${capability}:${++webSequence}`;
       const response = send({ type: 'CONSUME', capability, intentId: work.id,
-        id: `request:${work.id}:${work.attempt}:${capability}:${++webSequence}`, at: this.clock(),
+        id: `request:${work.id}:${work.attempt}:${requestId}`, at: this.clock(),
         fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       if (!response.ok) throw new WorkFailure(response.code);
+      report({ phase: 'budget.authorized', requestId, category: capability });
     };
-    const scope: WorkScope = { sessionId: taskId, authorizeAdditionalRequest: requestId => {
+    const scope: WorkScope = { sessionId: taskId, observeModel: observation => {
+      if (observation.phase === 'model.protocol' && observation.valid && observation.terminal) modelRequestId = observation.requestId;
+      report(observation);
+    }, authorizeAdditionalRequest: requestId => {
       const response = send({ type: 'CONSUME', intentId: work.id, id: `request:${work.id}:${work.attempt}:${requestId}`, at: this.clock(), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       if (!response.ok) throw new WorkFailure(response.code);
+      const category = work.kind === 'tool' ? 'externalTool' : requestId.startsWith('findSkills:') ? 'findSkills' : 'model';
+      report({ phase: 'budget.authorized', requestId, category });
     }, regenerateModelOutput: issue => {
       controller.signal.throwIfAborted();
       const response = send({ type: 'REGENERATE_MODEL_OUTPUT', intentId: work.id, issue,
@@ -165,7 +188,10 @@ export class WorkRunner {
           const approvalKey = `approval:${operationId}`, approvalGeneration = runtime.workspaceGeneration(approvalKey);
           op = this.engine.view(roomId, taskId)?.context.intents.find(i => i.id === work.id)?.localOperations?.find(o => o.id === operationId);
           if (!op) throw new WorkFailure('LOCAL_OPERATION_MISSING');
-          if (['succeeded', 'failed', 'cancelled'].includes(op.status) && op.result) return op.result;
+          if (['succeeded', 'failed', 'cancelled'].includes(op.status) && op.result) {
+            report({ phase: 'local.receiptRead', operationId, action: op.action.type, ...(op.sessionId ? { sessionId: op.sessionId } : {}) });
+            return op.result;
+          }
           if (op.status === 'awaitingApproval' && op.approval) {
             const until = Math.max(1, op.approval.expiresAt - this.clock());
             try { await runtime.waitForWorkspace(approvalKey, approvalGeneration, AbortSignal.any([signal, AbortSignal.timeout(Math.min(until, 2_147_483_647))])); }
@@ -187,6 +213,9 @@ export class WorkRunner {
           }
           await runtime.waitForWorkspace(op.workspaceId!, generation, signal);
         }
+        const operation = op;
+        const local = { operationId, action: operation.action.type, sessionId: operation.sessionId! };
+        report({ phase: 'local.claimed', ...local });
         const currentWork = () => this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === work.id)!;
         let execution;
         let enteredRuntime = false;
@@ -200,7 +229,8 @@ export class WorkRunner {
             const started = send({ type: 'LOCAL_STARTED', id: `local-start:${op!.sessionId}`, at: this.clock(),
               intentId: work.id, operationId: op!.id, sessionId: op!.sessionId!, ...metadata });
             if (!started.ok) throw new WorkFailure(started.code);
-          });
+            report({ phase: 'local.startAuthorized', ...local });
+          }, phase => report({ phase, ...local }));
         } catch (error) {
           // An unknown host failure after a claim is never converted to permission to replay a write.
           const safe = !enteredRuntime || op.action.type !== 'runCli';
@@ -210,6 +240,12 @@ export class WorkRunner {
           const required = send({ type: 'LOCAL_APPROVAL_REQUIRED', id: `approval-required:${op.sessionId}`, at: this.clock(), intentId: work.id,
             operationId: op.id, sessionId: op.sessionId!, approval: execution.approval, fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
           if (required.ok) {
+            if (this.observe) {
+              try {
+                const approval = currentWork().localOperations?.find(item => item.id === operationId)?.approval;
+                if (approval) report({ phase: 'local.approvalRequired', ...local, approvalId: approval.id, sessionApproved: !!approval.sessionGrantId });
+              } catch { /* Observation is best effort. */ }
+            }
             if (op.workspaceId) runtime.notifyWorkspace(op.workspaceId);
             return executeLocal(operationId, externalSignal);
           }
@@ -217,6 +253,8 @@ export class WorkRunner {
         }
         const response = send({ type: 'LOCAL_RESULT', id: `local-result:${op.sessionId}`, at: this.clock(),
           intentId: work.id, operationId: op.id, sessionId: op.sessionId!, ...execution });
+        report({ phase: 'local.result', ...local, committed: response.ok, settled: execution.settled,
+          effectsKnown: execution.effectsKnown, code: response.ok ? 'LOCAL_RESULT_RECORDED' : response.code });
         if (response.ok && execution.settled && execution.effectsKnown && op.workspaceId) runtime.notifyWorkspace(op.workspaceId);
         if (!response.ok || !execution.settled || !execution.effectsKnown) throw new WorkFailure(response.ok ? 'LOCAL_OPERATION_UNCERTAIN' : response.code, false, true);
         signal.throwIfAborted();
@@ -224,25 +262,27 @@ export class WorkRunner {
       };
       Object.defineProperty(scope, 'localTools', { value: {
         catalog: runtime.catalog(), checkpoint: work.localCheckpoint,
-        invoke: async (action: LocalAction, messages: LocalMessage[], signal: AbortSignal) => {
+        invoke: async (action: LocalAction, messages: LocalMessage[], signal: AbortSignal, requested?: (operationId: string) => void) => {
           signal.throwIfAborted(); controller.signal.throwIfAborted();
           if (!localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_TOOLS_DISABLED');
           const op = this.engine.requestLocal(roomId, taskId, work.id, work.attempt, action, messages, ['runCli', 'verifyWorkspace'].includes(action.type) ? runtime.workspaceId(work, this.engine.localNamespace(roomId, taskId)) : undefined);
+          report({ phase: 'local.saved', operationId: op.id, action: action.type });
+          publishObservation(requested, op.id);
           return executeLocal(op.id, signal);
         },
         resume: executeLocal,
       } satisfies LocalWorkTools, enumerable: true });
     }
     try {
-      scope.authorizeAdditionalRequest('__initial_reserved_request__');
+      scope.authorizeAdditionalRequest(initialModelRequestId);
       output = await this.adapter.execute(work, controller.signal, scope);
     }
     catch (error) {
       if (controller.signal.reason instanceof ApprovalSuspended) { this.controllers.delete(executionKey); return true; }
       if (controller.signal.aborted && !this.engine.view(roomId, taskId)!.context.intents.some(i => i.id === work.id && localPhysicalPending(i))) {
-        send({ id: `${work.id}:cancelled:${work.attempt}`, at: this.clock(), type: 'SETTLE', intentId: work.id });
+        submitResult({ id: `${work.id}:cancelled:${work.attempt}`, at: this.clock(), type: 'SETTLE', intentId: work.id });
       } else {
-        send({ id: `${work.id}:failed:${work.attempt}`, at: this.clock(), type: 'WORK_FAILED', intentId: work.id,
+        submitResult({ id: `${work.id}:failed:${work.attempt}`, at: this.clock(), type: 'WORK_FAILED', intentId: work.id,
           reason: String(error), transient: error instanceof WorkFailure && error.transient,
           resultUncertain: work.replay === 'unsafe' || (error instanceof WorkFailure && error.resultUncertain), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       }
@@ -256,7 +296,7 @@ export class WorkRunner {
     if (!validWorkOutput(output) || !allowed[work.kind].includes(output.type)
       || (output.type === 'interpretation' && !validInputIntent(output.spec,
         (work.payload.input as { action: unknown }).action, work.payload.references as InputReference[]))) {
-      send({ ...base, id: `${base.id}:invalid`, type: 'WORK_FAILED', intentId: work.id, reason: 'Invalid worker output', transient: false });
+      submitResult({ ...base, id: `${base.id}:invalid`, type: 'WORK_FAILED', intentId: work.id, reason: 'Invalid worker output', transient: false });
       this.controllers.delete(executionKey);
       return true;
     }
@@ -269,7 +309,7 @@ export class WorkRunner {
       if (output.type === 'decision') event = { ...base, type: 'DISCUSSION_PLAN', discussionId: work.discussionId, decision: output.decision };
       else if (output.type === 'answer') event = { ...base, ...presentation, type: 'DISCUSSION_RESULT', discussionId: work.discussionId, text: output.text, status: output.status ?? 'success' };
       else throw new Error('Unexpected discussion output after role validation');
-      send(event);
+      submitResult(event);
       this.controllers.delete(executionKey);
       return true;
     }
@@ -301,7 +341,7 @@ export class WorkRunner {
           }
           if (!verification.ok) event = { ...event, passed: false, gaps: [...event.gaps, `工程验证版本已失效：${JSON.stringify(verification.data)} (${verification.code})`] };
         } catch (error) {
-          send({ ...base, id: `${base.id}:validation-failed:${work.attempt}`, type: 'WORK_FAILED', intentId: work.id,
+          submitResult({ ...base, id: `${base.id}:validation-failed:${work.attempt}`, type: 'WORK_FAILED', intentId: work.id,
             reason: error instanceof WorkFailure ? error.message : 'Workspace validation failed', transient: false });
           this.controllers.delete(executionKey);
           return true;
@@ -309,7 +349,7 @@ export class WorkRunner {
       }
     }
     // If this commit fails, the error escapes. It is not misreported as a model failure.
-    send(event);
+    submitResult(event);
     this.controllers.delete(executionKey);
     return true;
   }

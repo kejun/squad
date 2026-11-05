@@ -1,3 +1,5 @@
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { LocalRuntime } from "../src/local-runtime.js";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { config } from "../team.config.js";
@@ -12,6 +14,11 @@ const runtime = config.localTools?.enabled === false ? undefined : await LocalRu
   redact: Object.values(config.models?.services ?? {}).flatMap(model => model.apiKeyEnv && process.env[model.apiKeyEnv] ? [process.env[model.apiKeyEnv]!] : []),
 });
 if (runtime) console.log(`Local skills: ${runtime.catalog().skills.length} on first page; CLI sandbox: ${runtime.backend.available ? "ready" : "unavailable"}`);
+const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
+const git = (args: string[]) => spawnSync("git", ["--no-optional-locks", ...args],
+  { cwd: sourceRoot, encoding: "utf8", timeout: 2000, maxBuffer: 1_000_000 });
+const revision = git(["rev-parse", "HEAD"]);
+const status = revision.status === 0 ? git(["status", "--porcelain", "--untracked-files=normal"]) : undefined;
 const service = new WebService(
   config,
   process.env.WEB_DATABASE ?? "team.sqlite",
@@ -19,6 +26,11 @@ const service = new WebService(
   undefined,
   process.env.SQUAD_DEBUG === "1" || process.env.SQUAD_DEBUG === "true",
   runtime,
+  {
+    ...(revision.status === 0 ? { commit: revision.stdout.trim() } : {}),
+    ...(status?.status === 0 ? { dirty: status.stdout.length > 0 } : {}),
+    ...(process.env.SQUAD_MEASUREMENT_DATASET ? { dataset: process.env.SQUAD_MEASUREMENT_DATASET } : {}),
+  },
 );
 await service.ready();
 const server = createWebServer(service, resolve("dist/web"));

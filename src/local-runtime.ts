@@ -1,3 +1,4 @@
+import { publishObservation } from './measurement.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { constants, createReadStream } from 'node:fs';
 import { chmod, copyFile, lstat, mkdir, open, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
@@ -161,7 +162,8 @@ export class LocalRuntime {
     return { ok: false, code: 'LOCAL_RESULT_LIMIT', data: { originalCode: cleaned.code } };
   }
   async execute(work: Intent, op: LocalOperation, signal: AbortSignal,
-    started: (metadata: { workspaceRevision?: string; isolated?: boolean }) => void): Promise<LocalExecution> {
+    started: (metadata: { workspaceRevision?: string; isolated?: boolean }) => void,
+    observe?: (phase: 'local.prepareStarted' | 'local.prepareFinished' | 'local.processStarted' | 'local.processFinished') => void): Promise<LocalExecution> {
     const action = op.action; signal.throwIfAborted();
     if (action.type !== 'runCli') {
       try {
@@ -190,6 +192,13 @@ export class LocalRuntime {
       }
     }
     const sessionId = op.sessionId!;
+    publishObservation(observe, 'local.prepareStarted');
+    let prepared = false;
+    const finishPreparation = () => {
+      if (prepared) return;
+      prepared = true;
+      publishObservation(observe, 'local.prepareFinished');
+    };
     await this.journal.write({ operationId: op.id, sessionId, phase: 'prepared' });
     let launched = false;
     let completion: LocalExecution;
@@ -228,6 +237,7 @@ export class LocalRuntime {
           const approval: HostApproval = { id: randomUUID(), digest: commandDigest, plan, status: 'pending', expiresAt: Math.min(now + 600_000, work.deadline ?? Infinity) };
           const prepared = { result: { ok: false, code: 'HOST_APPROVAL_REQUIRED', data: {} }, settled: true, effectsKnown: true };
           await this.journal.write({ operationId: op.id, sessionId, phase: 'settled', completion: prepared });
+          finishPreparation();
           return { ...prepared, approval };
         }
         if (op.approval.status !== 'approved') throw new LocalToolError('HOST_APPROVAL_REQUIRED');
@@ -241,7 +251,9 @@ export class LocalRuntime {
       launched = true;
       const baseline = new Map((await workspaceManifest(workspace.path)).map(file => [file.path, file.hash]));
       const execute = host ? runProcess : this.backend.execute.bind(this.backend);
+      finishPreparation();
       const result = await execute({ executable, args, cwd, workspace: workspace.path, ...(skillPath ? { skillPath } : {}), env, timeoutMs, sessionId, redact: this.secrets(),
+        ...(observe ? { observeProcess: observe } : {}),
         ...(work.kind === 'check' ? { writeRoots: [...validationOutputs, '.home', '.tmp'].map(dir => join(workspace.path, dir)) } : {}),
         logPath: join(this.options.dataRoot, 'logs', `${digest(sessionId)}.log`) }, signal,
         async identity => { await this.journal.write({ operationId: op.id, sessionId, phase: 'spawned', identity }); });
@@ -253,6 +265,7 @@ export class LocalRuntime {
       completion = { ...result, result: this.boundedResult({ ...result.result, ...(validationInputsChanged ? { ok: false, code: 'CHECK_INPUTS_CHANGED' } : {}), data: { ...result.result.data, workspaceRevision: workspace.revision, isolated: workspace.isolated,
         outputFiles, outputFilesTruncated, validationInputsChanged, execution: host ? 'host' : 'sandbox' } }), workspaceRevision: workspace.revision, isolated: workspace.isolated };
     } catch (error) {
+      finishPreparation();
       completion = { result: { ok: false, code: signal.aborted ? 'cancelled' : error instanceof LocalToolError ? error.code : 'CLI_EXECUTION_FAILED', data: {} }, settled: !launched, effectsKnown: !launched };
     }
     await this.journal.write({ operationId: op.id, sessionId, phase: 'settled', completion });

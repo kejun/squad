@@ -145,12 +145,15 @@ stateDiagram-v2
 | 意图领取、工具、格式修正、本地操作与宿主 | [执行与适配器](docs/state-diagrams.md#执行与适配器边界)：BT_M、BT_W、BT_L |
 | 按次/本次任务会话批准宿主 CLI、拒绝与恢复（BT_L35–BT_L37） | [宿主命令授权](docs/state-diagrams.md#宿主命令按次授权)：BT_L23–BT_L30；默认仍为沙箱 |
 | 沙箱失败后的主动申请与用户手动续办 | [宿主命令授权](docs/state-diagrams.md#宿主命令按次授权)：BT_L31–BT_L34；申请与批准分别处理 |
+| 模型请求、实际本地执行与耗时 | [执行测量](docs/state-diagrams.md#执行测量)：BT_Z01–BT_Z03；原业务状态不变 |
 | 群历史、可信路由、归档 | [房间与命令](docs/state-diagrams.md#房间与可信命令)：BT_R、BT_G15–G22；归档不打断在途任务 |
 | 草稿、详情、导出、布局、调试与 Inspector | [网页与观察](docs/state-diagrams.md#网页与观察)：BT_U、BT_P、BT_A12–A21、BT_V；UI 仅读取快照或提交可信命令 |
 
 调试默认关闭；`npm run dev` 默认开启，或使用 `SQUAD_DEBUG=1 npm start`。宿主允许后从顶栏或 `?debug=1` 打开，本地运行视图和沙箱复用真实机器，不能向真实任务写入任意事件。官方 Inspector 在独立标签页打开，需要的托管认证仍在 Stately 完成；详见[观察通道](docs/state-diagrams.md#官方-inspector-观察通道)及[验收记录](docs/inspector-verification.md)。
 
 浏览器验收先 `npm run build`，再 `npm run test:debug-browser`；可用 `SQUAD_PLAYWRIGHT_MODULE`、`SQUAD_CHROMIUM` 指定依赖，`SQUAD_VERIFY_INSPECTOR=1` 加验官方协议。脚本使用独立数据库和模型 HTTP 夹具，完整退出且报告为 verified、清理项全为 true 才算通过；登录后的托管绘图单独报告。静态字号、颜色与几何约定见[样式规范](docs/ui-style.md)，不列为业务状态。
+
+本机可用 `node --import tsx scripts/execution-measurement.ts <task-id> [database]` 读取指定任务的结构化执行记录。对照试验可用 `SQUAD_MEASUREMENT_DATASET` 标记资料快照。每次运行单独计算传输、命令准备、人工决定及子进程时长，重叠区间只计一次；缺失记录保留未知。
 
 ## 接入接口
 

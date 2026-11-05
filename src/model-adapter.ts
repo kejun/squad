@@ -1,6 +1,7 @@
 import { localEnabled, validLocalAction, type LocalMessage } from './local-operation.js';
 import { createHash } from 'node:crypto';
 import { modelSignature, resolveModel } from './model-config.js';
+import { initialModelRequestId, providerUsage, publishObservation, type ModelObservation } from './measurement.js';
 import { validWorkOutput, WorkFailure, type WorkAdapter, type WorkOutput, type WorkScope } from './runner.js';
 import { validateConfig, type InputReference, type Intent, type ModelOutputIssue, type TeamConfig } from './types.js';
 import { inputIntentJsonSchema, validInputIntent } from './input-intent.js';
@@ -201,12 +202,19 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
     while (true) {
       requestSignal.throwIfAborted();
       // First request was already reserved by WorkRunner. Every follow-up needs another reservation.
-      if (turn > 0) scope.authorizeAdditionalRequest(`model:${turn}`);
+      const requestId = turn === 0 ? initialModelRequestId : `model:${turn}`;
+      if (turn > 0) scope.authorizeAdditionalRequest(requestId);
       requestSignal.throwIfAborted();
       turn++;
+      const report = (observation: ModelObservation) => publishObservation(scope.observeModel, observation);
+      const protocol = (valid: boolean, code?: string, terminal?: boolean) => report({
+        phase: 'model.protocol', requestId, valid, ...(code ? { code } : {}), ...(terminal ? { terminal } : {}),
+      });
+      const endpoint = `${service.baseUrl.replace(/\/+$/, '')}/chat/completions`;
       let response: Response;
+      let startedAt: number | null = null;
       try {
-        response = await (this.options.transport ?? globalThis.fetch)(`${service.baseUrl.replace(/\/+$/, '')}/chat/completions`, {
+        const input: RequestInit = {
           method: 'POST', signal: requestSignal, redirect: 'error',
           headers: { 'content-type': 'application/json', ...providerHeaders, ...(key ? { authorization: `Bearer ${key}` } : {}) },
           body: JSON.stringify({ ...service.extraBody, model: service.model, messages, stream: false,
@@ -214,15 +222,28 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
             ...(service.temperature === undefined ? {} : { temperature: service.temperature }),
             ...(service.maxTokens === undefined ? {} : { max_tokens: service.maxTokens }),
           }),
-        });
+        };
+        startedAt = performance.now();
+        report({ phase: 'model.transport', requestId, serviceId, model: service.model });
+        response = await (this.options.transport ?? globalThis.fetch)(endpoint, input);
       } catch {
+        if (startedAt !== null) report({ phase: requestSignal.aborted ? 'model.interrupted' : 'model.transportFailed', requestId, durationMs: performance.now() - startedAt });
         if (signal.aborted) signal.throwIfAborted();
         if (deadline.aborted) throw new WorkFailure('Model request deadline exceeded');
         // Provider/network error strings may contain credentials. Persist only a sanitized message.
         throw new WorkFailure(`Model network request failed (${serviceId})`, true);
       }
+      const header = response.headers.get('x-request-id') ?? response.headers.get('request-id');
+      const includesSecret = header && Object.values(this.config.models!.services).some(configured => {
+        const secret = configured.apiKeyEnv ? env[configured.apiKeyEnv] : undefined;
+        return secret && header.includes(secret);
+      });
+      report({ phase: 'model.response', requestId, status: response.status,
+        providerRequestId: header && /^[a-zA-Z0-9_.:-]{1,128}$/.test(header) && !includesSecret ? header : null });
+      const responseBody = () => report({ phase: 'model.responseBody', requestId, durationMs: performance.now() - startedAt! });
       if (!response.ok) {
-        let code = await providerErrorCode(response);
+        let code: string;
+        try { code = await providerErrorCode(response); } finally { responseBody(); }
         for (const configured of Object.values(this.config.models!.services)) {
           const secret = configured.apiKeyEnv ? env[configured.apiKeyEnv] : undefined;
           if (secret) code = code.replaceAll(secret, '[redacted]');
@@ -231,11 +252,21 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
         throw new WorkFailure(`Model HTTP ${response.status} (${serviceId})${code ? `: ${code}${hint}` : ''}`, response.status === 408 || response.status === 429 || response.status >= 500);
       }
       let data: unknown;
-      try { data = await response.json(); } catch { throw new WorkFailure(`Invalid model response (${serviceId})`); }
+      try { data = await response.json(); } catch {
+        protocol(false, 'invalid_response_body');
+        throw new WorkFailure(`Invalid model response (${serviceId})`);
+      } finally { responseBody(); }
+      report({ phase: 'model.usage', requestId, usage: providerUsage(data) });
       requestSignal.throwIfAborted();
-      if (!data || typeof data !== 'object') throw new WorkFailure('Invalid model response');
+      if (!data || typeof data !== 'object') {
+        protocol(false, 'invalid_response_body');
+        throw new WorkFailure('Invalid model response');
+      }
       const choice = (data as { choices?: { finish_reason?: string; message?: { content?: unknown; tool_calls?: unknown[] } }[] }).choices?.[0];
-      if (choice?.finish_reason !== 'stop' || choice.message?.tool_calls?.length || typeof choice.message?.content !== 'string') throw new WorkFailure('Model response incomplete or unsupported');
+      if (choice?.finish_reason !== 'stop' || choice.message?.tool_calls?.length || typeof choice.message?.content !== 'string') {
+        protocol(false, 'incomplete_response');
+        throw new WorkFailure('Model response incomplete or unsupported');
+      }
       try {
         const output = parseOutput(choice.message.content);
         if (work.kind === 'interpretation' && (output.type !== 'interpretation'
@@ -248,6 +279,7 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
           if (!canUseLocal) throw new WorkFailure('LOCAL_TOOLS_NOT_ALLOWED');
           if (!scope.localTools) throw new WorkFailure('LOCAL_RUNTIME_NOT_CONFIGURED');
           if (!validLocalAction(output)) throw new OutputValidationError('invalid_tool_request');
+          protocol(true);
           messages.push({ role: 'assistant', content: choice.message.content });
           const result = await scope.localTools.invoke(output, messages.slice(2) as LocalMessage[], requestSignal);
           requestSignal.throwIfAborted();
@@ -260,10 +292,12 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
           if (output.type === 'web_search') {
             if (!canSearchWeb) throw new WorkFailure('WEB_TOOLS_NOT_ALLOWED');
             if (!validWebSearchInput(output)) throw new OutputValidationError('invalid_tool_request');
+            protocol(true);
             text = (await scope.webSearch({ query: output.query, ...(output.limit === undefined ? {} : { limit: output.limit }) }, requestSignal)).text;
           } else {
             if (!canFetchWeb) throw new WorkFailure('WEB_TOOLS_NOT_ALLOWED');
             if (!validWebFetchInput(output)) throw new OutputValidationError('invalid_tool_request');
+            protocol(true);
             text = (await scope.webFetch({ url: output.url, ...(output.offset === undefined ? {} : { offset: output.offset }), ...(output.format === undefined ? {} : { format: output.format }) }, requestSignal)).text;
           }
           requestSignal.throwIfAborted();
@@ -274,6 +308,7 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
         if (output.type === 'findSkills') {
           if (!canFindSkills) throw new WorkFailure('SKILL_SEARCH_NOT_ALLOWED');
           if (typeof output.query !== 'string' || !output.query.trim()) throw new OutputValidationError('invalid_tool_request');
+          protocol(true);
           const results = await scope.findSkills(output.query, requestSignal);
           requestSignal.throwIfAborted();
           messages.push({ role: 'assistant', content: choice.message.content },
@@ -290,9 +325,11 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
         if (!outputs[work.kind].includes(output.type as WorkOutput['type'])) throw new OutputValidationError('invalid_type');
         if (!validWorkOutput(output)) throw new OutputValidationError('invalid_work_output');
         if (!validDecision(output, { owner: work.payload.owner, bots: this.config.bots })) throw new OutputValidationError('invalid_decision');
+        protocol(true, undefined, true);
         return output;
       } catch (error) {
         if (!(error instanceof OutputValidationError)) throw error;
+        protocol(false, error.issue);
         requestSignal.throwIfAborted();
         if (!scope.regenerateModelOutput) throw new WorkFailure('Invalid model work output; format repair authorization is unavailable');
         scope.regenerateModelOutput(error.issue);

@@ -2,12 +2,13 @@ import { hostSessionActive } from '../host-session.js';
 import type { LocalRuntime } from "../local-runtime.js";
 import { localAwaitingApproval } from '../local-operation.js';
 import { hostRetryProblem } from '../host-retry.js';
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { TeamEngine, type Submission } from "../engine.js";
 import { assistanceRetryProblem } from "../task.machine.js";
 import { retryableAssistance, retryProblemText } from "../assistance-retry.js";
 import { OpenAICompatibleAdapter } from "../model-adapter.js";
+import { measurementRun, type ExecutionObservation, type MeasurementContext, type MeasurementIdentity, type MeasurementRecord, type MeasurementRun } from "../measurement.js";
 import { resolveModel } from "../model-config.js";
 import {
   WorkFailure,
@@ -54,6 +55,7 @@ export class WebService {
   private startup: Promise<void> = Promise.resolve();
   private initialized = true;
   private readonly debugJournal: DebugJournal | null;
+  private readonly measurement: MeasurementRun;
 
   constructor(
     readonly config: TeamConfig,
@@ -62,7 +64,9 @@ export class WebService {
     private readonly webTools?: WebTools,
     readonly debugEnabled = false,
     private readonly localRuntime?: LocalRuntime,
+    measurementIdentity?: MeasurementIdentity,
   ) {
+    this.measurement = measurementRun(config, measurementIdentity);
     this.store = new SqliteStore(path);
     this.debugJournal = debugEnabled ? new DebugJournal() : null;
     this.engine = new TeamEngine(this.store, config, Date.now,
@@ -167,8 +171,18 @@ export class WebService {
   }
   decideHostApproval(roomId: string, data: { id: string; taskId: string; workId: string; operationId: string; approvalId: string; decision: 'approve' | 'approveSession' | 'deny' }) {
     this.room(roomId);
+    let work: Intent | undefined;
+    try { work = this.engine.view(roomId, data.taskId)?.context.intents.find(item => item.id === data.workId); }
+    catch { /* Recording the approval is best effort. */ }
+    const approval = work?.localOperations?.find(op => op.id === data.operationId)?.approval;
     const result = this.engine.decideHostApproval(roomId, data.taskId, data.workId, data.operationId, data.approvalId, data.decision, data.id);
     if (!result.ok) throw new WebError(409, `授权请求已失效或不可用 (${result.code})`);
+    if (work && approval?.id === data.approvalId && approval.status === "pending") {
+      this.recordMeasurement({ roomId, taskId: data.taskId, workId: work.id, agentId: work.target, attempt: work.attempt,
+        epoch: work.epoch, goalVersion: work.goalVersion },
+      { phase: "local.approvalDecision", action: "runCli", operationId: data.operationId, approvalId: data.approvalId,
+        decisionId: createHash("sha256").update(data.id).digest("hex"), decision: data.decision });
+    }
     this.localRuntime?.notifyWorkspace(`approval:${data.operationId}`);
     if (data.decision === 'approveSession') for (const work of this.engine.view(roomId, data.taskId)?.context.intents ?? [])
       for (const op of work.localOperations ?? []) if (op.approval?.sessionGrantId) this.localRuntime?.notifyWorkspace(`approval:${op.id}`);
@@ -288,7 +302,7 @@ export class WebService {
     }
     const events = this.db
       .prepare(
-        "SELECT id, taskId, workId, agentId, at, kind, title, detail FROM web_events WHERE roomId = ? ORDER BY id",
+        "SELECT id, taskId, workId, agentId, at, kind, title, detail FROM web_events WHERE roomId = ? AND kind != 'measurement' ORDER BY id",
       )
       .all(roomId) as unknown as ExecutionEvent[];
     return {
@@ -401,6 +415,13 @@ export class WebService {
         detail.slice(0, 64_000),
       );
   }
+  private recordMeasurement(context: MeasurementContext, observation: ExecutionObservation) {
+    const record: MeasurementRecord = { ...context, run: this.measurement, at: Date.now(), monotonicMs: performance.now(), observation };
+    try {
+      this.db.prepare("INSERT INTO web_events(roomId, taskId, workId, agentId, at, kind, title, detail) VALUES(?, ?, ?, ?, ?, ?, ?, ?)")
+        .run(record.roomId, record.taskId, record.workId, record.agentId, record.at, "measurement", observation.phase, JSON.stringify(record));
+    } catch { /* Failed observation must never affect a completed operation or retry policy. */ }
+  }
   private runner(roomId: string): WorkRunner {
     let runner = this.runners.get(roomId);
     if (runner) return runner;
@@ -420,19 +441,24 @@ export class WebService {
         );
         const tracedScope: WorkScope = {
           sessionId: roomId,
+          ...(scope.observeModel ? { observeModel: scope.observeModel } : {}),
           ...(scope.localTools ? { localTools: {
             catalog: scope.localTools.catalog, checkpoint: scope.localTools.checkpoint,
-            invoke: async (action, messages, toolSignal) => {
+            invoke: async (action, messages, toolSignal, requested) => {
               const labels = { listSkills: "查看本地技能", loadSkill: "激活本地技能", readSkillResource: "读取技能资源", runCli: "执行本地命令", verifyWorkspace: "核对工程版本" };
               this.append(roomId, work, "tool-start", labels[action.type], JSON.stringify(this.localRuntime!.clean(action)));
-              const result = await scope.localTools!.invoke(action, messages, toolSignal);
-              this.append(roomId, work, "tool-result", action.type === "runCli" ? "本地命令结束" : "本地技能操作完成", JSON.stringify({ operationId: this.engine.view(roomId)!.context.intents.find(w => w.id === work.id)?.localOperations?.at(-1)?.id, ...result }));
+              let operationId: string | undefined;
+              const result = await scope.localTools!.invoke(action, messages, toolSignal, id => {
+                operationId = id;
+                requested?.(id);
+              });
+              this.append(roomId, work, "tool-result", action.type === "runCli" ? "本地命令结束" : "本地技能操作完成", JSON.stringify({ operationId, ...result }));
               return result;
             },
             resume: async (operationId, toolSignal) => {
               this.append(roomId, work, "tool-start", "续办本地操作", operationId);
               const result = await scope.localTools!.resume(operationId, toolSignal);
-              this.append(roomId, work, "tool-result", "已读取本地操作回执", JSON.stringify({ operationId: this.engine.view(roomId)!.context.intents.find(w => w.id === work.id)?.localOperations?.at(-1)?.id, ...result }));
+              this.append(roomId, work, "tool-result", "已读取本地操作回执", JSON.stringify({ operationId, ...result }));
               return result;
             },
           } satisfies NonNullable<WorkScope["localTools"]> } : {}),
@@ -510,7 +536,8 @@ export class WebService {
         await this.adapter.cancel?.(work);
       },
     };
-    runner = new WorkRunner(this.engine, observed, Date.now, globalThis.fetch, this.webTools, this.localRuntime);
+    runner = new WorkRunner(this.engine, observed, Date.now, globalThis.fetch, this.webTools, this.localRuntime,
+      (context, observation) => this.recordMeasurement(context, observation));
     this.runners.set(roomId, runner);
     return runner;
   }
