@@ -178,13 +178,15 @@ export class WebService {
     let work: Intent | undefined;
     try { work = this.engine.view(roomId, data.taskId)?.context.intents.find(item => item.id === data.workId); }
     catch { /* Recording the approval is best effort. */ }
-    const approval = work?.localOperations?.find(op => op.id === data.operationId)?.approval;
+    const operation = work?.localOperations?.find(op => op.id === data.operationId);
+    const approval = operation?.approval;
     const result = this.engine.decideHostApproval(roomId, data.taskId, data.workId, data.operationId, data.approvalId, data.decision, data.id);
     if (!result.ok) throw new WebError(409, `授权请求已失效或不可用 (${result.code})`);
     if (work && approval?.id === data.approvalId && approval.status === "pending") {
       this.recordMeasurement({ roomId, taskId: data.taskId, workId: work.id, agentId: work.target, attempt: work.attempt,
         epoch: work.epoch, goalVersion: work.goalVersion },
       { phase: "local.approvalDecision", action: "runCli", operationId: data.operationId, approvalId: data.approvalId,
+        ...(operation?.hostRetryRequestId ? { retryRequestId: operation.hostRetryRequestId } : {}),
         decisionId: createHash("sha256").update(data.id).digest("hex"), decision: data.decision });
     }
     this.localRuntime?.notifyWorkspace(`approval:${data.operationId}`);
@@ -202,8 +204,26 @@ export class WebService {
   requestHostRetry(roomId: string, data: { id: string; taskId: string; workId: string; operationId: string; sourceRequestHash: string }) {
     this.room(roomId);
     if (!this.localRuntime) throw new WebError(409, '本地运行时未开启。');
+    let previousRequest: string | null | undefined;
+    try {
+      const before = this.engine.view(roomId, data.taskId)?.context;
+      if (before) previousRequest = findHostRetry(before, data.workId, data.operationId)?.id ?? null;
+    } catch { /* Recording the accepted request is best effort. */ }
     const reply = this.engine.requestHostRetry(roomId, data.taskId, data.workId, data.operationId, data.sourceRequestHash, data.id);
     if (!reply.ok) throw new WebError(409, `无法从该记录申请宿主执行 (${reply.code})`);
+    if (previousRequest === null) {
+      try {
+        const after = this.engine.view(roomId, data.taskId)?.context;
+        const request = after && findHostRetry(after, data.workId, data.operationId);
+        const source = request && after?.intents.find(work => work.id === request.sourceWorkId);
+        if (request && source && reply.detail === request.id) {
+          this.recordMeasurement({ roomId, taskId: data.taskId, workId: source.id, agentId: source.target, attempt: source.attempt,
+            epoch: source.epoch, goalVersion: request.goalVersion },
+          { phase: 'local.retryQueued', action: 'runCli', operationId: request.sourceOperationId,
+            sourceOperationId: request.sourceOperationId, retryRequestId: request.id });
+        }
+      } catch { /* Recording the accepted request is best effort. */ }
+    }
     this.kick(roomId); return reply;
   }
   snapshot(roomId: string): RoomSnapshot {

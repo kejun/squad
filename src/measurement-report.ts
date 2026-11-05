@@ -18,6 +18,7 @@ export function summarizeMeasurements(records: readonly MeasurementRecord[]) {
     const cliOperation = (entry: MeasurementRecord) => 'operationId' in entry.observation && entry.observation.action === 'runCli'
       ? entry.observation.operationId : undefined;
     const approvalKey = (entry: MeasurementRecord) => 'approvalId' in entry.observation ? entry.observation.approvalId : undefined;
+    const retryKey = (entry: MeasurementRecord) => 'retryRequestId' in entry.observation ? entry.observation.retryRequestId : undefined;
     const workKey = (entry: MeasurementRecord) => JSON.stringify([entry.workId, entry.attempt]);
     const checkWorks = new Set(entries.filter(entry => entry.observation.phase === 'work.started' && entry.observation.kind === 'check').map(workKey));
     const checkKey = (entry: MeasurementRecord) => checkWorks.has(workKey(entry))
@@ -60,6 +61,7 @@ export function summarizeMeasurements(records: readonly MeasurementRecord[]) {
       humanDecision: duration('local.approvalRequired', ['local.approvalDecision'], entry =>
         entry.observation.phase === 'local.approvalRequired' && entry.observation.sessionApproved ? undefined : approvalKey(entry)),
       commandQueueToFirstClaim: duration('local.saved', ['local.claimed'], cliOperation),
+      retryRequestToFirstClaim: duration('local.retryQueued', ['local.claimed'], retryKey, false),
       createdToProcessStart: duration('local.saved', ['local.processStarted'], cliOperation, false),
       independentCheck: duration('work.started', ['work.result'], checkKey, false),
     };
@@ -82,6 +84,10 @@ export function summarizeMeasurements(records: readonly MeasurementRecord[]) {
         modelResultsAccepted: observations.filter(event => event.phase === 'work.result' && event.requestId !== null && event.accepted).length,
         modelResultsRejected: observations.filter(event => event.phase === 'work.result' && event.requestId !== null && !event.accepted).length,
         cliProcesses: count('local.processStarted'), savedReceiptReads: count('local.receiptRead'),
+        evidencePagesRead: observations.filter(event => event.phase === 'local.receiptRead' && event.readKind === 'evidencePage').length,
+        receiptReplays: observations.filter(event => event.phase === 'local.receiptRead' && event.readKind === 'receiptReplay').length,
+        retryRequestsAccepted: count('local.retryQueued'),
+        retryProcesses: observations.filter(event => event.phase === 'local.processStarted' && event.retryRequestId !== undefined).length,
       },
       usage: { input: knownUsage('input'), output: knownUsage('output'), total: knownUsage('total') },
       durations,

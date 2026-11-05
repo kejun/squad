@@ -14,12 +14,14 @@ export type ModelObservation = { requestId: string } & (
   | { phase: 'model.protocol'; valid: boolean; terminal?: boolean; code?: string }
 );
 
-export type LocalObservation = { operationId: string; action: string; sessionId?: string } & (
+export type LocalObservation = { operationId: string; action: string; sessionId?: string; retryRequestId?: string; batchId?: string } & (
   | { phase: 'local.saved' | 'local.claimed' | 'local.prepareStarted' | 'local.prepareFinished'
-    | 'local.startAuthorized' | 'local.processStarted' | 'local.processFinished' | 'local.receiptRead' }
+    | 'local.startAuthorized' | 'local.processStarted' | 'local.processFinished' }
+  | { phase: 'local.receiptRead'; readKind?: 'evidencePage' | 'receiptReplay'; sourceOperationId?: string }
+  | { phase: 'local.retryQueued'; retryRequestId: string; sourceOperationId: string }
   | { phase: 'local.approvalRequired'; approvalId: string; sessionApproved: boolean }
   | { phase: 'local.approvalDecision'; approvalId: string; decisionId: string; decision: 'approve' | 'approveSession' | 'deny' }
-  | { phase: 'local.result'; committed: boolean; settled: boolean; effectsKnown: boolean; code: string }
+  | { phase: 'local.result'; committed: boolean; settled: boolean; effectsKnown: boolean; code: string; ok?: boolean }
 );
 
 export type ExecutionObservation = ModelObservation | LocalObservation

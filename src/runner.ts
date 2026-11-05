@@ -180,7 +180,19 @@ export class WorkRunner {
       return result;
     } };
     const currentWork = () => this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === work.id)!;
-    const hostRetry = this.engine.view(roomId, taskId)?.context.hostRetryBatch?.workId === work.id;
+    const retryBatch = this.engine.view(roomId, taskId)?.context.hostRetryBatch;
+    const hostRetry = retryBatch?.workId === work.id;
+    const localCorrelation = (op: LocalOperation) => ({
+      operationId: op.id, action: op.action.type, ...(op.sessionId ? { sessionId: op.sessionId } : {}),
+      ...(op.hostRetryRequestId ? { retryRequestId: op.hostRetryRequestId,
+        ...(hostRetry ? { batchId: retryBatch!.id } : {}) } : {}),
+    });
+    const evidenceSourceId = (result: LocalToolResult) => {
+      const evidence = result.data.evidence;
+      if (evidence && typeof evidence === 'object' && 'sourceOperationId' in evidence && typeof evidence.sourceOperationId === 'string')
+        return evidence.sourceOperationId;
+      return undefined;
+    };
     if (this.localRuntime) {
       const runtime = this.localRuntime;
       const executeLocal = async (operationId: string, externalSignal: AbortSignal): Promise<LocalToolResult> => {
@@ -199,7 +211,8 @@ export class WorkRunner {
           op = currentWork().localOperations?.find(o => o.id === operationId);
           if (!op) throw new WorkFailure('LOCAL_OPERATION_MISSING');
           if (['succeeded', 'failed', 'cancelled'].includes(op.status) && op.result) {
-            report({ phase: 'local.receiptRead', operationId, action: op.action.type, ...(op.sessionId ? { sessionId: op.sessionId } : {}) });
+            report({ phase: 'local.receiptRead', ...localCorrelation(op), readKind: 'receiptReplay',
+              ...(op.action.type === 'readEvidence' ? { sourceOperationId: evidenceSourceId(op.result) } : {}) });
             return op.result;
           }
           if (retryDeadline !== undefined && this.clock() >= retryDeadline) return expireRetry();
@@ -234,7 +247,7 @@ export class WorkRunner {
           }
         }
         const operation = op;
-        const local = { operationId, action: operation.action.type, sessionId: operation.sessionId! };
+        const local = localCorrelation(operation);
         report({ phase: 'local.claimed', ...local });
         let execution;
         let enteredRuntime = false;
@@ -282,8 +295,11 @@ export class WorkRunner {
         }
         const response = send({ type: 'LOCAL_RESULT', id: `local-result:${op.sessionId}`, at: this.clock(),
           intentId: work.id, operationId: op.id, sessionId: op.sessionId!, ...execution });
+        if (response.ok && execution.result.ok && op.action.type === 'readEvidence') {
+          report({ phase: 'local.receiptRead', ...local, readKind: 'evidencePage', sourceOperationId: evidenceSourceId(execution.result) });
+        }
         report({ phase: 'local.result', ...local, committed: response.ok, settled: execution.settled,
-          effectsKnown: execution.effectsKnown, code: response.ok ? 'LOCAL_RESULT_RECORDED' : response.code });
+          effectsKnown: execution.effectsKnown, code: response.ok ? 'LOCAL_RESULT_RECORDED' : response.code, ok: execution.result.ok });
         if (response.ok && execution.settled && execution.effectsKnown && op.workspaceId) runtime.notifyWorkspace(op.workspaceId);
         if (!response.ok || !execution.settled || !execution.effectsKnown) throw new WorkFailure(response.ok ? 'LOCAL_OPERATION_UNCERTAIN' : response.code, false, true);
         if (op.hostRetryRequestId) {
