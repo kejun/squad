@@ -346,3 +346,5 @@ Gherkin 已直接覆盖消息路由、协助、监督、黑板、人类控制、
 - https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions
 
 本地依赖及类型声明以 package-lock.json 固定的 XState v5 为准；文档站点可能同时包含 v6 alpha 内容。
+
+原生沙箱运行时的最小只读文件视图见[状态模型细化](docs/state-diagrams.md#原生沙箱运行时可见性bt_l22)，沿用本地操作领取与回传模型。

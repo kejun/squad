@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
 import { SandboxCliBackend, minimalCliEnvironment, identityAlive, type ProcessIdentity } from '../src/local-cli.js';
 
 /** Production SRT backend, never the injected process fixture. Exit 78 means host unavailable. */
@@ -19,9 +20,13 @@ try {
     const workspace = join(root, 'workspace'), snapshot = join(root, 'skill'); await mkdir(workspace); await mkdir(snapshot);
     await mkdir(join(workspace, '.home')); await mkdir(join(workspace, '.tmp'));
     const secret = join(root, 'private.txt'); await writeFile(secret, 'must-not-read'); await writeFile(join(snapshot, 'readonly.txt'), 'skill-body');
+    const runtimeRoot = dirname(createRequire(import.meta.url).resolve('@anthropic-ai/sandbox-runtime/package.json'));
+    const helper = process.platform === 'linux' ? join(runtimeRoot, 'vendor', 'seccomp', process.arch, 'apply-seccomp') : undefined;
     const program = `const fs=require('fs'),net=require('net');
       fs.writeFileSync('output.txt','workspace-write-ok');
-      for(const path of ${JSON.stringify([secret, join(workspace, '.env')])}) { try { fs.readFileSync(path); process.exit(11); } catch{} }
+      const helper=${JSON.stringify(helper ?? null)};
+      if(helper) { fs.accessSync(helper,fs.constants.R_OK|fs.constants.X_OK);try{const fd=fs.openSync(helper,'r+');fs.closeSync(fd);process.exit(17)}catch{} }
+      for(const path of ${JSON.stringify([secret, join(workspace, '.env'), join(process.cwd(), 'package.json'), join(runtimeRoot, 'package.json')])}) { try { fs.readFileSync(path); process.exit(11); } catch{} }
       try { fs.writeFileSync(${JSON.stringify(join(snapshot, 'readonly.txt'))},'overwritten'); process.exit(12); } catch{}
       if(fs.readFileSync(${JSON.stringify(join(snapshot, 'readonly.txt'))},'utf8')!=='skill-body')process.exit(13);
       if(process.env.SQUAD_SANDBOX_TEST_SECRET || process.env.SRT_PRIVATE_SENTINEL)process.exit(14);

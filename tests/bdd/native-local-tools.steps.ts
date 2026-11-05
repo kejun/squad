@@ -20,3 +20,5 @@ When('在真实沙箱验证工作区写入和外部访问并取消长命令', { 
 Then('工作区可写而服务密钥、包外文件、技能快照写入和网络均应被拒绝', function (this: SpecWorld) { assert(completed.has(this)); });
 Then('最终检查源文件只读且输出目录可写', function (this: SpecWorld) { assert(completed.has(this)); });
 Then('取消应结算真实进程会话并对未知写入效果保持待核对', function (this: SpecWorld) { assert(completed.has(this)); });
+
+Then('可信沙箱运行时辅助程序应可执行且只读而其安装目录仍不可读取', function (this: SpecWorld) { assert(completed.has(this)); });
