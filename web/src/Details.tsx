@@ -303,7 +303,20 @@ export function Details({
                     {task.usage.checks} / {task.limits.checks}
                   </strong>
                 </div>
-                {task.reason && <p className="task-reason">{task.reason}</p>}
+                {task.deliveryGaps?.length ? (
+                  <Collapsible.Root className="task-log">
+                    <Collapsible.Trigger>待补验收项 <ChevronDown size={14} /></Collapsible.Trigger>
+                    <Collapsible.Panel>
+                      <p className="task-reason">{task.reason}</p>
+                      {task.deliveryGaps.map((gap, index) => (
+                        <div className="board-entry" key={`${gap.candidateRevision}:${index}`}>
+                          <p>{gap.reason}</p>
+                          <small>候选 {gap.candidateRevision}</small>
+                        </div>
+                      ))}
+                    </Collapsible.Panel>
+                  </Collapsible.Root>
+                ) : task.reason && <p className="task-reason">{task.reason}</p>}
                 {!!task.inputAnalyses?.length && (
                   <Collapsible.Root className="task-log">
                     <Collapsible.Trigger>输入理解 <ChevronDown size={14} /></Collapsible.Trigger>

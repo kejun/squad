@@ -1,3 +1,4 @@
+import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -74,7 +75,7 @@ export class RegenerationFixture {
         const index = this.requests.length;
         this.requests.push(JSON.parse(String(init?.body)) as CapturedModelRequest);
         this.beforeResponse?.(index);
-        return this.responseFactory?.(index) ?? modelResponse(this.replies.length ? this.replies.shift() : this.fallback);
+        return this.responseFactory?.(index) ?? modelResponse(withFixtureAcceptance(this.replies.length ? this.replies.shift() : this.fallback, this.requests.at(-1)));
       },
     });
   }

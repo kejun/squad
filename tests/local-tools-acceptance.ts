@@ -1,3 +1,4 @@
+import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -199,7 +200,7 @@ export async function serviceAcceptance() {
     const config = localConfig(); const replies: unknown[] = [...f.actions(), { type: 'answer', text: '真实执行完成' }];
     const adapter = new OpenAICompatibleAdapter(config, { transport: async (_url, init) => {
       const request = JSON.parse(String(init?.body)) as { messages: { content: string }[] };
-      return modelResponse(request.messages[0]!.content.includes('executing check work') ? { type: 'check', passed: true, gaps: [] } : replies.shift());
+      return modelResponse(withFixtureAcceptance(request.messages[0]!.content.includes('executing check work') ? { type: 'check', passed: true, gaps: [] } : replies.shift(), request));
     } });
     service = new WebService(config, join(f.root, 'web.sqlite'), adapter, undefined, false, f.runtime); await service.ready();
     const room = service.createRoom(); service.submit(room.id, { id: 'local-web', text: '运行技能验证' });
@@ -276,8 +277,8 @@ export async function serviceRecoveryAcceptance(uncertain = false) {
     let requests = 0;
     const adapter = new OpenAICompatibleAdapter(f.h.config, { transport: async (_url, init) => {
       requests++; const parsed = JSON.parse(String(init?.body)) as { messages: { content: string }[] };
-      if (parsed.messages[0]!.content.includes('executing check work')) return modelResponse({ type: 'check', passed: true, gaps: [] });
-      assert(parsed.messages.some(m => m.content.includes('recovered-output'))); return modelResponse({ type: 'answer', text: '依据已保存的 CLI 回执继续' });
+      if (parsed.messages[0]!.content.includes('executing check work')) return modelResponse(withFixtureAcceptance({ type: 'check', passed: true, gaps: [] }, parsed));
+      assert(parsed.messages.some(m => m.content.includes('recovered-output'))); return modelResponse(withFixtureAcceptance({ type: 'answer', text: '依据已保存的 CLI 回执继续' }, parsed));
     } });
     service = new WebService(f.h.config, join(f.root, 'team.sqlite'), adapter, undefined, false, f.runtime); await service.ready();
     if (uncertain) {
@@ -374,7 +375,7 @@ export async function revisionAcceptance(change: string, expected: string) {
         if (change === '权威工程源文件变化') await writeFile(join(f.source, 'source.txt'), 'changed after check');
         if (change === '检查副本源文件变化') await writeFile(join(f.backend.calls[0]!.workspace, 'source.txt'), 'changed in copy');
       }
-      return modelResponse(reply);
+      return modelResponse(withFixtureAcceptance(reply, String(init?.body)));
     } });
     await new WorkRunner(f.h.engine, adapter, () => f.h.now, globalThis.fetch, undefined, f.runtime).runOne(f.h.room, f.h.task);
     const check = f.h.context().intents.find(w => w.kind === 'check')!;

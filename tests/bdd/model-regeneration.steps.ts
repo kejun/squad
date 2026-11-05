@@ -7,6 +7,7 @@ import { OpenAICompatibleAdapter, type MemoryStore, type SqliteStore } from '../
 import { WebService } from '../../src/web/service.js';
 import { badModelOutput, goodModelOutput, modelResponse, RegenerationFixture, regenerationConfig, type ModelKind } from '../model-regeneration-fixture.js';
 import type { SpecWorld } from './steps.js';
+import { withFixtureAcceptance } from '../delivery-protocol-fixture.js';
 
 interface RepairState { fixture: RegenerationFixture; directory?: string; web?: WebService; room?: string; failure?: unknown; expectFailure?: boolean; savedId?: string }
 const states = new WeakMap<SpecWorld, RepairState>();
@@ -137,7 +138,8 @@ Then('修正计数应只保留一次且后续请求携带修正要求', function
 Given('网页任务的模型检查先不合规再修正通过', function (this: SpecWorld) {
   setup(this); const s = state(this), config = regenerationConfig();
   s.directory = mkdtempSync(join(tmpdir(), 'squad-web-schema-')); let calls = 0;
-  const adapter = new OpenAICompatibleAdapter(config, { transport: async () => modelResponse(++calls === 1 ? goodModelOutput('owner') : calls === 2 ? badModelOutput('gaps缺失') : goodModelOutput('check')) });
+  const adapter = new OpenAICompatibleAdapter(config, { transport: async (_url, request) =>
+    modelResponse(withFixtureAcceptance(++calls === 1 ? goodModelOutput('owner') : calls === 2 ? badModelOutput('gaps缺失') : goodModelOutput('check'), request.body)) });
   s.web = new WebService(config, join(s.directory, 'team.sqlite'), adapter); s.room = s.web.createRoom().id;
 });
 When('通过网页执行器完成任务', async function (this: SpecWorld) {

@@ -1,3 +1,4 @@
+import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import { OpenAICompatibleAdapter, WorkRunner } from '../src/index.js';
 import { configuration, Harness } from './helpers.js';
 
@@ -22,7 +23,7 @@ export function skillSearchCase(problem?: string) {
     requests.push(JSON.parse(String(init?.body)));
     const output = requests.length === 1 ? { type: 'findSkills', query: 'general purpose assistant skills' }
       : { type: 'answer', text: '已根据两类技能资料形成建议' };
-    return Response.json({ choices: [{ message: { content: JSON.stringify(output) }, finish_reason: 'stop' }] });
+    return Response.json({ choices: [{ message: { content: JSON.stringify(withFixtureAcceptance(output, requests.at(-1))) }, finish_reason: 'stop' }] });
   } });
   const runner = new WorkRunner(h.engine, adapter, () => 0, async () => {
     searches++;

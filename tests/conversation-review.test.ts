@@ -1,3 +1,4 @@
+import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -240,7 +241,8 @@ describe("same-room conversational context", () => {
       gaps: [],
       resultId: "bad-check-result",
     });
-    expect(engine.view("r", "task:new-file")?.phase).toBe("coordinating");
+    expect(engine.view("r", "task:new-file")?.phase).toBe("running");
+    expect(engine.pending("r", "task:new-file").map(work => work.kind)).toEqual(["owner"]);
     expect(engine.view("r", "task:new-file")?.context.outcome).toBeNull();
   });
 });
@@ -746,7 +748,7 @@ describe("bounded group review", () => {
           choices: [
             {
               finish_reason: "stop",
-              message: { content: JSON.stringify(output) },
+              message: { content: JSON.stringify(withFixtureAcceptance(output, body)) },
             },
           ],
         });

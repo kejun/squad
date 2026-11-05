@@ -1,3 +1,4 @@
+import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import { CloudflareWebTools, OpenAICompatibleAdapter, type WorkOutput } from '../src/index.js';
 import { configuration } from './helpers.js';
 
@@ -43,7 +44,7 @@ export function scriptedModel(config = webModelConfig(), outputs: unknown[] = [
     requests.push(JSON.parse(String(init?.body)));
     const output = outputs.shift();
     if (!output) throw new Error('Scripted model exhausted');
-    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }] });
+    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(withFixtureAcceptance(output, requests.at(-1))) } }] });
   } });
   return { adapter, requests };
 }

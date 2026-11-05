@@ -1,3 +1,4 @@
+import { fixtureCheck, withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
@@ -55,12 +56,12 @@ setTimeout(() => { process.stdout.write(token.slice(9) + '\\n'); }, 5);
       const request = JSON.parse(String(init?.body)) as typeof this.requests[number]; this.requests.push(request);
       await this.beforeOwnerResponse?.(request);
       const receipts = request.messages.filter(m => m.role === 'user' && m.content.startsWith('{"type":"local_tool_result",')).length;
-      if (receipts >= this.hostCommands) return modelResponse({ type: 'answer', text: '已处理真实命令回执' });
+      if (receipts >= this.hostCommands) return modelResponse(withFixtureAcceptance({ type: 'answer', text: '已处理真实命令回执' }, request));
       return modelResponse(this.hostCommands > 1 && this.action.type === 'runCli' ? { ...this.action, args: [...this.action.args, `command-${receipts + 1}`] } : this.action);
     } });
     // Keep final checking independent of the scripted owner transport.
     this.service = new WebService(config, join(this.root, 'team.sqlite'), {
-      execute: (work, signal, scope) => work.kind === 'check' ? Promise.resolve({ type: 'check', passed: true, gaps: [] }) : adapter.execute(work, signal, scope),
+      execute: (work, signal, scope) => work.kind === 'check' ? Promise.resolve(fixtureCheck(work.payload.candidate)) : adapter.execute(work, signal, scope),
     }, undefined, false, this.runtime);
     await this.service.ready(); this.server = createWebServer(this.service);
     await new Promise<void>(resolve => this.server.listen(0, '127.0.0.1', resolve));

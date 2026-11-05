@@ -1,3 +1,4 @@
+import type { DeliveryGap } from '../delivery-acceptance.js';
 import type {
   Artifact,
   BoardEntry,
@@ -64,6 +65,7 @@ export interface WebTask {
   limits: { ordinary: number; checks: number };
   artifacts: Artifact[];
   currentArtifactIds?: string[];
+  deliveryGaps?: DeliveryGap[];
   board: BoardEntry[];
   trace: { event: string; detail: string; at: number }[];
   inputAnalyses?: InputAnalysis[];

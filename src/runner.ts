@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { initialModelRequestId, publishObservation, type ExecutionObservation, type MeasurementSink, type ModelObservation } from './measurement.js';
 import { readSavedArtifact, readSavedEvidence } from './evidence-reader.js';
 import { evidenceIndex } from './task/evidence.js';
+import { acceptanceCriteria, validCriterionCoverage, validCriterionJudgments, type CriterionCoverage, type CriterionJudgment } from './delivery-acceptance.js';
 import { isSavedRead, localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
 import type { LocalRuntime } from './local-runtime.js';
 import { LocalToolError, type SkillPage } from './local-skills.js';
@@ -15,10 +16,10 @@ import { CloudflareWebTools, validWebFetchInput, validWebSearchInput, type WebTo
 export type WorkOutput =
   | { type: 'interpretation'; spec: InputIntentSpec }
   | { type: 'help'; requestId: string; target: string; question: string; expected: string; refs?: string[] }
-  | { type: 'answer'; text: string; status?: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[] }
-  | { type: 'deliver'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[] }
+  | { type: 'answer'; text: string; status?: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[]; coverage?: CriterionCoverage[] }
+  | { type: 'deliver'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[]; coverage?: CriterionCoverage[] }
   | { type: 'decision'; decision: Decision }
-  | { type: 'check'; passed: boolean; gaps: string[] }
+  | { type: 'check'; passed: boolean; gaps: string[]; criteriaResults?: CriterionJudgment[] }
   | { type: 'blocked'; reason: string }
   | { type: 'askUser'; question: string }
   | { type: 'settled' };
@@ -59,10 +60,10 @@ export function validWorkOutput(value: unknown): value is WorkOutput {
   switch (v.type) {
     case 'interpretation': return Object.keys(v).every(key => ['type', 'spec'].includes(key)) && inputIntentSchema.safeParse(v.spec).success;
     case 'help': return ['requestId', 'target', 'question', 'expected'].every(k => typeof v[k] === 'string' && (v[k] as string).trim().length > 0) && (v.refs === undefined || strings(v.refs));
-    case 'answer': return typeof v.text === 'string' && validSummary(v.summary) && validArtifactDrafts(v.artifacts) && (v.status === undefined || ['success', 'partial', 'failed'].includes(String(v.status)));
-    case 'deliver': return typeof v.text === 'string' && strings(v.artifactIds) && (v.backgroundArtifactIds === undefined || strings(v.backgroundArtifactIds)) && validSummary(v.summary) && validArtifactDrafts(v.artifacts);
+    case 'answer': return typeof v.text === 'string' && validSummary(v.summary) && validArtifactDrafts(v.artifacts) && validCriterionCoverage(v.coverage) && (v.status === undefined || ['success', 'partial', 'failed'].includes(String(v.status)));
+    case 'deliver': return typeof v.text === 'string' && strings(v.artifactIds) && (v.backgroundArtifactIds === undefined || strings(v.backgroundArtifactIds)) && validSummary(v.summary) && validArtifactDrafts(v.artifacts) && validCriterionCoverage(v.coverage);
     case 'decision': return !!v.decision && typeof v.decision === 'object';
-    case 'check': return typeof v.passed === 'boolean' && strings(v.gaps);
+    case 'check': return typeof v.passed === 'boolean' && strings(v.gaps) && validCriterionJudgments(v.criteriaResults);
     case 'blocked': return typeof v.reason === 'string';
     case 'askUser': return typeof v.question === 'string' && !!v.question.trim();
     case 'settled': return true;
@@ -322,7 +323,10 @@ export class WorkRunner {
       const claimedWork = hostRetry ? context.intents.find(i => i.id === work.id)! : work;
       const projectEvidence = scope.localTools && localEnabled(this.engine.config, work.target)
         && (work.payload.capabilities as { localTools?: boolean } | undefined)?.localTools === true;
-      const modelWork = projectEvidence ? { ...claimedWork, payload: { ...claimedWork.payload, evidenceIndex: evidenceIndex(context, claimedWork) } } : claimedWork;
+      const modelWork = { ...claimedWork, payload: { ...claimedWork.payload,
+        ...(projectEvidence ? { evidenceIndex: evidenceIndex(context, claimedWork) } : {}),
+        ...(work.kind === 'owner' ? { acceptanceCriteria: acceptanceCriteria(context) } : {}),
+      } };
       output = await this.adapter.execute(modelWork, controller.signal, scope);
     }
     catch (error) {
@@ -353,6 +357,7 @@ export class WorkRunner {
       ...(output.summary === undefined ? {} : { summary: output.summary }),
       ...(output.artifacts === undefined ? {} : { artifacts: output.artifacts }),
     } : {};
+    const coverage = (output.type === 'answer' || output.type === 'deliver') && output.coverage !== undefined ? { coverage: output.coverage } : {};
     if (work.discussionId) {
       if (output.type === 'decision') event = { ...base, type: 'DISCUSSION_PLAN', discussionId: work.discussionId, decision: output.decision };
       else if (output.type === 'answer') event = { ...base, ...presentation, type: 'DISCUSSION_RESULT', discussionId: work.discussionId, text: output.text, status: output.status ?? 'success' };
@@ -367,15 +372,16 @@ export class WorkRunner {
       case 'answer':
         event = work.kind === 'assistance'
           ? { ...base, ...presentation, type: 'RECORD_RESULT', requestId: String(work.payload.requestId), resultId: base.id, status: output.status ?? 'success', answer: output.text }
-          : { ...base, ...presentation, type: 'DELIVER', text: output.text, artifactIds: [] };
+          : { ...base, ...presentation, ...coverage, type: 'DELIVER', text: output.text, artifactIds: [] };
         break;
-      case 'deliver': event = { ...base, ...presentation, type: 'DELIVER', text: output.text, artifactIds: output.artifactIds,
+      case 'deliver': event = { ...base, ...presentation, ...coverage, type: 'DELIVER', text: output.text, artifactIds: output.artifactIds,
         ...(output.backgroundArtifactIds?.length ? { backgroundArtifactIds: output.backgroundArtifactIds } : {}) }; break;
       case 'decision': event = { ...base, type: 'COORDINATE', decision: output.decision }; break;
       case 'check': {
         const candidateRevision = (work.payload.candidate as { revision?: string } | undefined)?.revision;
         event = { ...base, type: 'CHECK_RESULT', resultId: base.id, passed: output.passed, gaps: output.gaps,
-          ...(candidateRevision ? { candidateRevision } : {}) };
+          ...(candidateRevision ? { candidateRevision } : {}),
+          ...(output.criteriaResults === undefined ? {} : { criteriaResults: output.criteriaResults }) };
         break;
       }
       case 'blocked': event = { ...base, type: 'BLOCKED', reason: output.reason }; break;

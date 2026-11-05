@@ -66,9 +66,9 @@ Then('应明确列出缺失项', function (this: SpecWorld) { assert(this.proble
 Then('不应把缺失值解释为无限执行', function (this: SpecWorld) { assert(this.problem.includes('Missing finite limit')); });
 Given('用户要求交付两个可下载文件', function (this: SpecWorld) { this.h.event({ type: 'USER_INPUT', text: '交付两个文件', goal: { ...this.h.context().goal, requiredArtifacts: 2 } }); });
 Given('负责人只提交文本声称文件已完成', function (this: SpecWorld) { this.h.event({ type: 'DELIVER', text: '文件已完成', artifactIds: ['missing1', 'missing2'] }); });
-When('系统检查交付', function (this: SpecWorld) { this.h.event({ type: 'CHECK_RESULT', resultId: 'check', passed: true, gaps: [] }); });
-Then('应识别文件缺失并拒绝标记为完成', function (this: SpecWorld) { assert.equal(this.h.context().outcome, null); assert(this.h.context().reason.includes('MISSING')); });
-Then('应在预算允许时补齐，否则明确未完成项', function (this: SpecWorld) { assert.equal(this.h.view().phase, 'coordinating'); });
+When('系统预检交付', function (this: SpecWorld) { assert(this.h.context().deliveryGaps?.length); });
+Then('应在安排独立检查前识别文件缺失并拒绝标记为完成', function (this: SpecWorld) { assert.equal(this.h.context().outcome, null); assert(this.h.context().reason.includes('MISSING')); assert(!this.h.context().intents.some(work => work.kind === 'check')); });
+Then('应在预算允许时补齐，否则明确未完成项', function (this: SpecWorld) { assert.deepEqual(this.h.engine.pending(this.h.room, this.h.task).map(work => work.kind), ['owner']); });
 Given('实际产物存在且格式检查通过', function (this: SpecWorld) { this.h.event({ type: 'ARTIFACT', artifact: { id: 'file', name: 'plan.md', content: '方案' } }); this.h.event({ type: 'DELIVER', text: '方案', artifactIds: ['file'] }); });
 Given('语义检查返回遗漏一项用户硬约束并给出引用', function (this: SpecWorld) { this.question = '遗漏用户硬约束，见方案第一段'; });
 When('执行层处理检查结果', function (this: SpecWorld) { this.h.event({ type: 'CHECK_RESULT', resultId: 'check', passed: false, gaps: [this.question] }); });

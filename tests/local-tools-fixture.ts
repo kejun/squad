@@ -1,3 +1,4 @@
+import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import assert from 'node:assert/strict';
 import { chmod, mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -82,7 +83,7 @@ export class LocalFixture {
   runner(final?: unknown) {
     const adapter = new OpenAICompatibleAdapter(this.h.config, { clock: () => this.h.now, transport: async (_url, init) => {
       this.requests.push(JSON.parse(String(init?.body)) as typeof this.requests[number]);
-      assert(this.replies.length || final, 'scripted model exhausted'); return modelResponse(this.replies.length ? this.replies.shift() : final);
+      assert(this.replies.length || final, 'scripted model exhausted'); return modelResponse(withFixtureAcceptance(this.replies.length ? this.replies.shift() : final, this.requests.at(-1)));
     } });
     return new WorkRunner(this.h.engine, adapter, () => this.h.now, globalThis.fetch, undefined, this.runtime);
   }

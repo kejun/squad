@@ -238,6 +238,7 @@ export class WebService {
         },
         artifacts: c.artifacts,
         ...(currentArtifactIds ? { currentArtifactIds } : {}),
+        ...(c.deliveryGaps?.length ? { deliveryGaps: c.deliveryGaps } : {}),
         board: c.board,
         trace: c.trace,
         ...(c.inputAnalyses ? { inputAnalyses: c.inputAnalyses } : {}),
