@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { After, Given, Then, When } from '@cucumber/cucumber';
+import type { CheckMaterials } from '../../src/delivery-acceptance.js';
 import type { LocalToolResult } from '../../src/local-operation.js';
 import { LocalFixture } from '../local-tools-fixture.js';
 import {
-  acquireEvidence, attemptUnassignedEvidence, checkReadBoundary, evidenceIndexInModel, fixtureBody, readFromCheck,
-  readHistoricalEvidence, readTruncatedEvidence, refreshEvidence, restartEvidenceRead, seedMissingEvidence,
+  acquireEvidence, attemptUnassignedEvidence, checkEvidence, checkReadBoundary, evidenceIndexInModel, fixtureBody, readFromExecution,
+  readHistoricalEvidence, readTruncatedEvidence, refreshEvidence, restartEvidenceRead, reviseEvidenceCandidate, seedMissingEvidence,
 } from '../task-evidence-fixture.js';
 import type { SpecWorld } from './steps.js';
 
@@ -15,6 +16,7 @@ interface State {
   outcome?: LocalToolResult;
   pages?: LocalToolResult[];
   boundaryResult?: string;
+  checks?: CheckMaterials[];
 }
 const states = new WeakMap<SpecWorld, State>();
 const state = (world: SpecWorld) => {
@@ -34,28 +36,34 @@ After(async function (this: SpecWorld) { await states.get(this)?.fixture?.close(
 Given('负责人已经取得资料并保存完整的执行回执', async function (this: SpecWorld) { await prepare(this); });
 Given('当前目标已经保存一次资料采集的执行证据', async function (this: SpecWorld) { await prepare(this); });
 Given('当前目标保持不变且旧执行轮次保存了完整回执', async function (this: SpecWorld) { await prepare(this); });
-When('检查员从新的工作轮次查读该证据', async function (this: SpecWorld) {
+When('系统为首检及修订后的复核准备固定材料', async function (this: SpecWorld) {
   const s = state(this);
-  s.outcome = await readFromCheck(s.fixture!, s.source!);
+  const first = await checkEvidence(s.fixture!, { status: 'failed', reason: '候选误述证据出处', source: { id: s.source!, quote: '真实正文' } });
+  await reviseEvidenceCandidate(s.fixture!);
+  s.checks = [first, await checkEvidence(s.fixture!)];
 });
-Then('检查员应取得原正文及其来源和采集时间', function (this: SpecWorld) {
-  const s = state(this), result = s.outcome!;
-  assert.equal(result.code, 'EVIDENCE_PAGE');
-  assert.equal(result.data.text, fixtureBody);
-  assert.equal(result.data.capturedContentHash, '8c9e8bdc687603a2133daa7b80433dde7e4f42c35b7fd7ad76a4f3de1141efbd');
-  const [meta] = evidenceIndexInModel(s.fixture!);
-  assert.equal(meta?.sourceOperationId, s.source);
-  assert.equal(meta?.obtainedAt, 0);
-  assert.equal(meta?.stdoutBytes, 27);
-  assert.equal(meta?.stdoutChars, 16);
-  assert.equal(meta?.completeness, 'complete');
-  assert(!JSON.stringify(meta).includes(fixtureBody));
-  assert(s.fixture!.requests.at(-1)?.messages.some(message => message.content.includes(fixtureBody)));
+Then('检查员应从同一证据快照各一次取得原正文、来源和采集时间', function (this: SpecWorld) {
+  const s = state(this);
+  const [first, review] = s.checks!;
+  const [source] = first!.evidence;
+  assert.equal(first!.evidence.length, 1);
+  assert.deepEqual(review!.evidence, first!.evidence);
+  assert.notEqual(review!.candidate.revision, first!.candidate.revision);
+  assert.equal(review!.previousResults[0]?.source?.id, s.source);
+  assert.equal(source?.stdout, fixtureBody);
+  assert.equal(source?.id, s.source);
+  assert.equal(source?.metadata.capturedContentHash, '8c9e8bdc687603a2133daa7b80433dde7e4f42c35b7fd7ad76a4f3de1141efbd');
+  assert.equal(source?.metadata.obtainedAt, 0);
+  assert.equal(source?.metadata.stdoutBytes, 27);
+  assert.equal(source?.metadata.stdoutChars, 16);
+  assert.equal(source?.metadata.completeness, 'complete');
 });
-Then('查读不应再次执行原命令或申请宿主批准', function (this: SpecWorld) {
+Then('检查不应分页查读、再次执行命令或申请宿主批准', function (this: SpecWorld) {
   const f = state(this).fixture!;
   assert.equal(f.backend.calls.length, 1);
-  assert(!f.h.context().intents.some(work => work.localOperations?.some(op => op.approval)));
+  assert.equal(f.h.context().usage.checks, 2);
+  assert.equal(f.h.context().outcome, 'complete');
+  assert(f.h.context().intents.every(work => !work.localOperations?.some(op => op.approval || op.action.type === 'readEvidence')));
 });
 When('用户明确要求重新获取该资料', async function (this: SpecWorld) {
   await refreshEvidence(state(this).fixture!);
@@ -71,8 +79,7 @@ Then('新操作应实际采集资料并保存独立回执', function (this: Spec
 });
 Then('新旧证据应分别标识原执行和采集时间', async function (this: SpecWorld) {
   const s = state(this);
-  await readFromCheck(s.fixture!, s.source!);
-  const entries = evidenceIndexInModel(s.fixture!);
+  const entries = (await checkEvidence(s.fixture!)).evidence.map(source => source.metadata);
   assert.deepEqual(entries.map(entry => entry.obtainedAt), [0, 50]);
   assert.equal(entries[0]?.sourceOperationId, s.source);
   assert.notEqual(entries[1]?.sourceOperationId, s.source);
@@ -85,10 +92,10 @@ Given(quote('资料的原执行证据为「…」'), async function (this: SpecW
   const script = mode === '正文截断' ? "process.stdout.write('🍀'.repeat(20000))" : 'process.exitCode = 7';
   s.source = (await acquireEvidence(s.fixture, { type: 'runCli', executable: 'node', args: ['-e', script] })).id;
 });
-When('检查员查读对应证据', async function (this: SpecWorld) {
+When('负责人在执行阶段查读对应证据', async function (this: SpecWorld) {
   const s = state(this);
   if (s.sourceMode === '正文截断') s.pages = await readTruncatedEvidence(s.fixture!, s.source!);
-  else s.outcome = await readFromCheck(s.fixture!, s.source!);
+  else s.outcome = await readFromExecution(s.fixture!, s.source!);
 });
 Then(quote('应返回「…」'), function (this: SpecWorld, range: string) {
   const s = state(this);
@@ -132,7 +139,7 @@ Given(quote('成员尝试查读「…」'), async function (this: SpecWorld, ref
 When('系统处理查读请求', async function (this: SpecWorld) {
   const s = state(this);
   s.outcome = s.sourceMode === '未分配给协作者的证据'
-    ? await attemptUnassignedEvidence(s.fixture!) : await readFromCheck(s.fixture!, s.source!);
+    ? await attemptUnassignedEvidence(s.fixture!) : await readFromExecution(s.fixture!, s.source!);
 });
 Then('应拒绝未获准的证据读取', function (this: SpecWorld) {
   assert.equal(state(this).outcome?.code, 'EVIDENCE_UNAVAILABLE');
@@ -152,7 +159,7 @@ When(quote('查读遇到「…」'), async function (this: SpecWorld, boundary: 
     await restartEvidenceRead('claimed');
     s.boundaryResult = '复用同一读取意图且不重复扣额';
   } else {
-    s.fixture = await LocalFixture.create('方案师', true, false, boundary === '没有读取额度' ? { ordinaryLimit: 3 } : {});
+    s.fixture = await LocalFixture.create('方案师', true, false, boundary === '没有读取额度' ? { ordinaryLimit: 4 } : {});
     await checkReadBoundary(s.fixture, boundary);
     s.boundaryResult = boundary === '领取前停止' ? '尚未读取且额度未消费' : '尚未读取且明确额度不足';
   }

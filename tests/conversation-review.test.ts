@@ -1,4 +1,4 @@
-import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
+import { fixtureCheck, withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -20,7 +20,7 @@ import {
   conversationHistory,
   requestedReviewTargets,
 } from "../src/conversation.js";
-import { configuration } from "./helpers.js";
+import { configuration, passFixtureCheck } from "./helpers.js";
 
 const plan =
   "ESP32 墨水屏同步方案：代理服务读取飞书文档，按块计算增量，设备局部刷新。";
@@ -48,14 +48,7 @@ function seed(engine: TeamEngine, room = "r") {
     text: plan,
     artifactIds: ["old-artifact"],
   });
-  engine.send(room, "task:plan", {
-    id: "checked",
-    type: "CHECK_RESULT",
-    at: 0,
-    passed: true,
-    gaps: [],
-    resultId: "check-plan",
-  });
+  passFixtureCheck(engine, room, "task:plan", "checked");
 }
 function setup(config = configuration(), store: Store = new MemoryStore()) {
   const engine = new TeamEngine(store, config, () => 0);
@@ -90,7 +83,7 @@ function script(calls: Intent[], failure?: string): WorkAdapter {
         };
       }
       if (work.kind === "check")
-        return { type: "check", passed: true, gaps: [] };
+        return fixtureCheck(work.payload.candidate);
       return {
         type: "deliver",
         text: "已汇总成员的共识、分歧与改进项。",
@@ -261,8 +254,9 @@ describe("bounded group review", () => {
       "owner:A",
       "check:facilitator",
     ]);
-    for (const work of calls)
+    for (const work of calls.filter(item => item.kind !== "check"))
       expect(JSON.stringify(work.payload.messages)).toContain(plan);
+    expect(calls.at(-1)?.payload.candidate).toMatchObject({ text: "已汇总成员的共识、分歧与改进项。" });
     expect(
       calls.find((work) => work.kind === "owner")?.payload.review,
     ).toMatchObject({
@@ -713,7 +707,7 @@ describe("bounded group review", () => {
     ).toEqual([]);
   });
 
-  it("uses the model protocol to plan the review and passes history through every HTTP request", async () => {
+  it("passes plan history to review roles and sends the fixed synthesis to the check", async () => {
     const config = configuration();
     config.models = {
       default: "local",
@@ -757,8 +751,9 @@ describe("bounded group review", () => {
     await drain(engine, task, adapter);
     expect(requests).toHaveLength(7);
     expect(requests[0]!.system).toContain('return action "review"');
-    for (const request of requests)
+    for (const request of requests.slice(0, -1))
       expect(JSON.stringify(request.context.messages)).toContain(plan);
+    expect(requests.at(-1)?.context.candidate).toMatchObject({ text: "已汇总成员的共识、分歧与改进项。" });
     expect(requests.at(-2)!.system).toContain("Deliver one synthesis");
     expect(engine.view("r", task)?.context.outcome).toBe("complete");
   });

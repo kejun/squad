@@ -4,6 +4,9 @@ import { readFileSync } from 'node:fs';
 import { initialTask, stepTask, persistTask, restoreTask, taskMachine, type TaskSnapshot } from '../src/task.machine.js';
 import { inspectInitialTask, inspectTask, type DebugEvidence } from '../src/task-inspection.js';
 import { taskGraph, type MachineGraph } from '../src/task-structure.js';
+import { capabilities, completeProblem } from '../src/task/facts.js';
+import { conversationInput, deliveryArtifacts } from '../src/task/operations.js';
+import { localEnabled } from '../src/local-operation.js';
 import type { Candidate, Intent, Phase, TaskContext, TaskEvent, TaskInput } from '../src/types.js';
 
 interface Frame { digest: string; phase: Phase; usage: TaskContext['usage']; reply: TaskContext['reply']; evidence: DebugEvidence }
@@ -13,7 +16,7 @@ export const legacyTaskContract = JSON.parse(readFileSync(new URL('./fixtures/ta
 assert.equal(legacyTaskContract.sourceSha, 'dd5ec71b41a82a13c831938e5401783214db76aa07d9e0ab80487b03b7dd42f9');
 // BT_L23–L30 add six approval rules; BT_L32–L34 add two manual retry rules. BT_L37 adds session revocation. Frozen traces stay untouched.
 // BT_M23–M29 add one explanation action to the existing current-coordination rejection.
-const extendedDefinition = '477383cd';
+const extendedDefinition = 'd22b23bc';
 const coordinationRejectionId = 'coordinating:COORDINATE:6';
 const sessionRules = [
   { id: '*:REVOKE_HOST_SESSION:0', order: 0, source: '*', event: 'REVOKE_HOST_SESSION', target: null, guards: ['valid'], actions: ['apply'] },
@@ -31,26 +34,28 @@ const hostRetryAlwaysRules = [
   { id: '*:@always:2', order: 2, source: '*', event: '@always', target: 'running', guards: ['hostRetryReady'], actions: ['startHostRetry'] },
   { id: '*:@always:3', order: 3, source: '*', event: '@always', target: 'ended', guards: ['hostRetryBoundary'], actions: ['failHostRetry'] },
 ];
-const heldCompletionRules = [
-  { id: 'coordinating:COORDINATE:4', order: 4, source: 'coordinating', event: 'COORDINATE', target: 'running', guards: ['hostRetryHoldsFinish'], actions: ['apply'] },
-  { id: 'checking:CHECK_RESULT:0', order: 0, source: 'checking', event: 'CHECK_RESULT', target: 'running', guards: ['hostRetryHoldsCheck'], actions: ['apply'] },
-];
-const deliveryRules = [
-  { guard: 'deliveryConflictExhausted', target: 'ended' },
-  { guard: 'deliveryConflict', target: null },
-  { guard: 'holdingDelivery', target: null },
-  { guard: 'hostRetryHoldsDelivery', target: null },
-  { guard: 'deliveryReady', target: 'checking' },
-  { guard: 'deliveryCanRevise', target: null },
-  { guard: 'valid', target: 'ended' },
-].map(({ guard, target }, order) => ({
-  id: `running:DELIVER:${order}`, order, source: 'running', event: 'DELIVER', target, guards: [guard], actions: ['apply'],
+const heldFinish = { id: 'coordinating:COORDINATE:4', order: 4, source: 'coordinating', event: 'COORDINATE', target: 'running', guards: ['hostRetryHoldsFinish'], actions: ['apply'] };
+const rules = (source: string, event: string, branches: [string | null, string | null, string?][]) => branches.map(([guard, target, action], order) => ({
+  id: `${source}:${event}:${order}`, order, source, event, target, guards: guard ? [guard] : [], actions: [action ?? 'apply'],
 }));
-const checkRevisionRule = { id: 'checking:CHECK_RESULT:4', order: 4, source: 'checking', event: 'CHECK_RESULT',
-  target: 'running', guards: ['checkCanRevise'], actions: ['apply'] };
-function heldRule(ruleId: string) {
-  return heldCompletionRules.find(rule => ruleId.startsWith(`${rule.source}:${rule.event}:`) && Number(ruleId.split(':').at(-1)) >= rule.order);
-}
+const localResumeRules: [string | null, string | null][] = [
+  ['localResumeOwner', 'running'], ['localResumeHelp', 'waitingAssistance'], ['localResumeFacilitator', 'coordinating'],
+  ['localCheckExhausted', 'ended'], ['localResumeCheck', 'checking'],
+];
+const localEndRules: [string | null, string | null, string?][] = [['valid', null], [null, null, 'reject']];
+const checkSettleRules = rules('checking', 'SETTLE', [['settlingCheckHandoff', 'running'], ['settlingCheck', 'ended'], ['valid', null]]);
+const boundedTransitions = [
+  rules('running', 'DELIVER', [['holdingDelivery', null], ['deliveryReady', 'checking'], ['deliveryCanRevise', null], ['valid', 'ended']]),
+  rules('running', 'BLOCKED', [['revisionFailed', 'ended'], ['canCoordinate', 'coordinating'], ['valid', null]]),
+  rules('running', 'WORK_FAILED', [['failedDiscussion', null], ['retryable', null], ['revisionFailed', 'ended'], ['valid', 'waitingHuman']]),
+  rules('checking', 'CLAIM', [['claimCheckUnavailable', 'ended', 'failCheckClaim'], ['claimCheck', null]]),
+  rules('checking', 'CHECK_RESULT', [['checkCanRetry', null], ['checkContinues', 'running'], ['valid', 'ended']]),
+  rules('checking', 'WORK_FAILED', [['failedDiscussion', null], ['checkFailureHandoff', 'running'], ['retryable', null], ['checkFailed', 'ended'], ['valid', 'waitingHuman']]),
+  rules('*', 'RECOVER', [['recoveredCheckExhausted', 'ended'], ['recoveredSafe', null], [null, 'waitingHuman']]),
+  rules('*', 'LOCAL_RESULT', [...localResumeRules, ['uncertainLocalResult', 'waitingHuman'], ...localEndRules]),
+  rules('*', 'LOCAL_RECONCILE', [...localResumeRules, ...localEndRules]),
+];
+const boundedRules = (source: string, event: string) => boundedTransitions.find(group => group[0]?.source === source && group[0]?.event === event);
 function nextRuleId(ruleId: string) {
   const parts = ruleId.split(':');
   parts[parts.length - 1] = String(Number(parts.at(-1)) + 1);
@@ -60,35 +65,39 @@ const approvalRules = ['LOCAL_APPROVAL_REQUIRED', 'LOCAL_APPROVAL_DECISION', 'LO
   { id: `*:${event}:0`, order: 0, source: '*', event, target: null, guards: ['valid'], actions: ['apply'] },
   { id: `*:${event}:1`, order: 1, source: '*', event, target: null, guards: [], actions: ['reject'] },
 ]);
-function assertLegacyEvidence(actual: DebugEvidence, expected: DebugEvidence, label: string, published = false) {
+function assertLegacyEvidence(actual: DebugEvidence, expected: DebugEvidence, label: string, published = false, checkClaim = false) {
   assert.equal(actual.definition, extendedDefinition);
-  const evaluations = expected.evaluations.flatMap((evaluation, index, all) => {
-    if (evaluation.ruleId === 'running:DELIVER:0') return deliveryRules.slice(0, 3).map((rule, i) => ({
-      ...evaluation, ruleId: rule.id, guard: rule.guards[0], passed: i === 2 && evaluation.passed,
-    }));
-    if (evaluation.ruleId === 'running:DELIVER:1') return deliveryRules.slice(3, evaluation.passed ? 5 : 7).map((rule, i) => ({
-      ...evaluation, ruleId: rule.id, guard: rule.guards[0], passed: i === 1 && evaluation.passed,
-    }));
-    const added = heldRule(evaluation.ruleId);
-    if (added) {
-      const revisableCheck = evaluation.ruleId.startsWith('checking:CHECK_RESULT:') && Number(evaluation.ruleId.split(':').at(-1)) >= 3;
-      return [
-      ...(all.slice(0, index).some(previous => heldRule(previous.ruleId) === added) ? [] : [
-        { ...evaluation, ruleId: added.id, guard: added.guards[0], passed: false },
-      ]),
-      ...(evaluation.ruleId === 'checking:CHECK_RESULT:3' ? [
-        { ...evaluation, ruleId: checkRevisionRule.id, guard: checkRevisionRule.guards[0], passed: false },
-      ] : []),
-      { ...evaluation, ruleId: revisableCheck ? nextRuleId(nextRuleId(evaluation.ruleId)) : nextRuleId(evaluation.ruleId) },
-      ];
+  const evaluations = expected.evaluations.flatMap((evaluation, index) => {
+    const group = boundedRules(evaluation.source, evaluation.event);
+    if (group) {
+      const observe = (order: number, passed: boolean) => ({ ...evaluation, ruleId: group[order]!.id, guard: group[order]!.guards[0] ?? null, passed });
+      const order = Number(evaluation.ruleId.split(':').at(-1));
+      if (evaluation.event === 'DELIVER') {
+        if (order === 0) return [observe(0, evaluation.passed)];
+        return evaluation.passed ? [observe(1, true)] : [observe(1, false), observe(2, false), observe(3, false)];
+      }
+      if (evaluation.event === 'CHECK_RESULT') return order === 0 ? [observe(0, false), observe(1, false), observe(2, true)] : [];
+      if (evaluation.event === 'LOCAL_RESULT' || evaluation.event === 'LOCAL_RECONCILE') {
+        if (order < 3) return [evaluation];
+        return order === 3 ? [observe(3, false), observe(4, evaluation.passed)] : [observe(order + 1, evaluation.passed)];
+      }
+      if (evaluation.event === 'WORK_FAILED') return order < 2 ? [evaluation] : [observe(2, false), observe(3, evaluation.passed)];
+      return order === 0 ? [observe(0, false), observe(1, evaluation.passed)] : [observe(order + 1, evaluation.passed)];
+    }
+    if (evaluation.source === heldFinish.source && evaluation.event === heldFinish.event && Number(evaluation.ruleId.split(':').at(-1)) >= heldFinish.order) {
+      const first = !expected.evaluations.slice(0, index).some(previous => previous.ruleId === heldFinish.id);
+      return [...(first ? [{ ...evaluation, ruleId: heldFinish.id, guard: heldFinish.guards[0]!, passed: false }] : []),
+        { ...evaluation, ruleId: nextRuleId(evaluation.ruleId) }];
     }
     return evaluation.ruleId === '*:@always:1' && evaluation.passed === false ? [evaluation,
       ...hostRetryAlwaysRules.map(rule => ({ ...evaluation, ruleId: rule.id, guard: rule.guards[0], passed: false }))] : [evaluation];
   });
-  const changed = published ? [...expected.changed, 'publishedDelivery'] : expected.changed;
-  const microsteps = published ? expected.microsteps.map(step => step.changed.includes('outcome')
-    ? { ...step, changed: [...step.changed, 'publishedDelivery'] } : step) : expected.microsteps;
-  assert.deepEqual(actual, { ...expected, definition: extendedDefinition, evaluations, changed, microsteps }, label);
+  const comparable = (keys: string[]) => keys.filter(key => key !== 'deliveryCycle');
+  const expectedKeys = (keys: string[]) => checkClaim ? keys.filter(key => key !== 'usage')
+    : published && keys.includes('outcome') ? [...keys, 'publishedDelivery'] : keys;
+  assert.deepEqual({ ...actual, changed: comparable(actual.changed), microsteps: actual.microsteps.map(step => ({ ...step, changed: comparable(step.changed) })) },
+    { ...expected, definition: extendedDefinition, evaluations, changed: expectedKeys(expected.changed),
+      microsteps: expected.microsteps.map(step => ({ ...step, changed: expectedKeys(step.changed) })) }, label);
 }
 
 function canonical(value: unknown): unknown {
@@ -124,23 +133,90 @@ export function restoreLegacyTask(phase: Phase): TaskSnapshot {
   return snapshot;
 }
 type FacilitatorOwners = Map<string, string>;
+type HistoricalChecks = Map<string, Intent['payload']>;
+const replayRequestPrefix = 'replay-check-request:';
+
+/** Remember the retired check payload only for the frozen digest comparison. */
+function recordCreatedChecks(snapshot: TaskSnapshot, checks: HistoricalChecks) {
+  const c = snapshot.context;
+  for (const work of c.intents) {
+    if (work.kind !== 'check' || checks.has(work.id)) continue;
+    assert.equal(work.payload.deliveryProtocol, 'bounded');
+    assert.deepEqual(work.payload.candidate, c.candidate);
+    assert.deepEqual(work.payload.priorFindings, []);
+    assert.deepEqual(work.payload.artifacts, deliveryArtifacts(c).artifacts);
+    const rawInputs = work.payload.rawInputs as { id: string; text: string }[];
+    const trusted = new Map(c.messages.filter(item => item.author === 'user').map(item => [item.id, item.text]));
+    for (const input of c.inputAnalyses ?? []) trusted.set(input.id, input.rawText);
+    assert(Array.isArray(rawInputs) && rawInputs.every(input => trusted.get(input.id) === input.text));
+    assert.equal(work.requestCount, 0);
+    checks.set(work.id, structuredClone({ goal: c.goal, ...deliveryArtifacts(c), board: c.board, ...conversationInput(c),
+      deterministicGap: completeProblem(c), capabilities: { ...capabilities(c, work.target), localTools: localEnabled(c.config, work.target) } }));
+  }
+}
+
+function boundCheckResult(snapshot: TaskSnapshot, event: TaskEvent): TaskEvent {
+  if (event.type !== 'CHECK_RESULT') return event;
+  const { passed, gaps, ...envelope } = event;
+  assert.equal(passed, true);
+  assert.deepEqual(gaps, []);
+  const candidate = snapshot.context.candidate;
+  const work = snapshot.context.intents.find(item => item.id === event.workId && item.kind === 'check');
+  assert(candidate?.acceptance && candidate.revision && work);
+  return { ...envelope, attempt: work.attempt, candidateRevision: candidate.revision,
+    criteriaResults: candidate.acceptance.criteria.map(criterion => ({ criterionId: criterion.id, status: 'passed' })) };
+}
+
+function checkAuthorization(snapshot: TaskSnapshot, event: TaskEvent): TaskEvent | undefined {
+  if (event.type !== 'CLAIM') return undefined;
+  const work = snapshot.context.intents.find(item => item.id === event.intentId && item.kind === 'check');
+  if (!work) return undefined;
+  return { type: 'CONSUME', id: `${replayRequestPrefix}${event.id}`, at: event.at, intentId: work.id, attempt: work.attempt,
+    fence: { epoch: work.epoch, goalVersion: work.goalVersion } };
+}
+
 function recordCreatedFacilitators(snapshot: TaskSnapshot, owners: FacilitatorOwners) {
   for (const work of snapshot.context.intents) {
     if (work.kind === 'facilitator' && !owners.has(work.id)) owners.set(work.id, snapshot.context.owner);
   }
 }
-function assertFrame(snapshot: TaskSnapshot, expected: Frame, label: string, owners: FacilitatorOwners) {
+function assertFrame(snapshot: TaskSnapshot, expected: Frame, label: string, owners: FacilitatorOwners, checks: HistoricalChecks = new Map()) {
   assert.equal(snapshot.value, expected.phase, label);
   assert.deepEqual(snapshot.context.usage, expected.usage, label);
   assert.deepEqual(snapshot.context.reply, expected.reply, label);
   const value = businessSnapshot(snapshot) as { context: TaskContext };
   // Assert the new identifiers and publication, then compare all remaining legacy data byte-for-byte by digest.
   const { context } = value;
+  const cycle = context.deliveryCycle;
+  assert(cycle, label);
+  assert.equal(cycle.requests, expected.usage.checks, label);
+  assert.equal(cycle.retry, undefined, label);
+  assert.equal(cycle.revisionUsed, false, label);
+  delete context.deliveryCycle;
+  context.trace = context.trace.filter(entry => entry.event !== 'CONSUME' || !entry.detail.startsWith(replayRequestPrefix));
+  for (const work of context.intents.filter(item => item.kind === 'check')) {
+    const historic = checks.get(work.id);
+    assert(historic, `${label}: check ${work.id} was never created`);
+    assert.equal(work.requestCount, expected.usage.checks, label);
+    if (context.outcome === 'complete') {
+      const criteria = context.candidate?.acceptance?.criteria;
+      assert(criteria?.length, label);
+      assert.deepEqual(work.criteriaResults, criteria.map(item => ({ criterionId: item.id, status: 'passed' })), label);
+    } else assert.equal(work.criteriaResults, undefined, label);
+    work.payload = structuredClone(historic);
+    work.requestCount = 0;
+    delete work.criteriaResults;
+  }
   const revisions = new Set(context.trace.filter(entry => entry.event === 'DELIVER').map(entry => `${context.taskId}:candidate:${entry.detail}`));
   const candidates = [context.candidate, ...context.intents.map(item => item.payload.candidate as Candidate | undefined)];
   for (const candidate of candidates) if (candidate?.revision) {
     assert(revisions.has(candidate.revision), `${label}: candidate identity must reference a delivered event`);
     if (candidate.requiresBoundCheck !== undefined) assert.equal(candidate.requiresBoundCheck, true);
+    if (candidate.acceptance) {
+      assert.equal(candidate.acceptance.revision, candidate.revision, label);
+      assert(candidate.acceptance.criteria.length > 0, label);
+    }
+    delete candidate.acceptance;
     delete candidate.revision;
     delete candidate.requiresBoundCheck;
   }
@@ -167,6 +243,7 @@ export function replayLegacyTrace(name: string, diagnostics = false): TaskSnapsh
   const input = structuredClone(trace.input);
   let snapshot = initialTask(input);
   const owners: FacilitatorOwners = new Map();
+  const checks: HistoricalChecks = new Map();
   recordCreatedFacilitators(snapshot, owners);
   assertFrame(snapshot, trace.frames[0]!, `${name}:init`, owners);
   if (diagnostics) {
@@ -174,20 +251,36 @@ export function replayLegacyTrace(name: string, diagnostics = false): TaskSnapsh
     assert.equal(snapshotDigest(initial.snapshot), snapshotDigest(snapshot));
     assertLegacyEvidence(initial.evidence, trace.frames[0]!.evidence, `${name}:initial diagnostics`);
   }
-  for (const [index, event] of trace.events.entries()) {
+  for (const [index, recorded] of trace.events.entries()) {
     const before = snapshot;
-    snapshot = stepTask(before, structuredClone(event));
+    const event = boundCheckResult(before, structuredClone(recorded));
+    snapshot = stepTask(before, event);
     recordCreatedFacilitators(snapshot, owners);
+    recordCreatedChecks(snapshot, checks);
     const frame: Frame = trace.frames[index + 1]!;
-    assertFrame(snapshot, frame, `${name}:${index}:${event.type}`, owners);
+    const consume = checkAuthorization(snapshot, event);
     if (diagnostics) {
-      const inspected = inspectTask(before, structuredClone(event));
+      const inspected = inspectTask(before, event);
       assert.equal(snapshotDigest(inspected.snapshot), snapshotDigest(snapshot));
       assertLegacyEvidence(inspected.evidence, frame.evidence, `${name}:${index}:diagnostics`,
-        before.context.outcome !== 'complete' && snapshot.context.outcome === 'complete');
+        before.context.outcome !== 'complete' && snapshot.context.outcome === 'complete', !!consume);
     }
+    if (consume) {
+      assert.deepEqual(snapshot.context.usage, before.context.usage, 'Claiming a check does not charge a model request');
+      const claimed = snapshot;
+      snapshot = stepTask(claimed, consume);
+      assert.equal(snapshot.context.reply.code, 'OK');
+      assert.equal(snapshot.context.usage.checks, claimed.context.usage.checks + 1);
+      if (diagnostics) {
+        const inspected = inspectTask(claimed, consume);
+        assert.equal(snapshotDigest(inspected.snapshot), snapshotDigest(snapshot));
+        assert.deepEqual(inspected.evidence.evaluations[0], { ruleId: '*:CONSUME:0', source: '*', event: 'CONSUME', guard: 'valid', passed: true });
+        assert.deepEqual(inspected.evidence.changed, ['intents', 'trace', 'usage', 'deliveryCycle']);
+      }
+    }
+    assertFrame(snapshot, frame, `${name}:${index}:${event.type}`, owners, checks);
     snapshot = restoreTask(structuredClone(persistTask(snapshot)));
-    assertFrame(snapshot, frame, `${name}:${index}:persist/restore`, owners);
+    assertFrame(snapshot, frame, `${name}:${index}:persist/restore`, owners, checks);
   }
   assert.deepEqual(input, trace.input, 'Model must not mutate its input');
   return snapshot;
@@ -215,13 +308,14 @@ export function verifyLegacyDiagnostics() {
   const transitions = [...sessionRules, ...hostRetryRules, ...graph.transitions.slice(0, insertion), ...approvalRules, ...graph.transitions.slice(insertion)]
     .flatMap(original => {
       const rule = original.id === coordinationRejectionId ? { ...original, actions: ['reject', 'explainCoordinationRejection'] } : original;
-      if (rule.source === 'running' && rule.event === 'DELIVER') return rule.order === 0 ? deliveryRules : [];
-      const added = heldRule(rule.id);
-      if (added) {
-        const extra = rule.source === 'checking' && rule.order >= 3 ? 1 : 0;
-        const shifted = { ...rule, order: rule.order + 1 + extra, id: extra ? nextRuleId(nextRuleId(rule.id)) : nextRuleId(rule.id) };
-        if (added.order === rule.order) return [added, shifted];
-        return extra && rule.order === 3 ? [checkRevisionRule, shifted] : [shifted];
+      const group = boundedRules(rule.source, rule.event);
+      if (group) {
+        if (rule.order !== 0) return [];
+        return rule.source === 'checking' && rule.event === 'WORK_FAILED' ? [...checkSettleRules, ...group] : group;
+      }
+      if (rule.source === heldFinish.source && rule.event === heldFinish.event && rule.order >= heldFinish.order) {
+        const shifted = { ...rule, order: rule.order + 1, id: nextRuleId(rule.id) };
+        return rule.order === heldFinish.order ? [heldFinish, shifted] : [shifted];
       }
       return rule.id === '*:@always:1' ? [rule, ...hostRetryAlwaysRules] : [rule];
     });

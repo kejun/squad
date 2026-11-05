@@ -7,14 +7,16 @@ import type { LocalOperation } from '../src/local-operation.js';
 import { LocalRuntime, type LocalExecution } from '../src/local-runtime.js';
 import { SqliteStore } from '../src/store.js';
 import { WorkRunner } from '../src/runner.js';
+import { restoreTask } from '../src/task.machine.js';
 import { createTeamConfig } from '../team.config.js';
+import { legacyTaskSnapshot } from './legacy-task-snapshot-fixture.js';
 import { ControlledProcessBackend } from './local-tools-fixture.js';
 
 export class TaskProtocolFixture {
   readonly room = 'protocol-fixture';
   readonly task = 'task:legacy';
   readonly backend = new ControlledProcessBackend();
-  readonly legacyConfig = { ...createTeamConfig({ SQUAD_INTENT_ANALYSIS_ENABLED: 'false' }), version: 'team-v1', toolVersion: 'tools-v1' };
+  readonly legacyConfig = { ...createTeamConfig({ SQUAD_INTENT_ANALYSIS_ENABLED: 'false' }), version: 'team-v2', toolVersion: 'tools-v2' };
   readonly currentConfig = { ...createTeamConfig({ SQUAD_INTENT_ANALYSIS_ENABLED: 'false' }),
     models: { default: 'current', services: { current: { baseUrl: 'https://current.example', model: 'current-model' } } } };
   readonly dbPath: string;
@@ -56,16 +58,20 @@ export class TaskProtocolFixture {
         intentId: work.id, operationId: operation.id, sessionId: this.op.sessionId!, ...metadata }).ok);
     });
     assert(this.completion.settled && this.completion.effectsKnown);
-    if (!terminal) return;
+    if (!terminal) { this.saveLegacySnapshot(false); return; }
     assert(this.engine.send(this.room, this.task, { type: 'LOCAL_RESULT', id: 'legacy:process-result', at: 2,
       intentId: work.id, operationId: operation.id, sessionId: this.op.sessionId!, ...this.completion }).ok);
-    assert(this.engine.send(this.room, this.task, { type: 'DELIVER', id: 'legacy:candidate', at: 3, workId: work.id,
-      fence: claimed, text: '原交付结论', artifactIds: [], artifacts: [{ name: 'legacy.md', content: '原交付正文' }] }).ok);
-    const check = this.engine.pending(this.room, this.task).find(item => item.kind === 'check')!;
-    const checked = this.engine.claim(this.room, this.task, check.id)!;
-    assert(this.engine.send(this.room, this.task, { type: 'CHECK_RESULT', id: 'legacy:result', at: 4, workId: check.id,
-      fence: checked, passed: true, gaps: [], resultId: 'published' }).ok);
+    assert(this.engine.send(this.room, this.task, { type: 'STOP', id: 'legacy:stop', at: 3 }).ok);
+    assert(this.engine.send(this.room, this.task, { type: 'SETTLE', id: 'legacy:settled', at: 4, intentId: work.id }).ok);
+    assert.equal(this.view().phase, 'ended');
+    this.saveLegacySnapshot(true);
     assert.equal(this.view().context.outcome, 'complete');
+  }
+  private saveLegacySnapshot(terminal: boolean) {
+    this.store.transact(this.room, tx => {
+      const record = tx.room.tasks[this.task] as { version: number; snapshot: unknown };
+      tx.room.tasks[this.task] = { ...record, snapshot: legacyTaskSnapshot(restoreTask(record.snapshot), terminal) };
+    });
   }
   view() { return this.engine.view(this.room, this.task)!; }
   get saved() { return this.store.read(this.room).tasks[this.task] as { version: number; snapshot: unknown }; }
@@ -87,6 +93,11 @@ export class TaskProtocolFixture {
   async tryRun() {
     const runner = new WorkRunner(this.engine, { execute: async () => { this.modelCalls++; return { type: 'settled' }; } }, () => 51);
     return runner.runOne(this.room, this.task);
+  }
+  attemptLegacyModelRequest() {
+    const work = this.view().context.intents.find(intent => intent.localOperations?.some(op => op.id === this.op.id))!;
+    return this.engine.send(this.room, this.task, { type: 'CONSUME', id: 'upgraded:late-request', at: 51,
+      intentId: work.id, fence: work });
   }
   continue(route: string) {
     if (route === '继续任务') return this.engine.submit(this.room, { id: 'continue-current', text: '继续', intent: 'continue', replyToTaskId: this.task });

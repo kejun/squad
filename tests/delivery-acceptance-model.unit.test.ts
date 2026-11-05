@@ -30,7 +30,58 @@ function report(model: LocalModel, work: Intent, criteriaResults?: CriterionJudg
 
 const pendingOwner = (model: LocalModel) => model.c.intents.filter(work => work.kind === 'owner' && work.status === 'pending');
 
+function modelWithHistoricalReference() {
+  const model = new LocalModel(input => {
+    input.message.text = '比较以前的报告；必须指出恢复风险';
+    input.config.inputAnalysis = { enabled: true };
+    input.config.models = { default: 'fixture', services: { fixture: { baseUrl: 'https://example.test/v1', model: 'fixture' } } };
+    input.history = { messages: [], board: [], truncated: false, artifacts: [
+      { taskId: 'prior-task', id: 'recovery', name: '恢复报告', content: '恢复实际用了两小时。', goalVersion: 1 },
+      { taskId: 'prior-task', id: 'unrelated', name: '其他报告', content: '未获授权的材料。', goalVersion: 1 },
+    ] };
+  });
+  expect(model.work.kind).toBe('interpretation');
+  expect(model.send({ type: 'INTERPRETATION_RESULT', inputId: 'M', workId: model.work.id, fence: model.work,
+    spec: { action: 'request', objective: '比较以前的报告', constraints: [], expectedOutputs: [], acceptanceCriteria: ['指出恢复风险'],
+      references: [{ kind: 'artifact', taskId: 'prior-task', id: 'recovery' }], confidence: 1, clarification: null } }).ok).toBe(true);
+  return model;
+}
+
 describe('bounded delivery acceptance model', () => {
+  it('[BT_I04] fixes approved historical material and verifies its exact quote through recheck', () => {
+    const model = modelWithHistoricalReference();
+    expect(submit(model, claim(model, 'owner')).ok).toBe(true);
+    const first = requestCheck(model);
+    const references = first.payload.references as { id: string; content: string }[];
+    expect(references).toEqual([expect.objectContaining({ kind: 'artifact', taskId: 'prior-task', content: '恢复实际用了两小时。' })]);
+    const results = accept(model);
+    results[0] = { ...results[0]!, status: 'failed', reason: '漏写恢复时间', source: { id: references[0]!.id, quote: '用了两小时' } };
+    expect(report(model, first, results).ok).toBe(true);
+    expect(model.snapshot.value).toBe('running');
+
+    // A later refreshed view cannot change the material fixed for this cycle.
+    model.c.history!.artifacts[0]!.content = '此后记录变化。';
+    expect(submit(model, claim(model, 'owner'), 'revision').ok).toBe(true);
+    const second = requestCheck(model);
+    expect(second.payload.references).toEqual(references);
+    const revised = accept(model);
+    revised[0] = { ...revised[0]!, status: 'passed', source: { id: references[0]!.id, quote: '用了两小时' } };
+    expect(report(model, second, revised).ok).toBe(true);
+    expect(model.c.outcome).toBe('complete');
+    expect(model.c.publishedDelivery?.artifactIds).toEqual([]);
+  });
+
+  it('[BT_I04] settles without a check when an approved historical reference can no longer be read', () => {
+    const model = modelWithHistoricalReference();
+    model.c.history!.artifacts = [];
+
+    expect(submit(model, claim(model, 'owner')).ok).toBe(true);
+
+    expect(model.c.candidate?.deliveryIssue?.code).toBe('CHECK_REFERENCE_UNAVAILABLE');
+    expect(model.c.outcome).toBe('partial');
+    expect(model.c.usage.checks).toBe(0);
+  });
+
   it('[BT_F14] retains direct requirements omitted by a validated input interpretation', () => {
     const model = new LocalModel(input => { input.goal.constraints = ['保留每一条用户硬约束']; });
 

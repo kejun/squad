@@ -1,3 +1,4 @@
+import { fixtureCheck } from './delivery-protocol-fixture.js';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -41,7 +42,7 @@ export class DiscussionFixture {
     if (work.kind === 'facilitator') return { type: 'decision', decision: { action: 'review', question: '从各自专业视角讨论离线同步方案的风险、依据与替代选择', expected: '具体意见及来源', reason: '用户直接要求空闲成员讨论' } };
     if (work.kind === 'assistance') return { type: 'answer', text: `${work.target} 的完整意见与独立依据`, summary: `${work.target} 的建议`, artifacts: [{ name: `${work.target}.md`, content: `${work.target} 的完整报告与来源 https://example.com/source` }] };
     if (work.kind === 'discussionSummary') return { type: 'answer', text: '协调员汇总：保留各成员依据、共识、分歧及未完成项。' };
-    if (work.kind === 'check') return { type: 'check', passed: true, gaps: [] };
+    if (work.kind === 'check') return fixtureCheck(work.payload.candidate);
     assert.equal(work.kind, 'owner');
     return { type: 'deliver', text: '方案师已结合草稿、协调员汇总和完整成员意见完善方案。', artifactIds: [] };
   }

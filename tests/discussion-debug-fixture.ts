@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { deliveryJudgments } from '../src/delivery-acceptance.js';
 import { debugEventTemplate, TaskSandbox } from '../src/task-debug.js';
 import { persistTask, stepTask } from '../src/task.machine.js';
 
@@ -26,9 +27,13 @@ export function completeWithTemplates(sandbox: TaskSandbox) {
   send('CLAIM'); send('DISCUSSION_RESULT');
   assert.equal(sandbox.snapshot.context.discussion?.status, 'ready');
   send('DELIVER'); assert.equal(sandbox.snapshot.context.discussion?.status, 'delivered');
-  send('CLAIM'); send('DELIVER'); send('CLAIM'); send('CHECK_RESULT');
-  assert.equal(sandbox.snapshot.context.outcome, 'complete');
-  assert.equal(sandbox.snapshot.context.messages.filter(message => message.kind === 'final').length, 1);
+  send('CLAIM'); send('DELIVER'); send('CLAIM'); send('CONSUME'); send('CHECK_RESULT');
+  const context = sandbox.snapshot.context;
+  assert.equal(context.outcome, 'complete');
+  assert.equal(context.usage.checks, 1);
+  assert.deepEqual(deliveryJudgments(context, context.candidate!.revision!), context.candidate!.acceptance!.criteria
+    .map(criterion => ({ criterionId: criterion.id, status: 'passed' })));
+  assert.equal(context.messages.filter(message => message.kind === 'final').length, 1);
 }
 export function primaryDeliveryTemplate(sandbox: TaskSandbox) {
   const before = sandbox.snapshot;

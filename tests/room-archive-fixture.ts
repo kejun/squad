@@ -1,3 +1,4 @@
+import { fixtureCheck } from './delivery-protocol-fixture.js';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -38,7 +39,7 @@ export class RoomArchiveFixture {
         signal.addEventListener('abort', () => { this.cancelled++; reject(new Error('cancelled')); }, { once: true });
       });
     }
-    return work.kind === 'check' ? { type: 'check', passed: true, gaps: [] }
+    return work.kind === 'check' ? fixtureCheck(work.payload.candidate)
       : { type: 'deliver', text: '归档测试历史结果', artifactIds: [] };
   } };
   hold = false;

@@ -137,7 +137,8 @@ describe('persisted local operations in the real taskMachine', () => {
     const candidate = m.c.candidate!;
     const criteriaResults = candidate.acceptance!.criteria.map(criterion => ({ criterionId: criterion.id, status: 'passed' }));
 
-    const reply = m.send({ type: 'CHECK_RESULT', workId: m.work.id, fence: m.work, candidateRevision: candidate.revision, resultId: 'check', criteriaResults });
+    const reply = m.send({ type: 'CHECK_RESULT', workId: m.work.id, fence: m.work, attempt: m.work.attempt,
+      candidateRevision: candidate.revision, resultId: 'check', criteriaResults });
 
     expect(reply.ok).toBe(true);
     expect(m.c.outcome).toBe('partial');

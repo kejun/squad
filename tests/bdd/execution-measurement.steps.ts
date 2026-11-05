@@ -9,7 +9,6 @@ import { WorkRunner } from '../../src/runner.js';
 import { coveredDuration, type ExecutionObservation, type MeasurementRecord } from '../../src/measurement.js';
 import { summarizeMeasurements } from '../../src/measurement-report.js';
 import { WebService } from '../../src/web/service.js';
-import type { AcceptanceCriterion } from '../../src/delivery-acceptance.js';
 import { fixtureCheck, withFixtureAcceptance } from '../delivery-protocol-fixture.js';
 import { Harness } from '../helpers.js';
 import { hostUntil } from '../host-approval-fixture.js';
@@ -219,6 +218,7 @@ Given('任务读取原回执并处理已接受的宿主续办与交付检查', a
   const s: MeasurementState = { records: [] }; states.set(this, s);
   const local = await LocalFixture.create(); s.local = local;
   const { h } = local;
+  assert(h.event({ type: 'USER_INPUT', text: '必须交付一份报告', goal: { ...h.context().goal, requiredArtifacts: 1 } }).ok);
   const runner = new WorkRunner(h.engine, {
     execute: async (work, signal, scope) => {
       if (work.kind === 'check') return fixtureCheck(work.payload.candidate);
@@ -226,13 +226,11 @@ Given('任务读取原回执并处理已接受的宿主续办与交付检查', a
       if (!s.evidenceSourceId) {
         const result = await tools.invoke(evidenceCommand, [], signal, id => { s.evidenceSourceId = id; });
         assert(result.ok);
-        return { type: 'deliver', text: '暂未附凭证', artifactIds: [], coverage: [] };
+        return { type: 'deliver', text: '暂未附报告', artifactIds: [] };
       }
       const read = await tools.invoke({ type: 'readEvidence', sourceOperationId: s.evidenceSourceId, stream: 'stdout' }, [], signal);
       assert(read.ok);
-      const criteria = work.payload.acceptanceCriteria as AcceptanceCriterion[];
-      return { type: 'deliver', text: '已核验来源', artifactIds: [], coverage: criteria.map(item => ({ criterionId: item.id,
-        refs: [{ kind: 'evidence', id: s.evidenceSourceId! }] })) };
+      return { type: 'deliver', text: '已核验来源并附报告', artifactIds: [], artifacts: [{ name: 'sources.md', content: '真实正文' }] };
     },
   }, () => h.now, undefined, undefined, local.runtime, (_context, event) => s.records.push(event));
   for (let i = 0; i < 3; i++) assert(await runner.runOne(h.room, h.task));
@@ -280,7 +278,7 @@ Then('交付观测应区分预检缺口、候选检查和最终发布', function
   const checked = records.find(event => event.phase === 'delivery.checked');
   const published = records.find(event => event.phase === 'delivery.published');
   assert(preflight && checked && published?.phase === 'delivery.published');
-  assert(preflight.gaps.some(gap => gap.criterionId && gap.kind === 'missing_requirement'));
+  assert(preflight.gaps.some(gap => gap.criterionId === null && gap.kind === 'missing_requirement'));
   assert.notEqual(preflight.candidateRevision, checked.candidateRevision);
   assert.equal(checked.candidateRevision, published.candidateRevision);
   assert.equal(checked.passed, true);

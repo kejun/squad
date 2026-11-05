@@ -3,7 +3,7 @@ import { Given, When, Then } from '@cucumber/cucumber';
 import { OpenAICompatibleAdapter, WorkRunner, type WorkOutput } from '../../src/index.js';
 import { Harness, configuration } from '../helpers.js';
 import type { SpecWorld } from './steps.js';
-import { withFixtureAcceptance } from '../delivery-protocol-fixture.js';
+import { fixtureCheck, withFixtureAcceptance } from '../delivery-protocol-fixture.js';
 
 type ModelKind = 'owner' | 'assistance' | 'facilitator' | 'check';
 interface RequestBody {
@@ -36,7 +36,7 @@ async function run(world: SpecWorld) {
   assert.equal(pending.target, s.member);
   const output: WorkOutput = s.kind === 'facilitator'
     ? { type: 'decision', decision: { action: 'askUser', question: '需要兼容哪个版本？', reason: '缺少版本范围。' } }
-    : s.kind === 'check' ? { type: 'check', passed: true, gaps: [] }
+    : s.kind === 'check' ? fixtureCheck(pending.payload.candidate)
       : { type: 'answer', text: s.text, status: 'success' };
   const adapter = new OpenAICompatibleAdapter(world.h.config, { env: {}, clock: () => world.h.now, transport: async (_url, init) => {
     assert.equal(world.h.context().intents.find(work => work.id === pending.id)?.status, 'inflight');
@@ -66,9 +66,14 @@ Given('本次模型工作为{string}且执行成员为{string}', function (this:
   states.set(this, { kind, member, requests: [], text: '建议保留恢复验证，并记录来源与适用范围。', search: false, searches: 0 });
 });
 When('执行带消息风格约定的模型请求', async function (this: SpecWorld) { await run(this); });
-Then('发给供应商的系统提示词应优先自然段落并限制装饰性排版', function (this: SpecWorld) {
+Then('系统提示词应要求常规发言简洁自然并要求独立检查的异常理由具体简洁', function (this: SpecWorld) {
   const s = state(this);
   assert.equal(s.requests.length, 1);
+  if (s.kind === 'check') {
+    assert.match(system(s.requests[0]!), /For failed or unverified, explain the specific problem in the user’s language/);
+    assert.match(system(s.requests[0]!), /For passed, only the ID and status are required/);
+    return;
+  }
   const prompt = style(s.requests[0]!);
   for (const requirement of [/current user's language/, /natural, concise paragraphs/, /Lead with the answer/,
     /Short replies should go straight into the content/, /headings only when longer material/, /plain wording.*decorative bold/,
@@ -80,6 +85,14 @@ Then('发给供应商的系统提示词应优先自然段落并限制装饰性�
 });
 Then('风格约定只作用于可读文本且保留当前工作类型的 JSON 协议', function (this: SpecWorld) {
   const s = state(this), request = s.requests[0]!;
+  if (s.kind === 'check') {
+    assert.match(system(request), /Return exactly one JSON object/);
+    assert.match(system(request), /"type":"check","criteriaResults":/);
+    assert.match(system(request), /Do not return an overall verdict or separate gap list/);
+    assert.doesNotMatch(system(request), /"type":"(?:answer|deliver|runCli)"/);
+    assert.deepEqual(request.response_format, { type: 'json_object' });
+    return;
+  }
   assert.match(style(request), /only to human-readable JSON values/);
   assert.match(style(request), /Keep the required JSON structure, action names, identifiers and tool arguments unchanged/);
   assert.match(system(request), /Return exactly one JSON object, without commentary/);

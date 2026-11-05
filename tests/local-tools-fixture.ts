@@ -62,7 +62,13 @@ export class LocalFixture {
     if (role === 'Builder') config.defaultBot = 'builder-1';
     if (role === '新增成员') { config.bots.push({ id: 'new-bot', name: '新增成员', instructions: '', tools: [] }); config.defaultBot = 'new-bot'; }
     f.h = new Harness(config, sqlite ? new SqliteStore(join(f.root, 'team.sqlite')) : undefined);
-    if (role === '最终检查') f.h.event({ type: 'DELIVER', text: 'candidate', artifactIds: [] });
+    if (role === '最终检查') {
+      await writeFile(join(f.source, 'package.json'), JSON.stringify({ private: true, scripts: { build: 'node build.mjs' } }));
+      await writeFile(join(f.source, 'build.mjs'), skillScript);
+      assert(f.h.event({ type: 'USER_INPUT', text: '运行 npm run build' }).ok);
+      const owner = f.h.claim('owner');
+      assert(f.h.event({ type: 'DELIVER', workId: owner.id, fence: owner, text: 'candidate', artifactIds: [] }).ok);
+    }
     if (role === '协调员') f.h.event({ type: 'BLOCKED', reason: '需要协调' });
     if (role === '后台讨论') {
       f.h.claim(); f.h.event({ type: 'USER_INPUT', text: '所有人参与讨论', reviewTargets: ['B'] });
@@ -91,20 +97,31 @@ export class LocalFixture {
     const work = this.h.engine.pending(this.h.room, this.h.task).find(w => w.kind !== 'cancel')!;
     const final = work.kind === 'check' ? { type: 'check', passed: true, gaps: [] } : work.kind === 'facilitator'
       ? { type: 'decision', decision: { action: 'continue', reason: '已验证' } } : { type: 'answer', text: '真实 CLI 验证完成' };
-    this.replies.push(...this.actions(), final);
+    this.replies.push(...(work.kind === 'check' ? [] : this.actions()), final);
     await this.runner().runOne(this.h.room, this.h.task, work.id);
     return this.h.context().intents.find(w => w.id === work.id)!;
   }
   async close() { await this.runtime?.close(); this.h?.store.close(); await removeFixture(this.root); }
 }
 export function assertFlow(f: LocalFixture, work: Intent) {
-  assert.equal(f.backend.calls.length, 1); assert.equal(work.localOperations?.length, work.kind === 'check' ? 4 : 3);
+  assert.equal(f.backend.calls.length, 1);
+  if (work.kind === 'check') {
+    assert.deepEqual(work.localOperations?.map(op => op.action.type), ['runCli', 'verifyWorkspace']);
+    assert(work.localOperations!.every(op => op.status === 'succeeded' && op.attempt === 1 && op.result?.ok));
+    assert.equal(f.requests.length, 1);
+    assert(f.requests[0]!.messages.some(message => message.content.includes('skill-ok')));
+    assert.equal(f.h.context().usage.ordinary, 3);
+    assert.equal(f.h.context().usage.checks, 1);
+    assert.equal(f.h.context().outcome, 'complete');
+    return;
+  }
+  assert.equal(work.localOperations?.length, 3);
   assert(work.localOperations.every(o => o.status === 'succeeded' && o.attempt === 1 && o.result?.ok));
   assert(work.localCheckpoint?.messages.some(m => m.content.includes('skill-ok')));
   assert(f.requests.at(-1)?.messages.some(m => m.content.includes('skill-ok')));
   assert.equal(f.requests.length, 4);
-  assert.equal(f.h.context().usage.ordinary, work.kind === 'check' ? 4 : work.discussionId ? 9 : 7);
-  assert.equal(f.h.context().usage.checks, work.kind === 'check' ? 4 : 0);
+  assert.equal(f.h.context().usage.ordinary, work.discussionId ? 9 : 7);
+  assert.equal(f.h.context().usage.checks, 0);
 }
 
 export async function removeFixture(path: string): Promise<void> {

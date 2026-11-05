@@ -41,7 +41,7 @@ async function startFixture() {
       const { workId, context: payload } = JSON.parse(request.messages.find(message => message.role === 'user').content);
       const match = /^You are (.+?), executing (\w+) work\./.exec(request.messages[0].content);
       assert(match && workId, 'Production model protocol drift');
-      const [, target, kind] = match, goal = payload.goal?.text ?? '';
+      const [, target, kind] = match, goal = payload.goal?.text ?? payload.rawInputs?.[0]?.text ?? '';
       assert(goal.includes('REPAIR_CONTINUE') || goal.includes('REPAIR_EXHAUSTED'), 'Unexpected fixture goal');
       const key = goal + ':' + kind + ':' + target, count = (counts.get(key) ?? 0) + 1;
       counts.set(key, count);
@@ -56,14 +56,8 @@ async function startFixture() {
         output = { type: 'decision', decision: goal.includes('REPAIR_CONTINUE') && repair
           ? { action: 'continue', reason: '由当前负责人继续处理自己的工作' }
           : { action: 'assist', target: payload.owner, question: '核查当前方案', expected: '给出依据', reason: '合成自我求助错误' } };
-      } else if (kind === 'check') output = { type: 'check', passed: true, gaps: [] };
+      } else if (kind === 'check') output = { type: 'check', criteriaResults: payload.requirements.map(item => ({ criterionId: item.id, status: 'passed' })) };
       else throw new Error('Unexpected model role: ' + kind);
-      if (output.type === 'deliver' && payload.acceptanceCriteria) output.coverage = payload.acceptanceCriteria.map(item => ({
-        criterionId: item.id, refs: [{ kind: 'candidateText' }],
-      }));
-      if (output.type === 'check' && payload.candidate?.acceptance) {
-        output.criteriaResults = payload.candidate.acceptance.criteria.map(item => ({ criterionId: item.id, status: 'passed' }));
-      }
       const record = { workId, goal, kind, target, owner: payload.owner ?? null, count, repair, outputType: output.type,
         decision: output.type === 'decision' ? output.decision.action : undefined };
       provider.push(record); appendFileSync(join(evidence, 'model-http.jsonl'), JSON.stringify(record) + '\n');

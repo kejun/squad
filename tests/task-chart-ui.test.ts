@@ -23,7 +23,7 @@ describe('statechart interactions', () => {
     await activateGraphControl(fixture, '执行中 到 协调中 的5条规则', ' ');
 
     expect([...document.querySelectorAll('[aria-label="连线分支"] button[aria-label^="查看规则 "]')].map(node => node.getAttribute('aria-label'))).toEqual([
-      '查看规则 running:BLOCKED:0', '查看规则 running:TICK:0', '查看规则 running:FAILURE_SIGNAL:0',
+      '查看规则 running:BLOCKED:1', '查看规则 running:TICK:0', '查看规则 running:FAILURE_SIGNAL:0',
       '查看规则 running:@always:1', '查看规则 running:@always:2',
     ]);
     expect(document.querySelector('[aria-label="规则详情"]')).toBeNull();

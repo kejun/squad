@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { debugInput, taskGraph, TaskSandbox } from '../src/task-debug.js';
+import { debugEventTemplate, debugInput, taskGraph, TaskSandbox } from '../src/task-debug.js';
 import { persistTask, restoreTask, stepTask, workLaneAvailable, type TaskSnapshot } from '../src/task.machine.js';
 import type { Intent, TaskContext, TaskEvent } from '../src/types.js';
 
@@ -91,7 +91,10 @@ class Simulation {
       const work = this.claim(available);
       if (work.discussionId) this.result(work);
       else if (work.kind === 'owner') this.send({ type: 'DELIVER', ...this.envelope(work), text: '吸收讨论并完善后的方案', artifactIds: [] });
-      else if (work.kind === 'check') this.send({ type: 'CHECK_RESULT', ...this.envelope(work), resultId: `check:${this.sequence}`, passed: true, gaps: [] });
+      else if (work.kind === 'check') {
+        this.send({ type: 'CONSUME', intentId: work.id });
+        this.send({ ...debugEventTemplate(this.current, 'CHECK_RESULT'), type: 'CHECK_RESULT' });
+      }
       else assert.fail('意外的主工作：' + work.kind);
     }
     assert.equal(this.c.outcome, expected);

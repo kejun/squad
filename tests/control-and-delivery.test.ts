@@ -1,3 +1,5 @@
+import { currentDeliveryIssues } from '../src/delivery-acceptance.js';
+import { fixtureCheck } from './delivery-protocol-fixture.js';
 import { describe, expect, it } from 'vitest';
 import { TeamEngine, WorkRunner, type Decision, validateConfig } from '../src/index.js';
 import { Harness, configuration } from './helpers.js';
@@ -56,7 +58,7 @@ describe('human control and current-version fences', () => {
     expect(h.context().usage.ordinary).toBe(1); expect(h.context().config.limits.ordinary).toBe(3); expect(h.context().epoch).toBe(2);
   });
   it('[BT_C09] a passed check for an old goal cannot publish success', () => {
-    const h = new Harness(); h.event({ type: 'DELIVER', text: 'G1 candidate', artifactIds: [] }); const op = h.claim('check');
+    const h = new Harness(); h.event({ type: 'DELIVER', text: 'G1 candidate', artifactIds: [] }); const op = h.authorizeCheck();
     h.event({ type: 'USER_INPUT', text: 'new constraint', goal: { ...h.context().goal, constraints: ['G2'] } });
     expect(h.event({ type: 'CHECK_RESULT', resultId: 'passedG1', passed: true, gaps: [], workId: op.id, fence: { epoch: 1, goalVersion: 1 } }).ok).toBe(false);
     expect(h.context().outcome).toBeNull(); expect(h.context().messages.filter(m => m.kind === 'final')).toEqual([]);
@@ -104,12 +106,12 @@ describe('budget and delivery', () => {
   it('[BT_F03] reserved check capacity cannot be spent on ordinary work', () => {
     const h = new Harness(configuration({ ordinary: 1, checks: 1 })); const op = h.claim('owner');
     h.event({ type: 'DELIVER', text: 'finished', artifactIds: [], workId: op.id, fence: { epoch: 1, goalVersion: 1 } });
-    expect(h.claim('check')).toBeDefined(); expect(h.context().usage).toMatchObject({ ordinary: 1, checks: 1 });
+    expect(h.authorizeCheck()).toBeDefined(); expect(h.context().usage).toMatchObject({ ordinary: 1, checks: 1 });
   });
   it('[BT_F04] exhausted checking quota terminates without another explanation model', () => {
     const h = new Harness(configuration({ ordinary: 0, checks: 0 }));
     h.event({ type: 'DELIVER', text: 'partial', artifactIds: [] });
-    expect(h.engine.claim(h.room, h.task, h.engine.pending(h.room, h.task)[0]!.id)).toBeNull();
+    expect(h.engine.pending(h.room, h.task)).toEqual([]);
     expect(h.view().phase).toBe('ended'); expect(h.context().outcome).toBe('partial'); expect(h.context().usage.checks).toBe(0);
   });
   it('[BT_F05] missing and infinite limits are invalid', () => {
@@ -122,12 +124,12 @@ describe('budget and delivery', () => {
     h.event({ type: 'DELIVER', text: 'files are done', artifactIds: ['missing1', 'missing2'] });
     expect(h.view().phase).toBe('running'); expect(h.context().outcome).toBeNull();
     expect(h.context().intents.some(work => work.kind === 'check')).toBe(false);
-    expect(h.context().deliveryGaps).toEqual(expect.arrayContaining([expect.objectContaining({ reason: 'MISSING_OR_STALE_ARTIFACT' })]));
+    expect(currentDeliveryIssues(h.context())).toEqual(expect.arrayContaining([expect.objectContaining({ reason: 'MISSING_ARTIFACTS' })]));
   });
   it('[BT_F08] a semantic gap triggers bounded correction', () => {
     const h = new Harness(); h.event({ type: 'DELIVER', text: 'draft', artifactIds: [] });
     h.event({ type: 'CHECK_RESULT', passed: false, gaps: ['Missing user constraint'], resultId: 'check' });
-    expect(h.view().phase).toBe('coordinating'); expect(h.context().reason).toContain('Missing user constraint');
+    expect(h.view().phase).toBe('running'); expect(h.context().reason).toContain('Missing user constraint');
   });
   it('[BT_F09] an unsettled helper cannot be bypassed by a delivery', () => {
     const h = new Harness(); h.help(); expect(h.event({ type: 'DELIVER', text: 'premature', artifactIds: [] }).ok).toBe(false);
@@ -140,7 +142,7 @@ describe('budget and delivery', () => {
     const g = new Harness(configuration({ ordinary: 0 })); const pending = g.engine.pending(g.room, g.task)[0]!;
     g.engine.claim(g.room, g.task, pending.id); expect(g.context().outcome).toBe('failed');
   });
-  it('[BT_F11] an invalid current judgment waits safely, never passes completion', () => {
+  it('an invalid coordination judgment waits safely', () => {
     const h = new Harness(); h.event({ type: 'BLOCKED', reason: 'blocked' });
     expect(h.event({ type: 'COORDINATE', decision: { action: 'unsupported', reason: 'bad output' } as unknown as Decision }).ok).toBe(false);
     expect(h.view().phase).toBe('waitingHuman'); expect(h.context().outcome).toBeNull();
@@ -179,7 +181,7 @@ describe('configuration and driver', () => {
         ? { type: 'help', requestId: 'H1', target: 'B', question: 'official recovery boundary', expected: 'official evidence' }
         : { type: 'deliver', text: 'Final plan with evidence', artifactIds: [] };
       if (work.kind === 'assistance') return { type: 'answer', text: 'Recovery supported; external writes need idempotency' };
-      return { type: 'check', passed: true, gaps: [] };
+      return fixtureCheck(work.payload.candidate);
     } }, () => h.now);
     for (let n = 0; n < 10 && await runner.runOne(h.room, h.task); n++) { /* bounded host loop */ }
     expect(h.context().outcome).toBe('complete'); expect(kinds).toEqual(['owner', 'assistance', 'owner', 'check']);
@@ -198,10 +200,10 @@ describe('configuration and driver', () => {
     expect(h.view().phase).toBe('ended'); expect(h.context().board.at(-1)?.author).toBe('user');
     expect(Object.keys(h.store.read(h.room).tasks)).toHaveLength(1);
   });
-  it('malformed check booleans cannot turn a failed judgment into success', async () => {
-    const h = new Harness(); h.event({ type: 'DELIVER', text: 'candidate', artifactIds: [] });
-    const runner = new WorkRunner(h.engine, { async execute() { return { type: 'check', passed: 'false', gaps: [] } as never; } }, () => 0);
-    await runner.runOne(h.room, h.task); expect(h.context().outcome).toBeNull(); expect(h.view().phase).toBe('waitingHuman');
+  it('[BT_F11] malformed criteria cannot turn a failed judgment into success', async () => {
+    const h = new Harness(configuration({ retries: 0 })); h.event({ type: 'DELIVER', text: 'candidate', artifactIds: [] });
+    const runner = new WorkRunner(h.engine, { async execute() { return { type: 'check', criteriaResults: null } as never; } }, () => 0);
+    await runner.runOne(h.room, h.task); expect(h.context().outcome).toBe('partial'); expect(h.view().phase).toBe('ended');
   });
   it('malformed decision values are rejected without crashing storage', () => {
     const h = new Harness(); h.event({ type: 'BLOCKED', reason: 'blocked' });

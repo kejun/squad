@@ -1,5 +1,6 @@
-import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
+import { fixtureCheck, withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import assert from 'node:assert/strict';
+import { writeFileSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -302,15 +303,22 @@ export async function namespaceAcceptance() {
   const store = new MemoryStore(), engine = new TeamEngine(store, configuration(), () => 0);
   try {
     for (const room of ['same-id-room-one', 'same-id-room-two']) {
-      const task = engine.submit(room, { id: 'same-message', text: '写入任务工作区' }).taskId!;
+      const task = engine.submit(room, { id: 'same-message', text: '写入任务工作区并运行 npm run build' }).taskId!;
       const runner = new WorkRunner(engine, { execute: async (work, signal, scope) => {
+        if (work.kind === 'check') {
+          assert.equal(scope.localTools, undefined);
+          return fixtureCheck(work.payload.candidate);
+        }
         assert(scope.localTools);
-        const path = work.kind === 'check' ? 'dist/identity.txt' : 'identity.txt';
-        const action: LocalAction = { type: 'runCli', executable: 'node', args: ['-e', `require('fs').writeFileSync(${JSON.stringify(path)},${JSON.stringify(room)})`] };
+        const action: LocalAction = { type: 'runCli', executable: 'node', args: ['-e', `const fs = require('fs');
+          fs.writeFileSync('identity.txt', ${JSON.stringify(room)});
+          fs.writeFileSync('package.json', JSON.stringify({private: true, scripts: {build: 'node build.cjs'}}));
+          fs.writeFileSync('build.cjs', "require('fs').copyFileSync('identity.txt', 'dist/identity.txt')");`] };
         const result = await scope.localTools.invoke(action, [{ role: 'assistant', content: JSON.stringify(action) }], signal); assert(result.ok);
-        return work.kind === 'check' ? { type: 'check', passed: true, gaps: [] } : { type: 'answer', text: '已写入受控目录' };
+        return { type: 'answer', text: '已写入受控目录' };
       } }, () => 0, globalThis.fetch, undefined, runtime);
       assert(await runner.runOne(room, task)); assert(await runner.runOne(room, task));
+      assert.equal(engine.view(room, task)?.context.outcome, 'complete');
     }
     assert.equal(backend.calls.length, 4);
     assert.equal(new Set(backend.calls.map(call => call.workspace)).size, 4);
@@ -360,29 +368,36 @@ export async function concurrentAcceptance() {
 export async function revisionAcceptance(change: string, expected: string) {
   const f = await LocalFixture.create('最终检查'); f.backend.before = undefined;
   try {
-    // Reuse the real adapter and protocol loop, mutating only after the successful CLI receipt.
     const final = { type: 'check', passed: true, gaps: [] };
-    const actions = f.actions();
-    if (change === '检查副本输入曾改变后恢复') {
-      actions[2] = { type: 'runCli', executable: 'node', args: ['-e', "require('fs').writeFileSync('source.txt','mutated')"] };
-      actions.push({ type: 'runCli', executable: 'node', args: ['-e', "require('fs').writeFileSync('source.txt','authoritative')"] });
-    }
-    f.replies.push(...actions, final);
+    const restoreCopy = change === '检查副本输入曾改变后恢复';
+    if (restoreCopy) await writeFile(join(f.source, 'build.mjs'), "import fs from 'node:fs'; fs.writeFileSync('source.txt','mutated');");
     const adapter = new OpenAICompatibleAdapter(f.h.config, { clock: () => f.h.now, transport: async (_url, init) => {
       f.requests.push(JSON.parse(String(init?.body)) as typeof f.requests[number]);
-      const reply = f.replies.shift();
-      if ((reply as { type?: string })?.type === 'check') {
-        if (change === '权威工程源文件变化') await writeFile(join(f.source, 'source.txt'), 'changed after check');
-        if (change === '检查副本源文件变化') await writeFile(join(f.backend.calls[0]!.workspace, 'source.txt'), 'changed in copy');
-      }
-      return modelResponse(withFixtureAcceptance(reply, String(init?.body)));
+      if (change === '权威工程源文件变化') await writeFile(join(f.source, 'source.txt'), 'changed after check');
+      if (change === '检查副本源文件变化') await writeFile(join(f.backend.calls[0]!.workspace, 'source.txt'), 'changed in copy');
+      return modelResponse(withFixtureAcceptance(final, String(init?.body)));
     } });
-    await new WorkRunner(f.h.engine, adapter, () => f.h.now, globalThis.fetch, undefined, f.runtime).runOne(f.h.room, f.h.task);
+    const runner = new WorkRunner(f.h.engine, adapter, () => f.h.now, globalThis.fetch, undefined, f.runtime, (_work, observation) => {
+      // Restore the bytes only after the state machine has saved evidence of the changed test inputs.
+      if (restoreCopy && observation.phase === 'local.result' && observation.action === 'runCli') {
+        writeFileSync(join(f.backend.calls[0]!.workspace, 'source.txt'), 'authoritative');
+      }
+    });
+    await runner.runOne(f.h.room, f.h.task);
     const check = f.h.context().intents.find(w => w.kind === 'check')!;
-    assert.equal(f.backend.calls.length, change === '检查副本输入曾改变后恢复' ? 2 : 1); assert.equal(check.localOperations?.at(-1)?.action.type, 'verifyWorkspace');
-    assert(check.localOperations?.at(-1)?.sessionId); assert.equal(f.h.context().usage.ordinary, change === '检查副本输入曾改变后恢复' ? 5 : 4);
+    assert.equal(f.backend.calls.length, 1);
+    assert.deepEqual(check.localOperations?.map(op => op.action.type), restoreCopy ? ['runCli'] : ['runCli', 'verifyWorkspace']);
+    assert(check.localOperations?.every(op => op.sessionId));
+    assert.equal(f.requests.length, restoreCopy ? 0 : 1);
+    assert.equal(f.h.context().usage.ordinary, restoreCopy ? 2 : 3);
+    if (restoreCopy) assert.equal(await readFile(join(f.backend.calls[0]!.workspace, 'source.txt'), 'utf8'), 'authoritative');
     if (expected === '通过') assert.equal(f.h.context().outcome, 'complete');
-    else { assert.equal(f.h.context().outcome, null); assert.equal(f.h.view().phase, 'coordinating'); assert(f.h.context().reason.includes(change === '检查副本输入曾改变后恢复' ? 'CHECK_INPUTS_CHANGED' : 'WORKSPACE_REVISION_CHANGED')); }
+    else {
+      assert.equal(f.h.context().outcome, 'partial');
+      assert.equal(f.h.view().phase, 'ended');
+      assert.match(f.h.context().reason, restoreCopy ? /CHECK_INPUTS_CHANGED/ : /WORKSPACE_REVISION_CHANGED/);
+      assert.equal(f.h.context().publishedDelivery, undefined);
+    }
     const writeRoots = f.backend.calls[0]!.writeRoots!; assert(writeRoots.every(p => p !== f.backend.calls[0]!.workspace));
   } finally { await f.close(); }
 }
@@ -399,7 +414,7 @@ export async function npmBuildAcceptance() {
     await writeFile(join(f.source, 'node_modules/fixture-tool/lib/build.cjs'), 'const fs=require("fs");fs.mkdirSync("dist",{recursive:true});fs.writeFileSync("dist/npm-result.txt","real-npm-build");console.log("npm-build-ok");');
     await symlink('../fixture-tool/bin/build.cjs', join(f.source, 'node_modules/.bin/fixture-build'));
     await writeFile(join(f.source, 'package.json'), JSON.stringify({ private: true, scripts: { build: 'fixture-build' } }));
-    f.replies.push({ type: 'runCli', executable: 'npm', args: ['run', 'build'] }, { type: 'check', passed: true, gaps: [] });
+    f.replies.push({ type: 'check', passed: true, gaps: [] });
     await f.runner().runOne(f.h.room, f.h.task);
     assert.equal(f.h.context().outcome, 'complete'); assert.equal(f.backend.calls.length, 1);
     assert.equal(await readFile(join(f.backend.calls[0]!.workspace, 'dist/npm-result.txt'), 'utf8'), 'real-npm-build');

@@ -1,10 +1,11 @@
+import { fixtureCheck } from '../delivery-protocol-fixture.js';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { After, Given, When, Then } from '@cucumber/cucumber';
 import { TeamEngine, MemoryStore, SqliteStore, WorkRunner, initialTask, persistTask, type Intent, type WorkAdapter, type Store } from '../../src/index.js';
-import { Harness, configuration } from '../helpers.js';
+import { Harness, configuration, passFixtureCheck } from '../helpers.js';
 import type { SpecWorld } from './steps.js';
 
 const proposal = 'ESP32 同步方案：缓存文档增量并在联网后同步，墨水屏按区域刷新。';
@@ -37,7 +38,7 @@ function adapter(w: SpecWorld): WorkAdapter {
       return { type: 'decision', decision: { action: 'review', question: '评审已有同步方案的风险与改进', expected: '带依据的具体意见', reason: '用户要求成员评审' } };
     }
     if (work.kind === 'assistance') { if (work.target === state.fail) throw new Error('核查服务不可用'); return { type: 'answer', text: `${work.target}：建议验证离线恢复。` }; }
-    if (work.kind === 'check') return { type: 'check', passed: true, gaps: [] };
+    if (work.kind === 'check') return fixtureCheck(work.payload.candidate);
     assert.equal(work.kind, 'owner'); return { type: 'deliver', text: '共识为增量同步；分歧与失败成员已列入缺口；下一步验证离线恢复。', artifactIds: [] };
   } };
 }
@@ -57,7 +58,7 @@ Given('同群已有方案且一个旧等待任务没有历史上下文', functio
 });
 When('用户要求大家评审上述方案', function (this: SpecWorld) { request(this); });
 Then('促进者输入应包含原方案且不应要求重复提交已有材料', function (this: SpecWorld) { const work = this.h.engine.pending(this.h.room, this.h.task)[0]!; assert.equal(work.kind, 'facilitator'); assert(JSON.stringify(work.payload.messages).includes(proposal)); assert.equal(this.h.view().phase, 'coordinating'); });
-Given('同群历史超过消息或文本上限且包含旧任务产物', function (this: SpecWorld) { fresh(this); const task = this.h.engine.submit(this.h.room, { id: 'large', text: '历史长文本'.repeat(25000) }); const id = task.taskId!; this.h.engine.send(this.h.room, id, { type: 'DELIVER', id: 'large-deliver', at: 0, text: '大任务已交付', artifactIds: [] }); this.h.engine.send(this.h.room, id, { type: 'CHECK_RESULT', id: 'large-check', at: 0, resultId: 'large-check', passed: true, gaps: [] }); });
+Given('同群历史超过消息或文本上限且包含旧任务产物', function (this: SpecWorld) { fresh(this); const task = this.h.engine.submit(this.h.room, { id: 'large', text: '历史长文本'.repeat(25000) }); const id = task.taskId!; this.h.engine.send(this.h.room, id, { type: 'DELIVER', id: 'large-deliver', at: 0, text: '大任务已交付', artifactIds: [] }); passFixtureCheck(this.h.engine, this.h.room, id, 'large-check'); });
 When('准备一个要求新交付物的后续任务', function (this: SpecWorld) { const result = this.h.engine.submit(this.h.room, { id: 'new-delivery', text: '参考旧方案，交付新文件', goal: { text: '交付新文件', constraints: [], criteria: ['文件存在'], requiredArtifacts: 1 } }); this.h.task = result.taskId!; });
 When('尝试将旧产物作为本轮交付', function (this: SpecWorld) { this.h.event({ type: 'DELIVER', text: '声称复用文件', artifactIds: ['old-plan'] }); this.h.event({ type: 'CHECK_RESULT', resultId: 'new-check', passed: true, gaps: [] }); });
 Then('历史输入应有界并说明发生截断', function (this: SpecWorld) { const history = this.h.context().history!; assert(history.truncated); assert(history.messages.length <= 100); assert(history.messages.reduce((n, message) => n + message.text.length, 0) <= 96000); });

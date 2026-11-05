@@ -11,7 +11,7 @@ import { buildDetailDocument } from '../../web/src/detail-document.js';
 import { complexInput, InputIntentFixture, intentConfig, parsedIntent } from '../input-intent-fixture.js';
 import { modelResponse } from '../model-regeneration-fixture.js';
 import type { SpecWorld } from './steps.js';
-import { acceptanceCriteria } from '../../src/delivery-acceptance.js';
+import { acceptanceCriteria, currentDeliveryIssues, type AcceptanceCriterion, type CheckMaterials } from '../../src/delivery-acceptance.js';
 
 interface IntentState {
   f: InputIntentFixture; command?: string; expected?: string; kind?: Intent['kind']; stage?: string;
@@ -73,8 +73,14 @@ Given('复杂输入已解析且准备启动{string}', async function(this: SpecW
   const f = setup(this); await f.parse(); state(this).kind = kind as Intent['kind']; f.prepare(kind as Intent['kind']);
 });
 When('执行该角色并捕获模型请求', async function(this: SpecWorld) { await state(this).f.run(); });
-Then('模型上下文应同时包含原始输入和相同的校验后意图', function(this: SpecWorld) {
+Then('模型上下文应包含原始输入和该角色所需的校验后要求', function(this: SpecWorld) {
   const s = state(this), request = s.f.requests.at(-1)!; assert.equal(request.kind, s.kind);
+  if (s.kind === 'check') {
+    assert((request.context.rawInputs as CheckMaterials['rawInputs']).some(input => input.text === complexInput));
+    assert.deepEqual(request.context.requirements, acceptanceCriteria(s.f.context()));
+    assert(request.messages[0]!.content.includes('trusted raw user inputs'));
+    return;
+  }
   assert.deepEqual(request.context.inputIntents, s.f.context().inputAnalyses);
   assert(JSON.stringify(request.context.messages).includes(complexInput));
   assert(request.messages[0]!.content.includes('Interpretations supplement the original goal'));
@@ -85,12 +91,18 @@ Given('意图模型返回{string}且无格式修正额度', function(this: SpecW
   const f = setup(this, intentConfig({ retries: 0 }));
   assert(f.submit('历史方案', { id: 'history' }).ok); const oldTask = f.task;
   assert(f.event({ type: 'ARTIFACT', artifact: { id: 'historical-plan', name: 'plan.md', content: '先验证恢复再发布。' } }).ok);
-  f.prepare('check'); assert(f.event({ type: 'CHECK_RESULT', passed: true, gaps: [], resultId: 'old-check' }).ok);
+  assert(f.event({ type: 'ARTIFACT', artifact: { id: 'unrelated', name: 'unrelated.md', content: '无关的群内材料。' } }).ok);
+  f.prepare('check'); assert(f.checkResult(f.claimCheck(), 'old-check').ok);
+  const foreign = f.engine.submit('another-room', { id: 'foreign-history', text: '另一群资料' }); assert(foreign.ok && foreign.taskId);
+  assert(f.engine.send('another-room', foreign.taskId, { type: 'ARTIFACT', id: 'foreign-artifact-event', at: f.now,
+    artifact: { id: 'foreign-artifact', name: 'foreign.md', content: '另一群不能使用的材料。' } }).ok);
   assert(f.submit().ok); const refs = f.work.payload.references as InputReference[];
-  const real = refs.filter(ref => ref.taskId === oldTask && ['message', 'artifact'].includes(ref.kind)); assert(real.length >= 2);
+  const real = refs.filter(ref => ref.taskId === oldTask && (ref.kind === 'message' && ref.id === 'history' || ref.kind === 'artifact' && ref.id === 'historical-plan'));
+  assert.equal(real.length, 2);
   state(this).refs = real;
   f.replies = [{ type: 'interpretation', spec: parsedIntent('request', { references: reference === '真实历史消息和产物' ? real
     : reference === '不存在的产物' ? [{ kind: 'artifact', id: 'invented', taskId: oldTask }]
+    : reference === '另一群的产物' ? [{ kind: 'artifact', id: 'foreign-artifact', taskId: foreign.taskId }]
     : [{ ...real[0]!, taskId: f.task }] }) }];
 });
 When('执行该引用的意图解析', async function(this: SpecWorld) { await state(this).f.run(); });
@@ -98,6 +110,29 @@ Then('引用应被{string}且不把历史产物变成本轮交付', function(thi
   const s = state(this), c = s.f.context(); assert.equal(c.artifacts.length, 0);
   if (verdict === '接受') { assert.equal(s.f.view().phase, 'running'); assert.deepEqual(c.inputAnalyses?.[0]?.spec?.references, s.refs); }
   else { assert.equal(s.f.view().phase, 'waitingHuman'); assert.equal(c.inputAnalyses?.[0]?.status, 'failed'); assert(!c.inputAnalyses?.[0]?.spec); }
+});
+Then('只有获准的本群历史引用可以作为固定检查材料', async function(this: SpecWorld) {
+  const { f, refs } = state(this);
+  if (f.view().phase === 'waitingHuman') {
+    assert(!f.context().intents.some(work => work.kind === 'check'));
+    return;
+  }
+  f.prepare('check');
+  f.response = request => {
+    assert.equal(request.kind, 'check');
+    const references = request.context.references as NonNullable<CheckMaterials['references']>;
+    assert.deepEqual(references.map(({ kind, taskId, content }) => ({ kind, taskId, content })), [
+      { kind: 'message', taskId: refs![0]!.taskId, content: '历史方案' },
+      { kind: 'artifact', taskId: refs![1]!.taskId, content: '先验证恢复再发布。' },
+    ]);
+    assert.deepEqual(request.context.artifacts, []);
+    return modelResponse({ type: 'check', criteriaResults: (request.context.requirements as AcceptanceCriterion[]).map((criterion, index) => ({
+      criterionId: criterion.id, status: 'passed', ...(index ? {} : { source: { id: references[1]!.id, quote: '先验证恢复' } }),
+    })) });
+  };
+  await f.run();
+  assert.equal(f.context().outcome, 'complete');
+  assert.deepEqual(f.context().publishedDelivery?.artifactIds, []);
 });
 
 Given('意图模型认为指代不足并返回具体澄清问题', function(this: SpecWorld) {
@@ -182,7 +217,7 @@ Then('消息解析结果后继工作和回执应共同回滚且禁止继续调�
 
 Given('{string}正在执行且用户提交新的复杂约束', async function(this: SpecWorld, kind: string) {
   const f = setup(this); await f.parse(); f.prepare(kind as Intent['kind']); const work = f.engine.pending(f.room, f.task)[0]!;
-  state(this).old = f.engine.claim(f.room, f.task, work.id)!;
+  state(this).old = work.kind === 'check' ? f.claimCheck() : f.engine.claim(f.room, f.task, work.id)!;
   assert(f.submit('必须保留所有原有出处；增加失败恢复步骤；同时给出验收清单', { id: 'supplement' }).ok);
 });
 Then('不应并行运行解析工作或让旧检查发布最终结果', function(this: SpecWorld) {
@@ -190,7 +225,7 @@ Then('不应并行运行解析工作或让旧检查发布最终结果', function
 });
 When('原工作结算并解析这次补充', async function(this: SpecWorld) {
   const s = state(this), f = s.f, work = s.old!;
-  if (work.kind === 'check') assert(f.event({ type: 'CHECK_RESULT', workId: work.id, resultId: 'old-check-result', passed: true, gaps: [] }).ok);
+  if (work.kind === 'check') assert(f.checkResult(work, 'old-check-result').ok);
   else if (work.kind === 'facilitator') assert(f.event({ type: 'COORDINATE', workId: work.id, decision: { action: 'continue', reason: '继续原工作' } }).ok);
   else if (work.kind === 'assistance') {
     assert(f.event({ type: 'RECORD_RESULT', workId: work.id, requestId: 'intent-help', resultId: 'old-help-result', answer: '已有协助结果', status: 'success' }).ok);
@@ -236,12 +271,12 @@ Then('应先解析第二条输入再把完整意图交给负责人', async funct
 
 Given('已解析任务的检查执行中收到一条规则即可理解的补充', async function(this: SpecWorld) {
   const f = setup(this); await f.parse(); f.prepare('check');
-  const work = f.engine.pending(f.room, f.task)[0]!; state(this).old = f.engine.claim(f.room, f.task, work.id)!;
+  state(this).old = f.claimCheck();
   assert(f.submit('补充一段结论', { id: 'simple-supplement' }).ok);
   assert.equal(f.context().inputAnalyses!.at(-1)!.source, 'rule');
 });
 When('原检查返回通过', function(this: SpecWorld) {
-  const s = state(this); assert(s.f.event({ type: 'CHECK_RESULT', workId: s.old!.id, resultId: 'old-check', passed: true, gaps: [] }).ok);
+  const s = state(this); assert(s.f.checkResult(s.old!, 'old-check').ok);
 });
 Then('应先把补充交给负责人而不能直接发布完成', function(this: SpecWorld) {
   const f = state(this).f; assert.equal(f.context().outcome, null); assert.equal(f.view().phase, 'running');
@@ -332,9 +367,9 @@ When('解析完成并进行交付检查', async function(this: SpecWorld) {
   const criteria = acceptanceCriteria(f.context());
   f.replies = [
     { type: 'deliver', text: '已提供可下载报告。', artifactIds: [], artifacts: [{ name: '报告.md', content: '依据仅限内部资料，未列恢复风险。' }] },
-    { type: 'check', passed: false, gaps: [], criteriaResults: criteria.map(criterion => ({
+    { type: 'check', criteriaResults: criteria.map(criterion => ({
       criterionId: criterion.id, ...(criterion.text === '不得改用私有资料' || criterion.text === '包含恢复风险'
-        ? { status: 'gap', kind: 'content_error', reason: '报告内容与原始硬约束不符' } : { status: 'passed' }),
+        ? { status: 'failed', reason: '报告内容与原始硬约束不符' } : { status: 'passed' }),
     })) },
   ];
   await f.run();
@@ -342,7 +377,9 @@ When('解析完成并进行交付检查', async function(this: SpecWorld) {
 });
 Then('全部角色仍应收到原始目标硬约束并据此检查交付', function(this: SpecWorld) {
   const f = state(this).f, request = f.requests.at(-1)!; assert.equal(request.kind, 'check');
-  assert.deepEqual(request.context.goal, f.context().goal); assert(JSON.stringify(request.context.goal).includes('不得改用私有资料'));
+  assert.deepEqual(f.requests.find(request => request.kind === 'owner')?.context.goal, f.context().goal);
+  const requirements = (request.context.requirements as AcceptanceCriterion[]).map(criterion => criterion.text);
+  assert(requirements.includes('不得改用私有资料')); assert(requirements.includes('包含恢复风险'));
   assert.equal(f.context().goal.requiredArtifacts, 1); assert.notEqual(f.context().outcome, 'complete'); assert.equal(f.view().phase, 'running');
-  assert.equal(f.context().deliveryGaps?.length, 2);
+  assert.equal(currentDeliveryIssues(f.context()).length, 2);
 });

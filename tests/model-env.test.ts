@@ -61,6 +61,17 @@ describe('model services from .env', () => {
     expect(resolveModel(config, 'check', 'facilitator')?.service).toMatchObject({ model: 'checker', jsonMode: false, temperature: 0.2, maxTokens: 8192, extraBody: { enable_thinking: false } });
   });
 
+  it('binds check context capacity to the configured provider model', () => {
+    const config = createTeamConfig({ ...defaults, MODEL_CONTEXT_WINDOW_TOKENS: '64000', CHECK_MODEL_NAME: 'checker', CHECK_MODEL_CONTEXT_WINDOW_TOKENS: '16000' });
+    expect(resolveModel(config, 'owner', 'A')?.service.contextWindowTokens).toBe(64000);
+    expect(resolveModel(config, 'check', 'facilitator')?.service.contextWindowTokens).toBe(16000);
+  });
+
+  it('leaves context capacity unset when the check profile selects a different model', () => {
+    const config = createTeamConfig({ ...defaults, MODEL_CONTEXT_WINDOW_TOKENS: '64000', CHECK_MODEL_NAME: 'checker' });
+    expect(resolveModel(config, 'check', 'facilitator')?.service.contextWindowTokens).toBeUndefined();
+  });
+
   it.each([
     { name: 'empty endpoint', change: { MODEL_BASE_URL: '' } },
     { name: 'invalid JSON mode', change: { MODEL_JSON_MODE: 'sometimes' } },

@@ -1,3 +1,4 @@
+import { fixtureCheck } from './delivery-protocol-fixture.js';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -39,7 +40,7 @@ export async function verifyWebDiscussion(order: 'owner-first' | 'discussion-fir
     if (work.kind === 'facilitator') return { type: 'decision', decision: { action: 'review', question: '讨论风险和替代方案', expected: '依据与建议', reason: '直接邀请' } };
     if (work.kind === 'assistance') { memberCalls++; await members.wait(signal); return { type: 'answer', text: `${work.target} 的原始意见` }; }
     if (work.kind === 'discussionSummary') return { type: 'answer', text: '协调员整理共识、分歧和证据。' };
-    assert.equal(work.kind, 'check'); return { type: 'check', passed: true, gaps: [] };
+    assert.equal(work.kind, 'check'); return fixtureCheck(work.payload.candidate);
   } });
   const server = createWebServer(service);
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -89,7 +90,7 @@ export async function verifyRoomIsolation() {
   const held = gate(); const signals: AbortSignal[] = [];
   const service = new WebService(configuration(), join(directory, 'team.sqlite'), { execute: async (work, signal) => {
     if (work.kind === 'owner') { signals.push(signal); await held.wait(signal); return { type: 'deliver', text: '独立结果', artifactIds: [] }; }
-    return { type: 'check', passed: true, gaps: [] };
+    return fixtureCheck(work.payload.candidate);
   } });
   try {
     const a = service.createRoom('群一'); const b = service.createRoom('群二');
@@ -110,7 +111,7 @@ export async function verifyDeniedClaimYield() {
   let attempts = 0; let requests = 0;
   const service = new WebService(configuration(), join(directory, 'team.sqlite'), { execute: async work => {
     requests++;
-    return work.kind === 'check' ? { type: 'check', passed: true, gaps: [] } : { type: 'deliver', text: '请求正常完成', artifactIds: [] };
+    return work.kind === 'check' ? fixtureCheck(work.payload.candidate) : { type: 'deliver', text: '请求正常完成', artifactIds: [] };
   } });
   const original = service.engine.claim.bind(service.engine);
   service.engine.claim = (room, task, id) => ++attempts === 1 ? null : original(room, task, id);
