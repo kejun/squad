@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { LocalModel } from './local-model-fixture.js';
+import { LocalModel, localModelInput } from './local-model-fixture.js';
 
-import { failedSandbox, request } from './host-retry-model-fixture.js';
+import { claimRetryOp, claimRetryWork, decideRetry, deliver, failedSandbox, prepareRetry, request, requestSecond, retryOp, retryWork, settleRetry, startRetry, twoQueued } from './host-retry-model-fixture.js';
 describe('用户从失败沙箱记录续办（真实XState，每步持久化）', () => {
   it('[BT_L32] revives an ended round with a fixed, unapproved host operation and a saved model checkpoint', () => {
     const m = failedSandbox(true); expect(m.c.outcome).toBe('complete');
@@ -14,21 +14,164 @@ describe('用户从失败沙箱记录续办（真实XState，每步持久化）'
     expect(retry.localCheckpoint?.pendingOperationId).toBe(retry.localOperations?.[0]?.id);
     expect(m.op?.status).toBe('failed'); expect(m.op?.hostRetryIntentId).toBe(retry.id);
   });
-  it('[BT_L33] creates one retry even when a different click identity is received twice', () => {
-    const m = failedSandbox(true); request(m); const count = m.c.intents.length;
-    expect(request(m).code).toBe('HOST_RETRY_ALREADY_REQUESTED'); expect(m.c.intents).toHaveLength(count);
+  it('[BT_L33] returns the saved identity when a different click identity is received', () => {
+    const m = failedSandbox(true); const first = request(m); const count = m.c.intents.length;
+    expect(request(m)).toEqual(first); expect(m.c.intents).toHaveLength(count);
   });
-  it('[BT_L32] cancels safe inflight model work before the new owner continuation runs', () => {
-    const m = failedSandbox(); request(m);
-    expect(m.c.intents.some(work => work.kind === 'cancel' && work.payload.intentId === m.work.id)).toBe(true);
-    expect(m.c.intents.at(-1)?.localOperations?.[0]?.status).toBe('queued');
+  it('[BT_L45] records multiple requests without cancelling the main work or advancing its fence', () => {
+    const m = failedSandbox(false, true); const before = m.c.usage.ordinary;
+    const first = request(m); expect(requestSecond(m).ok).toBe(true);
+    expect(request(m)).toEqual(first);
+    expect(m.c.epoch).toBe(1);
+    expect(m.c.usage.ordinary).toBe(before);
+    expect(m.c.intents[0]?.status).toBe('inflight');
+    expect(m.c.intents.some(work => work.kind === 'cancel')).toBe(false);
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['pending', 'pending']);
+    expect(m.c.hostRetryBatch).toBeUndefined();
+    expect(deliver(m).ok).toBe(true);
+    expect(m.c.candidate?.text).toBe('候选说明');
+    expect(m.c.outcome).toBeNull();
+    expect(retryOp(m).hostRetryOf).toBe('op1');
+    expect(retryWork(m).localOperations).toHaveLength(1);
   });
-  it('[BT_L32] retires outstanding assistance when the user explicitly continues from a failed command', () => {
+  it('[BT_L50] preserves ordinary assistance and its saved handoff for owner synthesis', () => {
     const m = failedSandbox();
     m.send({ type: 'HELP', workId: m.work.id, fence: m.work, caller: 'A', requestId: 'H', target: 'B', question: '核查', expected: '证据' });
     expect(request(m).ok).toBe(true);
-    expect(m.c.assists[0]?.status).toBe('cancelled');
-    expect(m.c.intents.at(-1)?.target).toBe('A');
+    expect(m.c.assists[0]?.status).toBe('pending');
+    expect(m.c.hostRetryBatch).toBeUndefined();
+    expect(m.send({ type: 'HELP_RESULT', requestId: 'H', resultId: 'help-result', status: 'success', answer: '保留的协助结论' }).ok).toBe(true);
+    expect(m.c.assists[0]?.answer).toBe('保留的协助结论');
+    expect(retryWork(m).payload.answer).toBe('保留的协助结论');
+  });
+  it('[BT_L46] holds a check that finishes after retry acceptance', () => {
+    const m = failedSandbox(); deliver(m);
+    const check = m.c.intents.at(-1)!; m.send({ type: 'CLAIM', intentId: check.id });
+    expect(request(m).ok).toBe(true);
+    expect(m.snapshot.value).toBe('checking');
+    expect(m.send({ type: 'CHECK_RESULT', workId: check.id, fence: check, resultId: 'old-check', passed: true, gaps: [] }).ok).toBe(true);
+    expect(m.c.consumedResults).toContain('old-check');
+    expect(m.c.candidate?.text).toBe('候选说明');
+    expect(m.c.outcome).toBeNull();
+    expect(retryWork(m).localOperations).toHaveLength(1);
+  });
+  it('[BT_L46] applies a coordinator finish only after the pending retry boundary', () => {
+    const m = failedSandbox(); m.send({ type: 'BLOCKED', workId: m.work.id, fence: m.work, reason: '已有阻塞' });
+    const work = m.c.intents.at(-1)!; m.send({ type: 'CLAIM', intentId: work.id });
+    expect(request(m).ok).toBe(true);
+    expect(m.send({ type: 'COORDINATE', workId: work.id, fence: work, decision: { action: 'finish', reason: '阶段结束' } }).ok).toBe(true);
+    expect(m.c.outcome).toBeNull();
+    expect(retryOp(m).hostRetryOf).toBe('op1');
+  });
+  it('[BT_L47] a denial preserves its receipt and exposes only the next fixed operation', () => {
+    const m = twoQueued(); prepareRetry(m);
+    expect(decideRetry(m, 'deny').ok).toBe(true);
+    expect(retryWork(m).localOperations?.[0]?.result?.code).toBe('HOST_APPROVAL_DENIED');
+    expect(retryOp(m).hostRetryOf).toBe('op2');
+    expect(retryOp(m).approval).toBeUndefined();
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['settled', 'active']);
+  });
+  it('[BT_L47] a known failure advances exactly once and keeps independent approvals', () => {
+    const m = twoQueued(); prepareRetry(m); decideRetry(m); startRetry(m);
+    expect(settleRetry(m, { failed: true }).ok).toBe(true);
+    expect(retryOp(m).hostRetryOf).toBe('op2');
+    prepareRetry(m, 'approval2');
+    expect(retryOp(m).status).toBe('awaitingApproval');
+    expect(retryOp(m).approval?.id).toBe('approval2');
+  });
+  it('[BT_L48] freezes unknown effects and advances only after trusted reconciliation', () => {
+    const m = twoQueued(); prepareRetry(m); decideRetry(m); startRetry(m);
+    expect(settleRetry(m, { uncertain: true }).ok).toBe(true);
+    expect(retryWork(m).localOperations).toHaveLength(1);
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['uncertain', 'active']);
+    expect(m.snapshot.value).toBe('waitingHuman');
+    const op = retryOp(m);
+    expect(m.send({ type: 'LOCAL_RECONCILE', intentId: retryWork(m).id, operationId: op.id, sessionId: op.sessionId, resolution: 'receipt',
+      result: { ok: true, code: 'succeeded', data: {} }, detail: '可信回执' }).ok).toBe(true);
+    expect(retryOp(m).hostRetryOf).toBe('op2');
+    expect(m.snapshot.value).toBe('running');
+  });
+  it('[BT_L48] stops subsequent commands and settles a late receipt without reviving the task', () => {
+    const m = twoQueued(); prepareRetry(m); decideRetry(m); startRetry(m);
+    const work = retryWork(m), op = retryOp(m);
+    expect(m.send({ type: 'STOP' }).ok).toBe(true);
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['active', 'cancelled']);
+    expect(m.send({ type: 'LOCAL_RESULT', intentId: work.id, operationId: op.id, sessionId: op.sessionId,
+      result: { ok: true, code: 'succeeded', data: {} }, settled: true, effectsKnown: true }).ok).toBe(true);
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['settled', 'cancelled']);
+    expect(m.c.intents.find(w => w.id === work.id)?.localOperations).toHaveLength(1);
+  });
+  it('[BT_L49] recovery preserves settled operations, invalidates approval and does not charge owner twice', () => {
+    const m = twoQueued(); prepareRetry(m); decideRetry(m, 'approveSession'); startRetry(m); settleRetry(m);
+    prepareRetry(m, 'approval2');
+    expect(retryOp(m).status).toBe('queued');
+    const prior = retryOp(m).approval!.id, before = m.c.usage.ordinary;
+    expect(m.send({ type: 'RECOVER', config: localModelInput().config }).ok).toBe(true);
+    expect(retryWork(m).localOperations?.[0]?.status).toBe('succeeded');
+    expect(retryOp(m).status).toBe('awaitingApproval');
+    expect(retryOp(m).approval?.id).not.toBe(prior);
+    expect(m.c.hostSession).toBeUndefined();
+    expect(decideRetry(m).ok).toBe(true); claimRetryWork(m);
+    expect(m.c.usage.ordinary).toBe(before);
+  });
+  it('[BT_L51] lets current work consume unreserved budget and reports boundary exhaustion', () => {
+    const m = failedSandbox(); m.c.config.limits.ordinary = m.c.usage.ordinary + 2;
+    expect(m.send({ type: 'CONSUME', intentId: m.work.id }).ok).toBe(true);
+    expect(request(m).ok).toBe(true);
+    expect(m.send({ type: 'CONSUME', intentId: m.work.id }).ok).toBe(true);
+    expect(deliver(m).ok).toBe(true);
+    expect(m.c.outcome).toBe('partial');
+    expect(m.c.hostRetryRequests?.[0]?.reason).toBe('BUDGET_EXHAUSTED');
+    expect(m.c.intents.flatMap(w => w.localOperations ?? []).filter(op => op.hostRetryOf)).toHaveLength(0);
+  });
+  it('[BT_L52] expires a saved request before launch and advances an unexpired successor', () => {
+    const m = failedSandbox(false, true);
+    request(m); m.at = 20; requestSecond(m); deliver(m); claimRetryWork(m); prepareRetry(m);
+    const work = retryWork(m), op = retryOp(m); m.at = op.deadline!;
+    expect(decideRetry(m).code).toBe('HOST_APPROVAL_EXPIRED');
+    expect(m.send({ type: 'LOCAL_RETRY_EXPIRED', intentId: work.id, operationId: op.id }).ok).toBe(true);
+    expect(m.c.hostRetryRequests?.[0]?.status).toBe('expired');
+    expect(retryOp(m).hostRetryOf).toBe('op2');
+  });
+  it('[BT_L48] preserves started timeout effects and freezes the next request', () => {
+    const m = twoQueued(); prepareRetry(m); decideRetry(m); startRetry(m);
+    m.at = retryOp(m).deadline!;
+    expect(settleRetry(m, { uncertain: true }).ok).toBe(true);
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['uncertain', 'active']);
+    expect(retryWork(m).localOperations).toHaveLength(1);
+    expect(m.c.outcome).toBeNull();
+  });
+  it('[BT_L48] a new goal invalidates remaining requests and keeps the prior receipt separate', () => {
+    const m = twoQueued(); prepareRetry(m); decideRetry(m); startRetry(m);
+    const work = retryWork(m), op = retryOp(m);
+    expect(m.send({ type: 'USER_INPUT', text: '新目标', goal: { text: '新目标', constraints: [], criteria: [], requiredArtifacts: 0 } }).ok).toBe(true);
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['active', 'cancelled']);
+    expect(m.send({ type: 'LOCAL_RESULT', intentId: work.id, operationId: op.id, sessionId: op.sessionId,
+      result: { ok: true, code: 'succeeded', data: {} }, settled: true, effectsKnown: true }).ok).toBe(true);
+    expect(m.c.hostRetryRequests?.map(r => r.status)).toEqual(['settled', 'cancelled']);
+    expect(m.c.candidate).toBeNull();
+    expect(m.c.goalVersion).toBe(2);
+  });
+  it('[BT_L37] revoking an approved but unstarted batch command requires a fresh approval', () => {
+    const m = twoQueued(); prepareRetry(m); decideRetry(m, 'approveSession');
+    const originalApproval = retryOp(m).approval!.id;
+    expect(claimRetryOp(m, 'run-claim').ok).toBe(true);
+    const work = retryWork(m), op = retryOp(m);
+    expect(m.send({ type: 'REVOKE_HOST_SESSION', grantId: m.c.hostSession!.id, fence: work }).ok).toBe(true);
+    expect(m.send({ type: 'LOCAL_STARTED', intentId: work.id, operationId: op.id, sessionId: 'run-claim' }).code).toBe('HOST_APPROVAL_REQUIRED');
+    expect(m.send({ type: 'LOCAL_RESULT', intentId: work.id, operationId: op.id, sessionId: 'run-claim',
+      result: { ok: false, code: 'HOST_APPROVAL_REQUIRED', data: {} }, settled: true, effectsKnown: true }).ok).toBe(true);
+    expect(retryOp(m).status).toBe('awaitingApproval');
+    expect(retryOp(m).approval?.id).not.toBe(originalApproval);
+    expect(retryWork(m).localOperations).toHaveLength(1);
+  });
+  it('[BT_L52] persists expiry while original work is still active and reports it at handoff', () => {
+    const m = failedSandbox(); request(m); m.at = m.c.hostRetryRequests![0]!.deadline;
+    expect(m.send({ type: 'HOST_RETRY_EXPIRE' }).ok).toBe(true);
+    expect(m.c.hostRetryRequests?.[0]?.status).toBe('expired');
+    expect(m.c.intents[0]?.status).toBe('inflight');
+    expect(deliver(m).ok).toBe(true);
+    expect(m.c.outcome).toBe('partial');
   });
   it.each([
     { name: 'stopped', change: (m: LocalModel) => { m.c.stopped = true; } },

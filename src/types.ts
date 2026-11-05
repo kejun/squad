@@ -1,3 +1,4 @@
+import type { HostRetryBatch, HostRetryRequest } from './host-retry.js';
 import type { HostSessionGrant } from './host-session.js';
 import type { LocalCheckpoint, LocalEvent, LocalOperation, SkillBinding } from './local-operation.js';
 import type { InputIntentSpec } from './input-intent.js';
@@ -118,6 +119,8 @@ export interface TaskContext extends Fence {
   inputAnalyses?: InputAnalysis[];
   localSkillVersions?: SkillBinding[];
   hostSession?: HostSessionGrant | undefined;
+  hostRetryRequests?: HostRetryRequest[];
+  hostRetryBatch?: HostRetryBatch;
 }
 export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[] }
 export interface Envelope { id: string; at: number; fence?: Fence; workId?: string; attempt?: number }
@@ -130,6 +133,7 @@ export type Decision =
   | { action: 'finish'; reason: string };
 export type TaskEvent = Envelope & (
   | { type: 'REVOKE_HOST_SESSION'; grantId: string }
+  | { type: 'HOST_RETRY_EXPIRE' }
   | { type: 'REQUEST_HOST_RETRY'; sourceWorkId: string; sourceOperationId: string; sourceRequestHash: string; requestHash: string }
   | LocalEvent
   | { type: 'DISCUSSION_PLAN'; discussionId: string; decision: Decision }

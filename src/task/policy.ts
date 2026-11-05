@@ -94,7 +94,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (!workLaneAvailable(c, i)) return 'WORK_BUSY';
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
       if (i.kind === 'tool' && !c.config.bots.find(b => b.id === i.target)?.tools.includes(String(i.payload.tool))) return 'TOOL_PERMISSION';
-      return requestBudgetProblem(c, i);
+      return c.hostRetryBatch?.workId === i.id && c.hostRetryBatch.ownerClaimed ? null : requestBudgetProblem(c, i);
     }
     case 'REGENERATE_MODEL_OUTPUT': {
       const i = c.intents.find(i => i.id === e.intentId);
@@ -111,6 +111,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (!i || i.status !== 'inflight' || i.bucket === 'none') return 'WORK_NOT_INFLIGHT';
       if (i.epoch !== c.epoch || i.goalVersion !== c.goalVersion) return 'STALE_WORK';
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
+      if (c.hostRetryBatch?.workId === i.id && localUnsettled(i)) return 'LOCAL_OPERATION_PENDING';
       if (e.capability) {
         if (!['owner', 'assistance', 'facilitator'].includes(i.kind)) return 'WEB_TOOLS_NOT_ALLOWED';
         if (c.config.webTools?.enabled === false) return 'WEB_TOOLS_DISABLED';

@@ -1,3 +1,4 @@
+import { canStartHostRetry, findHostRetry, hostRetryBoundary, pendingHostRetry } from '../host-retry.js';
 import { type TaskContext, type TaskEvent } from '../types.js';
 import { localResumeKind, valid } from './policy.js';
 import { activeHelp, allInflight, completeProblem, d, discussionActive, discussionIncomplete, fresh, hasOrdinary, incompatibleExecution, inflight, isBot, pendingInput, recoveryIssue, remainingInflight, unresolvedInput } from './facts.js';
@@ -9,6 +10,13 @@ type TaskGuardArgs = { context: TaskContext; event: TaskEvent };
 
 export const taskGuards = {
     valid,
+    reactivateHostRetry: args => valid(args) && args.event.type === 'REQUEST_HOST_RETRY' && args.context.outcome !== null
+      && !findHostRetry(args.context, args.event.sourceWorkId, args.event.sourceOperationId),
+    hostRetryReady: ({ context, event }) => canStartHostRetry(context, event.at ?? context.lastActivityAt),
+    hostRetryBoundary: ({ context }) => hostRetryBoundary(context),
+    hostRetryHoldsDelivery: args => valid(args) && pendingHostRetry(args.context),
+    hostRetryHoldsCheck: args => valid(args) && pendingHostRetry(args.context),
+    hostRetryHoldsFinish: args => valid(args) && d(args.event)?.action === 'finish' && pendingHostRetry(args.context),
     localResumeOwner: ({ context, event }) => ['owner', 'tool'].includes(localResumeKind(context, event) ?? ''),
     localResumeHelp: ({ context, event }) => localResumeKind(context, event) === 'assistance',
     localResumeFacilitator: ({ context, event }) => localResumeKind(context, event) === 'facilitator',

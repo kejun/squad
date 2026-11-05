@@ -1,3 +1,4 @@
+import { cancelHostRetries } from '../host-retry.js';
 import { type ArtifactDraft, type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { compactMessage, isLongResult } from '../presentation.js';
 import { capabilities, discussionActive, fence, unresolvedInput } from './facts.js';
@@ -92,7 +93,7 @@ export function coordinate(c: TaskContext, e: TaskEvent, reason: string) {
 
 export function finish(c: TaskContext, e: TaskEvent, outcome: TaskContext['outcome'], reason: string) {
   c.hostSession = undefined;
-  cancelWork(c, e, true); c.outcome = outcome; c.reason = reason;
+  cancelWork(c, e, true); cancelHostRetries(c, reason || 'TASK_ENDED'); c.outcome = outcome; c.reason = reason;
   for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight'].includes(input.status)) {
     input.status = outcome === 'stopped' ? 'cancelled' : 'failed'; input.error = reason;
   }

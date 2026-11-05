@@ -1,3 +1,4 @@
+import { failHostRetryBoundary, startHostRetryBatch } from '../host-retry.js';
 import { type TaskContext, type TaskEvent } from '../types.js';
 import { assign } from 'xstate';
 import { reduce } from './reducer.js';
@@ -26,6 +27,16 @@ const coordinationProblems: Record<string, string> = {
 
 export const taskActions = {
     apply: taskAssign(({ context, event }) => reduce(context, event)),
+    startHostRetry: taskAssign(({ context, event }) => {
+      const c = structuredClone(context);
+      startHostRetryBatch(c, { ...event, at: event.at ?? c.lastActivityAt });
+      return c;
+    }),
+    failHostRetry: taskAssign(({ context, event }) => {
+      const c = structuredClone(context);
+      failHostRetryBoundary(c, { ...event, at: event.at ?? c.lastActivityAt });
+      return c;
+    }),
     reject: taskAssign(({ context, event }) => {
       const c = structuredClone(context); reject(c, permissionProblem(c, event) ?? 'INVALID_STATE');
       // A stale completion may retire its own physical work, never advance the new round.

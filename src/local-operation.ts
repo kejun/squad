@@ -32,6 +32,10 @@ export interface LocalOperation {
   approval?: HostApproval;
   hostRetryIntentId?: string;
   hostRetryOf?: string;
+  hostRetryRequestId?: string;
+  deadline?: number;
+  skillBindings?: SkillBinding[];
+  executionCharged?: boolean;
 }
 export type LocalEvent =
   | { type: 'LOCAL_REQUEST'; intentId: string; operationId: string; namespace: string; requestHash: string; action: LocalAction; parentAttempt: number; messages: LocalMessage[]; workspaceId?: string }
@@ -39,6 +43,7 @@ export type LocalEvent =
   | { type: 'LOCAL_CLAIM'; intentId: string; operationId: string; parentAttempt: number; sessionId: string; leaseAvailable: boolean }
   | { type: 'LOCAL_APPROVAL_REQUIRED'; intentId: string; operationId: string; sessionId: string; approval: HostApproval }
   | { type: 'LOCAL_APPROVAL_DECISION'; intentId: string; operationId: string; approvalId: string; decision: 'approve' | 'approveSession' | 'deny' }
+  | { type: 'LOCAL_RETRY_EXPIRED'; intentId: string; operationId: string }
   | { type: 'LOCAL_APPROVAL_EXPIRED'; intentId: string; operationId: string }
   | { type: 'LOCAL_STARTED'; intentId: string; operationId: string; sessionId: string; workspaceRevision?: string; isolated?: boolean }
   | { type: 'LOCAL_RESULT'; intentId: string; operationId: string; sessionId: string; result: LocalToolResult; settled: boolean; effectsKnown: boolean }
@@ -108,6 +113,7 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
       return op?.status === 'queued' && op.parentAttempt === event.parentAttempt && event.result?.ok === false ? null : 'LOCAL_NOT_QUEUED';
     case 'LOCAL_CLAIM':
       if (!op || op.status !== 'queued') return 'LOCAL_NOT_QUEUED';
+      if (op.deadline !== undefined && e.at >= op.deadline) return 'WORK_EXPIRED';
       if (!event.sessionId) return 'LOCAL_SESSION_REQUIRED';
       if (['runCli', 'verifyWorkspace'].includes(op.action.type) && !event.leaseAvailable) return 'WORKSPACE_BUSY';
       if (op.action.type === 'runCli' && op.action.execution === 'host' && op.approval) {
@@ -124,7 +130,7 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
         || op.action.type !== 'runCli' || op.action.execution !== 'host') return 'HOST_APPROVAL_NOT_PREPARABLE';
       const a = event.approval, p = a?.plan;
       if (!a || a.sessionGrantId !== undefined || a.status !== 'pending' || typeof a.id !== 'string' || !a.id || a.id.length > 512 || !/^[a-f0-9]{64}$/.test(a.digest)
-        || !Number.isSafeInteger(a.expiresAt) || a.expiresAt <= e.at || a.expiresAt > e.at + 600_000 || work.deadline !== null && a.expiresAt > work.deadline
+        || !Number.isSafeInteger(a.expiresAt) || a.expiresAt <= e.at || a.expiresAt > e.at + 600_000 || work.deadline !== null && a.expiresAt > work.deadline || op.deadline !== undefined && a.expiresAt > op.deadline
         || !p || !validLocalAction({ type: 'runCli', executable: p.executable, args: p.args, cwd: p.cwd })
         || p.reason !== op.action.reason || ![p.workspaceRevision, p.executableHash, p.environmentHash].every(v => typeof v === 'string' && /^[a-f0-9]{64}$/.test(v))
         || ![p.host, p.account].every(v => typeof v === 'string' && !!v && v.length <= 256)) return 'INVALID_HOST_APPROVAL';
@@ -136,13 +142,19 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
       if (c.outcome !== null || !e.fence || e.fence.epoch !== work.epoch || e.fence.goalVersion !== work.goalVersion) return 'STALE_FENCE';
       if (!op || op.status !== 'awaitingApproval' || op.approval?.status !== 'pending') return 'HOST_APPROVAL_NOT_PENDING';
       if (op.approval.id !== event.approvalId) return 'HOST_APPROVAL_MISMATCH';
-      if (e.at >= op.approval.expiresAt) return 'HOST_APPROVAL_EXPIRED';
+      if (e.at >= op.approval.expiresAt || op.deadline !== undefined && e.at >= op.deadline) return 'HOST_APPROVAL_EXPIRED';
       return ['approve', 'approveSession', 'deny'].includes(event.decision) ? null : 'INVALID_HOST_DECISION';
     }
     case 'LOCAL_APPROVAL_EXPIRED':
       return op?.approval && ['awaitingApproval', 'queued'].includes(op.status) && e.at >= op.approval.expiresAt ? null : 'HOST_APPROVAL_NOT_EXPIRED';
+    case 'LOCAL_RETRY_EXPIRED':
+      return op?.deadline !== undefined && e.at >= op.deadline && ['queued', 'awaitingApproval'].includes(op.status) && op.startedAt === undefined ? null : 'HOST_RETRY_NOT_EXPIRED';
     case 'LOCAL_STARTED':
       if (!op || op.sessionId !== event.sessionId || !['claimed', 'cancelling'].includes(op.status)) return 'LOCAL_SESSION_MISMATCH';
+      if (op.deadline !== undefined) {
+        const problem = localParentProblem(c, work, e.at);
+        if (problem || e.at >= op.deadline) return problem ?? 'WORK_EXPIRED';
+      }
       if (op.action.type === 'runCli' && op.action.execution === 'host' && op.approval?.status !== 'approved') return 'HOST_APPROVAL_REQUIRED';
       if (op.approval?.sessionGrantId && (op.approval.sessionGrantId !== c.hostSession?.id || !hostSessionMatches(c, work, op, op.approval))) return 'HOST_APPROVAL_REQUIRED';
       return null;
@@ -187,7 +199,10 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
       finishOperation(work, op!, e.result, e.at);
       break;
     case 'LOCAL_CLAIM':
-      if (!freeLocalClaim(op!) && !(op!.action.type === 'runCli' && op!.action.execution === 'host' && !op!.approval)) c.usage.ordinary++;
+      if (!freeLocalClaim(op!) && !(op!.action.type === 'runCli' && op!.action.execution === 'host' && !op!.approval)) {
+        c.usage.ordinary++;
+        if (op!.hostRetryRequestId) op!.executionCharged = true;
+      }
       op!.status = 'claimed'; op!.sessionId = e.sessionId; op!.parentAttempt = work.attempt; op!.attempt++;
       break;
     case 'LOCAL_APPROVAL_REQUIRED':
@@ -211,6 +226,10 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
       op!.approval!.status = 'expired';
       finishOperation(work, op!, { ok: false, code: 'HOST_APPROVAL_EXPIRED', data: {} }, e.at);
       break;
+    case 'LOCAL_RETRY_EXPIRED':
+      if (op!.approval) op!.approval.status = 'expired';
+      finishOperation(work, op!, { ok: false, code: 'WORK_EXPIRED', data: {} }, e.at);
+      break;
     case 'LOCAL_STARTED':
       if (op!.status !== 'cancelling') op!.status = 'running';
       op!.startedAt = e.at;
@@ -218,6 +237,13 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
       if (e.isolated !== undefined) op!.isolated = e.isolated;
       break;
     case 'LOCAL_RESULT':
+      if (op!.hostRetryRequestId && op!.startedAt === undefined && op!.approval?.sessionGrantId
+        && e.settled && e.effectsKnown && e.result.code === 'HOST_APPROVAL_REQUIRED' && !c.stopped
+        && work.epoch === c.epoch && work.goalVersion === c.goalVersion && e.at < op!.approval.expiresAt) {
+        op!.status = 'awaitingApproval'; op!.approval.status = 'pending'; op!.approval.id = `${e.id}:${op!.id}`;
+        delete op!.approval.sessionGrantId;
+        break;
+      }
       if (!e.settled || !e.effectsKnown) { op!.status = 'uncertain'; op!.result = e.result; work.status = 'uncertain'; if (!localRecoveryBlocked(c)) c.reason = '本地操作效果不确定，需核对后继续'; }
       else {
         finishOperation(work, op!, e.result, e.at);
