@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { initialModelRequestId, publishObservation, type ExecutionObservation, type MeasurementSink, type ModelObservation } from './measurement.js';
+import { deliveryObservations, initialModelRequestId, publishObservation, type ExecutionObservation, type MeasurementSink, type ModelObservation } from './measurement.js';
 import { readSavedArtifact, readSavedEvidence } from './evidence-reader.js';
 import { evidenceIndex } from './task/evidence.js';
 import { acceptanceCriteria, validCriterionCoverage, validCriterionJudgments, type CriterionCoverage, type CriterionJudgment } from './delivery-acceptance.js';
@@ -7,7 +7,7 @@ import { hostRetrySourceAllowed, isSavedRead, localAwaitingApproval, localEnable
 import type { LocalRuntime } from './local-runtime.js';
 import { LocalToolError, type SkillPage } from './local-skills.js';
 import type { TeamEngine } from './engine.js';
-import type { ArtifactDraft, Decision, InputIntentSpec, InputReference, Intent, ModelOutputIssue, TaskEvent } from './types.js';
+import type { ArtifactDraft, Candidate, Decision, InputIntentSpec, InputReference, Intent, ModelOutputIssue, TaskContext, TaskEvent } from './types.js';
 import { inputIntentSchema, validInputIntent } from './input-intent.js';
 import { validArtifactDrafts, validSummary } from './presentation.js';
 import { findSkills, type FoundSkill, type SkillSearchTransport } from './skills.js';
@@ -117,13 +117,24 @@ export class WorkRunner {
     const report = (observation: ExecutionObservation) => {
       try { this.observe?.(context, observation); } catch { /* Observation is best effort. */ }
     };
-    report({ phase: 'work.started', kind: work.kind });
+    const checkRevision = work.kind === 'check' ? (work.payload.candidate as Candidate | undefined)?.revision : undefined;
+    report({ phase: 'work.started', kind: work.kind, ...(checkRevision ? { candidateRevision: checkRevision } : {}) });
     let modelRequestId: string | null = null;
     const submitResult = (event: TaskEvent) => {
+      let before: TaskContext | undefined;
+      if (this.observe && (event.type === 'DELIVER' || event.type === 'CHECK_RESULT' || event.type === 'COORDINATE')) {
+        try { before = this.engine.view(roomId, taskId)?.context; } catch { /* Observation is best effort. */ }
+      }
       const response = send(event);
       report({ phase: 'work.result', requestId: modelRequestId, eventId: event.id, eventType: event.type,
         accepted: response.ok && event.type !== 'WORK_FAILED' && event.type !== 'SETTLE',
         code: response.ok && event.type === 'WORK_FAILED' ? 'WORKER_REJECTED_OUTPUT' : response.code });
+      if (before && response.ok) {
+        try {
+          const after = this.engine.view(roomId, taskId)?.context;
+          if (after) for (const observation of deliveryObservations(before, after, event, work)) report(observation);
+        } catch { /* Observation is best effort. */ }
+      }
       return response;
     };
     const controller = new AbortController();
@@ -187,11 +198,11 @@ export class WorkRunner {
       ...(op.hostRetryRequestId ? { retryRequestId: op.hostRetryRequestId,
         ...(hostRetry ? { batchId: retryBatch!.id } : {}) } : {}),
     });
-    const evidenceSourceId = (result: LocalToolResult) => {
+    const evidenceCorrelation = (result: LocalToolResult) => {
       const evidence = result.data.evidence;
       if (evidence && typeof evidence === 'object' && 'sourceOperationId' in evidence && typeof evidence.sourceOperationId === 'string')
-        return evidence.sourceOperationId;
-      return undefined;
+        return { sourceOperationId: evidence.sourceOperationId };
+      return {};
     };
     if (this.localRuntime) {
       const runtime = this.localRuntime;
@@ -212,7 +223,7 @@ export class WorkRunner {
           if (!op) throw new WorkFailure('LOCAL_OPERATION_MISSING');
           if (['succeeded', 'failed', 'cancelled'].includes(op.status) && op.result) {
             report({ phase: 'local.receiptRead', ...localCorrelation(op), readKind: 'receiptReplay',
-              ...(op.action.type === 'readEvidence' ? { sourceOperationId: evidenceSourceId(op.result) } : {}) });
+              ...(op.action.type === 'readEvidence' ? evidenceCorrelation(op.result) : {}) });
             return op.result;
           }
           if (retryDeadline !== undefined && this.clock() >= retryDeadline) return expireRetry();
@@ -262,7 +273,6 @@ export class WorkRunner {
               ? readSavedEvidence(context, currentWork(), operation.action)
               : readSavedArtifact(context, currentWork(), operation.action);
             execution = { result, settled: true, effectsKnown: true };
-            report({ phase: 'local.receiptRead', ...local });
           } else {
             enteredRuntime = true;
             execution = await runtime.execute(currentWork(), operation, signal, metadata => {
@@ -295,8 +305,10 @@ export class WorkRunner {
         }
         const response = send({ type: 'LOCAL_RESULT', id: `local-result:${op.sessionId}`, at: this.clock(),
           intentId: work.id, operationId: op.id, sessionId: op.sessionId!, ...execution });
-        if (response.ok && execution.result.ok && op.action.type === 'readEvidence') {
-          report({ phase: 'local.receiptRead', ...local, readKind: 'evidencePage', sourceOperationId: evidenceSourceId(execution.result) });
+        if (response.ok && execution.result.ok && isSavedRead(op.action)) {
+          report(op.action.type === 'readEvidence'
+            ? { phase: 'local.receiptRead', ...local, readKind: 'evidencePage', ...evidenceCorrelation(execution.result) }
+            : { phase: 'local.receiptRead', ...local, readKind: 'artifactPage' });
         }
         report({ phase: 'local.result', ...local, committed: response.ok, settled: execution.settled,
           effectsKnown: execution.effectsKnown, code: response.ok ? 'LOCAL_RESULT_RECORDED' : response.code, ok: execution.result.ok });

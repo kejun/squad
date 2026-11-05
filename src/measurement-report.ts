@@ -66,6 +66,10 @@ export function summarizeMeasurements(records: readonly MeasurementRecord[]) {
       independentCheck: duration('work.started', ['work.result'], checkKey, false),
     };
     const observations = entries.map(entry => entry.observation);
+    const deliveryGapKinds: Record<string, number> = {};
+    for (const event of observations) if (event.phase === 'delivery.preflightRejected' || event.phase === 'delivery.checked') {
+      for (const gap of event.gaps) deliveryGapKinds[gap.kind] = (deliveryGapKinds[gap.kind] ?? 0) + 1;
+    }
     const observedIntervalUnionMs = observedIntervals.length ? coveredDuration(observedIntervals) : null;
     const monotonicTimes = entries.map(entry => entry.monotonicMs);
     const windowMs = monotonicTimes.length < 2 ? null
@@ -85,10 +89,14 @@ export function summarizeMeasurements(records: readonly MeasurementRecord[]) {
         modelResultsRejected: observations.filter(event => event.phase === 'work.result' && event.requestId !== null && !event.accepted).length,
         cliProcesses: count('local.processStarted'), savedReceiptReads: count('local.receiptRead'),
         evidencePagesRead: observations.filter(event => event.phase === 'local.receiptRead' && event.readKind === 'evidencePage').length,
+        artifactPagesRead: observations.filter(event => event.phase === 'local.receiptRead' && event.readKind === 'artifactPage').length,
         receiptReplays: observations.filter(event => event.phase === 'local.receiptRead' && event.readKind === 'receiptReplay').length,
         retryRequestsAccepted: count('local.retryQueued'),
         retryProcesses: observations.filter(event => event.phase === 'local.processStarted' && event.retryRequestId !== undefined).length,
+        candidatesSubmitted: count('delivery.submitted'), preflightRejections: count('delivery.preflightRejected'),
+        deliveryChecks: count('delivery.checked'), deliveriesPublished: count('delivery.published'),
       },
+      deliveryGapKinds,
       usage: { input: knownUsage('input'), output: knownUsage('output'), total: knownUsage('total') },
       durations,
       observedWindowMs: windowMs,

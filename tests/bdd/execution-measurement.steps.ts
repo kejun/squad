@@ -9,10 +9,14 @@ import { WorkRunner } from '../../src/runner.js';
 import { coveredDuration, type ExecutionObservation, type MeasurementRecord } from '../../src/measurement.js';
 import { summarizeMeasurements } from '../../src/measurement-report.js';
 import { WebService } from '../../src/web/service.js';
+import type { AcceptanceCriterion } from '../../src/delivery-acceptance.js';
+import { fixtureCheck, withFixtureAcceptance } from '../delivery-protocol-fixture.js';
 import { Harness } from '../helpers.js';
 import { hostUntil } from '../host-approval-fixture.js';
+import { HostRetryFixture } from '../host-retry-fixture.js';
 import { LocalFixture, localConfig } from '../local-tools-fixture.js';
 import { badModelOutput, goodModelOutput, modelResponse, regenerationConfig } from '../model-regeneration-fixture.js';
+import { evidenceCommand } from '../task-evidence-fixture.js';
 import type { SpecWorld } from './steps.js';
 
 interface MeasurementState {
@@ -29,6 +33,10 @@ interface MeasurementState {
   modelCalls?: number;
   timingRecords?: MeasurementRecord[];
   timingSummary?: ReturnType<typeof summarizeMeasurements>;
+  retry?: HostRetryFixture;
+  retrySourceId?: string;
+  evidenceSourceId?: string;
+  retryRecords?: ExecutionObservation[];
 }
 
 const states = new WeakMap<SpecWorld, MeasurementState>();
@@ -37,7 +45,7 @@ const state = (world: SpecWorld) => { const value = states.get(world); assert(va
 After(async function (this: SpecWorld) {
   const s = states.get(this);
   if (!s) return;
-  try { await s.local?.close(); await s.service?.close(); }
+  try { await s.local?.close(); await s.service?.close(); await s.retry?.close(); }
   finally {
     s.database?.close();
     s.harness?.store.close();
@@ -131,9 +139,9 @@ Given('执行观测存储不可用', function (this: SpecWorld) {
   states.set(this, s);
   const file = join(directory, 'team.sqlite');
   const config = localConfig();
-  const adapter = new OpenAICompatibleAdapter(config, { transport: async () => {
+  const adapter = new OpenAICompatibleAdapter(config, { transport: async (_url, init) => {
     s.modelCalls!++;
-    return modelResponse(s.modelCalls === 1 ? goodModelOutput('owner') : goodModelOutput('check'));
+    return modelResponse(withFixtureAcceptance(s.modelCalls === 1 ? goodModelOutput('owner') : goodModelOutput('check'), init?.body));
   } });
   s.service = new WebService(config, file, adapter);
   s.database = new DatabaseSync(file);
@@ -205,4 +213,77 @@ Then('同一次运行的观测并集只覆盖一次已知时段', function (this
   assert.equal(second?.observedWindowMs, null);
   assert.equal(second?.observedIntervalUnionMs, null);
   assert.equal(second?.unclassifiedInWindowMs, null);
+});
+
+Given('任务读取原回执并处理已接受的宿主续办与交付检查', async function (this: SpecWorld) {
+  const s: MeasurementState = { records: [] }; states.set(this, s);
+  const local = await LocalFixture.create(); s.local = local;
+  const { h } = local;
+  const runner = new WorkRunner(h.engine, {
+    execute: async (work, signal, scope) => {
+      if (work.kind === 'check') return fixtureCheck(work.payload.candidate);
+      const tools = scope.localTools!;
+      if (!s.evidenceSourceId) {
+        const result = await tools.invoke(evidenceCommand, [], signal, id => { s.evidenceSourceId = id; });
+        assert(result.ok);
+        return { type: 'deliver', text: '暂未附凭证', artifactIds: [], coverage: [] };
+      }
+      const read = await tools.invoke({ type: 'readEvidence', sourceOperationId: s.evidenceSourceId, stream: 'stdout' }, [], signal);
+      assert(read.ok);
+      const criteria = work.payload.acceptanceCriteria as AcceptanceCriterion[];
+      return { type: 'deliver', text: '已核验来源', artifactIds: [], coverage: criteria.map(item => ({ criterionId: item.id,
+        refs: [{ kind: 'evidence', id: s.evidenceSourceId! }] })) };
+    },
+  }, () => h.now, undefined, undefined, local.runtime, (_context, event) => s.records.push(event));
+  for (let i = 0; i < 3; i++) assert(await runner.runOne(h.room, h.task));
+  assert.equal(h.context().outcome, 'complete');
+  const retry = new HostRetryFixture(); s.retry = retry;
+  await retry.pauseAfterTwoFailures();
+  const request = retry.retryData(); s.retrySourceId = request.operationId;
+  assert.equal((await retry.requestRetry(request)).status, 200);
+  assert.equal((await retry.requestRetry(request)).status, 200);
+  retry.hostCommands = 1;
+  retry.resumeMain();
+  const approval = await retry.approval();
+  assert.equal((await retry.request(retry.decisionData(approval, 'approve'))).status, 200);
+  assert.equal((await retry.complete()).tasks.at(-1)?.outcome, 'complete');
+});
+
+When('我核对观测中的业务关联', function (this: SpecWorld) {
+  const s = state(this), retry = s.retry!;
+  const db = new DatabaseSync(join(retry.root, 'team.sqlite'), { readOnly: true });
+  try {
+    s.retryRecords = db.prepare("SELECT detail FROM web_events WHERE taskId = ? AND kind = 'measurement' ORDER BY id").all(retry.taskId)
+      .map(row => (JSON.parse(String(row.detail)) as MeasurementRecord).observation);
+  } finally { db.close(); }
+});
+
+Then('应能由证据读取追溯原操作并由宿主执行追溯续办请求', function (this: SpecWorld) {
+  const s = state(this);
+  const evidence = s.records.find(event => event.phase === 'local.receiptRead' && event.readKind === 'evidencePage');
+  assert(evidence?.phase === 'local.receiptRead');
+  assert.equal(evidence.sourceOperationId, s.evidenceSourceId);
+  assert.notEqual(evidence.operationId, evidence.sourceOperationId);
+  assert.equal(s.records.filter(event => event.phase === 'local.processStarted').length, 1);
+  const requests = s.retryRecords!.filter(event => event.phase === 'local.retryQueued');
+  const [request] = requests;
+  assert.equal(requests.length, 1);
+  assert.equal(request!.sourceOperationId, s.retrySourceId);
+  const process = s.retryRecords!.find(event => event.phase === 'local.processStarted' && event.retryRequestId === request!.retryRequestId);
+  assert(process && 'operationId' in process && process.batchId);
+  assert.notEqual(process.operationId, request!.sourceOperationId);
+});
+
+Then('交付观测应区分预检缺口、候选检查和最终发布', function (this: SpecWorld) {
+  const s = state(this), records = s.records;
+  const preflight = records.find(event => event.phase === 'delivery.preflightRejected');
+  const checked = records.find(event => event.phase === 'delivery.checked');
+  const published = records.find(event => event.phase === 'delivery.published');
+  assert(preflight && checked && published?.phase === 'delivery.published');
+  assert(preflight.gaps.some(gap => gap.criterionId && gap.kind === 'missing_requirement'));
+  assert.notEqual(preflight.candidateRevision, checked.candidateRevision);
+  assert.equal(checked.candidateRevision, published.candidateRevision);
+  assert.equal(checked.passed, true);
+  assert(checked.judgments.length && checked.judgments.every(item => item.status === 'passed'));
+  assert(!JSON.stringify(records).includes('真实正文'));
 });

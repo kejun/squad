@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
+import type { CriterionJudgment, DeliveryGap, DeliveryGapKind } from './delivery-acceptance.js';
 import { modelSignature } from './model-config.js';
-import type { TeamConfig } from './types.js';
+import type { Candidate, Intent, TaskContext, TaskEvent, TeamConfig } from './types.js';
 
 export const initialModelRequestId = '__initial_reserved_request__';
 
@@ -17,16 +18,23 @@ export type ModelObservation = { requestId: string } & (
 export type LocalObservation = { operationId: string; action: string; sessionId?: string; retryRequestId?: string; batchId?: string } & (
   | { phase: 'local.saved' | 'local.claimed' | 'local.prepareStarted' | 'local.prepareFinished'
     | 'local.startAuthorized' | 'local.processStarted' | 'local.processFinished' }
-  | { phase: 'local.receiptRead'; readKind?: 'evidencePage' | 'receiptReplay'; sourceOperationId?: string }
+  | { phase: 'local.receiptRead'; readKind?: 'evidencePage' | 'artifactPage' | 'receiptReplay'; sourceOperationId?: string }
   | { phase: 'local.retryQueued'; retryRequestId: string; sourceOperationId: string }
   | { phase: 'local.approvalRequired'; approvalId: string; sessionApproved: boolean }
   | { phase: 'local.approvalDecision'; approvalId: string; decisionId: string; decision: 'approve' | 'approveSession' | 'deny' }
   | { phase: 'local.result'; committed: boolean; settled: boolean; effectsKnown: boolean; code: string; ok?: boolean }
 );
 
-export type ExecutionObservation = ModelObservation | LocalObservation
+type MeasurementGap = { criterionId: string | null; kind: DeliveryGapKind };
+type DeliveryObservation = { candidateRevision: string } & (
+  | { phase: 'delivery.submitted' | 'delivery.published' }
+  | { phase: 'delivery.preflightRejected'; gaps: MeasurementGap[] }
+  | { phase: 'delivery.checked'; passed: boolean; gaps: MeasurementGap[]; judgments: Pick<CriterionJudgment, 'criterionId' | 'status'>[] }
+);
+
+export type ExecutionObservation = ModelObservation | LocalObservation | DeliveryObservation
   | { phase: 'budget.authorized'; requestId: string; category: 'model' | 'externalTool' | 'web_search' | 'web_fetch' | 'findSkills' }
-  | { phase: 'work.started'; kind: string }
+  | { phase: 'work.started'; kind: string; candidateRevision?: string }
   | { phase: 'work.result'; eventId: string; eventType: string; accepted: boolean; code: string; requestId: string | null };
 
 export interface MeasurementContext {
@@ -73,6 +81,41 @@ export function measurementRun(config: TeamConfig, identity: MeasurementIdentity
 
 export function publishObservation<T>(observer: ((observation: T) => void) | undefined, observation: T): void {
   try { observer?.(observation); } catch { /* Observation does not own execution or retries. */ }
+}
+
+const gapMetadata = (candidate: Candidate, gaps: DeliveryGap[]) => gaps
+  .filter(gap => gap.candidateRevision === candidate.revision)
+  .map(gap => ({ kind: gap.kind,
+    criterionId: candidate.acceptance?.criteria.some(item => item.id === gap.criterionId) ? gap.criterionId : null }));
+
+/** Only describe the change visible in the committed business snapshots. */
+export function deliveryObservations(before: TaskContext, after: TaskContext, event: TaskEvent, work: Intent): DeliveryObservation[] {
+  const events: DeliveryObservation[] = [];
+  const candidate = after.candidate;
+  if (event.type === 'DELIVER' && candidate?.revision && candidate.workId === work.id && candidate.revision !== before.candidate?.revision) {
+    events.push({ phase: 'delivery.submitted', candidateRevision: candidate.revision });
+    const gaps = gapMetadata(candidate, after.deliveryGaps ?? []);
+    if (gaps.length) events.push({ phase: 'delivery.preflightRejected', candidateRevision: candidate.revision, gaps });
+  }
+  if (event.type === 'CHECK_RESULT' && !before.consumedResults.includes(event.resultId) && after.consumedResults.includes(event.resultId)) {
+    const checked = work.payload.candidate as Candidate | undefined;
+    if (checked?.revision) {
+      const assessment = after.deliveryAssessments?.slice(before.deliveryAssessments?.length ?? 0)
+        .find(item => item.candidateRevision === checked.revision);
+      const judgments = (checked.acceptance?.criteria ?? []).flatMap(criterion => {
+        const result = assessment?.judgments.find(item => item.criterionId === criterion.id);
+        return result ? [{ criterionId: criterion.id, status: result.status }] : [];
+      });
+      const gaps = gapMetadata(checked, assessment?.gaps ?? []);
+      events.push({ phase: 'delivery.checked', candidateRevision: checked.revision, passed: event.passed && !gaps.length, gaps, judgments });
+    }
+  }
+  const publication = after.publishedDelivery;
+  if (publication?.revision && publication.at === event.at && (publication.revision !== before.publishedDelivery?.revision
+    || publication.at !== before.publishedDelivery?.at)) {
+    events.push({ phase: 'delivery.published', candidateRevision: publication.revision });
+  }
+  return events;
 }
 
 export function providerUsage(data: unknown): Usage {
