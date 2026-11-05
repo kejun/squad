@@ -87,6 +87,23 @@ describe('model output regeneration', () => {
     expect(f.h.context().reason).toContain('authorization is unavailable');
   });
 
+  it('[BT_M28] fails before requesting a model when a custom host omits the trusted coordinator identity', async () => {
+    const f = fixture('facilitator');
+    const runner = new WorkRunner(f.h.engine, { execute: (work, signal, scope) => {
+      const legacy = structuredClone(work);
+      delete legacy.payload.owner;
+      return f.adapter.execute(legacy, signal, scope);
+    } }, () => f.h.now);
+
+    await runner.runOne(f.h.room, f.h.task);
+
+    expect(f.requests).toHaveLength(0);
+    expect(f.repairs).toHaveLength(0);
+    expect(f.h.view().phase).toBe('waitingHuman');
+    expect(f.h.context().reason).toContain('COORDINATION_OWNER_MISSING');
+    expect(f.h.context().messages.at(-1)?.text).toBe(f.h.context().reason);
+  });
+
   it('[BT_M19] preserves a negative judgment regenerated from a malformed response', async () => {
     const f = fixture(); f.replies = [{ type: 'check', passed: 'false', gaps: '实际缺口' }, { type: 'check', passed: false, gaps: ['实际缺口'] }];
     await f.run();

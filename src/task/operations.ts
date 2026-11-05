@@ -24,7 +24,8 @@ export function saveReports(c: TaskContext, e: TaskEvent, text: string, author: 
 }
 
 export function intent(c: TaskContext, at: number, kind: Intent['kind'], target: string, payload: Record<string, unknown> = {}, replay: Intent['replay'] = 'safe'): Intent {
-  const item: Intent = { id: `${c.taskId}:E${c.epoch}:${kind}:${c.nextSeq++}`, kind, target, payload,
+  const item: Intent = { id: `${c.taskId}:E${c.epoch}:${kind}:${c.nextSeq++}`, kind, target,
+    payload: kind === 'facilitator' ? { ...payload, owner: c.owner } : payload,
     ...(c.localSkillVersions?.length ? { localSkills: structuredClone(c.localSkillVersions) } : {}),
     ...fence(c), status: 'pending', replay, attempt: 0, deadline: at + c.config.limits.workTimeoutMs,
     bucket: kind === 'check' ? 'checks' : kind === 'cancel' ? 'none' : 'ordinary', requestCount: 0 };

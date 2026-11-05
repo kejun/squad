@@ -129,7 +129,7 @@ export class WorkRunner {
       const response = send({ type: 'REGENERATE_MODEL_OUTPUT', intentId: work.id, issue,
         id: `repair:${work.id}:${work.attempt}:${++repairSequence}`, at: this.clock(),
         fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
-      if (!response.ok) throw new WorkFailure(`模型输出格式不合规，无法继续重新生成 (${response.code})`);
+      if (!response.ok) throw new WorkFailure(`模型输出不符合协议，无法继续自动修正 (${response.code})`);
     }, findSkills: async (query, signal) => {
       const current = this.engine.view(roomId, taskId)!.context;
       if (this.engine.config.skillSearch?.enabled === false || current.config.skillSearch?.enabled === false) throw new WorkFailure('SKILL_SEARCH_DISABLED');

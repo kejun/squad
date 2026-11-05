@@ -38,7 +38,7 @@ const schemas = {
   blocked: '{"type":"blocked","reason":"specific obstacle"}',
   askUser: '{"type":"askUser","question":"essential missing information"}',
   check: '{"type":"check","passed":true,"gaps":[]}',
-  decision: '{"type":"decision","decision":{"action":"continue|assist|review|replan|askUser|finish","reason":"why","target":"required for assist","question":"required for assist, review or askUser","expected":"required for assist or review","plan":"required for replan"}}',
+  decision: '{"type":"decision","decision":{"action":"continue|assist|review|replan|askUser|finish","reason":"why","target":"required for assist; must be another configured member, never context.owner; use continue for the owner\'s own work","question":"required for assist, review or askUser","expected":"required for assist or review","plan":"required for replan"}}',
   settled: '{"type":"settled"}',
 };
 class OutputValidationError extends Error {
@@ -48,6 +48,7 @@ function repairFeedback(kind: Intent['kind'], issue: ModelOutputIssue): { role: 
   return { role: 'user', content: JSON.stringify({ type: 'model_output_validation_error', code: issue,
     instruction: 'Your previous response did not match the required protocol and was not applied. Regenerate exactly one complete JSON object for the same work and goal, using one of the allowed schemas. Preserve your actual judgment and the evidence already provided. Do not repeat tool calls only to repair formatting.',
     allowedOutputs: outputs[kind].map(type => schemas[type]),
+    ...(kind === 'facilitator' ? { decisionRequirements: 'For assist, target must be a configured member other than context.owner. Use continue when the current owner should do the work. Preserve a valid decision to ask another member for help; never change the owner or invent a member.' } : {}),
     ...(kind === 'check' ? { checkRequirements: 'type must be "check"; passed must be a JSON boolean, not a string or verdict field; gaps is always required and must be an array of strings, including [] when there are no gaps. A negative judgment is valid: passed:false with concrete gaps.' } : {}),
   }) };
 }
@@ -58,7 +59,7 @@ function parseOutput(content: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new OutputValidationError('invalid_object');
   return value as Record<string, unknown>;
 }
-function validDecision(output: Record<string, unknown>): boolean {
+function validDecision(output: Record<string, unknown>, context: { owner: unknown; bots: TeamConfig['bots'] }): boolean {
   if (output.type !== 'decision') return true;
   const value = output.decision;
   if (!value || typeof value !== 'object') return false;
@@ -67,7 +68,8 @@ function validDecision(output: Record<string, unknown>): boolean {
   if (!nonempty(d.reason)) return false;
   switch (d.action) {
     case 'continue': case 'finish': return true;
-    case 'assist': return nonempty(d.target) && nonempty(d.question) && nonempty(d.expected);
+    case 'assist': return nonempty(d.target) && nonempty(d.question) && nonempty(d.expected)
+      && d.target !== context.owner && context.bots.some(bot => bot.id === d.target);
     case 'review': return nonempty(d.question) && nonempty(d.expected);
     case 'replan': return nonempty(d.plan);
     case 'askUser': return nonempty(d.question);
@@ -117,6 +119,10 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
     }
     const selected = resolveModel(this.config, work.kind, work.target);
     if (!selected || modelSignature(selected) !== modelSignature(work.model)) throw new WorkFailure('Model configuration changed; recover task before executing');
+    if (work.kind === 'facilitator' && (typeof work.payload.owner !== 'string'
+      || !this.config.bots.some(bot => bot.id === work.payload.owner))) {
+      throw new WorkFailure('协调工作缺少有效的当前负责人信息，请恢复任务后重试 (COORDINATION_OWNER_MISSING)');
+    }
     const { service, serviceId } = selected;
     const env = this.options.env ?? process.env;
     const key = service.apiKeyEnv ? env[service.apiKeyEnv] : undefined;
@@ -283,7 +289,7 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
         if (['answer', 'deliver'].includes(String(output.type)) && (typeof output.text !== 'string' || !output.text.trim())) throw new OutputValidationError('invalid_work_output');
         if (!outputs[work.kind].includes(output.type as WorkOutput['type'])) throw new OutputValidationError('invalid_type');
         if (!validWorkOutput(output)) throw new OutputValidationError('invalid_work_output');
-        if (!validDecision(output)) throw new OutputValidationError('invalid_decision');
+        if (!validDecision(output, { owner: work.payload.owner, bots: this.config.bots })) throw new OutputValidationError('invalid_decision');
         return output;
       } catch (error) {
         if (!(error instanceof OutputValidationError)) throw error;

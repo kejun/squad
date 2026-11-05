@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { initialTask, stepTask, persistTask, restoreTask, taskMachine, type TaskSnapshot } from '../src/task.machine.js';
 import { inspectInitialTask, inspectTask, type DebugEvidence } from '../src/task-inspection.js';
 import { taskGraph, type MachineGraph } from '../src/task-structure.js';
-import type { Phase, TaskContext, TaskEvent, TaskInput } from '../src/types.js';
+import type { Intent, Phase, TaskContext, TaskEvent, TaskInput } from '../src/types.js';
 
 interface Frame { digest: string; phase: Phase; usage: TaskContext['usage']; reply: TaskContext['reply']; evidence: DebugEvidence }
 interface Trace { name: string; input: TaskInput; events: TaskEvent[]; frames: Frame[] }
@@ -12,7 +12,9 @@ interface LegacyContract { schema: 1; sourceSha: string; xstate: string; graph: 
 export const legacyTaskContract = JSON.parse(readFileSync(new URL('./fixtures/task-model-v1.json', import.meta.url), 'utf8')) as LegacyContract;
 assert.equal(legacyTaskContract.sourceSha, 'dd5ec71b41a82a13c831938e5401783214db76aa07d9e0ab80487b03b7dd42f9');
 // BT_L23–L30 add six approval rules; BT_L32–L34 add two manual retry rules. BT_L37 adds session revocation. Frozen traces stay untouched.
-const approvalDefinition = '2a015052';
+// BT_M23–M29 add one explanation action to the existing current-coordination rejection.
+const extendedDefinition = '676b3aa7';
+const coordinationRejectionId = 'coordinating:COORDINATE:6';
 const sessionRules = [
   { id: '*:REVOKE_HOST_SESSION:0', order: 0, source: '*', event: 'REVOKE_HOST_SESSION', target: null, guards: ['valid'], actions: ['apply'] },
   { id: '*:REVOKE_HOST_SESSION:1', order: 1, source: '*', event: 'REVOKE_HOST_SESSION', target: null, guards: [], actions: ['reject'] },
@@ -26,8 +28,8 @@ const approvalRules = ['LOCAL_APPROVAL_REQUIRED', 'LOCAL_APPROVAL_DECISION', 'LO
   { id: `*:${event}:1`, order: 1, source: '*', event, target: null, guards: [], actions: ['reject'] },
 ]);
 function assertLegacyEvidence(actual: DebugEvidence, expected: DebugEvidence, label: string) {
-  assert.equal(actual.definition, approvalDefinition);
-  assert.deepEqual(actual, { ...expected, definition: approvalDefinition }, label);
+  assert.equal(actual.definition, extendedDefinition);
+  assert.deepEqual(actual, { ...expected, definition: extendedDefinition }, label);
 }
 
 function canonical(value: unknown): unknown {
@@ -51,9 +53,9 @@ export function businessSnapshot(snapshot: TaskSnapshot): unknown {
 }
 export function snapshotDigest(snapshot: TaskSnapshot): string {
   // Persisted JSON omits undefined properties; property insertion order is not part of its contract.
-  const value = businessSnapshot(snapshot);
-  return createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
+  return digest(businessSnapshot(snapshot));
 }
+const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
 export function restoreLegacyTask(phase: Phase): TaskSnapshot {
   const saved = structuredClone(legacyTaskContract.seeds[phase]);
   assert(saved, phase);
@@ -62,18 +64,35 @@ export function restoreLegacyTask(phase: Phase): TaskSnapshot {
   assert.equal(snapshot.value, phase);
   return snapshot;
 }
-function assertFrame(snapshot: TaskSnapshot, expected: Frame, label: string) {
+type FacilitatorOwners = Map<string, string>;
+function recordCreatedFacilitators(snapshot: TaskSnapshot, owners: FacilitatorOwners) {
+  for (const work of snapshot.context.intents) {
+    if (work.kind === 'facilitator' && !owners.has(work.id)) owners.set(work.id, snapshot.context.owner);
+  }
+}
+function assertFrame(snapshot: TaskSnapshot, expected: Frame, label: string, owners: FacilitatorOwners) {
   assert.equal(snapshot.value, expected.phase, label);
   assert.deepEqual(snapshot.context.usage, expected.usage, label);
   assert.deepEqual(snapshot.context.reply, expected.reply, label);
-  assert.equal(snapshotDigest(snapshot), expected.digest, `${label}: full persisted snapshot differs`);
+  const value = businessSnapshot(snapshot) as { context: TaskContext };
+  // The only approved snapshot addition is the owner pinned when each facilitator was created.
+  // Validate it before projecting it out; every other payload and persisted field stays frozen.
+  for (const [id, owner] of owners) {
+    const work = value.context.intents.find(item => item.id === id);
+    assert(work?.kind === 'facilitator', `${label}: missing facilitator ${id}`);
+    assert.equal(work.payload.owner, owner, `${label}: facilitator ${id} must retain its creation owner`);
+    delete work.payload.owner;
+  }
+  assert.equal(digest(value), expected.digest, `${label}: full persisted snapshot differs`);
 }
 export function replayLegacyTrace(name: string, diagnostics = false): TaskSnapshot {
   const trace = legacyTaskContract.traces.find(trace => trace.name === name);
   assert(trace, name);
   const input = structuredClone(trace.input);
   let snapshot = initialTask(input);
-  assertFrame(snapshot, trace.frames[0]!, `${name}:init`);
+  const owners: FacilitatorOwners = new Map();
+  recordCreatedFacilitators(snapshot, owners);
+  assertFrame(snapshot, trace.frames[0]!, `${name}:init`, owners);
   if (diagnostics) {
     const initial = inspectInitialTask(input);
     assert.equal(snapshotDigest(initial.snapshot), snapshotDigest(snapshot));
@@ -82,22 +101,43 @@ export function replayLegacyTrace(name: string, diagnostics = false): TaskSnapsh
   for (const [index, event] of trace.events.entries()) {
     const before = snapshot;
     snapshot = stepTask(before, structuredClone(event));
+    recordCreatedFacilitators(snapshot, owners);
     const frame: Frame = trace.frames[index + 1]!;
-    assertFrame(snapshot, frame, `${name}:${index}:${event.type}`);
+    assertFrame(snapshot, frame, `${name}:${index}:${event.type}`, owners);
     if (diagnostics) {
       const inspected = inspectTask(before, structuredClone(event));
       assert.equal(snapshotDigest(inspected.snapshot), snapshotDigest(snapshot));
       assertLegacyEvidence(inspected.evidence, frame.evidence, `${name}:${index}:diagnostics`);
     }
     snapshot = restoreTask(structuredClone(persistTask(snapshot)));
-    assertFrame(snapshot, frame, `${name}:${index}:persist/restore`);
+    assertFrame(snapshot, frame, `${name}:${index}:persist/restore`, owners);
   }
   assert.deepEqual(input, trace.input, 'Model must not mutate its input');
   return snapshot;
 }
+function verifyCoordinationExtensionFaultDetection() {
+  const trace = legacyTaskContract.traces.find(item => item.name === '成员评审');
+  assert(trace);
+  const snapshot = initialTask(structuredClone(trace.input)), owners: FacilitatorOwners = new Map();
+  recordCreatedFacilitators(snapshot, owners);
+  const mustReject = (mutate: (work: Intent) => void) => {
+    const saved = structuredClone(persistTask(snapshot)) as { context: TaskContext };
+    const work = saved.context.intents.find(item => item.kind === 'facilitator');
+    assert(work); mutate(work);
+    assert.throws(() => assertFrame(restoreTask(saved), trace.frames[0]!, 'coordination extension fault injection', owners), assert.AssertionError);
+  };
+  mustReject(work => { delete work.payload.owner; });
+  mustReject(work => { work.payload.owner = 'wrong-owner'; });
+  mustReject(work => { work.payload.unexpectedMetadata = true; });
+}
 export function verifyLegacyDiagnostics() {
   const graph = legacyTaskContract.graph, insertion = graph.transitions.findIndex(t => t.event === 'LOCAL_RESULT');
-  assert.deepEqual(taskGraph(), { ...graph, definition: approvalDefinition,
-    transitions: [...sessionRules, ...manualRetryRules, ...graph.transitions.slice(0, insertion), ...approvalRules, ...graph.transitions.slice(insertion)] });
+  assert.deepEqual(graph.transitions.find(rule => rule.id === coordinationRejectionId), {
+    id: coordinationRejectionId, order: 6, source: 'coordinating', event: 'COORDINATE', target: 'waitingHuman', guards: ['isCurrent'], actions: ['reject'],
+  });
+  const transitions = [...sessionRules, ...manualRetryRules, ...graph.transitions.slice(0, insertion), ...approvalRules, ...graph.transitions.slice(insertion)]
+    .map(rule => rule.id === coordinationRejectionId ? { ...rule, actions: ['reject', 'explainCoordinationRejection'] } : rule);
+  assert.deepEqual(taskGraph(), { ...graph, definition: extendedDefinition, transitions });
   for (const trace of legacyTaskContract.traces) replayLegacyTrace(trace.name, true);
+  verifyCoordinationExtensionFaultDetection();
 }

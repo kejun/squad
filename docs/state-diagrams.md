@@ -337,13 +337,13 @@ BT_L18：成功激活同时记录 TaskContext.localSkillVersions；新意图、�
 
 ### 模型输出格式修正
 
-对应 BT_M10–BT_M20。完整响应未通过 JSON/角色协议校验时，采用[校验反馈回路](https://docs.langchain.com/oss/javascript/langgraph/thinking-in-langgraph)：保留原任务和已取得的工具资料，指出字段校验问题后请求新结果；不把格式错误转为用户信息不足，也不放宽验证。兼容第三方服务，继续使用原响应格式配置，不强制供应商支持新的严格 schema 参数。
+对应 BT_M10–BT_M20、BT_M23–BT_M29。完整响应未通过 JSON/角色协议校验时，采用[校验反馈回路](https://docs.langchain.com/oss/javascript/langgraph/thinking-in-langgraph)：保留原任务和已取得的工具资料，指出字段校验问题后请求新结果；不把格式错误转为用户信息不足，也不放宽验证。兼容第三方服务，继续使用原响应格式配置，不强制供应商支持新的严格 schema 参数。
 
 **图型：适配器处理流程；所有者：`WorkRunner / OpenAICompatibleAdapter；父 Intent.outputRepair`。**
 
 ```mermaid
 flowchart TD
-    R["已领取意图的模型返回"] --> V{"JSON与角色协议有效"}
+    R["已领取意图的模型返回"] --> V{"JSON与角色协议及协助对象有效"}
     V -->|是| E["WorkRunner 转成既有结果事件"]
     V -->|否| A{"REGENERATE_MODEL_OUTPUT 守卫通过"}
     A -->|是| S["事务保存 outputRepair 与 retries 消耗"]
@@ -360,6 +360,28 @@ flowchart TD
 保留 running、waitingAssistance、coordinating、checking 等既有业务顶层状态；使用 REGENERATE_MODEL_OUTPUT 事件及操作上下文 outputRepair。状态机只保存修正次数与受控校验代码，使用现有 usage.retries/config.limits.retries，不新增独立预算。后续模型请求仍通过 CONSUME，扣所属 ordinary 或 checks 额度；修正不重置本次工作截止时间，也不重新执行已完成的工具。停止、旧轮次/目标版本、非在途或非模型工作、额度耗尽时拒绝。重复事件回执不重复计数；重启保留修正信息，不绕过恢复和模型绑定校验。
 
 错误 type、passed 类型、gaps 缺失/null/非字符串数组、无效 JSON、其他角色协议及已获准工具的参数格式错误触发重新生成；不自动将字符串转换为布尔、不补空数组、不发布无效返回中的产物或动作。反馈仅包含宿主生成的问题代码和允许的协议，不回显原始错误返回或凭据。合法 passed:false 按普通检查不通过推进。工具权限拒绝、HTTP 鉴权/网络故障、响应截断和供应商响应损坏沿用原处理，不走格式回路。网页执行器透传授权钩子并记录格式修正；群消息不因一次格式修正而发布长篇报错。存储事务失败后禁止继续请求。
+
+### 协调决策校验与等待原因
+
+BT_M23–BT_M29。**图型：真实 XState 的既有转移与执行器协议；所有者：`taskMachine / Intent.payload / OpenAICompatibleAdapter`；验收范围：当前负责人身份、受控重生成、最终拒绝与可见等待原因。**
+
+```mermaid
+stateDiagram-v2
+    running --> coordinating: BLOCKED [canCoordinate] / 保存含当前owner的协调意图
+    coordinating --> coordinating: CLAIM [claimFacilitator] / 领取并补齐旧意图缺失owner
+    coordinating --> coordinating: REGENERATE_MODEL_OUTPUT [valid] / 保存invalid_decision并消耗retries
+    coordinating --> coordinating: CONSUME [valid] / 保存下一次普通请求授权
+    coordinating --> running: COORDINATE [decisionRun] / 应用有效继续决策
+    coordinating --> waitingAssistance: COORDINATE [decisionAssist] / 向其他成员保存协助意图
+    coordinating --> waitingHuman: COORDINATE [isCurrent且前序分支未命中] / 拒绝并保存中文原因与通知
+    coordinating --> waitingHuman: WORK_FAILED [valid且前序分支未命中] / 保存失败原因，安全失败通知
+```
+
+上图摘录现有状态和分支；没有新增状态或业务事件，完整分支仍以真实任务机器为准。适配器读取领取事务已经保存的当前 `payload.owner`，不能用 defaultBot、work.target 或历史消息猜负责人；新协调意图创建时写入，旧意图在 CLAIM 时补齐。恢复后的安全意图先重新领取再调用模型。已持久保存的负责人不能被模型输出改变，HANDOFF 仍遵守现有执行边界。自定义宿主若绕过领取直接调用适配器且缺少有效负责人，则在首次模型 HTTP 请求前以 COORDINATION_OWNER_MISSING 明确失败，不猜身份或消耗修正循环。
+
+`assist` 的目标必须是已配置且不同于当前负责人的成员。违反这一输出协议时，在提交 COORDINATE 前请求既有 `invalid_decision` 修正；反馈只含宿主生成的安全规则，不保存或回显无效原文。模型可重新选择有效 continue 或 assist，不由程序强行改写判断。后台讨论仍遵守 review 协议及原授权目标，不能利用本次校验扩大讨论范围。
+
+首次领取和后续请求沿用 ordinary 额度，修正另消耗共享 retries；停止、期限、旧目标版本、存储失败和无权限边界继续由既有模型校验，未获授权不得发出下一次 I/O。最终无效 COORDINATE 仍由 SELF_DEPENDENCY 等领域规则拒绝；中文等待原因只绑定当前协调结果回退到 waitingHuman 的分支，不让其它状态或迟到结果覆盖已有问题。后续 ACTIVITY 等命令可改写 reply，但必须保留 reason 和通知。网页使用既有 reason 和群消息投影，不把最近命令回执当作持久等待原因。结果未知或不安全重放的协调工作仍保留原有核对与结算要求；新增失败通知只覆盖已知安全的普通协调失败，不改变讨论或取消路径。
 
 ### 默认网页工具
 

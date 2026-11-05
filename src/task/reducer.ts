@@ -203,6 +203,8 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'ARTIFACT': c.artifacts.push({ ...e.artifact, goalVersion: c.goalVersion }); c.progressRefs.push(e.artifact.id); c.repeat.count = 0; c.lastProgressAt = e.at; c.nextCheckAt = e.at + c.config.limits.progressIntervalMs; break;
     case 'CLAIM': {
       const work = c.intents.find(i => i.id === e.intentId)!;
+      // Legacy work receives trusted identity in the same pure transition as its claim.
+      if (work.kind === 'facilitator' && work.payload.owner === undefined) work.payload.owner = c.owner;
       work.localSkills = [...(work.localSkills ?? []).filter(s => !c.localSkillVersions?.some(p => p.skillId === s.skillId)), ...(c.localSkillVersions ?? [])];
       work.status = 'inflight'; work.attempt++; work.requestCount = 0;
       if (work.bucket !== 'none') c.usage[work.bucket]++;
@@ -240,6 +242,10 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       } else {
         const failureReason = e.transient && c.usage.retries >= c.config.limits.retries ? `${e.reason}（重试额度已用尽）` : e.reason;
         release(c, work.id); c.reason = failureReason;
+        if (work.kind === 'facilitator') {
+          c.reason = `协调工作未能完成：${failureReason}。请重试或补充处理方式。`;
+          message(c, e, 'facilitator', c.reason, 'notice');
+        }
         if (work.kind === 'interpretation') {
           const input = c.inputAnalyses!.find(input => input.workId === work.id)!;
           input.status = 'failed'; input.error = failureReason;
