@@ -44,16 +44,6 @@ const queueProgram = `
     }, 20);
   } else console.log(command);
 `;
-function fixtureAcceptance(output, work) {
-  if (output.type === 'answer' && work.acceptanceCriteria) {
-    return { ...output, coverage: work.acceptanceCriteria.map(item => ({ criterionId: item.id, refs: [{ kind: 'candidateText' }] })) };
-  }
-  const checked = work.candidate?.acceptance?.criteria;
-  if (output.type === 'check' && checked) {
-    return { ...output, criteriaResults: checked.map(item => ({ criterionId: item.id, status: 'passed' })) };
-  }
-  return output;
-}
 const fixture = createServer((req, res) => { void (async () => {
   let text = ''; for await (const chunk of req) text += chunk;
   const body = JSON.parse(text); requests.push(body);
@@ -69,13 +59,13 @@ const fixture = createServer((req, res) => { void (async () => {
     sessionGateSeen = true;
     await new Promise(resolve => { releaseSessionResponse = resolve; });
   }
-  const output = checking ? { type: 'check', passed: true, gaps: [] }
+  const output = checking ? { type: 'check', criteriaResults: work.requirements.map(item => ({ criterionId: item.id, status: 'passed' })) }
     : queueMode && !work.manualHostRetry && receipts.length < 3
       ? { ...action, execution: 'sandbox', args: ['-e', queueProgram, `queue-${receipts.length + 1}`] }
     : (sessionMode ? receipts.length >= 2 : receipts.length > 0)
       ? { type: 'answer', text: '命令回执已收到', artifacts: [{ name: 'receipt.md', content: body.messages.at(-1).content }] } : sessionMode && receipts.length === 1
         ? { ...action, args: [...action.args.slice(0, -1), action.args.at(-1) + '; console.log("session-command-2")'] } : action;
-  res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(fixtureAcceptance(output, work)) } }] }));
+  res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }] }));
 })().catch(error => { errors.push(String(error)); res.writeHead(500); res.end(); }); });
 await new Promise(resolve => fixture.listen(0, '127.0.0.1', resolve));
 const socket = portServer(); await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve));

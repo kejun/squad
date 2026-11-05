@@ -1,7 +1,146 @@
-import type { Artifact, Candidate, Intent, TaskContext, TaskEvent } from '../types.js';
+import type { Artifact, Candidate, InputReference, Intent, TaskContext, TaskEvent } from '../types.js';
+import { checkCitationSources, deliveryPreflight, judgmentsProblem, type CheckReferenceSource } from '../delivery-acceptance.js';
+import { hostRetryReservation, pendingHostRetry } from '../host-retry.js';
+import { localPhysicalPending } from '../local-operation.js';
+import { canRetryDeliveryCheck } from './budget.js';
+import { deliveryEvidence } from './evidence.js';
+import { completeProblem, deliveryHandoffPending, discussionIncomplete } from './facts.js';
+import { deliveryVerificationEvidence, deliveryVerificationPlan, deliveryVerificationProblem } from './verification.js';
 
 type Delivery = Extract<TaskEvent, { type: 'DELIVER' }>;
 type CheckResult = Extract<TaskEvent, { type: 'CHECK_RESULT' }>;
+
+export const newDeliveryCycle = (): NonNullable<TaskContext['deliveryCycle']> => ({ requests: 0, revisionUsed: false });
+
+type BoundedCheck = Intent & { kind: 'check' };
+export const isBoundedCheck = (work: Intent | undefined): work is BoundedCheck => work?.kind === 'check' && work.payload.deliveryProtocol === 'bounded';
+
+export function settlingDeliveryCheck(c: TaskContext, work: Intent | undefined): boolean {
+  return isBoundedCheck(work) && work.status === 'inflight' && work.epoch === c.epoch && work.goalVersion === c.goalVersion
+    && c.outcome === null && !c.stopped;
+}
+
+export function hasDeliveryRetryPermit(c: TaskContext, work: Intent): boolean {
+  return c.deliveryCycle?.retry?.workId === work.id && c.deliveryCycle.retry.status === 'reserved';
+}
+
+export function deliveryCheckBudgetProblem(c: TaskContext, technical = false): string | null {
+  const cycle = c.deliveryCycle;
+  if (!cycle) return 'CHECK_PROTOCOL_CHANGED';
+  if (cycle.requests >= 3 || c.usage.checks >= c.config.limits.checks) return 'CHECK_BUDGET_EXHAUSTED';
+  const ordinary = cycle.requests - Number(cycle.retry?.status === 'used');
+  if (!technical && ordinary >= 2) return 'CHECK_BUDGET_EXHAUSTED';
+  return null;
+}
+
+export function deliveryOrdinaryAvailable(c: TaskContext, count: number): boolean {
+  return c.usage.ordinary + hostRetryReservation(c) + count <= c.config.limits.ordinary;
+}
+
+function historicalContent(c: TaskContext, ref: InputReference): string | undefined {
+  const sameRecord = (item: { taskId: string; id: string }) => item.taskId === ref.taskId && item.id === ref.id;
+  switch (ref.kind) {
+    case 'message': {
+      const message = c.history?.messages.find(sameRecord);
+      return message?.detailText ?? message?.text;
+    }
+    case 'artifact': return c.history?.artifacts.find(sameRecord)?.content;
+    case 'board': return c.history?.board.find(sameRecord)?.text;
+    case 'task': return ref.taskId === ref.id ? c.history?.tasks?.find(task => task.taskId === ref.taskId)?.goal.text : undefined;
+  }
+}
+
+export function checkReferenceSources(c: TaskContext): CheckReferenceSource[] | undefined {
+  const previous = c.deliveryCycle?.evidence && c.candidate?.revision
+    ? c.intents.find(work => isBoundedCheck(work) && work.criteriaResults
+      && (work.payload.candidate as Candidate | undefined)?.revision === c.candidate?.revision) : undefined;
+  if (previous) return (previous.payload.references as CheckReferenceSource[] | undefined) ?? [];
+  const sources = new Map<string, CheckReferenceSource>();
+  for (const input of c.inputAnalyses ?? []) {
+    if (input.goalVersion !== c.goalVersion || input.status !== 'resolved' || input.action === 'review') continue;
+    for (const ref of input.spec?.references ?? []) {
+      if (ref.taskId === c.taskId) continue;
+      const id = `history:${JSON.stringify([ref.kind, ref.taskId, ref.id])}`;
+      if (sources.has(id)) continue;
+      const content = historicalContent(c, ref);
+      if (content === undefined) return undefined;
+      sources.set(id, { id, taskId: ref.taskId, kind: ref.kind, content });
+    }
+  }
+  return [...sources.values()];
+}
+
+export function deliverySubmissionProblem(c: TaskContext, e: Delivery): { code: string; mechanical: boolean } | null {
+  const problem = deliveryVersionProblem(c, e) ?? deliveryPreflight(c, e).gaps[0]?.reason;
+  if (problem) return { code: problem, mechanical: true };
+  const budget = deliveryCheckBudgetProblem(c);
+  if (budget) return { code: budget, mechanical: false };
+  if (!checkReferenceSources(c)) return { code: 'CHECK_REFERENCE_UNAVAILABLE', mechanical: false };
+  const verification = deliveryVerificationPlan(c);
+  if (verification?.status === 'unavailable') return { code: 'WORKSPACE_VALIDATION_UNAVAILABLE', mechanical: false };
+  if (verification?.status === 'required' && !deliveryOrdinaryAvailable(c, 2)) return { code: 'WORKSPACE_VALIDATION_BUDGET_EXHAUSTED', mechanical: false };
+  return null;
+}
+
+export function canReviseDelivery(c: TaskContext): boolean {
+  if (!c.deliveryCycle || c.deliveryCycle.revisionUsed || deliveryCheckBudgetProblem(c)) return false;
+  const verification = deliveryVerificationPlan(c);
+  return verification?.status !== 'unavailable' && deliveryOrdinaryAvailable(c, verification?.status === 'required' ? 3 : 1);
+}
+
+export function deliveryInterruptionPending(c: TaskContext, settlingWorkId?: string): boolean {
+  return deliveryHandoffPending(c) || pendingHostRetry(c) || c.intents.some(work => work.id !== settlingWorkId && localPhysicalPending(work));
+}
+
+export function automaticRevisionActive(c: TaskContext): boolean {
+  return c.intents.some(work => work.payload.deliveryRevision === true && work.epoch === c.epoch && work.goalVersion === c.goalVersion
+    && ['pending', 'inflight'].includes(work.status));
+}
+
+type CheckDisposition = { kind: 'handoff' | 'complete' | 'revise' | 'finish' | 'retry'; code?: string; detail?: string; checked?: true };
+
+function beforeCheckResult(c: TaskContext, e: CheckResult, work: Intent): CheckDisposition | null {
+  if (deliveryInterruptionPending(c)) return { kind: 'handoff' };
+  const incomplete = discussionIncomplete(c) ?? c.review?.incomplete;
+  if (incomplete) return { kind: 'finish', code: 'INCOMPLETE_REVIEW', detail: incomplete };
+  if (work.deadline !== null && e.at >= work.deadline) return { kind: 'finish', code: 'WORK_EXPIRED' };
+  return null;
+}
+
+function checkedDelivery(c: TaskContext, e: CheckResult, work: Intent): CheckDisposition {
+  const mechanical = completeProblem(c);
+  if (mechanical) return { kind: 'finish', code: mechanical, checked: true };
+  const findings = e.criteriaResults!.filter(item => item.status !== 'passed');
+  if (!findings.length) {
+    const verification = deliveryVerificationProblem(work, true);
+    return verification ? { kind: 'finish', code: verification, checked: true } : { kind: 'complete', checked: true };
+  }
+  const detail = findings.map(item => item.reason).join('；');
+  return { kind: findings.every(item => item.status === 'failed') && canReviseDelivery(c) ? 'revise' : 'finish', detail, checked: true };
+}
+
+export function checkDisposition(c: TaskContext, e: CheckResult, work: Intent): CheckDisposition {
+  const interruption = beforeCheckResult(c, e, work);
+  if (interruption) return interruption;
+  const evidence = c.deliveryCycle?.evidence && deliveryEvidence(c, work, c.deliveryCycle.evidence);
+  if (!evidence) return { kind: 'finish', code: 'CHECK_EVIDENCE_CHANGED' };
+  const test = deliveryVerificationEvidence(work);
+  const references = (work.payload.references as CheckReferenceSource[] | undefined) ?? [];
+  const sources = checkCitationSources({ evidence: evidence.sources, references, ...(test ? { verification: test } : {}) });
+  const protocol = e.passed !== undefined || e.gaps !== undefined ? 'CHECK_INVALID_CRITERIA_RESULTS'
+    : judgmentsProblem(c.candidate!.acceptance!.criteria, e.criteriaResults, sources);
+  if (protocol) return { kind: canRetryDeliveryCheck(c, work, e.at) ? 'retry' : 'finish', code: protocol };
+  return checkedDelivery(c, e, work);
+}
+
+export function recoveryCheckExhausted(c: TaskContext, at: number): Intent | undefined {
+  if (c.outcome !== null || c.stopped || deliveryInterruptionPending(c)) return undefined;
+  const work = c.intents.find(work => isBoundedCheck(work) && ['pending', 'inflight'].includes(work.status));
+  if (!work) return undefined;
+  if (work.deadline !== null && at >= work.deadline) return work;
+  if (work.status === 'inflight' && work.requestCount > 0 && !hasDeliveryRetryPermit(c, work) && !canRetryDeliveryCheck(c, work, at)) return work;
+  return undefined;
+}
 
 export const documentIdentity = (artifact: Artifact) => artifact.documentId ?? artifact.id;
 
@@ -53,9 +192,9 @@ export function deliveryVersionProblem(c: TaskContext, e: Delivery): string | nu
 export function boundCheckProblem(c: TaskContext, e: CheckResult): string | null {
   const candidate = c.candidate;
   const work = e.workId ? c.intents.find(intent => intent.id === e.workId) : undefined;
-  if (work && (work.kind !== 'check' || (work.payload.candidate as Candidate | undefined)?.revision !== candidate?.revision)) return 'STALE_CANDIDATE_CHECK';
-  if (e.candidateRevision !== undefined && (!work || e.candidateRevision !== candidate?.revision)) return 'STALE_CANDIDATE_CHECK';
-  if (candidate?.requiresBoundCheck && !work) return 'CHECK_WORK_REQUIRED';
+  if (!isBoundedCheck(work) || !e.fence || e.attempt !== work.attempt) return 'CHECK_WORK_REQUIRED';
+  if (!candidate?.revision || e.candidateRevision !== candidate.revision || (work.payload.candidate as Candidate | undefined)?.revision !== candidate.revision) return 'STALE_CANDIDATE_CHECK';
+  if (work.requestCount === 0 || hasDeliveryRetryPermit(c, work)) return 'CHECK_REQUEST_REQUIRED';
   return null;
 }
 

@@ -1,5 +1,5 @@
 import type { LocalOperation } from '../local-operation.js';
-import type { Intent, TaskContext } from '../types.js';
+import { localEnabled, type Intent, type TaskContext } from '../types.js';
 
 export type EvidenceStream = 'stdout' | 'stderr';
 
@@ -72,4 +72,39 @@ export function evidenceMetadata(c: TaskContext, source: EvidenceSource) {
 
 export function evidenceIndex(c: TaskContext, work: Intent) {
   return settledSources(c).filter(source => canSeeEvidence(c, work, source.operation.id)).map(source => evidenceMetadata(c, source));
+}
+
+export interface DeliveryEvidenceRef { id: string; stdoutHash: string | null; stderrHash: string | null }
+export interface DeliveryEvidenceSource {
+  id: string;
+  metadata: ReturnType<typeof evidenceMetadata>;
+  stdout?: string;
+  stderr?: string;
+}
+
+function completeCapturedText(metadata: DeliveryEvidenceSource['metadata'], hash: string | null, text: unknown) {
+  return metadata.completeness === 'complete' && hash && typeof text === 'string' ? text : undefined;
+}
+
+/** Bind to the exact saved receipt and its captured content, without opening a process or log. */
+export function deliveryEvidence(c: TaskContext, work: Intent, refs?: readonly DeliveryEvidenceRef[]) {
+  const available = localEnabled(c.config, work.target) ? settledSources(c).filter(source => canSeeEvidence(c, work, source.operation.id)
+    && source.work.kind !== 'check') : [];
+  const byId = new Map(available.map(source => [source.operation.id, source]));
+  const sources: DeliveryEvidenceSource[] = [];
+  const savedRefs: DeliveryEvidenceRef[] = [];
+  for (const id of refs?.map(item => item.id) ?? byId.keys()) {
+    const source = byId.get(id);
+    if (!source) return undefined;
+    const metadata = evidenceMetadata(c, source);
+    const data = source.operation.result!.data;
+    const saved = { id, stdoutHash: metadata.capturedContentHash, stderrHash: metadata.stderrContentHash };
+    const expected = refs?.[savedRefs.length];
+    if (expected && (expected.stdoutHash !== saved.stdoutHash || expected.stderrHash !== saved.stderrHash)) return undefined;
+    const stdout = completeCapturedText(metadata, saved.stdoutHash, data.stdout);
+    const stderr = completeCapturedText(metadata, saved.stderrHash, data.stderr);
+    sources.push({ id, metadata, ...(stdout === undefined ? {} : { stdout }), ...(stderr === undefined ? {} : { stderr }) });
+    savedRefs.push(saved);
+  }
+  return { sources, refs: savedRefs };
 }

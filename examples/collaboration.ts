@@ -1,4 +1,4 @@
-import { TeamEngine, MemoryStore, WorkRunner } from '../src/index.js';
+import { TeamEngine, MemoryStore, WorkRunner, type Candidate } from '../src/index.js';
 import { config } from '../team.config.js';
 
 const engine = new TeamEngine(new MemoryStore(), config, () => 0);
@@ -15,7 +15,10 @@ const runner = new WorkRunner(engine, {
         artifact: { id: 'A1', name: 'plan.md', content: '# MVP\n群聊、求助、监督与恢复。\n此文件为受控示例产物。' } });
       return { type: 'deliver', text: '方案已结合核查结果完成。', artifactIds: ['A1'] };
     }
-    if (work.kind === 'check') return { type: 'check', passed: true, gaps: [] };
+    if (work.kind === 'check') {
+      const candidate = work.payload.candidate as Candidate;
+      return { type: 'check', criteriaResults: candidate.acceptance!.criteria.map(criterion => ({ criterionId: criterion.id, status: 'passed' })) };
+    }
     throw new Error(`Unexpected demonstration operation: ${work.kind}`);
   },
 }, () => 0);

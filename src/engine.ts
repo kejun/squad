@@ -9,11 +9,15 @@ import { debugFrame, type DebugEvent, type DebugFrame } from './task-debug.js';
 import { inspectInitialTask, inspectTask, type DebugEvidence } from './task-inspection.js';
 import { validateConfig, type Goal, type Intent, type Reply, type TaskContext, type TaskEvent, type TeamConfig } from './types.js';
 import { recoveryIssue } from './task/facts.js';
-import { currentTaskProtocol, legacyTerminalConfig, taskProtocolChanged } from './task/protocol.js';
+import { legacyTerminalConfig, taskProtocolChanged, taskStorageVersion } from './task/protocol.js';
 import { restoreRoomArchive, stepRoomArchive } from './room.machine.js';
 import { hostRetryAction } from './host-retry.js';
 
-interface StoredTask { version: 1 | 2; snapshot: unknown }
+interface StoredTask { version: 1 | 2 | 3; snapshot: unknown }
+const protocolBoundEvents = new Set<TaskEvent['type']>([
+  'CLAIM', 'CONSUME', 'REGENERATE_MODEL_OUTPUT', 'LOCAL_REQUEST', 'LOCAL_CLAIM', 'LOCAL_STARTED',
+  'LOCAL_APPROVAL_REQUIRED', 'LOCAL_APPROVAL_DECISION', 'DELIVER', 'CHECK_RESULT', 'HELP_RESULT', 'WORK_FAILED',
+]);
 export interface CommandResult extends Reply { taskId?: string; duplicate?: boolean }
 export interface Submission {
   id: string; text: string; mentions?: string[]; goal?: Goal;
@@ -30,14 +34,14 @@ function canonical(value: unknown): string {
 function fingerprint(value: unknown) { return createHash('sha256').update(canonical(value)).digest('hex'); }
 function decode(value: unknown): TaskSnapshot {
   const record = value as StoredTask;
-  if (record?.version !== 1 && record?.version !== 2) throw new Error('Incompatible machine snapshot');
+  if (record?.version !== 1 && record?.version !== 2 && record?.version !== 3) throw new Error('Incompatible machine snapshot');
   const result = restoreTask(record.snapshot);
   if (result.context.schemaVersion !== 1) throw new Error('Incompatible task context');
   return result;
 }
 function storeTask(tx: Transaction, snapshot: TaskSnapshot) {
   const id = snapshot.context.taskId;
-  tx.room.tasks[id] = { version: currentTaskProtocol(snapshot.context.config) ? 2 : 1, snapshot: persistTask(snapshot) } satisfies StoredTask;
+  tx.room.tasks[id] = { version: taskStorageVersion(snapshot.context.config), snapshot: persistTask(snapshot) } satisfies StoredTask;
   if (taskPhase(snapshot) === 'ended') { if (tx.room.activeTaskId === id) tx.room.activeTaskId = null; }
   else tx.room.activeTaskId = id;
 }
@@ -190,12 +194,12 @@ export class TeamEngine {
     const { at: _at, ...identity } = event;
     return this.transact(roomId, tx => {
       const value = tx.room.tasks[taskId];
-      const claimsWork = event.type === 'CLAIM' || event.type === 'LOCAL_REQUEST' || event.type === 'LOCAL_CLAIM';
-      const checked = value && claimsWork ? decode(value) : undefined;
-      const claimedId = event.type === 'CLAIM' ? event.intentId : undefined;
+      const needsProtocol = protocolBoundEvents.has(event.type) || (event.workId !== undefined && event.type !== 'SETTLE');
+      const checked = value && needsProtocol ? decode(value) : undefined;
+      const cancellationId = event.type === 'CLAIM' || event.type === 'WORK_FAILED' ? event.intentId : undefined;
       if (checked && taskProtocolChanged(checked.context.config, this.config)
-        && (!claimedId || checked.context.intents.find(work => work.id === claimedId)?.kind !== 'cancel')) {
-        // A mismatched executor cannot reserve the idempotency key of a later valid claim.
+        && (!cancellationId || checked.context.intents.find(work => work.id === cancellationId)?.kind !== 'cancel')) {
+        // Reject before taking the receipt key; existing physical operations can still settle.
         return { ok: false, code: 'INCOMPATIBLE_EXECUTION', detail: '运行协议与任务不兼容', taskId };
       }
       return this.receipt(tx, event.id, { taskId, event: identity }, () => {
@@ -335,6 +339,7 @@ export class TeamEngine {
       if (!tx.room.tasks[taskId]) return false;
       const current = decode(tx.room.tasks[taskId]);
       const c = current.context;
+      if (taskProtocolChanged(c.config, this.config)) return false;
       const result = c.results.find(r => !r.consumed);
       if (!result) return false;
       if (!c.stopped && c.outcome === null
@@ -366,7 +371,7 @@ export class TeamEngine {
   }
   tick(roomId: string): void {
     const view = this.view(roomId);
-    if (!view) return;
+    if (!view || taskProtocolChanged(view.context.config, this.config)) return;
     const c = view.context; const at = this.clock();
     if (c.hostRetryRequests?.some(r => r.deadline <= at && (r.status === 'pending' || r.status === 'active' && !r.operationId)))
       this.send(roomId, c.taskId, { type: 'HOST_RETRY_EXPIRE', id: `host-retry-sweep:${at}`, at });
@@ -390,7 +395,7 @@ export class TeamEngine {
   }
   nextWake(roomId: string): number | null {
     const view = this.view(roomId);
-    if (!view || view.phase === 'ended') return null;
+    if (!view || view.phase === 'ended' || taskProtocolChanged(view.context.config, this.config)) return null;
     const discussing = view.context.discussion && !['delivered', 'cancelled'].includes(view.context.discussion.status);
     const retryDeadlines = (view.context.hostRetryRequests ?? []).filter(r => r.status === 'pending' || r.status === 'active' && !r.operationId).map(r => r.deadline);
     if (view.phase === 'waitingHuman' && !discussing) return retryDeadlines.length ? Math.min(...retryDeadlines) : null;

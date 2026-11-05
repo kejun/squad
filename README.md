@@ -107,8 +107,8 @@ stateDiagram-v2
     interpreting --> running: INTERPRETATION_RESULT [valid且无需澄清] / apply
     running --> waitingAssistance: HELP [valid] / apply
     waitingAssistance --> running: HELP_RESULT [valid且不继续评审] / apply
-    running --> checking: DELIVER [候选预检通过且无待交接] / 保存绑定候选的检查意图
-    checking --> ended: CHECK_RESULT [当前候选且独立验收通过] / 发布
+    running --> checking: DELIVER [机械门禁通过且交接已结算] / 保存绑定候选及证据的检查意图
+    checking --> ended: CHECK_RESULT [当前候选全部必需项通过且门禁有效] / 发布
 ```
 
 控制路径（与上图为同一个 taskMachine，不是另一台机器或父状态）：
@@ -144,7 +144,7 @@ stateDiagram-v2
 | --- | --- |
 | 输入、协助、评审、后台讨论、交付 | [任务上下文](docs/state-diagrams.md#任务拥有的上下文生命周期)：BT_I、BT_H、BT_G01–G14、BT_T、BT_A01–A11 |
 | 当前交付、文档修订与历史报告 | [候选版本与当前交付](docs/state-diagrams.md#候选版本与当前交付)，BT_A22–BT_A26 |
-| 候选预检、独立验收与修订 | [交付验收](docs/state-diagrams.md#候选预检与独立验收)，BT_F07–F08、BT_F14–F16 |
+| 候选预检、固定材料独立验收与一次修订 | [交付验收](docs/state-diagrams.md#候选预检与独立验收)，BT_F03–F04、BT_F07–F08、BT_F10–F11、BT_F14–F21 |
 | 意图领取、工具、格式修正、本地操作与宿主 | [执行与适配器](docs/state-diagrams.md#执行与适配器边界)：BT_M、BT_W、BT_L |
 | 任务内证据查读、刷新与历史观测 | [任务级证据读取](docs/state-diagrams.md#任务级证据读取)：BT_L38–BT_L43 |
 | 按次/本次任务会话批准宿主 CLI、拒绝与恢复（BT_L35–BT_L37） | [宿主命令授权](docs/state-diagrams.md#宿主命令按次授权)：BT_L23–BT_L30；默认仍为沙箱 |
@@ -207,7 +207,7 @@ CLOUDFLARE_API_TOKEN=你的API令牌
 
 解析复用 OpenAICompatibleAdapter 和普通预算，不添加模型 SDK 或第二套执行框架。默认使用促进者模型，可用 `INTENT_MODEL_*` 单独配置，继承与跨服务密钥隔离规则同其他角色。`SQUAD_INTENT_ANALYSIS_ENABLED=false` 关闭深度解析；未配置模型时保留规则规范化和原有离线执行方式。该策略按需调用，不保证规则能理解任意自然语言。
 
-解析原文、状态、结果、epoch、goalVersion、请求次数和回执随任务快照保存。所有角色在自己的具体问题之外同时接收这些意图和原始目标，保持规划、协作和验收一致。引用只允许指向本次实际提供的消息、产物、黑板或任务；历史产物仍是参考资料。解析需要澄清或最终失败时暂停执行，用户补充或明确继续后才接续。真实模型的理解质量需要用实际输入另行评估。
+解析原文、状态、结果、epoch、goalVersion、请求次数和回执随任务快照保存。负责人、协助者和协调者接收解析意图和原始目标；验收检查接收原始输入和本轮生效的验收要求。引用只允许指向本次实际提供的消息、产物、黑板或任务；历史产物仍是参考资料。解析需要澄清或最终失败时暂停执行，用户补充或明确继续后才接续。真实模型的理解质量需要用实际输入另行评估。
 
 ## 第三方模型配置
 
@@ -255,9 +255,12 @@ CHECK_MODEL_NAME=YOUR_CHECK_MODEL
 | `JSON_MODE` | `B_MODEL_JSON_MODE=false` | 是否发送 JSON 输出格式参数 |
 | `TEMPERATURE` | `MODEL_TEMPERATURE=0.2` | 温度 |
 | `MAX_TOKENS` | `MODEL_MAX_TOKENS=8192` | 单次输出 Token 上限 |
+| `CONTEXT_WINDOW_TOKENS` | `CHECK_MODEL_CONTEXT_WINDOW_TOKENS=131072` | 可选。完成检查发送固定材料前，按该模型上下文容量做保守预检 |
 | `EXTRA_BODY` | `MODEL_EXTRA_BODY={"enable_thinking":false}` | 供应商扩展 JSON 参数 |
 
 空白的成员配置继承默认值；完成检查未单独配置时，继承促进者的模型选择。同一地址可以共用默认密钥，修改为另一地址后必须设置对应角色的密钥，或明确设置该角色的 `NO_AUTH=true`，不会把默认服务的密钥转发到新地址。布尔项使用 `true` 或 `false`。
+
+上下文容量只在同一地址和模型间继承。预检按 UTF-8 字节估算输入上界并预留输出空间，供应商仍按自身分词器执行实际容量限制。自建兼容网关需要关闭提示词自动截断。OpenRouter 检查使用具体模型 ID，并关闭上下文压缩。[OpenRouter 消息变换文档](https://openrouter.ai/docs/guides/features/message-transforms)
 
 已有进程环境变量优先于 `.env`。修改文件后重启生效，不会热切换正在执行的任务。`.env` 和 `.env.*` 已被 Git 忽略，仓库仅提交 `.env.example`；任务快照仅保留密钥变量名，不保存密钥值。完全不配置模型时，离线测试和受控演示仍可运行。
 

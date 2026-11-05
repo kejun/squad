@@ -1,28 +1,59 @@
+import { z } from 'zod';
 import { isLongResult } from './presentation.js';
-import { documentIdentity } from './task/delivery.js';
-import { evidenceMetadata, evidenceSource } from './task/evidence.js';
-import type { Intent, TaskContext, TaskEvent } from './types.js';
+import type { DeliveryEvidenceSource } from './task/evidence.js';
+import type { Candidate, InputAnalysis, InputReference, TaskContext, TaskEvent } from './types.js';
 
 export type CriterionSource = { kind: 'goal' | 'input'; id: string };
 export type AcceptanceCriterion = { id: string; text: string; goalVersion: number; sources: CriterionSource[] };
+export type CriterionJudgment = { criterionId: string; source?: { id: string; quote: string } } & (
+  | { status: 'passed'; reason?: string }
+  | { status: 'failed' | 'unverified'; reason: string }
+);
+export type DeliveryAcceptance = { revision: string; criteria: AcceptanceCriterion[] };
+export type CheckReferenceSource = { id: string; taskId: string; kind: InputReference['kind']; content: string };
+export interface CheckMaterials {
+  requirements: AcceptanceCriterion[];
+  candidate: { revision: string; text: string };
+  artifacts: { id: string; name: string; content: string; background?: boolean }[];
+  evidence: DeliveryEvidenceSource[];
+  references?: CheckReferenceSource[];
+  rawInputs: { id: string; text: string }[];
+  previousResults: CriterionJudgment[];
+  revisionNotes?: string;
+  verification?: { id: string; stdout?: string; stderr?: string; workspaceRevision: string };
+}
+
+export function checkCitationSources({ evidence, references, verification }: Pick<CheckMaterials, 'evidence' | 'references' | 'verification'>) {
+  return [...evidence, ...(references ?? []), ...(verification ? [verification] : [])];
+}
+
+// Historical snapshot and presentation contracts. New check work never reads coverage or assessments.
 export type DeliveryReference = { kind: 'candidateText' } | { kind: 'draft'; index: number } | { kind: 'artifact' | 'evidence'; id: string };
-export type CriterionCoverage = { criterionId: string; refs: DeliveryReference[] };
-const gapKinds = ['missing_evidence', 'missing_source', 'refresh_required', 'version_conflict', 'content_error', 'missing_requirement'] as const;
-export type DeliveryGapKind = typeof gapKinds[number];
-export type CriterionJudgment = { criterionId: string; status: 'passed' | 'gap' | 'unknown'; reason?: string; kind?: DeliveryGapKind; refs?: DeliveryReference[] };
+export type DeliveryGapKind = 'missing_evidence' | 'missing_source' | 'refresh_required' | 'version_conflict' | 'content_error' | 'missing_requirement';
 export type DeliveryGap = { criterionId: string | null; candidateRevision: string; kind: DeliveryGapKind; reason: string; refs: DeliveryReference[] };
-export type DeliveryAssessment = { candidateRevision: string; judgments: CriterionJudgment[]; gaps: DeliveryGap[] };
-export type DeliveryAcceptance = { revision: string; criteria: AcceptanceCriterion[]; coverage: CriterionCoverage[] };
+export type DeliveryAssessment = { candidateRevision: string; judgments: { criterionId: string; status: 'passed' | 'gap' | 'unknown' }[]; gaps: DeliveryGap[] };
 
 type Delivery = Extract<TaskEvent, { type: 'DELIVER' }>;
-type Check = Extract<TaskEvent, { type: 'CHECK_RESULT' }>;
 export const deliveryRevision = (c: TaskContext, e: Delivery) => `${c.taskId}:candidate:${e.id}`;
+
+type AddCriterion = (text: string, source: CriterionSource, key: string) => void;
+
+function addInputCriteria(add: AddCriterion, input: InputAnalysis, initial: InputAnalysis | undefined) {
+  const source: CriterionSource = { kind: 'input', id: input.id };
+  const key = `input:${input.id}`;
+  if (input !== initial) add(input.spec?.objective ?? input.rawText, source, `${key}:objective`);
+  if (!input.spec) return;
+  input.spec.constraints.forEach((text, i) => add(text, source, `${key}:constraint:${i}`));
+  input.spec.expectedOutputs.forEach((text, i) => add(text, source, `${key}:output:${i}`));
+  input.spec.acceptanceCriteria.forEach((text, i) => add(text, source, `${key}:criterion:${i}`));
+}
 
 export function acceptanceCriteria(c: TaskContext): AcceptanceCriterion[] {
   const criteria = new Map<string, AcceptanceCriterion>();
-  const inputs = (c.inputAnalyses ?? []).filter(input => input.goalVersion === c.goalVersion && input.status === 'resolved');
-  const goalSource: CriterionSource = { kind: 'goal', id: inputs[0]?.id ?? c.messages[0]?.id ?? c.taskId };
-  const add = (text: string, source: CriterionSource, key: string) => {
+  const inputs = (c.inputAnalyses ?? []).filter(input => input.goalVersion === c.goalVersion && input.status === 'resolved' && input.action !== 'review');
+  const initial = inputs.find(input => input.action === 'request');
+  const goalSource: CriterionSource = { kind: 'goal', id: initial?.id ?? c.messages[0]?.id ?? c.taskId };
+  const add: AddCriterion = (text, source, key) => {
     const normalized = text.trim();
     if (!normalized) return;
     const current = criteria.get(normalized);
@@ -33,164 +64,83 @@ export function acceptanceCriteria(c: TaskContext): AcceptanceCriterion[] {
       criteria.set(normalized, { id, text: normalized, goalVersion: c.goalVersion, sources: [source] });
     }
   };
-  add(c.goal.text, goalSource, 'goal:text');
+  const objective = initial?.spec?.objective;
+  add(initial && c.goal.text.trim() === initial.rawText.trim() && objective ? objective : c.goal.text, goalSource, 'goal:text');
   c.goal.constraints.forEach((text, i) => add(text, goalSource, `goal:constraint:${i}`));
   c.goal.criteria.forEach((text, i) => add(text, goalSource, `goal:criterion:${i}`));
-  for (const input of inputs) {
-    const source: CriterionSource = { kind: 'input', id: input.id };
-    const key = `input:${input.id}`;
-    add(input.rawText, source, `${key}:raw`);
-    if (input.spec) {
-      input.spec.constraints.forEach((text, i) => add(text, source, `${key}:constraint:${i}`));
-      input.spec.expectedOutputs.forEach((text, i) => add(text, source, `${key}:output:${i}`));
-      input.spec.acceptanceCriteria.forEach((text, i) => add(text, source, `${key}:criterion:${i}`));
-    }
-  }
+  for (const input of inputs) addInputCriteria(add, input, initial);
   return [...criteria.values()];
 }
 
-const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
-const nonempty = (value: unknown): value is string => typeof value === 'string' && !!value.trim();
-const references = (value: unknown): value is DeliveryReference[] => Array.isArray(value) && value.every(ref => record(ref) &&
-  (ref.kind === 'candidateText'
-    || ref.kind === 'draft' && Number.isSafeInteger(ref.index) && Number(ref.index) >= 0
-    || (ref.kind === 'artifact' || ref.kind === 'evidence') && nonempty(ref.id)));
+const nonempty = z.string().refine(value => !!value.trim());
+const judgmentFields = {
+  criterionId: nonempty,
+  source: z.strictObject({ id: nonempty, quote: nonempty.max(400) }).optional(),
+};
+const judgmentsSchema = z.array(z.discriminatedUnion('status', [
+  z.strictObject({ ...judgmentFields, status: z.literal('passed'), reason: nonempty.optional() }),
+  z.strictObject({ ...judgmentFields, status: z.enum(['failed', 'unverified']), reason: nonempty }),
+]));
 
-export function validCriterionCoverage(value: unknown): value is CriterionCoverage[] | undefined {
-  return value === undefined || Array.isArray(value) && value.every(item => record(item) && nonempty(item.criterionId) && references(item.refs));
+export function validCriterionJudgments(value: unknown): value is CriterionJudgment[] {
+  return judgmentsSchema.safeParse(value).success;
 }
 
-export function validCriterionJudgments(value: unknown): value is CriterionJudgment[] | undefined {
-  return value === undefined || Array.isArray(value) && value.every(item => record(item) && nonempty(item.criterionId)
-    && (item.status === 'passed' || (item.status === 'gap' || item.status === 'unknown') && nonempty(item.reason))
-    && (item.reason === undefined || nonempty(item.reason)) && (item.refs === undefined || references(item.refs))
-    && (item.kind === undefined || gapKinds.includes(item.kind as DeliveryGapKind)));
-}
-
-function currentArtifact(c: TaskContext, id: string): boolean {
-  return c.artifacts.some(artifact => artifact.id === id && artifact.goalVersion === c.goalVersion && !!artifact.content.trim());
-}
-
-function supported(c: TaskContext, work: Intent | undefined, ref: DeliveryReference, draftCount: number, backgroundIds: readonly string[], supersededIds: readonly string[] = []) {
-  switch (ref.kind) {
-    case 'candidateText': return true;
-    case 'draft': return ref.index < draftCount;
-    case 'artifact': {
-      const artifact = c.artifacts.find(item => item.id === ref.id && item.goalVersion === c.goalVersion && !!item.content.trim());
-      if (!artifact) return false;
-      if (backgroundIds.includes(ref.id)) return true;
-      const newer = c.artifacts.slice(c.artifacts.indexOf(artifact) + 1).some(item =>
-        item.goalVersion === c.goalVersion && documentIdentity(item) === documentIdentity(artifact));
-      return !newer && !supersededIds.includes(ref.id);
-    }
-    case 'evidence': {
-      const source = work && evidenceSource(c, work, ref.id);
-      if (!source || source.operation.result?.ok !== true) return false;
-      return evidenceMetadata(c, source).completeness === 'complete';
+export function judgmentsProblem(criteria: readonly AcceptanceCriterion[], results: unknown,
+  sources: readonly { id: string; stdout?: string; stderr?: string; content?: string }[]): string | null {
+  if (!validCriterionJudgments(results)) return 'CHECK_INVALID_CRITERIA_RESULTS';
+  const remaining = new Set(criteria.map(item => item.id));
+  for (const item of results) {
+    if (!remaining.delete(item.criterionId)) return 'CHECK_UNKNOWN_OR_DUPLICATE_CRITERION';
+    if (item.source) {
+      const { id, quote } = item.source;
+      const source = sources.find(entry => entry.id === id);
+      if (!source || !source.stdout?.includes(quote) && !source.stderr?.includes(quote) && !source.content?.includes(quote)) return 'CHECK_INVALID_SOURCE_QUOTE';
     }
   }
+  return remaining.size ? 'CHECK_MISSING_CRITERION' : null;
 }
 
 const gap = (candidateRevision: string, kind: DeliveryGapKind, reason: string, criterionId: string | null = null, refs: DeliveryReference[] = []): DeliveryGap =>
   ({ candidateRevision, criterionId, kind, reason, refs });
 
-// Compare the submitted content with the saved candidate. Reordering coverage and
-// retained artifact references is not a revision; changing a draft's content is.
-function sameSubmission(c: TaskContext, e: Delivery, acceptance: DeliveryAcceptance, retainedIds: string[], drafts: { name: string; content: string }[]) {
-  const previous = c.candidate;
-  if (!previous?.acceptance || previous.goalVersion !== c.goalVersion || previous.text !== e.text) return false;
-  if (previous.artifactIds.length !== retainedIds.length + drafts.length) return false;
-  const savedRetainedIds = previous.artifactIds.slice(0, retainedIds.length);
-  if (savedRetainedIds.some(id => !retainedIds.includes(id))) return false;
-  const priorBackgroundIds = new Set(previous.backgroundArtifactIds ?? []);
-  const nextBackgroundIds = new Set(e.backgroundArtifactIds ?? []);
-  if (priorBackgroundIds.size !== nextBackgroundIds.size || [...priorBackgroundIds].some(id => !nextBackgroundIds.has(id))) return false;
-  const draftIds = previous.artifactIds.slice(retainedIds.length);
-  if (!drafts.every((draft, index) => c.artifacts.some(artifact =>
-    artifact.id === draftIds[index] && artifact.name === draft.name && artifact.content === draft.content))) return false;
-  const normalized = (a: DeliveryAcceptance) => JSON.stringify([
-    a.criteria.map(criterion => [criterion.id, criterion.text]),
-    a.coverage.map(item => JSON.stringify([item.criterionId, item.refs.map(ref => JSON.stringify(
-      ref.kind === 'candidateText' ? [ref.kind] : ref.kind === 'draft' ? [ref.kind, ref.index] : [ref.kind, ref.id],
-    )).sort()])).sort(),
-  ]);
-  return normalized(previous.acceptance) === normalized(bindDraftReferences(acceptance, draftIds));
-}
-
 export function deliveryPreflight(c: TaskContext, e: Delivery) {
   const revision = deliveryRevision(c, e);
-  const work = c.intents.find(intent => intent.id === e.workId);
-  const coverage = e.coverage ?? (c.candidate?.acceptance ? [] : undefined);
   const drafts = e.artifacts?.length ? e.artifacts : isLongResult(e.text) ? [{ name: 'result.md', content: e.text }] : [];
-  const draftCount = drafts.length;
   const listed = [...new Set(e.artifactIds)];
   const gaps: DeliveryGap[] = [];
-  if (listed.length + draftCount < c.goal.requiredArtifacts) gaps.push(gap(revision, 'missing_requirement', 'MISSING_ARTIFACTS'));
-  for (const id of listed.filter(id => !currentArtifact(c, id))) {
-    gaps.push(gap(revision, 'version_conflict', 'MISSING_OR_STALE_ARTIFACT', null, [{ kind: 'artifact', id }]));
+  const available = listed.filter(id => c.artifacts.some(artifact => artifact.id === id && artifact.goalVersion === c.goalVersion && !!artifact.content.trim()));
+  if (available.length + drafts.filter(draft => !!draft.content.trim()).length < c.goal.requiredArtifacts)
+    gaps.push(gap(revision, 'missing_requirement', 'MISSING_ARTIFACTS'));
+  for (const id of listed) {
+    if (!available.includes(id)) gaps.push(gap(revision, 'version_conflict', 'MISSING_OR_STALE_ARTIFACT', null, [{ kind: 'artifact', id }]));
   }
-  if (coverage === undefined) return { gaps, repeated: false };
-  const criteria = acceptanceCriteria(c);
-  const coverageById = new Map<string, CriterionCoverage>();
-  const criterionIds = new Set(criteria.map(criterion => criterion.id));
-  for (const item of coverage) {
-    if (!criterionIds.has(item.criterionId) || coverageById.has(item.criterionId)) {
-      gaps.push(gap(revision, 'missing_requirement', '验收项不存在或被重复提交', item.criterionId, item.refs));
-    } else {
-      coverageById.set(item.criterionId, item);
-    }
-  }
-  for (const criterion of criteria) {
-    const refs = coverageById.get(criterion.id)?.refs ?? [];
-    if (!refs.length) gaps.push(gap(revision, 'missing_requirement', `缺少覆盖：${criterion.text}`, criterion.id));
-    else if (refs.some(ref => !supported(c, work, ref, draftCount, e.backgroundArtifactIds ?? [], e.artifacts?.flatMap(draft => draft.replacesArtifactId ? [draft.replacesArtifactId] : []) ?? []))) gaps.push(gap(revision, 'missing_evidence', `凭证不可用：${criterion.text}`, criterion.id, refs));
-  }
-  const acceptance = { revision, criteria, coverage } satisfies DeliveryAcceptance;
-  const repeated = !!c.deliveryGaps?.length && sameSubmission(c, e, acceptance, listed, drafts);
-  if (repeated && !gaps.length) gaps.push(gap(revision, 'content_error', '候选未处理上一轮缺口'));
-  return { gaps, repeated, acceptance };
+  return { gaps, acceptance: { revision, criteria: acceptanceCriteria(c) } satisfies DeliveryAcceptance };
 }
 
-export function bindDraftReferences(acceptance: DeliveryAcceptance, ids: string[]): DeliveryAcceptance {
-  return { ...acceptance, coverage: acceptance.coverage.map(item => ({
-    ...item, refs: item.refs.map(ref => ref.kind === 'draft' && ids[ref.index] ? { kind: 'artifact', id: ids[ref.index]! } : ref),
-  })) };
+export function deliveryJudgments(c: TaskContext, revision: string | undefined): readonly CriterionJudgment[] {
+  if (!revision) return [];
+  return c.intents.find(work => work.kind === 'check' && work.criteriaResults
+    && (work.payload.candidate as Candidate | undefined)?.revision === revision)?.criteriaResults ?? [];
 }
 
-export function acceptanceCheckProblem(c: TaskContext, e: Check): string | null {
-  const acceptance = c.candidate?.acceptance;
-  if (!acceptance) return e.criteriaResults === undefined ? null : 'CHECK_ACCEPTANCE_REQUIRED';
-  const work = c.intents.find(item => item.id === e.workId && item.kind === 'check');
-  const candidate = work?.payload.candidate as TaskContext['candidate'] | undefined;
-  return candidate?.acceptance?.revision === acceptance.revision ? null : 'STALE_ACCEPTANCE_CHECK';
+function unverifiedRequirements(candidate: Candidate, revision: string) {
+  return (candidate.acceptance?.criteria ?? []).map(criterion => gap(revision, 'missing_evidence', `未核实：${criterion.text}`, criterion.id));
 }
 
-export function deliveryCheckGaps(c: TaskContext, e: Check): DeliveryGap[] {
-  const acceptance = c.candidate?.acceptance;
-  if (!acceptance) return [];
-  const work = c.intents.find(intent => intent.id === e.workId);
-  const gaps = e.gaps.map(reason => gap(acceptance.revision, 'content_error', reason));
-  const judgments = new Map<string, CriterionJudgment>();
-  const criterionIds = new Set(acceptance.criteria.map(criterion => criterion.id));
-  for (const judgment of e.criteriaResults ?? []) {
-    if (!criterionIds.has(judgment.criterionId) || judgments.has(judgment.criterionId)) {
-      gaps.push(gap(acceptance.revision, 'missing_requirement', '检查引用了未知或重复的验收项', judgment.criterionId));
-    } else {
-      judgments.set(judgment.criterionId, judgment);
-    }
+export function currentDeliveryIssues(c: TaskContext): DeliveryGap[] {
+  const candidate = c.candidate;
+  if (!c.deliveryCycle || !candidate?.revision) return c.deliveryGaps ?? [];
+  const revision = candidate.revision;
+  const judgments = deliveryJudgments(c, revision);
+  const issues = judgments.flatMap(item => item.status === 'passed' ? [] : [gap(revision,
+    item.status === 'unverified' ? 'missing_evidence' : 'content_error', item.reason, item.criterionId,
+    item.source ? [{ kind: 'evidence', id: item.source.id }] : [])]);
+  if (candidate.deliveryIssue) {
+    const { code, detail } = candidate.deliveryIssue;
+    const kind = code === 'MISSING_ARTIFACTS' ? 'missing_requirement' : code.includes('ARTIFACT') ? 'version_conflict' : 'missing_evidence';
+    issues.push(gap(revision, kind, detail ?? code));
+    if (c.outcome && kind === 'missing_evidence' && !judgments.length) issues.push(...unverifiedRequirements(candidate, revision));
   }
-  for (const criterion of acceptance.criteria) {
-    const result = judgments.get(criterion.id);
-    if (!result) {
-      gaps.push(gap(acceptance.revision, 'missing_requirement', `缺少检查：${criterion.text}`, criterion.id));
-    } else {
-      const refs = result.refs ?? [];
-      if (result.status !== 'passed') gaps.push(gap(acceptance.revision, result.kind ?? 'content_error', result.reason!, criterion.id, refs));
-      else if (refs.some(ref => !supported(c, work, ref, 0, c.candidate?.backgroundArtifactIds ?? []))) {
-        gaps.push(gap(acceptance.revision, 'missing_evidence', `检查引用不可用：${criterion.text}`, criterion.id, refs));
-      }
-    }
-  }
-  if (!e.passed && !gaps.length) gaps.push(gap(acceptance.revision, 'content_error', '独立检查未通过'));
-  return gaps;
+  return issues;
 }

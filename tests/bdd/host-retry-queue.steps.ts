@@ -3,7 +3,7 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 import type { SpecWorld } from './steps.js';
 import { HostRetryFixture } from '../host-retry-fixture.js';
 import { hostUntil } from '../host-approval-fixture.js';
-import { claimRetryWork, decideRetry, deliver, failedSandbox, prepareRetry, request, retryOp, retryWork, settleRetry, startRetry, twoQueued } from '../host-retry-model-fixture.js';
+import { claimCheck, claimRetryWork, decideRetry, deliver, failedSandbox, passCheck, prepareRetry, request, retryOp, retryWork, settleRetry, startRetry, twoQueued } from '../host-retry-model-fixture.js';
 import { localModelInput, type LocalModel } from '../local-model-fixture.js';
 
 interface State {
@@ -56,14 +56,15 @@ Given('当前候选的{string}尚在进行且用户已申请宿主续办', funct
   const s = state(this), m = failedSandbox(); s.model = m;
   if (role === '检查员') assert(deliver(m).ok);
   if (role === '协调员') assert(m.send({ type: 'BLOCKED', workId: m.work.id, fence: m.work, reason: '需要决策' }).ok);
-  const current = m.c.intents.at(-1)!; s.work = current.id;
-  if (role !== '负责人') assert(m.send({ type: 'CLAIM', intentId: current.id }).ok);
+  const current = role === '检查员' ? claimCheck(m) : m.c.intents.at(-1)!;
+  s.work = current.id;
+  if (role === '协调员') assert(m.send({ type: 'CLAIM', intentId: current.id }).ok);
   assert(request(m).ok);
 });
 When('当前工作返回{string}', function (this: SpecWorld, result: string) {
   const m = model(this), w = m.c.intents.find(w => w.id === state(this).work)!;
   if (result === '提交候选') assert(deliver(m, w).ok);
-  else if (result === '检查通过') assert(m.send({ type: 'CHECK_RESULT', workId: w.id, fence: w, resultId: 'old-check', passed: true, gaps: [] }).ok);
+  else if (result === '检查通过') assert(passCheck(m, w, 'old-check').ok);
   else assert(m.send({ type: 'COORDINATE', workId: w.id, fence: w, decision: { action: 'finish', reason: '阶段结束' } }).ok);
 });
 Then('应保留当前结果并等待已接受的续办处理', function (this: SpecWorld) {
@@ -74,9 +75,8 @@ Then('应保留当前结果并等待已接受的续办处理', function (this: S
 Then('续办结果交接后的候选须重新检查才可最终交付', function (this: SpecWorld) {
   const m = model(this); claimRetryWork(m); prepareRetry(m); assert(decideRetry(m).ok); assert(startRetry(m).ok); assert(settleRetry(m).ok);
   assert(deliver(m, retryWork(m)).ok);
-  const check = m.c.intents.at(-1)!; assert.equal(check.kind, 'check'); assert.equal(m.c.outcome, null);
-  assert(m.send({ type: 'CLAIM', intentId: check.id }).ok);
-  assert(m.send({ type: 'CHECK_RESULT', workId: check.id, fence: check, resultId: 'new-check', passed: true, gaps: [] }).ok);
+  assert.equal(m.c.outcome, null);
+  assert(passCheck(m, claimCheck(m), 'new-check').ok);
   assert.equal(m.c.outcome, 'complete');
 });
 

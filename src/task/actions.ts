@@ -27,6 +27,13 @@ const coordinationProblems: Record<string, string> = {
 
 export const taskActions = {
     apply: taskAssign(({ context, event }) => reduce(context, event)),
+    failCheckClaim: taskAssign(({ context, event }) => {
+      if (event.type !== 'CLAIM') return {};
+      const code = permissionProblem(context, event)!;
+      const c = reduce(context, { ...event, type: 'WORK_FAILED', transient: false, reason: code });
+      reject(c, code);
+      return c;
+    }),
     startHostRetry: taskAssign(({ context, event }) => {
       const c = structuredClone(context);
       startHostRetryBatch(c, { ...event, at: event.at ?? c.lastActivityAt });
@@ -45,7 +52,9 @@ export const taskActions = {
       const isDiscussionResult = event.type === 'DISCUSSION_PLAN' || event.type === 'DISCUSSION_RESULT';
       const belongsToDiscussion = isDiscussionResult && !!work?.discussionId && event.discussionId === work.discussionId;
       const mayRetire = isDiscussionResult ? belongsToDiscussion && !!event.fence : !work?.discussionId || event.type === 'WORK_FAILED';
-      if (work && c.reply.code !== 'STALE_CANDIDATE_CHECK' && (event.attempt === undefined || event.attempt === work.attempt) && mayRetire && (!event.fence || (event.fence.epoch === work.epoch && event.fence.goalVersion === work.goalVersion))) {
+      const retiredCheck = event.type !== 'CHECK_RESULT' || context.stopped || work && (work.epoch !== context.epoch || work.goalVersion !== context.goalVersion);
+      if (work && retiredCheck && c.reply.code !== 'DUPLICATE_RESULT'
+        && (event.attempt === undefined || event.attempt === work.attempt) && mayRetire && (!event.fence || (event.fence.epoch === work.epoch && event.fence.goalVersion === work.goalVersion))) {
         if (work.discussionId && work.status === 'inflight' && fresh(context, event) && !context.stopped && discussionActive(c)
           && ['INVALID_DISCUSSION_PLAN', 'INVALID_DISCUSSION_RESULT', 'WORK_EXPIRED'].includes(c.reply.code)) discussionFailed(c, event, c.intents.find(item => item.id === work.id)!, c.reply.code);
         else release(c, work.id);

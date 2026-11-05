@@ -1,12 +1,17 @@
 import { hostRetryReservation } from '../host-retry.js';
 import { type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { discussionActive, hasOrdinary } from './facts.js';
+import { deliveryCheckBudgetProblem, hasDeliveryRetryPermit, isBoundedCheck } from './delivery.js';
+import { deliveryVerificationPlan } from './verification.js';
 
 export function requestBudgetProblem(c: TaskContext, work: Intent): string | null {
   if (work.bucket === 'none') return null;
+  if (work.bucket === 'checks') return deliveryCheckBudgetProblem(c, hasDeliveryRetryPermit(c, work));
   if (c.usage[work.bucket] >= c.config.limits[work.bucket]) return 'BUDGET_EXHAUSTED';
   const hostReserve = work.id === c.hostRetryBatch?.workId ? 0 : hostRetryReservation(c);
   if (work.bucket === 'ordinary' && c.usage.ordinary + 1 + hostReserve > c.config.limits.ordinary) return 'BUDGET_EXHAUSTED';
+  if (work.bucket === 'ordinary' && work.payload.deliveryRevision === true && deliveryVerificationPlan(c)?.status === 'required'
+    && c.usage.ordinary + 3 + hostReserve > c.config.limits.ordinary) return 'WORKSPACE_VALIDATION_BUDGET_RESERVED';
   if (work.bucket === 'ordinary' && discussionActive(c)) {
     const round = c.discussion!;
     const pending = c.intents.filter(i => i.discussionId === round.id && i.status === 'pending' && i.id !== work.id).length;
@@ -25,6 +30,18 @@ export function requestBudgetProblem(c: TaskContext, work: Intent): string | nul
 export function canRetryWork(c: TaskContext, e: TaskEvent): boolean {
   if (e.type !== 'WORK_FAILED') return false;
   const work = c.intents.find(i => i.id === e.intentId);
+  if (isBoundedCheck(work)) return e.transient && !e.resultUncertain && canRetryDeliveryCheck(c, work, e.at);
   return !!work && e.transient && !e.resultUncertain && work.replay !== 'unsafe' && !c.stopped
     && c.usage.retries < c.config.limits.retries && hasOrdinary(c) && !requestBudgetProblem(c, work);
+}
+
+export function canRetryDeliveryCheck(c: TaskContext, work: Intent, at: number): boolean {
+  return !!c.deliveryCycle && !c.deliveryCycle.retry && !c.stopped && work.requestCount > 0
+    && c.usage.retries < c.config.limits.retries && !deliveryCheckBudgetProblem(c, true)
+    && (work.deadline === null || at < work.deadline);
+}
+
+export function reserveDeliveryRetry(c: TaskContext, work: Intent): void {
+  c.deliveryCycle!.retry = { workId: work.id, status: 'reserved' };
+  c.usage.retries++;
 }

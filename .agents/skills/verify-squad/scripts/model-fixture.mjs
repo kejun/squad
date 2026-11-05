@@ -23,21 +23,13 @@ export async function startFixture(log) {
       const match = /^You are (.+?), executing (\w+) work\./.exec(request.messages[0].content);
       if (!match || !workId) throw new Error('Production model protocol drift');
       const [, target, kind] = match;
-      const goal = context.goal?.text ?? '';
-      const key = `${goal}:${kind}:${target}`;
+      const goal = context.goal?.text ?? context.rawInputs?.[0]?.text ?? '';
+      const key = kind === 'check' ? workId : `${goal}:${kind}:${target}`;
       const count = (counts.get(key) ?? 0) + 1;
       counts.set(key, count);
       const repair = request.messages.some(m => m.content.includes('model_output_validation_error'));
       appendFileSync(log, JSON.stringify({ workId, goal, target, kind, count, repair }) + '\n');
-      const respond = output => {
-        if (output.type === 'deliver' && context.acceptanceCriteria) output.coverage = context.acceptanceCriteria.map(item => ({
-          criterionId: item.id, refs: [{ kind: 'draft', index: 0 }],
-        }));
-        if (output.type === 'check' && output.passed === true && context.candidate?.acceptance) {
-          output.criteriaResults = context.candidate.acceptance.criteria.map(item => ({ criterionId: item.id, status: 'passed' }));
-        }
-        res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }] }));
-      };
+      const respond = output => res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }] }));
       if (goal.includes('VERIFY_ARCHIVE') && kind === 'owner' && count === 1) {
         pending.add(res);
         archivePending.set(res, () => {
@@ -65,8 +57,8 @@ export async function startFixture(log) {
         return;
       }
       res.writeHead(200, { 'content-type': 'application/json' });
-      if (kind === 'check') return respond(goal.includes('VERIFY_REPAIR') && !repair
-        ? { type: 'check', passed: 'true' } : { type: 'check', passed: true, gaps: [] });
+      if (kind === 'check') return respond({ type: 'check', criteriaResults: goal.includes('VERIFY_REPAIR') && count === 1
+        ? 'invalid' : context.requirements.map(item => ({ criterionId: item.id, status: 'passed' })) });
       if (kind === 'facilitator') return respond({ type: 'decision', decision: context.review?.status === 'pending'
         ? { action: 'review', reason: '用户请求评审', question: '核查现有报告', expected: '给出依据与改进项' }
         : { action: 'continue', reason: '继续原目标' } });

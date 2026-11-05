@@ -9,6 +9,7 @@ import { createWebServer } from "../src/web/http.js";
 import type { RoomSnapshot, WebRoom } from "../src/web/contracts.js";
 import { WorkFailure, type WorkAdapter } from "../src/runner.js";
 import { assistanceRetrySubmission } from "../web/src/AssistanceRetry.js";
+import { fixtureCheck } from "./delivery-protocol-fixture.js";
 
 const cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -65,7 +66,7 @@ describe("Web host and HTTP boundary", () => {
         if (++helperCalls === 1) throw new WorkFailure("核查中断");
         return { type: "answer", text: "核查已恢复，结论有依据" };
       }
-      if (work.kind === "check") return { type: "check", passed: true, gaps: [] };
+      if (work.kind === "check") return fixtureCheck(work.payload.candidate);
       if (++ownerCalls === 1) return { type: "help", requestId: "H1", target: "B", question: "核查方案", expected: "依据" };
       if (ownerCalls === 2) return { type: "askUser", question: "核查中断，请重试 B" };
       expect(work.target).toBe("A"); expect(work.payload.answer).toBe("核查已恢复，结论有依据");
@@ -102,7 +103,7 @@ describe("Web host and HTTP boundary", () => {
         calls.push(work.target);
         sessions.push(scope.sessionId);
         if (work.kind === "check")
-          return { type: "check", passed: true, gaps: [] };
+          return fixtureCheck(work.payload.candidate);
         return {
           type: "deliver",
           text: "已完成可检查的方案。",
@@ -164,7 +165,7 @@ describe("Web host and HTTP boundary", () => {
     const adapter: WorkAdapter = {
       execute: async (work, signal) => {
         if (work.kind === "check")
-          return { type: "check", passed: true, gaps: [] };
+          return fixtureCheck(work.payload.candidate);
         if (++calls > 1) return { type: "answer", text: "继续后的结果" };
         return await new Promise((_, reject) =>
           signal.addEventListener(
@@ -219,7 +220,7 @@ describe("Web host and HTTP boundary", () => {
     const adapter: WorkAdapter = {
       execute: async (work) => {
         if (work.kind === "check")
-          return { type: "check", passed: true, gaps: [] };
+          return fixtureCheck(work.payload.candidate);
         if (work.kind === "assistance") {
           assistanceCalls++;
           return { type: "answer", text: "已核查来源。" };
@@ -305,7 +306,7 @@ describe("Web host and HTTP boundary", () => {
           return { type: "answer", text: `${work.target} 的评审意见` };
         }
         if (work.kind === "check")
-          return { type: "check", passed: true, gaps: [] };
+          return fixtureCheck(work.payload.candidate);
         return {
           type: "deliver",
           text: work.payload.review ? "团队评审汇总" : proposal,

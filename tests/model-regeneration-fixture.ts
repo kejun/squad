@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MemoryStore, OpenAICompatibleAdapter, SqliteStore, TeamEngine, WorkRunner, type Intent, type Store, type TeamConfig } from '../src/index.js';
-import { configuration, Harness } from './helpers.js';
+import { configuration, Harness, saveEvidence } from './helpers.js';
 
 export type ModelKind = 'owner' | 'assistance' | 'facilitator' | 'check';
 export interface CapturedModelRequest { model: string; messages: { role: string; content: string }[] }
@@ -20,12 +20,9 @@ export function badModelOutput(name: string): unknown {
   const values: Record<string, unknown> = {
     answer类型: { type: 'answer', text: '误用了其他角色的协议' },
     decision类型: { type: 'decision', decision: { action: 'finish', reason: '不是检查协议' } },
-    passed字符串: { type: 'check', passed: 'true', gaps: [] },
-    verdict替代字段: { type: 'check', verdict: 'pass', gaps: [] },
-    gaps缺失: { type: 'check', passed: true },
-    gaps为null: { type: 'check', passed: true, gaps: null },
-    gaps为字符串: { type: 'check', passed: true, gaps: '无' },
-    gaps为对象数组: { type: 'check', passed: true, gaps: [{ text: '无' }] },
+    criteriaResults缺失: { type: 'check' },
+    criteriaResults为null: { type: 'check', criteriaResults: null },
+    criteriaResults为字符串: { type: 'check', criteriaResults: '无' },
     JSON损坏: '{"type":"answer","text":', JSON数组: [],
     空答案: { type: 'answer', text: ' ' },
     缺少产物引用数组: { type: 'deliver', text: '方案' },
@@ -52,11 +49,12 @@ export class RegenerationFixture {
   fallback: unknown;
   beforeResponse?: ((index: number) => void) | undefined;
   responseFactory?: ((index: number) => Response) | undefined;
+  readonly sources: string[] = [];
   searches = 0;
   webCalls = 0;
   readonly adapter: OpenAICompatibleAdapter;
 
-  constructor(readonly kind: ModelKind = 'check', limits: Partial<TeamConfig['limits']> = {}, sqlite = false) {
+  constructor(readonly kind: ModelKind = 'check', limits: Partial<TeamConfig['limits']> = {}, sqlite = false, sources: string[] = []) {
     if (sqlite) {
       this.directory = mkdtempSync(join(tmpdir(), 'squad-schema-'));
       this.path = join(this.directory, 'team.sqlite');
@@ -65,6 +63,7 @@ export class RegenerationFixture {
     this.h = new Harness(regenerationConfig(limits), this.currentStore);
     if (kind === 'check') {
       const owner = this.h.claim('owner');
+      this.sources = sources.map(text => saveEvidence(this.h, owner, text));
       assert(this.h.event({ type: 'DELIVER', workId: owner.id, text: '完整方案，依据 https://example.com', artifactIds: [] }).ok);
     } else if (kind === 'facilitator') assert(this.h.event({ type: 'BLOCKED', reason: '需要协调' }).ok);
     else if (kind === 'assistance') assert(this.h.help().ok);

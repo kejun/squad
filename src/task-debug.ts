@@ -1,7 +1,7 @@
 import { persistTask, restoreTask, taskPhase, workLaneAvailable, type TaskSnapshot } from './task.machine.js';
 import { inspectInitialTask, inspectTask, type DebugEvidence } from './task-inspection.js';
 import { taskGraph } from './task-structure.js';
-import { validateConfig, type Phase, type TaskEvent, type TaskInput } from './types.js';
+import { validateConfig, type Candidate, type Phase, type TaskEvent, type TaskInput } from './types.js';
 export { taskGraph, stateTransitions, type MachineGraph, type MachineTransition } from './task-structure.js';
 export type { DebugEvidence } from './task-inspection.js';
 
@@ -23,7 +23,7 @@ export function debugFrame(snapshot: TaskSnapshot, event: DebugEvent, from: Phas
 }
 
 // Shape checks only. Business permissions, limits, fence checks, and rejection codes remain in taskMachine.
-const eventFields: Record<string, Record<string, 'string' | 'number' | 'boolean' | 'object' | 'array'>> = {
+const eventFields: Record<string, Record<string, 'string' | 'number' | 'boolean' | 'object' | 'array' | 'objects'>> = {
   LOCAL_REQUEST: { intentId: 'string', operationId: 'string', namespace: 'string', requestHash: 'string', action: 'object', parentAttempt: 'number', fence: 'object' },
   LOCAL_CLAIM: { intentId: 'string', operationId: 'string', sessionId: 'string', parentAttempt: 'number', leaseAvailable: 'boolean', fence: 'object' },
   LOCAL_REJECTED: { intentId: 'string', operationId: 'string', parentAttempt: 'number', result: 'object' },
@@ -39,7 +39,7 @@ const eventFields: Record<string, Record<string, 'string' | 'number' | 'boolean'
   BLOCKED: { reason: 'string' }, COORDINATE: { decision: 'object' },
   USER_INPUT: { text: 'string' }, HUMAN_DECISION: { text: 'string' }, HANDOFF: { owner: 'string' },
   WAIT_USER: { question: 'string' }, DELIVER: { text: 'string', artifactIds: 'array' },
-  CHECK_RESULT: { passed: 'boolean', gaps: 'array', resultId: 'string' },
+  CHECK_RESULT: { workId: 'string', attempt: 'number', candidateRevision: 'string', criteriaResults: 'objects', resultId: 'string', fence: 'object' },
   SETTLE: { intentId: 'string' }, ACTIVITY: { text: 'string' }, PROGRESS: { detail: 'string', refs: 'array' },
   FAILURE_SIGNAL: { operation: 'string', parameters: 'string', resource: 'string', error: 'string', result: 'string' },
   BOARD_WRITE: { author: 'string', entryId: 'string', text: 'string', kind: 'string', sources: 'array' },
@@ -49,11 +49,13 @@ const eventFields: Record<string, Record<string, 'string' | 'number' | 'boolean'
   TOOL: { tool: 'string', replay: 'string', payload: 'object' },
   INTERPRETATION_RESULT: { inputId: 'string', spec: 'object' }, REGENERATE_MODEL_OUTPUT: { intentId: 'string', issue: 'string' },
 };
+const isRecord = (value: unknown) => !!value && typeof value === 'object' && !Array.isArray(value);
 function validateEventShape(body: Record<string, unknown>) {
   for (const [field, kind] of Object.entries(eventFields[String(body.type)] ?? {})) {
     const value = body[field];
     const valid = kind === 'array' ? Array.isArray(value) && value.every(item => typeof item === 'string')
-      : kind === 'object' ? !!value && typeof value === 'object' && !Array.isArray(value) : typeof value === kind;
+      : kind === 'objects' ? Array.isArray(value) && value.every(isRecord)
+      : kind === 'object' ? isRecord(value) : typeof value === kind;
     if (!valid) throw new Error('事件参数 ' + field + ' 必须为 ' + kind);
   }
 }
@@ -206,7 +208,13 @@ export function debugEventTemplate(snapshot: TaskSnapshot, type: string): Record
     case 'WAIT_USER': return { ...completion, question: '请选择下一步' };
     case 'USER_INPUT': case 'HUMAN_DECISION': return { ...base, text: '请补充恢复验证' };
     case 'DELIVER': return { ...completion, text: '方案已完成，来源 https://example.com/source', artifactIds: [] };
-    case 'CHECK_RESULT': return { ...completion, passed: true, gaps: [], resultId: 'debug-check:' + c.nextSeq };
+    case 'CHECK_RESULT': {
+      const check = latest.find(item => item.kind === 'check' && item.status === 'inflight');
+      const candidate = check?.payload.candidate as Candidate | undefined;
+      return { ...base, workId: check?.id ?? '', attempt: check?.attempt ?? 0, fence: check ? { epoch: check.epoch, goalVersion: check.goalVersion } : frame,
+        candidateRevision: candidate?.revision ?? '', resultId: `debug-check:${c.nextSeq}`,
+        criteriaResults: candidate?.acceptance?.criteria.map(criterion => ({ criterionId: criterion.id, status: 'passed' })) ?? [] };
+    }
     case 'COORDINATE': return { ...completion, decision: { action: 'continue', reason: '按原目标继续' } };
     case 'BLOCKED': case 'EXHAUSTED': return { ...completion, reason: '模拟执行边界' };
     case 'HANDOFF': return { ...base, owner: c.config.bots.find(b => b.id !== c.owner)?.id ?? c.owner };

@@ -249,9 +249,11 @@ async function reports() {
   const task = snapshot.tasks.at(-1);
   assert.equal(task.artifacts[0].content, report);
   assert.equal(task.artifacts[0].author, 'A');
-  assert.equal(task.usage.checks, 2, 'Check regeneration must consume a second check request');
+  assert.equal(task.usage.checks, 2, 'Check retry must consume a second check request');
   const records = readFileSync(join(evidence, 'model-http.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
-  assert(records.some(r => r.goal.includes('VERIFY_REPAIR') && r.kind === 'check' && r.repair));
+  const checks = records.filter(r => r.goal.includes('VERIFY_REPAIR') && r.kind === 'check');
+  assert.deepEqual(checks.map(r => r.count), [1, 2]);
+  assert.equal(checks[0].workId, checks[1].workId);
   await page.getByRole('log').getByRole('button', { name: '查看 verification-report.md', exact: true }).click();
   const preview = page.getByRole('complementary', { name: '报告预览', exact: true });
   await preview.getByRole('heading', { name: '验证报告', exact: true }).waitFor();

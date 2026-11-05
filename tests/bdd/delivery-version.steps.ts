@@ -3,7 +3,7 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 import { WebService } from '../../src/web/service.js';
 import type { ArtifactDraft, TaskContext, TaskEvent, WorkKind } from '../../src/types.js';
 import { messageArtifacts, taskArtifacts } from '../../web/src/ResultLinks.js';
-import { configuration, type EventBody } from '../helpers.js';
+import { candidateJudgments, configuration, type EventBody } from '../helpers.js';
 import type { SpecWorld } from './steps.js';
 
 type Check = Omit<Extract<TaskEvent, { type: 'CHECK_RESULT' }>, 'id' | 'at'>;
@@ -37,13 +37,13 @@ function delivery(test: Test, ...artifacts: ArtifactDraft[]) {
 }
 function review(test: Test, passed = true) {
   const work = claim(test, 'check');
-  const checked = { type: 'CHECK_RESULT' as const, workId: work.id, fence: { epoch: work.epoch, goalVersion: work.goalVersion },
-    candidateRevision: context(test).candidate!.revision!, resultId: `judgment:${work.id}`, passed, gaps: passed ? [] : ['Revise the report'] };
+  assert(event(test, { type: 'CONSUME', intentId: work.id, fence: work, attempt: work.attempt }).ok);
+  const candidate = context(test).candidate!;
+  const checked = { type: 'CHECK_RESULT' as const, workId: work.id, fence: work, attempt: work.attempt,
+    candidateRevision: candidate.revision!, resultId: `judgment:${work.id}`,
+    criteriaResults: candidateJudgments(candidate, passed ? undefined : { index: 0, status: 'failed', reason: 'Revise the report' }) };
   assert(event(test, checked).ok);
   return checked;
-}
-function continueRevision(test: Test) {
-  assert(event(test, { type: 'COORDINATE', workId: claim(test, 'facilitator').id, decision: { action: 'continue', reason: 'Revise' } }).ok);
 }
 function snapshot(test: Test) { return test.service.snapshot(test.room); }
 function projected(test: Test) { return taskArtifacts(snapshot(test).tasks.find(task => task.id === test.task)); }
@@ -99,15 +99,15 @@ Given('第一份候选已安排检查且负责人后来提交了同一报告的�
   assert(delivery(test, report).ok);
   test.first = context(test).artifacts[0]!.id;
   test.priorCheck = review(test, false);
-  continueRevision(test);
   assert(delivery(test, { ...report, content: 'Revised report', replacesArtifactId: test.first }).ok);
   test.second = context(test).artifacts[1]!.id;
 });
 When('基于原报告的另一份修订和第一份候选的检查结论分别到达', function (this: SpecWorld) {
   const test = tests.get(this)!;
-  assert.equal(event(test, { ...test.priorCheck!, resultId: 'delayed-check', passed: true }).ok, false);
+  assert.equal(event(test, { ...test.priorCheck!, resultId: 'delayed-check', criteriaResults: candidateJudgments(context(test).candidate) }).ok, false);
   review(test, false);
-  continueRevision(test);
+  assert.equal(context(test).outcome, 'partial');
+  assert(event(test, { type: 'CONTINUE' }).ok);
   const rejected = delivery(test, { ...report, content: 'Stale update', replacesArtifactId: test.first! });
   assert.equal(rejected.ok, false);
 });

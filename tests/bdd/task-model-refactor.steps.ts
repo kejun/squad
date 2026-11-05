@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { After, Given, When, Then } from '@cucumber/cucumber';
 import { legacyTaskContract, replayLegacyTrace, restoreLegacyTask, verifyLegacyDiagnostics } from '../task-model-contract.js';
-import { LegacyTaskRecovery } from '../task-model-recovery-fixture.js';
+import { SavedTaskRecovery } from '../task-model-recovery-fixture.js';
 import type { TaskSnapshot } from '../../src/task.machine.js';
 import type { Phase } from '../../src/types.js';
 import type { SpecWorld } from './steps.js';
 
-interface Case { phase?: Phase; trace?: string; snapshot?: TaskSnapshot; diagnostics?: boolean; recovery?: LegacyTaskRecovery }
+interface Case { phase?: Phase; trace?: string; snapshot?: TaskSnapshot; diagnostics?: boolean; recovery?: SavedTaskRecovery }
 const cases = new WeakMap<SpecWorld, Case>();
 const state = (world: SpecWorld) => { const value = cases.get(world); assert(value); return value; };
 After(function (this: SpecWorld) { cases.get(this)?.recovery?.close(); });
@@ -20,9 +20,9 @@ Then('每一步的阶段、结果、额度、回执和后继工作应与原契�
 Then('纯模型重放不应调用模型或工具', function (this: SpecWorld) { assert(state(this).snapshot); }); // replayLegacyTrace also asserts every transition's effects are empty.
 Given('重构前已记录真实任务的转移规则与诊断轨迹', function (this: SpecWorld) { cases.set(this, {}); });
 When('当前模型执行这些轨迹并采集诊断', function (this: SpecWorld) { verifyLegacyDiagnostics(); state(this).diagnostics = true; });
-Then('转移规则身份、守卫顺序与自动微步应保持一致', function (this: SpecWorld) { assert(state(this).diagnostics); });
+Then('未变更规则的身份、守卫顺序与自动微步应保持一致', function (this: SpecWorld) { assert(state(this).diagnostics); });
 Then('诊断快照应与同次纯转换结果一致', function (this: SpecWorld) { assert(state(this).diagnostics); });
-Given('{string}中保存了重构前尚未消费的核查结果', function (this: SpecWorld, storage: string) { cases.set(this, { recovery: new LegacyTaskRecovery(storage) }); });
+Given('{string}中保存了当前协议下尚未消费的核查结果', function (this: SpecWorld, storage: string) { cases.set(this, { recovery: new SavedTaskRecovery(storage) }); });
 When('当前引擎恢复并由真实执行器继续处理', async function (this: SpecWorld) { await state(this).recovery!.resume(); });
 Then('应保留原结果和预算且只安排一次负责人续办', function (this: SpecWorld) { state(this).recovery!.assertHandoff(); });
 Then('重复恢复不应重复发言或越过领取调用外部适配器', async function (this: SpecWorld) { await state(this).recovery!.repeatAndComplete(); });

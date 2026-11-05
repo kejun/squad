@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LocalModel, localModelInput } from './local-model-fixture.js';
 
-import { claimRetryOp, claimRetryWork, decideRetry, deliver, failedSandbox, prepareRetry, request, requestSecond, retryOp, retryWork, settleRetry, startRetry, twoQueued } from './host-retry-model-fixture.js';
+import { claimCheck, claimRetryOp, claimRetryWork, decideRetry, deliver, failedSandbox, passCheck, prepareRetry, request, requestSecond, retryOp, retryWork, settleRetry, startRetry, twoQueued } from './host-retry-model-fixture.js';
 describe('用户从失败沙箱记录续办（真实XState，每步持久化）', () => {
   it('[BT_L32] revives an ended round with a fixed, unapproved host operation and a saved model checkpoint', () => {
     const m = failedSandbox(true); expect(m.c.outcome).toBe('complete');
@@ -46,10 +46,10 @@ describe('用户从失败沙箱记录续办（真实XState，每步持久化）'
   });
   it('[BT_L46] holds a check that finishes after retry acceptance', () => {
     const m = failedSandbox(); deliver(m);
-    const check = m.c.intents.at(-1)!; m.send({ type: 'CLAIM', intentId: check.id });
+    const check = claimCheck(m);
     expect(request(m).ok).toBe(true);
     expect(m.snapshot.value).toBe('checking');
-    expect(m.send({ type: 'CHECK_RESULT', workId: check.id, fence: check, resultId: 'old-check', passed: true, gaps: [] }).ok).toBe(true);
+    expect(passCheck(m, check, 'old-check').ok).toBe(true);
     expect(m.c.consumedResults).toContain('old-check');
     expect(m.c.candidate?.text).toBe('候选说明');
     expect(m.c.outcome).toBeNull();

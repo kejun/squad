@@ -1,3 +1,4 @@
+import { fixtureCheck } from '../delivery-protocol-fixture.js';
 import assert from 'node:assert/strict';
 import { Before, Given, When, Then, setWorldConstructor, World, type DataTable } from '@cucumber/cucumber';
 import { Harness, configuration } from '../helpers.js';
@@ -20,7 +21,7 @@ export class SpecWorld extends World {
         this.extraReviewRequests++;
         return { type: 'answer', text: '建议补充离线恢复验证。' };
       }
-      if (work.kind === 'check') return { type: 'check', passed: true, gaps: [] };
+      if (work.kind === 'check') return fixtureCheck(work.payload.candidate);
       assert.equal(work.kind, 'owner');
       return { type: 'deliver', text: '已汇总收到的意见，并列出尚未完成的成员评审。', artifactIds: [] };
     } };
@@ -46,7 +47,7 @@ export class SpecWorld extends World {
     this.prepared = operation;
     if (operation === '协助派发') { this.ask(); this.oldWork = this.h.engine.pending(this.h.room, this.h.task)[0]; }
     if (operation === '结果回传推进') { this.ask(); this.h.event({ type: 'RECORD_RESULT', requestId: 'H1', resultId: 'R1', status: 'success', answer: 'evidence' }); }
-    if (operation === '最终结果发布') { this.h.event({ type: 'DELIVER', text: 'candidate', artifactIds: [] }); this.oldWork = this.h.claim('check'); }
+    if (operation === '最终结果发布') { this.h.event({ type: 'DELIVER', text: 'candidate', artifactIds: [] }); this.oldWork = this.h.authorizeCheck(); }
   }
 }
 setWorldConstructor(SpecWorld);
@@ -118,7 +119,7 @@ Given('当前活动位置为{string}', function (this: SpecWorld, place: string)
   if (place === '协助者工具执行中') { this.ask(); this.oldWork = this.h.claim('assistance'); }
   if (place === '促进者判断中') { this.h.event({ type: 'BLOCKED', reason: 'check' }); this.oldWork = this.h.claim('facilitator'); }
   if (place === '结果等待回传') { this.ask(); this.h.event({ type: 'RECORD_RESULT', requestId: 'H1', resultId: 'R1', status: 'success', answer: 'proof' }); }
-  if (place === '准备发布最终答案') { this.h.event({ type: 'DELIVER', text: 'candidate', artifactIds: [] }); this.oldWork = this.h.claim('check'); }
+  if (place === '准备发布最终答案') { this.h.event({ type: 'DELIVER', text: 'candidate', artifactIds: [] }); this.oldWork = this.h.authorizeCheck(); }
 });
 When('用户点击停止且停止意图已经保存', function (this: SpecWorld) { assert(this.h.event({ type: 'STOP' }).ok); });
 Then('不应再为{string}派发新操作', function (this: SpecWorld, _ignored0: string) { assert(this.h.engine.pending(this.h.room, this.h.task).every(i => i.kind === 'cancel')); });
@@ -129,7 +130,7 @@ Given('用户明确继续{string}并开始轮次{string}', function (this: SpecW
 When('{string}的协助结果迟到', function (this: SpecWorld, _ignored0: string) { this.result = this.h.event({ type: 'HELP_RESULT', requestId: 'H1', resultId: 'late', status: 'success', answer: 'late', fence: this.frame }); });
 Then('结果应仅关联到{string}的历史记录', function (this: SpecWorld, _ignored0: string) { assert.equal(this.h.context().lateResults.at(-1)?.fence?.epoch, 1); });
 Then('不应推进{string}或覆盖其当前结论', function (this: SpecWorld, _ignored0: string) { assert.equal(this.result.ok, false); assert.equal(this.h.context().epoch, 2); assert.equal(this.h.context().outcome, null); });
-Given('针对{string}的完成检查已经通过但最终结果尚未发布', function (this: SpecWorld, _ignored0: string) { this.h.event({ type: 'DELIVER', text: 'old candidate', artifactIds: [] }); this.oldWork = this.h.claim('check'); });
+Given('针对{string}的完成检查已经通过但最终结果尚未发布', function (this: SpecWorld, _ignored0: string) { this.h.event({ type: 'DELIVER', text: 'old candidate', artifactIds: [] }); this.oldWork = this.h.authorizeCheck(); });
 When('用户的新硬约束先保存为{string}', function (this: SpecWorld, _ignored0: string) { this.h.event({ type: 'USER_INPUT', text: 'new constraint', goal: { ...this.h.context().goal, constraints: ['G2 constraint'] } }); });
 When('旧发布操作随后尝试提交', function (this: SpecWorld) { this.result = this.h.event({ type: 'CHECK_RESULT', passed: true, gaps: [], resultId: 'oldCheck', workId: this.oldWork!.id, fence: this.frame }); });
 Then('应拒绝按{string}直接发布为当前最终答案', function (this: SpecWorld, _ignored0: string) { assert.equal(this.result.ok, false); assert(!this.h.context().messages.some(m => m.kind === 'final')); });

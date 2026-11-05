@@ -7,6 +7,7 @@ import { MemoryStore, SqliteStore } from '../src/store.js';
 import { WorkRunner, WorkFailure } from '../src/runner.js';
 import type { Intent } from '../src/types.js';
 import { localModelInput } from './local-model-fixture.js';
+import { fixtureCheck } from './delivery-protocol-fixture.js';
 
 export class ActorIntegration {
   readonly directory = mkdtempSync(join(tmpdir(), 'squad-actor-integration-'));
@@ -37,7 +38,7 @@ export class ActorIntegration {
         this.attempts++; if (failOnce && this.attempts === 1) throw new WorkFailure('可恢复故障', true);
         return { type: 'answer', text: '核查结论' };
       }
-      if (work.kind === 'check') return { type: 'check', passed: true, gaps: [] };
+      if (work.kind === 'check') return fixtureCheck(work.payload.candidate);
       if (!work.payload.resultId) return { type: 'help', requestId: 'H', target: 'B', question: '核查', expected: '依据' };
       return { type: 'deliver', text: '完成方案', artifactIds: [] };
     } }, () => 30);

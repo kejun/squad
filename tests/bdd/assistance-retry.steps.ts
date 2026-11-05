@@ -1,3 +1,4 @@
+import { fixtureCheck } from '../delivery-protocol-fixture.js';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -117,7 +118,7 @@ Then('A 应在原任务继续方案且只收到一次本次核查结果', async 
   assert.equal(this.h.context().messages.filter(m => m.text === '本次核查结果：可以恢复').length, 1);
   const runner = new WorkRunner(this.h.engine, { execute: async intent => {
     s(this).calls.push(intent);
-    if (intent.kind === 'check') return { type: 'check', passed: true, gaps: [] };
+    if (intent.kind === 'check') return fixtureCheck(intent.payload.candidate);
     assert.equal(intent.target, 'A'); assert(JSON.stringify(intent.payload).includes('本次核查结果'));
     return { type: 'deliver', text: 'A 根据 B 的核查完善的最终方案', artifactIds: [] };
   } }, () => this.h.now);

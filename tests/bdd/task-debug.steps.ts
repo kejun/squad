@@ -218,7 +218,7 @@ When('选择执行中到协调中的聚合连线', async function (this: SpecWor
 Then('应能分别查看所有事件和条件分支而不是只打开第一条规则', async function (this: SpecWorld) {
   const region = chartBranches();
   assert.deepEqual([...region.querySelectorAll('button[aria-label^="查看规则 "]')].map(node => node.getAttribute('aria-label')), [
-    '查看规则 running:BLOCKED:0', '查看规则 running:TICK:0', '查看规则 running:FAILURE_SIGNAL:0',
+    '查看规则 running:BLOCKED:1', '查看规则 running:TICK:0', '查看规则 running:FAILURE_SIGNAL:0',
     '查看规则 running:@always:1', '查看规则 running:@always:2',
   ]);
   assert.equal(document.querySelector('[aria-label="规则详情"]'), null, '聚合连线不能自动冒选首分支');

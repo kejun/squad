@@ -1,3 +1,4 @@
+import { fixtureCheck } from '../delivery-protocol-fixture.js';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -190,9 +191,9 @@ Then('每种工作都应携带默认网页搜索和抓取能力', function (this
 });
 Then('最终检查仍只使用原有检查额度', async function (this: SpecWorld) {
   this.h = new Harness(); this.h.event({ type: 'DELIVER', text: '结果', artifactIds: [] });
-  await driver(this, { execute: async (_work, signal, scope) => {
+  await driver(this, { execute: async (work, signal, scope) => {
     await assert.rejects(scope.webSearch({ query: 'SDK' }, signal), /WEB_TOOLS_NOT_ALLOWED/);
-    return { type: 'check', passed: true, gaps: [] };
+    return fixtureCheck(work.payload.candidate);
   } }).runOne(this.h.room, this.h.task);
   assert.equal(this.h.context().usage.checks, 1); assert.equal(this.h.context().usage.ordinary, 0); assert.equal(s(this).fixture.calls.length, 0);
 });
@@ -200,7 +201,7 @@ Then('最终检查仍只使用原有检查额度', async function (this: SpecWor
 Given('从群聊服务发起一个需要联网的任务', function (this: SpecWorld) {
   const state = setup(this);
   state.host = new WebService(configuration(), ':memory:', { execute: async (work, signal, scope) => {
-    if (work.kind === 'check') return { type: 'check', passed: true, gaps: [] };
+    if (work.kind === 'check') return fixtureCheck(work.payload.candidate);
     await scope.webSearch({ query: 'SDK' }, signal); await scope.webFetch({ url: sourceUrl }, signal); return answer;
   } }, state.fixture.tools);
   state.room = state.host.createRoom().id;

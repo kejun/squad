@@ -6,13 +6,23 @@ import { TeamEngine } from '../src/engine.js';
 import { MemoryStore, SqliteStore, type Store } from '../src/store.js';
 import { WorkRunner } from '../src/runner.js';
 import { restoreTask } from '../src/task.machine.js';
-import type { Intent } from '../src/types.js';
+import { currentExecutionVersion, currentToolVersion } from '../src/task/protocol.js';
+import type { Intent, TaskContext } from '../src/types.js';
 import { legacyTaskContract } from './task-model-contract.js';
+import { fixtureCheck } from './delivery-protocol-fixture.js';
 
-/** Real legacy JSON, real storage and runner; only the external adapter is controlled. */
-export class LegacyTaskRecovery {
+/** Keep the frozen assistance handoff data and exercise recovery within the current protocol. */
+function currentRecoverySeed() {
+  const saved = structuredClone(legacyTaskContract.savedResult) as { context: TaskContext };
+  Object.assign(saved.context.config, { version: currentExecutionVersion, toolVersion: currentToolVersion });
+  saved.context.deliveryCycle = { requests: 0, revisionUsed: false };
+  return saved;
+}
+
+/** Real storage and runner; only the external adapter is controlled. */
+export class SavedTaskRecovery {
   readonly room = 'legacy-model-room';
-  readonly saved = structuredClone(legacyTaskContract.savedResult);
+  readonly saved = currentRecoverySeed();
   readonly original = restoreTask(this.saved).context;
   readonly directory = mkdtempSync(join(tmpdir(), 'squad-model-recovery-'));
   store: Store;
@@ -23,7 +33,7 @@ export class LegacyTaskRecovery {
     this.store = this.openStore();
     this.store.transact(this.room, tx => {
       tx.room.activeTaskId = this.original.taskId;
-      tx.room.tasks[this.original.taskId] = { version: 1, snapshot: this.saved };
+      tx.room.tasks[this.original.taskId] = { version: 3, snapshot: this.saved };
     });
     this.engine = this.openEngine();
     assert.deepEqual(this.engine.view(this.room)!.context, this.original);
@@ -38,7 +48,7 @@ export class LegacyTaskRecovery {
       assert.equal(stored.status, 'inflight'); assert.equal(stored.attempt, work.attempt);
       assert.equal(stored.requestCount, 1);
       this.calls.push(structuredClone(work));
-      if (work.kind === 'check') { assert.equal(current.usage.checks, this.original.usage.checks + 1); return { type: 'check', passed: true, gaps: [] }; }
+      if (work.kind === 'check') { assert.equal(current.usage.checks, this.original.usage.checks + 1); return fixtureCheck(work.payload.candidate); }
       assert.equal(work.kind, 'owner'); assert.equal(work.payload.resultId, this.original.results[0]!.resultId);
       assert.equal(current.usage.ordinary, this.original.usage.ordinary + 1);
       return { type: 'deliver', text: '负责人依据已保存的核查结果完成方案', artifactIds: [] };

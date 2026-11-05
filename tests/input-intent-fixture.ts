@@ -4,11 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   MemoryStore, OpenAICompatibleAdapter, SqliteStore, TeamEngine, WorkRunner,
-  type InputAction, type InputIntentSpec, type Intent, type Store, type Submission, type TaskEvent, type TeamConfig,
+  type Candidate, type InputAction, type InputIntentSpec, type Intent, type Store, type Submission, type TaskEvent, type TeamConfig,
 } from '../src/index.js';
+import type { AcceptanceCriterion } from '../src/delivery-acceptance.js';
 import { configuration, type EventBody } from './helpers.js';
 import { modelResponse } from './model-regeneration-fixture.js';
-import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
+import { fixtureCheck, fixtureJudgments } from './delivery-protocol-fixture.js';
 
 export const complexInput = '请比较这两个设计方案；必须仅使用公开资料并保留出处；分别列出成本与恢复风险，最后交付 Markdown 计划。';
 export function intentConfig(limits: Partial<TeamConfig['limits']> = {}): TeamConfig {
@@ -48,10 +49,10 @@ export class InputIntentFixture {
       const input = context.input as { action: InputAction } | undefined;
       const output = this.replies.length ? this.replies.shift() : kind === 'interpretation'
         ? { type: 'interpretation', spec: parsedIntent(input!.action) }
-        : kind === 'check' ? { type: 'check', passed: true, gaps: [] }
+        : kind === 'check' ? fixtureJudgments(context.requirements as AcceptanceCriterion[])
         : kind === 'facilitator' ? { type: 'decision', decision: { action: 'continue', reason: '按原目标继续' } }
         : { type: 'answer', text: '完整方案与成本风险，来源 https://example.com/source' };
-      return output instanceof Response ? output : modelResponse(withFixtureAcceptance(output, body));
+      return output instanceof Response ? output : modelResponse(output);
     } });
   }
   submit(text = complexInput, change: Partial<Submission> = {}) {
@@ -66,6 +67,18 @@ export class InputIntentFixture {
   context() { return this.view().context; }
   get work() { const work = this.context().intents.filter(work => work.kind === 'interpretation').at(-1); assert(work); return work; }
   claim() { const work = this.engine.claim(this.room, this.task, this.work.id); assert(work); return work; }
+  claimCheck() {
+    const pending = this.engine.pending(this.room, this.task).find(work => work.kind === 'check'); assert(pending);
+    const work = this.engine.claim(this.room, this.task, pending.id); assert(work);
+    assert(this.event({ type: 'CONSUME', intentId: work.id }).ok);
+    return work;
+  }
+  checkResult(work: Intent, resultId: string) {
+    const candidate = work.payload.candidate as Candidate;
+    assert(candidate.revision);
+    return this.event({ type: 'CHECK_RESULT', workId: work.id, attempt: work.attempt, resultId, candidateRevision: candidate.revision,
+      criteriaResults: fixtureCheck(candidate).criteriaResults, fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
+  }
   result(work = this.work, spec = parsedIntent(), id = `result:${work.id}`) {
     return this.event({ type: 'INTERPRETATION_RESULT', id, inputId: (work.payload.input as { id: string }).id,
       spec, workId: work.id, fence: { epoch: work.epoch, goalVersion: work.goalVersion } });

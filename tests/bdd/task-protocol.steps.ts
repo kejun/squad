@@ -15,7 +15,7 @@ const fixture = (world: SpecWorld) => state(world).fixture;
 async function prepare(world: SpecWorld, terminal: boolean) {
   const f = await TaskProtocolFixture.create(terminal);
   states.set(world, { fixture: f, original: f.view(), saved: f.saved });
-  assert.equal(f.saved.version, 1);
+  assert.equal(f.saved.version, 2);
 }
 After(async function (this: SpecWorld) { await states.get(this)?.fixture.close(); });
 Given('旧协议的活动任务已启动一条命令且尚未记录已结算结果', async function (this: SpecWorld) {
@@ -26,7 +26,7 @@ When('服务按当前协议重启并恢复任务', function (this: SpecWorld) { 
 Then('应保留旧协议和执行结果待核对的状态', function (this: SpecWorld) {
   const f = fixture(this);
   assert.equal(f.view().phase, 'waitingHuman');
-  assert.equal(f.view().context.config.version, 'team-v1');
+  assert.equal(f.view().context.config.version, 'team-v2');
   assert.equal(f.persistedOp.status, 'uncertain');
 });
 Then('核对可信回执后应保留历史并继续显示恢复阻塞', async function (this: SpecWorld) {
@@ -35,10 +35,11 @@ Then('核对可信回执后应保留历史并继续显示恢复阻塞', async fu
   assert.equal(f.view().context.reason, 'Execution version incompatible');
   assert.equal(f.persistedOp.status, 'failed');
   assert.equal(f.persistedOp.result?.data.stdout, '旧回执');
-  assert.equal(f.saved.version, 1);
+  assert.equal(f.saved.version, 2);
 });
 Then('不应恢复旧的模型请求或重放命令', async function (this: SpecWorld) {
   const f = fixture(this);
+  assert.equal(f.attemptLegacyModelRequest().code, 'INCOMPATIBLE_EXECUTION');
   const continuation = f.continue('继续任务');
   assert.equal(continuation.code, 'INCOMPATIBLE_EXECUTION');
   assert.equal(await f.tryRun(), false);
@@ -62,9 +63,9 @@ When(/^用户通过「(.+)」明确继续该任务$/, function (this: SpecWorld,
 Then('应使用当前协议和当前权限为同一目标安排新工作', function (this: SpecWorld) {
   const { fixture: f, original } = state(this);
   const current = f.view().context;
-  assert.equal(f.saved.version, 2);
-  assert.equal(current.config.version, 'team-v2');
-  assert.equal(current.config.toolVersion, 'tools-v2');
+  assert.equal(f.saved.version, 3);
+  assert.equal(current.config.version, 'team-v3');
+  assert.equal(current.config.toolVersion, 'tools-v3');
   assert.deepEqual(current.config.bots, f.currentConfig.bots);
   assert.deepEqual(current.goal, original.context.goal);
   const pending = f.engine.pending(f.room, f.task);
@@ -76,6 +77,7 @@ Then('应保留原交付和已用额度且旧工作不能重新领取', function
   const { fixture: f, original } = state(this);
   const current = f.view().context;
   assert.deepEqual(current.usage, original.context.usage);
+  assert.deepEqual(current.publishedDelivery, original.context.publishedDelivery);
   assert.deepEqual(current.artifacts, original.context.artifacts);
   assert.deepEqual(current.messages.filter(m => m.kind === 'final'), original.context.messages.filter(m => m.kind === 'final'));
   assert.equal(f.engine.claim(f.room, f.task, original.context.intents[0]!.id), null);
@@ -85,7 +87,7 @@ Then('旧服务不能领取当前协议的新工作', function (this: SpecWorld)
   const f = fixture(this);
   const older = new TeamEngine(f.store, f.legacyConfig, () => 55);
   const pending = f.engine.pending(f.room, f.task)[0]!;
-  assert.equal(f.saved.version, 2);
+  assert.equal(f.saved.version, 3);
   assert.deepEqual(older.pending(f.room, f.task), []);
   assert.equal(older.claim(f.room, f.task, pending.id), null);
   assert.equal(f.engine.claim(f.room, f.task, pending.id)?.id, pending.id);

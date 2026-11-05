@@ -14,7 +14,7 @@ describe('statechart projection of the real task model', () => {
     const edge = chartEdges(graph).find(item => item.source === 'running' && item.target === 'coordinating');
 
     expect(edge?.rules.map(rule => ({ event: rule.event, guard: rule.guards[0], order: rule.order }))).toEqual([
-      { event: 'BLOCKED', guard: 'canCoordinate', order: 0 },
+      { event: 'BLOCKED', guard: 'canCoordinate', order: 1 },
       { event: 'TICK', guard: 'shouldTick', order: 0 },
       { event: 'FAILURE_SIGNAL', guard: 'repeated', order: 0 },
       { event: '@always', guard: 'reviewReady', order: 1 },

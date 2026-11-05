@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { TeamEngine } from '../src/engine.js';
+import type { CheckMaterials, CriterionJudgment } from '../src/delivery-acceptance.js';
 import type { LocalAction, LocalToolResult } from '../src/local-operation.js';
 import { OpenAICompatibleAdapter } from '../src/model-adapter.js';
 import { WorkRunner } from '../src/runner.js';
@@ -8,6 +9,7 @@ import { SqliteStore } from '../src/store.js';
 import type { Intent } from '../src/types.js';
 import { LocalFixture, removeFixture } from './local-tools-fixture.js';
 import { modelResponse } from './model-regeneration-fixture.js';
+import { candidateJudgments } from './helpers.js';
 
 export const evidenceCommand: LocalAction = { type: 'runCli', executable: 'node',
   args: ['-e', "process.stdout.write('真实正文🍀 host-model-secret')"] };
@@ -43,10 +45,34 @@ export async function acquireEvidence(fixture: LocalFixture, action = evidenceCo
   return operation;
 }
 
-export async function readFromCheck(fixture: LocalFixture, sourceOperationId: string, cursor?: string) {
-  const work = await runPending(fixture, readAction(sourceOperationId, cursor), { type: 'check', passed: true, gaps: [] });
-  assert.equal(work.kind, 'check');
+function resumeExecution(fixture: LocalFixture) {
+  if (fixture.h.engine.pending(fixture.h.room, fixture.h.task).some(work => work.kind === 'owner')) return;
+  assert(fixture.h.event({ type: 'STOP' }).ok);
+  assert(fixture.h.event({ type: 'CONTINUE' }).ok);
+}
+
+export async function readFromExecution(fixture: LocalFixture, sourceOperationId: string) {
+  resumeExecution(fixture);
+  const work = await runPending(fixture, readAction(sourceOperationId), delivery);
+  assert.equal(work.kind, 'owner');
   return latestRead(fixture);
+}
+
+export async function checkEvidence(fixture: LocalFixture, finding?: Omit<Extract<CriterionJudgment, { reason: string }>, 'criterionId'>) {
+  const candidate = fixture.h.context().candidate;
+  const results = candidateJudgments(candidate, finding ? { index: 0, status: finding.status, reason: finding.reason } : undefined);
+  if (finding?.source && results[0]) results[0].source = finding.source;
+  const before = fixture.requests.length;
+  const work = await runPending(fixture, { type: 'check', criteriaResults: results });
+  assert.equal(work.kind, 'check');
+  assert.equal(fixture.requests.length, before + 1);
+  const body = JSON.parse(fixture.requests.at(-1)!.messages[1]!.content) as { context?: CheckMaterials } & CheckMaterials;
+  return body.context ?? body;
+}
+
+export async function reviseEvidenceCandidate(fixture: LocalFixture) {
+  assert.equal((await runPending(fixture, { ...delivery, text: '修正出处说明，保留原始来源' })).kind, 'owner');
+  assert.equal(fixture.h.view().phase, 'checking');
 }
 
 export async function refreshEvidence(fixture: LocalFixture) {
@@ -73,11 +99,12 @@ export function seedMissingEvidence(fixture: LocalFixture, room = fixture.h.room
 }
 
 export async function readTruncatedEvidence(fixture: LocalFixture, sourceOperationId: string) {
+  resumeExecution(fixture);
   const adapter = new OpenAICompatibleAdapter(fixture.h.config, { clock: () => fixture.h.now, transport: async (_url, init) => {
     const request = JSON.parse(String(init?.body)) as LocalFixture['requests'][number];
     if (request.messages.length === 2) return modelResponse(readAction(sourceOperationId));
     const data = (JSON.parse(request.messages.at(-1)!.content) as LocalToolResult).data;
-    return modelResponse(typeof data.nextCursor === 'string' ? readAction(sourceOperationId, data.nextCursor) : { type: 'check', passed: true, gaps: [] });
+    return modelResponse(typeof data.nextCursor === 'string' ? readAction(sourceOperationId, data.nextCursor) : delivery);
   } });
   const runner = new WorkRunner(fixture.h.engine, adapter, () => fixture.h.now, globalThis.fetch, undefined, fixture.runtime);
   assert(await runner.runOne(fixture.h.room, fixture.h.task));
@@ -89,7 +116,8 @@ export async function restartEvidenceRead(stage: 'claimed' | 'succeeded') {
   let store = fixture.h.store;
   try {
     const source = await acquireEvidence(fixture);
-    const work = fixture.h.claim('check');
+    resumeExecution(fixture);
+    const work = fixture.h.claim('owner');
     const action = readAction(source.id);
     const op = fixture.h.engine.requestLocal(fixture.h.room, fixture.h.task, work.id, work.attempt, action,
       [{ role: 'assistant', content: JSON.stringify(action) }]);
@@ -113,9 +141,9 @@ export async function restartEvidenceRead(stage: 'claimed' | 'succeeded') {
       assert(fixture.h.event({ type: 'LOCAL_RECONCILE', intentId: work.id, operationId: op.id, sessionId, ...reconciliation }).ok);
     }
 
-    await runPending(fixture, { type: 'check', passed: true, gaps: [] });
+    await runPending(fixture, delivery);
 
-    assert.equal(fixture.h.context().usage.ordinary, before);
+    assert.equal(fixture.h.context().usage.ordinary, before + 1, 'only the resumed model request spends ordinary budget');
     assert.equal(fixture.backend.calls.length, 1);
     assert.deepEqual(readOperations(fixture).map(item => [item.id, item.attempt]), [[op.id, stage === 'claimed' ? 2 : 1]]);
     assert.equal(latestRead(fixture).data.text, fixtureBody);
@@ -149,7 +177,8 @@ export async function readHistoricalEvidence(fixture: LocalFixture, sourceOperat
 
 export async function checkReadBoundary(fixture: LocalFixture, boundary: string) {
   const source = await acquireEvidence(fixture);
-  const work = fixture.h.claim('check');
+  resumeExecution(fixture);
+  const work = fixture.h.claim('owner');
   const before = fixture.h.context().usage.ordinary;
   const op = fixture.h.engine.requestLocal(fixture.h.room, fixture.h.task, work.id, work.attempt, readAction(source.id), []);
   if (boundary === '领取前停止') {
