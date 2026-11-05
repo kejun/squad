@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, expect, it } from 'vitest';
 import type { LocalAction, LocalToolResult } from '../src/local-operation.js';
-import { evidenceIndex } from '../src/task/evidence.js';
+import { deliveryEvidence, evidenceIndex } from '../src/task/evidence.js';
 import { LocalModel, localModelInput } from './local-model-fixture.js';
 
 const firstSource = 'op1';
@@ -42,8 +42,8 @@ function claimLatest(m: LocalModel) {
   m.work = m.c.intents.find(item => item.id === work.id)!;
 }
 
-function checking() {
-  const m = newSource();
+function checking(result = receipt) {
+  const m = newSource(result);
   assert(m.send({ type: 'DELIVER', workId: m.work.id, fence: m.work, text: '待验收', artifactIds: [] }).ok);
   claimLatest(m);
   return m;
@@ -66,16 +66,26 @@ function savedRead(m: LocalModel) {
 }
 
 describe('task evidence persisted by the real task machine', () => {
-  it('[BT_L38] projects only metadata for a separate check and returns one saved read receipt', () => {
+  it('[BT_L38] gives the checker one fixed source with its original text and denies paged reads', () => {
     const m = checking();
 
-    savedRead(m);
+    const projected = deliveryEvidence(m.c, m.work, m.c.deliveryCycle?.evidence);
+    const denied = request(m, readAction());
 
-    expect(evidenceIndex(m.c, m.work)).toMatchObject([{ sourceOperationId: firstSource, sourceRole: 'owner',
-      completeness: 'complete', capturedContentHash: 'd'.repeat(64), stdoutBytes: 12, stdoutChars: 4, obtainedAt: 1 }]);
-    expect(JSON.stringify(evidenceIndex(m.c, m.work))).not.toContain('已有正文');
-    expect(operation(m)).toMatchObject({ status: 'succeeded', result: { data: { text: '已有正文' } } });
-    expect(m.c.usage).toMatchObject({ ordinary: 3, checks: 1 });
+    expect(projected?.sources).toMatchObject([{ id: firstSource, stdout: '已有正文', metadata: { sourceRole: 'owner',
+      completeness: 'complete', capturedContentHash: 'd'.repeat(64), stdoutBytes: 12, stdoutChars: 4, obtainedAt: 1 } }]);
+    expect(denied.code).toBe('CHECK_LOCAL_TOOLS_NOT_ALLOWED');
+    expect(operation(m)).toBeUndefined();
+    expect(m.c.usage).toMatchObject({ ordinary: 2, checks: 0 });
+  });
+
+  it('[BT_L40] keeps a truncated check source as metadata without presenting a usable quotation', () => {
+    const m = checking({ ...receipt, data: { ...receipt.data, truncated: true } });
+
+    const projected = deliveryEvidence(m.c, m.work, m.c.deliveryCycle?.evidence);
+
+    expect(projected?.sources).toMatchObject([{ id: firstSource, metadata: { completeness: 'truncated' } }]);
+    expect(projected?.sources[0]?.stdout).toBeUndefined();
   });
 
   it('[BT_L39] retains a distinct CLI operation even when its action and hash match the original', () => {
