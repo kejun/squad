@@ -82,6 +82,22 @@ describe('versioned delivery acceptance model', () => {
     expect(model.snapshot.value).toBe('running');
   });
 
+  it('[BT_F16] preserves the input handoff when a negative check arrives after an update', () => {
+    const model = new LocalModel();
+    expect(deliver(model, 'candidate', cover(model)).ok).toBe(true);
+    const work = claim(model, 'check');
+    expect(model.send({ type: 'USER_INPUT', text: '补充新的限制' }).ok).toBe(true);
+
+    expect(model.send({ type: 'CHECK_RESULT', workId: work.id, fence: work, attempt: work.attempt, resultId: work.id,
+      passed: false, gaps: ['仍需核实'], criteriaResults: [] }).ok).toBe(true);
+
+    expect(model.c.outcome).toBeNull();
+    expect(model.c.inputs.every(input => input.applied)).toBe(true);
+    expect(model.c.intents.filter(item => item.status === 'pending' && item.kind === 'owner')).toEqual([
+      expect.objectContaining({ payload: expect.objectContaining({ reason: 'Apply latest user input' }) }),
+    ]);
+  });
+
   it('[BT_F15] only publishes a positive judgment on every required criterion', () => {
     const model = new LocalModel();
     expect(deliver(model, 'candidate', cover(model)).ok).toBe(true);

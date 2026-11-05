@@ -1,7 +1,7 @@
 import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
-import { capabilities, completeProblem, discussionActive, discussionIncomplete, fence, fresh, hasOrdinary, inflight, ok, recoveryIssue, reject } from './facts.js';
+import { capabilities, completeProblem, deliveryHandoffPending, discussionActive, discussionIncomplete, fence, fresh, hasOrdinary, inflight, ok, recoveryIssue, reject } from './facts.js';
 import { cancelWork, conversationInput, coordinate, deliveryArtifacts, finish, intent, message, owner, release, saveReports } from './operations.js';
 import { applyLocalEvent, localEnabled, localPhysicalPending, recoverLocalOperations, type LocalEvent } from '../local-operation.js';
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
@@ -166,7 +166,8 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}),
         ...(acceptance ? { acceptance: bindDraftReferences(acceptance, artifactIds) } : {}) };
       if (gaps.length) c.deliveryGaps = gaps;
-      if (discussionActive(c) || pendingHostRetry(c)) break;
+      else if (c.deliveryGaps) delete c.deliveryGaps;
+      if (deliveryHandoffPending(c) || pendingHostRetry(c)) break;
       if (gaps.length) {
         const reason = gaps.map(gap => gap.reason).join('；');
         if (hasOrdinary(c) && !repeated) {
@@ -175,7 +176,6 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         } else finish(c, e, 'partial', reason);
         break;
       }
-      if (c.deliveryGaps) delete c.deliveryGaps;
       intent(c, e.at, 'check', 'facilitator', { goal: c.goal, ...deliveryArtifacts(c), board: c.board, ...conversationInput(c), deterministicGap: completeProblem(c) });
       break;
     }
@@ -183,22 +183,21 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       c.consumedResults.push(e.resultId);
       const gaps = deliveryCheckGaps(c, e);
       const problem = completeProblem(c);
-      if (c.candidate?.acceptance) (c.deliveryAssessments ??= []).push({
-        candidateRevision: c.candidate.acceptance.revision, judgments: e.criteriaResults ?? [], gaps,
-      });
+      if (c.candidate?.acceptance) {
+        c.deliveryGaps = gaps;
+        (c.deliveryAssessments ??= []).push({ candidateRevision: c.candidate.acceptance.revision, judgments: e.criteriaResults ?? [], gaps });
+      }
       if (pendingHostRetry(c)) break;
       if (discussionIncomplete(c)) finish(c, e, 'partial', discussionIncomplete(c)!);
       else if (c.review?.incomplete) finish(c, e, 'partial', c.review.incomplete);
       else if (e.passed && !problem && !gaps.length) {
         if (c.deliveryGaps) delete c.deliveryGaps;
         finish(c, e, 'complete', '');
-      } else if (c.candidate?.acceptance && hasOrdinary(c)) {
-        c.deliveryGaps = gaps;
+      } else if (c.candidate?.acceptance && hasOrdinary(c) && !deliveryHandoffPending(c) && !c.intents.some(localPhysicalPending)) {
         c.reason = [problem, ...gaps.map(gap => gap.reason)].filter(Boolean).join('；') || 'Incomplete delivery';
         owner(c, e, { reason: c.reason, deliveryGaps: gaps });
       } else if (hasOrdinary(c)) coordinate(c, e, [problem, ...e.gaps].filter(Boolean).join('; ') || 'Incomplete delivery');
       else {
-        if (c.candidate?.acceptance) c.deliveryGaps = gaps;
         finish(c, e, c.candidate || c.artifacts.length ? 'partial' : 'failed',
           [problem, ...(gaps.length ? gaps.map(gap => gap.reason) : e.gaps)].filter(Boolean).join('；') || 'Budget exhausted');
       }
