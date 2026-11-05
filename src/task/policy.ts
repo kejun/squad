@@ -9,6 +9,7 @@ import { hostRetryProblem } from '../host-retry.js';
 
 export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
   if (e.type.startsWith('LOCAL_')) return localEventProblem(c, e, work => requestBudgetProblem(c, work));
+  if (e.type === 'REVOKE_HOST_SESSION') return e.fence && fresh(c, e) && c.hostSession?.id === e.grantId ? null : 'HOST_SESSION_MISMATCH';
   if (e.type === 'REQUEST_HOST_RETRY') {
     if (!e.fence || !fresh(c, e)) return 'STALE_FENCE';
     if (!/^[a-f0-9]{64}$/.test(e.requestHash)) return 'INVALID_LOCAL_REQUEST';

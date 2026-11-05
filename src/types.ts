@@ -1,3 +1,4 @@
+import type { HostSessionGrant } from './host-session.js';
 import type { LocalCheckpoint, LocalEvent, LocalOperation, SkillBinding } from './local-operation.js';
 import type { InputIntentSpec } from './input-intent.js';
 export type { InputIntentSpec, InputReference } from './input-intent.js';
@@ -114,6 +115,7 @@ export interface TaskContext extends Fence {
   discussion?: DiscussionRound;
   inputAnalyses?: InputAnalysis[];
   localSkillVersions?: SkillBinding[];
+  hostSession?: HostSessionGrant;
 }
 export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[] }
 export interface Envelope { id: string; at: number; fence?: Fence; workId?: string; attempt?: number }
@@ -125,6 +127,7 @@ export type Decision =
   | { action: 'askUser'; question: string; reason: string }
   | { action: 'finish'; reason: string };
 export type TaskEvent = Envelope & (
+  | { type: 'REVOKE_HOST_SESSION'; grantId: string }
   | { type: 'REQUEST_HOST_RETRY'; sourceWorkId: string; sourceOperationId: string; sourceRequestHash: string; requestHash: string }
   | LocalEvent
   | { type: 'DISCUSSION_PLAN'; discussionId: string; decision: Decision }
