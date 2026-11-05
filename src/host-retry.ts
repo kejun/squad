@@ -45,6 +45,7 @@ export function hostRetryProblem(c: TaskContext, sourceWorkId: string, sourceOpe
   if (op.requestHash !== sourceRequestHash) return 'SOURCE_COMMAND_CHANGED';
   if (findHostRetry(c, sourceWorkId, sourceOperationId)) return null;
   if (op.hostRetryIntentId) return 'HOST_RETRY_ALREADY_REQUESTED';
+  if (work.kind === 'check' || work.discussionId || op.isolated) return 'HOST_RETRY_ISOLATED_SOURCE';
   if (!op.workspaceId) return 'WORKSPACE_REQUIRED';
   if (!['owner', 'assistance', 'facilitator', 'check'].includes(work.kind)) return 'LOCAL_TOOLS_NOT_ALLOWED';
   if (!localEnabled(c.config, c.owner) || !localEnabled(c.config, work.target)) return 'LOCAL_TOOLS_DISABLED';

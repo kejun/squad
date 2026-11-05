@@ -217,6 +217,24 @@ describe('用户从失败沙箱记录续办（真实XState，每步持久化）'
     const m = failedSandbox(true); change(m); const count = m.c.intents.length;
     expect(request(m).ok).toBe(false); expect(m.c.intents).toHaveLength(count);
   });
+  it.each([
+    { name: 'checking', change: (m: LocalModel) => { m.c.intents[0]!.kind = 'check'; } },
+    { name: 'discussion', change: (m: LocalModel) => { m.c.intents[0]!.discussionId = 'discussion'; } },
+    { name: 'explicitly isolated', change: (m: LocalModel) => { m.op!.isolated = true; } },
+  ])('[BT_L34] prevents $name source operations from moving into the owner workspace', ({ change }) => {
+    const m = failedSandbox(true); change(m);
+    expect(request(m).code).toBe('HOST_RETRY_ISOLATED_SOURCE');
+    expect(m.c.hostRetryRequests).toBeUndefined();
+  });
+  it('[BT_L34] rechecks the original member permission before a prepared command can run', () => {
+    const m = failedSandbox(true);
+    m.c.intents[0]!.target = 'B';
+    request(m); claimRetryWork(m); prepareRetry(m);
+    const source = m.c.config.bots.find(bot => bot.id === 'B')!;
+    source.localTools = false;
+    expect(decideRetry(m).code).toBe('LOCAL_TOOLS_DISABLED');
+    expect(retryOp(m).startedAt).toBeUndefined();
+  });
   it('[BT_L34] binds the request to the immutable source hash', () => {
     const m = failedSandbox(true); expect(request(m, 'forged').code).toBe('SOURCE_COMMAND_CHANGED');
   });
