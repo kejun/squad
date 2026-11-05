@@ -249,6 +249,26 @@ stateDiagram-v2
 
 网页仅读取对应任务的全文、来源和可观察执行记录。报告预览复用安全 Markdown 渲染，下载使用相同持久内容。历史消息不能回退到当前任务的报告；不存在的引用显示不可用，不创建产物或调度。旧长消息只缩短主视图显示，其原文仍能在详情查看。
 
+### 候选版本与当前交付
+
+本图描述任务上下文生命周期，所有者为 `taskMachine`，持久化边界为 `TeamEngine` 事务。覆盖 BT_A22–BT_A25。
+
+```mermaid
+stateDiagram-v2
+    state "当前候选" as Candidate
+    state "检查中" as Checking
+    state "当前发布" as Published
+
+    [*] --> Candidate: DELIVER [当前工作、文档修订和引用有效] / 保存不可变产物与候选版本
+    Candidate --> Checking: DELIVER [可以进入独立检查] / 保存绑定候选版本的检查意图
+    Checking --> Published: CHECK_RESULT [工作与候选版本匹配且通过] / 原子更新发布清单
+    Checking --> Candidate: DELIVER [当前负责人在合法接续中提交有效修订] / 保存新候选并等待检查
+    Candidate --> Candidate: DELIVER [文档修订基线陈旧] / 保留已有候选，返回具体冲突
+    Checking --> Checking: CHECK_RESULT [旧候选或旧工作] / 保留发布清单，只结算属于该回执的工作
+```
+
+文档身份独立于文件名，修订关联当前任务和目标中的明确产物。旧产物缺少版本关系时，各自作为独立文档。当前交付视图以最近通过的清单为准，原消息仍按原始 artifactId 定位。候选和文档版本均由宿主分配。独立检查意图固定候选版本，领取后才可发起检查。停止、额度耗尽、目标变化和恢复遵守既有工作、权限和版本约束。
+
 ## 执行与适配器边界
 
 ### 外部执行操作
