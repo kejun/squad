@@ -35,7 +35,7 @@ const eventNames: Record<string, string> = {
   LOCAL_APPROVAL_DECISION: '收到本地操作授权决定', LOCAL_APPROVAL_EXPIRED: '本地操作授权已过期',
 };
 const actionNames: Record<string, string> = {
-  apply: '更新任务与操作意图', reject: '拒绝事件', beginInterpretation: '开始理解输入',
+  apply: '更新任务与操作意图', reject: '拒绝事件', explainCoordinationRejection: '说明协调决策拒绝原因', beginInterpretation: '开始理解输入',
   boundary: '应用执行边界输入', handoffDiscussion: '交接讨论汇总', beginReview: '开始评审协调',
   deferred: '处理延后协调', stopped: '记录本轮已停止',
 };

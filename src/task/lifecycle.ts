@@ -92,7 +92,7 @@ export const taskLifecycle = {
           { guard: 'decisionAsk', target: 'waitingHuman', actions: 'apply' },
           { guard: 'decisionFinish', target: 'ended', actions: 'apply' },
           { guard: 'decisionRun', target: 'running', actions: 'apply' },
-          { guard: 'isCurrent', target: 'waitingHuman', actions: 'reject' },
+          { guard: 'isCurrent', target: 'waitingHuman', actions: ['reject', 'explainCoordinationRejection'] },
         ],
         WORK_FAILED: [{ guard: 'failedDiscussion', actions: 'apply' }, { guard: 'retryable', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
       },
