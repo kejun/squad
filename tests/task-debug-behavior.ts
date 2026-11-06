@@ -12,7 +12,7 @@ export function verifyDiagnosticPaths() {
   assert.deepEqual(persistTask(initialized.snapshot), persistTask(initial));
   const stop: TaskEvent = { type: 'STOP', id: 'stop', at: 1 }, stopped = inspectTask(initial, stop);
   assert.deepEqual(persistTask(stopped.snapshot), persistTask(stepTask(initial, stop)));
-  assert.deepEqual(stopped.evidence.microsteps.map(s => s.phase), ['stopping', 'ended']);
+  assert.deepEqual(stopped.evidence.microsteps.map(s => [s.phase, s.automatic]), [['stopping', false], ['ended', true]]);
   const owner = stepTask(initial, { ...debugEventTemplate(initial, 'CLAIM'), id: 'owner' } as TaskEvent);
   const discussion = stepTask(owner, { type: 'USER_INPUT', id: 'invite', at: 2, text: '所有人都参与讨论一下', reviewTargets: ['B'] });
   const claim = { ...debugEventTemplate(discussion, 'CLAIM'), id: 'discussion' } as TaskEvent;
@@ -20,19 +20,30 @@ export function verifyDiagnosticPaths() {
   assert.deepEqual(persistTask(captured.snapshot), persistTask(stepTask(discussion, claim)));
   assert.deepEqual(captured.evidence.evaluations.filter(e => e.event === 'CLAIM').map(e => [e.guard, e.passed]), [['claimOwner', false], ['claimDiscussion', true]]);
   const rejected = { ...debugEventTemplate(initial, 'HELP'), id: 'self', target: 'A' } as TaskEvent;
-  assert.equal(inspectTask(initial, rejected).snapshot.context.reply.code, 'SELF_DEPENDENCY');
+  const rejectedResult = inspectTask(initial, rejected);
+  assert.deepEqual(persistTask(rejectedResult.snapshot), persistTask(stepTask(initial, rejected)));
+  assert.equal(rejectedResult.snapshot.context.reply.code, 'SELF_DEPENDENCY');
+  assert(rejectedResult.evidence.evaluations.some(item => item.passed === false));
   return { automatic: stopped.evidence.microsteps.length, fallback: captured.evidence.evaluations };
 }
 export function verifyRetryAndEmpty() {
   const sandbox = new TaskSandbox();
   sandbox.send(JSON.stringify(debugEventTemplate(sandbox.snapshot, 'HELP')));
   sandbox.send(JSON.stringify(debugEventTemplate(sandbox.snapshot, 'RECORD_RESULT')));
-  sandbox.send(JSON.stringify(debugEventTemplate(sandbox.snapshot, 'RETRY_ASSISTANCE')));
+  const retryBefore = sandbox.snapshot;
+  const retryEvent = debugEventTemplate(retryBefore, 'RETRY_ASSISTANCE');
+  sandbox.send(JSON.stringify(retryEvent));
+  assert.deepEqual(persistTask(sandbox.snapshot), persistTask(stepTask(retryBefore, sandbox.history.at(-1)!.event as TaskEvent)));
   const frame = sandbox.history.at(-1)!, graph = taskGraph();
+  assert.deepEqual(frame.evidence!.evaluations.filter(e => e.event === 'RETRY_ASSISTANCE').map(e => [e.guard, e.passed]), [['retryReviewContinues', false], ['retryHasResult', true]]);
   assert.equal(branchStatus(graph.transitions.find(t => t.id === '*:RETRY_ASSISTANCE:2')!, frame, graph), '前一分支已命中，未评估');
   const initial = initialTask(debugInput()), ended = stepTask(initial, { type: 'STOP', id: 'stop', at: 1 });
   ended.context.reply = { ok: false, code: 'OLD_REJECTION', detail: 'old' };
-  const empty = inspectTask(ended, { type: 'STOP', id: 'again', at: 2 });
+  const emptyEvent: TaskEvent = { type: 'STOP', id: 'again', at: 2 };
+  const empty = inspectTask(ended, emptyEvent);
+  assert.deepEqual(persistTask(empty.snapshot), persistTask(stepTask(ended, emptyEvent)));
+  assert.deepEqual(empty.evidence.evaluations.filter(e => e.event === 'STOP'), [{ ruleId: 'ended:STOP:0', source: 'ended', event: 'STOP', guard: null, passed: true }]);
+  assert.deepEqual(empty.evidence.changed, []);
   const summary = frameSummary(debugFrame(empty.snapshot, { type: 'STOP', id: 'again', at: 2 }, 'ended', empty.evidence), graph);
   assert(summary.includes('保持不变')); assert(!summary.includes('OLD_REJECTION'));
   return summary;

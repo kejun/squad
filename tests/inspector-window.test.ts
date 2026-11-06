@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createInspectorWindow } from '../web/src/inspector-window.js';
 import { InspectorTabFixture } from './inspector-tab-fixture.js';
-import { InspectorFixture } from './inspector-fixture.js';
 
 describe('official Inspector tab', () => {
   it('[BT_V29] opens on the click stack, preserves local UI and only focuses a repeated click', async () => {
@@ -43,18 +41,5 @@ describe('official Inspector tab', () => {
       await test.handshake(second); expect(second.messages).toHaveLength(count);
     } finally { await test.close(); }
   });
-  it('[BT_V31] cancels a pending SDK import when disposed before it resolves', async () => {
-    const fixture = new InspectorFixture();
-    let resolve!: (module: typeof import('../web/src/inspector-bridge.js')) => void;
-    let watched = 0, listeners = 0;
-    const target = { closed: false, location: { href: 'about:blank' }, focus() {}, postMessage() { throw new Error('No data after disposal'); } };
-    const session = createInspectorWindow({
-      open: () => target,
-      listen: () => { listeners++; return () => { listeners--; }; },
-      watchClosed: () => { watched++; return () => { watched--; }; },
-    }, () => {}, () => new Promise(ready => { resolve = ready; }));
-    session.open({ identity: 'late', frame: fixture.initial() }); session.dispose();
-    resolve(await import('../web/src/inspector-bridge.js')); await Promise.resolve();
-    expect(target.location.href).toBe('about:blank'); expect(watched).toBe(0); expect(listeners).toBe(0);
-  });
+
 });

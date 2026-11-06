@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mock } from 'node:test';
+import { Actor } from 'xstate';
+import { disposedImportContract } from '../inspector-contract-fixture.js';
 import { Given, When, Then, After } from '@cucumber/cucumber';
 import { InspectorFixture } from '../inspector-fixture.js';
 import { inspectorOrigin } from '../../src/inspector.machine.js';
@@ -15,6 +18,8 @@ Given('官方Inspector的握手在页面加载事件{string}到达', function (t
 });
 When('打开官方Inspector并在握手前后更新所选真实模型快照', function (this: SpecWorld) {
   const { test, order } = state(this);
+  const start = mock.method(Actor.prototype, 'start'), send = mock.method(Actor.prototype, 'send');
+  try {
   if (order === '之前') {
     // A synchronous navigation handshake arrives before open() even returns.
     test.open(true, 'fixture', test.latest());
@@ -23,6 +28,8 @@ When('打开官方Inspector并在握手前后更新所选真实模型快照', fu
     test.open(false); test.observer!.update(test.latest()); test.handshake();
   }
   test.observer!.update(test.initial());
+  assert.equal(start.mock.calls.length, 0); assert.equal(send.mock.calls.length, 0);
+  } finally { start.mock.restore(); send.mock.restore(); }
 });
 Then('该连接的首条消息应包含真实机器定义和最新所选快照', function (this: SpecWorld) {
   state(this).test.assertRegistration();
@@ -35,7 +42,7 @@ Given('一个已经连接的官方Inspector观察通道', function (this: SpecWo
 });
 When('其他窗口或来源发送握手且官方标签页重新连接', function (this: SpecWorld) {
   const value = state(this), { test } = value;
-  test.handshake(inspectorOrigin, {}); test.handshake('https://example.org');
+  test.handshake(inspectorOrigin, {}); test.handshake('https://example.org'); test.handshake('null');
   assert.equal(test.messages.length, value.count);
   test.observer!.update(test.latest()); value.count = test.messages.length; test.handshake();
 });
@@ -43,7 +50,7 @@ Then('只有指定标签页与官方来源的握手可以重发当前actor注册
   const { test, count } = state(this); test.assertRegistration(test.messages[count]); test.assertOrdered();
 });
 When('关闭观察通道后所选快照再次变化', function (this: SpecWorld) {
-  const value = state(this); value.test.observer!.stop(); value.count = value.test.messages.length;
+  const value = state(this); value.test.observer!.stop(); assert.equal(value.test.messages.at(-1)?.type, '@statelyai.disconnected'); value.count = value.test.messages.length;
   value.test.observer!.update(value.test.initial());
   value.test.staleListener?.({ data: { type: '@statelyai.connected' }, source: value.test.source, origin: inspectorOrigin });
 });
@@ -51,7 +58,7 @@ Then('不得再发送消息且真实任务快照与预算保持不变', function
   if (tabs.has(this)) {
     const { test, count } = tab(this); assert.equal(test.tab.messages.length, count); test.assertRegistration(); return;
   }
-  const { test, count } = state(this); assert.equal(test.messages.length, count); assert.equal(test.closedCount, 1); test.assertOrdered();
+  const { test, count } = state(this); assert.equal(test.messages.length, count); assert.equal(test.closedCount, 1); test.observer!.stop(); assert.equal(test.closedCount, 1); test.assertOrdered();
 });
 
 Given('调试面板选中了一个真实模型快照', async function (this: SpecWorld) {
@@ -108,3 +115,5 @@ When('关闭调试面板后所选快照再次变化', async function (this: Spec
   const value = tab(this); await value.test.close(); value.count = value.test.tab.messages.length;
   await value.test.handshake();
 });
+
+Then('SDK尚未加载时关闭面板也不应启动观察', disposedImportContract);

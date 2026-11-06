@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { restoreRoomArchive, stepRoomArchive } from '../../src/room.machine.js';
 import { After, Given, When, Then } from '@cucumber/cucumber';
 import { RoomArchiveFixture, archiveUntil } from '../room-archive-fixture.js';
 import { RoomArchiveUIFixture } from '../room-archive-ui-fixture.js';
@@ -20,6 +21,7 @@ Given('一个已创建的群聊', async function (this: SpecWorld) {
 });
 When('将当前群聊归档并查看归档列表', async function (this: SpecWorld) {
   const s = state(this); assert.equal((await s.host.change(true, 'archive')).status, 200);
+  assert.deepEqual(s.host.service.engine.roomArchive(s.host.first.id), { archived: true, archiveVersion: 1 });
   s.list = (await s.host.request<{ rooms: WebRoom[] }>('/api/rooms')).data.rooms;
 });
 Then('该群应只出现在归档列表且原消息任务和产物保持不变', function (this: SpecWorld) {
@@ -28,7 +30,7 @@ Then('该群应只出现在归档列表且原消息任务和产物保持不变',
 });
 When('从归档列表恢复该群聊', async function (this: SpecWorld) { assert.equal((await state(this).host.change(false, 'restore')).status, 200); });
 Then('该群应回到普通列表并保留相同身份及历史', function (this: SpecWorld) {
-  const { host } = state(this); assert.equal(host.service.snapshot(host.first.id).room.archived, false); host.assertHistory();
+  const { host } = state(this); assert.equal(host.service.snapshot(host.first.id).room.archived, false); assert.equal(host.service.snapshot(host.first.id).room.archiveVersion, 2); host.assertHistory();
 });
 Given('一个负责人请求已经在途的群聊', async function (this: SpecWorld) {
   const host = new RoomArchiveFixture(); cases.set(this, { host }); await host.start(); host.first = host.service.createRoom(); host.hold = true;
@@ -58,9 +60,19 @@ When('归档空群并重启服务', async function (this: SpecWorld) { const { h
 Then('旧群默认属于普通列表且空群仍在归档列表中', function (this: SpecWorld) {
   const { host } = state(this); assert.equal(host.service.rooms().find(room => room.id === 'legacy')?.archived, false);
   const snapshot = host.service.snapshot(host.first.id); assert(snapshot.room.archived); assert.equal(snapshot.tasks.length, 0);
+  assert.equal(restoreRoomArchive().value, 'active');
+  const saved = stepRoomArchive(undefined, { type: 'ARCHIVE', at: 12 });
+  assert.equal(restoreRoomArchive(JSON.parse(JSON.stringify(saved))).value, 'archived');
+  assert.deepEqual(restoreRoomArchive(saved).context, { revision: 1, changedAt: 12 });
 });
 When('重复归档恢复并重放旧归档请求', async function (this: SpecWorld) {
-  const { host } = state(this); await host.change(true, 'one'); await host.change(true, 'one'); await host.change(true, 'same-target');
+  const { host } = state(this);
+  const archived = stepRoomArchive(undefined, { type: 'ARCHIVE', at: 1 });
+  assert.deepEqual(stepRoomArchive(archived, { type: 'ARCHIVE', at: 2 }), archived);
+  const restored = stepRoomArchive(archived, { type: 'RESTORE', at: 3 });
+  assert.deepEqual(stepRoomArchive(restored, { type: 'RESTORE', at: 4 }), restored);
+  assert.equal(restoreRoomArchive().context.revision, 0);
+  await host.change(true, 'one'); await host.change(true, 'one'); await host.change(true, 'same-target');
   assert.equal(host.service.engine.roomArchive(host.first.id).archiveVersion, 1); await host.change(false, 'two'); await host.change(true, 'one');
 });
 Then('相同命令应至多提交一次且旧请求不得覆盖后续恢复', function (this: SpecWorld) {
@@ -70,8 +82,10 @@ Then('不同内容复用请求标识应被拒绝且其他群不受影响', async
   const { host } = state(this); assert.equal((await host.change(false, 'one')).status, 409);
   assert.deepEqual(host.service.engine.roomArchive(host.second.id), { archived: false, archiveVersion: 0 });
 });
-When('发送{string}归档请求', async function (this: SpecWorld, problem: string) {
+When('处理{string}归档输入', async function (this: SpecWorld, problem: string) {
   const s = state(this), { host } = s; s.stored = host.readStored();
+  if (problem === '非法时间戳') { assert.equal(stepRoomArchive(undefined, { type: 'ARCHIVE', at: -1 }).value, 'active'); s.status = 400; return; }
+  if (problem === '损坏归档记录') { assert.throws(() => restoreRoomArchive({ version: 1, value: 'archived', revision: -1, changedAt: null })); s.status = 400; return; }
   const result = await host.request(host.route(problem === '群聊不存在' ? 'missing' : host.first.id) + '/archive',
     problem === '错误方法' ? undefined : problem === '缺少标识' ? {} : { id: problem === '空标识' ? '' : 'bad' },
     problem === '错误方法' ? 'GET' : 'POST', problem === '跨来源' ? 'https://example.org' : undefined);
@@ -104,7 +118,11 @@ Given('群聊已经完成归档后又恢复', function (this: SpecWorld) {
   const host = new RoomArchiveFixture(); cases.set(this, { host, list: [{ id: 'one', title: '群', createdAt: 0, archived: false, archiveVersion: 2 }] });
 });
 When('归档前的列表和旧版本快照迟到', function (this: SpecWorld) {
-  const s = state(this), original = s.list![0]!; s.list = mergeRooms(s.list!, [{ ...original, archiveVersion: 0 }, { ...original, archived: true, archiveVersion: 1 }]);
+  const s = state(this), original = s.list![0]!;
+  const old = { ...original, archiveVersion: 0 }; const archived = { ...original, archived: true, archiveVersion: 1 };
+  assert.deepEqual(mergeRooms([archived], [old]), [archived]);
+  assert.equal(mergeRooms([old, { ...old, id: 'new' }], [old]).length, 2);
+  s.list = mergeRooms(s.list!, [{ ...original, archiveVersion: 0 }, { ...original, archived: true, archiveVersion: 1 }]);
 });
 Then('网页应保留最新归档版本且群聊只属于一个列表', function (this: SpecWorld) {
   const { list } = state(this); assert.equal(list![0]!.archiveVersion, 2); assert.equal(roomList(list!, false).length, 1); assert.equal(roomList(list!, true).length, 0);

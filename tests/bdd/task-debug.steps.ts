@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
+import { graphVocabularyContract, focusedGraphContract, unavailablePathContract } from '../chart-contract-fixture.js';
 import { act, createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { After, Given, When, Then } from '@cucumber/cucumber';
-import { debugEventTemplate, debugFrame, debugInput, TaskSandbox, taskGraph, type DebugFeed, type DebugFrame } from '../../src/task-debug.js';
+import { debugEventTemplate, debugFrame, debugInput, TaskSandbox, taskGraph, stateTransitions, type DebugFeed, type DebugFrame } from '../../src/task-debug.js';
 import { initialTask, persistTask, stepTask, taskMachine } from '../../src/task.machine.js';
 import { TeamEngine } from '../../src/engine.js';
 import { MemoryStore } from '../../src/store.js';
 import { DebugJournal } from '../../src/web/debug-journal.js';
 import { Workspace } from '../../web/src/App.js';
+import { mergeDebugFeed } from '../../web/src/use-debug-feed.js';
 import { StateGraph } from '../../web/src/StateGraph.js';
 import { debugHost, sandboxBoundary } from '../task-debug-fixture.js';
 import { DebugUIFixture } from '../task-debug-ui-fixture.js';
@@ -42,6 +44,7 @@ Then('普通网页不应出现状态机调试入口', function () {
   const workspace = { rooms: [], roomId: null, snapshot: null, connected: true, error: '', setError: () => {}, chooseRoom: () => {},
     createRoom: async () => '', setRoomArchived: async () => { throw new Error('Unexpected archive action'); }, refreshRooms: async () => [] };
   assert(!renderToStaticMarkup(createElement(Workspace, { workspace })).includes('打开状态机调试'));
+  assert(renderToStaticMarkup(createElement(Workspace, { workspace, debugEnabled: true })).includes('打开状态机调试'));
 });
 Given('浏览器加载当前任务状态机', function (this: SpecWorld) { state(this); });
 When('提取状态和转移结构', function (this: SpecWorld) { state(this).graph = taskGraph(); });
@@ -52,6 +55,9 @@ Then('图中应包含源码的所有状态和全局转移', function (this: Spec
 Then('应包含输入解析状态以及守卫动作名称', function (this: SpecWorld) {
   const graph = state(this).graph!; assert(graph.states.includes('interpreting'));
   assert(graph.transitions.some(t => t.guards.includes('valid') && t.actions.includes('apply')));
+  assert(graph.transitions.some(t => t.source === '*' && t.event === 'STOP' && t.target === 'stopping' && t.guards.includes('valid') && t.actions.includes('apply')));
+  assert.equal(stateTransitions(graph, 'stopping').filter(t => t.event === 'STOP').length, 1);
+  assert.deepEqual(stateTransitions(graph, 'stopping').find(t => t.event === 'STOP')?.guards, []);
 });
 Given('一个没有外部执行器的初始调试沙箱', function (this: SpecWorld) { const s = state(this); s.baseline = persistTask(s.sandbox.snapshot); });
 When('在沙箱依次发送求助和协助结果', function (this: SpecWorld) {
@@ -61,7 +67,7 @@ When('在沙箱依次发送求助和协助结果', function (this: SpecWorld) {
   assert.deepEqual(persistTask(help), persistTask(stepTask(before, event)));
   s.sandbox.send(JSON.stringify(debugEventTemplate(help, 'HELP_RESULT'))); s.phases.push(String(s.sandbox.snapshot.value));
 });
-Then('状态应依次为等待协助和执行中', function (this: SpecWorld) { assert.deepEqual(state(this).phases, ['waitingAssistance', 'running']); });
+Then('状态应依次为等待协助和执行中', function (this: SpecWorld) { assert.deepEqual(state(this).phases, ['waitingAssistance', 'running']); assert.equal(state(this).sandbox.snapshot.context.assists[0]?.consumed, true); });
 Then('沙箱结果应与纯状态转换一致', function (this: SpecWorld) {
   const s = state(this), first = initialTask(debugInput());
   const next = s.sandbox.history.slice(1).reduce((snapshot, frame) => stepTask(snapshot, frame.event as Parameters<typeof stepTask>[1]), first);
@@ -72,6 +78,8 @@ Then('应显示沙箱边界结果{string}', function (this: SpecWorld, result: s
 When('提交格式错误的沙箱事件', function (this: SpecWorld) {
   const s = state(this); s.before = persistTask(s.sandbox.snapshot);
   try { s.sandbox.send('{'); } catch (error) { s.error = error; }
+  assert.throws(() => s.sandbox.send('{"type":"HELP"}'));
+  assert.throws(() => s.sandbox.send('{"type":"STOP","at":-1}'));
 });
 Then('沙箱快照和历史应保持不变并显示错误', function (this: SpecWorld) {
   const s = state(this); assert(s.error instanceof Error && s.error.message.includes('JSON'));
@@ -230,6 +238,7 @@ Then('应以中文说明状态事件和条件并保留源码标识', function ()
   assert(branches.includes('报告阻塞')); assert(branches.includes('BLOCKED'));
   assert(branches.includes('讨论和在途工作允许进入协调')); assert(branches.includes('canCoordinate'));
   assert(document.querySelector('[aria-label="查看状态 running"]')!.textContent!.includes('执行中'));
+  graphVocabularyContract();
 });
 When('在沙箱停止后查看所选步骤路径', async function (this: SpecWorld) {
   const s = state(this), ui = s.ui!;
@@ -254,7 +263,7 @@ Then('图中的路径应来自当次诊断证据且不改变执行头', async fu
   assert.deepEqual([...document.querySelectorAll('.debug-history-event code')].map(node => node.textContent), ['0. @init', '1. STOP']);
   assert.equal(ui.phase, 'ended');
 });
-When('查看阶段概览和聚焦图', async function (this: SpecWorld) {
+When('比较执行中和等待用户的聚焦规则与阶段概览', async function (this: SpecWorld) {
   const ui = state(this).ui!; await ui.click('完整状态图'); await ui.click('聚焦所选状态');
 });
 Then('应说明全局转移和内部处理的省略范围并提供对应规则入口', async function (this: SpecWorld) {
@@ -276,9 +285,10 @@ Then('输入解析的全局进入条件与结束后继续规则应可查看', as
   await ui.click('关闭规则详情'); await ui.click('聚焦所选状态');
   await activateChart(ui, '本轮已结束 到 执行中 的1条规则');
   await ui.click('查看规则 ended:CONTINUE:0');
-  assert(document.querySelector('[aria-label="规则详情"]')!.textContent!.includes('CONTINUE'));
+  assert(document.querySelector('[aria-label="规则详情"]')!.textContent!.includes('CONTINUE')); focusedGraphContract();
 });
 When('状态图读取{string}的所选步骤', function (this: SpecWorld, record: string) {
+  unavailablePathContract(record);
   const sandbox = new TaskSandbox(); sandbox.send(JSON.stringify(debugEventTemplate(sandbox.snapshot, 'HELP')));
   const current = sandbox.history.at(-1)!;
   const { evidence, ...legacy } = current;
@@ -291,4 +301,31 @@ Then('应说明{string}且不标记未经采集的执行路径', function (this:
   const markup = state(this).result!;
   assert(markup.includes(note)); assert(!markup.includes('is-recorded'));
   assert(!markup.includes('当次诊断证据'));
+});
+
+When('依次领取负责人求助领取协助并回传', function (this: SpecWorld) {
+  const box = new TaskSandbox();
+  const send = (type: string) => box.send(JSON.stringify(debugEventTemplate(box.snapshot, type)));
+  state(this).sandbox = box;
+  send('CLAIM'); assert.equal(box.snapshot.context.usage.ordinary, 1);
+  send('HELP'); send('CLAIM'); assert.equal(box.snapshot.context.usage.ordinary, 2);
+  send('HELP_RESULT'); assert.equal(box.snapshot.value, 'running');
+  assert(!box.snapshot.context.intents.some(work => work.kind === 'assistance' && work.status === 'inflight'));
+});
+When('观测数据发生{string}', function (this: SpecWorld, change: string) {
+  const frame = debugFrame(initialTask(debugInput()), { type: '@init', id: 'init', at: 0 }, null);
+  const record = { ...frame, roomId: 'room', taskId: 'sandbox', sequence: 1 };
+  const feed: DebugFeed = { sessionId: 'one', cursor: 1, truncated: false, tasks: [], current: { taskId: 'sandbox', snapshot: frame.snapshot }, records: [record] };
+  const huge = { ...record, snapshot: { detail: '字'.repeat(2 * 1024 * 1024) } };
+  const next = change === '服务会话变化' ? mergeDebugFeed(feed, { ...feed, sessionId: 'two', records: [] }) : mergeDebugFeed(null, { ...feed, records: [huge] });
+  assert(['服务会话变化', '单份记录超过历史预算'].includes(change));
+  state(this).feed = next; state(this).before = feed.current;
+
+});
+Then('旧观测应被裁剪且当前基线保持可查看', function (this: SpecWorld) {
+  const s = state(this); assert.equal(s.feed!.records.length, 0); assert.deepEqual(s.feed!.current, s.before); assert(s.feed!.truncated);
+});
+Then('协助工作应结算且总普通额度为两次', function (this: SpecWorld) {
+  const box = state(this).sandbox; assert.equal(box.snapshot.context.usage.ordinary, 2); assert.equal(box.snapshot.value, 'running');
+  assert(!box.snapshot.context.intents.some(work => work.kind === 'assistance' && work.status === 'inflight'));
 });
