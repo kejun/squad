@@ -1,5 +1,7 @@
 # Code/model correspondence
 
+BT_M37 检查信封说明审查：基于 `670df3e08d80a2179c4ab9e733e7f810bb1a0bbe`，仅 `checkMessages` 两条协议提示文本改变；模型、投影、守卫、事务和回放边界不变。逐项审查与验证状态见 [检查信封审查](drift-review-check-envelope.json)。
+
 KEJ-100 依赖审查：`c1f380da1527b8c22a8aaaaf7aef10cd2695146e`，仅空单测集合的 CLI 处理变化；无产品转移、守卫、事务或模型变更。当前审查及完整复跑证据见 [drift-review-kej-100.json](drift-review-kej-100.json)。以下保留 PR40 的产品源码审查。
 
 审查基线：`21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR40）。旧基线 `cd987f2f4a7e29ad3efae1af36a0f432ce813c8f` 至此的全部21个src差异、提交消息和性质判断见 [drift-review-pr40.json](drift-review-pr40.json)。旧基线与PR37 squash main d7b80a4完整树相同。没有修改产品行为。本审查继承 AGENTS.md 的事务/纯状态边界，以真实 TeamEngine 公共入口为回放对象。每个抽象动作对应 engine.send/claim 的一次提交，Reopen 包含重建存储连接及 public recover 对本任务的一次 RECOVER；没有跨实际事务伪造原子性。模型起点有可执行前缀，不能直接注入不可能的 context。三个模型与补充容量实例均显式断言context.sourceArtifact缺席，防止投影静默忽略来源任务行为。

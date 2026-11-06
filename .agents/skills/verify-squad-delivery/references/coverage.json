@@ -21,7 +21,7 @@
     "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
     "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
     "src/local-operation.ts": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
-    "src/model-adapter.ts": "fd7bf326612bed06517963a38bcc9ea0bad27e5748b313ce633907b58b83889d",
+    "src/model-adapter.ts": "a3babb84683d174ae10f932f47fa59bdf1e4d39044e7deed219f1a0592b700b2",
     "src/local-cli.ts": "db577455e9fb60f5d12e0cc6af6980c52eec7f8fbec0cbc3ff3a34223092e69e",
     "src/task.machine.ts": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
     "src/darwin-process.ts": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b",
