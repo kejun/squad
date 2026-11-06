@@ -1,5 +1,5 @@
 {
-  "syncCommit": "c1f380da1527b8c22a8aaaaf7aef10cd2695146e",
+  "syncCommit": "3ee6c875bbde0f802eae954d9017ffe5663a3cfc",
   "bounds": {
     "tasks": 1,
     "candidates": 1,
@@ -40,7 +40,7 @@
     "src/host-capabilities.ts": "21a2aec00a32046ff67e6517a948540235301bd7803852b551cf77809d64feb2",
     "src/task-debug-view.ts": "07916f37867b20df2c5b9681bfbb8a82933ace2ade7f8eb6e2a76c6ee86930e7",
     "src/input-intent.ts": "8c2886e4b9054655203f5b72fc357aaab0d3502927320b722f9fa196a951d266",
-    "src/delivery-acceptance.ts": "223ed59845004dac8fadcdb116f633af4fc6902338fb4277439a386b65f2ab2e",
+    "src/delivery-acceptance.ts": "6d4a70291b12a3ed376e8e3658b428b7351e260e1d39043ee986a97fc2568396",
     "src/task-chart.ts": "98c932c3b32c93d5993faae1e1b7e2b6f02d626a30bec67ce64cb3aa6c554799",
     "src/inspector.machine.ts": "0c9ba840dd017b3149dfae33186ea850376c35048eb43da52a57a8618cc000f5",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
@@ -55,7 +55,7 @@
     "src/web/service.ts": "5b5408fa4d69faf9acd449d107f61edba321d7c45043589c6a25d63d51b34024",
     "src/web/http.ts": "0353bf851274b11b4c31d6adf0cc60c62e49883541e6d1e2c67a6904e50bd3ad",
     "src/task/budget.ts": "0d8454f4dbf0d62ffc7a8d5c615f9ec1ebbd688a6e3136e9832af893ff32e62c",
-    "src/task/delivery.ts": "747e64b4e4372b98c93884314c688f4f6b4727ee51af3e0ca03ee656b54f407e",
+    "src/task/delivery.ts": "a56bfe48f77575dc110b08a598d32462994420a9e40e89ac7cb498f4ee98c101",
     "src/task/execution.machine.ts": "7ed6793adbd8413de0c53161ea8adbe6bdcb29eae910864ccd01e29baf68fcff",
     "src/task/discussion.ts": "0bdf97c5438d24d381a194d6fc6406282044d41c5b5d5ba5c9f73cf1234bfa7b",
     "src/task/evidence.ts": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",

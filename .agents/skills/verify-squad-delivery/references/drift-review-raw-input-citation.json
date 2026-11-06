@@ -1,0 +1,31 @@
+{
+  "baseCommit": "3f330a20e66bca1eb216fd3df3da3f51572704e4",
+  "scope": "BT_F31 frozen raw-input citation repair",
+  "changes": [
+    {
+      "file": "src/delivery-acceptance.ts",
+      "before": "223ed59845004dac8fadcdb116f633af4fc6902338fb4277439a386b65f2ab2e",
+      "after": "6d4a70291b12a3ed376e8e3658b428b7351e260e1d39043ee986a97fc2568396"
+    },
+    {
+      "file": "src/task/delivery.ts",
+      "before": "747e64b4e4372b98c93884314c688f4f6b4727ee51af3e0ca03ee656b54f407e",
+      "after": "a56bfe48f77575dc110b08a598d32462994420a9e40e89ac7cb498f4ee98c101"
+    }
+  ],
+  "review": [
+    "checkCitationSources now maps only frozen rawInputs id/text to existing id/content source shape; exact ID and verbatim quote validation unchanged.",
+    "checkDisposition reads rawInputs from the saved check intent, never current conversation; old snapshots default to empty.",
+    "Existing valid/invalid CHECK_RESULT abstraction, transaction atomicity, retry/revision limits, stop fences and negative-control anchors unchanged. No bound or invariant reduced.",
+    "Source whitelist includes trusted materials already presented to the checker. Adapter, runner and pure-state validation call the same helper. No new scheduling authority or effects."
+  ],
+  "validation": {
+    "status": "verified",
+    "fullCheck": "passed including unchanged negative controls",
+    "independentEvidenceReadback": "passed",
+    "evidence": "/workspace/squad-live-20261106/raw-input-formal-delivery",
+    "additionalMutation": "Removing raw-input mapping fails real XState semantic-revision gate",
+    "capturedResponseReplay": "Real failed check response now validates with both negative findings intact; forged ID and quote rejected"
+  },
+  "validatedCommit": "3ee6c875bbde0f802eae954d9017ffe5663a3cfc"
+}
