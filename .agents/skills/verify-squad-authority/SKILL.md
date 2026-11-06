@@ -59,6 +59,6 @@ python3 .agents/skills/verify-squad-authority/scripts/check.py --verify-evidence
 
 ## 维护
 
-[coverage.json](references/coverage.json) 的 syncCommit 为 cd987f2f4a7e29ad3efae1af36a0f432ce813c8f（PR37 未合并草稿）。保守记录全部 src TypeScript、依赖锁与夹具哈希；哈希仅为漂移门禁，不是对应证明。文件变化先审查模型原子边界、权限守卫和新写入口，不能直接刷新哈希。模型/回放通过并完成真实负对照后才能推进对应基线。
+[coverage.json](references/coverage.json) 的 syncCommit 为 cd987f2f4a7e29ad3efae1af36a0f432ce813c8f（PR37 合并前的 head；现已 squash 合入 main d7b80a4，两者完整树相同）。保守记录全部 src TypeScript、依赖锁与夹具哈希；哈希仅为漂移门禁，不是对应证明。文件变化先审查模型原子边界、权限守卫和新写入口，不能直接刷新哈希。模型/回放通过并完成真实负对照后才能推进对应基线。
 
 请求 `$create-formal-verification-skill 维护 kejun/squad 的 verify-squad-authority`，按 [维护过程](references/maintenance.md) 执行。发现真实违约保留反例，区分模型缺陷和产品缺陷；不能放宽性质让它通过。

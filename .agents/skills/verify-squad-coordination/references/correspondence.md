@@ -1,6 +1,6 @@
 # Code/model correspondence
 
-审查基线：cd987f2f4a7e29ad3efae1af36a0f432ce813c8f（PR37 draft head）。没有修改产品行为。本审查继承 AGENTS.md 的事务/纯状态边界，以真实 TeamEngine 公共入口为回放对象。每个抽象动作对应 engine.send/claim 的一次提交，Reopen 包含重建存储连接及 public recover 对本任务的一次 RECOVER；没有跨实际事务伪造原子性。模型起点有可执行前缀，不能直接注入不可能的 context。
+审查基线：cd987f2f4a7e29ad3efae1af36a0f432ce813c8f（PR37 合并前的 head；现已 squash 合入 main d7b80a4，两者完整树相同）。没有修改产品行为。本审查继承 AGENTS.md 的事务/纯状态边界，以真实 TeamEngine 公共入口为回放对象。每个抽象动作对应 engine.send/claim 的一次提交，Reopen 包含重建存储连接及 public recover 对本任务的一次 RECOVER；没有跨实际事务伪造原子性。模型起点有可执行前缀，不能直接注入不可能的 context。
 
 ## Budget
 

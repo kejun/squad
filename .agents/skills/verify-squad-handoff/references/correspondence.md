@@ -108,7 +108,7 @@ SQLite close/reopen 是本轮的进程丢失替身：未强制终止 OS 进程�
 
 ## 2026-11-06 实现漂移审查
 
-目标源码为 PR #37 草稿 head `cd987f2f4a7e29ad3efae1af36a0f432ce813c8f`，不是已合并 main（`d06af677a676b7c102763e44b0d7f7f423685481`）。本维护只改验证，不修改产品契约，也不扩大既有有限域。
+该次审查时目标源码为 PR #37 草稿 head `cd987f2f4a7e29ad3efae1af36a0f432ce813c8f`，不是已合并 main（`d06af677a676b7c102763e44b0d7f7f423685481`）。本维护只改验证，不修改产品契约，也不扩大既有有限域。随后 PR37 已 squash 合入 main `d7b80a4b0e032d300a7201e2532238709eb601cf`，完整树与上述 head 相同；PR38 已同步 main，历史审查记录和覆盖哈希保持原样。
 
 初始原样运行因 21 个覆盖文件哈希漂移而 blocked，见 `reports/verify-squad-handoff/20261106T012340Z-2`。旧记录的名义 sync commit 是 b3502f19，但已经明确包含未提交的职责拆分/多 actor 代码；直接拿该提交 diff 会误把拆分重复当作新变化。逐文件在 Git 历史定位与旧 SHA-256 完全一致的 blob 后审查差异：除 package.json 外，旧 35 个哈希全部与 `3695dc6673b4a10f321f395f156eef3a9b13d966` 的树一致，package.json 对应 `47a36cd50f27b2ce73da0ba910b35177a9bdba02`。名义基点后的全部提交消息及 21 文件逐项分类、旧/新哈希和匹配提交保存在 [drift-review-2026-11-06.json](drift-review-2026-11-06.json)。14 个未漂移文件仍逐项核对哈希，包括真正消费结果的 assistance.ts、两种事务存储与 execution actor。
 

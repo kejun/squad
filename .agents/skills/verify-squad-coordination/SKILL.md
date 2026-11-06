@@ -71,7 +71,7 @@ python3 .agents/skills/verify-squad-coordination/scripts/check.py --verify-evide
 
 ## 实现同步与维护
 
-最近完整对应审查基线：`cd987f2f4a7e29ad3efae1af36a0f432ce813c8f`，这是 PR37 的未合并草稿 head，不是 main。代码范围和精确 SHA 见 [coverage.json](references/coverage.json)。清单保守包含全部 src 模块及 config/package/lock 作为传递依赖漂移门禁；核心函数映射见对应文档，不代表逐个模块均有形式化性质。
+最近完整对应审查基线：`cd987f2f4a7e29ad3efae1af36a0f432ce813c8f`，这是 PR37 合并前的 head。PR37 已 squash 合入 main `d7b80a4b0e032d300a7201e2532238709eb601cf`，两者完整树相同；PR38 已同步 main，保留原审查基线与哈希。代码范围和精确 SHA 见 [coverage.json](references/coverage.json)。清单保守包含全部 src 模块及 config/package/lock 作为传递依赖漂移门禁；核心函数映射见对应文档，不代表逐个模块均有形式化性质。
 
 代码变化时按[维护流程](references/maintenance.md)逐项核对事务边界、守卫、预算范围、调度与投影，必要时更新模型和驱动。不得仅更新哈希。新性质先从代码/契约定义，不因当前运行失败而放宽；当前实现违反性质时保留真实反例并报告产品缺陷，未经授权不改产品。
 

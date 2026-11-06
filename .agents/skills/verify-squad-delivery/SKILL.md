@@ -61,7 +61,7 @@ python3 .agents/skills/verify-squad-delivery/scripts/check.py --verify-evidence 
 
 ## 维护
 
-最近对应审查基线为 `cd987f2f4a7e29ad3efae1af36a0f432ce813c8f`，即尚未合并的 PR37 head。精确源文件见 coverage.json；为覆盖传递依赖变化，门禁保守包含 src 的全部 TS 文件，这不代表每个模块均获形式化验证。
+最近对应审查基线为 `cd987f2f4a7e29ad3efae1af36a0f432ce813c8f`，对应 PR37 合并前的 head。PR37 已 squash 合入 main `d7b80a4b0e032d300a7201e2532238709eb601cf`，两者完整树相同；PR38 已同步 main，保留原审查基线与哈希。精确源文件见 coverage.json；为覆盖传递依赖变化，门禁保守包含 src 的全部 TS 文件，这不代表每个模块均获形式化验证。
 
 请用 `$create-formal-verification-skill 维护 kejun/squad 的 verify-squad-delivery` 请求维护，并遵循[维护流程](references/maintenance.md)。覆盖文件变化时逐项审查原子边界、守卫、新写入口和投影遗漏；先更新模型/回放，完整运行真实负对照和恢复检查后再推进 sync commit。blocked 时不推进。规则/验证变更不改变产品行为，不另造产品 Gherkin；若发现产品缺陷需要修复，遵守 AGENTS.md 的场景与状态模型先行流程。
 
