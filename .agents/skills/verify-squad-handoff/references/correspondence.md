@@ -105,3 +105,24 @@ SQLite close/reopen 是本轮的进程丢失替身：未强制终止 OS 进程�
 最终尝试隔离审查还覆盖解析与协调的拒绝回退：currentInterpretation/isCurrent 以及解析失败副作用必须匹配 attempt，防止旧结果虽然被拒绝却改变当前阶段或输入状态。BT_N14 扩展到十类实际工作消息，73 项模型门槛通过；旧无 attempt 轨迹的原规则身份、守卫顺序和微步依旧逐步相等。
 
 启动许可最终还核对业务 ended 与不兼容恢复：父任务撤销未启动的普通工作，已启动工作进入取消等待；cancel actor 保留清理权限。BT_N10 显式覆盖这两种拒绝，最终 75 项模型检查通过。原有限切片不请求启动许可，其业务投影继续由全部原边回放及负对照核对。
+
+## 2026-11-06 实现漂移审查
+
+该次审查时目标源码为 PR #37 草稿 head `cd987f2f4a7e29ad3efae1af36a0f432ce813c8f`，不是已合并 main（`d06af677a676b7c102763e44b0d7f7f423685481`）。本维护只改验证，不修改产品契约，也不扩大既有有限域。随后 PR37 已 squash 合入 main `d7b80a4b0e032d300a7201e2532238709eb601cf`，完整树与上述 head 相同；PR38 已同步 main，历史审查记录和覆盖哈希保持原样。
+
+初始原样运行因 21 个覆盖文件哈希漂移而 blocked，见 `reports/verify-squad-handoff/20261106T012340Z-2`。旧记录的名义 sync commit 是 b3502f19，但已经明确包含未提交的职责拆分/多 actor 代码；直接拿该提交 diff 会误把拆分重复当作新变化。逐文件在 Git 历史定位与旧 SHA-256 完全一致的 blob 后审查差异：除 package.json 外，旧 35 个哈希全部与 `3695dc6673b4a10f321f395f156eef3a9b13d966` 的树一致，package.json 对应 `47a36cd50f27b2ce73da0ba910b35177a9bdba02`。名义基点后的全部提交消息及 21 文件逐项分类、旧/新哈希和匹配提交保存在 [drift-review-2026-11-06.json](drift-review-2026-11-06.json)。14 个未漂移文件仍逐项核对哈希，包括真正消费结果的 assistance.ts、两种事务存储与 execution actor。
+
+主要新增边界：
+
+- 协议已变为 team-v3/tools-v3，存储记录支持版本 1/2/3。send 与 flush 先查协议兼容，CONTINUE 携带当前配置。这个切片始终用同一 current 配置新建与恢复，不验证旧协议迁移。消费、续办及 snapshot/receipt 保存仍在一个存储事务内。
+- owner 现在选择当前交付报告，intent 可绑定保存证据；停止、换目标、恢复、继续还清理宿主审批、重试和 deliveryCycle。切片无候选、发布、宿主请求、局部操作、评审队列或分片，新增状态不触发这些写入路径。原 RECORD_RESULT/acceptHelpResult、owner 续办及 cancelWork 的原子边界未改变。
+- lifecycle 新增 host retry 自动边界与检查耗尽恢复，reducer 的 BOUNDARY 可调用 startMapReduce。hostRetryBoundary 必须有请求，startMapReduce 必须有 decomposition，recoveryCheckExhausted 必须有 bounded check。这些不是“假定永远不影响”的隐含条件：compare.mjs 每次观察都断言相关状态缺席、配置版本一致且 deliveryCycle.requests 为零。未来代码若使回放进入这些边界会失败，不能静默继续解释为原抽象。
+- 原拒绝动作增加 DUPLICATE_RESULT/CHECK_RESULT 的释放限制；本切片 DuplicateRecord 的 B 工作已结算，HELP_RESULT 的旧结果归档规则保留。所有重复、停止、换目标、恢复顺序仍以原图逐边回放，未删除或改写性质。
+- 普通预算增加 hostRetryReservation；无批次时为零。新检查预算/重试只作用于 bounded check，本切片 A/B 普通领取与零请求检查状态仍受真实执行断言约束。预算耗尽不在旧有限模型内。
+- WorkRunner 仍以 flushResults 为第一步；证据、宿主授权和计量发生在其后。真实进度探针必须消费 R1，适配器如被调用会抛错。导入改为直接加载 engine/store/runner，不通过 index 间接加载不相关 CLI/runtime/model-adapter。此改动不替换任何生产行为。
+
+coverage 增补 11 个新语义依赖：delivery/protocol/evidence/verification/map-reduce、host-retry/host-session、delivery-acceptance、evidence-reader、measurement、local-skills。前七者可参与纯初始状态/守卫/恢复决策；其余为上述模块或 runner 的静态依赖，不声明其 I/O 已被验证。覆盖门禁是人工对应审查的保守文件集合，不是运行时导入闭包或 TypeScript 等价证明。
+
+本轮没有更改 TLA+ 模型、性质、故障预算、可达性见证或负对照语义。真实代码对应加强为显式切片条件检查；证明边界仍是每条抽象边的一条代表最短前缀。新增领域的任意状态交错需要 KEJ-93–97 的独立模型，不能由本轮通过推出。
+
+结果为 **updated**，不是产品 bug。同步前完整运行 `20261106T012603Z-2` 通过；推进记录后按技能再运行 `20261106T012656Z-2`，退出 0，耗时 37.766 秒。两次均为原 146 状态、424 条有标签边，MemoryStore/SQLite 各回放 424 边，三类真实入口探针各执行一次；六项可达性见证成立，四种真实代码负对照在两种存储上分别因目标行为失败。移除隔离变体后模型和真实代码均再次通过，覆盖文件哈希不变，临时副本已清理。原始 TLC 日志、反例和执行证据位于上述 reports 目录，`--verify-evidence` 可独立核验。此记录是工作区验证，不冒充尚未产生的交付提交的验证。

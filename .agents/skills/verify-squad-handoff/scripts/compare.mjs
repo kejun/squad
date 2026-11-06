@@ -11,7 +11,9 @@ const [target, graphFile, output, selectedBackend = 'both'] = process.argv.slice
 assert(target && graphFile && output, 'Usage: node --import tsx compare.mjs ROOT GRAPH.dot OUTPUT.json');
 assert(['both', 'memory', 'sqlite'].includes(selectedBackend), 'Unknown storage backend');
 const root = resolve(target);
-const { TeamEngine, MemoryStore, SqliteStore, WorkRunner } = await import(pathToFileURL(join(root, 'src/index.ts')).href);
+const { TeamEngine } = await import(pathToFileURL(join(root, 'src/engine.ts')).href);
+const { MemoryStore, SqliteStore } = await import(pathToFileURL(join(root, 'src/store.ts')).href);
+const { WorkRunner } = await import(pathToFileURL(join(root, 'src/runner.ts')).href);
 const { createTeamConfig } = await import(pathToFileURL(join(root, 'team.config.ts')).href);
 const config = createTeamConfig({});
 const room = 'formal-room', task = 'task:formal-start', resultId = 'R1';
@@ -63,6 +65,21 @@ function setup(backend, base) {
     // Reading the persistent snapshot remains possible while the engine is down.
     const reader = online ? engine : new TeamEngine(store, config, () => 0);
     const c = reader.view(room, task).context;
+    // These executable slice conditions justify why the newer delivery/host/map-reduce
+    // branches cannot silently change the abstraction under this replay.
+    assert.equal(c.config.version, config.version, 'Slice: execution protocol changed');
+    assert.equal(c.config.toolVersion, config.toolVersion, 'Slice: tool protocol changed');
+    assert.equal(c.candidate, null, 'Slice: unexpected delivery candidate');
+    assert.equal(c.publishedDelivery, undefined, 'Slice: unexpected publication');
+    assert.equal(c.discussion, undefined, 'Slice: unexpected parallel discussion');
+    assert.equal(c.review, undefined, 'Slice: unexpected review queue');
+    assert.equal(c.hostSession, undefined, 'Slice: unexpected host approval');
+    assert.equal(c.hostRetryBatch, undefined, 'Slice: unexpected host retry batch');
+    assert.equal(c.hostRetryRequests?.length ?? 0, 0, 'Slice: unexpected host request');
+    assert.equal(c.intents.some(work => work.localOperations?.length), false, 'Slice: unexpected local operation');
+    assert.equal(c.intents.some(work => work.kind === 'check'), false, 'Slice: unexpected check');
+    assert.equal(c.inputAnalyses?.some(input => input.spec?.decomposition) ?? false, false, 'Slice: unexpected decomposition');
+    assert.equal(c.deliveryCycle?.requests, 0, 'Slice: delivery requests changed');
     const result = c.results.find(r => r.resultId === resultId);
     const successors = c.intents.filter(i => i.kind === 'owner' && i.payload.resultId === resultId);
     return { online, marker: result.consumed, consumed: c.consumedResults.includes(resultId),

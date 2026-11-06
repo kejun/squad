@@ -67,7 +67,7 @@ python3 .agents/skills/verify-squad-handoff/scripts/check.py --verify-evidence "
 
 ## Coverage and synchronization
 
-最近核对实现的基点提交：`b3502f19f8f6136cb8b818a526bab8885cb9f82e`，包括 2026-10-30 工作区职责拆分；精确版本以 coverage.json 中各文件 SHA 为准。函数级对应关系在[correspondence.md](references/correspondence.md)，哈希和边界在[coverage.json](references/coverage.json)。这些记录是审查与漂移门禁，不是自动等价证明。
+最近核对实现的同步源码：`cd987f2f4a7e29ad3efae1af36a0f432ce813c8f`（PR #37 合并前的 head；现已 squash 合入 main d7b80a4，两者完整树相同）；完整检查通过后推进同步记录，精确版本以 coverage.json 为准。旧名义基点与工作区哈希的差异、21 文件逐项审查见 [2026-11-06 审查记录](references/drift-review-2026-11-06.json)。函数级对应关系在[correspondence.md](references/correspondence.md)，哈希和边界在[coverage.json](references/coverage.json)。这些记录是审查与漂移门禁，不是自动等价证明。
 
 覆盖代码变化后，逐项审查 sync commit 到当前的差异：事务是否拆分、守卫/版本/权限是否变化、是否增加新的写入口、投影遗漏是否影响后续行为。更新模型、回放和负对照，再完整运行。只有确认对应且检查完成后，才推进 sync commit 和哈希。产品真实违反性质时保留反例，解释用户损害，未经授权不改产品、不放宽性质。
 
