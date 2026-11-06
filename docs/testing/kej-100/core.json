@@ -1,0 +1,2000 @@
+[
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L02] [BT_L19] returns the child receipt to the same parent without another budget charge"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "命令已运行；收到匹配成功回执后必须原父工作继续并取得原回执，费用只计一次。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L02",
+      "BT_L19",
+      "BT_L70"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareReceiptReturn; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L19] refuses a repeated local receipt without charging again"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "成功回执已保存；再次收到相同回执后必须拒绝重复会话且费用不变。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L19",
+      "BT_L70"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareDuplicateReceipt; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L02] does not charge ordinary quota for catalog metadata"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "负责人可读技能目录；读取目录元数据后必须不扣普通额度。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L02",
+      "BT_L70"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareCatalogCost; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L21] binds a loaded skill to the version in its receipt"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "技能激活已领取；收到带版本的技能回执后必须后续使用回执固定的技能版本。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L21",
+      "BT_L70"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#preparePinSkill; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] rejects 'budget' without a session or extra charge"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "普通额度用尽；领取本地操作后必须BUDGET_EXHAUSTED且不创建会话或额外收费。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRejection(0); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] rejects 'stopped' without a session or extra charge"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "任务已停止；保存本地请求后必须STOPPED且不创建会话或额外收费。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRejection(1); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] rejects 'expired' without a session or extra charge"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "工作已超时；保存本地请求后必须WORK_EXPIRED且不创建会话或额外收费。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRejection(2); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] rejects 'stale goal' without a session or extra charge"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "目标版本已变化；保存旧工作请求后必须STALE_WORK且不创建会话或额外收费。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRejection(3); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] rejects 'disabled tools' without a session or extra charge"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "当前本地工具已禁用；保存本地请求后必须LOCAL_TOOLS_DISABLED且不创建会话或额外收费。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRejection(4); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] rejects 'legacy authority' without a session or extra charge"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "旧工作缺少授权；保存本地请求后必须LOCAL_TOOLS_NOT_AUTHORIZED且不创建会话或额外收费。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRejection(5); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] rejects 'interpretation work' without a session or extra charge"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "当前主体为输入理解；保存本地请求后必须LOCAL_TOOLS_NOT_ALLOWED且不创建会话或额外收费。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRejection(6); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] rejects 'busy lease' without a session or extra charge"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "工作区租约被占用；领取本地操作后必须WORKSPACE_BUSY且不创建会话或额外收费。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRejection(7); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] preserves reserved 'review' synthesis quota"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "评审需要最终汇总额度；领取新的本地操作后必须REVIEW_SYNTHESIS_RESERVED且保留汇总额度。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareReservedSynthesis(0); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] preserves reserved 'discussion' synthesis quota"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "后台讨论需要最终汇总额度；领取新的本地操作后必须DISCUSSION_BUDGET_RESERVED且保留汇总额度。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareReservedSynthesis(1); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] charges ordinary quota for a local child of final checking"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "检查已准备用户命令；领取检查中的本地操作后必须扣普通额度而非检查额度。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L70"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareCheckChildCost; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L17] rejects a checker command that differs from the user-requested test"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "用户要求执行构建；检查员改为执行测试后必须CHECK_LOCAL_TOOLS_NOT_ALLOWED且不创建操作。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L17",
+      "BT_L72"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareCheckCommand; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L17] will not send a semantic check before a successful isolated test"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "尚无成功隔离构建；申请语义检查请求后必须WORKSPACE_VALIDATION_REQUIRED且不扣检查请求。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L17",
+      "BT_L72"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareCheckPrerequisite; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L17] retains the candidate without publishing when a semantic pass lacks final version verification"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "构建成功但缺最终版本复核；检查员提交语义通过后必须保留候选但不发布，说明仍需版本复核。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L17",
+      "BT_L72"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareCheckFinalVersion; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L17] ends without a check when required tests have no trusted command"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "用户要求测试却未指定可信命令；负责人提交候选后必须部分结束说明命令不可用，不启动检查。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L17",
+      "BT_L72"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareMissingCommand; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L17] keeps command examples from quoted source material out of the verification plan"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "输入只解释引用中的命令示例；负责人提交解释候选后必须可检查解释且引用与代码不授执行权。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L17",
+      "BT_L72"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareQuotedCommands; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L05] stops queued local work without waiting for a physical process"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "本地操作排队未执行；停止任务并结算父工作后必须立即结束且不生成候选或新命令。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L05",
+      "BT_L73"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareStopQueued; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L05] [BT_L22] holds 'claimed' physical work until a matching cancellation receipt"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "本地操作已领取尚未运行；停止后提交错误与正确会话取消回执后必须匹配回执前保持取消和租约，匹配后才能结束。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L05",
+      "BT_L22",
+      "BT_L73"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareStopPhysical(0); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L05] [BT_L22] holds 'running' physical work until a matching cancellation receipt"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "本地命令已运行；停止后提交错误与正确会话取消回执后必须匹配回执前保持取消和租约，匹配后才能结束。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L05",
+      "BT_L22",
+      "BT_L73"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareStopPhysical(1); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L06] [BT_L20] requeues safe parent work after a crash at 'before request'"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "服务在请求前崩溃；恢复任务后必须安全父工作重新待领取且不重复已知效果。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L06",
+      "BT_L20",
+      "BT_L74"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRecoverSafe(0); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L06] [BT_L20] requeues safe parent work after a crash at 'queued'"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "服务在请求排队后崩溃；恢复任务后必须安全父工作重新待领取且不重复已知效果。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L06",
+      "BT_L20",
+      "BT_L74"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRecoverSafe(1); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L06] [BT_L20] requeues safe parent work after a crash at 'succeeded'"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "服务在成功回执后崩溃；恢复任务后必须安全父工作重新待领取且不重复已知效果。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L06",
+      "BT_L20",
+      "BT_L74"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRecoverSafe(2); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L06] retains a saved receipt across recovery"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "成功回执已经保存；恢复任务后必须模型检查点仍持有完整原回执。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L06",
+      "BT_L74"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRecoverReceipt; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L06] [BT_L20] requires trustworthy reconciliation after a crash at 'claimed'"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "服务在操作已领取时崩溃；恢复并由宿主确认从未启动后必须未核对前保持不确定，可信确认后重新排队。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L06",
+      "BT_L20",
+      "BT_L74"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRecoverUncertain(0); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L06] [BT_L20] requires trustworthy reconciliation after a crash at 'running'"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "服务在命令运行时崩溃；恢复并由宿主确认从未启动后必须未核对前保持不确定，可信确认后重新排队。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L06",
+      "BT_L20",
+      "BT_L74"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRecoverUncertain(1); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L06] [BT_L14] settles an old-goal receipt without producing a current candidate"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "旧目标命令效果待核对；宿主确认旧目标回执后必须结算旧父工作且不生成当前候选。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L06",
+      "BT_L14",
+      "BT_L74"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareReconcileOldGoal; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L12] refuses local work after recovering 'legacy payload'"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "旧工作缺本地授权；恢复并再次请求命令后必须LOCAL_TOOLS_NOT_AUTHORIZED。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L12",
+      "BT_L74"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRecoverPermission(0); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L12] refuses local work after recovering 'revoked bot permission'"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "成员本地权限已撤销；恢复并再次请求命令后必须LOCAL_TOOLS_DISABLED。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L12",
+      "BT_L74"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareRecoverPermission(1); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L16] preserves the live owner draft while background effects are uncertain"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "后台讨论的写入效果不确定；负责人交回当前草稿后必须保存草稿并等待讨论核对，不提前检查。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L16",
+      "BT_L75"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareBackgroundDraft; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L12] keeps incompatible work paused after 'LOCAL_RESULT' settles its effects"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "协议变化且效果未结算；收到原命令结果后必须效果可结算但保留协议阻塞，不续办旧工作。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L12",
+      "BT_L74"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareIncompatibleSettlement(0); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L12] keeps incompatible work paused after 'LOCAL_RECONCILE' settles its effects"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "协议变化且效果未结算；宿主核对原命令结果后必须效果可结算但保留协议阻塞，不续办旧工作。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L12",
+      "BT_L74"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareIncompatibleSettlement(1); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L18] carries an activated skill version through handoff and recovery"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "负责人已激活技能版本；交给成员协助并恢复后必须成员继承固定版本而不混入新版。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L18",
+      "BT_L75"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareSkillHandoff; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L18] refuses to activate a skill version from an old goal receipt"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "技能回执属于旧目标；收到旧激活回执后必须不激活到当前目标。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L18",
+      "BT_L75"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareOldSkillReceipt; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L17] refuses host version verification from owner work"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "负责人正在工作；请求最终版本复核后必须WORKSPACE_VALIDATION_NOT_ALLOWED。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L17",
+      "BT_L72"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareOwnerVerificationDenied; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L17] reserves a workspace and ordinary quota for final version verification"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "隔离构建和语义检查已成功；先在租约忙后空闲时领取最终复核后必须忙碌不扣费，成功领取独占工作区并扣一次普通额度。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L17",
+      "BT_L72"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareFinalVerificationReservation; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] settles a denied queued operation without an I/O budget charge"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "额度不足请求已排队；宿主保存明确拒绝后必须失败请求结算并清除等待标记，费用不变。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareDeniedOperation; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L19] [BT_L22] records sandbox unavailability without authorizing another command"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "命令已领取；收到沙箱不可用回执后必须保存失败原文，不授权第二条命令或重复收费。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L19",
+      "BT_L22",
+      "BT_L70"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareUnavailableSandbox; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] refuses a second local operation while the first is queued"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "已有本地操作排队；保存第二条本地请求后必须LOCAL_ALREADY_REQUESTED且不替换原操作。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareDuplicateRequest; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] refuses delivery while a local operation is pending"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "本地操作已经领取；负责人提前提交交付后必须LOCAL_OPERATION_PENDING且不生成候选。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#preparePrematureDelivery; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "cases": [
+      "persisted local operations in the real taskMachine [BT_L03] refuses a receipt from another session"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "本地操作已经领取；收到其他会话回执后必须LOCAL_SESSION_MISMATCH且不接纳结果。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L03",
+      "BT_L71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-local-operation-model-fixture.ts#prepareForeignReceipt; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "local",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M24] saves the actual owner after handoff while the default member and coordinator identity stay distinct"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "默认成员A而负责人已交接给B；读取协调工作身份后必须保存负责人B且协调员身份独立。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M24",
+      "BT_M33"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareOwnerHandoff; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M23] also pins the owner on the independent discussion facilitator without changing the main work"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "主负责人正在执行；邀请空闲成员讨论后必须独立协调员固定负责人且不取消主工作。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M23",
+      "BT_M33"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareBackgroundOwner; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M28] fills an old pending coordinator owner as part of the real claim snapshot"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "旧待领取协调工作缺负责人；领取协调工作后必须同次保存负责人B且尝试次数为一。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M28",
+      "BT_M33"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareLegacyPendingOwner; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M28] fills an old coordinator after safe recovery and reclaims without resetting the owner identity"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "旧在途协调工作缺负责人；恢复后再次领取后必须保存负责人B且保留第二次尝试。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M28",
+      "BT_M33"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareLegacyRecoveredOwner; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M28] preserves an existing owner value instead of silently replacing persisted work metadata"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "协调已保存负责人A而当前负责人B；领取协调工作后必须保留保存的身份，不悄悄替换。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M28",
+      "BT_M33"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#preparePreservedOwner; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M26] persists the self-dependency explanation and notice after a later accepted command replaces the reply"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "当前正在协调；自我求助后再提交合法活动后必须中文原因和问题消息仍保留。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M26",
+      "BT_M34"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareSelfAssistNotice; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M26] explains an invalid current decision without removing its domain rejection code"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "当前正在协调；向不存在的成员求助后必须UNKNOWN_BOT且保存中文等待原因。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M26",
+      "BT_M34"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareUnknownBotNotice; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M27] rejects {\"action\":\"assist\",\"target\":\"A\",\"question\":\"核查资料\",\"expected\":\"明确来源\",\"reason\":\"需要帮助\"} outside coordination without overwriting the actual human question"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "已经向用户提出预算问题；非协调阶段提交自我求助后必须拒绝且原问题和消息不变。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M27",
+      "BT_M34"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareUnrelatedCoordination(0); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M27] rejects {\"action\":\"unsupported\",\"reason\":\"非法决策\"} outside coordination without overwriting the actual human question"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "已经向用户提出预算问题；非协调阶段提交未知决策后必须拒绝且原问题和消息不变。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M27",
+      "BT_M34"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareUnrelatedCoordination(1); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M26] explains a malformed current decision only on the coordinating fallback"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "当前正在协调；提交未知协调决策后必须INVALID_DECISION且保存中文等待原因。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M26",
+      "BT_M34"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareInvalidDecisionNotice; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M27] keeps the actual human question when a stale coordinator returns a malformed decision"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "已经向用户提出预算问题；旧目标协调员返回非法决策后必须STALE_FENCE且原问题和消息不变。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M27",
+      "BT_M34"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareStaleCoordination; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M23] authorizes invalid-decision repair and one additional request before applying a valid continue decision"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "负责人B且协调员已请求模型；修复一次无效决策后让负责人继续后必须只应用合法决策，重试一次普通请求两次。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M23",
+      "BT_M35"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareRepairContinue; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M25] saves an actionable coordinator failure when repair hits {\"retries\":0}"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "协调员重试额度为零；尝试修复自我求助后必须说明重试耗尽且不产生额外协助或请求。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M25",
+      "BT_M35"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareRepairLimit(0); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M25] saves an actionable coordinator failure when repair hits {\"ordinary\":1}"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "协调员只剩本次普通请求；尝试修复自我求助后必须说明普通额度耗尽且不产生额外协助或请求。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M25",
+      "BT_M35"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareRepairLimit(1); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M23] blocks an additional request after stop even if a repair was saved before it"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "修复已保存但任务随后停止；申请修复后的模型请求后必须STOPPED且不再收费或派发协助。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M23",
+      "BT_M35"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareStoppedRepair; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M23] blocks repair under an old target version after a direct user decision"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "用户决策已改变目标版本；申请旧目标修复后必须STALE_FENCE且不消耗重试。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M23",
+      "BT_M35"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareChangedGoalRepair; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M23] blocks repair at the original deadline without reserving another request"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "协调工作已到原截止时间；申请格式修复后必须WORK_EXPIRED且不消耗重试。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M23",
+      "BT_M35"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareExpiredRepair; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "cases": [
+      "coordination identity, repair and durable waiting reasons in the real XState model [BT_M23] keeps background discussion failure in its own lane without requesting a main-task retry"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "主负责人在途且存在后台协调；后台协调修复失败后必须只结束后台讨论，原负责人仍在途。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M23",
+      "BT_M35"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-coordination-model-fixture.ts#prepareBackgroundFailure; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "coordination",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/skill-search-model.unit.test.ts",
+    "cases": [
+      "skill search reuses the real taskMachine execution boundaries [BT_M21] sends a completed search back through the existing delivery path"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "负责人具备搜索额度；搜索后继续提交交付后必须三次普通请求后进入独立检查，不另派工具工作。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M21",
+      "BT_M36"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-skill-search-model-fixture.ts#prepareSearchDelivery; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "search",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/skill-search-model.unit.test.ts",
+    "cases": [
+      "skill search reuses the real taskMachine execution boundaries [BT_M22] settles malformed search output once without a candidate or retry"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "搜索已经消耗一次额度；返回畸形搜索结果并重复提交失败后必须只结算一次失败，不创建候选或重试。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M22",
+      "BT_M36"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-skill-search-model-fixture.ts#prepareInvalidSearch; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "search",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/skill-search-model.unit.test.ts",
+    "cases": [
+      "skill search reuses the real taskMachine execution boundaries [BT_M21] denies the search before I/O when its budget is exhausted"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "普通额度只够初始模型请求；申请技能搜索后必须BUDGET_EXHAUSTED且不启动搜索。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M21",
+      "BT_M36"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-skill-search-model-fixture.ts#prepareSearchBudget; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "search",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/skill-search-model.unit.test.ts",
+    "cases": [
+      "skill search reuses the real taskMachine execution boundaries [BT_M21] stops the search lane and refuses a late candidate"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "技能搜索在途；停止后返回迟到候选后必须保留取消意图，不接纳候选，费用不变。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M21",
+      "BT_M36"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-skill-search-model-fixture.ts#prepareStoppedSearch; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "search",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/skill-search-model.unit.test.ts",
+    "cases": [
+      "skill search reuses the real taskMachine execution boundaries [BT_M21] rejects references returned under an obsolete goal version"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "技能搜索在途；旧目标版本返回候选后必须STALE_FENCE且不接纳候选。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M21",
+      "BT_M36"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-skill-search-model-fixture.ts#prepareStaleSearch; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "search",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/skill-search-model.unit.test.ts",
+    "cases": [
+      "skill search reuses the real taskMachine execution boundaries [BT_M21] recovers and reclaims the same saved safe work before another search"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "安全搜索工作已保存；恢复并重新领取后继续搜索后必须先拒绝未领取请求，再以原工作第二次尝试继续。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M21",
+      "BT_M36"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-skill-search-model-fixture.ts#prepareRecoveredSearch; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "search",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/task-protocol-model.unit.test.ts",
+    "cases": [
+      "task protocol compatibility in the real task machine [BT_A27] preserves incompatible active work as unresolved until the original effect settles"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "旧协议命令仍在运行；按当前协议恢复后必须保留旧协议，等待核对外部效果。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_A27",
+      "BT_A70"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-task-protocol-model-fixture.ts#prepareActiveProtocolRecovery; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "protocol",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/task-protocol-model.unit.test.ts",
+    "cases": [
+      "task protocol compatibility in the real task machine [BT_A27] reconciles a known old effect without allowing an active snapshot upgrade"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "旧协议命令效果未确认；核对原回执后尝试继续后必须只结算效果，不升级活动任务或恢复模型。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_A27",
+      "BT_A70"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-task-protocol-model-fixture.ts#prepareActiveProtocolReconcile; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "protocol",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/task-protocol-model.unit.test.ts",
+    "cases": [
+      "task protocol compatibility in the real task machine [BT_A27] retires a legacy check with no unsettled external effect so the user can stop and continue"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "旧检查没有未结算外部效果；恢复后由用户停止再继续后必须退休旧检查，明确续办后采用当前协议且不发布旧候选。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_A27",
+      "BT_A70"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-task-protocol-model-fixture.ts#prepareRetiredLegacyCheck; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "protocol",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/task-protocol-model.unit.test.ts",
+    "cases": [
+      "task protocol compatibility in the real task machine [BT_A28] activates a settled old task under current configuration through 'continue'"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "旧任务已结束并保存历史；用户明确继续任务后必须当前协议新epoch续办同目标，保留历史额度。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_A28",
+      "BT_A71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-task-protocol-model-fixture.ts#prepareTerminalProtocolActivation(0); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "protocol",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/task-protocol-model.unit.test.ts",
+    "cases": [
+      "task protocol compatibility in the real task machine [BT_A28] activates a settled old task under current configuration through 'retry'"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "旧任务已结束并保存历史；用户明确续办宿主命令后必须当前协议新epoch续办同目标，保留历史额度。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_A28",
+      "BT_A71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-task-protocol-model-fixture.ts#prepareTerminalProtocolActivation(1); Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "protocol",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/task-protocol-model.unit.test.ts",
+    "cases": [
+      "task protocol compatibility in the real task machine [BT_A28] preserves the v1 final-message publication on explicit continuation"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "第一版旧任务只在最终消息记录发布；用户明确继续任务后必须保留从原最终消息确认的旧发布文档。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_A28",
+      "BT_A71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-task-protocol-model-fixture.ts#prepareLegacyPublication; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "protocol",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/task-protocol-model.unit.test.ts",
+    "cases": [
+      "task protocol compatibility in the real task machine [BT_A28] rejects a legacy pass after the next candidate was submitted"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "旧任务已续办并提交当前候选；收到旧检查通过后必须拒绝迟到检查且不改写原发布。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_A28",
+      "BT_A71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-task-protocol-model-fixture.ts#prepareLegacyCheckRejection; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "protocol",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/task-protocol-model.unit.test.ts",
+    "cases": [
+      "task protocol compatibility in the real task machine [BT_A28] rejects a legacy host retry after current permission was revoked"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "旧任务已结束且权限被撤销；请求续办旧宿主命令后必须LOCAL_TOOLS_DISABLED且不迁移配置或创建请求。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_A28",
+      "BT_A71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-task-protocol-model-fixture.ts#prepareRevokedRetry; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "protocol",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/task-protocol-model.unit.test.ts",
+    "cases": [
+      "task protocol compatibility in the real task machine [BT_A28] refuses a different protocol mismatch without migrating history"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "旧任务和当前协议不支持迁移；用户尝试继续后必须INCOMPATIBLE_EXECUTION且原历史配置不变。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_A28",
+      "BT_A71"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-task-protocol-model-fixture.ts#prepareUnrelatedProtocol; Given准备前提，act执行实际事件和记录原返回/状态/费用，verify仅断言同一轨迹中的结果。",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "protocol",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/artifact-read-model.unit.test.ts",
+    "cases": [
+      "historical artifacts in the durable local operation model [BT_A26] lets the owner read a saved report using one ordinary request"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "通过同一任务模型验证报告读取成功、跨任务拒绝和独立检查无模型读取权限，核对普通费用与原文/候选不变。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_A26",
+      "BT_A60"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-artifact-read-fixture.ts#ArtifactReadContract.read/verify/verifyUnchanged",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "artifact",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/artifact-read-model.unit.test.ts",
+    "cases": [
+      "historical artifacts in the durable local operation model [BT_A26] denies a foreign artifact without consuming an ordinary request"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "通过同一任务模型验证报告读取成功、跨任务拒绝和独立检查无模型读取权限，核对普通费用与原文/候选不变。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_A26",
+      "BT_A60"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-artifact-read-fixture.ts#ArtifactReadContract.read/verify/verifyUnchanged",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "artifact",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/artifact-read-model.unit.test.ts",
+    "cases": [
+      "historical artifacts in the durable local operation model [BT_A26] rejects a local artifact read under the independent check"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "通过同一任务模型验证报告读取成功、跨任务拒绝和独立检查无模型读取权限，核对普通费用与原文/候选不变。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_A26",
+      "BT_A60"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-artifact-read-fixture.ts#ArtifactReadContract.read/verify/verifyUnchanged",
+      "modelGate": "node --import tsx tests/core-model-gate.ts",
+      "representativeNegativeControl": "artifact",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/model-output-capacity-model.unit.test.ts",
+    "cases": [
+      "model output capacity state boundary [BT_M32] preserves an unchecked candidate without retry on permanent check capacity failure"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "永久容量失败必须结束为partial、保留未核对候选且无重试或待执行工作。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_M32"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/bdd/model-output-diagnostics.steps.ts:34-50",
+      "representativeNegativeControl": "capacity",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/sandbox-runtime-policy.unit.test.ts",
+    "cases": [
+      "trusted sandbox runtime visibility [BT_L22] restores only the trusted architecture helper read-only while its installation remains hidden"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "支持宿主的辅助程序只读开放，安装父目录/home仍隐藏，网络与命名空间不放宽。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L22",
+      "BT_L76"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-sandbox-policy-fixture.ts#verifyTrustedHelper/verifyDefaultDenial",
+      "representativeNegativeControl": "sandbox",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  },
+  {
+    "file": "tests/local-tools.test.ts",
+    "cases": [
+      "local skill registry and real child-process integration [BT_L13] constructs deny-by-default policy and never inherits host secrets"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "默认拒绝工作区外读取与网络，最小环境不继承模型密钥并绑定任务HOME。这是可通过有限中文场景或大纲清楚表达的可观察行为；纯函数、真实XState、速度或同标签都不是保留独立unit入口的理由。直接BDD先通过，随后删除重复包装；无新增跳过或验收缺口。",
+    "btIds": [
+      "BT_L13",
+      "BT_L76"
+    ],
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/core-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "assertions": "tests/core-sandbox-policy-fixture.ts#verifyDefaultDenial",
+      "representativeNegativeControl": "sandbox",
+      "negativeScope": "相关领域的代表性真实行为变异已被同一BDD断言检出；不声称该单一变异穷举本条所有分支。"
+    }
+  }
+]

@@ -154,6 +154,16 @@ def main():
     assert not evidence.exists(), 'Use a new evidence directory; never overwrite a proof'
     evidence.mkdir(parents=True)
     audit = json.loads((SKILL / 'references/coverage.json').read_text())
+    # Retain the exact checker and correspondence inputs used for this run.
+    inputs = evidence / 'checker-inputs'
+    references = ['scripts/check.py', 'scripts/compare.mjs', 'scripts/Handoff.tla', 'scripts/Handoff.cfg',
+                  'references/coverage.json', 'references/correspondence.md', 'SKILL.md']
+    if audit.get('review', {}).get('basis'):
+        references.append(audit['review']['basis'])
+    for relative in references:
+        destination = inputs / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(SKILL / relative, destination)
     before = {p: digest(ROOT / p) for p in audit['files']}
     report = {'status': 'running', 'evidence': str(evidence), 'syncCommit': audit['syncCommit'],
               'source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),

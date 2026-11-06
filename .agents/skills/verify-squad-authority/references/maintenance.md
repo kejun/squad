@@ -1,12 +1,12 @@
 # Maintain a formal verification skill
 
-Repository target: `.agents/skills/verify-squad-handoff/`. Start from its
+Repository target: `.agents/skills/verify-squad-authority/`. Start from its
 `SKILL.md`, `references/correspondence.md` and `references/coverage.json`.
-Run `python3 .agents/skills/verify-squad-handoff/scripts/check.py` from the
+Run `python3 .agents/skills/verify-squad-authority/scripts/check.py` from the
 repository root. Scope edits to this directory. Covered-file hashes are a drift
 gate: review changes and transaction boundaries before updating them or the sync
 commit. Preserve baseline, graph replays, reachability witnesses and real-code
-negative-control evidence under the run's `reports/verify-squad-handoff/` directory.
+negative-control evidence under the run's `reports/verify-squad-authority/` directory.
 
 A formal check proves a property of what it describes. When the code changes and the verification does not, the check can keep passing while it describes code that no longer exists. That pass is the dangerous case, because it looks like a proof. This skill is the upkeep loop for a verify skill that `$create-formal-verification-skill` generated, or for any project-local skill that runs a model checker, prover, or code-level verifier against named code. The project-local skill handles a change that an agent makes while it uses that skill. This skill handles the changes that skipped it: merges, edits made without the skill, and drift that builds up across many commits.
 

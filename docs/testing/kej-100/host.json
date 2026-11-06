@@ -1,0 +1,1144 @@
+{
+  "baselineCommit": "a5cbba25eeec3c0c49261a99af74b066aabe5589",
+  "originalUnitFiles": 6,
+  "originalUnitCases": 101,
+  "retainedUnitCases": 0,
+  "migratedUnitCases": 101,
+  "mixedCasePureGroups": 1,
+  "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx tests/host-model-gate.ts reports/host-model-gate",
+  "groups": [
+    {
+      "file": "tests/host-approval-model.unit.test.ts",
+      "cases": [
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L23] waits with a bound command and no process or execution charge"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "等待批准时的领取/启动拒绝、无物理执行、检查点和普通额度都由同一等待轨迹验收。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L23"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "approval-identity"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-approval-model.unit.test.ts",
+      "cases": [
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L24] charges only the approved execution and accepts a single receipt"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "同一批准后的启动、单次回执、检查点清除和实际命令收费由直接场景验收，重复批准/回执保留为明确尝试。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L24"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "single-receipt"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-approval-model.unit.test.ts",
+      "cases": [
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L25] delivers a denial without charging or launching and rejects a later approval"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "拒绝回执交还原工作、不收费、不启动和拒绝后不能复活旧批准由拒绝场景验收。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L25"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "approval-identity"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-approval-model.unit.test.ts",
+      "cases": [
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L26] refuses a different approval identity",
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L26] expires a waiting approval and returns a receipt",
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L26] refuses an approved command after its permit expires",
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L26] revokes a waiting approval when the task stops",
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L26] refuses an old goal approval",
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L26] respects revoked local capabilities"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "停止、期限、批准后到期、旧目标、错误批准身份和撤销权限都有明确outline前提/事件；未改错误码或期限优先级。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L26"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "approval-identity"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-approval-model.unit.test.ts",
+      "cases": [
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L27] restores an unconsumed permit as a new pending approval without model work",
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L27] never replays a host command claimed before a crash",
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L27] requires a fresh permit even after trusted reconciliation proves no process started"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "未领取/已启动/领取后核实未启动三种保存窗口直接表达恢复策略，保留旧批准拒绝和新批准可领取的相同轨迹。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L27"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "session-revocation"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-approval-model.unit.test.ts",
+      "cases": [
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L28] treats a claimed host command without a permit as preparation only",
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L28] rejects invalid host requests and model-supplied permission: {\"type\":\"runCli\",\"executable\":\"gh\",\"args\":[\"pr\",\"list\"],\"execution\":\"unknown\",\"reason\":\"使用已登录账号\"}",
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L28] rejects invalid host requests and model-supplied permission: {\"type\":\"runCli\",\"executable\":\"gh\",\"args\":[\"pr\",\"list\"],\"execution\":\"host\",\"reason\":\"\"}",
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L28] rejects invalid host requests and model-supplied permission: {\"type\":\"runCli\",\"executable\":\"gh\",\"args\":[\"pr\",\"list\"],\"execution\":\"host\",\"reason\":\"使用已登录账号\",\"approved\":true}"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "未知执行环境、空原因、模型伪造批准、未批准启动及HTTP来源/参数伪造分别为明确输入行，通过公开任务请求或HTTP拒绝。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L28"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "approval-identity"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-approval-model.unit.test.ts",
+      "cases": [
+        "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L29] leaves ordinary failed sandbox operations failed"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "真实沙箱失败保留failed状态和无approval，不能自动升级宿主。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L29"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "discovery-authority-metadata"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-capabilities-model.unit.test.ts",
+      "cases": [
+        "host discovery through the persisted taskMachine [BT_L56] saves and returns metadata without workspace or execution quota"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "真实能力、不同执行环境、未完整技能页、重复命令、无剩余执行额度各为明确观察行；通过持久化请求/公共发现接口返回具体元数据和费用。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L56"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "discovery-deduplication",
+          "discovery-authority-metadata"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-capabilities-model.unit.test.ts",
+      "cases": [
+        "host discovery through the persisted taskMachine [BT_L57] rejects 'stopped' without creating an operation",
+        "host discovery through the persisted taskMachine [BT_L57] rejects 'stale goal' without creating an operation",
+        "host discovery through the persisted taskMachine [BT_L57] rejects 'disabled tools' without creating an operation",
+        "host discovery through the persisted taskMachine [BT_L57] rejects 'interpretation' without creating an operation",
+        "host discovery through the persisted taskMachine [BT_L57] rejects 'missing authorization' without creating an operation",
+        "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"/usr/bin/node\"]}",
+        "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"../node\"]}",
+        "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"node --version\"]}",
+        "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"$(whoami)\"]}",
+        "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\"]}",
+        "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"\"]}",
+        "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"node\"],\"execution\":\"host\"}",
+        "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"node\"],\"approval\":true}",
+        "host discovery through the persisted taskMachine [BT_L57] settles a late read after stop without resuming work"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "权限/停止/旧目标、各畸形命令和越权字段、取消前/环境间取消、停止后迟到回执各自为明确行；拒绝不建op，取消不继续探测。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L57"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "discovery-cancellation"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-capabilities.unit.test.ts",
+      "cases": [
+        "host capability metadata [BT_L56] keeps sandbox and host presence distinct without implying execution",
+        "host capability metadata [BT_L56] preserves incomplete skill metadata and pagination",
+        "host capability metadata [BT_L56] probes a repeated command once in each execution environment"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "真实能力、不同执行环境、未完整技能页、重复命令、无剩余执行额度各为明确观察行；通过持久化请求/公共发现接口返回具体元数据和费用。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L56"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "discovery-deduplication",
+          "discovery-authority-metadata"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-capabilities.unit.test.ts",
+      "cases": [
+        "host capability metadata [BT_L57] does not inspect anything after an already cancelled request",
+        "host capability metadata [BT_L57] stops before the next environment when cancellation happens during a probe"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "权限/停止/旧目标、各畸形命令和越权字段、取消前/环境间取消、停止后迟到回执各自为明确行；拒绝不建op，取消不继续探测。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L57"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "discovery-cancellation"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L53] dispatches the queued successor after the settled batch owner submits 'delivery'",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L53] dispatches the queued successor after the settled batch owner submits 'rejected help'",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L53] 'SETTLE' retires only the unfinished commands of its own batch",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L53] 'WORK_FAILED' retires only the unfinished commands of its own batch",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L53] records an unstarted request even if its batch never assigned it an operation"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "确定回执后交付/无效协助、未启动时SETTLE/WORK_FAILED和未分配请求逐行表达；完整deepEqual原operation/回执，取消仅限本批。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L53"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "retry-unconfirmed-effects",
+          "retry-preserved-receipt"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L54] 'RECOVER' repairs the old snapshot once without replacing the candidate or charging usage",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L54] 'HOST_RETRY_RECONCILE' repairs the old snapshot once without replacing the candidate or charging usage",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L54] recovers an orphaned batch pointer when all its command results are known",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L54] retains a denial saved before its deadline when reconciling a later snapshot"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "正常遗留的两入口、负责人引用缺失、截止前拒绝已有回执各自明确旧记录；双次核对保留candidate/usage/epoch/goal、只解锁一次并保持已知拒绝。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L54"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "retry-preserved-receipt"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L55] keeps a missing batch owner fenced when its command has no confirmed receipt",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L55] preserves a recorded uncertain execution when the batch owner reference is missing",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L55] keeps the active batch while the first command has unconfirmed effects"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "未知效果、缺失负责人无回执、缺失负责人已记录uncertain为明确记录行；不得冒进下一请求，保留op1来源绑定与uncertain事实。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L55"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "retry-unconfirmed-effects"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L32] revives an ended round with a fixed, unapproved host operation and a saved model checkpoint",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L32] carries a partial-write warning into the approval reason"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "已结束任务恢复为原负责人新工作，固定原命令、无批准、检查点与原失败记录关联保持；写入清单行明确要求1个文件变更警告。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L32"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "retry-source-warning"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L33] returns the saved identity when a different click identity is received"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "不同点击身份仍得到同一保存请求身份且不增intent/物理命令；纯模型完整Reply相等和HTTP核心身份分别验收。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L33"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "retry-request-idempotency"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L45] records multiple requests without cancelling the main work or advancing its fence"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "两条请求登记时主工作不取消、不推进epoch、不收费、不提前建批，随后保留当前候选并顺序执行。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L45"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "retry-source-hash"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L50] preserves ordinary assistance and its saved handoff for owner synthesis"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "普通协助/评审/后台讨论明确原工作类型；申请时保持待交接，新When交回结果，Then读取原结论及owner payload.answer和安全边界。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L50"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "retry-unconfirmed-effects"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L46] holds a check that finishes after retry acceptance",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L46] applies a coordinator finish only after the pending retry boundary"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "当前检查/协调结果先保存而不交付，保留checking中间态、旧check消费记录和当前候选；独立When明确续办、再交付与重检。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L46"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "retry-unconfirmed-effects"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L47] a denial preserves its receipt and exposes only the next fixed operation",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L47] a known failure advances exactly once and keeps independent approvals"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "拒绝/确定失败两行保留原结论、结算/active请求状态和op2尚无审批的中间态，再明确准备第二条独立审批。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L47"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "retry-next-request"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L48] freezes unknown effects and advances only after trusted reconciliation",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L48] stops subsequent commands and settles a late receipt without reviving the task",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L48] preserves started timeout effects and freezes the next request",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L48] a new goal invalidates remaining requests and keeps the prior receipt separate"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "停止/新目标迟到回执、未知效果、运行超时和可信核对各行明确触发，保留实际op、请求状态、旧结果隔离及下一条启动边界。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L48"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "retry-unconfirmed-effects"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L49] recovery preserves settled operations, invalidates approval and does not charge owner twice",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L49] charges a new owner model attempt after recovery from an authorized synthesis"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "恢复第二命令和已消费模型请求两行区别收费时点；直接断言claim后即时费用与CONSUME后同额，以及已结算回执不重放。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L49"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "retry-model-charge"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L51] lets current work consume unreserved budget and reports boundary exhaustion"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "请求登记不抢当前模型余额；明确When继续CONSUME、提交候选跨安全边界，验收精确余额、BUDGET_EXHAUSTED、partial和零宿主op。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L51"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "retry-model-charge"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L52] expires a saved request before launch and advances an unexpired successor",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L52] persists expiry while original work is still active and reports it at handoff"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "待批、原负责人尚未结束、后续请求未到期三行区别期限窗口，保留到期拒绝、主工作不中断和未过期后继可继续。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L52"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "retry-preserved-receipt"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L37] revoking an approved but unstarted batch command requires a fresh approval"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "队列和已领取撤销、伪造会话/撤销身份各为明确行；原宿主续办撤权后重批实例由BT_L36续办准备行承接。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L36"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "session-revocation"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L36] an invalidated plan is prepared again and requires a fresh user decision"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "宿主/账号/环境/工作区/任务/生命周期/领取后权限等有限边界及并行协助环境差异直接可读；续办撤权重批和计划改变单列准备状态与事件，保留不重复扣费和新审批身份。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L36"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "session-host-scope",
+          "session-revocation"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-retry-model.unit.test.ts",
+      "cases": [
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'stopped' without creating another operation",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'stale goal' without creating another operation",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'uncertain effects' without creating another operation",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'disabled' without creating another operation",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'succeeded' without creating another operation",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'host command' without creating another operation",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'pending local command' without creating another operation",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'truncated effects' without creating another operation",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'budget' without creating another operation",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] prevents 'checking' source operations from moving into the owner workspace",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] prevents 'discussion' source operations from moving into the owner workspace",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] prevents 'explicitly isolated' source operations from moving into the owner workspace",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] rechecks the original member permission before a prepared command can run",
+        "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] binds the request to the immutable source hash"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "各拒绝前提都是明确outline行；保留无新intent/operation、隔离副本精确错误、原成员权限复核与源requestHash绑定。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L34"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "retry-source-hash",
+          "retry-isolated-source"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-session-model.unit.test.ts",
+      "cases": [
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L35] approves a distinct next command while retaining exact per-operation plans and charges",
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L35] keeps allow-once scoped to one command"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "负责人不同计划、仅本次、普通协助共享、已等待并行协助接纳分别为明确角色/授权行，验收计划、scope和精确命令费用。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L35"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "session-host-scope",
+          "single-receipt"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-session-model.unit.test.ts",
+      "cases": [
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L36] requests a fresh decision on 'host' mismatch",
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L36] requests a fresh decision on 'account' mismatch",
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L36] requests a fresh decision on 'environment' mismatch",
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L36] cannot reuse a grant for another workspace or independent task",
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L36] clears scope on STOP",
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L36] clears scope on EXHAUSTED",
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L36] clears scope on RECOVER",
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L36] clears scope when explicitly continuing a waiting round",
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L36] clears scope on goal change",
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L36] rejects a launch when permission is revoked after the operation was claimed"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "宿主/账号/环境/工作区/任务/生命周期/领取后权限等有限边界及并行协助环境差异直接可读；续办撤权重批和计划改变单列准备状态与事件，保留不重复扣费和新审批身份。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L36"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "session-host-scope",
+          "session-revocation"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-session-model.unit.test.ts",
+      "cases": [
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L37] revokes queued session approvals and requires a fresh pending identity",
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L37] revocation prevents claimed commands from starting",
+        "任务会话宿主授权：真实XState、每步持久化 [BT_L37] refuses a stale revocation and model-injected grant on preparation"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "队列和已领取撤销、伪造会话/撤销身份各为明确行；原宿主续办撤权后重批实例由BT_L36续办准备行承接。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L37"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "session-revocation"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-session-scope.unit.test.ts",
+      "cases": [
+        "任务会话宿主授权在成员之间的范围 [BT_L35] lets the same-task helper reuse its owner grant and charges the helper command once",
+        "任务会话宿主授权在成员之间的范围 [BT_L35] adopts an already waiting parallel helper command when the owner allows this session"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "负责人不同计划、仅本次、普通协助共享、已等待并行协助接纳分别为明确角色/授权行，验收计划、scope和精确命令费用。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L35"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "session-host-scope",
+          "single-receipt"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-session-scope.unit.test.ts",
+      "cases": [
+        "任务会话宿主授权在成员之间的范围 [BT_L36] leaves a parallel helper pending when its prepared host environment differs"
+      ],
+      "disposition": "migrated_to_direct_gherkin",
+      "boundary": "direct-gherkin",
+      "reason": "宿主/账号/环境/工作区/任务/生命周期/领取后权限等有限边界及并行协助环境差异直接可读；续办撤权重批和计划改变单列准备状态与事件，保留不重复扣费和新审批身份。 这些是有限可观察的具体前提/事件/结果，场景大纲可以清楚表达；真实XState、纯函数、运行速度或原BT关联均不足以保留重复unit入口。先直接BDD通过并完成真实代码回归注入，再删除unit包装。",
+      "btIds": [
+        "BT_L36"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "assertionLocations": [
+          "tests/bdd/host-approval.steps.ts",
+          "tests/bdd/host-session.steps.ts",
+          "tests/bdd/host-retry.steps.ts",
+          "tests/bdd/host-retry-queue.steps.ts",
+          "tests/bdd/host-retry-contract.steps.ts",
+          "tests/bdd/host-capabilities.steps.ts"
+        ],
+        "representativeGuardControls": [
+          "session-host-scope",
+          "session-revocation"
+        ],
+        "sensitivityLimit": "真实负对照检验相关授权/恢复/能力守卫的代表回归，不声称逐个原断言都具有单独mutation证明；全部原保护逐项由直接场景断言承接。"
+      }
+    },
+    {
+      "file": "tests/host-session.test.ts",
+      "cases": [
+        "任务会话宿主授权接线：真实HTTP、SQLite及宿主进程 [BT_L37] denies cross-origin grants and revocations, unknown decisions and model-supplied grants"
+      ],
+      "disposition": "migrate_pure_assertion_group_retain_integration",
+      "boundary": "mixed-integration-and-pure-protocol",
+      "assertionGroups": [
+        {
+          "name": "validLocalAction rejects model-supplied sessionGrantId",
+          "disposition": "migrated_to_direct_gherkin",
+          "target": "BT_L37 网页用户撤销行的模型伪造授权字段，以及伪造会话身份行的真实LOCAL_APPROVAL_REQUIRED拒绝"
+        }
+      ],
+      "reason": "仅移除混合HTTP用例内独立纯协议断言；原真实HTTP跨来源授权/撤销、未知决定和伪造grant拒绝继续执行。该畸形授权字段是明确可读场景输入，不构成独立单测例外。",
+      "btIds": [
+        "BT_L37"
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/27_host_cli_approval.feature features/30_host_capabilities.feature --import 'tests/bdd/*.ts' --format summary",
+      "evidence": {
+        "report": "docs/testing/kej-100/host-evidence.json",
+        "directRuns": [
+          "directBeforeRemoval",
+          "directAfterRemoval"
+        ],
+        "representativeGuardControls": [
+          "session-revocation"
+        ],
+        "integrationRetained": true
+      }
+    }
+  ]
+}

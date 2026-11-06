@@ -9,7 +9,10 @@ for(const variant of ['unchanged','args','requestHash','workId','epoch','goalVer
  const dir=mkdtempSync(join(tmpdir(),'authority-digest-')),source=join(dir,'source'),executable=join(dir,'fixture');mkdirSync(source);writeFileSync(executable,'#!/bin/sh\nexit 0\n',{mode:0o755});const commandEnv={[executable]:{FORMAL_FIXTURE_VALUE:'one'}};let runtime;
  try{
   runtime=await LocalRuntime.create({dataRoot:join(dir,'data'),workspaceRoot:source,skillRoots:[],acquireServiceLock:false,clock:()=>1,commandEnv,backend:{available:false,async execute(){throw Error('Sandbox not used');}}});
-  const work=structuredClone(initialTask(localModelInput()).context.intents[0]);work.attempt=1;work.status='inflight';work.deadline=1000;
+  const context=initialTask(localModelInput()).context;
+  assert.equal(context.sourceArtifact,undefined,'Authority:slice:source revisions are outside this model');
+  assert(!context.intents.some(w=>w.kind==='interpretation'),'Authority:slice:no interpretation or capacity planning');
+  const work=structuredClone(context.intents[0]);assert.equal(work.kind,'owner','Authority:slice:owner runtime input');work.attempt=1;work.status='inflight';work.deadline=1000;
   const op={id:'op',namespace:'a'.repeat(64),requestHash:'b'.repeat(64),workspaceId:runtime.workspaceId(work,'a'.repeat(64)),sessionId:'preparation',status:'claimed',parentAttempt:1,attempt:1,createdAt:0,action:{type:'runCli',execution:'host',executable,args:[],reason:'formal'}};
   let reachedLaunch=0;const stopBeforeSpawn=()=>{reachedLaunch++;throw Error('Deliberate gate: no fixture command is spawned');};
   const prepared=await runtime.execute(work,op,AbortSignal.timeout(10000),stopBeforeSpawn);assert.equal(prepared.result.code,'HOST_APPROVAL_REQUIRED');assert(prepared.approval);assert.equal(reachedLaunch,0);

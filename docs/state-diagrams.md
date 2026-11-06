@@ -1221,3 +1221,72 @@ stateDiagram-v2
 
 ### 审查原文引用（BT_F26）
 类型：DELIVER固定材料的纯投影；沿用BT_F24状态路径。JSON元数据之外同时冻结question/expected/answer及附件正文的原文片段视图，供逐字引用。模型引文不做转义修复、去空白或模糊匹配。旧意图无原文视图时不事后添加。相关真实模型路径先复验再接入。
+
+
+## 跨任务产物引用（KEJ-98）
+
+类型：房间可信命令事务处理图；所有者 `src/engine.ts` 与 `src/source-artifact.ts`。验收 BT_A29–BT_A39，来源正文不授予调度或工具权限。
+
+```mermaid
+flowchart TD
+  U[直接用户提交] --> C{明确控制或结构化冲突}
+  C -->|控制无引用| O[既有停止继续重试人工决策路由]
+  C -->|引用与控制互斥| E[拒绝并提交回执]
+  C -->|可信文件目标或结构化引用| B{房间空闲}
+  B -->|否| E
+  B -->|是| S[同事务遍历同群成功结束任务的当前发布清单]
+  S -->|普通文件无匹配| N[既有新任务路由]
+  S -->|歧义| Q[只返回候选元数据 不创建任务]
+  Q -->|用户明确选择 新请求ID| U
+  S -->|缺失失效空正文超限非Markdown| E
+  S -->|唯一且负责人有效| F[固定身份发布信息原文及SHA256]
+  F --> T[原子提交新任务 用户消息 首个意图和回执]
+  T --> R[WorkRunner领取与执行许可后调用适配器]
+```
+
+输入仅携带 sourceTaskId/artifactId，服务端复核当前发布资格，旧版本选择失效须重新选择；创建后 sourceArtifact 与 history 分离，后续发布或历史刷新不影响固定正文。直接目标允许反引号和引号名称；引用段、代码、闲聊及明确路径不触发。等待用户的引用请求也不追加 decision。相同 ID 和完整载荷返回原回执，变更载荷拒绝；事务回滚无任务、回执或外部执行。
+
+类型：沿用真实 XState 任务阶段的上下文与交付事实图；所有者 `src/task/context.ts`、`src/task/operations.ts`、`src/task/delivery.ts`。没有新增任务阶段或执行入口。
+
+```mermaid
+stateDiagram-v2
+  [*] --> running: 初始化 [可信来源已固定] / 克隆sourceArtifact 要求新Markdown
+  running --> interpreting: 待解析输入 / 保存固定来源和原始用户要求的解析意图
+  interpreting --> running: INTERPRETATION_RESULT [合法] / 保留同一可信来源
+  running --> running: HELP与回传 [合法工作] / 传递只读原文与现有作用域
+  running --> running: DELIVER [缺少本任务非空Markdown或引用旧ID] / 有界修订或失败
+  running --> checking: DELIVER [机械门禁通过] / 固定候选和同版本来源原文
+  checking --> ended: CHECK_RESULT [新增要求与保留内容全部通过] / 仅发布本任务文档
+  checking --> running: CHECK_RESULT [可修订] / 沿现有有界修订
+  running --> stopping: STOP / 取消工作和拒绝迟到结果
+  stopping --> ended: 既有结算 / 保留固定来源
+```
+
+sourceArtifact 为可选只读输入，旧快照缺字段维持原行为；规则和模型解析均使用同一来源，模型不能覆盖来源。UTF-8 原文上限32768字节，角色输入完整传递，历史排除同份原文；上下文超限明确失败，不截断摘要或依赖宿主CLI。独立检查固定本轮原始要求、同份来源和候选，正文作为数据而非指令。旧来源 ID 不能成为本轮候选、背景或 replacesArtifactId；产物由本任务保存并生成新 artifactId/documentId，至少一份非空Markdown通过既有检查才能发布。停止、失败、重试、重启、迟到结果、epoch/goalVersion 与执行意图提交领取回传均沿既有边界。源任务的快照、历史、发布指针和下载内容不修改。
+
+
+## MapReduce 分片容量（KEJ-99）
+
+类型：真实XState任务中理解意图与讨论上下文的生命周期细化；所有者 `src/task/input.ts`、`src/task/map-reduce.ts`、`src/task/reducer.ts`，验收 BT_Q07–BT_Q12 并复验 BT_Q02–BT_Q05。不增加任务阶段、成员授权或并发机制。
+
+```mermaid
+flowchart TD
+  P[待理解输入] --> I[prepareInterpretation / 生成持久理解意图和预扣本次费用的容量]
+  I --> C[CLAIM / 核对并扣理解费用 刷新只读maxPartitions]
+  C --> M[CONSUME与执行许可 / 调用模型 保留完整输入]
+  M -->|容量至少2| G[将全部独立输入分为2到maxPartitions片 每片可含多份文档]
+  M -->|容量0或1| N[省略分解 保留目标引用验收条件]
+  G --> V{协议与固定容量校验}
+  V -->|超限| R[既有有界修复 不应用不截断旧计划]
+  R --> M
+  V -->|合法结果| B[安全派发边界 按当前资源重算容量]
+  B -->|不能容纳全部片| O[记录原因 全部交给负责人]
+  B -->|完整容纳| D[宿主分配成员并持久化全部分片意图]
+  N --> O
+  D --> A[CLAIM及执行许可后执行 / 原始结果回传]
+  A -->|全部结算| S[一次归并 再一次负责人续办]
+```
+
+共享纯容量为 `max(0,min(8,可用非负责人成员数,剩余协助额度,剩余普通额度-2))`。可用成员排除本任务pending/inflight/uncertain的非cancel工作。预留2次普通额度对应归并与负责人续办；不承诺覆盖后续工具或修复额外请求。理解初次费用在CLAIM扣除，prepare阶段预扣1，CLAIM后用实际余额刷新；重试/修复仍走既有扣费入口。快照只读，模型不能写回容量或挑选成员。校验使用调用固定容量，派发另按当前资源重算，容量下降时保留完整计划并给出可观察原因，不slice输入或部分启动。
+
+旧意图缺maxPartitions时维持原协议范围与恢复兼容，派发必须通过当前共享守卫。普通输入无分解仍走负责人；0/1容量不发明分片。停止、目标版本、评审、讨论、迟到结果与重启边界沿用原真实XState路径。新增材料、成员派发与归并仍是事务持久化意图后领取和回传，输入理解没有执行或工具权限。模型提示要求完整分配全部文档；语义覆盖由独立检查及逐文集成断言验证，不以容量数值本身证明内容完整。

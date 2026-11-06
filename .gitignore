@@ -6,6 +6,7 @@ coverage/
 *.sqlite-wal
 test-results/
 reports/
+/work/
 .env
 .env.*
 !.env.example

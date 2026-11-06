@@ -9,6 +9,9 @@ const config=localModelInput().config;const records=[];
 function fixture(backend){
  const dir=mkdtempSync(join(tmpdir(),'authority-scope-')),file=join(dir,'state.sqlite');let store=backend==='sqlite'?new SqliteStore(file):new MemoryStore(),engine=new TeamEngine(store,config,()=>1),seq=0;
  const room='r',task='task:s';assert(engine.submit(room,{id:'s',text:'检查宿主'}).ok);let work=engine.claim(room,task,engine.pending(room,task)[0].id);assert(work);let op,session;
+ assert.equal(engine.view(room,task).context.sourceArtifact,undefined,'Authority:slice:source revisions are outside this model');
+ assert.equal(work.kind,'owner','Authority:slice:already claimed owner intent');
+ assert(!engine.view(room,task).context.intents.some(w=>w.kind==='interpretation'),'Authority:slice:no interpretation or capacity planning');
  const send=body=>engine.send(room,task,{id:`scope${++seq}`,at:1,...body});const context=()=>engine.view(room,task).context;const actual=()=>context().intents.find(w=>w.id===work.id).localOperations.find(o=>o.id===op.id);
  function prepare(change=()=>{}){op=engine.requestLocal(room,task,work.id,work.attempt,{type:'runCli',executable:'node',args:[`${seq}`],execution:'host',reason:'scope'},[],'workspace');assert(claim());const approval={id:`approval${seq}`,digest:'d'.repeat(64),status:'pending',expiresAt:900,plan:{executable:'/bin/node',args:[`${seq}`],cwd:'/task',workspaceRevision:'b'.repeat(64),executableHash:'c'.repeat(64),environmentHash:'e'.repeat(64),host:'h',account:'a',reason:'scope'}};change(approval);assert(send({type:'LOCAL_APPROVAL_REQUIRED',intentId:work.id,operationId:op.id,sessionId:session,approval,fence:work}).ok);return actual();}
  function claim(){const r=engine.claimLocal(room,task,work.id,op.id,work.attempt);if(r.response.ok)session=r.operation.sessionId;return r.response.ok;}

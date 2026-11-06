@@ -1,0 +1,201 @@
+{
+  "baseline": "docs/testing/kej-100/baseline-vitest.json",
+  "scope": "7 unit-entry files (82 original cases), plus one delegated pure configuration case from local-tools.test.ts. All are observable finite behaviors, no supplementary unit exceptions retained.",
+  "modelGate": {
+    "command": "node --import tsx tests/core-model-gate.ts",
+    "result": {
+      "status": 0,
+      "verified": 80
+    },
+    "sourceSha256": {
+      "src/task.machine.ts": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
+      "src/task/actions.ts": "78db542e7ad636342220336c2e21a7f15ec313a4bf559c6816771f0713cffda3",
+      "src/task/reducer.ts": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+      "src/local-operation.ts": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
+      "src/task/budget.ts": "0d8454f4dbf0d62ffc7a8d5c615f9ec1ebbd688a6e3136e9832af893ff32e62c",
+      "src/task/delivery.ts": "747e64b4e4372b98c93884314c688f4f6b4727ee51af3e0ca03ee656b54f407e",
+      "src/task/protocol.ts": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
+      "src/local-cli.ts": "db577455e9fb60f5d12e0cc6af6980c52eec7f8fbec0cbc3ff3a34223092e69e"
+    },
+    "trajectories": [
+      "本地保存→领取→开始→回执→原父工作续办；拒绝/收费/停止/恢复/租约边界",
+      "协调交接身份→合法领取→错误决策拒绝或有界修复→保留真实人工问题",
+      "技能搜索初次请求→搜索计费→交付检查；畸形/停止/旧目标/恢复不绕过领取",
+      "旧协议外部效果待核对→可信回执→受支持终态升级；旧检查/撤权/无迁移关系拒绝",
+      "同任务报告读取成功与外任务/独立检查越权拒绝"
+    ]
+  },
+  "directBeforeRemoval": {
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "scenarios": 82,
+    "passed": 82,
+    "failed": 0,
+    "exitCode": 0,
+    "rawReportSha256": "aa411445da118c8b2f18081995dbbb3c84e047cb9cd49bbd5b21368c7bb7f8f7"
+  },
+  "directAfterRemoval": {
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_L70 or @BT_L71 or @BT_L72 or @BT_L73 or @BT_L74 or @BT_L75 or @BT_L76 or @BT_M33 or @BT_M34 or @BT_M35 or @BT_M36 or @BT_M32 or @BT_A70 or @BT_A71 or @BT_A60' --format progress",
+    "scenarios": 82,
+    "passed": 82,
+    "failed": 0,
+    "exitCode": 0,
+    "rawReportSha256": "d6614a87829be4b76e8e6bfd1ff1ffb7e6b070784dbfdc205b2fe57c25d0e238"
+  },
+  "typeCheck": {
+    "command": "node node_modules/typescript/bin/tsc -p tests/tsconfig.json --noEmit",
+    "status": 0
+  },
+  "negativeControls": {
+    "command": "node tests/core-contract-negative.mjs /tmp/squad-core-contract-evidence",
+    "method": "Only an isolated Node child-process module loader mutates loaded product source in memory. No product file is edited. The same direct Gherkin steps execute; syntax/import/timeouts cannot count as detection.",
+    "before": {
+      "src/local-operation.ts": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
+      "src/task/reducer.ts": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+      "src/task/budget.ts": "0d8454f4dbf0d62ffc7a8d5c615f9ec1ebbd688a6e3136e9832af893ff32e62c",
+      "src/task/delivery.ts": "747e64b4e4372b98c93884314c688f4f6b4727ee51af3e0ca03ee656b54f407e",
+      "src/task/protocol.ts": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
+      "src/local-cli.ts": "db577455e9fb60f5d12e0cc6af6980c52eec7f8fbec0cbc3ff3a34223092e69e"
+    },
+    "after": {
+      "src/local-operation.ts": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
+      "src/task/reducer.ts": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+      "src/task/budget.ts": "0d8454f4dbf0d62ffc7a8d5c615f9ec1ebbd688a6e3136e9832af893ff32e62c",
+      "src/task/delivery.ts": "747e64b4e4372b98c93884314c688f4f6b4727ee51af3e0ca03ee656b54f407e",
+      "src/task/protocol.ts": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
+      "src/local-cli.ts": "db577455e9fb60f5d12e0cc6af6980c52eec7f8fbec0cbc3ff3a34223092e69e"
+    },
+    "productUnchanged": true,
+    "results": [
+      {
+        "mode": "local",
+        "tag": "BT_L70",
+        "status": 1,
+        "detected": true,
+        "assertions": [
+          "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n3 !== 2\n\n    + expected - actual\n\n    -3\n    +2",
+          "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n3 !== 2\n\n    + expected - actual\n\n    -3\n    +2",
+          "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n3 !== 2\n\n    + expected - actual\n\n    -3\n    +2",
+          "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n3 !== 2\n\n    + expected - actual\n\n    -3\n    +2"
+        ],
+        "mutation": "本地操作重复收费：普通额度增加2而非1",
+        "applied": [
+          {
+            "mode": "local",
+            "suffix": "/src/local-operation.ts",
+            "originalHash": "3bdf1d11b37ccca6674ca8ed7a812e4230da009c00e0c450ebc9a329a5af52b6",
+            "mutatedHash": "029ac92a3c455074178499bcb06b7e6386b14af97ea259fd3112e0e1b99582ba"
+          }
+        ]
+      },
+      {
+        "mode": "coordination",
+        "tag": "BT_M33",
+        "status": 1,
+        "detected": true,
+        "assertions": [
+          "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n'B' !== 'A'\n\n    + expected - actual\n\n    -B\n    +A"
+        ],
+        "mutation": "领取协调工作时覆盖已经保存的负责人身份",
+        "applied": [
+          {
+            "mode": "coordination",
+            "suffix": "/src/task/reducer.ts",
+            "originalHash": "d2f5adec456e8ab427dac663d052e4a6f89cc7a8795936a54615aa263ce5d04d",
+            "mutatedHash": "36726c8cf15daccbd93e7f1a26a101eb469871527fc886c9775bfe72f511405a"
+          }
+        ]
+      },
+      {
+        "mode": "search",
+        "tag": "BT_M36",
+        "status": 1,
+        "detected": true,
+        "assertions": [
+          "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'OK'\n- 'BUDGET_EXHAUSTED'\n\n    + expected - actual\n"
+        ],
+        "mutation": "放行超出普通额度的负责人请求",
+        "applied": [
+          {
+            "mode": "search",
+            "suffix": "/src/task/budget.ts",
+            "originalHash": "f0e6214b5abda9c375b4e90d024b4205bd9c3a17afa76096086fd4eec5c6cc6a",
+            "mutatedHash": "85b83f40f1914f2f0064694f62199031a15dd34c45aea82a1ee9ee61443661e1"
+          }
+        ]
+      },
+      {
+        "mode": "artifact",
+        "tag": "BT_A60",
+        "status": 1,
+        "detected": true,
+        "assertions": [
+          "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'OK'\n- 'ARTIFACT_UNAVAILABLE'\n\n    + expected - actual\n"
+        ],
+        "mutation": "向任意产物ID返回本任务首份报告而绕过读取权限",
+        "applied": [
+          {
+            "mode": "artifact",
+            "suffix": "/src/task/delivery.ts",
+            "originalHash": "974426030753d1126fc4f84a5686814a6389c4fffbd23f7d79805db23a14d194",
+            "mutatedHash": "c88550af93500a9d2e58428be98600522ea24d4e10eea6a95749a0dc5a548b9a"
+          }
+        ]
+      },
+      {
+        "mode": "protocol",
+        "tag": "BT_A70",
+        "status": 1,
+        "detected": true,
+        "assertions": [
+          "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'OK'\n- 'INCOMPATIBLE_EXECUTION'\n\n    + expected - actual\n"
+        ],
+        "mutation": "把仍活动的旧任务当作已结算并允许升级",
+        "applied": [
+          {
+            "mode": "protocol",
+            "suffix": "/src/task/protocol.ts",
+            "originalHash": "64a988183a42b6fd102de314d129b68819125479b08faea15e526b88a24d28e0",
+            "mutatedHash": "2ec7a009486d585e5d86fad632d2b0d440b9d633310a046fcd283c0be451ece3"
+          }
+        ]
+      },
+      {
+        "mode": "capacity",
+        "tag": "BT_M32",
+        "status": 1,
+        "detected": true,
+        "assertions": [
+          "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'checking'\n- 'ended'\n\n    + expected - actual\n"
+        ],
+        "mutation": "对确定永久检查失败继续授权重试",
+        "applied": [
+          {
+            "mode": "capacity",
+            "suffix": "/src/task/budget.ts",
+            "originalHash": "f0e6214b5abda9c375b4e90d024b4205bd9c3a17afa76096086fd4eec5c6cc6a",
+            "mutatedHash": "e300ee7db3b66ed68b68a55668b4796e49a8f347088119bb2fcfe2b174a708e4"
+          }
+        ]
+      },
+      {
+        "mode": "sandbox",
+        "tag": "BT_L76",
+        "status": 1,
+        "detected": true,
+        "assertions": [
+          "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\ntrue !== false\n\n    + expected - actual\n\n    -true\n    +false"
+        ],
+        "mutation": "放开嵌套用户命名空间",
+        "applied": [
+          {
+            "mode": "sandbox",
+            "suffix": "/src/local-cli.ts",
+            "originalHash": "9c5964431948f9bbcea9f268b1a541cacc3692cf445e21a9571a43e2c0a34d91",
+            "mutatedHash": "90c714e282f171393dc1ecf3214fdc5717b4a303f46f0eb471d736cca290647b"
+          }
+        ]
+      }
+    ],
+    "scope": "Seven representative independent regressions prove these direct assertions are sensitive to authority, quota, identity, recovery, bounded-check and policy changes. They are not exhaustive mutation coverage of every original case or event ordering."
+  }
+}

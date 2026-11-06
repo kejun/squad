@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { act, createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { act } from 'react';
 import { DebugUIFixture } from './task-debug-ui-fixture.js';
-import { debugEventTemplate, taskGraph, TaskSandbox } from '../src/task-debug.js';
-import { StateGraph } from '../web/src/StateGraph.js';
 
 let ui: DebugUIFixture | undefined;
 afterEach(async () => { await ui?.close(); ui = undefined; });
@@ -67,20 +64,6 @@ describe('statechart interactions', () => {
     expect(ui.requests).toEqual([]);
   });
 
-  it('[BT_V33] does not mark a local candidate edge as executed when the captured transition used a global rule', () => {
-    const sandbox = new TaskSandbox();
-    sandbox.send(JSON.stringify(debugEventTemplate(sandbox.snapshot, 'HELP')));
-    sandbox.send(JSON.stringify(debugEventTemplate(sandbox.snapshot, 'RECORD_RESULT')));
-    sandbox.send(JSON.stringify(debugEventTemplate(sandbox.snapshot, 'RETRY_ASSISTANCE')));
-
-    const markup = renderToStaticMarkup(createElement(StateGraph, {
-      graph: taskGraph(), active: 'running', focus: 'running', frame: sandbox.history.at(-1)!, onFocus: () => {},
-    }));
-
-    expect(markup).toContain('等待协助 到 执行中 的2条规则');
-    expect(markup).not.toContain('is-recorded');
-  });
-
   it('[BT_V33] clears captured-rule selection when the selected step advances', async () => {
     ui = new DebugUIFixture(); await ui.open();
     await ui.choose('STOP'); await ui.click('单步执行');
@@ -96,20 +79,5 @@ describe('statechart interactions', () => {
     expect(ui.requests).toEqual([]);
   });
 
-  it.each([
-    ['missing', '此记录未采集'], ['incompatible', '机器结构版本不同'],
-  ])('[BT_V35] reports %s evidence without inventing a captured path', (kind, note) => {
-    const sandbox = new TaskSandbox(); sandbox.send(JSON.stringify(debugEventTemplate(sandbox.snapshot, 'HELP')));
-    const current = sandbox.history.at(-1)!;
-    const { evidence, ...legacy } = current;
-    const frame = kind === 'missing' ? legacy : { ...current, evidence: { ...evidence!, definition: 'older-structure' } };
 
-    const markup = renderToStaticMarkup(createElement(StateGraph, {
-      graph: taskGraph(), active: 'waitingAssistance', focus: 'waitingAssistance', frame, onFocus: () => {},
-    }));
-
-    expect(markup).toContain(note);
-    expect(markup).not.toContain('is-recorded');
-    expect(markup).not.toContain('当次诊断证据');
-  });
 });

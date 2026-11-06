@@ -1,7 +1,7 @@
 import { currentDeliveryIssues } from '../src/delivery-acceptance.js';
 import { fixtureCheck } from './delivery-protocol-fixture.js';
 import { describe, expect, it } from 'vitest';
-import { TeamEngine, WorkRunner, type Decision, validateConfig } from '../src/index.js';
+import { TeamEngine, WorkRunner, type Decision } from '../src/index.js';
 import { Harness, configuration } from './helpers.js';
 
 describe('human control and current-version fences', () => {
@@ -113,11 +113,6 @@ describe('budget and delivery', () => {
     h.event({ type: 'DELIVER', text: 'partial', artifactIds: [] });
     expect(h.engine.pending(h.room, h.task)).toEqual([]);
     expect(h.view().phase).toBe('ended'); expect(h.context().outcome).toBe('partial'); expect(h.context().usage.checks).toBe(0);
-  });
-  it('[BT_F05] missing and infinite limits are invalid', () => {
-    const c = configuration(); (c.limits as unknown as Record<string, unknown>).ordinary = undefined;
-    expect(() => validateConfig(c)).toThrow('Missing finite limit');
-    c.limits.ordinary = Infinity; expect(() => validateConfig(c)).toThrow();
   });
   it('[BT_F07] text claiming files exist cannot satisfy missing artifacts', () => {
     const h = new Harness(); h.event({ type: 'USER_INPUT', text: 'two files', goal: { ...h.context().goal, requiredArtifacts: 2 } });

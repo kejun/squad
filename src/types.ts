@@ -50,6 +50,17 @@ export interface Artifact {
   id: string; name: string; content: string; goalVersion: number; author?: string; workId?: string;
   documentId?: string; revision?: number; replacesArtifactId?: string;
 }
+export interface ArtifactReference { sourceTaskId: string; artifactId: string }
+/** Trusted immutable input, separate from current-task artifacts and bounded room history. */
+export interface ArtifactSource extends ArtifactReference {
+  documentId: string; revision: number; name: string; owner: string; publishedAt: number;
+  publicationRevision?: string; content: string; contentHash: string;
+}
+export type ArtifactSourceMetadata = Omit<ArtifactSource, 'content'>;
+export function artifactSourceMetadata(source: ArtifactSource): ArtifactSourceMetadata {
+  const { content: _content, ...metadata } = source;
+  return metadata;
+}
 export interface Assistance extends Fence {
   id: string; target: string; question: string; expected: string; refs: string[];
   status: 'pending' | 'running' | 'answered' | 'success' | 'partial' | 'failed' | 'timeout' | 'cancelled';
@@ -138,6 +149,7 @@ export interface TaskContext extends Fence {
   nextCheckAt: number; repeat: { fingerprint: string; count: number };
   deferredCoordination: boolean; reply: Reply;
   history?: ConversationHistory;
+  sourceArtifact?: ArtifactSource;
   review?: ReviewRound;
   discussion?: DiscussionRound;
   inputAnalyses?: InputAnalysis[];
@@ -146,7 +158,7 @@ export interface TaskContext extends Fence {
   hostRetryRequests?: HostRetryRequest[];
   hostRetryBatch?: HostRetryBatch | undefined;
 }
-export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[] }
+export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[]; sourceArtifact?: ArtifactSource }
 export interface Envelope { id: string; at: number; fence?: Fence; workId?: string; attempt?: number }
 export type Decision =
   | { action: 'continue'; reason: string }

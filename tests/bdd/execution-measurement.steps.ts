@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { After, Given, Then, When } from '@cucumber/cucumber';
+import { After, Given, Then, When, type DataTable } from '@cucumber/cucumber';
 import { OpenAICompatibleAdapter } from '../../src/model-adapter.js';
 import { WorkRunner } from '../../src/runner.js';
 import { coveredDuration, type ExecutionObservation, type MeasurementRecord } from '../../src/measurement.js';
@@ -36,6 +36,7 @@ interface MeasurementState {
   retrySourceId?: string;
   evidenceSourceId?: string;
   retryRecords?: ExecutionObservation[];
+  intervals?: readonly (readonly [number, number])[];
 }
 
 const states = new WeakMap<SpecWorld, MeasurementState>();
@@ -62,7 +63,10 @@ Given('执行记录包含已获额度、传输失败、格式失败和结果提�
     transport: async () => {
       request++;
       if (request === 1) throw new Error('私有供应商错误正文');
-      return modelResponse(request === 2 ? badModelOutput('空答案') : goodModelOutput('owner'));
+      const output = request === 2 ? badModelOutput('空答案') : goodModelOutput('owner');
+      const body = { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }],
+        ...(request === 2 ? { usage: { prompt_tokens: 0, completion_tokens: 42, total_tokens: 'unknown' } } : {}) };
+      return Response.json(body);
     },
   });
   const runner = new WorkRunner(h.engine, adapter, () => h.now, undefined, undefined, undefined, (_context, event) => records.push(event));
@@ -89,7 +93,12 @@ Then('额度授权、客户端传输、协议和结果采纳应分别统计', fu
 
 Then('缺少实际用量的请求应标为未知', function (this: SpecWorld) {
   const usage = state(this).records.flatMap(event => event.phase === 'model.usage' ? [event.usage] : []);
-  assert.deepEqual(usage, [{ input: null, output: null, total: null }, { input: null, output: null, total: null }]);
+  assert.deepEqual(usage[1], { input: null, output: null, total: null });
+});
+
+Then('实际报告为零的输入用量应保留为零且无效总量仍标为未知', function (this: SpecWorld) {
+  const usage = state(this).records.flatMap(event => event.phase === 'model.usage' ? [event.usage] : []);
+  assert.equal(usage.length, 2); assert.deepEqual(usage[0], { input: 0, output: 42, total: null });
 });
 
 Given('两个已结束的观测区间部分重叠并且随后读回原操作回执', async function (this: SpecWorld) {
@@ -113,12 +122,17 @@ Given('两个已结束的观测区间部分重叠并且随后读回原操作回�
 });
 
 When('我计算这些区间实际覆盖的耗时', function (this: SpecWorld) {
-  state(this).coveredMs = coveredDuration([[0, 30], [10, 40]]);
+  const s = state(this); s.coveredMs = coveredDuration(s.intervals ?? [[0, 30], [10, 40]]);
 });
 
 Then('重叠时段只计一次', function (this: SpecWorld) {
   assert.equal(state(this).coveredMs, 40);
 });
+
+Given('已结束的观测区间按以下顺序到达', function (this: SpecWorld, table: DataTable) {
+  states.set(this, { records: [], intervals: table.hashes().map(row => [Number(row.开始), Number(row.结束)] as const) });
+});
+Then('重叠与分离的全部时段合计应为{int}', function (this: SpecWorld, expected: number) { assert.equal(state(this).coveredMs, expected); });
 
 Then('原操作回执的读取不计为新进程', function (this: SpecWorld) {
   const s = state(this);

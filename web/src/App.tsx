@@ -35,11 +35,12 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
-import type { Message } from "../../src/types";
+import type { ArtifactReference, ArtifactSourceMetadata, Message } from "../../src/types";
+import { parseArtifactRequest } from "../../src/artifact-request";
 import { compactMessage } from "../../src/presentation";
 import type { WebAgent, WebAssistance } from "../../src/web/contracts";
 import { AssistanceRetry, assistanceRetrySubmission } from "./AssistanceRetry";
-import { api, useWorkspace } from "./api";
+import { ApiError, api, useWorkspace } from "./api";
 import { ResultLinks, type DetailTarget } from "./ResultLinks";
 import { PanelSeparator, usePanelLayout } from "./PanelLayout";
 import { Logo } from "./Logo";
@@ -96,6 +97,8 @@ export function Workspace({
   const [mentionsByRoom, setMentionsByRoom] = useState<
     Record<string, string[]>
   >({});
+  const [sourcesByRoom, setSourcesByRoom] = useState<Record<string, (ArtifactReference & { name: string }) | undefined>>({});
+  const [candidatesByRoom, setCandidatesByRoom] = useState<Record<string, ArtifactSourceMetadata[]>>({});
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionIndex, setMentionIndex] = useState(0);
   const [sending, setSending] = useState(false);
@@ -114,11 +117,13 @@ export function Workspace({
   const [showScrollDown, setShowScrollDown] = useState(false);
   const sendIdentity = useRef<{
     roomId: string;
-    text: string;
+    payload: string;
     id: string;
   } | null>(null);
   const draftKey = roomId ?? "new";
   const text = drafts[draftKey] ?? "";
+  const sourceArtifact = sourcesByRoom[draftKey];
+  const sourceCandidates = candidatesByRoom[draftKey] ?? [];
   const agents = snapshot?.agents ?? [];
   const task = snapshot?.tasks.find(
     (task) => task.id === snapshot.activeTaskId,
@@ -130,8 +135,25 @@ export function Workspace({
   const mentionCandidates = activeAgents.filter((agent) =>
     `${agent.id} ${agent.name}`.toLowerCase().includes(query),
   );
-  const setText = (value: string) =>
+  const setText = (value: string) => {
     setDrafts((previous) => ({ ...previous, [draftKey]: value }));
+    setCandidatesByRoom((previous) => ({ ...previous, [draftKey]: [] }));
+  };
+  const selectSource = (source: ArtifactReference & { name: string }) => {
+    if (sending) return;
+    setSourcesByRoom(previous => ({ ...previous, [draftKey]: source }));
+    setCandidatesByRoom(previous => ({ ...previous, [draftKey]: [] }));
+    sendIdentity.current = null;
+    setError("");
+    textarea.current?.focus();
+  };
+  const removeSource = () => {
+    if (sending) return;
+    setSourcesByRoom(previous => ({ ...previous, [draftKey]: undefined }));
+    setCandidatesByRoom(previous => ({ ...previous, [draftKey]: [] }));
+    sendIdentity.current = null;
+    textarea.current?.focus();
+  };
 
   useEffect(() => {
     setMentionOpen(false);
@@ -249,26 +271,28 @@ export function Workspace({
           [targetRoom]: previous[draftKey] ?? [],
         }));
       }
-      const identity = sendIdentity.current;
-      const id =
-        identity?.roomId === targetRoom && identity.text === content
-          ? identity.id
-          : crypto.randomUUID();
-      sendIdentity.current = { roomId: targetRoom, text: content, id };
-      await api(`/rooms/${targetRoom}/messages`, {
-        id,
+      const isRevision = !continueTask && (!!sourceArtifact || !!parseArtifactRequest(content));
+      const payload = {
         text: content,
         mentions: (mentionsByRoom[draftKey] ?? []).filter((id) =>
           content.split(/\s+/).includes(`@${id}`),
         ),
+        ...(!continueTask && sourceArtifact ? { sourceArtifact: { sourceTaskId: sourceArtifact.sourceTaskId, artifactId: sourceArtifact.artifactId } } : {}),
         ...(continueTask
           ? { intent: "continue", replyToTaskId: latestTask?.id }
-          : task?.phase === "waitingHuman"
+          : !isRevision && task?.phase === "waitingHuman"
             ? { intent: "decision", replyToTaskId: task.id }
             : {}),
-      });
+      };
+      const serialized = JSON.stringify(payload);
+      const identity = sendIdentity.current;
+      const id = identity?.roomId === targetRoom && identity.payload === serialized ? identity.id : crypto.randomUUID();
+      sendIdentity.current = { roomId: targetRoom, payload: serialized, id };
+      await api(`/rooms/${targetRoom}/messages`, { id, ...payload });
       sendIdentity.current = null;
       if (!continueTask) {
+        setSourcesByRoom(previous => ({ ...previous, [draftKey]: undefined, [targetRoom]: undefined }));
+        setCandidatesByRoom(previous => ({ ...previous, [draftKey]: [], [targetRoom]: [] }));
         setDrafts((previous) => ({
           ...previous,
           [draftKey]: "",
@@ -286,6 +310,10 @@ export function Workspace({
       });
       textarea.current?.focus();
     } catch (error) {
+      if (error instanceof ApiError) {
+        sendIdentity.current = null;
+        setCandidatesByRoom(previous => ({ ...previous, [draftKey]: error.sourceCandidates ?? [] }));
+      }
       setError((error as Error).message);
     } finally {
       setSending(false);
@@ -791,6 +819,16 @@ export function Workspace({
                 </Button>
               </div>
             )}
+            {sourceCandidates.length > 0 && <div className="source-candidates" aria-label="选择来源产物">
+              {sourceCandidates.map(source => <Button key={`${source.sourceTaskId}:${source.artifactId}`} className="result-link"
+                aria-label={`选择来源 ${source.name} ${source.sourceTaskId}`} disabled={sending || !connected} onClick={() => selectSource(source)}>
+                {source.name} · {source.sourceTaskId} · {agents.find(agent => agent.id === source.owner)?.name ?? source.owner} · {new Date(source.publishedAt).toLocaleString()}
+              </Button>)}
+            </div>}
+            {sourceArtifact && <div className="source-artifact-reference">
+              <span>来源 {sourceArtifact.name}</span>
+              <Button className="icon-button" aria-label="移除产物引用" disabled={sending} onClick={removeSource}><X size={14} /></Button>
+            </div>}
             <div className={`composer ${mentionOpen ? "mention-is-open" : ""}`}>
               <textarea
                 ref={textarea}
@@ -925,6 +963,7 @@ export function Workspace({
               connected={connected}
               target={detailTarget ?? undefined}
               onAgent={openAgent}
+              onReference={connected && !sending ? source => { selectSource(source); setDetailOpen(false); } : undefined}
               onClose={closeDetails}
               />
               </Suspense>

@@ -69,6 +69,9 @@ function setup(backend, base) {
     // branches cannot silently change the abstraction under this replay.
     assert.equal(c.config.version, config.version, 'Slice: execution protocol changed');
     assert.equal(c.config.toolVersion, config.toolVersion, 'Slice: tool protocol changed');
+    assert.equal(c.sourceArtifact, undefined, 'Slice: unexpected cross-task source artifact');
+    assert.equal(c.intents.some(work => work.kind === 'interpretation'), false, 'Slice: model interpretation is outside the handoff slice');
+    assert.equal(c.inputAnalyses?.some(input => input.source !== 'rule') ?? false, false, 'Slice: inputs must remain rule-resolved');
     assert.equal(c.candidate, null, 'Slice: unexpected delivery candidate');
     assert.equal(c.publishedDelivery, undefined, 'Slice: unexpected publication');
     assert.equal(c.discussion, undefined, 'Slice: unexpected parallel discussion');

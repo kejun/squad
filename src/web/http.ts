@@ -137,6 +137,16 @@ export function createWebServer(
             throw new WebError(400, "任务标识不正确。");
           if (data.retryAssistanceId !== undefined && (typeof data.retryAssistanceId !== "string" || !data.retryAssistanceId || data.retryAssistanceId.length > 512))
             throw new WebError(400, "协助标识不正确。");
+          if (data.sourceArtifact !== undefined) {
+            const source = data.sourceArtifact;
+            if (!source || typeof source !== 'object' || Array.isArray(source)
+              || Object.keys(source).some(key => !['sourceTaskId', 'artifactId'].includes(key))
+              || !['sourceTaskId', 'artifactId'].every(key => {
+                const value = (source as Record<string, unknown>)[key];
+                return typeof value === 'string' && value.length > 0 && value.length <= 512;
+              })) throw new WebError(400, '产物引用格式不正确，请重新选择来源。');
+            if (data.extraOrdinary !== undefined) throw new WebError(400, '产物引用不能与任务额度控制同时提交。');
+          }
           const input: Submission = {
             id: data.id,
             text: data.text,
@@ -148,6 +158,7 @@ export function createWebServer(
               ? { replyToTaskId: data.replyToTaskId }
               : {}),
             ...(typeof data.retryAssistanceId === "string" ? { retryAssistanceId: data.retryAssistanceId } : {}),
+            ...(data.sourceArtifact ? { sourceArtifact: data.sourceArtifact as Submission['sourceArtifact'] & object } : {}),
           };
           return json(res, service.submit(roomId, input));
         }
@@ -177,6 +188,10 @@ export function createWebServer(
         json(
           res,
           {
+            ...(error instanceof WebError && error.commandResult ? {
+              code: error.commandResult.code,
+              ...(error.commandResult.sourceCandidates ? { sourceCandidates: error.commandResult.sourceCandidates } : {}),
+            } : {}),
             error:
               error instanceof WebError
                 ? error.message

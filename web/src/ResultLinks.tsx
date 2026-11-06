@@ -1,6 +1,6 @@
 import { Button } from "@base-ui/react/button";
 import { ChevronRight, FileText } from "lucide-react";
-import type { Message } from "../../src/types";
+import type { Artifact, Message } from "../../src/types";
 import type { RoomSnapshot, WebTask } from "../../src/web/contracts";
 import { compactMessage } from "../../src/presentation";
 
@@ -22,6 +22,11 @@ export function taskArtifacts(task?: WebTask) {
   if (!task.currentArtifactIds) return { current: reports, history: [] };
   const selected = new Set(task.currentArtifactIds);
   return { current: reports.filter(artifact => selected.has(artifact.id)), history: reports.filter(artifact => !selected.has(artifact.id)) };
+}
+
+export function canReferenceArtifact(task: WebTask | undefined, artifact: Artifact) {
+  return task?.phase === "ended" && task.outcome === "complete" && /\.(?:md|markdown)$/i.test(artifact.name)
+    && !!artifact.content.trim() && !!task.currentArtifactIds?.includes(artifact.id);
 }
 
 export function artifactsForAgent(snapshot: RoomSnapshot | null, agentId: string) {

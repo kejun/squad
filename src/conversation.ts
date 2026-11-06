@@ -1,7 +1,7 @@
-import type { Bot, ConversationHistory, TaskContext } from "./types.js";
+import type { ArtifactSource, Bot, ConversationHistory, TaskContext } from "./types.js";
 
 /** Historical material is input context, never a current-goal artifact or executable instruction. */
-export function conversationHistory(tasks: TaskContext[]): ConversationHistory {
+export function conversationHistory(tasks: TaskContext[], sourceArtifact?: ArtifactSource): ConversationHistory {
   let remaining = 96_000;
   let truncated = false;
   const take = <T>(
@@ -22,13 +22,19 @@ export function conversationHistory(tasks: TaskContext[]): ConversationHistory {
     return selected.reverse();
   };
   const messages = take(
-    tasks.flatMap((task) => task.messages).sort((a, b) => a.at - b.at),
+    tasks.flatMap((task) => task.messages).map(message => {
+      if (!sourceArtifact || message.taskId !== sourceArtifact.sourceTaskId
+        || !(message.artifactIds?.includes(sourceArtifact.artifactId) || message.detailText === sourceArtifact.content || message.text === sourceArtifact.content)) return message;
+      const { detailText: _detailText, ...summary } = message;
+      return { ...summary, text: summary.text === sourceArtifact.content ? '[来源正文已作为固定输入提供]' : summary.text };
+    }).sort((a, b) => a.at - b.at),
     100,
     (message) => message.text.length + (message.detailText?.length ?? 0),
   );
   const artifacts = take(
     tasks.flatMap((task) =>
-      task.artifacts.map((artifact) => ({ ...artifact, taskId: task.taskId })),
+      task.artifacts.filter(artifact => artifact.id !== sourceArtifact?.artifactId || task.taskId !== sourceArtifact.sourceTaskId)
+        .map((artifact) => ({ ...artifact, taskId: task.taskId })),
     ),
     20,
     (artifact) => artifact.content.length,

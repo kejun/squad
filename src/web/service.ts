@@ -6,7 +6,8 @@ import { isSavedRead, localAwaitingApproval } from '../local-operation.js';
 import { findHostRetry, hostRetryProblem } from '../host-retry.js';
 import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-import { TeamEngine, type Submission } from "../engine.js";
+import { TeamEngine, type CommandResult, type Submission } from "../engine.js";
+import { artifactSourceMetadata } from '../types.js';
 import { assistanceRetryProblem } from "../task.machine.js";
 import { retryableAssistance, retryProblemText } from "../assistance-retry.js";
 import { OpenAICompatibleAdapter } from "../model-adapter.js";
@@ -38,6 +39,7 @@ export class WebError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly commandResult?: CommandResult,
   ) {
     super(message);
   }
@@ -259,6 +261,7 @@ export class WebService {
           checks: c.config.limits.checks,
         },
         artifacts: c.artifacts,
+        ...(c.sourceArtifact ? { sourceArtifact: artifactSourceMetadata(c.sourceArtifact) } : {}),
         ...(currentArtifactIds ? { currentArtifactIds } : {}),
         ...(deliveryGaps.length ? { deliveryGaps } : {}),
         board: c.board,
@@ -384,7 +387,7 @@ export class WebService {
       throw new WebError(400, "点名的成员不存在。");
     const first = this.engine.timeline(roomId).length === 0;
     const result = this.engine.submit(roomId, input);
-    if (!result.ok) throw new WebError(409, result.detail);
+    if (!result.ok) throw new WebError(409, result.detail, result);
     if (result.taskId && this.engine.view(roomId, result.taskId)?.context.stopped) {
       void this.drainCancellation(roomId, result.taskId).catch(error => this.hostError(roomId, error));
     }

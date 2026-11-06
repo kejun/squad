@@ -1,0 +1,64 @@
+{
+  "scope": "tests outside the original unit entry; exact original fullNames appear in other.json, delegated cases remain primary there once",
+  "directAcceptance": {
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_task_model_refactor.feature features/35_configuration_protocol.feature --import 'tests/bdd/*.ts' --format summary",
+    "exitCode": 0,
+    "scenariosPassed": 125,
+    "failed": 0,
+    "stepsPassed": 4931,
+    "features": {
+      "features/35_configuration_protocol.feature": 63,
+      "features/26_task_model_refactor.feature": 62
+    },
+    "log": "/workspace/work/kej-100/other/direct-bdd.log",
+    "originalPureModelCases": 55,
+    "modelMapping": "N01 eight seeds; N02/N03 all twelve traces including added 协调与澄清; N04 exact graph/guard/microstep/diagnostic comparison; N06 eight work kinds; N07 concurrent actors; N08 three stop timings; N09 four recovery forms; N10 seven denials; N14 ten old-attempt event shapes; N15 cancelling intermediate model state plus real runner cancellation race",
+    "assertionPlacement": "35 When captures actual values/errors once; Then performs concrete original native assertions on captured observations. 26 Then compares actual returned lifecycle stages, reply codes, before/after usage, preserved goal, graph and per-step pure/diagnostic digests. No done-only acceptance steps remain in migrated model paths."
+  },
+  "independentModelGate": {
+    "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture node --import tsx tests/compatibility-model-gate.ts",
+    "exitCode": 0,
+    "result": {
+      "originalModelContractsPassed": 55,
+      "actorCases": 34,
+      "legacyCases": 21,
+      "invalidLifecycleDetected": true,
+      "legacyExtensionFaultInjections": "preserved and passed"
+    },
+    "log": "/workspace/work/kej-100/compatibility-model-gate.log",
+    "preservedSources": [
+      "tests/task-actor-model-fixture.ts",
+      "tests/task-model-contract.ts",
+      "tests/fixtures/task-model-v1.json"
+    ],
+    "reusableRunner": "tests/compatibility-model-gate.ts"
+  },
+  "negativeControls": [
+    {
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx --input-type=module -e 'import assert from '\"'\"'node:assert/strict'\"'\"';\nconst { CloudflareWebTools } = await import(process.cwd() + '\"'\"'/src/index.ts'\"'\"');\nconst { verifyWebBoundaryContract } = await import(process.cwd() + '\"'\"'/tests/configuration-protocol-fixture.ts'\"'\"');\nconst original = CloudflareWebTools.prototype.search;\nCloudflareWebTools.prototype.search = async function (...args) {\n  const result = await original.apply(this, args);\n  result.output.items.push(structuredClone(result.output.items[0]));\n  return result;\n};\ntry {\n  const observed = await verifyWebBoundaryContract('\"'\"'搜索返回九项长摘要'\"'\"', '\"'\"'返回五项且可读摘要有界，同时保留请求标识和供应商'\"'\"');\n  let failure;\n  try { observed.verify(); } catch (error) { failure = error; }\n  assert(failure instanceof assert.AssertionError); assert.equal(failure.actual, 6); assert.equal(failure.expected, 5);\n  console.log(JSON.stringify({negativeControl:'\"'\"'search-public-result-appended-with-sixth-item'\"'\"',detected:true,phase:'\"'\"'Then saved-output assertion'\"'\"',actual:failure.actual,expected:failure.expected,restored:'\"'\"'prototype in finally; no worktree mutation'\"'\"'}));\n} finally { CloudflareWebTools.prototype.search = original; }\n'",
+      "exitCode": 0,
+      "difference": "In the isolated Node process, the actual CloudflareWebTools.search result gains a sixth item after the real SDK call; no assertion text or feature is changed.",
+      "expectedFailure": "Then native assert.equal(observed output.items.length, 5) detects actual 6, expected 5.",
+      "result": {
+        "negativeControl": "search-public-result-appended-with-sixth-item",
+        "detected": true,
+        "phase": "Then saved-output assertion",
+        "actual": 6,
+        "expected": 5,
+        "restored": "prototype in finally; no worktree mutation"
+      },
+      "log": "/workspace/work/kej-100/other/negative-web-bound.log"
+    },
+    {
+      "coveredBy": "independentModelGate",
+      "difference": "Public ActorModel is claimed and started before assertCreated expects an authorized one-use permit.",
+      "expectedFailure": "Actual running state must fail the authorized-state assertion; assertion failure is required by assert.throws.",
+      "detected": true
+    }
+  ],
+  "typecheck": {
+    "command": "node node_modules/typescript/bin/tsc -p tests/bdd/tsconfig.json --noEmit --pretty false",
+    "exitCode": 0
+  },
+  "knownBoundaries": "Provider transport is controlled; the acceptance evidence checks engine/adapter wiring and protocol shape, not live provider quality. The legacy model driver keeps full golden snapshot digests, every persistence boundary and extension fault injections; deleting Vitest wrappers does not remove the model gate."
+}

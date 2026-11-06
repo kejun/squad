@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RoomSnapshot, WebRoom } from "../../src/web/contracts";
+import type { ArtifactSourceMetadata } from "../../src/types";
 import { mergeRooms, roomList } from './room-list';
+
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: string,
+    readonly sourceCandidates?: ArtifactSourceMetadata[]) { super(message); }
+}
 
 export async function api<T>(
   path: string,
@@ -20,7 +26,7 @@ export async function api<T>(
       : AbortSignal.timeout(8000),
   });
   const value = await response.json();
-  if (!response.ok) throw new Error(value.error ?? "请求失败，请重试。");
+  if (!response.ok) throw new ApiError(value.error ?? "请求失败，请重试。", response.status, value.code, value.sourceCandidates);
   return value as T;
 }
 

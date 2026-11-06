@@ -86,8 +86,11 @@ export function conversationInput(c: TaskContext) {
     return summary;
   });
   return { messages: [...(c.history?.messages ?? []), ...messages], candidate: c.candidate,
+    ...(c.sourceArtifact ? { sourceArtifact: structuredClone(c.sourceArtifact) } : {}),
     inputIntents: (c.inputAnalyses ?? []).filter(input => input.status === 'resolved'),
-    conversation: { artifacts: c.history?.artifacts ?? [], board: c.history?.board ?? [], tasks: c.history?.tasks ?? [], truncated: c.history?.truncated ?? false },
+    conversation: { artifacts: (c.history?.artifacts ?? []).filter(artifact =>
+      artifact.taskId !== c.sourceArtifact?.sourceTaskId || artifact.id !== c.sourceArtifact.artifactId),
+      board: c.history?.board ?? [], tasks: c.history?.tasks ?? [], truncated: c.history?.truncated ?? false },
     ...(c.review ? { review: { ...c.review, results: c.assists.filter(h => h.reviewId === c.review!.id).map(h => ({ target: h.target, requestId: h.id, status: h.status, answer: h.answer, artifactIds: h.artifactIds })) } } : {}),
     ...(c.discussion ? { discussion: structuredClone(c.discussion) } : {}) };
 }

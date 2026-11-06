@@ -21,6 +21,7 @@ export class ActorInspector {
       assert(children.some(child => child.snapshot?.value === 'settled'));
       bridge.update(frame); fixture.handshake();
       assert.equal(fixture.errors.length, 0); assert.equal(JSON.stringify(frame.snapshot), before);
+      return { registrations: structuredClone(registrations), before, after: JSON.stringify(frame.snapshot), errors: structuredClone(fixture.errors) };
     } finally { bridge.stop(); }
   }
 }

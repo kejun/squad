@@ -59,6 +59,8 @@ python3 .agents/skills/verify-squad-authority/scripts/check.py --verify-evidence
 
 ## 维护
 
-[coverage.json](references/coverage.json) 的 syncCommit 为 cd987f2f4a7e29ad3efae1af36a0f432ce813c8f（PR37 合并前的 head；现已 squash 合入 main d7b80a4，两者完整树相同）。保守记录全部 src TypeScript、依赖锁与夹具哈希；哈希仅为漂移门禁，不是对应证明。文件变化先审查模型原子边界、权限守卫和新写入口，不能直接刷新哈希。模型/回放通过并完成真实负对照后才能推进对应基线。
+KEJ-100 当前依赖审查基线为 `c1f380da1527b8c22a8aaaaf7aef10cd2695146e`；仅 `package.json` 的空单测集合处理变化，产品源码、模型、性质、边界和回放均沿用原审查。当前指纹及运行状态见 [KEJ-100 审查记录](references/drift-review-kej-100.json) 与 [coverage.json](references/coverage.json)。下列 PR40 基线为产品源码对应审查的历史记录。
+
+PR40 产品源码对应审查基线为 21ee46039f594d9b93d400bf703e14d42fab2b0e；逐文件判定与验证结果见 [PR40 漂移审查](references/drift-review-pr40.json)。保守记录全部 src TypeScript、依赖锁与夹具哈希；哈希仅为漂移门禁，不是对应证明。文件变化先审查模型原子边界、权限守卫和新写入口，不能直接刷新哈希。模型/回放通过并完成真实负对照后才能推进对应基线。
 
 请求 `$create-formal-verification-skill 维护 kejun/squad 的 verify-squad-authority`，按 [维护过程](references/maintenance.md) 执行。发现真实违约保留反例，区分模型缺陷和产品缺陷；不能放宽性质让它通过。

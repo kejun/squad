@@ -88,7 +88,7 @@ def main():
     evidence.mkdir(parents=True)
     inputs = evidence / 'checker-inputs'
     inputs.mkdir()
-    for relative in ['scripts/check.py', 'scripts/compare.mjs', 'scripts/Delivery.tla', 'scripts/Delivery.cfg', 'references/coverage.json', 'references/correspondence.md', 'SKILL.md']:
+    for relative in ['scripts/check.py', 'scripts/compare.mjs', 'scripts/Delivery.tla', 'scripts/Delivery.cfg', 'references/coverage.json', 'references/correspondence.md', 'references/drift-review-pr40.json', 'SKILL.md']:
         destination = inputs / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(SKILL / relative, destination)

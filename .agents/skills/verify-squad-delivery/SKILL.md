@@ -61,7 +61,9 @@ python3 .agents/skills/verify-squad-delivery/scripts/check.py --verify-evidence 
 
 ## 维护
 
-最近对应审查基线为 `cd987f2f4a7e29ad3efae1af36a0f432ce813c8f`，对应 PR37 合并前的 head。PR37 已 squash 合入 main `d7b80a4b0e032d300a7201e2532238709eb601cf`，两者完整树相同；PR38 已同步 main，保留原审查基线与哈希。精确源文件见 coverage.json；为覆盖传递依赖变化，门禁保守包含 src 的全部 TS 文件，这不代表每个模块均获形式化验证。
+KEJ-100 当前依赖审查基线为 `c1f380da1527b8c22a8aaaaf7aef10cd2695146e`；仅 `package.json` 的空单测集合处理变化，产品源码、模型、性质、边界和回放均沿用原审查。当前指纹及运行状态见 [KEJ-100 审查记录](references/drift-review-kej-100.json) 与 [coverage.json](references/coverage.json)。下列 PR40 基线为产品源码对应审查的历史记录。
+
+PR40 产品源码对应审查基线为 `21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR40）。从原cd987f2f基线的逐文件分类、传递依赖及运行证据见[PR40审查记录](references/drift-review-pr40.json)。原发布/回执模型的变量、边界和性质未改变；回放增加显式无来源、无解释和无并行分片的切片约束。精确源文件见coverage.json；保守包含src传递依赖不代表跨任务修订和容量规划均获形式化证明。
 
 请用 `$create-formal-verification-skill 维护 kejun/squad 的 verify-squad-delivery` 请求维护，并遵循[维护流程](references/maintenance.md)。覆盖文件变化时逐项审查原子边界、守卫、新写入口和投影遗漏；先更新模型/回放，完整运行真实负对照和恢复检查后再推进 sync commit。blocked 时不推进。规则/验证变更不改变产品行为，不另造产品 Gherkin；若发现产品缺陷需要修复，遵守 AGENTS.md 的场景与状态模型先行流程。
 

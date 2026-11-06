@@ -4,11 +4,13 @@ import { readFileSync, writeFileSync, appendFileSync, mkdtempSync, mkdirSync, rm
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
+import { capacityProbes } from './capacity-probes.mjs';
 const [rootArg, model, graphFile, output, selected = 'both'] = process.argv.slice(2);
 assert(rootArg && ['Budget', 'Shards', 'CheckBudget'].includes(model) && output, 'ROOT Budget|Shards GRAPH OUTPUT [BACKEND]');
 const root = resolve(rootArg);
 const { TeamEngine, MemoryStore, SqliteStore } = await import(pathToFileURL(join(root, 'src/index.ts')).href);
 const { createTeamConfig } = await import(pathToFileURL(join(root, 'team.config.ts')).href);
+const { validInputIntent } = await import(pathToFileURL(join(root, 'src/input-intent.ts')).href);
 const nodes = new Map(), edges = []; let initial;
 for (const line of readFileSync(graphFile, 'utf8').split('\n')) {
   const node = /^(-?\d+) \[label="((?:\\.|[^"\\])*)"(.*)/.exec(line);
@@ -38,7 +40,11 @@ function session(backend, directory, kind) {
   let store = backend === 'memory' ? new MemoryStore() : new SqliteStore(path);
   let engine = new TeamEngine(store, config, () => 0), seq = 0;
   const room = 'formal-coordination', task = 'task:start';
-  const context = () => engine.view(room, task).context;
+  const context = () => {
+    const c = engine.view(room, task).context;
+    assert.equal(c.sourceArtifact, undefined, 'Scope: all three TLC slices require a source-free public prefix');
+    return c;
+  };
   const send = body => engine.send(room, task, { id: `event:${++seq}`, at: 0, ...body });
   const submit = engine.submit(room, { id: 'start', text: kind !== 'Shards' ? '形成可核查方案' : '分别研究甲乙两个来源，必须仅使用公开资料并汇总',
     ...(kind !== 'Shards' ? { goal: { text: '形成可核查方案', constraints: [], criteria: ['完整'], requiredArtifacts: 0 } } : {}) });
@@ -76,6 +82,8 @@ function shards(backend, directory) {
   const interpretation = s.context().intents.find(w => w.kind === 'interpretation');
   assert(interpretation, 'Interpretation prefix must be reached');
   const claimed = s.engine().claim(s.room, s.task, interpretation.id); assert(claimed);
+  assert.equal(interpretation.payload.maxPartitions, 4, 'CapacitySnapshot: two-shard graph prefix must have sufficient prepared capacity');
+  assert.equal(claimed.payload.maxPartitions, 4, 'CapacitySnapshot: charged interpretation must preserve the sufficient host ceiling');
   assert(s.send({ type: 'INTERPRETATION_RESULT', workId: claimed.id, attempt: claimed.attempt, fence: claimed,
     inputId: claimed.payload.input.id, spec: { action: 'request', objective: '比较甲乙来源', constraints: ['仅使用公开资料'],
       expectedOutputs: ['比较报告'], acceptanceCriteria: ['保留出处'], references: [], confidence: .95, clarification: null,
@@ -201,6 +209,12 @@ mkdirSync(dirname(output), { recursive: true });
 try {
   for (const backend of selected === 'both' ? ['memory', 'sqlite'] : [selected]) {
     if (model === 'Shards') {
+      const capacityDirectory = join(scratch, `${backend}-capacity-probes`); mkdirSync(capacityDirectory);
+      try {
+        const probes = capacityProbes({ TeamEngine, MemoryStore, SqliteStore, createTeamConfig, validInputIntent }, backend, capacityDirectory);
+        report.probes.push(...probes);
+        for (const probe of probes) appendFileSync(output + '.jsonl', JSON.stringify(probe) + '\n');
+      } finally { rmSync(capacityDirectory, { recursive: true, force: true }); }
       const directory = join(scratch, `${backend}-recovery-probe`); mkdirSync(directory);
       const instance = shards(backend, directory);
       try { const probe = { backend, ...instance.recoveryProbe() }; report.probes.push(probe); appendFileSync(output + '.jsonl', JSON.stringify(probe) + '\n'); }

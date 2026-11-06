@@ -2,6 +2,7 @@ import type { TaskContext, TaskEvent } from '../types.js';
 import { discussionActive, fence, unresolvedInput } from './facts.js';
 import { discussionIntent } from './discussion.js';
 import { message } from './operations.js';
+import { availableMapReduceMembers, mapReduceCapacity } from './map-reduce-capacity.js';
 
 /** Pure task transition: the host, never the interpretation, owns member assignment. */
 export function startMapReduce(c: TaskContext, e: TaskEvent): boolean {
@@ -13,13 +14,10 @@ export function startMapReduce(c: TaskContext, e: TaskEvent): boolean {
   const plan = input.spec.decomposition;
   if (!['request', 'supplement'].includes(input.action) || discussionActive(c)
     || c.review && !['complete', 'cancelled'].includes(c.review.status)) return false;
-  const busy = new Set(c.intents.filter(work => work.kind !== 'cancel'
-    && ['pending', 'inflight', 'uncertain'].includes(work.status)).map(work => work.target));
-  const members = c.config.bots.filter(bot => bot.id !== c.owner && !busy.has(bot.id));
-  const reason = members.length < plan.partitions.length ? '可用成员不足'
-    : c.config.limits.assists - c.usage.assists < plan.partitions.length ? '协助额度不足'
-    : c.config.limits.ordinary - c.usage.ordinary < plan.partitions.length + 2 ? '普通额度不足' : undefined;
-  if (reason) {
+  const members = availableMapReduceMembers(c);
+  if (plan.partitions.length > mapReduceCapacity(c)) {
+    const reason = members.length < plan.partitions.length ? '可用成员不足'
+      : c.config.limits.assists - c.usage.assists < plan.partitions.length ? '协助额度不足' : '普通额度不足';
     message(c, e, 'facilitator', `未启动并行分片：${reason}。全部分片和归并要求交由原负责人处理。`, 'notice');
     return false;
   }

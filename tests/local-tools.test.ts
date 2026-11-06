@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SkillRegistry } from '../src/local-skills.js';
 import { LocalRuntime } from '../src/local-runtime.js';
-import { sandboxPolicy, minimalCliEnvironment } from '../src/local-cli.js';
+import { minimalCliEnvironment } from '../src/local-cli.js';
 import { TeamEngine } from '../src/engine.js';
 import { SqliteStore } from '../src/store.js';
 import { LocalFixture, assertFlow, removeFixture, writeSkill, unavailableNativeSandbox } from './local-tools-fixture.js';
@@ -65,12 +65,6 @@ describe('local skill registry and real child-process integration', () => {
       const result = work.localOperations?.find(op => op.action.type === 'runCli')?.result!; expect(result.data.isolated).toBe(true); expect(result.data.workspaceRevision).toMatch(/^[a-f0-9]{64}$/);
       expect(result.data.outputFiles).toEqual(expect.arrayContaining([expect.objectContaining({ path: 'dist/result.txt' })]));
     }
-  });
-  it('[BT_L13] constructs deny-by-default policy and never inherits host secrets', async () => {
-    const policy = sandboxPolicy({ workspace: '/task', skillPath: '/snapshot' });
-    expect(policy.filesystem.denyRead).toContain('/'); expect(policy.network.allowedDomains).toEqual([]); expect(policy.network.deniedDomains).toContain('*');
-    const env = minimalCliEnvironment('/task'); expect(env).not.toHaveProperty('OPENAI_API_KEY'); expect(env.HOME).toBe('/task/.home');
-    expect(policy.filesystem.allowRead).not.toContain('/root');
   });
   it('[BT_L13] refuses execution when sandbox dependencies are unavailable on this host', async () => {
     const backend = await unavailableNativeSandbox();

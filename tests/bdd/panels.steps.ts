@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { dragBoundaryContract, reversedDragContract, keyboardBoundaryContract } from '../panel-contract-fixture.js';
 import { After, Given, When, Then } from '@cucumber/cucumber';
 import { PanelFixture } from '../panel-fixture.js';
 import { PANEL_LAYOUT_STORAGE_KEY, type PanelSide } from '../../web/src/panel-layout.js';
@@ -137,6 +138,7 @@ Then('面板应按键盘方向或边界调整并更新可访问尺寸', function
   assert.equal(f.widthOf(side), expected);
   assert.equal(handle.getAttribute('aria-orientation'), 'vertical'); assert.equal(handle.getAttribute('aria-valuetext'), `${expected}px`);
   assert.equal(handle.getAttribute('aria-controls'), side === 'left' ? 'workspace-navigation' : 'workspace-details');
+  if (side === 'right' && s.key === 'End') { assert.equal(f.query('.navigation-toggle').getAttribute('aria-expanded'), 'true'); keyboardBoundaryContract(); }
 });
 
 Given('用户正在拖拽一个面板分隔条', async function (this: SpecWorld) {
@@ -271,7 +273,7 @@ Then('预览导航应{string}且详情应跟随拖动', function (this: SpecWorl
   assert.equal(f.query('.navigation-toggle').getAttribute('aria-expanded'), String(!collapsed));
   assert.equal(f.query('#workspace-navigation').hasAttribute('hidden'), collapsed);
   assert.equal(f.query('.workspace').style.getPropertyValue('--sidebar-width'), collapsed ? '0px' : '252px');
-  assert.equal(f.widthOf('right'), width); assertTopbarBrand(f, collapsed);
+  assert.equal(f.widthOf('right'), width); assertTopbarBrand(f, collapsed); dragBoundaryContract(width, collapsed);
 });
 Then('松手前仍可继续拖拽且尚未保存偏好', function (this: SpecWorld) {
   const s = state(this);
@@ -299,8 +301,8 @@ Then('导航收起与详情宽度应保存且重载后保持', async function (t
 Then('导航应恢复原宽度且详情保存偏好不变', function (this: SpecWorld) {
   const width = 1000;
   const f = state(this).fixture;
-  assert.equal(f.widthOf('left'), 252); assert.equal(f.preferences()?.rightWidth, width);
-  assert.equal(f.widthOf('right'), 828); assertTopbarBrand(f, false);
+  assert.equal(f.widthOf('left'), 320); assert.equal(f.preferences()?.rightWidth, width);
+  assert.equal(f.widthOf('right'), 760); assertTopbarBrand(f, false); reversedDragContract();
 });
 When('自动收起预览发生{string}', async function (this: SpecWorld, mode: string) {
   const f = state(this).fixture;
@@ -342,4 +344,9 @@ Then('页面不应重复展示成员入口且成员详情仍可使用', function
   assert.equal(f.container.querySelector('.team-bar, .team-avatar-stack, .stack-avatar-button'), null);
   assert.equal(f.query('.agent-profile h2').textContent, '方案师');
   for (const label of ['复制详情', '导出详情', '关闭详情']) assert(f.label(label));
+});
+
+Given('宽屏工作区的导航已自定义宽度且详情展开', async function (this: SpecWorld) {
+  const f = await setup(this, 1440); await f.openDetails(); await f.requestWidth('left', 320);
+  state(this).baseline = { left: 320, right: f.widthOf('right') };
 });

@@ -1,0 +1,433 @@
+[
+  {
+    "file": "tests/inspector-bridge.unit.test.ts",
+    "cases": [
+      "official Inspector transport [BT_V27] registers a handshake during navigation without starting business work",
+      "official Inspector transport [BT_V27] registers the latest frame when the handshake follows navigation",
+      "official Inspector transport [BT_V28] validates source and origin, re-registers latest and detaches on close"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "tests/bdd/inspector.steps.ts使用原InspectorFixture驱动导航前后握手、来源/窗口/不透明origin拒绝、最新重新注册和断开后迟到事件；node:test mock观测实际Actor.start/send均未触发、监听仅卸载一次，V31直接验证替代身份。 这些都是具体可观察后果，已有场景或明确场景大纲能清楚表达，无单测独立例外。先完成直接BDD执行后删除重复入口。",
+    "btIds": [
+      "BT_V27",
+      "BT_V28",
+      "BT_V31"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/08_interface_and_configuration.feature features/18_workspace_panels.feature features/22_state_debug.feature features/25_room_archive.feature --import 'tests/bdd/*.ts' --tags 'not @manual_browser' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-bdd-extended",
+        "ui-bdd-after-removal"
+      ],
+      "negativeControl": "inspector-foreign-source",
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx --input-type=module -e \"import {verifyDiagnosticPaths,verifyRetryAndEmpty,verifyPreviewAndHead,verifyExpiredAndBudget} from './tests/task-debug-behavior.ts'; import {graphVocabularyContract,focusedGraphContract,unavailablePathContract} from './tests/chart-contract-fixture.ts'; import {dragBoundaryContract,reversedDragContract,keyboardBoundaryContract} from './tests/panel-contract-fixture.ts'; verifyDiagnosticPaths(); verifyRetryAndEmpty(); verifyPreviewAndHead(); verifyExpiredAndBudget(); graphVocabularyContract(); focusedGraphContract(); unavailablePathContract('没有诊断证据'); unavailablePathContract('不同结构版本'); dragBoundaryContract(828,true); reversedDragContract(); keyboardBoundaryContract(); console.log('UI_MODEL_GATE_PASSED');\""
+    }
+  },
+  {
+    "file": "tests/inspector-model.unit.test.ts",
+    "cases": [
+      "Inspector observation model [BT_V27] registers the latest selection when a trusted handshake arrives",
+      "Inspector observation model [BT_V27] delivers an update after registration with the next sequence",
+      "Inspector observation model [BT_V28] refuses a handshake from 'wrong source'",
+      "Inspector observation model [BT_V28] refuses a handshake from 'foreign origin'",
+      "Inspector observation model [BT_V28] refuses a handshake from 'opaque origin'",
+      "Inspector observation model [BT_V28] re-registers on a repeated trusted handshake",
+      "Inspector observation model [BT_V28] ignores a late 'CONNECT' event after closing",
+      "Inspector observation model [BT_V28] ignores a late 'UPDATE' event after closing",
+      "Inspector observation model [BT_V28] ignores a late 'SELECT' event after closing",
+      "Inspector observation model [BT_V28] closes an unconnected channel without a delivery",
+      "Inspector observation model [BT_V31] registers a changed selection before delivering its updates",
+      "Inspector tab lifecycle model [BT_V29] requests opening when no tab exists",
+      "Inspector tab lifecycle model [BT_V29] requests focus when the tab is already open",
+      "Inspector tab lifecycle model [BT_V30] retries a blocked opening with a new open intent",
+      "Inspector tab lifecycle model [BT_V31] opens a replacement after the previous tab closes",
+      "Inspector tab lifecycle model [BT_V31] ignores late OPENED after disposal",
+      "Inspector tab lifecycle model [BT_V31] ignores late OPEN after disposal",
+      "Inspector tab lifecycle model [BT_V31] ignores late WINDOW_CLOSED after disposal"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "tests/bdd/ui-contract.steps.ts：V37显式11行初态/事件/结果，断言等待或连接、register/update/disconnect、精确sequence和frame；V38显式7行标签打开、聚焦、阻止后重试、替代及释放后迟到事件，断言状态与意图序列。 这些都是具体可观察后果，已有场景或明确场景大纲能清楚表达，无单测独立例外。先完成直接BDD执行后删除重复入口。",
+    "btIds": [
+      "BT_V37",
+      "BT_V38"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/08_interface_and_configuration.feature features/18_workspace_panels.feature features/22_state_debug.feature features/25_room_archive.feature --import 'tests/bdd/*.ts' --tags 'not @manual_browser' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-bdd-extended",
+        "ui-bdd-after-removal"
+      ],
+      "negativeControl": "inspector-foreign-source",
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx --input-type=module -e \"import {verifyDiagnosticPaths,verifyRetryAndEmpty,verifyPreviewAndHead,verifyExpiredAndBudget} from './tests/task-debug-behavior.ts'; import {graphVocabularyContract,focusedGraphContract,unavailablePathContract} from './tests/chart-contract-fixture.ts'; import {dragBoundaryContract,reversedDragContract,keyboardBoundaryContract} from './tests/panel-contract-fixture.ts'; verifyDiagnosticPaths(); verifyRetryAndEmpty(); verifyPreviewAndHead(); verifyExpiredAndBudget(); graphVocabularyContract(); focusedGraphContract(); unavailablePathContract('没有诊断证据'); unavailablePathContract('不同结构版本'); dragBoundaryContract(828,true); reversedDragContract(); keyboardBoundaryContract(); console.log('UI_MODEL_GATE_PASSED');\""
+    }
+  },
+  {
+    "file": "tests/markdown.unit.test.ts",
+    "cases": [
+      "chat Markdown rendering [BT_U10] renders formatting, lists, quotes and ordinary chat line breaks",
+      "chat Markdown rendering [BT_U10] renders GFM tables, task lists and strikethrough",
+      "chat Markdown rendering [BT_U11] preserves code whitespace and keeps code mentions literal",
+      "chat Markdown rendering [BT_U11] keeps prose mentions clickable without rewriting emails or links",
+      "chat Markdown rendering [BT_U12] blocks raw HTML and executable URLs in messages",
+      "chat Markdown rendering [BT_U13] preserves footnote targets and in-message navigation"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "tests/bdd/model-and-markdown.steps.ts：BT_U10保留斜体、普通换行、列表项及表格可访问名；U11逐字核对成员名称、安全rel和代码内无按钮；U12恶意链接为span；U13脚注目标ID。 这些都是具体可观察后果，已有场景或明确场景大纲能清楚表达，无单测独立例外。先完成直接BDD执行后删除重复入口。",
+    "btIds": [
+      "BT_U10",
+      "BT_U11",
+      "BT_U12",
+      "BT_U13"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/08_interface_and_configuration.feature features/18_workspace_panels.feature features/22_state_debug.feature features/25_room_archive.feature --import 'tests/bdd/*.ts' --tags 'not @manual_browser' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-bdd-extended",
+        "ui-bdd-after-removal"
+      ],
+      "negativeControl": "markdown-table-accessibility",
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx --input-type=module -e \"import {verifyDiagnosticPaths,verifyRetryAndEmpty,verifyPreviewAndHead,verifyExpiredAndBudget} from './tests/task-debug-behavior.ts'; import {graphVocabularyContract,focusedGraphContract,unavailablePathContract} from './tests/chart-contract-fixture.ts'; import {dragBoundaryContract,reversedDragContract,keyboardBoundaryContract} from './tests/panel-contract-fixture.ts'; verifyDiagnosticPaths(); verifyRetryAndEmpty(); verifyPreviewAndHead(); verifyExpiredAndBudget(); graphVocabularyContract(); focusedGraphContract(); unavailablePathContract('没有诊断证据'); unavailablePathContract('不同结构版本'); dragBoundaryContract(828,true); reversedDragContract(); keyboardBoundaryContract(); console.log('UI_MODEL_GATE_PASSED');\""
+    }
+  },
+  {
+    "file": "tests/panel-layout.unit.test.ts",
+    "cases": [
+      "pure panel drag transitions [BT_P15] sets navigation collapse to false at right width 827",
+      "pure panel drag transitions [BT_P15] sets navigation collapse to true at right width 828",
+      "pure panel drag transitions [BT_P15] sets navigation collapse to true at right width 900",
+      "pure panel drag transitions [BT_P16] restores automatic collapse and the original navigation width after reversing a drag",
+      "pure panel drag transitions [BT_P07] [BT_P18] preserves navigation visibility for 'tablet'",
+      "pure panel drag transitions [BT_P07] [BT_P18] preserves navigation visibility for 'mobile'",
+      "pure panel drag transitions [BT_P07] [BT_P18] preserves navigation visibility for 'left drag'",
+      "pure panel drag transitions [BT_P07] [BT_P18] preserves navigation visibility for 'closed details'",
+      "pure panel drag transitions [BT_P07] [BT_P18] preserves navigation visibility for 'invalid width'",
+      "pure panel drag transitions [BT_P07] [BT_P18] preserves navigation visibility for 'unchanged width'",
+      "pure panel drag transitions [BT_P07] [BT_P18] preserves navigation visibility for 'shrinking width'",
+      "pure panel drag transitions [BT_P07] expands to the keyboard boundary without triggering drag collapse"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "panels.steps.ts以真实拖拽/键盘驱动UIs并沿原边界样本调用公开API断言；P15三边界、P16在明确导航自定义320px前提下反向拖拽/恢复原宽度与输入不变，P07 End保持展开；P22七行明确视窗/面板/非法或不变宽度条件分别触发，非Then内隐藏枚举。 这些都是具体可观察后果，已有场景或明确场景大纲能清楚表达，无单测独立例外。先完成直接BDD执行后删除重复入口。",
+    "btIds": [
+      "BT_P07",
+      "BT_P15",
+      "BT_P16",
+      "BT_P18",
+      "BT_P22"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/08_interface_and_configuration.feature features/18_workspace_panels.feature features/22_state_debug.feature features/25_room_archive.feature --import 'tests/bdd/*.ts' --tags 'not @manual_browser' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-bdd-extended",
+        "ui-bdd-after-removal",
+        "ui-final-p16-n13"
+      ],
+      "negativeControl": "panel-boundary-collapse",
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx --input-type=module -e \"import {verifyDiagnosticPaths,verifyRetryAndEmpty,verifyPreviewAndHead,verifyExpiredAndBudget} from './tests/task-debug-behavior.ts'; import {graphVocabularyContract,focusedGraphContract,unavailablePathContract} from './tests/chart-contract-fixture.ts'; import {dragBoundaryContract,reversedDragContract,keyboardBoundaryContract} from './tests/panel-contract-fixture.ts'; verifyDiagnosticPaths(); verifyRetryAndEmpty(); verifyPreviewAndHead(); verifyExpiredAndBudget(); graphVocabularyContract(); focusedGraphContract(); unavailablePathContract('没有诊断证据'); unavailablePathContract('不同结构版本'); dragBoundaryContract(828,true); reversedDragContract(); keyboardBoundaryContract(); console.log('UI_MODEL_GATE_PASSED');\""
+    }
+  },
+  {
+    "file": "tests/room-archive-model.unit.test.ts",
+    "cases": [
+      "room archive pure model [BT_G15] restores an archived room and advances its archive revision",
+      "room archive pure model [BT_G17] defaults old rooms to active and restores a persisted empty-room archive",
+      "room archive pure model [BT_G18] repeated desired states do not increment revisions or touch another room",
+      "room archive pure model [BT_G19] refuses an archive event with an invalid timestamp",
+      "room archive pure model [BT_G19] refuses a persisted archive with a corrupt revision",
+      "room archive pure model [BT_G22] rejects stale list/snapshot archive versions and keeps lists disjoint"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "room-archive.steps.ts：实际HTTP归档/恢复核对版本1→2；G17旧记录默认active和序列化archive恢复；G18目标幂等且其他房间版本0；G19增加非法时间/损坏存储输入分别拒绝并保留房间；G22旧archive/list不覆盖新状态且新房间不丢，列表互斥。 这些都是具体可观察后果，已有场景或明确场景大纲能清楚表达，无单测独立例外。先完成直接BDD执行后删除重复入口。",
+    "btIds": [
+      "BT_G15",
+      "BT_G17",
+      "BT_G18",
+      "BT_G19",
+      "BT_G22"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/08_interface_and_configuration.feature features/18_workspace_panels.feature features/22_state_debug.feature features/25_room_archive.feature --import 'tests/bdd/*.ts' --tags 'not @manual_browser' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-bdd-extended",
+        "ui-bdd-after-removal"
+      ],
+      "negativeControl": "archive-revision-step",
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx --input-type=module -e \"import {verifyDiagnosticPaths,verifyRetryAndEmpty,verifyPreviewAndHead,verifyExpiredAndBudget} from './tests/task-debug-behavior.ts'; import {graphVocabularyContract,focusedGraphContract,unavailablePathContract} from './tests/chart-contract-fixture.ts'; import {dragBoundaryContract,reversedDragContract,keyboardBoundaryContract} from './tests/panel-contract-fixture.ts'; verifyDiagnosticPaths(); verifyRetryAndEmpty(); verifyPreviewAndHead(); verifyExpiredAndBudget(); graphVocabularyContract(); focusedGraphContract(); unavailablePathContract('没有诊断证据'); unavailablePathContract('不同结构版本'); dragBoundaryContract(828,true); reversedDragContract(); keyboardBoundaryContract(); console.log('UI_MODEL_GATE_PASSED');\""
+    }
+  },
+  {
+    "file": "tests/task-chart.unit.test.ts",
+    "cases": [
+      "statechart projection of the real task model [BT_V32] retains every running-to-coordinating event and ordered guard branch on one edge",
+      "statechart projection of the real task model [BT_V34] focused edges preserve both directions and every branch for the selected state",
+      "statechart projection of the real task model [BT_V34] retains global and internal rule access outside the cross-state overview",
+      "statechart projection of the real task model [BT_V33] projects an accepted help step from the captured rules and microsteps",
+      "statechart projection of the real task model [BT_V33] preserves the stop automatic microstep without changing the execution head",
+      "statechart projection of the real task model [BT_V33] displays a rejected help request without inventing a move to waiting assistance",
+      "statechart projection of the real task model [BT_V33] represents a repeated stop as empty local handling without the global stop path",
+      "statechart projection of the real task model [BT_V34] keeps ended resumable and reports the captured continue rule",
+      "statechart projection of the real task model [BT_V35] shows no captured path for a legacy record without diagnostic evidence",
+      "statechart projection of the real task model [BT_V35] shows no captured path when the machine structure fingerprint differs",
+      "statechart projection of the real task model [BT_V32] labels the state, event, condition and action in Chinese while preserving rule identifiers",
+      "statechart projection of the real task model [BT_V32] preserves unknown source vocabulary rather than inventing a translation or condition"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "tests/chart-contract-fixture.ts与ui-contract.steps.ts：V32保留全部连线顺序和中英文标识；V34等待用户双向完整分支及概览省略规则；V35无证据/不同结构明确空路径；V36六行事件驱动，逐项断言微步、全局/局部rule ID、拒绝码、自动标记、空变更且执行头不变。 这些都是具体可观察后果，已有场景或明确场景大纲能清楚表达，无单测独立例外。先完成直接BDD执行后删除重复入口。",
+    "btIds": [
+      "BT_V32",
+      "BT_V34",
+      "BT_V35",
+      "BT_V36"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/08_interface_and_configuration.feature features/18_workspace_panels.feature features/22_state_debug.feature features/25_room_archive.feature --import 'tests/bdd/*.ts' --tags 'not @manual_browser' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-bdd-extended",
+        "ui-bdd-after-removal"
+      ],
+      "negativeControl": "chart-missing-path",
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx --input-type=module -e \"import {verifyDiagnosticPaths,verifyRetryAndEmpty,verifyPreviewAndHead,verifyExpiredAndBudget} from './tests/task-debug-behavior.ts'; import {graphVocabularyContract,focusedGraphContract,unavailablePathContract} from './tests/chart-contract-fixture.ts'; import {dragBoundaryContract,reversedDragContract,keyboardBoundaryContract} from './tests/panel-contract-fixture.ts'; verifyDiagnosticPaths(); verifyRetryAndEmpty(); verifyPreviewAndHead(); verifyExpiredAndBudget(); graphVocabularyContract(); focusedGraphContract(); unavailablePathContract('没有诊断证据'); unavailablePathContract('不同结构版本'); dragBoundaryContract(828,true); reversedDragContract(); keyboardBoundaryContract(); console.log('UI_MODEL_GATE_PASSED');\""
+    }
+  },
+  {
+    "file": "tests/task-debug-experience.unit.test.ts",
+    "cases": [
+      "current-run diagnostic behavior [BT_V16] records the actual diagnostic path without changing the transition result",
+      "current-run diagnostic behavior [BT_V17] distinguishes short-circuit and no-op from rejection",
+      "current-run diagnostic behavior [BT_V18] previews without advancing and appends from the execution head",
+      "current-run diagnostic behavior [BT_V24] distinguishes a ready discussion from unfinished owner work",
+      "current-run diagnostic behavior [BT_V25] invalidates stale previews and preserves budget rejection"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "既有task-debug.steps.ts已直接调用verifyDiagnosticPaths/RetryAndEmpty/PreviewAndHead/ExpiredAndBudget；V24直接调用verifyDiscussionWait于场景实际完成的讨论，原5包装无额外输入或断言，保留同函数全部保护。 这些都是具体可观察后果，已有场景或明确场景大纲能清楚表达，无单测独立例外。先完成直接BDD执行后删除重复入口。",
+    "btIds": [
+      "BT_V16",
+      "BT_V17",
+      "BT_V18",
+      "BT_V24",
+      "BT_V25"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/08_interface_and_configuration.feature features/18_workspace_panels.feature features/22_state_debug.feature features/25_room_archive.feature --import 'tests/bdd/*.ts' --tags 'not @manual_browser' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-bdd-extended",
+        "ui-bdd-after-removal"
+      ],
+      "negativeControl": "chart-missing-path",
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx --input-type=module -e \"import {verifyDiagnosticPaths,verifyRetryAndEmpty,verifyPreviewAndHead,verifyExpiredAndBudget} from './tests/task-debug-behavior.ts'; import {graphVocabularyContract,focusedGraphContract,unavailablePathContract} from './tests/chart-contract-fixture.ts'; import {dragBoundaryContract,reversedDragContract,keyboardBoundaryContract} from './tests/panel-contract-fixture.ts'; verifyDiagnosticPaths(); verifyRetryAndEmpty(); verifyPreviewAndHead(); verifyExpiredAndBudget(); graphVocabularyContract(); focusedGraphContract(); unavailablePathContract('没有诊断证据'); unavailablePathContract('不同结构版本'); dragBoundaryContract(828,true); reversedDragContract(); keyboardBoundaryContract(); console.log('UI_MODEL_GATE_PASSED');\""
+    }
+  },
+  {
+    "file": "tests/task-inspection.unit.test.ts",
+    "cases": [
+      "same-computation diagnostic API [BT_V16] returns the original initial snapshot when collecting initialization evidence",
+      "same-computation diagnostic API [BT_V16] reports automatic STOP microsteps without altering the business result",
+      "same-computation diagnostic API [BT_V16] reports a rejected self-assistance request without changing its outcome",
+      "same-computation diagnostic API [BT_V16] reports a local claim rejection followed by the applicable discussion claim",
+      "same-computation diagnostic API [BT_V17] stops evaluating retry alternatives after a branch matches",
+      "same-computation diagnostic API [BT_V17] reports a repeated STOP as no change instead of reusing an old rejection"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "tests/task-debug-behavior.ts：V16初始化/STOP/自身求助拒绝/讨论CLAIM均与同一事件stepTask结果相等，自动微步含automatic，拒绝含失败守卫；V17重试短路精确守卫序列、重复STOP只empty局部规则且无变更，不复用旧错误。 这些都是具体可观察后果，已有场景或明确场景大纲能清楚表达，无单测独立例外。先完成直接BDD执行后删除重复入口。",
+    "btIds": [
+      "BT_V16",
+      "BT_V17"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/08_interface_and_configuration.feature features/18_workspace_panels.feature features/22_state_debug.feature features/25_room_archive.feature --import 'tests/bdd/*.ts' --tags 'not @manual_browser' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-bdd-extended",
+        "ui-bdd-after-removal",
+        "ui-final-v17"
+      ],
+      "negativeControl": "chart-missing-path",
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx --input-type=module -e \"import {verifyDiagnosticPaths,verifyRetryAndEmpty,verifyPreviewAndHead,verifyExpiredAndBudget} from './tests/task-debug-behavior.ts'; import {graphVocabularyContract,focusedGraphContract,unavailablePathContract} from './tests/chart-contract-fixture.ts'; import {dragBoundaryContract,reversedDragContract,keyboardBoundaryContract} from './tests/panel-contract-fixture.ts'; verifyDiagnosticPaths(); verifyRetryAndEmpty(); verifyPreviewAndHead(); verifyExpiredAndBudget(); graphVocabularyContract(); focusedGraphContract(); unavailablePathContract('没有诊断证据'); unavailablePathContract('不同结构版本'); dragBoundaryContract(828,true); reversedDragContract(); keyboardBoundaryContract(); console.log('UI_MODEL_GATE_PASSED');\""
+    }
+  },
+  {
+    "file": "tests/inspector-window.test.ts",
+    "cases": [
+      "official Inspector tab [BT_V31] cancels a pending SDK import when disposed before it resolves"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "BT_V31增加SDK未加载即关闭的明确前提和Then步骤；disposedImportContract经公开注入端口创建窗口、dispose后解析Promise，逐项核对about:blank、watch/listener均0且post抛错确保未发送。只删除该无I/O异步可观察竞态包装，原三真实DOM连接组保留。",
+    "btIds": [
+      "BT_V31"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/08_interface_and_configuration.feature features/18_workspace_panels.feature features/22_state_debug.feature features/25_room_archive.feature --import 'tests/bdd/*.ts' --tags 'not @manual_browser' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-bdd-after-removal"
+      ]
+    }
+  },
+  {
+    "file": "tests/task-actor-inspector.test.ts",
+    "cases": [
+      "[BT_N13] observes true parent and child machine identities without starting or sending business work"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "BT_N13原直接步骤已调用同一ActorInspector.verify；补齐node:test mock对Actor.start/send的0调用约束并直接BDD通过后删除包装。父子机器真实definition/identity、parentId、settled子状态及不变快照断言原样承接，不用单纯BT关联代替实际执行。 最终两个Then读取When采集的真实registrations、before/after、errors及actor调用计数，逐项核对父子definition/parentId/settled状态与无业务执行；不以done旗标充当验收。",
+    "btIds": [
+      "BT_N13"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_task_model_refactor.feature --import 'tests/bdd/*.ts' --tags '@BT_N13' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-n13-bdd",
+        "ui-final-n13-observed"
+      ]
+    }
+  },
+  {
+    "file": "tests/task-chart-ui.test.ts",
+    "cases": [
+      "statechart interactions [BT_V33] does not mark a local candidate edge as executed when the captured transition used a global rule",
+      "statechart interactions [BT_V35] reports missing evidence without inventing a captured path",
+      "statechart interactions [BT_V35] reports incompatible evidence without inventing a captured path"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "从混合文件只删除3条纯SSR投影包装；V36明确协助结果后重试场景核对全局规则、局部连线不伪装已执行；V35两个既有大纲逐字核对missing/incompatible及无捕获样式。真实DOM交互组保留。",
+    "btIds": [
+      "BT_V33",
+      "BT_V35",
+      "BT_V36"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/08_interface_and_configuration.feature features/18_workspace_panels.feature features/22_state_debug.feature features/25_room_archive.feature --import 'tests/bdd/*.ts' --tags 'not @manual_browser' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-bdd-after-removal"
+      ]
+    }
+  },
+  {
+    "file": "tests/task-debug.test.ts",
+    "cases": [
+      "browser state-machine debug [BT_V02] derives all states, guard branches and global events from the real machine",
+      "browser state-machine debug [BT_V03] executes the real pure conversion and retains context updates without an executor",
+      "browser state-machine debug [BT_V04] preserves 向自己求助 -> SELF_DEPENDENCY",
+      "browser state-machine debug [BT_V04] preserves 旧轮次结果 -> STALE_FENCE",
+      "browser state-machine debug [BT_V04] preserves 额度耗尽 -> BUDGET_EXHAUSTED",
+      "browser state-machine debug [BT_V04] preserves 停止后继续 -> running",
+      "browser state-machine debug [BT_V03] templates settle claimed work and charge the real budgets",
+      "browser state-machine debug [BT_V05] preserves state on malformed input, branches from history and resets its seed",
+      "browser state-machine debug [BT_V07] bounds browser history and clears old sessions while retaining a current baseline"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "从混合文件只删除9条独立graph/纯沙箱/模板/merge包装；V02提取完整状态/全局规则；V03真实转换消费协助；V04四行拒绝/停止；V05补齐非法JSON/缺字段/负时间；V39两行会话/体积边界；V40明确领取结算和计费。其实际HTTP、事务与SQLite及真实SDK集成组保留。",
+    "btIds": [
+      "BT_V02",
+      "BT_V03",
+      "BT_V04",
+      "BT_V05",
+      "BT_V07",
+      "BT_V39",
+      "BT_V40"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/08_interface_and_configuration.feature features/18_workspace_panels.feature features/22_state_debug.feature features/25_room_archive.feature --import 'tests/bdd/*.ts' --tags 'not @manual_browser' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-bdd-after-removal"
+      ]
+    }
+  },
+  {
+    "file": "tests/task-debug.test.ts",
+    "cases": [
+      "browser state-machine debug [BT_V01] hides the entry and rejects snapshot reads by default"
+    ],
+    "disposition": "split_migrate_ssr_retain_http",
+    "reason": "只移走该混合用例内Workspace SSR enable/disable断言及无用准备，补强BT_V01直接步骤两种入口可见性；保留真实宿主HTTP能力false与404接线检查。",
+    "btIds": [
+      "BT_V01"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/08_interface_and_configuration.feature features/18_workspace_panels.feature features/22_state_debug.feature features/25_room_archive.feature --import 'tests/bdd/*.ts' --tags 'not @manual_browser' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-bdd-after-removal"
+      ]
+    }
+  },
+  {
+    "file": "tests/task-debug.test.ts",
+    "cases": [
+      "browser state-machine debug [BT_V02] registers an actual machine definition with Inspector without running a shadow actor"
+    ],
+    "disposition": "retained_sdk_integration",
+    "reason": "真实调用已发布@statelyai/inspect SDK与XState createActor metadata，检查definition序列化的states/initial/on.STOP格式及snapshot发送API不会启动影子actor；这是跨两个外部依赖的集成接线样本，不属于独立纯graph/模板单测，保留原默认执行路径。产品可观察注册顺序与隔离由V27–31验收，不以快或纯函数为保留理由。",
+    "btIds": [
+      "BT_V02",
+      "BT_V27"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node node_modules/vitest/vitest.mjs run tests/task-debug.test.ts --maxWorkers=1",
+    "evidence": {
+      "scope": "实际SDK注册/序列化兼容性，非产品行为唯一契约",
+      "report": "docs/testing/kej-100/ui-evidence.json"
+    }
+  },
+  {
+    "file": "tests/discussion-debug.test.ts",
+    "cases": [
+      "real XState discussion sandbox [BT_V10] completes background discussion using the generated event templates",
+      "real XState discussion sandbox [BT_V11] binds the primary delivery template to the owner during parallel work",
+      "real XState discussion sandbox [BT_V12] preserves sandbox state and history on malformed discussion events",
+      "real XState discussion sandbox [BT_V14] rejects 缺少版本边界 without retiring the current worker",
+      "real XState discussion sandbox [BT_V14] rejects 错误讨论轮次 without retiring the current worker",
+      "real XState discussion sandbox [BT_V14] rejects 过期版本边界 without retiring the current worker",
+      "real XState discussion sandbox [BT_V14] rejects 关联主工作 without retiring the current worker",
+      "real XState discussion sandbox [BT_V15] retains guarded global fallbacks while preserving unconditional local overrides"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "8条Vitest包装均已被tests/bdd/discussion-debug.steps.ts原样直接调用同一夹具同一输入：V10 completeWithTemplates(plannedSandbox())，V11 primaryDeliveryTemplate(plannedSandbox(true))，V12 malformedDiscussion，V14四类rejectedDiscussionIdentity；V15原CLAIM guards含claimOwner/claimDiscussion/claimCancel及stopping STOP单条由现步骤逐项承接并额外断言guards=[]。未新增功能场景或另换入口，先直接BDD8场景全部通过再删除重复包装。144种返回顺序的独立模型仿真仍保留原路径，不以“快/纯函数/有BT编号”作为保留理由。",
+    "btIds": [
+      "BT_V10",
+      "BT_V11",
+      "BT_V12",
+      "BT_V14",
+      "BT_V15"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/22_state_debug.feature --import 'tests/bdd/*.ts' --tags '@BT_V10 or @BT_V11 or @BT_V12 or @BT_V14 or @BT_V15' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-discussion-direct"
+      ],
+      "negativeControl": "discussion-claim-fallback"
+    }
+  },
+  {
+    "file": "tests/artifact-source-ui.test.ts",
+    "cases": [
+      "source artifact composer and details [BT_A31] requires a confirmed publication list for a legacy successful artifact"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "混合文件逐case审计：原纯canReferenceArtifact两次能力投影由feature31新增BT_A48两行业务大纲直接承接。Given明确旧成功Markdown缺发布清单或确认清单含本报告，When仅打开同一报告预览，Then同时核对公开能力false/true、实际SSR引用入口不可用/可用及原报告正文保留。原A31服务端拒绝场景不能独自证明网页旧快照能力，因此补明确条件而不在Then另起轨迹。先通过两场景并在副本移除publication-list约束后确认缺清单场景失败，再删除该包装和无用import；其余8个真实DOM交互保留且全部通过。",
+    "btIds": [
+      "BT_A31",
+      "BT_A48"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/31_artifact_reference.feature --import tests/bdd/steps.ts --import tests/bdd/artifact-ui-contract.steps.ts --tags '@BT_A48' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-publication-direct",
+        "ui-publication-after-removal"
+      ],
+      "negativeControl": "legacy-publication-confirmation",
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx --input-type=module -e \"import assert from 'node:assert/strict'; import {canReferenceArtifact} from './web/src/ResultLinks.tsx'; const task = {id:'legacy',goal:'旧任务',owner:'A',phase:'ended',outcome:'complete',reason:'',usage:{ordinary:1,checks:1},limits:{ordinary:300,checks:30},board:[],trace:[],artifacts:[{id:'report',name:'旧方案.md',content:'# 旧报告',goalVersion:1}]}; assert.equal(canReferenceArtifact(task,task.artifacts[0]),false); task.currentArtifactIds=['report']; assert.equal(canReferenceArtifact(task,task.artifacts[0]),true); console.log('PUBLICATION_API_GATE_PASSED');\"",
+      "remainingIntegration": "publicationRemainingIntegration"
+    }
+  }
+]

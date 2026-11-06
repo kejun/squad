@@ -2,6 +2,10 @@
 
 EXTENDS Naturals, TLC
 
+\* The public implementation prefix must pass current dispatch capacity for
+\* exactly two shards. Capacity preparation/refresh/fallback examples live in
+\* capacity-probes.mjs; this graph does not enumerate those resource states.
+
 VARIABLES w1, w2, r1, r2, summary, handoffs, incomplete, stopped, goal, reopened, round, interrupted
 
 vars == <<w1, w2, r1, r2, summary, handoffs, incomplete, stopped, goal, reopened, round, interrupted>>

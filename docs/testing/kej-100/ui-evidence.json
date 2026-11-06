@@ -1,0 +1,4224 @@
+{
+  "directBdd": [
+    {
+      "run": "ui-bdd-before-removal",
+      "exitCode": 0,
+      "sourceReport": "/workspace/work/kej-100/ui-bdd-before-removal.json",
+      "scenarios": 47,
+      "steps": 1865,
+      "results": [
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "消息按 Markdown 语义渲染",
+          "line": 81,
+          "btIds": [
+            "BT_U10"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "消息按 Markdown 语义渲染",
+          "line": 82,
+          "btIds": [
+            "BT_U10"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "消息按 Markdown 语义渲染",
+          "line": 83,
+          "btIds": [
+            "BT_U10"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "点名渲染不改写代码或已有链接",
+          "line": 86,
+          "btIds": [
+            "BT_U11"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "Markdown 不执行原始 HTML 或可执行链接",
+          "line": 93,
+          "btIds": [
+            "BT_U12"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "消息内脚注保留原地导航",
+          "line": 100,
+          "btIds": [
+            "BT_U13"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 82,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 83,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 84,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 85,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 86,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 87,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 88,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 89,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "拖宽右栏触及聊天区下限时预览收起导航",
+          "line": 167,
+          "btIds": [
+            "BT_P15"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "拖宽右栏触及聊天区下限时预览收起导航",
+          "line": 168,
+          "btIds": [
+            "BT_P15"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "拖宽右栏触及聊天区下限时预览收起导航",
+          "line": 169,
+          "btIds": [
+            "BT_P15"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "自动收起后继续和反向拖拽均保持连续并在松手后保存",
+          "line": 172,
+          "btIds": [
+            "BT_P16"
+          ],
+          "status": "passed",
+          "steps": 45
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "覆盖层右栏拖拽不改变桌面导航偏好",
+          "line": 205,
+          "btIds": [
+            "BT_P18"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "覆盖层右栏拖拽不改变桌面导航偏好",
+          "line": 206,
+          "btIds": [
+            "BT_P18"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "同次诊断保留自动微步并与原纯转换等价",
+          "line": 122,
+          "btIds": [
+            "BT_V16"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "重试分支短路和显式空处理可解释",
+          "line": 129,
+          "btIds": [
+            "BT_V17"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "预演不推进实验且历史选择不改变执行头",
+          "line": 135,
+          "btIds": [
+            "BT_V18"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "讨论汇总就绪时仍显示主工作等待",
+          "line": 169,
+          "btIds": [
+            "BT_V24"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "预演过期和结束后继续均受真实条件限制",
+          "line": 175,
+          "btIds": [
+            "BT_V25"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "官方Inspector先收到机器注册再收到快照",
+          "line": 196,
+          "btIds": [
+            "BT_V27"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "官方Inspector先收到机器注册再收到快照",
+          "line": 197,
+          "btIds": [
+            "BT_V27"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "官方Inspector重新连接及关闭保持观察隔离",
+          "line": 200,
+          "btIds": [
+            "BT_V28"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "官方Inspector在独立标签页打开并复用",
+          "line": 208,
+          "btIds": [
+            "BT_V29"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "标签页被阻止时可以重试且不丢失当前选择",
+          "line": 216,
+          "btIds": [
+            "BT_V30"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "切换观察身份及关闭标签页保持隔离",
+          "line": 224,
+          "btIds": [
+            "BT_V31"
+          ],
+          "status": "passed",
+          "steps": 43
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "聚合连线保留每个事件与条件分支",
+          "line": 234,
+          "btIds": [
+            "BT_V32"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "状态图解释所选步骤的真实自动路径",
+          "line": 241,
+          "btIds": [
+            "BT_V33"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "简化图明确省略范围且所有规则仍可访问",
+          "line": 248,
+          "btIds": [
+            "BT_V34"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "无可关联证据时不伪造执行路径",
+          "line": 260,
+          "btIds": [
+            "BT_V35"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "无可关联证据时不伪造执行路径",
+          "line": 261,
+          "btIds": [
+            "BT_V35"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "群聊移入归档列表并可以恢复",
+          "line": 7,
+          "btIds": [
+            "BT_G15"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "归档状态和空群在服务重启后保留",
+          "line": 23,
+          "btIds": [
+            "BT_G17"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "归档命令支持重试并拒绝标识复用",
+          "line": 29,
+          "btIds": [
+            "BT_G18"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 42,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 43,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 44,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 45,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 46,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 47,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 48,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "迟到列表和快照不覆盖已提交的归档",
+          "line": 67,
+          "btIds": [
+            "BT_G22"
+          ],
+          "status": "passed",
+          "steps": 39
+        }
+      ]
+    },
+    {
+      "run": "ui-bdd-extended",
+      "exitCode": 0,
+      "sourceReport": "/workspace/work/kej-100/ui-bdd-extended.json",
+      "scenarios": 163,
+      "steps": 6467,
+      "results": [
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "后台促进者不作为抢答成员出现",
+          "line": 31,
+          "btIds": [
+            "BT_U04"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "通过唯一文件配置新成员",
+          "line": 37,
+          "btIds": [
+            "BT_U05"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "不兼容版本阻止旧任务自动恢复",
+          "line": 44,
+          "btIds": [
+            "BT_U06"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "撤销工具权限不能被旧快照绕过",
+          "line": 52,
+          "btIds": [
+            "BT_U07"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "已停止的旧成员历史仍然可查",
+          "line": 60,
+          "btIds": [
+            "BT_U08"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "消息按 Markdown 语义渲染",
+          "line": 81,
+          "btIds": [
+            "BT_U10"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "消息按 Markdown 语义渲染",
+          "line": 82,
+          "btIds": [
+            "BT_U10"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "消息按 Markdown 语义渲染",
+          "line": 83,
+          "btIds": [
+            "BT_U10"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "点名渲染不改写代码或已有链接",
+          "line": 86,
+          "btIds": [
+            "BT_U11"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "Markdown 不执行原始 HTML 或可执行链接",
+          "line": 93,
+          "btIds": [
+            "BT_U12"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "消息内脚注保留原地导航",
+          "line": 100,
+          "btIds": [
+            "BT_U13"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "页面与浏览器的品牌标识一致且可识别",
+          "line": 115,
+          "btIds": [
+            "BT_U14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "页面与浏览器的品牌标识一致且可识别",
+          "line": 116,
+          "btIds": [
+            "BT_U14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "群聊用布局呈现操作并保留必要反馈",
+          "line": 127,
+          "btIds": [
+            "BT_U17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "群聊用布局呈现操作并保留必要反馈",
+          "line": 128,
+          "btIds": [
+            "BT_U17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "群聊用布局呈现操作并保留必要反馈",
+          "line": 129,
+          "btIds": [
+            "BT_U17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "群聊用布局呈现操作并保留必要反馈",
+          "line": 130,
+          "btIds": [
+            "BT_U17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "群聊用布局呈现操作并保留必要反馈",
+          "line": 131,
+          "btIds": [
+            "BT_U17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "消息作者直接提供过程入口",
+          "line": 134,
+          "btIds": [
+            "BT_U18"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "详情只保留有助于理解状态的信息",
+          "line": 148,
+          "btIds": [
+            "BT_U19"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "详情只保留有助于理解状态的信息",
+          "line": 149,
+          "btIds": [
+            "BT_U19"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "详情只保留有助于理解状态的信息",
+          "line": 150,
+          "btIds": [
+            "BT_U19"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "简化群聊后仍能查看连接状态和成员详情",
+          "line": 8,
+          "btIds": [
+            "BT_P21"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "拖拽分隔条调整对应面板",
+          "line": 22,
+          "btIds": [
+            "BT_P01"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "拖拽分隔条调整对应面板",
+          "line": 23,
+          "btIds": [
+            "BT_P01"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "面板调宽受边界和聊天区可用空间约束",
+          "line": 32,
+          "btIds": [
+            "BT_P02"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "面板调宽受边界和聊天区可用空间约束",
+          "line": 33,
+          "btIds": [
+            "BT_P02"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "面板调宽受边界和聊天区可用空间约束",
+          "line": 34,
+          "btIds": [
+            "BT_P02"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "面板调宽受边界和聊天区可用空间约束",
+          "line": 35,
+          "btIds": [
+            "BT_P02"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "左侧收起后释放空间并能恢复原宽度",
+          "line": 38,
+          "btIds": [
+            "BT_P03"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "关闭重开详情和刷新页面保留布局偏好",
+          "line": 46,
+          "btIds": [
+            "BT_P04"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "无效或不可用的本地存储不阻止使用",
+          "line": 59,
+          "btIds": [
+            "BT_P05"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "无效或不可用的本地存储不阻止使用",
+          "line": 60,
+          "btIds": [
+            "BT_P05"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "无效或不可用的本地存储不阻止使用",
+          "line": 61,
+          "btIds": [
+            "BT_P05"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不同布局下仍能调整面板并访问聊天",
+          "line": 70,
+          "btIds": [
+            "BT_P06"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不同布局下仍能调整面板并访问聊天",
+          "line": 71,
+          "btIds": [
+            "BT_P06"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不同布局下仍能调整面板并访问聊天",
+          "line": 72,
+          "btIds": [
+            "BT_P06"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不同布局下仍能调整面板并访问聊天",
+          "line": 73,
+          "btIds": [
+            "BT_P06"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 82,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 83,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 84,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 85,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 86,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 87,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 88,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 89,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止拖拽恢复正常交互且不保存预览",
+          "line": 99,
+          "btIds": [
+            "BT_P08"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止拖拽恢复正常交互且不保存预览",
+          "line": 100,
+          "btIds": [
+            "BT_P08"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止拖拽恢复正常交互且不保存预览",
+          "line": 101,
+          "btIds": [
+            "BT_P08"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "左侧移动导航与桌面收起状态独立",
+          "line": 104,
+          "btIds": [
+            "BT_P09"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "展示模式与尺寸均按工作区可用空间决定",
+          "line": 116,
+          "btIds": [
+            "BT_P11"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "展示模式与尺寸均按工作区可用空间决定",
+          "line": 117,
+          "btIds": [
+            "BT_P11"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "详情可利用导航释放的空间且不侵占聊天区",
+          "line": 127,
+          "btIds": [
+            "BT_P12"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "详情可利用导航释放的空间且不侵占聊天区",
+          "line": 128,
+          "btIds": [
+            "BT_P12"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "详情可利用导航释放的空间且不侵占聊天区",
+          "line": 129,
+          "btIds": [
+            "BT_P12"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "详情可利用导航释放的空间且不侵占聊天区",
+          "line": 130,
+          "btIds": [
+            "BT_P12"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "临时限幅不覆盖已保存的加宽偏好",
+          "line": 133,
+          "btIds": [
+            "BT_P13"
+          ],
+          "status": "passed",
+          "steps": 47
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "导航收起后仍能识别应用并使用群聊入口",
+          "line": 154,
+          "btIds": [
+            "BT_P14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "导航收起后仍能识别应用并使用群聊入口",
+          "line": 155,
+          "btIds": [
+            "BT_P14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "导航收起后仍能识别应用并使用群聊入口",
+          "line": 156,
+          "btIds": [
+            "BT_P14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "拖宽右栏触及聊天区下限时预览收起导航",
+          "line": 167,
+          "btIds": [
+            "BT_P15"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "拖宽右栏触及聊天区下限时预览收起导航",
+          "line": 168,
+          "btIds": [
+            "BT_P15"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "拖宽右栏触及聊天区下限时预览收起导航",
+          "line": 169,
+          "btIds": [
+            "BT_P15"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "自动收起后继续和反向拖拽均保持连续并在松手后保存",
+          "line": 172,
+          "btIds": [
+            "BT_P16"
+          ],
+          "status": "passed",
+          "steps": 45
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止自动收起预览恢复原布局",
+          "line": 192,
+          "btIds": [
+            "BT_P17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止自动收起预览恢复原布局",
+          "line": 193,
+          "btIds": [
+            "BT_P17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止自动收起预览恢复原布局",
+          "line": 194,
+          "btIds": [
+            "BT_P17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止自动收起预览恢复原布局",
+          "line": 195,
+          "btIds": [
+            "BT_P17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止自动收起预览恢复原布局",
+          "line": 196,
+          "btIds": [
+            "BT_P17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "覆盖层右栏拖拽不改变桌面导航偏好",
+          "line": 205,
+          "btIds": [
+            "BT_P18"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "覆盖层右栏拖拽不改变桌面导航偏好",
+          "line": 206,
+          "btIds": [
+            "BT_P18"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "手动展开优先于正在进行的自动收起预览",
+          "line": 209,
+          "btIds": [
+            "BT_P19"
+          ],
+          "status": "passed",
+          "steps": 42
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不符合自动收起条件的调整保持导航偏好",
+          "line": 224,
+          "btIds": [
+            "BT_P22"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不符合自动收起条件的调整保持导航偏好",
+          "line": 225,
+          "btIds": [
+            "BT_P22"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不符合自动收起条件的调整保持导航偏好",
+          "line": 226,
+          "btIds": [
+            "BT_P22"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不符合自动收起条件的调整保持导航偏好",
+          "line": 227,
+          "btIds": [
+            "BT_P22"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不符合自动收起条件的调整保持导航偏好",
+          "line": 228,
+          "btIds": [
+            "BT_P22"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不符合自动收起条件的调整保持导航偏好",
+          "line": 229,
+          "btIds": [
+            "BT_P22"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不符合自动收起条件的调整保持导航偏好",
+          "line": 230,
+          "btIds": [
+            "BT_P22"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "默认关闭调试入口和快照接口",
+          "line": 6,
+          "btIds": [
+            "BT_V01"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "从当前XState机器生成完整结构",
+          "line": 13,
+          "btIds": [
+            "BT_V02"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "在内存沙箱中执行真实协助流程",
+          "line": 20,
+          "btIds": [
+            "BT_V03"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "仿真保留真实拒绝和停止边界",
+          "line": 33,
+          "btIds": [
+            "BT_V04"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "仿真保留真实拒绝和停止边界",
+          "line": 34,
+          "btIds": [
+            "BT_V04"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "仿真保留真实拒绝和停止边界",
+          "line": 35,
+          "btIds": [
+            "BT_V04"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "仿真保留真实拒绝和停止边界",
+          "line": 36,
+          "btIds": [
+            "BT_V04"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "事件参数错误不破坏沙箱并可以从历史分叉",
+          "line": 39,
+          "btIds": [
+            "BT_V05"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "只在事务提交后发布观测且观测故障不影响业务",
+          "line": 47,
+          "btIds": [
+            "BT_V06"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "保存快速转移并按会话和群隔离有界观测",
+          "line": 55,
+          "btIds": [
+            "BT_V07"
+          ],
+          "status": "passed",
+          "steps": 42
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "从真实快照复制沙箱并保持真实任务不变",
+          "line": 64,
+          "btIds": [
+            "BT_V08"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "在网页面板完成查看发送历史和关闭",
+          "line": 71,
+          "btIds": [
+            "BT_V09"
+          ],
+          "status": "passed",
+          "steps": 43
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "后台讨论事件模板可以完成真实状态转换",
+          "line": 81,
+          "btIds": [
+            "BT_V10"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "并行讨论时主工作模板保持角色身份",
+          "line": 87,
+          "btIds": [
+            "BT_V11"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "不完整的讨论事件不会破坏沙箱",
+          "line": 93,
+          "btIds": [
+            "BT_V12"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "枚举合法结果返回顺序并检查交接不变量",
+          "line": 99,
+          "btIds": [
+            "BT_V13"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 110,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 111,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 112,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 113,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "状态图保留局部守卫失败后的全局回退分支",
+          "line": 116,
+          "btIds": [
+            "BT_V15"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "同次诊断保留自动微步并与原纯转换等价",
+          "line": 122,
+          "btIds": [
+            "BT_V16"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "重试分支短路和显式空处理可解释",
+          "line": 129,
+          "btIds": [
+            "BT_V17"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "预演不推进实验且历史选择不改变执行头",
+          "line": 135,
+          "btIds": [
+            "BT_V18"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "默认运行视图呈现等待事项和步骤解释",
+          "line": 141,
+          "btIds": [
+            "BT_V19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "历史回看与草稿编辑不被执行头更新覆盖",
+          "line": 147,
+          "btIds": [
+            "BT_V20"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "网页从历史建立可选择的独立沙箱",
+          "line": 153,
+          "btIds": [
+            "BT_V21"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "完整图稳定排列并保留全部规则入口",
+          "line": 159,
+          "btIds": [
+            "BT_V22"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "旧记录和裁剪历史不伪造条件或最新位置",
+          "line": 164,
+          "btIds": [
+            "BT_V23"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "讨论汇总就绪时仍显示主工作等待",
+          "line": 169,
+          "btIds": [
+            "BT_V24"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "预演过期和结束后继续均受真实条件限制",
+          "line": 175,
+          "btIds": [
+            "BT_V25"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "实时轮询的新记录不抢走历史选择",
+          "line": 181,
+          "btIds": [
+            "BT_V26"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "官方Inspector先收到机器注册再收到快照",
+          "line": 196,
+          "btIds": [
+            "BT_V27"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "官方Inspector先收到机器注册再收到快照",
+          "line": 197,
+          "btIds": [
+            "BT_V27"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "官方Inspector重新连接及关闭保持观察隔离",
+          "line": 200,
+          "btIds": [
+            "BT_V28"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "官方Inspector在独立标签页打开并复用",
+          "line": 208,
+          "btIds": [
+            "BT_V29"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "标签页被阻止时可以重试且不丢失当前选择",
+          "line": 216,
+          "btIds": [
+            "BT_V30"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "切换观察身份及关闭标签页保持隔离",
+          "line": 224,
+          "btIds": [
+            "BT_V31"
+          ],
+          "status": "passed",
+          "steps": 44
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "聚合连线保留每个事件与条件分支",
+          "line": 235,
+          "btIds": [
+            "BT_V32"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "状态图解释所选步骤的真实自动路径",
+          "line": 242,
+          "btIds": [
+            "BT_V33"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "简化图明确省略范围且所有规则仍可访问",
+          "line": 249,
+          "btIds": [
+            "BT_V34"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "无可关联证据时不伪造执行路径",
+          "line": 261,
+          "btIds": [
+            "BT_V35"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "无可关联证据时不伪造执行路径",
+          "line": 262,
+          "btIds": [
+            "BT_V35"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "所选步骤路径忠实区分正常拒绝与恢复",
+          "line": 271,
+          "btIds": [
+            "BT_V36"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "所选步骤路径忠实区分正常拒绝与恢复",
+          "line": 272,
+          "btIds": [
+            "BT_V36"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "所选步骤路径忠实区分正常拒绝与恢复",
+          "line": 273,
+          "btIds": [
+            "BT_V36"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "所选步骤路径忠实区分正常拒绝与恢复",
+          "line": 274,
+          "btIds": [
+            "BT_V36"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "所选步骤路径忠实区分正常拒绝与恢复",
+          "line": 275,
+          "btIds": [
+            "BT_V36"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "所选步骤路径忠实区分正常拒绝与恢复",
+          "line": 276,
+          "btIds": [
+            "BT_V36"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 285,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 286,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 287,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 288,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 289,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 290,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 291,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 292,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 293,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 294,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 295,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "Inspector标签页复用重试替换和释放保持隔离",
+          "line": 304,
+          "btIds": [
+            "BT_V38"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "Inspector标签页复用重试替换和释放保持隔离",
+          "line": 305,
+          "btIds": [
+            "BT_V38"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "Inspector标签页复用重试替换和释放保持隔离",
+          "line": 306,
+          "btIds": [
+            "BT_V38"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "Inspector标签页复用重试替换和释放保持隔离",
+          "line": 307,
+          "btIds": [
+            "BT_V38"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "Inspector标签页复用重试替换和释放保持隔离",
+          "line": 308,
+          "btIds": [
+            "BT_V38"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "Inspector标签页复用重试替换和释放保持隔离",
+          "line": 309,
+          "btIds": [
+            "BT_V38"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "Inspector标签页复用重试替换和释放保持隔离",
+          "line": 310,
+          "btIds": [
+            "BT_V38"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观测会话变化和历史过大时保留当前基线",
+          "line": 319,
+          "btIds": [
+            "BT_V39"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观测会话变化和历史过大时保留当前基线",
+          "line": 320,
+          "btIds": [
+            "BT_V39"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "沙箱事件模板沿用领取结算和计费边界",
+          "line": 323,
+          "btIds": [
+            "BT_V40"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "群聊移入归档列表并可以恢复",
+          "line": 7,
+          "btIds": [
+            "BT_G15"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "归档中的在途任务仍完成且新消息不自动恢复",
+          "line": 15,
+          "btIds": [
+            "BT_G16"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "归档状态和空群在服务重启后保留",
+          "line": 23,
+          "btIds": [
+            "BT_G17"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "归档命令支持重试并拒绝标识复用",
+          "line": 29,
+          "btIds": [
+            "BT_G18"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 42,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 43,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 44,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 45,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 46,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 47,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 48,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "归档提交失败可以重试且回滚完整",
+          "line": 51,
+          "btIds": [
+            "BT_G20"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "网页切换归档列表保留草稿并处理归档失败",
+          "line": 59,
+          "btIds": [
+            "BT_G21"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "迟到列表和快照不覆盖已提交的归档",
+          "line": 67,
+          "btIds": [
+            "BT_G22"
+          ],
+          "status": "passed",
+          "steps": 39
+        }
+      ]
+    },
+    {
+      "run": "ui-bdd-after-removal",
+      "exitCode": 0,
+      "sourceReport": "/workspace/work/kej-100/ui-bdd-after-removal.json",
+      "scenarios": 163,
+      "steps": 6467,
+      "results": [
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "后台促进者不作为抢答成员出现",
+          "line": 31,
+          "btIds": [
+            "BT_U04"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "通过唯一文件配置新成员",
+          "line": 37,
+          "btIds": [
+            "BT_U05"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "不兼容版本阻止旧任务自动恢复",
+          "line": 44,
+          "btIds": [
+            "BT_U06"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "撤销工具权限不能被旧快照绕过",
+          "line": 52,
+          "btIds": [
+            "BT_U07"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "已停止的旧成员历史仍然可查",
+          "line": 60,
+          "btIds": [
+            "BT_U08"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "消息按 Markdown 语义渲染",
+          "line": 81,
+          "btIds": [
+            "BT_U10"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "消息按 Markdown 语义渲染",
+          "line": 82,
+          "btIds": [
+            "BT_U10"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "消息按 Markdown 语义渲染",
+          "line": 83,
+          "btIds": [
+            "BT_U10"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "点名渲染不改写代码或已有链接",
+          "line": 86,
+          "btIds": [
+            "BT_U11"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "Markdown 不执行原始 HTML 或可执行链接",
+          "line": 93,
+          "btIds": [
+            "BT_U12"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "消息内脚注保留原地导航",
+          "line": 100,
+          "btIds": [
+            "BT_U13"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "页面与浏览器的品牌标识一致且可识别",
+          "line": 115,
+          "btIds": [
+            "BT_U14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "页面与浏览器的品牌标识一致且可识别",
+          "line": 116,
+          "btIds": [
+            "BT_U14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "群聊用布局呈现操作并保留必要反馈",
+          "line": 127,
+          "btIds": [
+            "BT_U17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "群聊用布局呈现操作并保留必要反馈",
+          "line": 128,
+          "btIds": [
+            "BT_U17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "群聊用布局呈现操作并保留必要反馈",
+          "line": 129,
+          "btIds": [
+            "BT_U17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "群聊用布局呈现操作并保留必要反馈",
+          "line": 130,
+          "btIds": [
+            "BT_U17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "群聊用布局呈现操作并保留必要反馈",
+          "line": 131,
+          "btIds": [
+            "BT_U17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "消息作者直接提供过程入口",
+          "line": 134,
+          "btIds": [
+            "BT_U18"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "详情只保留有助于理解状态的信息",
+          "line": 148,
+          "btIds": [
+            "BT_U19"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "详情只保留有助于理解状态的信息",
+          "line": 149,
+          "btIds": [
+            "BT_U19"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/08_interface_and_configuration.feature",
+          "name": "详情只保留有助于理解状态的信息",
+          "line": 150,
+          "btIds": [
+            "BT_U19"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "简化群聊后仍能查看连接状态和成员详情",
+          "line": 8,
+          "btIds": [
+            "BT_P21"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "拖拽分隔条调整对应面板",
+          "line": 22,
+          "btIds": [
+            "BT_P01"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "拖拽分隔条调整对应面板",
+          "line": 23,
+          "btIds": [
+            "BT_P01"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "面板调宽受边界和聊天区可用空间约束",
+          "line": 32,
+          "btIds": [
+            "BT_P02"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "面板调宽受边界和聊天区可用空间约束",
+          "line": 33,
+          "btIds": [
+            "BT_P02"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "面板调宽受边界和聊天区可用空间约束",
+          "line": 34,
+          "btIds": [
+            "BT_P02"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "面板调宽受边界和聊天区可用空间约束",
+          "line": 35,
+          "btIds": [
+            "BT_P02"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "左侧收起后释放空间并能恢复原宽度",
+          "line": 38,
+          "btIds": [
+            "BT_P03"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "关闭重开详情和刷新页面保留布局偏好",
+          "line": 46,
+          "btIds": [
+            "BT_P04"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "无效或不可用的本地存储不阻止使用",
+          "line": 59,
+          "btIds": [
+            "BT_P05"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "无效或不可用的本地存储不阻止使用",
+          "line": 60,
+          "btIds": [
+            "BT_P05"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "无效或不可用的本地存储不阻止使用",
+          "line": 61,
+          "btIds": [
+            "BT_P05"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不同布局下仍能调整面板并访问聊天",
+          "line": 70,
+          "btIds": [
+            "BT_P06"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不同布局下仍能调整面板并访问聊天",
+          "line": 71,
+          "btIds": [
+            "BT_P06"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不同布局下仍能调整面板并访问聊天",
+          "line": 72,
+          "btIds": [
+            "BT_P06"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不同布局下仍能调整面板并访问聊天",
+          "line": 73,
+          "btIds": [
+            "BT_P06"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 82,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 83,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 84,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 85,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 86,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 87,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 88,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "分隔条支持键盘并说明当前尺寸",
+          "line": 89,
+          "btIds": [
+            "BT_P07"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止拖拽恢复正常交互且不保存预览",
+          "line": 99,
+          "btIds": [
+            "BT_P08"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止拖拽恢复正常交互且不保存预览",
+          "line": 100,
+          "btIds": [
+            "BT_P08"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止拖拽恢复正常交互且不保存预览",
+          "line": 101,
+          "btIds": [
+            "BT_P08"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "左侧移动导航与桌面收起状态独立",
+          "line": 104,
+          "btIds": [
+            "BT_P09"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "展示模式与尺寸均按工作区可用空间决定",
+          "line": 116,
+          "btIds": [
+            "BT_P11"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "展示模式与尺寸均按工作区可用空间决定",
+          "line": 117,
+          "btIds": [
+            "BT_P11"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "详情可利用导航释放的空间且不侵占聊天区",
+          "line": 127,
+          "btIds": [
+            "BT_P12"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "详情可利用导航释放的空间且不侵占聊天区",
+          "line": 128,
+          "btIds": [
+            "BT_P12"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "详情可利用导航释放的空间且不侵占聊天区",
+          "line": 129,
+          "btIds": [
+            "BT_P12"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "详情可利用导航释放的空间且不侵占聊天区",
+          "line": 130,
+          "btIds": [
+            "BT_P12"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "临时限幅不覆盖已保存的加宽偏好",
+          "line": 133,
+          "btIds": [
+            "BT_P13"
+          ],
+          "status": "passed",
+          "steps": 47
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "导航收起后仍能识别应用并使用群聊入口",
+          "line": 154,
+          "btIds": [
+            "BT_P14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "导航收起后仍能识别应用并使用群聊入口",
+          "line": 155,
+          "btIds": [
+            "BT_P14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "导航收起后仍能识别应用并使用群聊入口",
+          "line": 156,
+          "btIds": [
+            "BT_P14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "拖宽右栏触及聊天区下限时预览收起导航",
+          "line": 167,
+          "btIds": [
+            "BT_P15"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "拖宽右栏触及聊天区下限时预览收起导航",
+          "line": 168,
+          "btIds": [
+            "BT_P15"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "拖宽右栏触及聊天区下限时预览收起导航",
+          "line": 169,
+          "btIds": [
+            "BT_P15"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "自动收起后继续和反向拖拽均保持连续并在松手后保存",
+          "line": 172,
+          "btIds": [
+            "BT_P16"
+          ],
+          "status": "passed",
+          "steps": 45
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止自动收起预览恢复原布局",
+          "line": 192,
+          "btIds": [
+            "BT_P17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止自动收起预览恢复原布局",
+          "line": 193,
+          "btIds": [
+            "BT_P17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止自动收起预览恢复原布局",
+          "line": 194,
+          "btIds": [
+            "BT_P17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止自动收起预览恢复原布局",
+          "line": 195,
+          "btIds": [
+            "BT_P17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "中止自动收起预览恢复原布局",
+          "line": 196,
+          "btIds": [
+            "BT_P17"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "覆盖层右栏拖拽不改变桌面导航偏好",
+          "line": 205,
+          "btIds": [
+            "BT_P18"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "覆盖层右栏拖拽不改变桌面导航偏好",
+          "line": 206,
+          "btIds": [
+            "BT_P18"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "手动展开优先于正在进行的自动收起预览",
+          "line": 209,
+          "btIds": [
+            "BT_P19"
+          ],
+          "status": "passed",
+          "steps": 42
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不符合自动收起条件的调整保持导航偏好",
+          "line": 224,
+          "btIds": [
+            "BT_P22"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不符合自动收起条件的调整保持导航偏好",
+          "line": 225,
+          "btIds": [
+            "BT_P22"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不符合自动收起条件的调整保持导航偏好",
+          "line": 226,
+          "btIds": [
+            "BT_P22"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不符合自动收起条件的调整保持导航偏好",
+          "line": 227,
+          "btIds": [
+            "BT_P22"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不符合自动收起条件的调整保持导航偏好",
+          "line": 228,
+          "btIds": [
+            "BT_P22"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不符合自动收起条件的调整保持导航偏好",
+          "line": 229,
+          "btIds": [
+            "BT_P22"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "不符合自动收起条件的调整保持导航偏好",
+          "line": 230,
+          "btIds": [
+            "BT_P22"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "默认关闭调试入口和快照接口",
+          "line": 6,
+          "btIds": [
+            "BT_V01"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "从当前XState机器生成完整结构",
+          "line": 13,
+          "btIds": [
+            "BT_V02"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "在内存沙箱中执行真实协助流程",
+          "line": 20,
+          "btIds": [
+            "BT_V03"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "仿真保留真实拒绝和停止边界",
+          "line": 33,
+          "btIds": [
+            "BT_V04"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "仿真保留真实拒绝和停止边界",
+          "line": 34,
+          "btIds": [
+            "BT_V04"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "仿真保留真实拒绝和停止边界",
+          "line": 35,
+          "btIds": [
+            "BT_V04"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "仿真保留真实拒绝和停止边界",
+          "line": 36,
+          "btIds": [
+            "BT_V04"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "事件参数错误不破坏沙箱并可以从历史分叉",
+          "line": 39,
+          "btIds": [
+            "BT_V05"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "只在事务提交后发布观测且观测故障不影响业务",
+          "line": 47,
+          "btIds": [
+            "BT_V06"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "保存快速转移并按会话和群隔离有界观测",
+          "line": 55,
+          "btIds": [
+            "BT_V07"
+          ],
+          "status": "passed",
+          "steps": 42
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "从真实快照复制沙箱并保持真实任务不变",
+          "line": 64,
+          "btIds": [
+            "BT_V08"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "在网页面板完成查看发送历史和关闭",
+          "line": 71,
+          "btIds": [
+            "BT_V09"
+          ],
+          "status": "passed",
+          "steps": 43
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "后台讨论事件模板可以完成真实状态转换",
+          "line": 81,
+          "btIds": [
+            "BT_V10"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "并行讨论时主工作模板保持角色身份",
+          "line": 87,
+          "btIds": [
+            "BT_V11"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "不完整的讨论事件不会破坏沙箱",
+          "line": 93,
+          "btIds": [
+            "BT_V12"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "枚举合法结果返回顺序并检查交接不变量",
+          "line": 99,
+          "btIds": [
+            "BT_V13"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 110,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 111,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 112,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 113,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "状态图保留局部守卫失败后的全局回退分支",
+          "line": 116,
+          "btIds": [
+            "BT_V15"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "同次诊断保留自动微步并与原纯转换等价",
+          "line": 122,
+          "btIds": [
+            "BT_V16"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "重试分支短路和显式空处理可解释",
+          "line": 129,
+          "btIds": [
+            "BT_V17"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "预演不推进实验且历史选择不改变执行头",
+          "line": 135,
+          "btIds": [
+            "BT_V18"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "默认运行视图呈现等待事项和步骤解释",
+          "line": 141,
+          "btIds": [
+            "BT_V19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "历史回看与草稿编辑不被执行头更新覆盖",
+          "line": 147,
+          "btIds": [
+            "BT_V20"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "网页从历史建立可选择的独立沙箱",
+          "line": 153,
+          "btIds": [
+            "BT_V21"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "完整图稳定排列并保留全部规则入口",
+          "line": 159,
+          "btIds": [
+            "BT_V22"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "旧记录和裁剪历史不伪造条件或最新位置",
+          "line": 164,
+          "btIds": [
+            "BT_V23"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "讨论汇总就绪时仍显示主工作等待",
+          "line": 169,
+          "btIds": [
+            "BT_V24"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "预演过期和结束后继续均受真实条件限制",
+          "line": 175,
+          "btIds": [
+            "BT_V25"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "实时轮询的新记录不抢走历史选择",
+          "line": 181,
+          "btIds": [
+            "BT_V26"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "官方Inspector先收到机器注册再收到快照",
+          "line": 196,
+          "btIds": [
+            "BT_V27"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "官方Inspector先收到机器注册再收到快照",
+          "line": 197,
+          "btIds": [
+            "BT_V27"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "官方Inspector重新连接及关闭保持观察隔离",
+          "line": 200,
+          "btIds": [
+            "BT_V28"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "官方Inspector在独立标签页打开并复用",
+          "line": 208,
+          "btIds": [
+            "BT_V29"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "标签页被阻止时可以重试且不丢失当前选择",
+          "line": 216,
+          "btIds": [
+            "BT_V30"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "切换观察身份及关闭标签页保持隔离",
+          "line": 224,
+          "btIds": [
+            "BT_V31"
+          ],
+          "status": "passed",
+          "steps": 44
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "聚合连线保留每个事件与条件分支",
+          "line": 235,
+          "btIds": [
+            "BT_V32"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "状态图解释所选步骤的真实自动路径",
+          "line": 242,
+          "btIds": [
+            "BT_V33"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "简化图明确省略范围且所有规则仍可访问",
+          "line": 249,
+          "btIds": [
+            "BT_V34"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "无可关联证据时不伪造执行路径",
+          "line": 261,
+          "btIds": [
+            "BT_V35"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "无可关联证据时不伪造执行路径",
+          "line": 262,
+          "btIds": [
+            "BT_V35"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "所选步骤路径忠实区分正常拒绝与恢复",
+          "line": 271,
+          "btIds": [
+            "BT_V36"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "所选步骤路径忠实区分正常拒绝与恢复",
+          "line": 272,
+          "btIds": [
+            "BT_V36"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "所选步骤路径忠实区分正常拒绝与恢复",
+          "line": 273,
+          "btIds": [
+            "BT_V36"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "所选步骤路径忠实区分正常拒绝与恢复",
+          "line": 274,
+          "btIds": [
+            "BT_V36"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "所选步骤路径忠实区分正常拒绝与恢复",
+          "line": 275,
+          "btIds": [
+            "BT_V36"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "所选步骤路径忠实区分正常拒绝与恢复",
+          "line": 276,
+          "btIds": [
+            "BT_V36"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 285,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 286,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 287,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 288,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 289,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 290,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 291,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 292,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 293,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 294,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观察连接按信任边界和生命周期发送所选快照",
+          "line": 295,
+          "btIds": [
+            "BT_V37"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "Inspector标签页复用重试替换和释放保持隔离",
+          "line": 304,
+          "btIds": [
+            "BT_V38"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "Inspector标签页复用重试替换和释放保持隔离",
+          "line": 305,
+          "btIds": [
+            "BT_V38"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "Inspector标签页复用重试替换和释放保持隔离",
+          "line": 306,
+          "btIds": [
+            "BT_V38"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "Inspector标签页复用重试替换和释放保持隔离",
+          "line": 307,
+          "btIds": [
+            "BT_V38"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "Inspector标签页复用重试替换和释放保持隔离",
+          "line": 308,
+          "btIds": [
+            "BT_V38"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "Inspector标签页复用重试替换和释放保持隔离",
+          "line": 309,
+          "btIds": [
+            "BT_V38"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "Inspector标签页复用重试替换和释放保持隔离",
+          "line": 310,
+          "btIds": [
+            "BT_V38"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观测会话变化和历史过大时保留当前基线",
+          "line": 319,
+          "btIds": [
+            "BT_V39"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "观测会话变化和历史过大时保留当前基线",
+          "line": 320,
+          "btIds": [
+            "BT_V39"
+          ],
+          "status": "passed",
+          "steps": 38
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "沙箱事件模板沿用领取结算和计费边界",
+          "line": 323,
+          "btIds": [
+            "BT_V40"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "群聊移入归档列表并可以恢复",
+          "line": 7,
+          "btIds": [
+            "BT_G15"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "归档中的在途任务仍完成且新消息不自动恢复",
+          "line": 15,
+          "btIds": [
+            "BT_G16"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "归档状态和空群在服务重启后保留",
+          "line": 23,
+          "btIds": [
+            "BT_G17"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "归档命令支持重试并拒绝标识复用",
+          "line": 29,
+          "btIds": [
+            "BT_G18"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 42,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 43,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 44,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 45,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 46,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 47,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "无效归档请求不改变群聊",
+          "line": 48,
+          "btIds": [
+            "BT_G19"
+          ],
+          "status": "passed",
+          "steps": 39
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "归档提交失败可以重试且回滚完整",
+          "line": 51,
+          "btIds": [
+            "BT_G20"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "网页切换归档列表保留草稿并处理归档失败",
+          "line": 59,
+          "btIds": [
+            "BT_G21"
+          ],
+          "status": "passed",
+          "steps": 41
+        },
+        {
+          "feature": "features/25_room_archive.feature",
+          "name": "迟到列表和快照不覆盖已提交的归档",
+          "line": 67,
+          "btIds": [
+            "BT_G22"
+          ],
+          "status": "passed",
+          "steps": 39
+        }
+      ]
+    },
+    {
+      "run": "ui-n13-bdd",
+      "exitCode": 0,
+      "sourceReport": "/workspace/work/kej-100/ui-n13-bdd.json",
+      "scenarios": 1,
+      "steps": 40,
+      "results": [
+        {
+          "feature": "features/26_task_model_refactor.feature",
+          "name": "调试观察可区分任务和执行 actor",
+          "line": 157,
+          "btIds": [
+            "BT_N13"
+          ],
+          "status": "passed",
+          "steps": 40
+        }
+      ]
+    },
+    {
+      "run": "ui-final-p16-n13",
+      "exitCode": 0,
+      "sourceReport": "/workspace/work/kej-100/ui-final-p16-n13.json",
+      "scenarios": 2,
+      "steps": 87,
+      "results": [
+        {
+          "feature": "features/18_workspace_panels.feature",
+          "name": "自动收起后继续和反向拖拽均保持连续并在松手后保存",
+          "line": 172,
+          "btIds": [
+            "BT_P16"
+          ],
+          "status": "passed",
+          "steps": 46
+        },
+        {
+          "feature": "features/26_task_model_refactor.feature",
+          "name": "调试观察可区分任务和执行 actor",
+          "line": 157,
+          "btIds": [
+            "BT_N13"
+          ],
+          "status": "passed",
+          "steps": 41
+        }
+      ]
+    },
+    {
+      "run": "ui-final-v17",
+      "exitCode": 0,
+      "sourceReport": "/workspace/work/kej-100/ui-final-v17.json",
+      "scenarios": 1,
+      "steps": 40,
+      "results": [
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "重试分支短路和显式空处理可解释",
+          "line": 129,
+          "btIds": [
+            "BT_V17"
+          ],
+          "status": "passed",
+          "steps": 40
+        }
+      ]
+    },
+    {
+      "run": "ui-discussion-direct",
+      "exitCode": 0,
+      "sourceReport": "/workspace/work/kej-100/ui-discussion-direct.json",
+      "scenarios": 8,
+      "steps": 320,
+      "results": [
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "后台讨论事件模板可以完成真实状态转换",
+          "line": 81,
+          "btIds": [
+            "BT_V10"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "并行讨论时主工作模板保持角色身份",
+          "line": 87,
+          "btIds": [
+            "BT_V11"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "不完整的讨论事件不会破坏沙箱",
+          "line": 93,
+          "btIds": [
+            "BT_V12"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 110,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 111,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 112,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 113,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "状态图保留局部守卫失败后的全局回退分支",
+          "line": 116,
+          "btIds": [
+            "BT_V15"
+          ],
+          "status": "passed",
+          "steps": 40
+        }
+      ]
+    },
+    {
+      "run": "ui-final-n13-observed",
+      "exitCode": 0,
+      "sourceReport": "/workspace/work/kej-100/ui-final-n13-observed.json",
+      "scenarios": 1,
+      "steps": 41,
+      "results": [
+        {
+          "feature": "features/26_task_model_refactor.feature",
+          "name": "调试观察可区分任务和执行 actor",
+          "line": 158,
+          "btIds": [
+            "BT_N13"
+          ],
+          "status": "passed",
+          "steps": 41
+        }
+      ]
+    },
+    {
+      "run": "ui-publication-direct",
+      "exitCode": 0,
+      "sourceReport": "/workspace/work/kej-100/ui-publication-direct.json",
+      "scenarios": 2,
+      "steps": 8,
+      "results": [
+        {
+          "feature": "features/31_artifact_reference.feature",
+          "name": "旧成功任务只有确认发布的Markdown才提供引用入口",
+          "line": 203,
+          "btIds": [
+            "BT_A48"
+          ],
+          "status": "passed",
+          "steps": 4
+        },
+        {
+          "feature": "features/31_artifact_reference.feature",
+          "name": "旧成功任务只有确认发布的Markdown才提供引用入口",
+          "line": 204,
+          "btIds": [
+            "BT_A48"
+          ],
+          "status": "passed",
+          "steps": 4
+        }
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/31_artifact_reference.feature --import tests/bdd/steps.ts --import tests/bdd/artifact-ui-contract.steps.ts --tags '@BT_A48' --format summary"
+    },
+    {
+      "run": "ui-publication-after-removal",
+      "exitCode": 0,
+      "sourceReport": "/workspace/work/kej-100/ui-publication-after-removal.json",
+      "scenarios": 2,
+      "steps": 8,
+      "results": [
+        {
+          "feature": "features/31_artifact_reference.feature",
+          "name": "旧成功任务只有确认发布的Markdown才提供引用入口",
+          "line": 203,
+          "btIds": [
+            "BT_A48"
+          ],
+          "status": "passed",
+          "steps": 4
+        },
+        {
+          "feature": "features/31_artifact_reference.feature",
+          "name": "旧成功任务只有确认发布的Markdown才提供引用入口",
+          "line": 204,
+          "btIds": [
+            "BT_A48"
+          ],
+          "status": "passed",
+          "steps": 4
+        }
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/31_artifact_reference.feature --import tests/bdd/steps.ts --import tests/bdd/artifact-ui-contract.steps.ts --tags '@BT_A48' --format summary"
+    }
+  ],
+  "negativeControls": [
+    {
+      "mutation": "markdown-table-accessibility",
+      "isolatedFile": "web/src/MessageText.tsx",
+      "change": {
+        "from": "aria-label=\"消息中的表格\"",
+        "to": "aria-label=\"回归丢失表格名称\""
+      },
+      "tags": "@BT_U10",
+      "exitCode": 1,
+      "failedScenarios": [
+        "消息按 Markdown 语义渲染"
+      ],
+      "fullReport": "/workspace/work/kej-100/markdown-table-accessibility.json",
+      "log": "/workspace/work/kej-100/markdown-table-accessibility.log",
+      "originalRepositoryChanged": false,
+      "failures": [
+        {
+          "scenario": "消息按 Markdown 语义渲染",
+          "step": "应生成对应的\"GFM 表格与复选框\"且保留正文内容",
+          "error": "AssertionError [ERR_ASSERTION]: aria-label=\"消息中的表格\"\n    + expected - actual\n\n    -false\n    +true\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/ui-negative-worktree/tests/bdd/model-and-markdown.steps.ts:66:458)"
+        }
+      ],
+      "method": "在仓库外复制src/web/tests/features/scripts及配置，依赖仅链接node_modules；仅副本注入单个生产回归，每次恢复。主工作区产品文件未修改。"
+    },
+    {
+      "mutation": "inspector-foreign-source",
+      "isolatedFile": "src/inspector.machine.ts",
+      "change": {
+        "from": "event.fromTarget && event.origin === inspectorOrigin",
+        "to": "event.origin === inspectorOrigin"
+      },
+      "tags": "@BT_V37",
+      "exitCode": 1,
+      "failedScenarios": [
+        "观察连接按信任边界和生命周期发送所选快照"
+      ],
+      "fullReport": "/workspace/work/kej-100/inspector-foreign-source.json",
+      "log": "/workspace/work/kej-100/inspector-foreign-source.log",
+      "originalRepositoryChanged": false,
+      "failures": [
+        {
+          "scenario": "观察连接按信任边界和生命周期发送所选快照",
+          "step": "观察连接应给出\"拒绝不可信握手\"",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   delivery: {\n+     frame: {\n+       event: undefined,\n+       snapshot: {\n+         value: 'running'\n+       }\n+     },\n+     kind: 'register',\n+     sequence: 1\n+   },\n+   value: 'connected'\n-   delivery: null,\n-   value: 'waiting'\n  }\n\n    + expected - actual\n\n     {\n    -  \"delivery\": {\n    -    \"frame\": {\n    -      \"event\": [undefined]\n    -      \"snapshot\": {\n    -        \"value\": \"running\"\n    -      }\n    -    }\n    -    \"kind\": \"register\"\n    -    \"sequence\": 1\n    -  }\n    -  \"value\": \"connected\"\n    +  \"delivery\": [null]\n    +  \"value\": \"waiting\"\n     }\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/ui-negative-worktree/tests/bdd/ui-contract.steps.ts:50:52)"
+        }
+      ],
+      "method": "在仓库外复制src/web/tests/features/scripts及配置，依赖仅链接node_modules；仅副本注入单个生产回归，每次恢复。主工作区产品文件未修改。"
+    },
+    {
+      "mutation": "chart-missing-path",
+      "isolatedFile": "src/task-chart.ts",
+      "change": {
+        "from": "status: 'recorded', note: '当次诊断证据'",
+        "to": "status: 'missing', note: '当次诊断证据'"
+      },
+      "tags": "@BT_V36",
+      "exitCode": 1,
+      "failedScenarios": [
+        "所选步骤路径忠实区分正常拒绝与恢复",
+        "所选步骤路径忠实区分正常拒绝与恢复",
+        "所选步骤路径忠实区分正常拒绝与恢复",
+        "所选步骤路径忠实区分正常拒绝与恢复",
+        "所选步骤路径忠实区分正常拒绝与恢复",
+        "所选步骤路径忠实区分正常拒绝与恢复"
+      ],
+      "fullReport": "/workspace/work/kej-100/chart-missing-path.json",
+      "log": "/workspace/work/kej-100/chart-missing-path.log",
+      "originalRepositoryChanged": false,
+      "failures": [
+        {
+          "scenario": "所选步骤路径忠实区分正常拒绝与恢复",
+          "step": "路径应完整记录\"求助转移\"",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'missing'\n- 'recorded'\n\n    + expected - actual\n\n    -missing\n    +recorded\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/ui-negative-worktree/tests/bdd/ui-contract.steps.ts:93:82)"
+        },
+        {
+          "scenario": "所选步骤路径忠实区分正常拒绝与恢复",
+          "step": "路径应完整记录\"自依赖拒绝\"",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'missing'\n- 'recorded'\n\n    + expected - actual\n\n    -missing\n    +recorded\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/ui-negative-worktree/tests/bdd/ui-contract.steps.ts:93:82)"
+        },
+        {
+          "scenario": "所选步骤路径忠实区分正常拒绝与恢复",
+          "step": "路径应完整记录\"停止及自动结算\"",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'missing'\n- 'recorded'\n\n    + expected - actual\n\n    -missing\n    +recorded\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/ui-negative-worktree/tests/bdd/ui-contract.steps.ts:93:82)"
+        },
+        {
+          "scenario": "所选步骤路径忠实区分正常拒绝与恢复",
+          "step": "路径应完整记录\"重复停止空处理\"",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'missing'\n- 'recorded'\n\n    + expected - actual\n\n    -missing\n    +recorded\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/ui-negative-worktree/tests/bdd/ui-contract.steps.ts:93:82)"
+        },
+        {
+          "scenario": "所选步骤路径忠实区分正常拒绝与恢复",
+          "step": "路径应完整记录\"结束后继续\"",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'missing'\n- 'recorded'\n\n    + expected - actual\n\n    -missing\n    +recorded\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/ui-negative-worktree/tests/bdd/ui-contract.steps.ts:93:82)"
+        },
+        {
+          "scenario": "所选步骤路径忠实区分正常拒绝与恢复",
+          "step": "路径应完整记录\"全局协助重试\"",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'missing'\n- 'recorded'\n\n    + expected - actual\n\n    -missing\n    +recorded\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/ui-negative-worktree/tests/bdd/ui-contract.steps.ts:93:82)"
+        }
+      ],
+      "method": "在仓库外复制src/web/tests/features/scripts及配置，依赖仅链接node_modules；仅副本注入单个生产回归，每次恢复。主工作区产品文件未修改。"
+    },
+    {
+      "mutation": "panel-boundary-collapse",
+      "isolatedFile": "web/src/panel-layout.ts",
+      "change": {
+        "from": "requestedWidth >= layout.rightBounds.max",
+        "to": "requestedWidth > layout.rightBounds.max"
+      },
+      "tags": "@BT_P15",
+      "exitCode": 1,
+      "failedScenarios": [
+        "拖宽右栏触及聊天区下限时预览收起导航"
+      ],
+      "fullReport": "/workspace/work/kej-100/panel-boundary-collapse.json",
+      "log": "/workspace/work/kej-100/panel-boundary-collapse.log",
+      "originalRepositoryChanged": false,
+      "failures": [
+        {
+          "scenario": "拖宽右栏触及聊天区下限时预览收起导航",
+          "step": "预览导航应\"收起\"且详情应跟随拖动",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n'true' !== 'false'\n\n    + expected - actual\n\n    -true\n    +false\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/ui-negative-worktree/tests/bdd/panels.steps.ts:273:10)"
+        }
+      ],
+      "method": "在仓库外复制src/web/tests/features/scripts及配置，依赖仅链接node_modules；仅副本注入单个生产回归，每次恢复。主工作区产品文件未修改。"
+    },
+    {
+      "mutation": "archive-revision-step",
+      "isolatedFile": "src/room.machine.ts",
+      "change": {
+        "from": "revision: context.revision + 1",
+        "to": "revision: context.revision + 2"
+      },
+      "tags": "@BT_G15",
+      "exitCode": 1,
+      "failedScenarios": [
+        "群聊移入归档列表并可以恢复"
+      ],
+      "fullReport": "/workspace/work/kej-100/archive-revision-step.json",
+      "log": "/workspace/work/kej-100/archive-revision-step.log",
+      "originalRepositoryChanged": false,
+      "failures": [
+        {
+          "scenario": "群聊移入归档列表并可以恢复",
+          "step": "将当前群聊归档并查看归档列表",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   archiveVersion: 2,\n-   archiveVersion: 1,\n    archived: true\n  }\n\n    + expected - actual\n\n     {\n    -  \"archiveVersion\": 2\n    +  \"archiveVersion\": 1\n       \"archived\": true\n     }\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/ui-negative-worktree/tests/bdd/room-archive.steps.ts:24:10)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)"
+        }
+      ],
+      "method": "在仓库外复制src/web/tests/features/scripts及配置，依赖仅链接node_modules；仅副本注入单个生产回归，每次恢复。主工作区产品文件未修改。"
+    },
+    {
+      "mutation": "discussion-claim-fallback",
+      "isolatedFile": "src/task-structure.ts",
+      "change": {
+        "from": "return [...local, ...graph.transitions.filter(t => t.source === '*' && !overridden.has(t.event))];",
+        "to": "return local;"
+      },
+      "tags": "@BT_V15",
+      "exitCode": 1,
+      "failedScenarios": [
+        "状态图保留局部守卫失败后的全局回退分支"
+      ],
+      "fullReport": "/workspace/work/kej-100/discussion-claim-fallback.json",
+      "log": "/workspace/work/kej-100/discussion-claim-fallback.log",
+      "originalRepositoryChanged": false,
+      "failures": [
+        {
+          "scenario": "状态图保留局部守卫失败后的全局回退分支",
+          "step": "应显示主工作与全局讨论及取消领取的守卫",
+          "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert(guards.includes(guard))\n\n    + expected - actual\n\n    -false\n    +true\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/ui-negative-worktree/tests/bdd/discussion-debug.steps.ts:28:198)"
+        }
+      ],
+      "method": "仓库外复制副本把stateTransitions省略global fallback；仅副本修改生产文件，BT_V15直接BDD失败，副本随后删除，主产品无diff。"
+    },
+    {
+      "mutation": "legacy-publication-confirmation",
+      "isolatedFile": "web/src/ResultLinks.tsx",
+      "change": {
+        "from": "&& !!task.currentArtifactIds?.includes(artifact.id)",
+        "to": ""
+      },
+      "tags": "@BT_A48",
+      "exitCode": 1,
+      "failedScenarios": [
+        "旧成功任务只有确认发布的Markdown才提供引用入口"
+      ],
+      "fullReport": "/workspace/work/kej-100/legacy-publication-confirmation.json",
+      "log": "/workspace/work/kej-100/legacy-publication-confirmation.log",
+      "originalRepositoryChanged": false,
+      "failures": [
+        {
+          "scenario": "旧成功任务只有确认发布的Markdown才提供引用入口",
+          "step": "这份报告的引用到新任务能力应为\"不可用\"",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\ntrue !== false\n\n    + expected - actual\n\n    -true\n    +false\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/ui-publication-negative-worktree/tests/bdd/artifact-ui-contract.steps.ts:101:10)"
+        }
+      ],
+      "method": "仓库外复制src/web/tests/features/scripts及配置，只副本移除currentArtifactIds确认约束；相同A48直接BDD检出缺清单被错误允许。副本已删除，主工作区src/web未改。"
+    }
+  ],
+  "pureModelGate": {
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx --input-type=module -e \"import {verifyDiagnosticPaths,verifyRetryAndEmpty,verifyPreviewAndHead,verifyExpiredAndBudget} from './tests/task-debug-behavior.ts'; import {graphVocabularyContract,focusedGraphContract,unavailablePathContract} from './tests/chart-contract-fixture.ts'; import {dragBoundaryContract,reversedDragContract,keyboardBoundaryContract} from './tests/panel-contract-fixture.ts'; verifyDiagnosticPaths(); verifyRetryAndEmpty(); verifyPreviewAndHead(); verifyExpiredAndBudget(); graphVocabularyContract(); focusedGraphContract(); unavailablePathContract('没有诊断证据'); unavailablePathContract('不同结构版本'); dragBoundaryContract(828,true); reversedDragContract(); keyboardBoundaryContract(); console.log('UI_MODEL_GATE_PASSED');\"",
+    "exitCode": 0,
+    "stdout": "UI_MODEL_GATE_PASSED",
+    "scope": "直接调用断言驱动；纯真实XState/公开投影与布局API，无DOM/数据库/HTTP/真实I/O。BDD实际复用同断言；不是仅import。"
+  },
+  "remainingIntegration": {
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node node_modules/vitest/vitest.mjs run tests/task-debug.test.ts tests/task-chart-ui.test.ts tests/inspector-window.test.ts --maxWorkers=1",
+    "exitCode": 0,
+    "files": 3,
+    "cases": 17,
+    "scope": "实际SDK、HTTP/SQLite、事务观察及DOM交互接线；纯graph/SSR/模板/merge包装已迁出。"
+  },
+  "publicationApiGate": {
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx --input-type=module -e \"import assert from 'node:assert/strict'; import {canReferenceArtifact} from './web/src/ResultLinks.tsx'; const task = {id:'legacy',goal:'旧任务',owner:'A',phase:'ended',outcome:'complete',reason:'',usage:{ordinary:1,checks:1},limits:{ordinary:300,checks:30},board:[],trace:[],artifacts:[{id:'report',name:'旧方案.md',content:'# 旧报告',goalVersion:1}]}; assert.equal(canReferenceArtifact(task,task.artifacts[0]),false); task.currentArtifactIds=['report']; assert.equal(canReferenceArtifact(task,task.artifacts[0]),true); console.log('PUBLICATION_API_GATE_PASSED');\"",
+    "exitCode": 0,
+    "output": "PUBLICATION_API_GATE_PASSED",
+    "scope": "公开canReferenceArtifact的纯能力投影，显式断言同一旧成功Markdown缺发布清单为false、确认清单包含报告后为true；不调用DOM、数据库、网络或文件系统。"
+  },
+  "publicationRemainingIntegration": {
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node node_modules/vitest/vitest.mjs run tests/artifact-source-ui.test.ts --maxWorkers=1",
+    "exitCode": 0,
+    "tests": 8,
+    "passed": 8,
+    "failed": 0,
+    "sourceReport": "/workspace/work/kej-100/ui-publication-remaining.json",
+    "scope": "保留8个真实DOM交互与网页请求接线用例，仅删除本次纯能力投影单测。"
+  }
+}

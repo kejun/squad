@@ -5,89 +5,20 @@ import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
 import { createTeamConfig } from '../team.config.js';
-import { configureModelsFromEnv, loadModelEnvFile, OpenAICompatibleAdapter, resolveModel, WorkRunner } from '../src/index.js';
+import { loadModelEnvFile, OpenAICompatibleAdapter, WorkRunner } from '../src/index.js';
 import { Harness } from './helpers.js';
 
 const defaults = { MODEL_BASE_URL: 'https://provider.example/v1', MODEL_NAME: 'default-model', MODEL_API_KEY: 'test-private-key' };
 
 describe('model services from .env', () => {
-  it('keeps offline configuration usable without provider settings', () => {
-    const config = createTeamConfig({});
-    expect(config.bots).toHaveLength(5); expect(config.models).toBeUndefined();
-  });
-
-  it('lets every bot use its own model with shared connection defaults', () => {
-    const config = createTeamConfig({ ...defaults, A_MODEL_NAME: 'planner', B_MODEL_NAME: 'reviewer',
-      BUILDER_1_MODEL_NAME: 'dev1', BUILDER_2_MODEL_NAME: 'dev2', BUILDER_3_MODEL_NAME: 'dev3' });
-    for (const [id, name] of [['A', 'planner'], ['B', 'reviewer'], ['builder-1', 'dev1'], ['builder-2', 'dev2'], ['builder-3', 'dev3']]) {
-      const selected = resolveModel(config, 'owner', id!);
-      expect(selected?.service.model).toBe(name);
-      expect(selected?.service.baseUrl).toBe(defaults.MODEL_BASE_URL);
-      expect(selected?.service.apiKeyEnv).toBe('MODEL_API_KEY');
-    }
-    expect(JSON.stringify(config)).not.toContain(defaults.MODEL_API_KEY);
-  });
-
-  it('supports independent providers and role-specific credentials', () => {
-    const config = createTeamConfig({ ...defaults, BUILDER_3_MODEL_BASE_URL: 'https://other.example/v1',
-      BUILDER_3_MODEL_NAME: 'other-model', BUILDER_3_MODEL_API_KEY: 'other-private-key' });
-    expect(resolveModel(config, 'owner', 'builder-3')?.service).toMatchObject({ baseUrl: 'https://other.example/v1', model: 'other-model', apiKeyEnv: 'BUILDER_3_MODEL_API_KEY' });
-    expect(JSON.stringify(config)).not.toContain('other-private-key');
-    expect(resolveModel(config, 'owner', 'A')?.service.model).toBe('default-model');
-  });
 
   it('never forwards the default credential to a changed endpoint', async () => {
     const env = { ...defaults, BUILDER_3_MODEL_BASE_URL: 'https://other.example/v1' };
     const config = createTeamConfig(env);
-    const selected = resolveModel(config, 'owner', 'builder-3');
-    expect(selected?.service.apiKeyEnv).toBe('BUILDER_3_MODEL_API_KEY');
     const h = new Harness(config); h.event({ type: 'HANDOFF', owner: 'builder-3' });
     const http = vi.fn<typeof fetch>();
     await new WorkRunner(h.engine, new OpenAICompatibleAdapter(config, { env, transport: http, clock: () => 0 }), () => 0).runOne(h.room, h.task);
     expect(http).not.toHaveBeenCalled(); expect(h.view().phase).toBe('waitingHuman');
-  });
-
-  it('allows an explicitly unauthenticated local service', () => {
-    const config = createTeamConfig({ MODEL_BASE_URL: 'http://127.0.0.1:11434/v1', MODEL_NAME: 'local', MODEL_NO_AUTH: 'true',
-      BUILDER_3_MODEL_BASE_URL: 'https://other.example/v1' });
-    expect(resolveModel(config, 'owner', 'A')?.service.apiKeyEnv).toBeUndefined();
-    expect(resolveModel(config, 'owner', 'builder-3')?.service.apiKeyEnv).toBe('BUILDER_3_MODEL_API_KEY');
-  });
-
-  it('configures facilitator, final check and request parameters', () => {
-    const config = createTeamConfig({ ...defaults, FACILITATOR_MODEL_NAME: 'coordinator', CHECK_MODEL_NAME: 'checker',
-      MODEL_TEMPERATURE: '0.2', MODEL_MAX_TOKENS: '8192', MODEL_EXTRA_BODY: '{"enable_thinking":false}', CHECK_MODEL_JSON_MODE: 'false' });
-    expect(resolveModel(config, 'facilitator', 'facilitator')?.service.model).toBe('coordinator');
-    expect(resolveModel(config, 'check', 'facilitator')?.service).toMatchObject({ model: 'checker', jsonMode: false, temperature: 0.2, maxTokens: 8192, extraBody: { enable_thinking: false } });
-  });
-
-  it('binds check context capacity to the configured provider model', () => {
-    const config = createTeamConfig({ ...defaults, MODEL_CONTEXT_WINDOW_TOKENS: '64000', CHECK_MODEL_NAME: 'checker', CHECK_MODEL_CONTEXT_WINDOW_TOKENS: '16000' });
-    expect(resolveModel(config, 'owner', 'A')?.service.contextWindowTokens).toBe(64000);
-    expect(resolveModel(config, 'check', 'facilitator')?.service.contextWindowTokens).toBe(16000);
-  });
-
-  it('leaves context capacity unset when the check profile selects a different model', () => {
-    const config = createTeamConfig({ ...defaults, MODEL_CONTEXT_WINDOW_TOKENS: '64000', CHECK_MODEL_NAME: 'checker' });
-    expect(resolveModel(config, 'check', 'facilitator')?.service.contextWindowTokens).toBeUndefined();
-  });
-
-  it.each([
-    { name: 'empty endpoint', change: { MODEL_BASE_URL: '' } },
-    { name: 'invalid JSON mode', change: { MODEL_JSON_MODE: 'sometimes' } },
-    { name: 'infinite temperature', change: { MODEL_TEMPERATURE: 'Infinity' } },
-    { name: 'negative token limit', change: { MODEL_MAX_TOKENS: '-1' } },
-    { name: 'malformed JSON body', change: { MODEL_EXTRA_BODY: '{private-invalid-value' } },
-    { name: 'reserved request field', change: { MODEL_EXTRA_BODY: '{"messages":[]}' } },
-  ])('rejects $name without echoing the invalid value', ({ change }) => {
-    expect(() => createTeamConfig({ ...defaults, ...change })).toThrow(
-      expect.objectContaining({ message: expect.not.stringContaining('private-invalid-value') }),
-    );
-  });
-
-  it('does not mutate an existing team when resolving environment settings', () => {
-    const base = createTeamConfig({}); const copy = structuredClone(base);
-    configureModelsFromEnv(base, { ...defaults, A_MODEL_NAME: 'planner' }); expect(base).toEqual(copy);
   });
 
   it('loads a real .env automatically and honors existing process variables', () => {

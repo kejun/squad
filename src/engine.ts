@@ -12,18 +12,21 @@ import { recoveryIssue } from './task/facts.js';
 import { legacyTerminalConfig, taskProtocolChanged, taskStorageVersion } from './task/protocol.js';
 import { restoreRoomArchive, stepRoomArchive } from './room.machine.js';
 import { hostRetryAction, hostRetryBatchRetirable } from './host-retry.js';
+import { parseArtifactRequest, resolveArtifactSource } from './source-artifact.js';
+import type { ArtifactReference, ArtifactSource, ArtifactSourceMetadata } from './types.js';
 
 interface StoredTask { version: 1 | 2 | 3; snapshot: unknown }
 const protocolBoundEvents = new Set<TaskEvent['type']>([
   'CLAIM', 'CONSUME', 'REGENERATE_MODEL_OUTPUT', 'LOCAL_REQUEST', 'LOCAL_CLAIM', 'LOCAL_STARTED',
   'LOCAL_APPROVAL_REQUIRED', 'LOCAL_APPROVAL_DECISION', 'DELIVER', 'CHECK_RESULT', 'HELP_RESULT', 'WORK_FAILED',
 ]);
-export interface CommandResult extends Reply { taskId?: string; duplicate?: boolean }
+export interface CommandResult extends Reply { taskId?: string; duplicate?: boolean; sourceCandidates?: ArtifactSourceMetadata[] }
 export interface Submission {
   id: string; text: string; mentions?: string[]; goal?: Goal;
   intent?: 'new' | 'supplement' | 'decision' | 'continue' | 'retry'; replyToTaskId?: string;
   retryAssistanceId?: string;
   extraOrdinary?: number;
+  sourceArtifact?: ArtifactReference;
 }
 export interface TaskView { phase: ReturnType<typeof taskPhase>; context: TaskContext }
 function canonical(value: unknown): string {
@@ -113,6 +116,11 @@ export class TeamEngine {
   }
   submit(roomId: string, input: Submission): CommandResult {
     return this.transact(roomId, tx => this.receipt(tx, input.id, input, () => {
+      if (input.sourceArtifact && (input.intent !== undefined && input.intent !== 'new'
+        || input.replyToTaskId !== undefined || input.retryAssistanceId !== undefined || input.extraOrdinary !== undefined
+        || inputControl(input.text) || requestedRetryTarget(input.text, this.config.bots))) {
+        return { ok: false, code: 'INVALID_SOURCE_COMMAND', detail: '产物引用不能与停止、继续、重试或人工决策控制同时提交，请移除引用或重新发送修改要求。' };
+      }
       const control = input.intent === undefined || input.intent === 'decision' || input.intent === 'supplement' ? inputControl(input.text) : undefined;
       if (control === 'continue') input = { ...input, intent: 'continue' };
       const mention = leadingInputMention(input.text);
@@ -131,8 +139,23 @@ export class TeamEngine {
       const retryTarget = ['new', 'continue'].includes(input.intent ?? '') ? undefined : requestedRetryTarget(input.text, retryBots);
       const retryRequested = input.intent === 'retry' || retryTarget !== undefined;
       const retryReject = (code: string): CommandResult => ({ ok: false, code, detail: retryProblemText(code) });
+      const artifactRequest = control || retryRequested || input.intent === 'continue' ? undefined : parseArtifactRequest(input.text);
+      let sourceArtifact: ArtifactSource | undefined;
+      if (input.sourceArtifact || artifactRequest) {
+        const sources = Object.values(tx.room.tasks).map(task => {
+          const snapshot = decode(task); return { phase: taskPhase(snapshot), context: snapshot.context };
+        });
+        const resolution = resolveArtifactSource(sources, input.sourceArtifact, artifactRequest);
+        if (resolution.kind !== 'none' && tx.room.activeTaskId) return {
+          ok: false, code: 'ROOM_BUSY', detail: '请等待当前任务结束后重新发送，输入和产物引用会保留。' };
+        if (resolution.kind === 'rejected') return { ok: false, code: resolution.code, detail: resolution.detail,
+          ...(resolution.sourceCandidates ? { sourceCandidates: resolution.sourceCandidates } : {}) };
+        if (resolution.kind === 'resolved') {
+          sourceArtifact = resolution.sourceArtifact;
+        }
+      }
       if (input.intent === 'retry' && (!input.replyToTaskId || !input.retryAssistanceId)) return retryReject('RETRY_REFERENCE_REQUIRED');
-      const existingId = input.replyToTaskId ?? tx.room.activeTaskId ?? (['decision', 'continue'].includes(input.intent ?? '') || retryRequested ? Object.keys(tx.room.tasks).at(-1) : null);
+      const existingId = sourceArtifact ? null : input.replyToTaskId ?? tx.room.activeTaskId ?? (['decision', 'continue'].includes(input.intent ?? '') || retryRequested ? Object.keys(tx.room.tasks).at(-1) : null);
       if (existingId && tx.room.tasks[existingId]) {
         const current = decode(tx.room.tasks[existingId]);
         if (retryRequested) {
@@ -146,7 +169,7 @@ export class TeamEngine {
           storeTask(tx, next);
           return { ...next.context.reply, detail: next.context.reply.ok ? '协助重试已受理' : retryProblemText(next.context.reply.code), taskId: existingId };
         }
-        const history = conversationHistory(Object.entries(tx.room.tasks).filter(([id]) => id !== existingId).map(([, task]) => decode(task).context));
+        const history = conversationHistory(Object.entries(tx.room.tasks).filter(([id]) => id !== existingId).map(([, task]) => decode(task).context), current.context.sourceArtifact);
         const reviewTargets = requestedReviewTargets(input.text, input.mentions ?? [], this.config.bots, current.context.owner);
         const conversation = { history, ...(reviewTargets ? { reviewTargets } : {}) };
         if (input.intent === 'decision') {
@@ -171,14 +194,17 @@ export class TeamEngine {
       }
       if (retryRequested) return retryReject('TASK_NOT_FOUND');
       if (input.intent === 'continue') return { ok: false, code: 'TASK_NOT_FOUND', detail: 'Provide an existing task to continue' };
-      const owner = input.mentions?.[0] ?? this.config.defaultBot;
-      if (!this.config.bots.some(bot => bot.id === owner)) return { ok: false, code: 'UNKNOWN_BOT', detail: owner };
+      const owner = input.mentions?.[0] ?? sourceArtifact?.owner ?? this.config.defaultBot;
+      if (!this.config.bots.some(bot => bot.id === owner)) return sourceArtifact && !input.mentions?.length
+        ? { ok: false, code: 'SOURCE_OWNER_UNAVAILABLE', detail: '原负责人已不在当前配置中，请直接 @ 一位现有成员后重新发送。' }
+        : { ok: false, code: 'UNKNOWN_BOT', detail: owner };
       const taskId = `task:${input.id}`;
       const goal = input.goal ?? { text: input.text, constraints: [], criteria: ['Answer the user request'], requiredArtifacts: 0 };
-      const history = conversationHistory(Object.values(tx.room.tasks).map(task => decode(task).context));
+      const history = conversationHistory(Object.values(tx.room.tasks).map(task => decode(task).context), sourceArtifact);
       const reviewTargets = requestedReviewTargets(input.text, input.mentions ?? [], this.config.bots, owner);
       const taskInput = { taskId, owner, goal, config: this.config, at,
-        message: { id: input.id, text: input.text, author: 'user', at, taskId, kind: 'user' as const }, history, ...(reviewTargets ? { reviewTargets } : {}) };
+        message: { id: input.id, text: input.text, author: 'user', at, taskId, kind: 'user' as const }, history,
+        ...(sourceArtifact ? { sourceArtifact } : {}), ...(reviewTargets ? { reviewTargets } : {}) };
       let snapshot: TaskSnapshot, evidence: DebugEvidence | undefined;
       if (this.observe) {
         try { const inspected = inspectInitialTask(taskInput); snapshot = inspected.snapshot; evidence = inspected.evidence; }
