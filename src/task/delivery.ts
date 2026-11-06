@@ -38,6 +38,7 @@ export function deliveryOrdinaryAvailable(c: TaskContext, count: number): boolea
 }
 
 function historicalContent(c: TaskContext, ref: InputReference): string | undefined {
+  if (ref.kind === 'artifact' && c.sourceArtifact?.sourceTaskId === ref.taskId && c.sourceArtifact.artifactId === ref.id) return c.sourceArtifact.content;
   const sameRecord = (item: { taskId: string; id: string }) => item.taskId === ref.taskId && item.id === ref.id;
   switch (ref.kind) {
     case 'message': {
@@ -56,6 +57,11 @@ export function checkReferenceSources(c: TaskContext): CheckReferenceSource[] | 
       && (work.payload.candidate as Candidate | undefined)?.revision === c.candidate?.revision) : undefined;
   if (previous) return (previous.payload.references as CheckReferenceSource[] | undefined) ?? [];
   const sources = new Map<string, CheckReferenceSource>();
+  if (c.sourceArtifact) {
+    const source = c.sourceArtifact;
+    const id = `history:${JSON.stringify(['artifact', source.sourceTaskId, source.artifactId])}`;
+    sources.set(id, { id, taskId: source.sourceTaskId, kind: 'artifact', content: source.content });
+  }
   for (const input of c.inputAnalyses ?? []) {
     if (input.goalVersion !== c.goalVersion || input.status !== 'resolved' || input.action === 'review') continue;
     for (const ref of input.spec?.references ?? []) {

@@ -1,6 +1,7 @@
 import type { DeliveryGap } from '../delivery-acceptance.js';
 import type {
   Artifact,
+  ArtifactSourceMetadata,
   BoardEntry,
   Intent,
   InputAnalysis,
@@ -64,6 +65,7 @@ export interface WebTask {
   usage: { ordinary: number; checks: number };
   limits: { ordinary: number; checks: number };
   artifacts: Artifact[];
+  sourceArtifact?: ArtifactSourceMetadata;
   currentArtifactIds?: string[];
   /** Derived from the current candidate and its saved check result. */
   deliveryGaps?: DeliveryGap[];

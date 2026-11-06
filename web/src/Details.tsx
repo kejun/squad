@@ -15,6 +15,7 @@ import {
   LoaderCircle,
   Terminal,
 } from "lucide-react";
+import type { ArtifactReference, ArtifactSourceMetadata } from "../../src/types";
 import type {
   ExecutionEvent,
   RoomSnapshot,
@@ -30,7 +31,7 @@ import {
 } from "./ui";
 import { MessageText } from "./MessageText";
 import type { DetailTarget } from "./ResultLinks";
-import { artifactsForAgent, messageArtifacts, taskArtifacts } from "./ResultLinks";
+import { artifactsForAgent, canReferenceArtifact, messageArtifacts, taskArtifacts } from "./ResultLinks";
 import { DetailActions, downloadDetailDocument } from "./DetailActions";
 import { artifactDocument, buildDetailDocument } from "./detail-document";
 import { HostRetryButton } from './HostRetryButton';
@@ -92,6 +93,7 @@ export function Details({
   connected,
   target,
   onAgent,
+  onReference,
 }: {
   snapshot: RoomSnapshot | null;
   agent: WebAgent | null;
@@ -99,6 +101,7 @@ export function Details({
   connected: boolean;
   target?: DetailTarget | undefined;
   onAgent?: ((id: string) => void) | undefined;
+  onReference?: ((reference: ArtifactReference & { name: string }) => void) | undefined;
 }) {
   const [tab, setTab] = useState("process");
   const [opened, setOpened] = useState<DetailTarget | null | undefined>(undefined);
@@ -114,7 +117,7 @@ export function Details({
   const artifacts = agent ? artifactsForAgent(snapshot, agent.id) : delivery.current;
   const detailDocument = useMemo(() => focused ? null : buildDetailDocument(snapshot, { agent, tab }),
     [snapshot, agent, tab, focused]);
-  if (focused) return <ResultDetails snapshot={snapshot} target={focused} connected={connected} onClose={onClose} onAgent={onAgent}
+  if (focused) return <ResultDetails snapshot={snapshot} target={focused} connected={connected} onClose={onClose} onAgent={onAgent} onReference={onReference}
     onOpen={setOpened} onBack={() => setOpened(target ? { taskId: target.taskId, ...(target.messageId ? { messageId: target.messageId } : {}) } : null)} />;
   return (
     <aside
@@ -284,6 +287,7 @@ export function Details({
             </span>
             {task && (
               <>
+                <SourceArtifactLink source={task.sourceArtifact} onOpen={setOpened} />
                 <div className="task-info">
                   <span>负责人</span>
                   <strong>
@@ -419,9 +423,20 @@ function Artifacts({
   );
 }
 
+function SourceArtifactLink({ source, onOpen }: {
+  source: ArtifactSourceMetadata | undefined;
+  onOpen: (target: DetailTarget) => void;
+}) {
+  if (!source) return null;
+  return <Button className="result-link" aria-label={`来源 ${source.name}`}
+    onClick={() => onOpen({ taskId: source.sourceTaskId, artifactId: source.artifactId })}>
+    来源 {source.name}
+  </Button>;
+}
+
 const noAgentAction = () => {};
 
-function ResultDetails({ snapshot, target, onClose, onOpen, onBack, connected, onAgent }: {
+function ResultDetails({ snapshot, target, onClose, onOpen, onBack, connected, onAgent, onReference }: {
   snapshot: RoomSnapshot | null;
   target: DetailTarget;
   onClose: () => void;
@@ -429,6 +444,7 @@ function ResultDetails({ snapshot, target, onClose, onOpen, onBack, connected, o
   onBack: () => void;
   connected: boolean;
   onAgent?: ((id: string) => void) | undefined;
+  onReference?: ((reference: ArtifactReference & { name: string }) => void) | undefined;
 }) {
   const task = snapshot?.tasks.find((item) => item.id === target.taskId);
   const message = target.messageId ? snapshot?.messages.find((item) => item.taskId === target.taskId && item.id === target.messageId) : undefined;
@@ -448,10 +464,15 @@ function ResultDetails({ snapshot, target, onClose, onOpen, onBack, connected, o
       </DetailActions>
       <Scroll>
         <div className="task-details result-details">
+          {available && <SourceArtifactLink source={task?.sourceArtifact} onOpen={onOpen} />}
           {!available ? <p className="no-record">内容已不可用</p> : artifact ? <>
             <Button className="result-back" onClick={onBack}><ArrowLeft size={13} /> 返回详情</Button>
             <div className="report-heading"><h2>{artifact.name}</h2></div>
             {author && <p className="report-author">{agent?.name ?? author}</p>}
+            {onReference && canReferenceArtifact(task, artifact) && <Button className="result-link" aria-label="引用到新任务"
+              onClick={() => onReference({ sourceTaskId: task!.id, artifactId: artifact.id, name: artifact.name })}>
+              引用到新任务
+            </Button>}
             {/\.(?:md|markdown)$/i.test(artifact.name)
               ? <MessageText text={artifact.content} agents={onAgent ? snapshot?.agents ?? [] : []} onAgent={onAgent ?? noAgentAction} />
               : <pre className="report-plain"><code>{artifact.content}</code></pre>}

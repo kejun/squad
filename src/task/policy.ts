@@ -155,7 +155,8 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     }
     case 'TOOL': return c.config.bots.find(b => b.id === c.owner)?.tools.includes(e.tool) ? null : 'TOOL_PERMISSION';
     case 'PROGRESS': return e.refs.length && e.refs.some(ref => !c.progressRefs.includes(ref) && (c.artifacts.some(a => a.id === ref) || c.board.some(b => b.id === ref) || c.messages.some(m => m.id === ref))) ? null : 'MISSING_NEW_PROGRESS_EVIDENCE';
-    case 'ARTIFACT': return c.artifacts.some(a => a.id === e.artifact.id) ? 'ARTIFACT_ID_CONFLICT' : null;
+    case 'ARTIFACT': return c.sourceArtifact?.artifactId === e.artifact.id ? 'SOURCE_ARTIFACT_IS_INPUT'
+      : c.artifacts.some(a => a.id === e.artifact.id) ? 'ARTIFACT_ID_CONFLICT' : null;
     case 'DELIVER':
       if (c.trace.some(entry => entry.event === 'DELIVER' && entry.detail === e.id)) return 'DUPLICATE_RESULT';
       return !c.deliveryCycle ? 'CHECK_PROTOCOL_CHANGED' : e.text.trim() ? null : 'NO_DELIVERY';

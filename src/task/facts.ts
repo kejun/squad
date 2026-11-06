@@ -1,6 +1,7 @@
 import { type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { localEnabled, localRecoveryBlocked } from '../local-operation.js';
 import { modelSignature, resolveModel } from '../model-config.js';
+import { isMarkdownRevision } from '../delivery-acceptance.js';
 
 export const ok = (c: TaskContext, detail = 'applied') => { c.reply = { ok: true, code: 'OK', detail }; };
 
@@ -67,6 +68,8 @@ export function completeProblem(c: TaskContext): string | null {
     const artifact = c.artifacts.find(a => a.id === id);
     if (!artifact || !artifact.content.trim() || artifact.goalVersion !== c.goalVersion) return 'MISSING_OR_STALE_ARTIFACT';
   }
+  if (c.sourceArtifact && !c.artifacts.some(artifact => ids.has(artifact.id) && artifact.id !== c.sourceArtifact!.artifactId
+    && artifact.goalVersion === c.goalVersion && isMarkdownRevision(artifact))) return 'MISSING_MARKDOWN_REVISION';
   return null;
 }
 

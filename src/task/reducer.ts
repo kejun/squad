@@ -1,6 +1,6 @@
 import { startMapReduce } from './map-reduce.js';
 import { hostSessionActive, revokeHostSession } from '../host-session.js';
-import { type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
+import { artifactSourceMetadata, type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
 import { capabilities, discussionActive, fence, fresh, inflight, ok, recoveryIssue, reject } from './facts.js';
 import { cancelWork, coordinate, finish, intent, message, owner, release, saveReports } from './operations.js';
@@ -15,6 +15,7 @@ import { adoptLegacyTerminalConfig } from './protocol.js';
 import { applyHostRetry, cancelHostRetries, expireHostRetry, pendingHostRetry, settleHostRetryOperation } from '../host-retry.js';
 import { deliveryEvidence } from './evidence.js';
 import { deliveryVerificationPlan } from './verification.js';
+import { preserveSourceReference } from '../input-intent.js';
 
 function finishDelivery(c: TaskContext, e: TaskEvent, detail: string, code?: string) {
   if (c.candidate && code) c.candidate.deliveryIssue = { code, detail };
@@ -70,7 +71,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     case 'INTERPRETATION_RESULT': {
       const input = c.inputAnalyses!.find(input => input.id === e.inputId)!;
-      input.spec = structuredClone(e.spec); input.status = e.spec.clarification ? 'clarification' : 'resolved';
+      input.spec = preserveSourceReference(c, structuredClone(e.spec)); input.status = e.spec.clarification ? 'clarification' : 'resolved';
       c.trace.push({ event: 'INPUT_INTERPRETED', at: e.at, detail: JSON.stringify({ inputId: input.id, workId: input.workId, status: input.status }) });
       if (e.spec.clarification) {
         c.reason = e.spec.clarification; message(c, e, 'facilitator', e.spec.clarification, 'notice');
@@ -195,7 +196,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       }
       const problem = deliverySubmissionProblem(c, e);
       const { acceptance } = deliveryPreflight(c, e);
-      const artifactIds = saveReports(c, e, e.text, c.owner, e.artifacts);
+      const artifactIds = saveReports(c, e, c.sourceArtifact && !e.artifacts?.length ? '' : e.text, c.owner, e.artifacts);
       const priorFindings = deliveryJudgments(c, c.candidate?.revision).filter(item => item.status !== 'passed');
       const references = checkReferenceSources(c);
       cancelWork(c, e);
@@ -219,6 +220,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       for (const item of c.messages) if (item.author === 'user' && inputIds.has(item.id) && !rawInputs.has(item.id)) rawInputs.set(item.id, item.text);
       const verification = deliveryVerificationPlan(c);
       const work = intent(c, e.at, 'check', 'facilitator', { deliveryProtocol: 'bounded', candidate: c.candidate, artifacts,
+        ...(c.sourceArtifact ? { sourceArtifact: artifactSourceMetadata(c.sourceArtifact) } : {}),
         rawInputs: [...rawInputs].map(([id, text]) => ({ id, text })), priorFindings, reviewRecords: checkReviewSources(c),
         ...(references?.length ? { references } : {}),
         ...(verification ? { verification } : {}) });

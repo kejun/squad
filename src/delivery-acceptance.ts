@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { isLongResult } from './presentation.js';
 import type { DeliveryEvidenceSource } from './task/evidence.js';
-import type { Candidate, InputAnalysis, InputReference, TaskContext, TaskEvent } from './types.js';
+import type { ArtifactSourceMetadata, Candidate, InputAnalysis, InputReference, TaskContext, TaskEvent } from './types.js';
 
 export type CriterionSource = { kind: 'goal' | 'input'; id: string };
 export type AcceptanceCriterion = { id: string; text: string; goalVersion: number; sources: CriterionSource[] };
@@ -28,6 +28,7 @@ export function checkReviewSources(c: TaskContext): CheckReviewSource[] {
 }
 
 export interface CheckMaterials {
+  sourceArtifact?: ArtifactSourceMetadata;
   requirements: AcceptanceCriterion[];
   candidate: { revision: string; text: string };
   artifacts: { id: string; name: string; content: string; background?: boolean }[];
@@ -54,6 +55,7 @@ type Delivery = Extract<TaskEvent, { type: 'DELIVER' }>;
 export const deliveryRevision = (c: TaskContext, e: Delivery) => `${c.taskId}:candidate:${e.id}`;
 
 type AddCriterion = (text: string, source: CriterionSource, key: string) => void;
+export const sourceRevisionRequirement = '根据固定来源原文完成本轮修改，保留未被用户要求更改的内容，并交付本任务新生成的非空 Markdown 文档。';
 
 function addInputCriteria(add: AddCriterion, input: InputAnalysis, initial: InputAnalysis | undefined) {
   const source: CriterionSource = { kind: 'input', id: input.id };
@@ -85,6 +87,7 @@ export function acceptanceCriteria(c: TaskContext): AcceptanceCriterion[] {
   add(initial && c.goal.text.trim() === initial.rawText.trim() && objective ? objective : c.goal.text, goalSource, 'goal:text');
   c.goal.constraints.forEach((text, i) => add(text, goalSource, `goal:constraint:${i}`));
   c.goal.criteria.forEach((text, i) => add(text, goalSource, `goal:criterion:${i}`));
+  if (c.sourceArtifact) add(sourceRevisionRequirement, goalSource, 'goal:source-revision');
   for (const input of inputs) addInputCriteria(add, input, initial);
   return [...criteria.values()];
 }
@@ -124,7 +127,7 @@ const gap = (candidateRevision: string, kind: DeliveryGapKind, reason: string, c
 
 export function deliveryPreflight(c: TaskContext, e: Delivery) {
   const revision = deliveryRevision(c, e);
-  const drafts = e.artifacts?.length ? e.artifacts : isLongResult(e.text) ? [{ name: 'result.md', content: e.text }] : [];
+  const drafts = e.artifacts?.length ? e.artifacts : !c.sourceArtifact && isLongResult(e.text) ? [{ name: 'result.md', content: e.text }] : [];
   const listed = [...new Set(e.artifactIds)];
   const gaps: DeliveryGap[] = [];
   const available = listed.filter(id => c.artifacts.some(artifact => artifact.id === id && artifact.goalVersion === c.goalVersion && !!artifact.content.trim()));
@@ -133,7 +136,15 @@ export function deliveryPreflight(c: TaskContext, e: Delivery) {
   for (const id of listed) {
     if (!available.includes(id)) gaps.push(gap(revision, 'version_conflict', 'MISSING_OR_STALE_ARTIFACT', null, [{ kind: 'artifact', id }]));
   }
+  if (c.sourceArtifact && ![
+    ...drafts,
+    ...c.artifacts.filter(artifact => available.includes(artifact.id) && artifact.id !== c.sourceArtifact!.artifactId),
+  ].some(isMarkdownRevision)) gaps.push(gap(revision, 'missing_requirement', 'MISSING_MARKDOWN_REVISION'));
   return { gaps, acceptance: { revision, criteria: acceptanceCriteria(c) } satisfies DeliveryAcceptance };
+}
+
+export function isMarkdownRevision(artifact: { name: string; content: string }): boolean {
+  return /\.(?:md|markdown)$/i.test(artifact.name) && !!artifact.content.trim();
 }
 
 export function deliveryJudgments(c: TaskContext, revision: string | undefined): readonly CriterionJudgment[] {

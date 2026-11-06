@@ -40,13 +40,25 @@ export function needsInputAnalysis(text: string): boolean {
     || /(?:map[ -]?reduce|并行|汇总|逐个|逐一|上面|上次|之前|刚才|这个|那个|它|改为|改成|沿用|不要|必须|至少|最多|只能|同时|分别|如果|否则|再试一次|\b(?:above|previous|that|it|must|unless|instead|at least|at most)\b)/i.test(text);
 }
 
-export function createInputAnalysis(c: Pick<TaskContext, 'config' | 'epoch' | 'goalVersion'>,
+export function fixedSourceReference(c: Pick<TaskContext, 'sourceArtifact'>): InputReference[] {
+  return c.sourceArtifact ? [{ kind: 'artifact', id: c.sourceArtifact.artifactId, taskId: c.sourceArtifact.sourceTaskId }] : [];
+}
+
+export function preserveSourceReference(c: Pick<TaskContext, 'sourceArtifact'>, spec: InputIntentSpec): InputIntentSpec {
+  const references = [...spec.references];
+  for (const source of fixedSourceReference(c)) {
+    if (!references.some(ref => ref.kind === source.kind && ref.id === source.id && ref.taskId === source.taskId)) references.push(source);
+  }
+  return { ...spec, references };
+}
+
+export function createInputAnalysis(c: Pick<TaskContext, 'config' | 'epoch' | 'goalVersion' | 'sourceArtifact'>,
   id: string, rawText: string, action: InputAction, goal: Goal, force = false): InputAnalysis {
   const deep = c.config.inputAnalysis?.enabled !== false && !!c.config.models && (force || needsInputAnalysis(rawText));
   return { id, rawText, action, epoch: c.epoch, goalVersion: c.goalVersion,
     source: deep ? 'model' : 'rule', status: deep ? 'pending' : 'resolved',
     ...(deep ? {} : { spec: { action, objective: rawText, constraints: [...goal.constraints], expectedOutputs: [],
-      acceptanceCriteria: [...goal.criteria], references: [], confidence: 1, clarification: null } }) };
+      acceptanceCriteria: [...goal.criteria], references: fixedSourceReference(c), confidence: 1, clarification: null } }) };
 }
 
 export function inputReferences(c: TaskContext): InputReference[] {
@@ -59,7 +71,8 @@ export function inputReferences(c: TaskContext): InputReference[] {
     ...c.board.map(entry => ({ kind: 'board' as const, id: entry.id, taskId: c.taskId })),
     ...(c.history?.board ?? []).map(entry => ({ kind: 'board' as const, id: entry.id, taskId: entry.taskId })),
   ];
-  return refs;
+  return [...refs, ...fixedSourceReference(c)].filter((ref, index, all) => all.findIndex(item =>
+    item.kind === ref.kind && item.id === ref.id && item.taskId === ref.taskId) === index);
 }
 
 /** Schema validity alone grants no scheduling authority or reference identity. */
