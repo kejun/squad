@@ -10,7 +10,7 @@ import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requ
 import { recordInput } from './input.js';
 import { automaticRevisionActive, canReviseDelivery, checkDisposition, checkReferenceSources, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication, settlingDeliveryCheck } from './delivery.js';
 import { canRetryDeliveryCheck, canRetryWork, reserveDeliveryRetry } from './budget.js';
-import { deliveryJudgments, deliveryPreflight } from '../delivery-acceptance.js';
+import { checkReviewSources, deliveryJudgments, deliveryPreflight } from '../delivery-acceptance.js';
 import { adoptLegacyTerminalConfig } from './protocol.js';
 import { applyHostRetry, cancelHostRetries, expireHostRetry, pendingHostRetry, settleHostRetryOperation } from '../host-retry.js';
 import { deliveryEvidence } from './evidence.js';
@@ -219,7 +219,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       for (const item of c.messages) if (item.author === 'user' && inputIds.has(item.id) && !rawInputs.has(item.id)) rawInputs.set(item.id, item.text);
       const verification = deliveryVerificationPlan(c);
       const work = intent(c, e.at, 'check', 'facilitator', { deliveryProtocol: 'bounded', candidate: c.candidate, artifacts,
-        rawInputs: [...rawInputs].map(([id, text]) => ({ id, text })), priorFindings,
+        rawInputs: [...rawInputs].map(([id, text]) => ({ id, text })), priorFindings, reviewRecords: checkReviewSources(c),
         ...(references?.length ? { references } : {}),
         ...(verification ? { verification } : {}) });
       c.deliveryCycle!.evidence ??= deliveryEvidence(c, work)?.refs ?? [];

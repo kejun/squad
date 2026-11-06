@@ -15,6 +15,20 @@ async function fixture(role?: string) { const f = await LocalFixture.create(role
 async function directory() { const dir = await mkdtemp(join(tmpdir(), 'squad-registry-')); dirs.push(dir); return dir; }
 
 describe('local skill registry and real child-process integration', () => {
+  it('[BT_F22] forwards an actual skill file receipt to the independent delivery check', async () => {
+    const f = await fixture();
+    f.replies.push(...f.actions().slice(0, 2), { type: 'deliver', text: '引用资料交付', artifactIds: [] },
+      { type: 'check', passed: true, gaps: [] });
+
+    await f.runner().runOne(f.h.room, f.h.task);
+    await f.runner().runOne(f.h.room, f.h.task);
+
+    const input = JSON.parse(f.requests.at(-1)!.messages[1]!.content).context;
+    expect(input.evidence).toEqual([expect.objectContaining({ stdout: expect.stringContaining('真实引用'),
+      metadata: expect.objectContaining({ completeness: 'complete', command: expect.objectContaining({ type: 'readSkillResource' }) }) })]);
+    expect(f.h.context().outcome).toBe('complete');
+    expect(f.backend.calls).toHaveLength(0);
+  });
   it('[BT_L01] discovers once, supports top-level links, reports YAML failures and pins resources', async () => {
     const dir = await directory(), roots = join(dir, 'skills'); await mkdir(roots); const source = await writeSkill(roots);
     await symlink(source, join(roots, 'alias')); await mkdir(join(roots, 'broken')); await writeFile(join(roots, 'broken', 'SKILL.md'), '---\nname: [\n---\nbad');

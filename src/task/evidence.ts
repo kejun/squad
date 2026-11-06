@@ -14,12 +14,33 @@ export interface CapturedEvidenceStream {
   chars: number;
 }
 
-function settledSources(c: TaskContext): EvidenceSource[] {
+function settledSources(c: TaskContext, includeResources = false): EvidenceSource[] {
   return c.intents.flatMap(work => work.goalVersion === c.goalVersion
     ? (work.localOperations ?? []).flatMap(operation =>
-      operation.action.type === 'runCli' && (operation.status === 'succeeded' || operation.status === 'failed') && operation.result
+      (operation.action.type === 'runCli' || includeResources && operation.action.type === 'readSkillResource')
+        && (operation.status === 'succeeded' || operation.status === 'failed') && operation.result
         ? [{ work, operation }] : [])
     : []);
+}
+
+/** Project a saved resource page without rereading the filesystem or changing its receipt. */
+function capturedData(operation: LocalOperation): Record<string, unknown> {
+  const data = operation.result!.data;
+  if (operation.action.type !== 'readSkillResource' || typeof data.content !== 'string') return data;
+  const content = data.content;
+  const complete = (operation.action.offset ?? 0) === 0 && data.nextOffset === null;
+  return { ...data, stdout: content,
+    truncated: !complete,
+    // SkillRegistry verifies this whole-file hash before returning the resource.
+    capturedEvidence: complete ? { stdout: { capturedContentHash: data.hash,
+      bytes: new TextEncoder().encode(content).byteLength, chars: Array.from(content).length } } : undefined };
+}
+
+function resourceSnapshot(operation: LocalOperation): string | undefined {
+  if (operation.action.type !== 'readSkillResource') return undefined;
+  const { content, hash, skillVersion, nextOffset } = operation.result!.data;
+  return JSON.stringify({ content, hash, skillVersion, skillId: operation.action.skillId, path: operation.action.path,
+    offset: operation.action.offset ?? 0, nextOffset, status: operation.status, ok: operation.result!.ok, code: operation.result!.code });
 }
 
 function canSeeEvidence(c: TaskContext, work: Intent, id: string): boolean {
@@ -48,7 +69,8 @@ function capturedStream(result: Record<string, unknown>, stream: EvidenceStream)
 
 export function evidenceMetadata(c: TaskContext, source: EvidenceSource) {
   const { work, operation } = source;
-  const data = operation.result!.data;
+  const data = capturedData(operation);
+  const resource = operation.action.type === 'readSkillResource' ? operation.action : null;
   const sourceStatus = operation.status === 'succeeded' ? 'succeeded' : 'failed';
   const stdout = capturedStream(data, 'stdout'), stderr = capturedStream(data, 'stderr');
   const completeness = sourceStatus === 'failed' ? 'failed' : typeof data.stdout !== 'string' ? 'missing'
@@ -57,7 +79,7 @@ export function evidenceMetadata(c: TaskContext, source: EvidenceSource) {
     evidenceId: operation.id, taskId: c.taskId, goalVersion: work.goalVersion, sourceWorkId: work.id,
     sourceOperationId: operation.id, epoch: work.epoch, sourceRole: work.kind, sourceMember: work.target,
     historicalObservation: work.epoch !== c.epoch, status: sourceStatus, completeness,
-    command: { type: 'runCli', requestHash: operation.requestHash },
+    command: { type: operation.action.type, requestHash: operation.requestHash },
     execution: operation.action.type === 'runCli' ? operation.action.execution ?? 'sandbox' : null,
     workspaceId: operation.workspaceId ?? null, workspaceRevision: operation.workspaceRevision ?? null,
     exitCode: typeof data.exitCode === 'number' ? data.exitCode : null,
@@ -66,7 +88,8 @@ export function evidenceMetadata(c: TaskContext, source: EvidenceSource) {
     logBytes: typeof data.logBytes === 'number' ? data.logBytes : null,
     capturedContentHash: stdout?.capturedContentHash ?? null, stdoutBytes: stdout?.bytes ?? null, stdoutChars: stdout?.chars ?? null,
     stderrContentHash: stderr?.capturedContentHash ?? null, stderrBytes: stderr?.bytes ?? null, stderrChars: stderr?.chars ?? null,
-    resourceId: null, resourceVersion: null, sourceUpdatedAt: null,
+    resourceId: resource ? `${resource.skillId}:${resource.path}` : null,
+    resourceVersion: resource && typeof data.skillVersion === 'string' ? data.skillVersion : null, sourceUpdatedAt: null,
   };
 }
 
@@ -74,7 +97,7 @@ export function evidenceIndex(c: TaskContext, work: Intent) {
   return settledSources(c).filter(source => canSeeEvidence(c, work, source.operation.id)).map(source => evidenceMetadata(c, source));
 }
 
-export interface DeliveryEvidenceRef { id: string; stdoutHash: string | null; stderrHash: string | null }
+export interface DeliveryEvidenceRef { id: string; stdoutHash: string | null; stderrHash: string | null; resourceSnapshot?: string }
 export interface DeliveryEvidenceSource {
   id: string;
   metadata: ReturnType<typeof evidenceMetadata>;
@@ -88,7 +111,7 @@ function completeCapturedText(metadata: DeliveryEvidenceSource['metadata'], hash
 
 /** Bind to the exact saved receipt and its captured content, without opening a process or log. */
 export function deliveryEvidence(c: TaskContext, work: Intent, refs?: readonly DeliveryEvidenceRef[]) {
-  const available = localEnabled(c.config, work.target) ? settledSources(c).filter(source => canSeeEvidence(c, work, source.operation.id)
+  const available = localEnabled(c.config, work.target) ? settledSources(c, true).filter(source => canSeeEvidence(c, work, source.operation.id)
     && source.work.kind !== 'check') : [];
   const byId = new Map(available.map(source => [source.operation.id, source]));
   const sources: DeliveryEvidenceSource[] = [];
@@ -97,10 +120,13 @@ export function deliveryEvidence(c: TaskContext, work: Intent, refs?: readonly D
     const source = byId.get(id);
     if (!source) return undefined;
     const metadata = evidenceMetadata(c, source);
-    const data = source.operation.result!.data;
-    const saved = { id, stdoutHash: metadata.capturedContentHash, stderrHash: metadata.stderrContentHash };
+    const data = capturedData(source.operation);
+    const snapshot = resourceSnapshot(source.operation);
+    const saved = { id, stdoutHash: metadata.capturedContentHash, stderrHash: metadata.stderrContentHash,
+      ...(snapshot === undefined ? {} : { resourceSnapshot: snapshot }) };
     const expected = refs?.[savedRefs.length];
     if (expected && (expected.stdoutHash !== saved.stdoutHash || expected.stderrHash !== saved.stderrHash)) return undefined;
+    if (expected && snapshot !== undefined && expected.resourceSnapshot !== snapshot) return undefined;
     const stdout = completeCapturedText(metadata, saved.stdoutHash, data.stdout);
     const stderr = completeCapturedText(metadata, saved.stderrHash, data.stderr);
     sources.push({ id, metadata, ...(stdout === undefined ? {} : { stdout }), ...(stderr === undefined ? {} : { stderr }) });

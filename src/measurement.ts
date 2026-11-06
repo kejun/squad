@@ -5,6 +5,8 @@ import type { Candidate, Intent, TaskContext, TaskEvent, TeamConfig } from './ty
 
 export const initialModelRequestId = '__initial_reserved_request__';
 
+export type ModelOutputField = 'text' | 'artifactIds' | 'backgroundArtifactIds' | 'summary' | 'artifacts' | 'status';
+
 type Usage = { input: number | null; output: number | null; total: number | null };
 export type ModelObservation = { requestId: string } & (
   | { phase: 'model.transport'; serviceId: string; model: string }
@@ -12,7 +14,7 @@ export type ModelObservation = { requestId: string } & (
   | { phase: 'model.responseBody'; durationMs: number }
   | { phase: 'model.interrupted' | 'model.transportFailed'; durationMs: number }
   | { phase: 'model.usage'; usage: Usage }
-  | { phase: 'model.protocol'; valid: boolean; terminal?: boolean; code?: string }
+  | { phase: 'model.protocol'; valid: boolean; terminal?: boolean; code?: string; invalidFields?: ModelOutputField[] }
 );
 
 export type LocalObservation = { operationId: string; action: string; sessionId?: string; retryRequestId?: string; batchId?: string } & (

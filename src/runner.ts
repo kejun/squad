@@ -83,10 +83,11 @@ function fixedCheckMaterials(c: TaskContext, work: Intent): CheckMaterials {
     ...(!candidate.artifactIds.includes(id) ? { background: true } : {}) }));
   const previousResults = work.payload.priorFindings as CriterionJudgment[];
   const references = work.payload.references as CheckMaterials['references'];
+  const reviewRecords = work.payload.reviewRecords as CheckMaterials['reviewRecords'];
   const verification = deliveryVerificationEvidence(work);
   return { requirements: candidate.acceptance.criteria, candidate: { revision: candidate.revision, text: candidate.text }, artifacts,
     evidence: evidence.sources, rawInputs: work.payload.rawInputs as CheckMaterials['rawInputs'], previousResults,
-    ...(references?.length ? { references } : {}),
+    ...(references?.length ? { references } : {}), ...(reviewRecords?.length ? { reviewRecords } : {}),
     ...(previousResults.length && candidate.summary ? { revisionNotes: candidate.summary } : {}), ...(verification ? { verification } : {}) };
 }
 

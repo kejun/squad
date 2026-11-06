@@ -1150,3 +1150,60 @@ stateDiagram-v2
 图型：执行器处理流程；所有者：固定版本 SRT 的 Linux 文件视图。沿用现有本地操作模型，不改变事件、额度或恢复：`领取 → 恢复只读输入 → 恢复明确输出写挂载 → 应用拒写与敏感文件掩蔽 → 执行并回传`。父目录只读恢复不得覆盖已授权输出子目录；子路径或祖先的显式拒写必须仍为最终限制。依赖补丁仅调整已校验挂载的相对顺序，不增加读写路径。版本或哈希不符时安装失败。实现前复验本地操作模型，集成以生成 argv 与 BT_L22 真实沙箱门槛验证。
 
 BT_L22 的工作区 `.git/hooks` 与 `.git/config` 拒写使用明确 literal 路径，不依赖 Linux 不支持的写 glob 或仓库 HEAD 已存在。沿用同一模型和领取路径；空 hooks 子目录被列为输出也不能获得写权。生产策略通过 SandboxManager 的实际参数转换回归，避免仅用理想的低层 deny 列表替代接线验收。
+
+### 技能资料证据边界（BT_F22）
+
+类型：真实 XState 既有转移的证据投影；所有者为 `src/task/evidence.ts`，状态所有者仍为 `src/task.machine.ts`。无需新增 XState 状态或调度。
+
+```mermaid
+stateDiagram-v2
+  running --> running: LOCAL_RESULT [当前领取的读取已结算] / 保存资料、版本和读取状态
+  running --> checking: DELIVER [交付门禁通过] / 固定当前目标读取回执及正文摘要
+  checking --> ended: CHECK_RESULT [全部验收通过] / 发布
+```
+
+只把当前目标的已结算 `readSkillResource` 回执加入交付证据；它与 CLI 回执使用不同操作类型。正文只有成功、从偏移 0 开始且无续页时作为完整来源传入。分页、缺失正文和失败保留不可证明完整读取的状态；旧目标排除。完整正文复用 SkillRegistry 已核验的整文件 SHA-256，分页不冒充页摘要。DELIVER 同时冻结正文、版本、偏移和读取状态的精确快照，后续任何差异都失败关闭；旧技能引用缺少快照也拒绝，不能从当前正文事后补入，旧 CLI 引用不受影响。纯状态层不依赖 Node 密码学或 Buffer，因此网页检查器仍使用同一真实模型。读取仍经已有意图生成、领取和 LOCAL_RESULT 校验；停止、迟到结果和恢复守卫不变。模型层先验证这条既有路径，再验证 WorkRunner 的检查材料接线。
+
+### 输入解释与执行协议隔离（BT_I22）
+类型：既有真实 XState 路径的适配器输入边界；所有者 `src/task.machine.ts` 与 `src/model-adapter.ts`。
+沿用 `interpreting --INTERPRETATION_RESULT [合法且匹配当前输入] / 保存意图并生成 owner 工作--> running`。
+不新增状态、事件或 I/O；解释器只解析直接用户要求，不接收产物创建/替换执行指令；负责人继续接收该协议。
+模型层复验 `tests/input-intent.test.ts` 的输入结果绑定、去重、失败恢复与角色上下文路径后，才修改适配器。
+这避免将 host 的 replacesArtifactId 指令混入用户约束，不保证消除模型自行虚构条件；原始输入仍为验收权威。
+
+### 协议字段诊断与输出容量失败（BT_M31、BT_M32）
+类型：现有真实 XState 转移与适配器边界；源码所有者 `src/task.machine.ts`、`src/model-adapter.ts`。
+- `running --REGENERATE_MODEL_OUTPUT [合法在途工作且有重试额度] / 增加既有修复计数--> running`：仅追加白名单字段名和固定规则，不保存或回显无效正文，不补字段、不改变校验与额度。
+- `checking --WORK_FAILED [transient=false] / 保存 CHECK_OUTPUT_LIMIT，不发布候选--> ended(partial)`：供应商明确 finish_reason=length 属确定容量失败，不用同样的固定输入与容量自动重试。其他瞬时网络失败仍沿用原重试路径。
+不增加状态或调度入口；适配器只分类已有事件。先用真实状态模型验证永久失败与有界修复路径，再接入 HTTP 响应分类。停止、迟到结果和恢复继续沿用既有守卫。
+
+BT_M15同步保留HTTP401、输出截断、无效响应三条既有分支：认证拒绝与确定长度截断不自动重试；无效供应商响应仍按既有瞬时故障策略处理。此更新明确替代原场景对截断检查自动补试的预期。
+
+### 用户条件与资料解释边界（BT_F23）
+
+类型：适配器指令边界，沿用真实XState交付路径；所有者 `src/model-adapter.ts` 与 `src/task.machine.ts`。负责人和协作者以明确用户约束限制资料解释；检查员同时检查报告规则与结构化结果，不能仅因给定样本输出相同而判定规则相同。
+
+```mermaid
+stateDiagram-v2
+  running --> checking: DELIVER [机械门禁通过] / 保存候选并生成检查意图
+  checking --> running: WORK_RESULT [内容冲突且可修订] / 保存缺口并生成有界修订意图
+  checking --> ended: WORK_RESULT [内容冲突且无修订机会] / 保留部分结果
+  checking --> ended: WORK_RESULT [所有要求通过] / 发布候选
+```
+
+无新增状态、事件、I/O或业务规则计算器。仍由领取后的WorkRunner调用模型并校验结果，停止、额度、旧版本隔离和重启规则不变。实现前复验 `delivery-acceptance-model.unit.test.ts` 与 `delivery-version-model.unit.test.ts` 的真实模型路径。指令接线测试只能证明模型收到边界要求；模型是否遵守必须用真实任务另验，不能把合成响应当作语义正确性证明。
+
+### 协作记录交付快照（BT_F24）
+
+类型：真实XState上下文投影；所有者 `src/task/reducer.ts` 的 DELIVER 与 WorkRunner 固定检查材料构造。沿用 `HELP_RESULT / 保存并消费成员结果 → DELIVER [有效候选] / 冻结当前目标已完成审查记录并保存check意图 → checking`。无新状态/调度入口。
+
+冻结内容包括请求ID、成员、状态、目标/epoch、完整问题（含草稿）、期望、答复、结果ID及关联审查附件正文。只纳入当前goalVersion已消费且有结果ID和答复的success/partial/failed记录；旧目标、pending/running/cancelled、尚未消费的记录排除。partial/failed保留原状态，绝不提升为通过。记录可证明成员实际返回了什么，不能证明其业务判断正确；仍独立逐项检查。
+
+快照在DELIVER时写入持久化意图，执行和技术补试使用同份内容；不会重新发起协作或读取外部资料。旧检查意图没有此字段时视为空集，不补入后来记录。停止、迟到结果、版本隔离、额度与恢复沿用已有规则。模型门槛先验证快照、恢复、旧目标与未完成隔离，再接入runner和引用校验。
+
+### 引用失败诊断（BT_F25）
+
+类型：已有检查协议边界；所有者 delivery-acceptance.ts、model-adapter.ts 与 task/delivery.ts。沿用 checking 的技术失败有界补试/partial路径，不新增状态或调度。未知来源返回 CHECK_SOURCE_NOT_FOUND；已知来源但非逐字正文返回 CHECK_SOURCE_QUOTE_MISMATCH。错误只包含固定码，不含被拒绝ID、引文或响应正文。引用真实性规则不变。实现前复验交付状态模型路径。
+
+### 审查原文引用（BT_F26）
+类型：DELIVER固定材料的纯投影；沿用BT_F24状态路径。JSON元数据之外同时冻结question/expected/answer及附件正文的原文片段视图，供逐字引用。模型引文不做转义修复、去空白或模糊匹配。旧意图无原文视图时不事后添加。相关真实模型路径先复验再接入。
