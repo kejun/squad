@@ -13,3 +13,16 @@
 ## UI follow-up: interpretation protocol leakage (BT_I22)
 The procurement revision in real UI copied the shared `replacesArtifactId` execution instruction into user constraints. The subsequent checker could not verify the internal metadata, producing a partial result despite corrected content. The adapter now excludes artifact execution instructions from interpretation work and explicitly limits extraction to direct user requirements; owner instructions remain intact. No new state or scheduling path.
 Before implementation: `env -u MODEL_API_KEY npx vitest run tests/input-intent.test.ts --maxWorkers=1` passed 27 existing model/engine paths. Targeted BT_I22 first failed on the leaked field, then passed 1 scenario / 33 steps. Input-intent and delivery-check adapter regressions passed 36 tests. These scripted regressions are not real-task successes. Previously persisted interpretations are retained, not silently rewritten.
+
+## Migration onto PR #36 main
+
+The combined source patch includes a982ecf, e9cdced and their working-tree follow-ups. Its SHA-256 is 9337a9702756ecdae8e8ce30c59cc4719e234ee2aedc6d850e16a1374a17bd0f. All 26 reconstructed source files matched the source manifest before integration onto d06af677a676b7c102763e44b0d7f7f423685481. Both sides of the README and state-diagram additions were preserved; the adapter merged with PR #36's discovery and parallel-work instructions.
+
+The source environment subsequently reported three consecutive successful real-model tasks. Those runs are historical source evidence and were not repeated during migration. The earlier partial-task notes above describe earlier development stages, not the final source test streak.
+
+Integration exposed two regressions and added focused red/green coverage:
+
+- BT_F22: importing Node crypto into the shared state model broke the browser build. Complete resource evidence now uses the SHA-256 already verified by SkillRegistry and separately freezes exact content and receipt metadata. Any change, including equal-length body edits, invalidates the reference. Paged reads do not mislabel a whole-file hash as a page hash. Legacy skill references without the frozen snapshot fail closed; CLI references retain their existing contract.
+- BT_M31: diagnostic feedback coerced an object-valued status and could throw before bounded format repair. The diagnostic now checks its type without coercion; a synthetic assistance response proves exactly one repair and no rejected-value echo.
+
+The clean main baseline passed build and 808 Vitest tests. Its BDD run passed 722 of 724 scenarios; the two native-sandbox cases were blocked by unavailable OS namespaces. The first integrated run passed 821 Vitest tests and 731 of 733 BDD scenarios with the same two environment failures. These counts precede the final integration fixes and are not a claim that the final aggregate gate passed.

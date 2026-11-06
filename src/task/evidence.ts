@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import type { LocalOperation } from '../local-operation.js';
 import { localEnabled, type Intent, type TaskContext } from '../types.js';
 
@@ -29,10 +28,19 @@ function capturedData(operation: LocalOperation): Record<string, unknown> {
   const data = operation.result!.data;
   if (operation.action.type !== 'readSkillResource' || typeof data.content !== 'string') return data;
   const content = data.content;
+  const complete = (operation.action.offset ?? 0) === 0 && data.nextOffset === null;
   return { ...data, stdout: content,
-    truncated: (operation.action.offset ?? 0) !== 0 || data.nextOffset !== null,
-    capturedEvidence: { stdout: { capturedContentHash: createHash('sha256').update(content).digest('hex'),
-      bytes: Buffer.byteLength(content), chars: Array.from(content).length } } };
+    truncated: !complete,
+    // SkillRegistry verifies this whole-file hash before returning the resource.
+    capturedEvidence: complete ? { stdout: { capturedContentHash: data.hash,
+      bytes: new TextEncoder().encode(content).byteLength, chars: Array.from(content).length } } : undefined };
+}
+
+function resourceSnapshot(operation: LocalOperation): string | undefined {
+  if (operation.action.type !== 'readSkillResource') return undefined;
+  const { content, hash, skillVersion, nextOffset } = operation.result!.data;
+  return JSON.stringify({ content, hash, skillVersion, skillId: operation.action.skillId, path: operation.action.path,
+    offset: operation.action.offset ?? 0, nextOffset, status: operation.status, ok: operation.result!.ok, code: operation.result!.code });
 }
 
 function canSeeEvidence(c: TaskContext, work: Intent, id: string): boolean {
@@ -89,7 +97,7 @@ export function evidenceIndex(c: TaskContext, work: Intent) {
   return settledSources(c).filter(source => canSeeEvidence(c, work, source.operation.id)).map(source => evidenceMetadata(c, source));
 }
 
-export interface DeliveryEvidenceRef { id: string; stdoutHash: string | null; stderrHash: string | null }
+export interface DeliveryEvidenceRef { id: string; stdoutHash: string | null; stderrHash: string | null; resourceSnapshot?: string }
 export interface DeliveryEvidenceSource {
   id: string;
   metadata: ReturnType<typeof evidenceMetadata>;
@@ -113,9 +121,12 @@ export function deliveryEvidence(c: TaskContext, work: Intent, refs?: readonly D
     if (!source) return undefined;
     const metadata = evidenceMetadata(c, source);
     const data = capturedData(source.operation);
-    const saved = { id, stdoutHash: metadata.capturedContentHash, stderrHash: metadata.stderrContentHash };
+    const snapshot = resourceSnapshot(source.operation);
+    const saved = { id, stdoutHash: metadata.capturedContentHash, stderrHash: metadata.stderrContentHash,
+      ...(snapshot === undefined ? {} : { resourceSnapshot: snapshot }) };
     const expected = refs?.[savedRefs.length];
     if (expected && (expected.stdoutHash !== saved.stdoutHash || expected.stderrHash !== saved.stderrHash)) return undefined;
+    if (expected && snapshot !== undefined && expected.resourceSnapshot !== snapshot) return undefined;
     const stdout = completeCapturedText(metadata, saved.stdoutHash, data.stdout);
     const stderr = completeCapturedText(metadata, saved.stderrHash, data.stderr);
     sources.push({ id, metadata, ...(stdout === undefined ? {} : { stdout }), ...(stderr === undefined ? {} : { stderr }) });

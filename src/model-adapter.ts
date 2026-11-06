@@ -66,7 +66,7 @@ function outputFieldRequirements(output: Record<string, unknown>): Partial<Recor
   if (output.type === 'deliver') {
     if (!strings(output.artifactIds)) fields.artifactIds = 'Required array of existing artifact IDs. Use [] when all deliverables are new drafts.';
     if (output.backgroundArtifactIds !== undefined && !strings(output.backgroundArtifactIds)) fields.backgroundArtifactIds = 'Omit backgroundArtifactIds or provide an array of existing artifact ID strings.';
-  } else if (output.status !== undefined && !['success', 'partial', 'failed'].includes(String(output.status))) {
+  } else if (output.status !== undefined && (typeof output.status !== 'string' || !['success', 'partial', 'failed'].includes(output.status))) {
     fields.status = 'Omit status or use success, partial, or failed.';
   }
   return fields;
