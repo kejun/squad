@@ -13,7 +13,7 @@ import { WebService } from '../src/web/service.js';
 import { OpenAICompatibleAdapter } from '../src/model-adapter.js';
 import { minimalCliEnvironment, sandboxPolicy } from '../src/local-cli.js';
 import { LocalModel, localModelInput } from './local-model-fixture.js';
-import { LocalFixture, assertFlow, localConfig, removeFixture, writeSkill, unavailableNativeSandbox } from './local-tools-fixture.js';
+import { LocalFixture, assertFlow, localConfig, localFixtureCommandEnv, removeFixture, writeSkill, unavailableNativeSandbox } from './local-tools-fixture.js';
 import { configuration, Harness } from './helpers.js';
 import { modelResponse } from './model-regeneration-fixture.js';
 import type { LocalAction, LocalOperation } from '../src/local-operation.js';
@@ -299,7 +299,8 @@ export async function namespaceAcceptance() {
   const { LocalRuntime } = await import('../src/local-runtime.js');
   const { ControlledProcessBackend } = await import('./local-tools-fixture.js');
   const root = await mkdtemp(join(tmpdir(), 'squad-namespace-')); const backend = new ControlledProcessBackend();
-  const runtime = await LocalRuntime.create({ dataRoot: join(root, 'runtime'), skillRoots: [], backend, clock: () => 0 });
+  const runtime = await LocalRuntime.create({ dataRoot: join(root, 'runtime'), skillRoots: [], backend, clock: () => 0,
+    commandEnv: localFixtureCommandEnv });
   const store = new MemoryStore(), engine = new TeamEngine(store, configuration(), () => 0);
   try {
     for (const room of ['same-id-room-one', 'same-id-room-two']) {
@@ -436,7 +437,8 @@ export async function versionHandoffAcceptance() {
     await writeFile(join(f.skills, 'local-check/SKILL.md'), '---\nname: local-check\ndescription: New version\n---\nnew-body-must-not-be-mixed');
     await writeFile(join(f.skills, 'local-check/scripts/run.mjs'), 'console.log("new-script-must-not-run")');
     const { LocalRuntime } = await import('../src/local-runtime.js');
-    f.runtime = await LocalRuntime.create({ dataRoot: join(f.root, 'runtime'), skillRoots: [f.skills], workspaceRoot: f.source, backend: f.backend, clock: () => 0 });
+    f.runtime = await LocalRuntime.create({ dataRoot: join(f.root, 'runtime'), skillRoots: [f.skills], workspaceRoot: f.source, backend: f.backend, clock: () => 0,
+      commandEnv: localFixtureCommandEnv });
     assert.notEqual(f.runtime.catalog().skills[0]!.skillVersion, old.skillVersion);
     f.h.engine.recover(f.h.room);
     const helper = f.h.engine.pending(f.h.room, f.h.task).find(w => w.kind === 'assistance')!;

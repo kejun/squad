@@ -15,6 +15,9 @@ import type { Intent, TeamConfig } from '../src/types.js';
 import { SandboxManager } from '@anthropic-ai/sandbox-runtime';
 import { SandboxCliBackend } from '../src/local-cli.js';
 
+// Isolated fixtures verify local builds, never npm's own network update check.
+export const localFixtureCommandEnv = { npm: { NPM_CONFIG_UPDATE_NOTIFIER: 'false' } };
+
 export const skillScript = `import fs from 'node:fs';
 fs.mkdirSync('dist', {recursive:true}); fs.appendFileSync('dist/runs.txt', 'once\\n');
 fs.mkdirSync('dist', {recursive:true}); fs.writeFileSync('dist/result.txt','built');
@@ -76,6 +79,7 @@ export class LocalFixture {
         decision: { action: 'review', question: '验证', expected: '证据', reason: '直接邀请' } });
     }
     f.runtime = await LocalRuntime.create({ dataRoot: join(f.root, 'runtime'), skillRoots: [f.skills], workspaceRoot: f.source,
+      commandEnv: localFixtureCommandEnv,
       backend: options.backend ?? f.backend, clock: () => f.h.now, redact: ['host-model-secret'] });
     f.skillId = f.runtime.catalog().skills[0]!.skillId;
     f.backend.before = () => {
