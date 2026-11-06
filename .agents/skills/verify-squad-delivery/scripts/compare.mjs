@@ -5,6 +5,8 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 const [target, graphFile, output, backendSelection = 'both'] = process.argv.slice(2);
+assert(target && graphFile && output, 'Usage: compare.mjs ROOT GRAPH OUTPUT [both|memory|sqlite]');
+assert(['both', 'memory', 'sqlite'].includes(backendSelection), 'Unknown backend');
 const root = resolve(target);
 const { TeamEngine, MemoryStore, SqliteStore } = await import(pathToFileURL(join(root, 'src/index.ts')).href);
 const { createTeamConfig } = await import(pathToFileURL(join(root, 'team.config.ts')).href);

@@ -2,7 +2,6 @@
 """TLC finite publication protocol, real transaction replays, receipt binding controls."""
 import argparse
 import difflib
-import hashlib
 import importlib.util
 import json
 import os
@@ -14,6 +13,7 @@ import sys
 import tempfile
 import time
 
+sys.dont_write_bytecode = True
 SKILL = Path(__file__).resolve().parents[1]
 ROOT = SKILL.parents[2]
 # Reuse evidence integrity, fixed verified TLC download, and bounded subprocess I/O.
@@ -37,7 +37,10 @@ WITNESSES = ['NeverPublished', 'NeverStopped', 'NeverChangedGoal', 'NeverRolledB
 def model(jar, area, mutation='none', witness=None):
     area.mkdir(parents=True)
     shutil.copyfile(SKILL / 'scripts/Delivery.tla', area / 'Delivery.tla')
-    cfg = (SKILL / 'scripts/Delivery.cfg').read_text().replace('Mutation = "none"', f'Mutation = "{mutation}"')
+    cfg = (SKILL / 'scripts/Delivery.cfg').read_text()
+    assert cfg.count('Mutation = "none"') == 1, 'Model configuration mutation anchor drift'
+    assert 'INVARIANTS TypeOK AtomicPublication CurrentCandidate VersionIsolation' in cfg and 'PROPERTY Progress' in cfg, 'Required model checks missing'
+    cfg = cfg.replace('Mutation = "none"', f'Mutation = "{mutation}"')
     if witness:
         cfg = re.sub(r'^INVARIANTS .*$', 'INVARIANT ' + witness, cfg, flags=re.M)
         cfg = cfg.replace('PROPERTY Progress\n', '')
