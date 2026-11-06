@@ -809,6 +809,20 @@ stateDiagram-v2
 
 快照提供群消息、任务状态、评审进度和成员执行日志。消息经 Markdown/GFM 渲染，跳过原始 HTML，代码和已有链接不转成成员按钮。等待用户时发送消息映射 HUMAN_DECISION；继续按钮提交 CONTINUE，停止按钮提交 STOP，均通过 HTTP 服务进入 TeamEngine。HTTP 不接受客户端任意状态机事件。产物下载只读取实际持久化内容。
 
+### 沙箱失败提示
+
+**图型：UI 投影。所有者：`Workspace` 和 `Details`。验收：BT_L59。**
+
+```mermaid
+stateDiagram-v2
+    [*] --> hidden
+    hidden --> visible: 收到快照 [当前任务有符合条件的失败命令，且尚未成功交付] / 显示输入区提示
+    visible --> hidden: 收到快照 [任务成功交付] / 收起输入区提示
+    visible --> hidden: 收到快照 [没有符合条件的失败命令] / 收起输入区提示
+```
+
+输入区沿用任务机器的 `outcome === 'complete'` 判断成功交付。成员执行记录继续按工作读取原始失败命令，符合条件时可按 BT_L32 续办。显示变化只读取快照，无需增加 XState 转移、执行意图或授权。
+
 ### 详情复制与导出
 
 对应 BT_A12–BT_A21。当前详情可以复制全文、依据和折叠过程，或导出文件。采用常规的浏览器[剪贴板写入](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText)与[Blob文件下载](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a#download)，不引入导出服务或格式选择菜单。Clipboard API可能因非安全上下文或浏览器权限失败，必须等待写入确认；[对象URL](https://developer.mozilla.org/en-US/docs/Web/API/URL/revokeObjectURL_static)使用后回收。

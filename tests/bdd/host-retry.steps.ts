@@ -5,12 +5,23 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { SpecWorld } from './steps.js';
 import { HostRetryFixture } from '../host-retry-fixture.js';
 import { failedSandbox, request } from '../host-retry-model-fixture.js';
+import { Workspace } from '../../web/src/App.js';
+import { Details } from '../../web/src/Details.js';
 import { HostRetryButton } from '../../web/src/HostRetryButton.js';
+import type { useWorkspace } from '../../web/src/api.js';
 
 interface State { f?: HostRetryFixture; boundary?: string; rejected?: boolean }
 const states = new WeakMap<SpecWorld, State>();
 const state = (w: SpecWorld) => { let s = states.get(w); if (!s) { s = {}; states.set(w, s); } return s; };
 async function setup(w: SpecWorld) { const s = state(w); s.f = new HostRetryFixture(); await s.f.failedRound(); return s.f; }
+function renderWorkspace(f: HostRetryFixture) {
+  const workspace: ReturnType<typeof useWorkspace> = {
+    rooms: [f.room], roomId: f.room.id, snapshot: f.snapshot(), connected: true, error: '',
+    setError() {}, chooseRoom() {}, createRoom: async () => f.room.id, refreshRooms: async () => [f.room],
+    setRoomArchived: async () => { throw new Error('Unexpected archive action'); },
+  };
+  return renderToStaticMarkup(createElement(Workspace, { workspace }));
+}
 After(async function (this: SpecWorld) { await states.get(this)?.f?.close(); });
 Given('命令需要本机登录态或系统能力且沙箱返回权限或网络签名失败', async function (this: SpecWorld) { await setup(this); });
 When('模型收到失败回执并选择下一步动作', function (this: SpecWorld) {
@@ -36,6 +47,27 @@ Then('批准后命令只执行一次且真实回执交回任务负责人继续�
   const c = f.service.engine.view(f.room.id, f.taskId)!.context;
   assert.equal(c.intents.find(w => w.localOperations?.some(op => op.hostRetryOf))?.target, c.owner);
   assert(f.requests.at(-1)!.messages.some(m => m.content.startsWith('{"type":"local_tool_result",') && m.content.includes('"execution":"host"')));
+});
+Given('进行中的任务在聊天输入区提供失败命令的宿主重试入口', async function (this: SpecWorld) {
+  const f = new HostRetryFixture(); state(this).f = f;
+  await f.pauseAfterTwoFailures();
+  assert.match(renderWorkspace(f), /请求在宿主执行/);
+});
+When('任务成功交付', async function (this: SpecWorld) {
+  const f = state(this).f!; f.resumeMain();
+  const snapshot = await f.complete();
+  assert.equal(snapshot.tasks.at(-1)?.outcome, 'complete');
+});
+Then('聊天输入区应收起该任务的失败命令提示', function (this: SpecWorld) {
+  assert.doesNotMatch(renderWorkspace(state(this).f!), /aria-label="失败的沙箱命令"/);
+});
+Then('成员执行记录仍显示失败命令和可用的宿主重试入口', function (this: SpecWorld) {
+  const snapshot = state(this).f!.snapshot();
+  const agent = snapshot.agents.find(agent => agent.id === snapshot.tasks.at(-1)?.owner);
+  assert(agent);
+  const details = renderToStaticMarkup(createElement(Details, { snapshot, agent, connected: true, onClose() {} }));
+  assert.match(details, /aria-label="失败的沙箱命令"/);
+  assert.match(details, /<button\b(?![^>]*\bdisabled\b)[^>]*>请求在宿主执行<\/button>/);
 });
 Given('模型未申请宿主执行且失败命令旁显示手动入口', async function (this: SpecWorld) {
   const f = await setup(this); const command = f.snapshot().failedSandboxCommands![0]!;
