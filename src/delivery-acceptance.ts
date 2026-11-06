@@ -11,20 +11,37 @@ export type CriterionJudgment = { criterionId: string; source?: { id: string; qu
 );
 export type DeliveryAcceptance = { revision: string; criteria: AcceptanceCriterion[] };
 export type CheckReferenceSource = { id: string; taskId: string; kind: InputReference['kind']; content: string };
+export interface CheckReviewSource { id: string; content: string; stdout?: string }
+
+/** Freeze accepted current-goal collaboration records; these prove process, not correctness. */
+export function checkReviewSources(c: TaskContext): CheckReviewSource[] {
+  return c.assists.filter(review => review.goalVersion === c.goalVersion && review.consumed
+    && review.resultId && review.answer !== undefined && ['success', 'partial', 'failed'].includes(review.status))
+    .map(review => ({ id: review.resultId!, stdout: ['Question:', review.question, 'Expected:', review.expected, 'Answer:', review.answer!,
+      ...c.artifacts.filter(artifact => review.artifactIds?.includes(artifact.id) && artifact.goalVersion === c.goalVersion)
+        .flatMap(artifact => ['Artifact:', artifact.name, artifact.content])].join('\n'), content: JSON.stringify({ requestId: review.id, member: review.target,
+      status: review.status, goalVersion: review.goalVersion, epoch: review.epoch, question: review.question,
+      expected: review.expected, answer: review.answer,
+      artifacts: c.artifacts.filter(artifact => review.artifactIds?.includes(artifact.id) && artifact.goalVersion === c.goalVersion)
+        .map(({ id, name, content }) => ({ id, name, content })),
+    }) }));
+}
+
 export interface CheckMaterials {
   requirements: AcceptanceCriterion[];
   candidate: { revision: string; text: string };
   artifacts: { id: string; name: string; content: string; background?: boolean }[];
   evidence: DeliveryEvidenceSource[];
   references?: CheckReferenceSource[];
+  reviewRecords?: CheckReviewSource[];
   rawInputs: { id: string; text: string }[];
   previousResults: CriterionJudgment[];
   revisionNotes?: string;
   verification?: { id: string; stdout?: string; stderr?: string; workspaceRevision: string };
 }
 
-export function checkCitationSources({ evidence, references, verification }: Pick<CheckMaterials, 'evidence' | 'references' | 'verification'>) {
-  return [...evidence, ...(references ?? []), ...(verification ? [verification] : [])];
+export function checkCitationSources({ evidence, references, reviewRecords, verification }: Pick<CheckMaterials, 'evidence' | 'references' | 'reviewRecords' | 'verification'>) {
+  return [...evidence, ...(references ?? []), ...(reviewRecords ?? []), ...(verification ? [verification] : [])];
 }
 
 // Historical snapshot and presentation contracts. New check work never reads coverage or assessments.
@@ -95,7 +112,8 @@ export function judgmentsProblem(criteria: readonly AcceptanceCriterion[], resul
     if (item.source) {
       const { id, quote } = item.source;
       const source = sources.find(entry => entry.id === id);
-      if (!source || !source.stdout?.includes(quote) && !source.stderr?.includes(quote) && !source.content?.includes(quote)) return 'CHECK_INVALID_SOURCE_QUOTE';
+      if (!source) return 'CHECK_SOURCE_NOT_FOUND';
+      if (!source.stdout?.includes(quote) && !source.stderr?.includes(quote) && !source.content?.includes(quote)) return 'CHECK_SOURCE_QUOTE_MISMATCH';
     }
   }
   return remaining.size ? 'CHECK_MISSING_CRITERION' : null;

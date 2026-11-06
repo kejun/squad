@@ -115,11 +115,11 @@ Then('不得发出第二次请求或提交检查通过', function (this: SpecWor
 
 Given('模型请求返回{string}', function (this: SpecWorld, fault: string) {
   const f = setup(this);
-  state(this).expectedRequests = fault === 'HTTP401' ? 1 : 2;
+  state(this).expectedRequests = fault === 'HTTP401' || fault === '输出截断' ? 1 : 2;
   f.responseFactory = () => fault === 'HTTP401' ? new Response('private-provider-body', { status: 401 })
     : fault === '输出截断' ? modelResponse(goodModelOutput('check'), 'length') : Response.json({ unrelated: 'not-a-completion' });
 });
-Then('不应保存格式修正记录且沿用原有故障处理', function (this: SpecWorld) {
+Then('不应保存格式修正记录且仅瞬时供应商故障可自动重试', function (this: SpecWorld) {
   const s = state(this), f = s.fixture;
   assert.equal(f.requests.length, s.expectedRequests);
   assert.equal(f.repairs.length, 0);
