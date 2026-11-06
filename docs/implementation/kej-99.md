@@ -27,4 +27,13 @@
 
 八文档主轨迹：一次理解max4 → 四组每组两源 → 四个assistance均先在途 → 每源恰好读取一次 → 全部分片结算 → 一次summary → 一次owner → 独立检查发布。超限八片修为四片与伪造spec.maxPartitions均触发一次修复；费用按现有ordinary/retries扣除。普通额度7的组合回归中修复前max4，额外理解使usage2，派发当前cap3，完整交owner且无assistance、丢文档或部分扣费。旧快照首片完成后重启两次仍只执行余下三片。Q07–Q12新增15个展开BDD已通过；旧Q02派发守卫夹具直接提交结构合法解释，保留其测试目标，不让故意固定超限的适配器替身冒充正常理解输出。
 
-独立审查未发现产品正确性缺陷；其建议的修复耗费组合边界已加入。完整检查、构建及浏览器验证在最终提交后补记。
+独立审查未发现产品正确性缺陷；其建议的修复耗费组合边界已加入。最终完整检查、构建及浏览器验证如下。
+
+
+## 最终验证
+
+产品功能提交 `a1c0ef99cd6a94a9410af82168e0d86a1f75a808`。首次完整回归发现冻结旧模型逐字摘要因唯一新增的maxPartitions字段变化，未重录golden：独立测试提交 `75f2ad1` 只在新interpretation意图投影中校验safe integer 0–8后剔除该字段，保留其他字段完整摘要比较；负对照证明缺失、越界、小数、字符串、错误角色和无关metadata仍失败。旧原始snapshot的逐字恢复未修改。定向冻结21项+容量17项=38/38通过。
+
+最终完整验证在75f2ad1、干净工作区运行，命令 `PATH="/workspace/work/kej-98/deps/socat/usr/bin:$PATH" MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture npm run check`，在允许原生bwrap命名空间的执行权限下退出0。83个Vitest文件、966/966回归用例全部通过；783/783可执行Gherkin展开用例、31532步全部通过；覆盖报告生成成功。原有18个定义/26个展开用例待验收登记保持不变，没有新增跳过、放宽断言或增大时限。socat仅为任务目录临时环境依赖，来源与配置记录见KEJ-98实施记录。
+
+`npm run build`退出0。最终产品提交a1c0ef9的真实浏览器验证退出0，工作区干净，证据 `/workspace/work/kej-99/browser-2026-11-06T10-00-44.736Z`。真实网页输入八个链接、首次理解max4、四名成员均在途后才放行；interpretation1/map4/summary1/owner1/check1，完整产物预览和下载通过。Doctor两次及四项清理全部通过，已实际查看四成员执行中的截图。75f2ad1仅修改测试，src/web及package文件与浏览器受测提交一致。此浏览器流程使用合成provider资料，未访问来源网页；实际生产web_fetch接线的受控响应覆盖由集成测试另行证明。
