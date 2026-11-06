@@ -1,0 +1,77 @@
+{
+  "testedCommit": "f6726cf97ebca5ed32e522fa2d10a0032d3d05f2",
+  "workingTreeCleanAtCheck": true,
+  "check": {
+    "command": "PATH=\"/workspace/work/kej-98/deps/socat/usr/bin:$PATH\" MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture npm run check",
+    "exitCode": 0
+  },
+  "vitest": {
+    "files": 43,
+    "cases": 435,
+    "passed": 435,
+    "unitFiles": 0
+  },
+  "gherkin": {
+    "scenariosPassed": 1152,
+    "stepsPassed": 46094,
+    "businessStepsExcludingHooks": 4622,
+    "totals": {
+      "features": 31,
+      "definitions": 464,
+      "cases": 1178,
+      "regressionTestsPassed": 435,
+      "directlyExecutedGherkinCasesPassed": 1152,
+      "fullyExecutedGherkinDefinitions": 446,
+      "definitionsWithLinkedRegressionTests": 241,
+      "deferredDefinitions": 18,
+      "deferredCases": 26
+    }
+  },
+  "ledger": {
+    "baselineCases": 966,
+    "unitMigrated": 406,
+    "otherMigrated": 125,
+    "otherRewritten": 8,
+    "otherRetained": 427,
+    "deletedDuplicateVitestCases": 531,
+    "originalAcceptanceIdentitiesPreserved": 413,
+    "command": "python3 docs/testing/kej-100/verify-ledger.py --results",
+    "exitCode": 0
+  },
+  "product": {
+    "comparisonBaseline": "a5cbba25eeec3c0c49261a99af74b066aabe5589",
+    "pathsUnchanged": [
+      "src",
+      "web",
+      "team.config.ts",
+      "package-lock.json",
+      "features/acceptance-gaps.json"
+    ]
+  },
+  "standaloneUnitEntry": {
+    "command": "npm run test:unit",
+    "exitCode": 0,
+    "result": "No qualifying supplementary unit files; existing complete check still executes all applicable layers."
+  },
+  "additionalVerification": {
+    "productionBuildExitCode": 0,
+    "nativeSandboxExitCode": 0,
+    "formalEvidence": "formal-evidence.json",
+    "independentGates": {
+      "core": 80,
+      "deliveryPure": 91,
+      "host": 54,
+      "compatibility": 55,
+      "mapAndVersion": 33
+    },
+    "limits": "Build/native/formal checks target unchanged product and covered dependency fingerprints; formal source commit and exact finite scope are recorded separately. No new browser run."
+  },
+  "reportSha256": {
+    "test-results/vitest.json": "09eb451b24bbe8237c6c9f1b0f50a505e7ed29019ed8a8b8d35d07e780cb25ac",
+    "test-results/cucumber.json": "c5835a6045976421083548724648b6fc482adf9c96ae26efa71bf33eb10e56c8",
+    "reports/spec-coverage.json": "68dd61dcd6545ecaef7d7d9c83baa5b5ad40ea3f9c8c7d12afe123aaf9764429",
+    "reports/spec-coverage.md": "aa92e54176643650248caa231d569d1d3cbdacf53f05c61a91623932f29179e6",
+    "/workspace/work/kej-100/final-check.log": "ab5e2fb6095cb24959ff88d5b3fd01429f3c9ade4d29c2698cf9d367b96782eb"
+  },
+  "note": "This report is appended after testing the clean code commit above. The report commit changes only verification documentation."
+}
