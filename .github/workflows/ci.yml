@@ -48,3 +48,38 @@ jobs:
             reports/spec-coverage.md
           if-no-files-found: warn
           retention-days: 14
+
+  formal:
+    name: Formal verification
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Check handoff correspondence
+        run: python3 .agents/skills/verify-squad-handoff/scripts/check.py
+      - name: Check delivery evidence and publication
+        run: python3 .agents/skills/verify-squad-delivery/scripts/check.py
+      - name: Check execution and host authority
+        run: python3 .agents/skills/verify-squad-authority/scripts/check.py
+      - name: Check budgets and shard convergence
+        run: python3 .agents/skills/verify-squad-coordination/scripts/check.py
+      - name: Retain formal verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: formal-verification-${{ github.sha }}
+          path: reports/verify-squad-*/
+          if-no-files-found: error
+          retention-days: 14
