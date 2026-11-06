@@ -1,5 +1,5 @@
 import type { Artifact, Candidate, InputReference, Intent, TaskContext, TaskEvent } from '../types.js';
-import { checkCitationSources, deliveryPreflight, judgmentsProblem, type CheckReferenceSource, type CheckReviewSource } from '../delivery-acceptance.js';
+import { checkCitationSources, deliveryPreflight, judgmentsProblem, type CheckMaterials, type CheckReferenceSource, type CheckReviewSource } from '../delivery-acceptance.js';
 import { hostRetryReservation, pendingHostRetry } from '../host-retry.js';
 import { localPhysicalPending } from '../local-operation.js';
 import { canRetryDeliveryCheck } from './budget.js';
@@ -133,7 +133,8 @@ export function checkDisposition(c: TaskContext, e: CheckResult, work: Intent): 
   const test = deliveryVerificationEvidence(work);
   const references = (work.payload.references as CheckReferenceSource[] | undefined) ?? [];
   const reviewRecords = (work.payload.reviewRecords as CheckReviewSource[] | undefined) ?? [];
-  const sources = checkCitationSources({ evidence: evidence.sources, references, reviewRecords, ...(test ? { verification: test } : {}) });
+  const rawInputs = (work.payload.rawInputs as CheckMaterials['rawInputs'] | undefined) ?? [];
+  const sources = checkCitationSources({ evidence: evidence.sources, references, reviewRecords, rawInputs, ...(test ? { verification: test } : {}) });
   const protocol = e.passed !== undefined || e.gaps !== undefined ? 'CHECK_INVALID_CRITERIA_RESULTS'
     : judgmentsProblem(c.candidate!.acceptance!.criteria, e.criteriaResults, sources);
   if (protocol) return { kind: canRetryDeliveryCheck(c, work, e.at) ? 'retry' : 'finish', code: protocol };

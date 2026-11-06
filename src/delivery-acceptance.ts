@@ -41,8 +41,9 @@ export interface CheckMaterials {
   verification?: { id: string; stdout?: string; stderr?: string; workspaceRevision: string };
 }
 
-export function checkCitationSources({ evidence, references, reviewRecords, verification }: Pick<CheckMaterials, 'evidence' | 'references' | 'reviewRecords' | 'verification'>) {
-  return [...evidence, ...(references ?? []), ...(reviewRecords ?? []), ...(verification ? [verification] : [])];
+export function checkCitationSources({ evidence, references, reviewRecords, verification, rawInputs }: Pick<CheckMaterials, 'evidence' | 'references' | 'reviewRecords' | 'verification'> & Partial<Pick<CheckMaterials, 'rawInputs'>>) {
+  return [...evidence, ...(references ?? []), ...(reviewRecords ?? []), ...(verification ? [verification] : []),
+    ...(rawInputs ?? []).map(({ id, text }) => ({ id, content: text }))];
 }
 
 // Historical snapshot and presentation contracts. New check work never reads coverage or assessments.
