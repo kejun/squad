@@ -1,5 +1,5 @@
 {
-  "syncCommit": "21ee46039f594d9b93d400bf703e14d42fab2b0e",
+  "syncCommit": "c1f380da1527b8c22a8aaaaf7aef10cd2695146e",
   "bounds": {
     "Budget": "one current ordinary owner intent, 2 user epochs, ordinary limits 3 then 5, automatic retry limit 1, one safe inflight recovery; request/claim count bounded by total paid budget 5",
     "Shards": "one round with exactly 2 shards, 3 result outcomes per shard, one reducer, stop or one goal change, one reopen including active safe inflight recovery; no recovery of cancelled inflight or second round",
@@ -7,7 +7,7 @@
   },
   "files": {
     "package-lock.json": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
-    "package.json": "8012071d995012278bb42709cfba23a13ee1d14a7f79ab783cab4b8047b483d7",
+    "package.json": "4d64527e75fc3a19c94e0e25ee490918a62d7a96681d212dce97c7f66e2bef93",
     "src/artifact-request.ts": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
     "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
     "src/conversation.ts": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
@@ -68,5 +68,17 @@
     "src/web/http.ts": "0353bf851274b11b4c31d6adf0cc60c62e49883541e6d1e2c67a6904e50bd3ad",
     "src/web/service.ts": "5b5408fa4d69faf9acd449d107f61edba321d7c45043589c6a25d63d51b34024",
     "team.config.ts": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb"
-  }
+  },
+  "maintenanceReviews": [
+    {
+      "issue": "KEJ-100",
+      "review": "references/drift-review-kej-100.json",
+      "reviewedCommit": "c1f380da1527b8c22a8aaaaf7aef10cd2695146e",
+      "changedCoveredFiles": [
+        "package.json"
+      ],
+      "validation": "reports/verify-squad-coordination/kej-100-final",
+      "outcome": "updated"
+    }
+  ]
 }

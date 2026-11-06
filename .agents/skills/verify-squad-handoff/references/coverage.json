@@ -1,5 +1,5 @@
 {
-  "syncCommit": "21ee46039f594d9b93d400bf703e14d42fab2b0e",
+  "syncCommit": "c1f380da1527b8c22a8aaaaf7aef10cd2695146e",
   "bounds": {
     "tasks": 1,
     "owner": "A",
@@ -24,7 +24,7 @@
     "src/model-env.ts": "99dfbe11350e7c3c446fc13a1a61414ebbf4e73a999439f22e85441c3b26f530",
     "src/index.ts": "79ef24ede132e36388df54ccbb8e6e48efc472adff3c13d57f68ce745b98e331",
     "team.config.ts": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb",
-    "package.json": "8012071d995012278bb42709cfba23a13ee1d14a7f79ab783cab4b8047b483d7",
+    "package.json": "4d64527e75fc3a19c94e0e25ee490918a62d7a96681d212dce97c7f66e2bef93",
     "package-lock.json": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
     "src/task/discussion.ts": "0bdf97c5438d24d381a194d6fc6406282044d41c5b5d5ba5c9f73cf1234bfa7b",
     "src/task/input.ts": "284080d64d88149851e0f058fd4aaa8c56a2d1c141c84b26acc453e2b6fe9efe",
@@ -71,5 +71,17 @@
     "initialBlockedEvidence": "reports/verify-squad-handoff/20261106T101522Z-26134",
     "previousEvidence": "reports/verify-squad-handoff/20261106T101946Z-27406",
     "evidence": "reports/verify-squad-handoff/20261106T102156Z-29383"
-  }
+  },
+  "maintenanceReviews": [
+    {
+      "issue": "KEJ-100",
+      "review": "references/drift-review-kej-100.json",
+      "reviewedCommit": "c1f380da1527b8c22a8aaaaf7aef10cd2695146e",
+      "changedCoveredFiles": [
+        "package.json"
+      ],
+      "validation": "reports/verify-squad-handoff/kej-100-final",
+      "outcome": "updated"
+    }
+  ]
 }

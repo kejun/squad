@@ -67,7 +67,9 @@ python3 .agents/skills/verify-squad-handoff/scripts/check.py --verify-evidence "
 
 ## Coverage and synchronization
 
-最近完整对应审查源码：`21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR40 的已审 head）。PR40 的逐文件变更分类、旧新指纹与未覆盖新行为见 [drift-review-pr40.json](references/drift-review-pr40.json)；函数级对应见 [correspondence.md](references/correspondence.md)，精确同步与哈希见 [coverage.json](references/coverage.json)。更早审查保留在 [drift-review-2026-11-06.json](references/drift-review-2026-11-06.json)。这些记录是漂移门禁与人工审查，不是任意 TypeScript 等价证明。
+KEJ-100 当前依赖审查基线为 `c1f380da1527b8c22a8aaaaf7aef10cd2695146e`；仅 `package.json` 的空单测集合处理变化，产品源码、模型、性质、边界和回放均沿用原审查。当前指纹及运行状态见 [KEJ-100 审查记录](references/drift-review-kej-100.json) 与 [coverage.json](references/coverage.json)。下列 PR40 基线为产品源码对应审查的历史记录。
+
+PR40 产品源码对应审查：`21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR40 的已审 head）。PR40 的逐文件变更分类、旧新指纹与未覆盖新行为见 [drift-review-pr40.json](references/drift-review-pr40.json)；函数级对应见 [correspondence.md](references/correspondence.md)，精确同步与哈希见 [coverage.json](references/coverage.json)。更早审查保留在 [drift-review-2026-11-06.json](references/drift-review-2026-11-06.json)。这些记录是漂移门禁与人工审查，不是任意 TypeScript 等价证明。
 
 覆盖代码变化后，逐项审查 sync commit 到当前的差异：事务是否拆分、守卫/版本/权限是否变化、是否增加新的写入口、投影遗漏是否影响后续行为。更新模型、回放和负对照，再完整运行。只有确认对应且检查完成后，才推进 sync commit 和哈希。产品真实违反性质时保留反例，解释用户损害，未经授权不改产品、不放宽性质。
 

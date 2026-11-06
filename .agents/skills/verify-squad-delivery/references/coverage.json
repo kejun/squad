@@ -1,5 +1,5 @@
 {
-  "syncCommit": "21ee46039f594d9b93d400bf703e14d42fab2b0e",
+  "syncCommit": "c1f380da1527b8c22a8aaaaf7aef10cd2695146e",
   "bounds": {
     "tasks": 1,
     "candidates": 1,
@@ -73,10 +73,22 @@
     "src/task/guards.ts": "34e5c8c4849d555b4f44b94cc51c129a4c31d1469c3bccc382eb99a0132d93d3",
     "src/task/lifecycle.ts": "b4209d5324adb8fdfd8041902c9d1eb488036c6f21a02967850fb0e5579bbe26",
     "team.config.ts": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb",
-    "package.json": "8012071d995012278bb42709cfba23a13ee1d14a7f79ab783cab4b8047b483d7",
+    "package.json": "4d64527e75fc3a19c94e0e25ee490918a62d7a96681d212dce97c7f66e2bef93",
     "package-lock.json": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
     "src/artifact-request.ts": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
     "src/source-artifact.ts": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4",
     "src/task/map-reduce-capacity.ts": "6397480888beae4db09321f45453a7d315bce56d8bcd4fe7b646f438ac171b6f"
-  }
+  },
+  "maintenanceReviews": [
+    {
+      "issue": "KEJ-100",
+      "review": "references/drift-review-kej-100.json",
+      "reviewedCommit": "c1f380da1527b8c22a8aaaaf7aef10cd2695146e",
+      "changedCoveredFiles": [
+        "package.json"
+      ],
+      "validation": "reports/verify-squad-delivery/kej-100-final",
+      "outcome": "updated"
+    }
+  ]
 }
