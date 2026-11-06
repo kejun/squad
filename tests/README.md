@@ -14,6 +14,8 @@
 
 单元测试数据通过显式工厂创建；参数化测试为每个样本独立创建状态。有界矩阵枚举放在具名仿真驱动中，例如 `panel-layout-simulation.ts` 的 90 次拖拽转换。不得使用批量循环在单个单元测试中隐藏独立失败分支。
 
+`test:unit` 允许准入筛选后没有单测文件；存在文件时仍完整运行并传播断言失败。完整 `check` 的 Vitest、Gherkin、类型与覆盖门禁不受此空集合处理影响。
+
 随机顺序复验：`npm run test:unit -- --sequence.shuffle --sequence.seed=20261030`。随机种子用于复现执行顺序，业务时间和返回数据仍受控，不以真实耗时断言保证 FIRST。
 
 当前清理的基线、逐用例处置及前后覆盖见 [KEJ-100 测试审计](../docs/testing/kej-100/README.md)。2026-10-30 的历史结果保留在 [测试治理记录](../docs/test-governance.md)。
