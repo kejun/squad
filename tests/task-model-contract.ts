@@ -237,6 +237,16 @@ function assertFrame(snapshot: TaskSnapshot, expected: Frame, label: string, own
     assert.equal(work.payload.owner, owner, `${label}: facilitator ${id} must retain its creation owner`);
     delete work.payload.owner;
   }
+  // KEJ-99 adds a host planning hint, not a change to these frozen business traces.
+  // Validate only that explicit extension; every other payload field remains in the full digest.
+  for (const work of context.intents) {
+    if (work.kind === 'interpretation') {
+      const capacity = work.payload.maxPartitions;
+      assert(typeof capacity === 'number' && Number.isSafeInteger(capacity) && capacity >= 0 && capacity <= 8,
+        `${label}: interpretation ${work.id} must have a bounded host capacity`);
+      delete work.payload.maxPartitions;
+    } else assert(!Object.hasOwn(work.payload, 'maxPartitions'), `${label}: only interpretation work can carry a planning capacity`);
+  }
   assert.equal(digest(value), expected.digest, `${label}: full persisted snapshot differs`);
 }
 export function replayLegacyTrace(name: string, diagnostics = false): TaskSnapshot {
@@ -302,6 +312,25 @@ function verifyCoordinationExtensionFaultDetection() {
   mustReject(work => { work.payload.owner = 'wrong-owner'; });
   mustReject(work => { work.payload.unexpectedMetadata = true; });
 }
+function verifyInterpretationCapacityFaultDetection() {
+  const trace = legacyTaskContract.traces.find(item => item.name === '输入解析');
+  assert(trace);
+  const snapshot = initialTask(structuredClone(trace.input));
+  assert.equal(snapshot.context.intents[0]?.payload.maxPartitions, 1);
+  const mustReject = (mutate: (work: Intent) => void) => {
+    const saved = structuredClone(persistTask(snapshot)) as { context: TaskContext };
+    const work = saved.context.intents.find(item => item.kind === 'interpretation');
+    assert(work); mutate(work);
+    assert.throws(() => assertFrame(restoreTask(saved), trace.frames[0]!, 'interpretation capacity fault injection', new Map()), assert.AssertionError);
+  };
+  mustReject(work => { delete work.payload.maxPartitions; });
+  mustReject(work => { work.payload.maxPartitions = -1; });
+  mustReject(work => { work.payload.maxPartitions = 9; });
+  mustReject(work => { work.payload.maxPartitions = 1.5; });
+  mustReject(work => { work.payload.maxPartitions = '1'; });
+  mustReject(work => { work.payload.unexpectedMetadata = true; });
+  mustReject(work => { work.kind = 'owner'; });
+}
 export function verifyLegacyDiagnostics() {
   const graph = legacyTaskContract.graph, insertion = graph.transitions.findIndex(t => t.event === 'LOCAL_RESULT');
   assert.deepEqual(graph.transitions.find(rule => rule.id === coordinationRejectionId), {
@@ -324,4 +353,5 @@ export function verifyLegacyDiagnostics() {
   assert.deepEqual(taskGraph(), { ...graph, definition: extendedDefinition, transitions });
   for (const trace of legacyTaskContract.traces) replayLegacyTrace(trace.name, true);
   verifyCoordinationExtensionFaultDetection();
+  verifyInterpretationCapacityFaultDetection();
 }
