@@ -1,5 +1,5 @@
 {
-  "syncCommit": "c1f380da1527b8c22a8aaaaf7aef10cd2695146e",
+  "syncCommit": "756074087685bed3f52f0e6b6e06caf19c587a01",
   "bounds": {
     "tasks": 1,
     "owner": "A",
@@ -47,14 +47,14 @@
     "src/skills.ts": "81bf7ae230a719f046a0caced6c0293807f259c4d500349c7a78ecdfbbf1e111",
     "src/web-tools.ts": "aefd3b4625fada48ef66e821bd6252c6b0dae9e454a8799f4c0c321efc531840",
     "src/task/execution.machine.ts": "7ed6793adbd8413de0c53161ea8adbe6bdcb29eae910864ccd01e29baf68fcff",
-    "src/task/delivery.ts": "747e64b4e4372b98c93884314c688f4f6b4727ee51af3e0ca03ee656b54f407e",
+    "src/task/delivery.ts": "a56bfe48f77575dc110b08a598d32462994420a9e40e89ac7cb498f4ee98c101",
     "src/task/protocol.ts": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
     "src/task/evidence.ts": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
     "src/task/verification.ts": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24",
     "src/task/map-reduce.ts": "601bd32e42920fb7696294c1a0e550b3717be095ce02ab1be3502848100c3dc7",
     "src/host-retry.ts": "e68e16d090b7c76d5bc8ec18f2cb01c9c33730090d98a001bd7f3fd49ba1ba31",
     "src/host-session.ts": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab",
-    "src/delivery-acceptance.ts": "223ed59845004dac8fadcdb116f633af4fc6902338fb4277439a386b65f2ab2e",
+    "src/delivery-acceptance.ts": "6d4a70291b12a3ed376e8e3658b428b7351e260e1d39043ee986a97fc2568396",
     "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
     "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
     "src/local-skills.ts": "4d83827020c75e7888de71fb5c9b263048a80339fc318c0217e50a31fa566ae2",
@@ -81,6 +81,17 @@
         "package.json"
       ],
       "validation": "reports/verify-squad-handoff/kej-100-final",
+      "outcome": "updated"
+    },
+    {
+      "scope": "BT_F31 handoff dependency audit",
+      "review": "references/drift-review-raw-input-citation.json",
+      "reviewedCommit": "756074087685bed3f52f0e6b6e06caf19c587a01",
+      "changedCoveredFiles": [
+        "src/task/delivery.ts",
+        "src/delivery-acceptance.ts"
+      ],
+      "validation": "/workspace/squad-pr-delivery-20261106/formal-handoff-reviewed",
       "outcome": "updated"
     }
   ]
