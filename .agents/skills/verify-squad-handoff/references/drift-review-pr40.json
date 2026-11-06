@@ -1,0 +1,400 @@
+{
+  "previousSyncCommit": "cd987f2f4a7e29ad3efae1af36a0f432ce813c8f",
+  "reviewedCommit": "21ee46039f594d9b93d400bf703e14d42fab2b0e",
+  "status": "updated",
+  "initialBlockedEvidence": "reports/verify-squad-handoff/20261106T101522Z-26134",
+  "reviewedCommits": [
+    "21ee46039f594d9b93d400bf703e14d42fab2b0e docs: record final KEJ-99 verification",
+    "75f2ad1d6a299a6905ebe617ef45fbcb099b9cba test: account for the bounded planning hint in legacy traces",
+    "a1c0ef99cd6a94a9410af82168e0d86a1f75a808 fix: plan MapReduce within available task capacity (KEJ-99)",
+    "6004150e822098d31ddb393a418c793969b0f659 docs: record final KEJ-98 verification",
+    "7aea40788f50ce30329e7ac871e178ce122a46e5 feat: revise published Markdown in a new task (KEJ-98)",
+    "4af40302f4a349b1542a098646fd710619e67228 test: keep local build fixtures offline",
+    "e7c42eb63114d2521f116aff4c08fbd49bad8774 fix: 收起已完成任务的沙箱失败提示 (#39)",
+    "99e633a7b7a7aa448a76572e75cef7dda3c22a6e Merge pull request #38: Squad formal verification suite",
+    "2fcd53c499b810b020a420d98ca4236d4e74d950 docs: record merged PR37 baseline and main synchronization",
+    "63aa2eeb72c3b76aa660c78f3ff03ece66f5b114 merge: synchronize PR38 with merged delivery baseline",
+    "d7b80a4b0e032d300a7201e2532238709eb601cf fix: 整合真实任务的交付证据与模型协议修复 (#37)",
+    "eb1f8b5ac4a7462e3c9bdb6880cb7e4de784602b test: verify persistent budgets and parallel shard convergence",
+    "4729ce45e70c854107749e574b9eb031fb542a5a test: verify execution permits and host authorization boundaries",
+    "a0075bcf07a3b26b93a4fa901e5ea198deae4562 ci: run bounded formal checks independently and retain evidence",
+    "e8c0bf0a426ac56774ebbd40154e372ea37d0128 test: reject incomplete delivery checker inputs",
+    "d9d18f2e9df76bfacac83733361b0be5c352555c test: verify frozen delivery evidence and atomic publication",
+    "26adc97024b2896597f29c147699b13645c16fa3 test: audit handoff model correspondence after runtime changes"
+  ],
+  "propertyChanges": [],
+  "boundsChanges": [],
+  "files": [
+    {
+      "file": "src/task.machine.ts",
+      "previousSha256": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
+      "reviewedSha256": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/engine.ts",
+      "previousSha256": "2987cda2c5abf93d1af73953a70a8ea194fef0eba486881bcda4d169ab603ce2",
+      "reviewedSha256": "e95cd5382a80bdc526f408ff73442dbd1b8bdc07226dbcf64dda7cbd9988c9a5",
+      "classification": "no effect within checked slice",
+      "reason": "submit新增来源分流仅在结构化引用或直接文件修改目标触发。回放初始普通文本形成可核查方案无目标；RetrySaved/Continue是明确控制入口，不走来源分支。receipt/storeTask/transact/flushResults/claim/recover的事务边界未变；Store原实现SHA不变。"
+    },
+    {
+      "file": "src/store.ts",
+      "previousSha256": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
+      "reviewedSha256": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/runner.ts",
+      "previousSha256": "7f1138d65604495466cb82071dff39b25ee8c106cf184f9a61c2be53797ccce0",
+      "reviewedSha256": "c6fb4e04da43e021634db60108ae33ebbe36c5f304efe953a0384b34ce622e69",
+      "classification": "no effect within checked slice",
+      "reason": "仅fixedCheckMaterials可选来源元数据投影变化。RunnerProgress不调用适配器或检查，runOne仍先flushResults；starve-flush真实负对照必须保留。"
+    },
+    {
+      "file": "src/types.ts",
+      "previousSha256": "b4b3eb4ef00595bf9250a7f8a4dd23b0a4df4b29d78bd1a845ff3e401c5480e4",
+      "reviewedSha256": "f8a70d5b344164eaff896ae11e40b84f7e0aff88f528724243847c906f1bc85d",
+      "classification": "no effect within checked slice",
+      "reason": "新增可选ArtifactReference/ArtifactSource及metadata纯投影函数，TaskInput/Context增加sourceArtifact。RecordedResult/Assistance/Fence/Intent原字段及事件身份未变；回放显式拒绝出现sourceArtifact。"
+    },
+    {
+      "file": "src/model-config.ts",
+      "previousSha256": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
+      "reviewedSha256": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/assistance-retry.ts",
+      "previousSha256": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
+      "reviewedSha256": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/presentation.ts",
+      "previousSha256": "44b39afe5955d6d95cc127f1d4a8e90a8961bdb9daa9c547e7d2d0f25b84a1b5",
+      "reviewedSha256": "44b39afe5955d6d95cc127f1d4a8e90a8961bdb9daa9c547e7d2d0f25b84a1b5",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/conversation.ts",
+      "previousSha256": "5217555154388212213c778b94917afcbe7a6452989e311dbeb11a3c478f2146",
+      "reviewedSha256": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
+      "classification": "no effect within checked slice",
+      "reason": "来源去重受sourceArtifact存在性守卫约束。本单任务切片无来源、无其他任务历史，messages/artifacts历史行为保持；不证明跨任务文档去重。"
+    },
+    {
+      "file": "src/model-env.ts",
+      "previousSha256": "99dfbe11350e7c3c446fc13a1a61414ebbf4e73a999439f22e85441c3b26f530",
+      "reviewedSha256": "99dfbe11350e7c3c446fc13a1a61414ebbf4e73a999439f22e85441c3b26f530",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/index.ts",
+      "previousSha256": "79ef24ede132e36388df54ccbb8e6e48efc472adff3c13d57f68ce745b98e331",
+      "reviewedSha256": "79ef24ede132e36388df54ccbb8e6e48efc472adff3c13d57f68ce745b98e331",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "team.config.ts",
+      "previousSha256": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb",
+      "reviewedSha256": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "package.json",
+      "previousSha256": "8012071d995012278bb42709cfba23a13ee1d14a7f79ab783cab4b8047b483d7",
+      "reviewedSha256": "8012071d995012278bb42709cfba23a13ee1d14a7f79ab783cab4b8047b483d7",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "package-lock.json",
+      "previousSha256": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
+      "reviewedSha256": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task/discussion.ts",
+      "previousSha256": "0bdf97c5438d24d381a194d6fc6406282044d41c5b5d5ba5c9f73cf1234bfa7b",
+      "reviewedSha256": "0bdf97c5438d24d381a194d6fc6406282044d41c5b5d5ba5c9f73cf1234bfa7b",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task/input.ts",
+      "previousSha256": "a2b3679e26b087040cb7b05ed89bd5954d82586a090103735361da70acc94a60",
+      "reviewedSha256": "284080d64d88149851e0f058fd4aaa8c56a2d1c141c84b26acc453e2b6fe9efe",
+      "classification": "no effect within checked slice",
+      "reason": "prepareInterpretation为模型解析工作新增预扣1的maxPartitions。此切片createTeamConfig({})无models，输入均rule-resolved，无interpretation工作；新增显式范围断言。"
+    },
+    {
+      "file": "src/task/lifecycle.ts",
+      "previousSha256": "b4209d5324adb8fdfd8041902c9d1eb488036c6f21a02967850fb0e5579bbe26",
+      "reviewedSha256": "b4209d5324adb8fdfd8041902c9d1eb488036c6f21a02967850fb0e5579bbe26",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task/context.ts",
+      "previousSha256": "e1067e47bdd8ac76af43dcc717a84340606dda5fc7158bf7cca1152d985a90a8",
+      "reviewedSha256": "e5efe2a6ca63f8c4835a18fb93737cb1c3d94ff96e972fc3f0b537fc821fba08",
+      "classification": "no effect within checked slice",
+      "reason": "仅input.sourceArtifact存在时克隆原文及增加Markdown交付要求。回放普通submit不带来源；初始goal、result消费、owner/cancel序列未变。"
+    },
+    {
+      "file": "src/task/operations.ts",
+      "previousSha256": "31c18fa28035de696a8d2571fef78adcd7bb4282ea930ba0af356ca5ba630028",
+      "reviewedSha256": "6f4cf5f12b046da9115f5d9f5d6af3be1c3f168fbbf259e551d2c8efba104804",
+      "classification": "no effect within checked slice",
+      "reason": "conversationInput仅追加来源数据、过滤同来源历史，owner/cancelWork/finish的结果交接与取消语句不变。无来源时该数据分支不执行。"
+    },
+    {
+      "file": "src/task/reducer.ts",
+      "previousSha256": "78b5b514714c2cb4f3359c05d3fe088e7a21fe988d59f1ab2106442c74a2e33f",
+      "reviewedSha256": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+      "classification": "no effect within checked slice",
+      "reason": "改变INTERPRETATION_RESULT保留来源、DELIVER材料及interpretation CLAIM容量刷新；本切片无interpretation/DELIVER/check，普通owner/assistance CLAIM原收费不变。RECORD_RESULT/HELP_RESULT/STOP/CONTINUE/USER_INPUT/RECOVER的本切片效果保持。"
+    },
+    {
+      "file": "src/task/assistance.ts",
+      "previousSha256": "d472d9c7422118a217d23ef0019831ad1598e3d9137da794830f39ac286ee6df",
+      "reviewedSha256": "d472d9c7422118a217d23ef0019831ad1598e3d9137da794830f39ac286ee6df",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task/policy.ts",
+      "previousSha256": "99dd204ce9ce1a5af773ea95d265f8dfb934d95b76e53ad5a7fb30f52484e558",
+      "reviewedSha256": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
+      "classification": "no effect within checked slice",
+      "reason": "仅ARTIFACT拒绝来源ID注入。切片没有来源或ARTIFACT事件，HELP_RESULT/RECORD_RESULT的重复/版本校验未改。"
+    },
+    {
+      "file": "src/task/actions.ts",
+      "previousSha256": "78db542e7ad636342220336c2e21a7f15ec313a4bf559c6816771f0713cffda3",
+      "reviewedSha256": "78db542e7ad636342220336c2e21a7f15ec313a4bf559c6816771f0713cffda3",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task/budget.ts",
+      "previousSha256": "0d8454f4dbf0d62ffc7a8d5c615f9ec1ebbd688a6e3136e9832af893ff32e62c",
+      "reviewedSha256": "0d8454f4dbf0d62ffc7a8d5c615f9ec1ebbd688a6e3136e9832af893ff32e62c",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task/guards.ts",
+      "previousSha256": "34e5c8c4849d555b4f44b94cc51c129a4c31d1469c3bccc382eb99a0132d93d3",
+      "reviewedSha256": "34e5c8c4849d555b4f44b94cc51c129a4c31d1469c3bccc382eb99a0132d93d3",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task/facts.ts",
+      "previousSha256": "acfc459728dc40dde315a9f429dfb51088ea21fb1dcbbc9733ecd98dba523396",
+      "reviewedSha256": "0ce2cdc949fa881f2be3267cc66292d1a6ad2f391c7e372139b2b17b05f3e8de",
+      "classification": "no effect within checked slice",
+      "reason": "completeProblem增加来源任务Markdown门禁。切片候选为null且没有check/publication，不调用该成功交付分支；fresh/activeHelp/hasOrdinary原文不变。"
+    },
+    {
+      "file": "src/input-intent.ts",
+      "previousSha256": "7b6d7dc6b87eedf42733f2adbd9c26f3d7b1779d07b06e3d0ae80efb6ebd2fb3",
+      "reviewedSha256": "8c2886e4b9054655203f5b72fc357aaab0d3502927320b722f9fa196a951d266",
+      "classification": "no effect within checked slice",
+      "reason": "新固定来源引用与catalog去重仅来源存在或模型解释使用；rule输入来源为空，原rule spec不变。validInputIntent可选第四参数仅适配器传入，状态机原3参结构验证保留。回放无模型解析或decomposition。"
+    },
+    {
+      "file": "src/local-operation.ts",
+      "previousSha256": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
+      "reviewedSha256": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/room.machine.ts",
+      "previousSha256": "1f2acd3d217731acd39b4258e0148b65b600f2b8cd7ae8cdcee8f047d8b696ab",
+      "reviewedSha256": "1f2acd3d217731acd39b4258e0148b65b600f2b8cd7ae8cdcee8f047d8b696ab",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task-debug.ts",
+      "previousSha256": "38dd3bf387bd69f1caf7f7aeb0f539a8b9d2361ee63ca56dc5c555714fbcaa89",
+      "reviewedSha256": "38dd3bf387bd69f1caf7f7aeb0f539a8b9d2361ee63ca56dc5c555714fbcaa89",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task-inspection.ts",
+      "previousSha256": "a66a44d5b85f487b60ee33985fd9af54064bbacc6951dd47e7aaf3127a2fabd5",
+      "reviewedSha256": "a66a44d5b85f487b60ee33985fd9af54064bbacc6951dd47e7aaf3127a2fabd5",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task-structure.ts",
+      "previousSha256": "03f4fdd3056848007d83d8381fb5f21df12fdd4dd3ea65a7dbfe87fdcde9a87a",
+      "reviewedSha256": "03f4fdd3056848007d83d8381fb5f21df12fdd4dd3ea65a7dbfe87fdcde9a87a",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/skills.ts",
+      "previousSha256": "81bf7ae230a719f046a0caced6c0293807f259c4d500349c7a78ecdfbbf1e111",
+      "reviewedSha256": "81bf7ae230a719f046a0caced6c0293807f259c4d500349c7a78ecdfbbf1e111",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/web-tools.ts",
+      "previousSha256": "aefd3b4625fada48ef66e821bd6252c6b0dae9e454a8799f4c0c321efc531840",
+      "reviewedSha256": "aefd3b4625fada48ef66e821bd6252c6b0dae9e454a8799f4c0c321efc531840",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task/execution.machine.ts",
+      "previousSha256": "7ed6793adbd8413de0c53161ea8adbe6bdcb29eae910864ccd01e29baf68fcff",
+      "reviewedSha256": "7ed6793adbd8413de0c53161ea8adbe6bdcb29eae910864ccd01e29baf68fcff",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task/delivery.ts",
+      "previousSha256": "d969d49c46611a71d57e7c22e63f8a8055c30ada7b36c676429bc7eb2a81174f",
+      "reviewedSha256": "747e64b4e4372b98c93884314c688f4f6b4727ee51af3e0ca03ee656b54f407e",
+      "classification": "no effect within checked slice",
+      "reason": "historicalContent/checkReferenceSources新增固定来源正文。无来源/候选/check，分支不参与交接；publicationIds/CheckResult现有逻辑无变化。"
+    },
+    {
+      "file": "src/task/protocol.ts",
+      "previousSha256": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
+      "reviewedSha256": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task/evidence.ts",
+      "previousSha256": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
+      "reviewedSha256": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task/verification.ts",
+      "previousSha256": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24",
+      "reviewedSha256": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/task/map-reduce.ts",
+      "previousSha256": "79eb3c2530e91e8a94adf3609c1cc995530ce4383db2374247805dab83e97d3a",
+      "reviewedSha256": "601bd32e42920fb7696294c1a0e550b3717be095ce02ab1be3502848100c3dc7",
+      "classification": "no effect within checked slice",
+      "reason": "派发条件移至共享容量函数，保留整份fallback和分片分配。切片没有decomposition且每步断言，startMapReduce入口立即返回false；不以本模型验证新容量规则。"
+    },
+    {
+      "file": "src/host-retry.ts",
+      "previousSha256": "e68e16d090b7c76d5bc8ec18f2cb01c9c33730090d98a001bd7f3fd49ba1ba31",
+      "reviewedSha256": "e68e16d090b7c76d5bc8ec18f2cb01c9c33730090d98a001bd7f3fd49ba1ba31",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/host-session.ts",
+      "previousSha256": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab",
+      "reviewedSha256": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/delivery-acceptance.ts",
+      "previousSha256": "1251688db34cc978c1ef9cf4a675916bf47965723a285cf7d42b0b09f32e8578",
+      "reviewedSha256": "223ed59845004dac8fadcdb116f633af4fc6902338fb4277439a386b65f2ab2e",
+      "classification": "no effect within checked slice",
+      "reason": "仅来源任务新增保留内容/非空Markdown门禁、CheckMaterials来源类型。切片无candidate/check/source，acceptHelpResult的消费原子性不受影响。"
+    },
+    {
+      "file": "src/evidence-reader.ts",
+      "previousSha256": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
+      "reviewedSha256": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/measurement.ts",
+      "previousSha256": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
+      "reviewedSha256": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/local-skills.ts",
+      "previousSha256": "4d83827020c75e7888de71fb5c9b263048a80339fc318c0217e50a31fa566ae2",
+      "reviewedSha256": "4d83827020c75e7888de71fb5c9b263048a80339fc318c0217e50a31fa566ae2",
+      "classification": "unchanged",
+      "reason": "同步提交中的blob SHA256与当前逐字一致，无新增变更。"
+    },
+    {
+      "file": "src/artifact-request.ts",
+      "previousSha256": null,
+      "reviewedSha256": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
+      "classification": "new transitive dependency outside checked slice",
+      "reason": "新增直接文件目标解析依赖。其裸命令/代码/引用识别仅供submit来源分支；所有本模型可信命令文本不匹配且动作序列由真实入口回放核对。"
+    },
+    {
+      "file": "src/source-artifact.ts",
+      "previousSha256": null,
+      "reviewedSha256": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4",
+      "classification": "new transitive dependency outside checked slice",
+      "reason": "新增同群已发布Markdown来源校验及哈希固定，含32KiB门禁。本切片单任务无来源且没有已发布文档，不调用resolved路径；跨任务身份与正文固定不在本性质域。"
+    },
+    {
+      "file": "src/task/map-reduce-capacity.ts",
+      "previousSha256": null,
+      "reviewedSha256": "6397480888beae4db09321f45453a7d315bce56d8bcd4fe7b646f438ac171b6f",
+      "classification": "new transitive dependency outside checked slice",
+      "reason": "新增纯成员/协助/ordinary-2容量计算。无模型解析/decomposition的交接切片不会请求容量或派发，作为engine/reducer新传递依赖加入漂移门禁。"
+    }
+  ],
+  "modelChanges": "Handoff.tla/cfg及四类真实负对照不变；compare.observe增加来源及模型解析缺席的显式条件。",
+  "excludedNewBehavior": [
+    "跨任务来源资格、固定正文、来源文档修订和多任务组合",
+    "输入模型动态容量/0/1/4片语义与文档覆盖",
+    "已领取续办的外部I/O和检查发布"
+  ],
+  "verification": {
+    "candidateEvidence": "reports/verify-squad-handoff/20261106T101946Z-27406",
+    "candidateExitCode": 0,
+    "candidateIntegrity": "100 retained artifacts verified",
+    "baselineModelStates": 146,
+    "baselineLabeledEdges": 424,
+    "negativeControlKinds": 4,
+    "backends": [
+      "memory",
+      "sqlite"
+    ],
+    "propertyChanges": false,
+    "boundsChanges": false,
+    "finalEvidence": "reports/verify-squad-handoff/20261106T102156Z-29383",
+    "finalExitCode": 0,
+    "seconds": 48.172,
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "evidenceRetained": true
+    }
+  }
+}

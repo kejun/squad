@@ -1,0 +1,229 @@
+{
+  "previousSyncCommit": "cd987f2f4a7e29ad3efae1af36a0f432ce813c8f",
+  "reviewedCommit": "21ee46039f594d9b93d400bf703e14d42fab2b0e",
+  "initialBlockedEvidence": "reports/verify-squad-delivery/20261106T101613Z-26206",
+  "status": "updated",
+  "reviewedCommits": [
+    "a1c0ef99cd6a94a9410af82168e0d86a1f75a808 fix: plan MapReduce within available task capacity (KEJ-99)",
+    "7aea40788f50ce30329e7ac871e178ce122a46e5 feat: revise published Markdown in a new task (KEJ-98)",
+    "d7b80a4b0e032d300a7201e2532238709eb601cf fix: 整合真实任务的交付证据与模型协议修复 (#37)"
+  ],
+  "classificationScope": "Delivery.tla existing single-task publication and saved skill receipt slice; not a proof of new cross-task revision or capacity planning.",
+  "propertiesChanged": false,
+  "boundsChanged": false,
+  "modelOrHarnessUpdate": "Model unchanged; strengthen every observation with explicit no-source/no-interpretation/no-map slice assertions, preserving all graph-edge projections and negative controls.",
+  "files": [
+    {
+      "file": "src/artifact-request.ts",
+      "previousSha256": null,
+      "reviewedSha256": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
+      "classification": "new transitive dependency outside checked slice",
+      "reason": "可信用户目标解析；模型前缀固定普通文本 Prepare report，不传结构化来源。解析不改变 CHECK_RESULT 或存储事务。"
+    },
+    {
+      "file": "src/conversation.ts",
+      "previousSha256": "5217555154388212213c778b94917afcbe7a6452989e311dbeb11a3c478f2146",
+      "reviewedSha256": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
+      "classification": "no effect within checked slice",
+      "reason": "仅 sourceArtifact 非空时从历史移除重复正文；前缀单任务无来源，历史为空，发布候选和 source receipt 不改。"
+    },
+    {
+      "file": "src/delivery-acceptance.ts",
+      "previousSha256": "1251688db34cc978c1ef9cf4a675916bf47965723a285cf7d42b0b09f32e8578",
+      "reviewedSha256": "223ed59845004dac8fadcdb116f633af4fc6902338fb4277439a386b65f2ab2e",
+      "classification": "no effect within checked slice",
+      "reason": "新增 source 元数据、来源保留验收与必须新 Markdown 门禁均以 c.sourceArtifact 为前提；现有前缀显式提交非空 report.md，旧 acceptance/criteria/candidateRevision 仍相同。"
+    },
+    {
+      "file": "src/engine.ts",
+      "previousSha256": "2987cda2c5abf93d1af73953a70a8ea194fef0eba486881bcda4d169ab603ce2",
+      "reviewedSha256": "e95cd5382a80bdc526f408ff73442dbd1b8bdc07226dbcf64dda7cbd9988c9a5",
+      "classification": "no effect within checked slice",
+      "reason": "submit 的来源分流在同一房间事务内，前缀无来源且名称文本不匹配；receipt、send(CHECK_RESULT)、storeTask 与 rollback 原子边界未变。"
+    },
+    {
+      "file": "src/input-intent.ts",
+      "previousSha256": "7b6d7dc6b87eedf42733f2adbd9c26f3d7b1779d07b06e3d0ae80efb6ebd2fb3",
+      "reviewedSha256": "8c2886e4b9054655203f5b72fc357aaab0d3502927320b722f9fa196a951d266",
+      "classification": "no effect within checked slice",
+      "reason": "来源引用仅可选source非空时添加；新增可选动态分片上限只在适配器传入，状态入口仍用原3参数协议；本前缀配置禁用模型解析。"
+    },
+    {
+      "file": "src/model-adapter.ts",
+      "previousSha256": "b263523567f8ab36043263c2e795d3ed19abfd2254a07237a8e72aae4f2b9202",
+      "reviewedSha256": "fd7bf326612bed06517963a38bcc9ea0bad27e5748b313ce633907b58b83889d",
+      "classification": "outside checked slice",
+      "reason": "新增来源原文提示、完整上下文保护与分片容量输出校验；回放直接提交符合协议的 CHECK_RESULT，不调用模型适配器，不证明供应商内容正确性。"
+    },
+    {
+      "file": "src/runner.ts",
+      "previousSha256": "7f1138d65604495466cb82071dff39b25ee8c106cf184f9a61c2be53797ccce0",
+      "reviewedSha256": "c6fb4e04da43e021634db60108ae33ebbe36c5f304efe953a0384b34ce622e69",
+      "classification": "outside checked slice",
+      "reason": "fixedCheckMaterials 只追加 sourceMetadata；本验证调用 TeamEngine 公共入口而非 WorkRunner，交付证据和发布状态转换仍在 engine/reducer 内核。"
+    },
+    {
+      "file": "src/source-artifact.ts",
+      "previousSha256": null,
+      "reviewedSha256": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4",
+      "classification": "new transitive dependency outside checked slice",
+      "reason": "同房间成功发布清单选择与固定原文；模型仅一个无来源任务，不执行跨任务选择。publicationIds 仅被读取，没有新发布写入口。"
+    },
+    {
+      "file": "src/task/context.ts",
+      "previousSha256": "e1067e47bdd8ac76af43dcc717a84340606dda5fc7158bf7cca1152d985a90a8",
+      "reviewedSha256": "e5efe2a6ca63f8c4835a18fb93737cb1c3d94ff96e972fc3f0b537fc821fba08",
+      "classification": "no effect within checked slice",
+      "reason": "可选sourceArtifact仅输入非空时克隆并增加文档约束；前缀直接无来源创建 requiredArtifacts=1 的单任务。"
+    },
+    {
+      "file": "src/task/delivery.ts",
+      "previousSha256": "d969d49c46611a71d57e7c22e63f8a8055c30ada7b36c676429bc7eb2a81174f",
+      "reviewedSha256": "747e64b4e4372b98c93884314c688f4f6b4727ee51af3e0ca03ee656b54f407e",
+      "classification": "no effect within checked slice",
+      "reason": "历史内容解析及checkReferenceSources新增固定来源分支；当前上下文无source，原 boundCheckProblem/candidateRevision 守卫、checkDisposition及恢复预算未改。"
+    },
+    {
+      "file": "src/task/facts.ts",
+      "previousSha256": "acfc459728dc40dde315a9f429dfb51088ea21fb1dcbbc9733ecd98dba523396",
+      "reviewedSha256": "0ce2cdc949fa881f2be3267cc66292d1a6ad2f391c7e372139b2b17b05f3e8de",
+      "classification": "no effect within checked slice",
+      "reason": "completeProblem 新 Markdown门禁只在sourceArtifact存在时触发；现有完整性与goalVersion检查保留。"
+    },
+    {
+      "file": "src/task/input.ts",
+      "previousSha256": "a2b3679e26b087040cb7b05ed89bd5954d82586a090103735361da70acc94a60",
+      "reviewedSha256": "284080d64d88149851e0f058fd4aaa8c56a2d1c141c84b26acc453e2b6fe9efe",
+      "classification": "outside checked slice",
+      "reason": "prepareInterpretation 写入预扣本次理解费用的 maxPartitions；此模型禁用输入理解且不调用该分支。"
+    },
+    {
+      "file": "src/task/map-reduce-capacity.ts",
+      "previousSha256": null,
+      "reviewedSha256": "6397480888beae4db09321f45453a7d315bce56d8bcd4fe7b646f438ac171b6f",
+      "classification": "new transitive dependency outside checked slice",
+      "reason": "共享容量纯计算；模型无输入理解工作、无分解或讨论，后继发布动作不调用容量计算。"
+    },
+    {
+      "file": "src/task/map-reduce.ts",
+      "previousSha256": "79eb3c2530e91e8a94adf3609c1cc995530ce4383db2374247805dab83e97d3a",
+      "reviewedSha256": "601bd32e42920fb7696294c1a0e550b3717be095ce02ab1be3502848100c3dc7",
+      "classification": "outside checked slice",
+      "reason": "派发改为共用纯容量守卫，仍整份接受/回退；本模型无 decomposition、无并行轮次，发布/停止路径不依赖该调度。"
+    },
+    {
+      "file": "src/task/operations.ts",
+      "previousSha256": "31c18fa28035de696a8d2571fef78adcd7bb4282ea930ba0af356ca5ba630028",
+      "reviewedSha256": "6f4cf5f12b046da9115f5d9f5d6af3be1c3f168fbbf259e551d2c8efba104804",
+      "classification": "no effect within checked slice",
+      "reason": "conversationInput仅可选source的负载和去重扩展；finish发布记录、complete状态、同清单final消息的写入条件与同次reduce/事务提交保持逐字不变。"
+    },
+    {
+      "file": "src/task/policy.ts",
+      "previousSha256": "99dd204ce9ce1a5af773ea95d265f8dfb934d95b76e53ad5a7fb30f52484e558",
+      "reviewedSha256": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
+      "classification": "no effect within checked slice",
+      "reason": "ARTIFACT新增来源ID拒绝；前缀的报告由DELIVER内宿主生成，不导入sourceID。CHECK_RESULT 的bound工作、candidateRevision、fence与迟到拒绝条件未改。"
+    },
+    {
+      "file": "src/task/reducer.ts",
+      "previousSha256": "78b5b514714c2cb4f3359c05d3fe088e7a21fe988d59f1ab2106442c74a2e33f",
+      "reviewedSha256": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+      "classification": "no effect within checked slice",
+      "reason": "来源解释保留引用、交付fallback、check元数据及理解CLAIM容量刷新都是条件扩展；无source且显式artifact前缀不进入。CHECK_RESULT处置、STOP/USER_INPUT取消与保存发布动作原子性不变。"
+    },
+    {
+      "file": "src/types.ts",
+      "previousSha256": "b4b3eb4ef00595bf9250a7f8a4dd23b0a4df4b29d78bd1a845ff3e401c5480e4",
+      "reviewedSha256": "f8a70d5b344164eaff896ae11e40b84f7e0aff88f528724243847c906f1bc85d",
+      "classification": "no effect within checked slice",
+      "reason": "新增ArtifactReference/Source/Metadata可选字段与剥正文辅助函数；publication/candidate/receipt/Fence定义及旧无来源context语义不变。"
+    },
+    {
+      "file": "src/web/contracts.ts",
+      "previousSha256": "496fdccfc237ccb17c1d4f6d92e99677f945732103ba5da643ffda817754debb",
+      "reviewedSha256": "41d69f61d23bbd57913a2ba382dc12b12f3d795eb4a69ed0e8ddfaa4d2de8d69",
+      "classification": "outside checked slice",
+      "reason": "WebTask来源元数据投影，不在直接engine公共命令回放中执行。"
+    },
+    {
+      "file": "src/web/http.ts",
+      "previousSha256": "2067d2d44d8d7c55212601584a051df4c3c3229d8b29ab09f6523cb109d769a7",
+      "reviewedSha256": "0353bf851274b11b4c31d6adf0cc60c62e49883541e6d1e2c67a6904e50bd3ad",
+      "classification": "outside checked slice",
+      "reason": "HTTP请求严格来源ID校验及错误元数据；模型使用engine直接公共入口，不证明HTTP权限/跨群/UI引用行为。"
+    },
+    {
+      "file": "src/web/service.ts",
+      "previousSha256": "b82c0150ac7dc8f8eb7541e73d82d3853431d7b58f4e7adc2412328fdaede77f",
+      "reviewedSha256": "5b5408fa4d69faf9acd449d107f61edba321d7c45043589c6a25d63d51b34024",
+      "classification": "outside checked slice",
+      "reason": "新增WebError命令结果和sourceMetadata展示；不增加发布写入口，此验证不创建WebService或运行其drain循环。"
+    }
+  ],
+  "unchangedCriticalFiles": [
+    "src/store.ts",
+    "src/task/evidence.ts",
+    "src/task.machine.ts",
+    "src/task/lifecycle.ts",
+    "src/task/guards.ts",
+    "src/task/budget.ts"
+  ],
+  "newUncoveredBehavior": [
+    "cross-task source selection, fixed-source correctness and isolation",
+    "new Markdown revision content preservation and supplier judgment",
+    "capacity-aware planning, 0/1 fallback and provider format repair",
+    "HTTP/UI source controls and provenance preview"
+  ],
+  "validation": {
+    "evidence": "reports/verify-squad-delivery/20261106T101857Z-26814",
+    "completeExitCode": 0,
+    "independentEvidenceReadbackExitCode": 0,
+    "modelCounts": [
+      80,
+      31,
+      0
+    ],
+    "implementation": [
+      {
+        "backend": "memory",
+        "edgesReplayed": 79,
+        "snapshotCases": 9
+      },
+      {
+        "backend": "sqlite",
+        "edgesReplayed": 79,
+        "snapshotCases": 9
+      }
+    ],
+    "negativeControls": {
+      "drop-final": {
+        "property": "AtomicPublication",
+        "backends": {
+          "memory": 1,
+          "sqlite": 1
+        }
+      },
+      "accept-stale": {
+        "property": "CurrentCandidate",
+        "backends": {
+          "memory": 1,
+          "sqlite": 1
+        }
+      },
+      "skip-snapshot": {
+        "property": "SnapshotBinding",
+        "backends": {
+          "memory": 1,
+          "sqlite": 1
+        }
+      }
+    },
+    "restoredExitCode": 0,
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "evidenceRetained": true
+    }
+  }
+}

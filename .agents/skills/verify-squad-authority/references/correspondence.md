@@ -1,6 +1,6 @@
 # 实现对应审查
 
-基线 cd987f2f4a7e29ad3efae1af36a0f432ce813c8f，2026-11-06。验证代码不改变产品行为，不新增 Gherkin 场景或虚构 XState 层。沿用 BT_L23–28 对应行为并新增有限交错检查。
+基线 21ee46039f594d9b93d400bf703e14d42fab2b0e，2026-11-06。逐文件维护审查及原检查结果见 [PR40 漂移审查](drift-review-pr40.json)。验证代码不改变产品行为，不新增 Gherkin 场景或虚构 XState 层。沿用 BT_L23–28 对应行为及有限交错检查。
 
 | 抽象 | 真实入口/守卫 | 原子边界 |
 | --- | --- | --- |
@@ -16,6 +16,8 @@
 | LeaseBusy | 另一所有者在 Store.transact 中 acquireWorkspace | 一个工作区键，持有者不释放；不是分布式 TTL |
 
 stage 不是当前产品 status 的复制，而是旧能力曾走过的最远阶段；stopped/expired/recovered/busy 标记后续旧能力障碍。恢复后产品可能生成新 ID 或挂起父操作，这些细节通过“旧调用拒绝”投影。每个图节点重放最短前缀后，重新从真实公共 API 发出授权探针并与模型判断比较；检查不能以只重放正向边代替拒绝边。每条边另外从起点重放其前缀，确保证据包含完整命令序列。
+
+PR40 的 sourceArtifact 和 MapReduce 容量新增分支不改变上述许可事务、LOCAL_* 守卫、执行子 actor 或 Store。回放起点显式断言 sourceArtifact 缺席、已领取 owner、没有 interpretation intent；LocalRuntime 输入也检查这些切片前提。它们不检查跨任务来源选择授权、来源内容不可变、修订交付或容量规划/格式修复，也不把对新依赖的哈希记录当作这些行为的证明。任务创建仍为单次 TeamEngine 房间事务，Interpretation CLAIM 的容量刷新只作用于该 kind，旧 owner CLAIM 的额度和许可边界保持。
 
 安全不变量 OneStart 检查有限抽象计数，NoUnauthorizedStart 记录每次接受启动时的有效性；移除失效守卫的模型变体必须违反后者。StartDenied 自环及每节点探针验证拒绝路径。TypeOK 检查边界。模型的守卫不能自行证明实现守卫存在，因此回放和独立真实代码变体是交付的必要组成。Started/Stopped/Recovered（两域）、Approved/LeaseBusy（宿主）的故意假不变量必须产生对应 TLC 反例，防止关键前提不可达而空通过。
 

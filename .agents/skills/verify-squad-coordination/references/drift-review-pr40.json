@@ -1,0 +1,408 @@
+{
+  "status": "updated",
+  "oldSyncCommit": "cd987f2f4a7e29ad3efae1af36a0f432ce813c8f",
+  "reviewedCommit": "21ee46039f594d9b93d400bf703e14d42fab2b0e",
+  "originalResult": {
+    "exitCode": 1,
+    "status": "blocked",
+    "evidence": "reports/verify-squad-coordination/20261106T101803Z-26584",
+    "reason": "18 covered-file hash drifts, before tool/model execution"
+  },
+  "commitMessagesReviewed": [
+    "21ee46039f594d9b93d400bf703e14d42fab2b0e docs: record final KEJ-99 verification",
+    "75f2ad1d6a299a6905ebe617ef45fbcb099b9cba test: account for the bounded planning hint in legacy traces",
+    "a1c0ef99cd6a94a9410af82168e0d86a1f75a808 fix: plan MapReduce within available task capacity (KEJ-99)",
+    "6004150e822098d31ddb393a418c793969b0f659 docs: record final KEJ-98 verification",
+    "7aea40788f50ce30329e7ac871e178ce122a46e5 feat: revise published Markdown in a new task (KEJ-98)",
+    "4af40302f4a349b1542a098646fd710619e67228 test: keep local build fixtures offline",
+    "e7c42eb63114d2521f116aff4c08fbd49bad8774 fix: 收起已完成任务的沙箱失败提示 (#39)",
+    "99e633a7b7a7aa448a76572e75cef7dda3c22a6e Merge pull request #38: Squad formal verification suite",
+    "2fcd53c499b810b020a420d98ca4236d4e74d950 docs: record merged PR37 baseline and main synchronization",
+    "63aa2eeb72c3b76aa660c78f3ff03ece66f5b114 merge: synchronize PR38 with merged delivery baseline",
+    "d7b80a4b0e032d300a7201e2532238709eb601cf fix: 整合真实任务的交付证据与模型协议修复 (#37)",
+    "eb1f8b5ac4a7462e3c9bdb6880cb7e4de784602b test: verify persistent budgets and parallel shard convergence",
+    "4729ce45e70c854107749e574b9eb031fb542a5a test: verify execution permits and host authorization boundaries",
+    "a0075bcf07a3b26b93a4fa901e5ea198deae4562 ci: run bounded formal checks independently and retain evidence",
+    "e8c0bf0a426ac56774ebbd40154e372ea37d0128 test: reject incomplete delivery checker inputs",
+    "d9d18f2e9df76bfacac83733361b0be5c352555c test: verify frozen delivery evidence and atomic publication",
+    "26adc97024b2896597f29c147699b13645c16fa3 test: audit handoff model correspondence after runtime changes"
+  ],
+  "reviewProcedure": "Read every sync-to-HEAD src diff, current input/map-reduce/claim policy and runner boundary, all three TLA graphs and concrete public-entry replay; classify each changed file below. All other covered files retain their reviewed hashes. New source modules are conservatively added as transitive drift dependencies, not represented as independent model properties.",
+  "files": [
+    {
+      "path": "src/artifact-request.ts",
+      "classification": "new-transitive-dependency",
+      "oldSha256": null,
+      "reviewedSha256": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
+      "effectOnProperties": "Direct user Markdown request parser; source selection occurs before the existing public prefix. No budget, shard settlement or handoff write.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/conversation.ts",
+      "classification": "outside-model-path",
+      "oldSha256": "5217555154388212213c778b94917afcbe7a6452989e311dbeb11a3c478f2146",
+      "reviewedSha256": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
+      "effectOnProperties": "Source-aware history de-duplication; no sourceArtifact exists in current public model prefixes and the model projections ignore arbitrary content.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/delivery-acceptance.ts",
+      "classification": "outside-model-path",
+      "oldSha256": "1251688db34cc978c1ef9cf4a675916bf47965723a285cf7d42b0b09f32e8578",
+      "reviewedSha256": "223ed59845004dac8fadcdb116f633af4fc6902338fb4277439a386b65f2ab2e",
+      "effectOnProperties": "Source-specific criterion and explicit fresh Markdown requirement. CheckBudget prefix has no source and keeps its original criteria, request/revision accounting and atomicity.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/engine.ts",
+      "classification": "outside-model-path",
+      "oldSha256": "2987cda2c5abf93d1af73953a70a8ea194fef0eba486881bcda4d169ab603ce2",
+      "reviewedSha256": "e95cd5382a80bdc526f408ff73442dbd1b8bdc07226dbcf64dda7cbd9988c9a5",
+      "effectOnProperties": "Source command validation/resolution/new-task branch and original-owner default remain in submit transaction. Existing no-source prefixes, claim/recover/send and store commit boundaries unchanged; source lifecycle is not a new formal claim.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/input-intent.ts",
+      "classification": "correspondence-updated",
+      "oldSha256": "7b6d7dc6b87eedf42733f2adbd9c26f3d7b1779d07b06e3d0ae80efb6ebd2fb3",
+      "reviewedSha256": "8c2886e4b9054655203f5b72fc357aaab0d3502927320b722f9fa196a951d266",
+      "effectOnProperties": "Source-reference preservation is inactive without source. New optional adapter ceiling requires a finite validator example; omitted fourth argument intentionally keeps legacy 2..8 schema validity. State policy uses three args and final dispatch independently guards current capacity.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/model-adapter.ts",
+      "classification": "reviewed-io-boundary",
+      "oldSha256": "b263523567f8ab36043263c2e795d3ed19abfd2254a07237a8e72aae4f2b9202",
+      "reviewedSha256": "fd7bf326612bed06517963a38bcc9ea0bad27e5748b313ce633907b58b83889d",
+      "effectOnProperties": "Prompt explains host ceiling, immutable source and no truncation. Dynamic optional cap uses persisted payload; validation repair uses existing bounded additional request authorization. Fixed source context/provider protection extends check behavior. Synthetic TeamEngine replay does not invoke provider HTTP or prove natural-language grouping.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/runner.ts",
+      "classification": "outside-model-path",
+      "oldSha256": "7f1138d65604495466cb82071dff39b25ee8c106cf184f9a61c2be53797ccce0",
+      "reviewedSha256": "c6fb4e04da43e021634db60108ae33ebbe36c5f304efe953a0384b34ce622e69",
+      "effectOnProperties": "Adds fixed source metadata to check materials only. Claim/request accounting, result submission and check-cycle semantics are unchanged; no source fixture in model prefix.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/source-artifact.ts",
+      "classification": "new-transitive-dependency",
+      "oldSha256": null,
+      "reviewedSha256": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4",
+      "effectOnProperties": "Trusted same-room ended/complete publication resolver and fixed source copy inside submit transaction; excluded source-task histories remain outside the three finite models.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/task/context.ts",
+      "classification": "outside-model-path",
+      "oldSha256": "e1067e47bdd8ac76af43dcc717a84340606dda5fc7158bf7cca1152d985a90a8",
+      "reviewedSha256": "e5efe2a6ca63f8c4835a18fb93737cb1c3d94ff96e972fc3f0b537fc821fba08",
+      "effectOnProperties": "Only sourceArtifact tasks clone source and raise required artifact/criteria. No-source Budget/Shards/CheckBudget initial states remain unchanged.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/task/delivery.ts",
+      "classification": "outside-model-path",
+      "oldSha256": "d969d49c46611a71d57e7c22e63f8a8055c30ada7b36c676429bc7eb2a81174f",
+      "reviewedSha256": "747e64b4e4372b98c93884314c688f4f6b4727ee51af3e0ca03ee656b54f407e",
+      "effectOnProperties": "Adds fixed original body as immutable reference exactly once. Delivery-cycle budget, retry/revision and current candidate bookkeeping unchanged.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/task/facts.ts",
+      "classification": "outside-model-path",
+      "oldSha256": "acfc459728dc40dde315a9f429dfb51088ea21fb1dcbbc9733ecd98dba523396",
+      "reviewedSha256": "0ce2cdc949fa881f2be3267cc66292d1a6ad2f391c7e372139b2b17b05f3e8de",
+      "effectOnProperties": "Conditional source-specific Markdown completion guard; ordinary and check finite fixtures have no source and keep unchanged completion guard.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/task/input.ts",
+      "classification": "correspondence-updated",
+      "oldSha256": "a2b3679e26b087040cb7b05ed89bd5954d82586a090103735361da70acc94a60",
+      "reviewedSha256": "284080d64d88149851e0f058fd4aaa8c56a2d1c141c84b26acc453e2b6fe9efe",
+      "effectOnProperties": "prepareInterpretation cancels old work then records capacity with one unpaid interpretation reserved. Pending creation does not charge; finite snapshots independently assert both pre-claim and post-charge values.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/task/map-reduce-capacity.ts",
+      "classification": "correspondence-updated",
+      "oldSha256": null,
+      "reviewedSha256": "6397480888beae4db09321f45453a7d315bce56d8bcd4fe7b646f438ac171b6f",
+      "effectOnProperties": "Shared pure member/assist/ordinary capacity formula. For legal 2..8 plans its dispatch guard is equivalent to the old three resource guards. New finite probes cover 0/1/2/4 snapshots and recovery; TLC remains exactly two shards with sufficient prefix capacity.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/task/map-reduce.ts",
+      "classification": "correspondence-updated",
+      "oldSha256": "79eb3c2530e91e8a94adf3609c1cc995530ce4383db2374247805dab83e97d3a",
+      "reviewedSha256": "601bd32e42920fb7696294c1a0e550b3717be095ce02ab1be3502848100c3dc7",
+      "effectOnProperties": "Shared available member helper and capacity guard replace equivalent inline dispatch checks; all partitions either dispatch or stay with owner. Existing start ownership, assist accounting and round creation remain one macrostep. Finite fallback/4-partition examples are supplementary, not added TLC states.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/task/operations.ts",
+      "classification": "outside-model-path",
+      "oldSha256": "31c18fa28035de696a8d2571fef78adcd7bb4282ea930ba0af356ca5ba630028",
+      "reviewedSha256": "6f4cf5f12b046da9115f5d9f5d6af3be1c3f168fbbf259e551d2c8efba104804",
+      "effectOnProperties": "Conversation input copies optional fixed source and excludes its duplicate history artifact; no changes to intents, release/cancel/owner or transaction boundaries.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/task/policy.ts",
+      "classification": "outside-model-path",
+      "oldSha256": "99dd204ce9ce1a5af773ea95d265f8dfb934d95b76e53ad5a7fb30f52484e558",
+      "reviewedSha256": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
+      "effectOnProperties": "Rejects source id as a current ARTIFACT. Attempt, claim, CONSUME, stale result and check-request authorization guards unchanged. Interpretation still deliberately schema-validates without dynamic cap.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/task/reducer.ts",
+      "classification": "correspondence-updated",
+      "oldSha256": "78b5b514714c2cb4f3359c05d3fe088e7a21fe988d59f1ab2106442c74a2e33f",
+      "reviewedSha256": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+      "effectOnProperties": "Ordinary CLAIM charging still occurs before refreshed maxPartitions; refresh only if pre-existing numeric hint, preserving absent legacy field. Source branches add immutable reference/metadata and explicit artifact behavior, inactive in model fixtures. All three model actions retain original macrostep atomicity.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/types.ts",
+      "classification": "outside-model-path",
+      "oldSha256": "b4b3eb4ef00595bf9250a7f8a4dd23b0a4df4b29d78bd1a845ff3e401c5480e4",
+      "reviewedSha256": "f8a70d5b344164eaff896ae11e40b84f7e0aff88f528724243847c906f1bc85d",
+      "effectOnProperties": "Optional trusted source input and metadata types/function; no changed fence, intent status, budget counter or storage protocol.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/web/contracts.ts",
+      "classification": "outside-model-path",
+      "oldSha256": "496fdccfc237ccb17c1d4f6d92e99677f945732103ba5da643ffda817754debb",
+      "reviewedSha256": "41d69f61d23bbd57913a2ba382dc12b12f3d795eb4a69ed0e8ddfaa4d2de8d69",
+      "effectOnProperties": "Optional source metadata web projection; no state writes.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/web/http.ts",
+      "classification": "outside-model-path",
+      "oldSha256": "2067d2d44d8d7c55212601584a051df4c3c3229d8b29ab09f6523cb109d769a7",
+      "reviewedSha256": "0353bf851274b11b4c31d6adf0cc60c62e49883541e6d1e2c67a6904e50bd3ad",
+      "effectOnProperties": "Validates structured source references and returns bounded command errors/candidates; delegates same TeamEngine entry point, does not create scheduling path.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    },
+    {
+      "path": "src/web/service.ts",
+      "classification": "outside-model-path",
+      "oldSha256": "b82c0150ac7dc8f8eb7541e73d82d3853431d7b58f4e7adc2412328fdaede77f",
+      "reviewedSha256": "5b5408fa4d69faf9acd449d107f61edba321d7c45043589c6a25d63d51b34024",
+      "effectOnProperties": "Projects source metadata and carries rejected command result in WebError. No change to engine dispatch, storage or all-model-prefix behavior.",
+      "propertyWeakened": false,
+      "atomicityChanged": false
+    }
+  ],
+  "modelDecision": {
+    "Budget": "Same finite states/guards/atomicity; no change to paid ordinary/retry accounting, source-less initial prefix.",
+    "CheckBudget": "Same finite states/guards/atomicity; source-less candidate has unchanged bounded check protocol and revision accounting.",
+    "Shards": "For legal decomposition sizes 2..8 the shared capacity comparison is the conjunction of the old member/assist/ordinary tests. Existing exactly-two prefix remains enabled with 4-capacity snapshot and 20 ordinary units; all settlement/stop/goal/recovery/handoff code unchanged. Added independent assertions and finite examples, kept every original graph action and bound."
+  },
+  "supplementalExamples": {
+    "kind": "finite implementation examples, not TLC exhaustive capacity proof",
+    "stores": [
+      "MemoryStore",
+      "SqliteStore"
+    ],
+    "cases": [
+      "capacity 0 with 2 partitions -> complete fallback",
+      "capacity 1 with 2 partitions -> complete fallback",
+      "capacity 2 with 2 partitions -> complete dispatch",
+      "capacity 4 with 4 partitions -> complete dispatch",
+      "interpretation recovery 4 -> 3; stale 4 plan -> complete fallback",
+      "legacy missing capacity remains absent after recover/re-claim, current dispatch 3 rejects 4 plan"
+    ],
+    "validator": "Exported adapter-facing validator uses current claimed payload cap, including refreshed 3 rejecting 4; legacy undefined keeps static schema. No provider HTTP or repair loop executed."
+  },
+  "negativeControlsAdded": [
+    "omit-interpretation-reservation",
+    "omit-capacity-refresh",
+    "backfill-legacy-capacity",
+    "skip-capacity-dispatch-guard",
+    "ignore-adapter-capacity"
+  ],
+  "boundsReduced": false,
+  "promiseChanged": false,
+  "unproved": [
+    "0/1/4-shard or resource-state TLC exhaustive exploration",
+    "all task/source/host/budget Cartesian combinations",
+    "KEJ98 publication/source trust lifecycle",
+    "model HTTP, document grouping or natural-language preservation quality",
+    "arbitrary task history and concurrent rooms"
+  ],
+  "initialFullVerification": {
+    "evidence": "reports/verify-squad-coordination/20261106T102204Z-29466",
+    "exitCode": 0,
+    "status": "verified",
+    "seconds": 337.898,
+    "verifyEvidenceExitCode": 0,
+    "retainedArtifacts": 255,
+    "models": {
+      "Budget": {
+        "states": 151,
+        "edges": 345,
+        "stores": [
+          {
+            "name": "memory",
+            "edgesReplayed": 345
+          },
+          {
+            "name": "sqlite",
+            "edgesReplayed": 345
+          }
+        ]
+      },
+      "Shards": {
+        "states": 456,
+        "edges": 1379,
+        "stores": [
+          {
+            "name": "memory",
+            "edgesReplayed": 1379
+          },
+          {
+            "name": "sqlite",
+            "edgesReplayed": 1379
+          }
+        ]
+      },
+      "CheckBudget": {
+        "states": 117,
+        "edges": 237,
+        "stores": [
+          {
+            "name": "memory",
+            "edgesReplayed": 237
+          },
+          {
+            "name": "sqlite",
+            "edgesReplayed": 237
+          }
+        ]
+      }
+    },
+    "negativeControls": 16,
+    "negativeStoreFailures": 32,
+    "restoredOriginal": "all three TLC models and both stores passed",
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "checkerInputsUnchanged": true
+    }
+  },
+  "candidateSyncCommit": "21ee46039f594d9b93d400bf703e14d42fab2b0e",
+  "finalConfirmationEvidence": "reports/verify-squad-coordination/pr40-final-21ee460",
+  "reviewCorrectionsBeforeConfirmation": [
+    "Every Budget/CheckBudget/Shards context and finite capacity context explicitly asserts absence of sourceArtifact.",
+    "Adapter-facing validator receives the current claimed work payload capacity: recovered 3 rejects 4, undefined legacy retains static protocol.",
+    "Retain SKILL.md, correspondence.md and this reviewed per-file audit alongside checker scripts in the evidence manifest."
+  ],
+  "newSyncCommit": "21ee46039f594d9b93d400bf703e14d42fab2b0e",
+  "finalConfirmation": {
+    "evidence": "reports/verify-squad-coordination/pr40-final-21ee460",
+    "exitCode": 0,
+    "status": "verified",
+    "seconds": 325.665,
+    "verifyEvidenceExitCode": 0,
+    "retainedArtifacts": 258,
+    "models": {
+      "Budget": {
+        "states": 151,
+        "edges": 345,
+        "baselineTLCExit": 0,
+        "baselineReplayExit": 0,
+        "restoredTLCExit": 0,
+        "restoredReplayExit": 0,
+        "stores": [
+          {
+            "name": "memory",
+            "edgesReplayed": 345
+          },
+          {
+            "name": "sqlite",
+            "edgesReplayed": 345
+          }
+        ]
+      },
+      "Shards": {
+        "states": 456,
+        "edges": 1379,
+        "baselineTLCExit": 0,
+        "baselineReplayExit": 0,
+        "restoredTLCExit": 0,
+        "restoredReplayExit": 0,
+        "stores": [
+          {
+            "name": "memory",
+            "edgesReplayed": 1379
+          },
+          {
+            "name": "sqlite",
+            "edgesReplayed": 1379
+          }
+        ]
+      },
+      "CheckBudget": {
+        "states": 117,
+        "edges": 237,
+        "baselineTLCExit": 0,
+        "baselineReplayExit": 0,
+        "restoredTLCExit": 0,
+        "restoredReplayExit": 0,
+        "stores": [
+          {
+            "name": "memory",
+            "edgesReplayed": 237
+          },
+          {
+            "name": "sqlite",
+            "edgesReplayed": 237
+          }
+        ]
+      }
+    },
+    "witnesses": 19,
+    "witnessExitCodes": [
+      12
+    ],
+    "negativeControls": 16,
+    "negativeStoreFailures": 32,
+    "negativeExitCodes": [
+      1
+    ],
+    "supplementalCapacityExamplesPerStage": 12,
+    "retainedReviewInputs": true,
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "checkerInputsUnchanged": true
+    }
+  },
+  "scope": "All original finite models, all graph edges on MemoryStore and SQLite, 19 reachability witnesses, all original 11 and 5 new real-code controls, then the restored original rerun. Supplementary 0/1/2/4 capacity cases remain finite implementation examples, not a capacity or four-shard formal proof."
+}

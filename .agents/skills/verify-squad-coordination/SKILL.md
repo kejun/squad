@@ -5,7 +5,7 @@ description: "验证 Squad 的普通请求计费、交付检查与修订上限�
 
 # Verify squad coordination
 
-先读仓库 `AGENTS.md` 与[代码对应和保证边界](references/correspondence.md)。本技能覆盖 KEJ-96、KEJ-97，不替代 B→A 单结果交接、执行授权或交付证据一致性技能。所有运行均使用合成内容，不调用模型供应商、不读取用户数据库。
+先读仓库 `AGENTS.md` 与[代码对应和保证边界](references/correspondence.md)。本技能覆盖 KEJ-96、KEJ-97 的有限协调模型，并提供 KEJ-99 容量的有限实现实例；不替代 B→A 单结果交接、执行授权或交付证据一致性技能。所有运行均使用合成内容，不调用模型供应商、不读取用户数据库。
 
 ## 承诺与损害
 
@@ -40,6 +40,8 @@ python3 .agents/skills/verify-squad-coordination/scripts/check.py --verify-evide
 
 每个模型穷举其完整有限状态图，不使用随机模拟。每条图边从其一个最短可达前缀重新构建真实 `TeamEngine`，分别在 `MemoryStore`、`SqliteStore` 执行公共入口并逐步比较所有模型字段。每条边均检查业务性质。另在每个后端公开入口执行 Claim→保留旧 ticket→Reopen→再 Claim→旧 attempt 迟到的探针，确认拒绝且不结算新 attempt。解析节点和边数必须与 TLC 原始统计匹配，不能遗漏边或用仅执行日志冒充比较。
 
+`capacity-probes.mjs` 在每个存储另跑六个有限实现实例：容量0/1时两片整体回退，容量2时两片完整派发，容量4时四片完整派发，恢复重领后容量4→3时原四片整体回退，以及旧快照缺少提示时重领不补字段、仍按当前容量回退。断言准备时预留一次未付理解请求、CLAIM收费后刷新、无部分派发且owner保留完整计划；另直接调用适配器使用的验证函数，确认数字容量限制与缺省旧协议。这些实例及独立负对照不属于 TLC 状态图，不声称容量或0/1/4片的穷举证明；不执行模型 HTTP、格式修复请求或语义分组。旧快照实例只从公共前缀的持久快照移除新增提示，明确区分于三个模型的可达起点。
+
 这是**有限抽象模型的穷举检查 + 代表前缀的真实实现对应验证**，不是 TypeScript 的机器证明、无限大小证明或全部历史等价证明。文件哈希是漂移门禁，不是行为等价证明。SQLite 事务/文件系统原子性是假设；此处不注入断电、部分磁盘写入或真实网络故障。三个模型不是整个系统的笛卡尔乘积，不证明预算与所有宿主/目标/输入行为的组合。
 
 ## 安全、进度与可达性
@@ -66,12 +68,17 @@ python3 .agents/skills/verify-squad-coordination/scripts/check.py --verify-evide
 | 复用已消费的检查请求许可 | BoundedChecks |
 | 技术 retry 预留不记次数 | OneTechnicalRetry |
 | 自动修订不记录 revisionUsed | OneRevision |
+| 准备理解时不预留本次未收费请求 | CapacitySnapshot（有限实例） |
+| 恢复重领不刷新容量 | CapacityRefresh（有限实例） |
+| 对缺少提示的历史工作补写容量 | LegacyCapacity（有限实例） |
+| 分发绕过当前容量检查 | CapacityDispatch（有限实例） |
+| 验证函数忽略适配器传入容量 | CapacityValidation（有限实例） |
 
 一个改坏只能说明对这一变体敏感，不能推出检测全部同类缺陷；NoStaleHandoff 的停止/换目标由全部图边比较和显式迟到拒绝覆盖，不声称对每种越权错误有独立突变完备性。故障副本移除后必须完整重跑三个模型和真实回放；原工作区覆盖文件哈希必须保持不变。
 
 ## 实现同步与维护
 
-最近完整对应审查基线：`cd987f2f4a7e29ad3efae1af36a0f432ce813c8f`，这是 PR37 合并前的 head。PR37 已 squash 合入 main `d7b80a4b0e032d300a7201e2532238709eb601cf`，两者完整树相同；PR38 已同步 main，保留原审查基线与哈希。代码范围和精确 SHA 见 [coverage.json](references/coverage.json)。清单保守包含全部 src 模块及 config/package/lock 作为传递依赖漂移门禁；核心函数映射见对应文档，不代表逐个模块均有形式化性质。
+最近完整对应审查基线：`21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR40）。从旧基线 `cd987f2f4a7e29ad3efae1af36a0f432ce813c8f` 逐文件审查21个变更/新增src依赖；分类、性质影响和首轮完整验证见 [PR40审查记录](references/drift-review-pr40.json)。旧基线是 PR37 合并前head，与 squash 合入的 main `d7b80a4b0e032d300a7201e2532238709eb601cf` 完整树相同。代码范围和精确 SHA 见 [coverage.json](references/coverage.json)。清单保守包含全部 src 模块及 config/package/lock 作为传递依赖漂移门禁；核心函数映射见对应文档，不代表逐个模块均有形式化性质。
 
 代码变化时按[维护流程](references/maintenance.md)逐项核对事务边界、守卫、预算范围、调度与投影，必要时更新模型和驱动。不得仅更新哈希。新性质先从代码/契约定义，不因当前运行失败而放宽；当前实现违反性质时保留真实反例并报告产品缺陷，未经授权不改产品。
 

@@ -1,6 +1,6 @@
 # 交付模型与实现对应审查
 
-审查基线 cd987f2f4a7e29ad3efae1af36a0f432ce813c8f，这是 PR37 合并前的 head；PR37 现已 squash 合入 main d7b80a4，其完整树与该审查基线相同。新增验证不修改产品文件。此文件是人工审查记录，不是自动等价证明。
+审查基线 `21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR40）。前一次基线为 cd987f2f4a7e29ad3efae1af36a0f432ce813c8f（PR37合并前head，其树与squash后d7b80a4相同）。PR40逐文件审查与完整验证见下文和 drift-review-pr40.json。验证更新不修改产品文件；此文件是人工审查记录，不是自动等价证明。
 
 ## 数据与可达前缀
 
@@ -43,3 +43,12 @@ Progress 的弱公平是环境假设：在线、未停止、未换目标且有�
 coverage.json 保守列出当前 src 的所有 TypeScript 文件以及配置/锁文件，捕捉传递依赖漂移。重点审查 task.machine、task/lifecycle、task/policy、task/delivery、task/evidence、task/reducer、task/operations、task/input、store、engine；其他模块门禁只表示须检查是否影响这些入口，不扩大验证范围。
 
 当增加第二候选、部分失败、WORKSPACE 验证、恢复动作或发布后继续时，应扩展变量和真实回放，而非直接把新路径投影成 stuttering。每个新原子动作必须对应实际事务；每个新字段要讨论它是否影响未来行为。现有模型没有候选替换历史，不可用于证明多修订场景正确。
+
+
+## PR40 对应审查
+
+审查目标为 `21ee46039f594d9b93d400bf703e14d42fab2b0e`，从原同步基线逐项审阅的21个变化/新增源文件、哈希与原因见 [drift-review-pr40.json](drift-review-pr40.json)。CI首次在TLC之前因18份已有覆盖文件漂移返回blocked；这证明同步记录已过期，不是已有性质的反例。
+
+KEJ-98增加跨任务来源固定和新Markdown门禁；在本模型不带sourceArtifact、显式生成单份report.md的前缀中，它们不改变当前候选发布或技能回执冻结路径。KEJ-99在理解意图与分片派发中引入容量；本模型禁用解释、没有并行分解。回放每次observe都明确断言无sourceArtifact、无interpretation工作、无mapReduce轮次，使这些切片假设能被实际实现检验。Publish/CHECK_RESULT、STOP、ChangeGoal和回滚的事务边界、snapshot比较及三个真实负对照锚点保持；模型性质、变量与边界不变。
+
+新增三个传递依赖artifact-request.ts、source-artifact.ts和task/map-reduce-capacity.ts加入漂移清单。列入清单只要求今后重新审查，不代表已证明跨任务选择、原文一致性/内容保留、动态规划容量、HTTP权限、UI或供应商判断。上述行为仍由各自模型/集成/Gherkin/浏览器验证承担；不能把它们投影成已获Delivery性质的stuttering分支。

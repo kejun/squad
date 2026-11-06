@@ -1,6 +1,6 @@
 # Code/model correspondence
 
-审查基线：cd987f2f4a7e29ad3efae1af36a0f432ce813c8f（PR37 合并前的 head；现已 squash 合入 main d7b80a4，两者完整树相同）。没有修改产品行为。本审查继承 AGENTS.md 的事务/纯状态边界，以真实 TeamEngine 公共入口为回放对象。每个抽象动作对应 engine.send/claim 的一次提交，Reopen 包含重建存储连接及 public recover 对本任务的一次 RECOVER；没有跨实际事务伪造原子性。模型起点有可执行前缀，不能直接注入不可能的 context。
+审查基线：`21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR40）。旧基线 `cd987f2f4a7e29ad3efae1af36a0f432ce813c8f` 至此的全部21个src差异、提交消息和性质判断见 [drift-review-pr40.json](drift-review-pr40.json)。旧基线与PR37 squash main d7b80a4完整树相同。没有修改产品行为。本审查继承 AGENTS.md 的事务/纯状态边界，以真实 TeamEngine 公共入口为回放对象。每个抽象动作对应 engine.send/claim 的一次提交，Reopen 包含重建存储连接及 public recover 对本任务的一次 RECOVER；没有跨实际事务伪造原子性。模型起点有可执行前缀，不能直接注入不可能的 context。三个模型与补充容量实例均显式断言context.sourceArtifact缺席，防止投影静默忽略来源任务行为。
 
 ## Budget
 
@@ -37,6 +37,10 @@
 
 公共前缀：submit复杂输入 → claim interpretation → INTERPRETATION_RESULT携带两个独立分片。`startMapReduce` 的宿主成员分配、quota守卫创建两项pending assistance，owner暂不运行。
 
+KEJ-99 将成员、协助余额、普通余额限制合并为 `task/map-reduce-capacity.ts` 的共享纯函数。对于schema允许的2..8片，`partitions.length <= max(0,min(8,members,assists,ordinary-2))` 与旧三个dispatch守卫等价。prepareInterpretation 在 cancelWork 后为未收费理解请求预留1次；CLAIM 先收费，再仅对已有数字提示刷新容量，不给历史缺省字段补值。TLC前缀的普通额度20、4名非owner成员足够创建两片，驱动独立断言准备/领取容量均4。之后的分片结算、唯一归并与handoff动作没有变化，故不扩张或缩小图中的变量/动作/性质。
+
+`capacity-probes.mjs` 是与TLC图分开的有限实例：双存储各运行容量0/1的两片整体回退、容量2的两片完整分发、容量4的四片完整分发、公开claim→recover→re-claim后普通计费保持且提示4→3使原四片整体回退、旧快照移除新增提示后重领不补字段但仍执行当前dispatch守卫。直接调用 `validInputIntent` 验证数字cap与缺省静态协议，不能据此声称运行适配器HTTP或修复循环。保留完整分片目标/产出/归并要求及owner输入，分别检查 assist消费和无部分派发。每种新增断言有真实源码突变负对照；0/1/4片和容量状态没有加入模型穷举。
+
 - `Claim1/2` → TeamEngine.claim，经 policy/workLaneAvailable 允许两成员并行。
 - `Success/Partial1/2` → DISCUSSION_RESULT，acceptDiscussion在同一状态提交释放work、保存原始results、必要时设置incomplete，仅所有分片非pending/inflight才创建discussionSummary。
 - `Failure1/2` → WORK_FAILED、discussionFailed；保留失败结果并参与“已结算”判断，不自动重试或伪造成功。
@@ -59,4 +63,4 @@
 
 ## 覆盖缺口
 
-不枚举超过两个分片、任意输入组合、动态成员权限、宿主副作用、真实模型HTTP返回质量、时间超时、发布证据任意正文、磁盘崩溃或多个任务竞争。Shards未覆盖取消后仍inflight时再RECOVER，authority技能覆盖不同但相关的授权/恢复边界，不能由两技能单独通过推出它们完整组合。Budget不含所有discussion/host-reservation支路，CheckBudget不含stop/new goal/new user delivery-cycle。明确列出的有限模型和代表前缀之外仍需产品回归与审查。
+TLC不枚举超过两个分片、容量资源状态、任意输入组合、动态成员权限、宿主副作用、真实模型HTTP返回质量、时间超时、发布证据任意正文、磁盘崩溃或多个任务竞争；新增有限实例的范围见上文。KEJ-98 的固定来源解析、原文保存与跨任务发布不在这三个无source前缀中，不因新增传递依赖哈希声称已形式化证明。Shards未覆盖取消后仍inflight时再RECOVER，authority技能覆盖不同但相关的授权/恢复边界，不能由两技能单独通过推出它们完整组合。Budget不含所有discussion/host-reservation支路，CheckBudget不含stop/new goal/new user delivery-cycle。明确列出的有限模型和代表前缀之外仍需产品回归与审查。

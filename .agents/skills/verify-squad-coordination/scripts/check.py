@@ -23,6 +23,19 @@ WITNESSES = {
     'CheckBudget': ['NeverThreeRequests', 'NeverTechnicalRetry', 'NeverRevised', 'NeverRepeatedRecovery', 'NeverBeforeRequestFailure', 'NeverUncertain'],
 }
 CONTROLS = {
+    'omit-interpretation-reservation': ('Shards', 'CapacitySnapshot', 'src/task/input.ts',
+        'maxPartitions: mapReduceCapacity(c, 1),', 'maxPartitions: mapReduceCapacity(c),'),
+    'omit-capacity-refresh': ('Shards', 'CapacityRefresh', 'src/task/reducer.ts',
+        "if (typeof work.payload.maxPartitions === 'number') work.payload.maxPartitions = mapReduceCapacity(c);",
+        '/* faulty reuse of stale capacity */'),
+    'backfill-legacy-capacity': ('Shards', 'LegacyCapacity', 'src/task/reducer.ts',
+        "if (typeof work.payload.maxPartitions === 'number') work.payload.maxPartitions = mapReduceCapacity(c);",
+        'work.payload.maxPartitions = mapReduceCapacity(c);'),
+    'skip-capacity-dispatch-guard': ('Shards', 'CapacityDispatch', 'src/task/map-reduce.ts',
+        'if (plan.partitions.length > mapReduceCapacity(c)) {', 'if (false) {'),
+    'ignore-adapter-capacity': ('Shards', 'CapacityValidation', 'src/input-intent.ts',
+        '&& (maxPartitions === undefined || !parsed.data.decomposition || parsed.data.decomposition.partitions.length <= maxPartitions)',
+        '&& true /* faulty acceptance above the host ceiling */'),
     'omit-claim-charge': ('Budget', 'PaidBudget', 'src/task/reducer.ts',
         "else if (work.bucket !== 'none' && !isBoundedCheck(work)) c.usage[work.bucket]++;",
         "else if (work.bucket !== 'none' && !isBoundedCheck(work)) { /* faulty free claim */ }"),
@@ -128,6 +141,12 @@ def verify_evidence(area):
             assert value['replay']['graphEdges'] + 1 == value['model']['counts'][0]
             assert [b['name'] for b in value['replay']['backends']] == ['memory', 'sqlite']
             assert all(b['edgesReplayed'] == value['replay']['graphEdges'] for b in value['replay']['backends'])
+            if model == 'Shards':
+                probes = value['replay']['probes']
+                for backend in ['memory', 'sqlite']:
+                    capacity = [probe for probe in probes if probe['backend'] == backend and probe.get('verified')]
+                    assert {probe['name'] for probe in capacity} == {'zero', 'one', 'two', 'four', 'refreshed-recovery', 'legacy-recovery'}, 'Missing finite capacity examples'
+                    assert len(capacity) == 6, 'Duplicate finite capacity example'
     assert set(report['negativeControls']) == set(CONTROLS), 'Missing real-code controls'
     for name, (_, expected, _, _, _) in CONTROLS.items():
         value = report['negativeControls'][name]
@@ -172,6 +191,10 @@ def main():
         assert sha(jar) == JAR_SHA, 'Wrong pinned TLC archive'
         report['tool'] = {'release': 'TLA+ Tools v1.7.4 / TLC 2.19', 'jarSha256': JAR_SHA}
         shutil.copytree(SKILL / 'scripts', area / 'checker-inputs', ignore=shutil.ignore_patterns('__pycache__'))
+        for name in ['SKILL.md', 'references/correspondence.md', 'references/drift-review-pr40.json']:
+            retained = area / 'checker-inputs' / name
+            retained.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(SKILL / name, retained)
         shutil.copyfile(SKILL / 'references/coverage.json', area / 'coverage.json')
         for model, witnesses in WITNESSES.items():
             print(f'{model}: checking finite state graph and replaying every edge on both stores', flush=True)

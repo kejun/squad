@@ -26,6 +26,9 @@ function fixture(backend){
  const room='room',task='task:begin';
  assert(engine.submit(room,{id:'begin',text:'验证授权'}).ok);
  const work=engine.claim(room,task,engine.pending(room,task)[0].id);assert(work);
+ assert.equal(engine.view(room,task).context.sourceArtifact,undefined,'Authority:slice:source revisions are outside this model');
+ assert.equal(work.kind,'owner','Authority:slice:already claimed owner intent');
+ assert(!engine.view(room,task).context.intents.some(w=>w.kind==='interpretation'),'Authority:slice:no interpretation or capacity planning');
  let operation,session,stage=0,starts=0,recovered=false,busy=false,unsafe=false;
  const send=body=>engine.send(room,task,{id:`event${++seq}`,at:time,...body});
  const current=()=>engine.view(room,task).context.intents.find(w=>w.id===work.id).localOperations?.find(o=>o.id===operation.id);
