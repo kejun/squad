@@ -375,5 +375,35 @@
       "scope": "实际SDK注册/序列化兼容性，非产品行为唯一契约",
       "report": "docs/testing/kej-100/ui-evidence.json"
     }
+  },
+  {
+    "file": "tests/discussion-debug.test.ts",
+    "cases": [
+      "real XState discussion sandbox [BT_V10] completes background discussion using the generated event templates",
+      "real XState discussion sandbox [BT_V11] binds the primary delivery template to the owner during parallel work",
+      "real XState discussion sandbox [BT_V12] preserves sandbox state and history on malformed discussion events",
+      "real XState discussion sandbox [BT_V14] rejects 缺少版本边界 without retiring the current worker",
+      "real XState discussion sandbox [BT_V14] rejects 错误讨论轮次 without retiring the current worker",
+      "real XState discussion sandbox [BT_V14] rejects 过期版本边界 without retiring the current worker",
+      "real XState discussion sandbox [BT_V14] rejects 关联主工作 without retiring the current worker",
+      "real XState discussion sandbox [BT_V15] retains guarded global fallbacks while preserving unconditional local overrides"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "8条Vitest包装均已被tests/bdd/discussion-debug.steps.ts原样直接调用同一夹具同一输入：V10 completeWithTemplates(plannedSandbox())，V11 primaryDeliveryTemplate(plannedSandbox(true))，V12 malformedDiscussion，V14四类rejectedDiscussionIdentity；V15原CLAIM guards含claimOwner/claimDiscussion/claimCancel及stopping STOP单条由现步骤逐项承接并额外断言guards=[]。未新增功能场景或另换入口，先直接BDD8场景全部通过再删除重复包装。144种返回顺序的独立模型仿真仍保留原路径，不以“快/纯函数/有BT编号”作为保留理由。",
+    "btIds": [
+      "BT_V10",
+      "BT_V11",
+      "BT_V12",
+      "BT_V14",
+      "BT_V15"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/22_state_debug.feature --import 'tests/bdd/*.ts' --tags '@BT_V10 or @BT_V11 or @BT_V12 or @BT_V14 or @BT_V15' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-discussion-direct"
+      ],
+      "negativeControl": "discussion-claim-fallback"
+    }
   }
 ]

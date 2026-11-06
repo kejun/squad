@@ -3823,6 +3823,95 @@
           "steps": 40
         }
       ]
+    },
+    {
+      "run": "ui-discussion-direct",
+      "exitCode": 0,
+      "sourceReport": "/workspace/work/kej-100/ui-discussion-direct.json",
+      "scenarios": 8,
+      "steps": 320,
+      "results": [
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "后台讨论事件模板可以完成真实状态转换",
+          "line": 81,
+          "btIds": [
+            "BT_V10"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "并行讨论时主工作模板保持角色身份",
+          "line": 87,
+          "btIds": [
+            "BT_V11"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "不完整的讨论事件不会破坏沙箱",
+          "line": 93,
+          "btIds": [
+            "BT_V12"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 110,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 111,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 112,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "错误身份的讨论结果不能结算当前工作",
+          "line": 113,
+          "btIds": [
+            "BT_V14"
+          ],
+          "status": "passed",
+          "steps": 40
+        },
+        {
+          "feature": "features/22_state_debug.feature",
+          "name": "状态图保留局部守卫失败后的全局回退分支",
+          "line": 116,
+          "btIds": [
+            "BT_V15"
+          ],
+          "status": "passed",
+          "steps": 40
+        }
+      ]
     }
   ],
   "negativeControls": [
@@ -3975,6 +4064,30 @@
         }
       ],
       "method": "在仓库外复制src/web/tests/features/scripts及配置，依赖仅链接node_modules；仅副本注入单个生产回归，每次恢复。主工作区产品文件未修改。"
+    },
+    {
+      "mutation": "discussion-claim-fallback",
+      "isolatedFile": "src/task-structure.ts",
+      "change": {
+        "from": "return [...local, ...graph.transitions.filter(t => t.source === '*' && !overridden.has(t.event))];",
+        "to": "return local;"
+      },
+      "tags": "@BT_V15",
+      "exitCode": 1,
+      "failedScenarios": [
+        "状态图保留局部守卫失败后的全局回退分支"
+      ],
+      "fullReport": "/workspace/work/kej-100/discussion-claim-fallback.json",
+      "log": "/workspace/work/kej-100/discussion-claim-fallback.log",
+      "originalRepositoryChanged": false,
+      "failures": [
+        {
+          "scenario": "状态图保留局部守卫失败后的全局回退分支",
+          "step": "应显示主工作与全局讨论及取消领取的守卫",
+          "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert(guards.includes(guard))\n\n    + expected - actual\n\n    -false\n    +true\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/ui-negative-worktree/tests/bdd/discussion-debug.steps.ts:28:198)"
+        }
+      ],
+      "method": "仓库外复制副本把stateTransitions省略global fallback；仅副本修改生产文件，BT_V15直接BDD失败，副本随后删除，主产品无diff。"
     }
   ],
   "pureModelGate": {
