@@ -1,0 +1,1416 @@
+{
+  "status": "passed",
+  "baselineCommit": "a5cbba25eeec3c0c49261a99af74b066aabe5589",
+  "originalUnitCases": 101,
+  "originalUnitFiles": 6,
+  "remainingHostUnitFiles": 0,
+  "directBeforeRemoval": {
+    "exitCode": 0,
+    "scenarios": 120,
+    "allStepsPassed": true,
+    "json": "/workspace/work/kej-100/host/strict-before-removal.json",
+    "sha256": "b52d95f3c4a07ce1a1ffefe9c6856414e81cd3f91b11bcb2fba0ffdedc951421",
+    "btIds": [
+      "BT_L23",
+      "BT_L24",
+      "BT_L25",
+      "BT_L26",
+      "BT_L27",
+      "BT_L28",
+      "BT_L29",
+      "BT_L30",
+      "BT_L31",
+      "BT_L32",
+      "BT_L33",
+      "BT_L34",
+      "BT_L35",
+      "BT_L36",
+      "BT_L37",
+      "BT_L45",
+      "BT_L46",
+      "BT_L47",
+      "BT_L48",
+      "BT_L49",
+      "BT_L50",
+      "BT_L51",
+      "BT_L52",
+      "BT_L53",
+      "BT_L54",
+      "BT_L55",
+      "BT_L56",
+      "BT_L57",
+      "BT_L58",
+      "BT_L59"
+    ],
+    "exactFrozenUnitFilesRestoredAndPresent": true,
+    "log": "/workspace/work/kej-100/host/strict-before-removal.log"
+  },
+  "directAfterRemoval": {
+    "exitCode": 0,
+    "scenarios": 120,
+    "allStepsPassed": true,
+    "json": "/workspace/work/kej-100/host/strict-after-removal.json",
+    "sha256": "8c6c0801b86bfa119ed4ff302ec6d5e986a9950eebf0586b797bc9ea3f09e86c",
+    "btIds": [
+      "BT_L23",
+      "BT_L24",
+      "BT_L25",
+      "BT_L26",
+      "BT_L27",
+      "BT_L28",
+      "BT_L29",
+      "BT_L30",
+      "BT_L31",
+      "BT_L32",
+      "BT_L33",
+      "BT_L34",
+      "BT_L35",
+      "BT_L36",
+      "BT_L37",
+      "BT_L45",
+      "BT_L46",
+      "BT_L47",
+      "BT_L48",
+      "BT_L49",
+      "BT_L50",
+      "BT_L51",
+      "BT_L52",
+      "BT_L53",
+      "BT_L54",
+      "BT_L55",
+      "BT_L56",
+      "BT_L57",
+      "BT_L58",
+      "BT_L59"
+    ],
+    "sixUnitFilesAbsent": true,
+    "log": "/workspace/work/kej-100/host/strict-after-removal.log"
+  },
+  "ordering": "Read original cases, strengthen direct Given/When/Then and public assertions, run direct Gherkin with exact frozen six unit files present, require actual-code controls fail on behavior, remove duplicate unit entry points, run restored direct Gherkin and the pure model gate. An earlier removal was followed by restoring exact baseline files for a strict final before/after pair after last audit strengthened intermediate assertions.",
+  "modelGate": {
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx tests/host-model-gate.ts reports/host-model-gate",
+    "exitCode": 0,
+    "evidence": "/workspace/work/kej-100/host/model-gate-restored",
+    "timeoutMs": 60000,
+    "killSignal": "SIGKILL",
+    "status": "passed",
+    "sourceHashes": {
+      "src/task.machine.ts": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
+      "src/task/reducer.ts": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+      "src/local-operation.ts": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
+      "src/host-session.ts": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab",
+      "src/host-retry.ts": "e68e16d090b7c76d5bc8ec18f2cb01c9c33730090d98a001bd7f3fd49ba1ba31",
+      "src/host-capabilities.ts": "21a2aec00a32046ff67e6517a948540235301bd7803852b551cf77809d64feb2"
+    },
+    "scenarios": 54,
+    "tags": [
+      "BT_L36",
+      "BT_L46",
+      "BT_L47",
+      "BT_L48",
+      "BT_L49",
+      "BT_L50",
+      "BT_L51",
+      "BT_L52",
+      "BT_L55",
+      "BT_L57"
+    ],
+    "boundary": "Real taskMachine + persisted-snapshot round trips and controlled clocks; selected product operations do not open stores, HTTP servers, files, adapters or commands; the outer gate reads source hashes and writes reports. Cucumber imports register unselected integration steps without constructing their fixtures.",
+    "traces": [
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"任务结束\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"停止\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"目标变化\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"服务重启\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"其他任务\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"环境变化\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"宿主变化\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"账号变化\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"工作区变化\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"明确继续\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"权限关闭\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"领取后权限关闭\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"用户撤销\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"并行协助待批\"的宿主会话准备核对边界",
+          "会话遇到\"并行协助环境变化\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"续办已经批准\"的宿主会话准备核对边界",
+          "会话遇到\"续办授权撤销后重新批准\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"续办已经批准\"的宿主会话准备核对边界",
+          "会话遇到\"续办计划变化后重新准备\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "已接受的宿主续办先于最终交付",
+        "btIds": [
+          "@BT_L46"
+        ],
+        "eventsAndAssertions": [
+          "当前候选的\"负责人\"尚在进行且用户已申请宿主续办",
+          "当前工作返回\"提交候选\"",
+          "应保留当前结果并等待已接受的续办处理",
+          "用户批准续办后提交新候选并取得检查通过结果",
+          "续办结果交接后的候选须重新检查才可最终交付"
+        ]
+      },
+      {
+        "name": "已接受的宿主续办先于最终交付",
+        "btIds": [
+          "@BT_L46"
+        ],
+        "eventsAndAssertions": [
+          "当前候选的\"检查员\"尚在进行且用户已申请宿主续办",
+          "当前工作返回\"检查通过\"",
+          "应保留当前结果并等待已接受的续办处理",
+          "用户批准续办后提交新候选并取得检查通过结果",
+          "续办结果交接后的候选须重新检查才可最终交付"
+        ]
+      },
+      {
+        "name": "已接受的宿主续办先于最终交付",
+        "btIds": [
+          "@BT_L46"
+        ],
+        "eventsAndAssertions": [
+          "当前候选的\"协调员\"尚在进行且用户已申请宿主续办",
+          "当前工作返回\"结束本轮\"",
+          "应保留当前结果并等待已接受的续办处理",
+          "用户批准续办后提交新候选并取得检查通过结果",
+          "续办结果交接后的候选须重新检查才可最终交付"
+        ]
+      },
+      {
+        "name": "一条续办得到确定结果后处理下一条",
+        "btIds": [
+          "@BT_L47"
+        ],
+        "eventsAndAssertions": [
+          "两条固定宿主命令按序等待续办",
+          "第一条命令\"被拒绝\"",
+          "运行器为第二条命令准备独立审批",
+          "第一条应保留真实结论且第二条仍须获得自己的有效授权"
+        ]
+      },
+      {
+        "name": "一条续办得到确定结果后处理下一条",
+        "btIds": [
+          "@BT_L47"
+        ],
+        "eventsAndAssertions": [
+          "两条固定宿主命令按序等待续办",
+          "第一条命令\"确定失败\"",
+          "运行器为第二条命令准备独立审批",
+          "第一条应保留真实结论且第二条仍须获得自己的有效授权"
+        ]
+      },
+      {
+        "name": "停止、目标变化和未知效果限制后续宿主执行",
+        "btIds": [
+          "@BT_L48"
+        ],
+        "eventsAndAssertions": [
+          "两条固定命令按序续办且第一条已经启动",
+          "续办遇到\"用户停止后收到迟到回执\"",
+          "应保留第一条的实际执行状态且第二条不得启动",
+          "未核对的执行效果不得用于宣告正常完成"
+        ]
+      },
+      {
+        "name": "停止、目标变化和未知效果限制后续宿主执行",
+        "btIds": [
+          "@BT_L48"
+        ],
+        "eventsAndAssertions": [
+          "两条固定命令按序续办且第一条已经启动",
+          "续办遇到\"目标变化后收到迟到回执\"",
+          "应保留第一条的实际执行状态且第二条不得启动",
+          "未核对的执行效果不得用于宣告正常完成"
+        ]
+      },
+      {
+        "name": "停止、目标变化和未知效果限制后续宿主执行",
+        "btIds": [
+          "@BT_L48"
+        ],
+        "eventsAndAssertions": [
+          "两条固定命令按序续办且第一条已经启动",
+          "续办遇到\"效果不明\"",
+          "应保留第一条的实际执行状态且第二条不得启动",
+          "未核对的执行效果不得用于宣告正常完成"
+        ]
+      },
+      {
+        "name": "停止、目标变化和未知效果限制后续宿主执行",
+        "btIds": [
+          "@BT_L48"
+        ],
+        "eventsAndAssertions": [
+          "两条固定命令按序续办且第一条已经启动",
+          "续办遇到\"运行已超时\"",
+          "应保留第一条的实际执行状态且第二条不得启动",
+          "未核对的执行效果不得用于宣告正常完成"
+        ]
+      },
+      {
+        "name": "停止、目标变化和未知效果限制后续宿主执行",
+        "btIds": [
+          "@BT_L48"
+        ],
+        "eventsAndAssertions": [
+          "两条固定命令按序续办且第一条已经启动",
+          "续办遇到\"核对确认实际结果\"",
+          "应保留第一条的实际执行状态且第二条不得启动",
+          "未核对的执行效果不得用于宣告正常完成"
+        ]
+      },
+      {
+        "name": "恢复宿主续办仅为真实的新模型请求收费",
+        "btIds": [
+          "@BT_L49"
+        ],
+        "eventsAndAssertions": [
+          "宿主续办恢复前处于\"第二条命令已批准未启动\"",
+          "重启恢复该续办并重新领取后继续命令或模型请求",
+          "已结算命令不得重放且恢复后的收费对应真实新请求"
+        ]
+      },
+      {
+        "name": "恢复宿主续办仅为真实的新模型请求收费",
+        "btIds": [
+          "@BT_L49"
+        ],
+        "eventsAndAssertions": [
+          "宿主续办恢复前处于\"整理模型已消耗请求\"",
+          "重启恢复该续办并重新领取后继续命令或模型请求",
+          "已结算命令不得重放且恢复后的收费对应真实新请求"
+        ]
+      },
+      {
+        "name": "宿主续办等待已有工作交接",
+        "btIds": [
+          "@BT_L50"
+        ],
+        "eventsAndAssertions": [
+          "\"普通协助\"仍需交接且当前无未结算物理操作",
+          "用户从确定失败的沙箱记录申请宿主续办",
+          "原有工作交回其结果",
+          "已有工作继续交接且其结果被保留",
+          "宿主续办只能在安全边界开始"
+        ]
+      },
+      {
+        "name": "宿主续办等待已有工作交接",
+        "btIds": [
+          "@BT_L50"
+        ],
+        "eventsAndAssertions": [
+          "\"成员评审\"仍需交接且当前无未结算物理操作",
+          "用户从确定失败的沙箱记录申请宿主续办",
+          "原有工作交回其结果",
+          "已有工作继续交接且其结果被保留",
+          "宿主续办只能在安全边界开始"
+        ]
+      },
+      {
+        "name": "宿主续办等待已有工作交接",
+        "btIds": [
+          "@BT_L50"
+        ],
+        "eventsAndAssertions": [
+          "\"后台讨论\"仍需交接且当前无未结算物理操作",
+          "用户从确定失败的沙箱记录申请宿主续办",
+          "原有工作交回其结果",
+          "已有工作继续交接且其结果被保留",
+          "宿主续办只能在安全边界开始"
+        ]
+      },
+      {
+        "name": "请求登记保留当前工作的剩余额度",
+        "btIds": [
+          "@BT_L51"
+        ],
+        "eventsAndAssertions": [
+          "当前工作还需一次模型请求且余额仅够一批宿主续办的最低要求",
+          "用户在当前工作结束前提交续办请求",
+          "当前工作继续申请一次模型请求",
+          "当前模型请求仍可使用原有额度",
+          "负责人提交当前候选并跨入续办安全边界",
+          "安全边界重核额度不足时应记录未执行原因且无宿主进程启动"
+        ]
+      },
+      {
+        "name": "尚未启动的宿主续办各自按期限结算",
+        "btIds": [
+          "@BT_L52"
+        ],
+        "eventsAndAssertions": [
+          "未启动的宿主续办处于\"等待批准\"",
+          "该宿主续办到期并在原负责人返回时保存结果",
+          "到期请求应未执行且只允许未过期的后续请求继续"
+        ]
+      },
+      {
+        "name": "尚未启动的宿主续办各自按期限结算",
+        "btIds": [
+          "@BT_L52"
+        ],
+        "eventsAndAssertions": [
+          "未启动的宿主续办处于\"原负责人尚未结束\"",
+          "该宿主续办到期并在原负责人返回时保存结果",
+          "到期请求应未执行且只允许未过期的后续请求继续"
+        ]
+      },
+      {
+        "name": "尚未启动的宿主续办各自按期限结算",
+        "btIds": [
+          "@BT_L52"
+        ],
+        "eventsAndAssertions": [
+          "未启动的宿主续办处于\"后续请求尚未到期\"",
+          "该宿主续办到期并在原负责人返回时保存结果",
+          "到期请求应未执行且只允许未过期的后续请求继续"
+        ]
+      },
+      {
+        "name": "自动恢复不得越过仍缺失或未确认的记录",
+        "btIds": [
+          "@BT_L55"
+        ],
+        "eventsAndAssertions": [
+          "首条续办保存为\"效果未确认\"且另一次请求仍在排队",
+          "核对缺失或未确认的首条续办记录",
+          "不得越过缺失或未确认的首条记录启动后续命令"
+        ]
+      },
+      {
+        "name": "自动恢复不得越过仍缺失或未确认的记录",
+        "btIds": [
+          "@BT_L55"
+        ],
+        "eventsAndAssertions": [
+          "首条续办保存为\"缺失负责人且无回执\"且另一次请求仍在排队",
+          "核对缺失或未确认的首条续办记录",
+          "不得越过缺失或未确认的首条记录启动后续命令"
+        ]
+      },
+      {
+        "name": "自动恢复不得越过仍缺失或未确认的记录",
+        "btIds": [
+          "@BT_L55"
+        ],
+        "eventsAndAssertions": [
+          "首条续办保存为\"缺失负责人但效果未确认\"且另一次请求仍在排队",
+          "核对缺失或未确认的首条续办记录",
+          "不得越过缺失或未确认的首条记录启动后续命令"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"已停止\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"STOPPED\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"旧目标\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"STALE_WORK\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"工具关闭\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"LOCAL_TOOLS_DISABLED\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"解析阶段\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"LOCAL_TOOLS_NOT_ALLOWED\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"未授权\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"LOCAL_TOOLS_NOT_AUTHORIZED\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"非法命令路径\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"过量命令\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"相对路径穿越\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"命令夹带参数\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"命令替换表达式\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"空命令\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"发现请求指定宿主执行\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"发现请求伪造批准\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"查询前取消\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"CANCELLED\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"首个环境查询后取消\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"CANCELLED\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"停止后迟到的发现回执\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"STOPPED\"拒绝发现且不得产生新执行意图"
+        ]
+      }
+    ]
+  },
+  "negativeControlCommand": "python3 tests/host-contract-controls.py --output reports/host-contract-controls-fresh",
+  "negativeControlRuns": [
+    {
+      "command": "python3 tests/host-contract-controls.py --output /workspace/work/kej-100/host/negative-controls",
+      "exitCode": 0,
+      "controls": 12,
+      "report": "/workspace/work/kej-100/host/negative-controls/controls.json"
+    },
+    {
+      "command": "python3 tests/host-contract-controls.py --output /workspace/work/kej-100/host/additional-controls --only retry-source-warning --only retry-request-idempotency --only retry-next-request",
+      "exitCode": 0,
+      "controls": 3,
+      "report": "/workspace/work/kej-100/host/additional-controls/controls.json"
+    }
+  ],
+  "negativeControls": [
+    {
+      "name": "approval-identity",
+      "btId": "BT_L26",
+      "source": "src/local-operation.ts",
+      "old": "if (op.approval.id !== event.approvalId) return 'HOST_APPROVAL_MISMATCH';",
+      "new": "",
+      "mutationSites": 1,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "批准不能越过任务及命令边界",
+          "step": "请求发生\"批准标识不匹配\"后尝试批准或执行",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'OK'\n- 'HOST_APPROVAL_MISMATCH'\n\n    + expected - actual\n\n    -OK\n    +HOST_APPROVAL_MISMATCH\n\n    at assertApprovalBoundary (/workspace/work/kej-100/host/negative-controls/host-bdd-control-4lxy_bp_/tests/host-approval-model-fixture.ts:30:28)\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-4lxy_bp_/tests/bdd/host-approval.steps.ts:49:49)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L26",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/negative-controls/approval-identity/cucumber.json"
+      ],
+      "scratchRemoved": true
+    },
+    {
+      "name": "single-receipt",
+      "btId": "BT_L24",
+      "source": "src/local-operation.ts",
+      "old": "if (!op || op.sessionId !== event.sessionId || !['claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) return 'LOCAL_SESSION_MISMATCH';",
+      "new": "if (!op || op.sessionId !== event.sessionId) return 'LOCAL_SESSION_MISMATCH';",
+      "mutationSites": 1,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "用户只批准本次命令并续办原工作",
+          "step": "宿主命令只应执行一次且输出交还原 Bot",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    false,\n+   true\n-   false\n  ]\n\n    + expected - actual\n\n     [\n       false\n    -  true\n    +  false\n     ]\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-o5zx6zt6/tests/bdd/host-approval.steps.ts:42:115)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L24",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/negative-controls/single-receipt/cucumber.json"
+      ],
+      "scratchRemoved": true
+    },
+    {
+      "name": "session-host-scope",
+      "btId": "BT_L36",
+      "source": "src/host-session.ts",
+      "old": " && g.host === p.host",
+      "new": "",
+      "mutationSites": 1,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "会话授权不越过生命周期与权限边界",
+          "step": "会话遇到\"宿主变化\"",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'queued'\n- 'awaitingApproval'\n\n    + expected - actual\n\n    -queued\n    +awaitingApproval\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-_4xdfilk/tests/bdd/host-session.steps.ts:76:80)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L36",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/negative-controls/session-host-scope/cucumber.json"
+      ],
+      "scratchRemoved": true
+    },
+    {
+      "name": "session-revocation",
+      "btId": "BT_L37",
+      "source": "src/host-session.ts",
+      "old": "  c.hostSession = undefined;",
+      "new": "",
+      "mutationSites": 1,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "会话授权只能来自用户且可撤销",
+          "step": "用户撤销或模型尝试替代该会话授权",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   {\n+     account: 'agent',\n+     grantId: '9ca3dc56-8831-4d9a-b94b-a61cf385ab6b',\n+     host: 'f644dd508846',\n+     taskId: 'task:bd4e0356-f0d2-44ae-8b49-bc69c2c6b7a9'\n+   }\n+ ]\n- []\n\n    + expected - actual\n\n    -[\n    -  {\n    -    \"account\": \"agent\"\n    -    \"grantId\": \"9ca3dc56-8831-4d9a-b94b-a61cf385ab6b\"\n    -    \"host\": \"f644dd508846\"\n    -    \"taskId\": \"task:bd4e0356-f0d2-44ae-8b49-bc69c2c6b7a9\"\n    -  }\n    -]\n    +[]\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-riwoqy3m/tests/bdd/host-session.steps.ts:120:170)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)"
+        },
+        {
+          "scenario": "会话授权只能来自用户且可撤销",
+          "step": "旧会话不得启动命令且未领取命令应恢复独立审批",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ {\n+   account: 'user',\n+   environmentHash: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',\n+   epoch: 1,\n+   goalVersion: 1,\n+   host: 'mac',\n+   id: 'e5',\n+   namespace: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',\n+   workspaceId: 'project'\n+ }\n- undefined\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-riwoqy3m/tests/bdd/host-session.steps.ts:128:26)"
+        },
+        {
+          "scenario": "会话授权只能来自用户且可撤销",
+          "step": "旧会话不得启动命令且未领取命令应恢复独立审批",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ {\n+   account: 'user',\n+   environmentHash: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',\n+   epoch: 1,\n+   goalVersion: 1,\n+   host: 'mac',\n+   id: 'e5',\n+   namespace: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',\n+   workspaceId: 'project'\n+ }\n- undefined\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-riwoqy3m/tests/bdd/host-session.steps.ts:128:26)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L37",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/negative-controls/session-revocation/cucumber.json"
+      ],
+      "scratchRemoved": true
+    },
+    {
+      "name": "discovery-cancellation",
+      "btId": "BT_L57",
+      "source": "src/host-capabilities.ts",
+      "old": "signal.throwIfAborted();",
+      "new": "",
+      "mutationSites": 4,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "能力发现沿用任务权限与版本边界",
+          "step": "成员尝试保存或继续能力发现操作",
+          "error": "AssertionError [ERR_ASSERTION]: Missing expected rejection.\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async cancelCapabilityRequest (/workspace/work/kej-100/host/negative-controls/host-bdd-control-0bqeh3j5/tests/host-capabilities-model-fixture.ts:46:3)\n    at async SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-0bqeh3j5/tests/bdd/host-capabilities.steps.ts:20:158)"
+        },
+        {
+          "scenario": "能力发现沿用任务权限与版本边界",
+          "step": "成员尝试保存或继续能力发现操作",
+          "error": "AssertionError [ERR_ASSERTION]: Missing expected rejection.\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async cancelCapabilityRequest (/workspace/work/kej-100/host/negative-controls/host-bdd-control-0bqeh3j5/tests/host-capabilities-model-fixture.ts:46:3)\n    at async SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-0bqeh3j5/tests/bdd/host-capabilities.steps.ts:20:158)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L57",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/negative-controls/discovery-cancellation/cucumber.json"
+      ],
+      "scratchRemoved": true
+    },
+    {
+      "name": "discovery-deduplication",
+      "btId": "BT_L56",
+      "source": "src/host-capabilities.ts",
+      "old": "[...new Set(commands)]",
+      "new": "commands",
+      "mutationSites": 1,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "有界发现技能和命令能力",
+          "step": "应返回平台、技能发现状态以及逐项命令存在性",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n    {\n      command: 'node',\n      host: 'found',\n      sandbox: 'found'\n    },\n+   {\n+     command: 'node',\n+     host: 'found',\n+     sandbox: 'found'\n+   }\n  ]\n\n    + expected - actual\n\n         \"command\": \"node\"\n         \"host\": \"found\"\n         \"sandbox\": \"found\"\n       }\n    -  {\n    -    \"command\": \"node\"\n    -    \"host\": \"found\"\n    -    \"sandbox\": \"found\"\n    -  }\n     ]\n\n    at assertCapabilityMetadata (/workspace/work/kej-100/host/negative-controls/host-bdd-control-82sypj41/tests/host-capabilities-model-fixture.ts:21:17)\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-82sypj41/tests/bdd/host-capabilities.steps.ts:16:215)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L56",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/negative-controls/discovery-deduplication/cucumber.json"
+      ],
+      "scratchRemoved": true
+    },
+    {
+      "name": "discovery-authority-metadata",
+      "btId": "BT_L56",
+      "source": "src/host-capabilities.ts",
+      "old": "hostApprovalRequired: true",
+      "new": "hostApprovalRequired: false",
+      "mutationSites": 1,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "有界发现技能和命令能力",
+          "step": "成员经持久化操作查询指定命令的宿主能力",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n\n    + expected - actual\n\n    -false\n    +true\n\n    at hostCapabilityAcceptance (/workspace/work/kej-100/host/negative-controls/host-bdd-control-20pd6ns5/tests/host-capabilities-acceptance.ts:35:62)\n    at async SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-20pd6ns5/tests/bdd/host-capabilities.steps.ts:12:47)"
+        },
+        {
+          "scenario": "有界发现技能和命令能力",
+          "step": "应返回平台、技能发现状态以及逐项命令存在性",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n\n    + expected - actual\n\n    -false\n    +true\n\n    at assertCapabilityMetadata (/workspace/work/kej-100/host/negative-controls/host-bdd-control-20pd6ns5/tests/host-capabilities-model-fixture.ts:17:95)\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-20pd6ns5/tests/bdd/host-capabilities.steps.ts:16:215)"
+        },
+        {
+          "scenario": "有界发现技能和命令能力",
+          "step": "应返回平台、技能发现状态以及逐项命令存在性",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n\n    + expected - actual\n\n    -false\n    +true\n\n    at assertCapabilityMetadata (/workspace/work/kej-100/host/negative-controls/host-bdd-control-20pd6ns5/tests/host-capabilities-model-fixture.ts:17:95)\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-20pd6ns5/tests/bdd/host-capabilities.steps.ts:16:215)"
+        },
+        {
+          "scenario": "有界发现技能和命令能力",
+          "step": "应返回平台、技能发现状态以及逐项命令存在性",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n\n    + expected - actual\n\n    -false\n    +true\n\n    at assertCapabilityMetadata (/workspace/work/kej-100/host/negative-controls/host-bdd-control-20pd6ns5/tests/host-capabilities-model-fixture.ts:17:95)\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-20pd6ns5/tests/bdd/host-capabilities.steps.ts:16:215)"
+        },
+        {
+          "scenario": "有界发现技能和命令能力",
+          "step": "应区分沙箱可用性、宿主审批边界与未接入的 MCP",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n\n    + expected - actual\n\n    -false\n    +true\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-20pd6ns5/tests/bdd/host-capabilities.steps.ts:17:106)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L56",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/negative-controls/discovery-authority-metadata/cucumber.json"
+      ],
+      "scratchRemoved": true
+    },
+    {
+      "name": "retry-source-hash",
+      "btId": "BT_L34",
+      "source": "src/host-retry.ts",
+      "old": "if (op.requestHash !== sourceRequestHash) return 'SOURCE_COMMAND_CHANGED';",
+      "new": "",
+      "mutationSites": 1,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "手动入口保留原始命令和任务边界",
+          "step": "用户尝试从该记录申请宿主执行",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'OK'\n- 'SOURCE_COMMAND_CHANGED'\n\n    + expected - actual\n\n    -OK\n    +SOURCE_COMMAND_CHANGED\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-9x7c2itu/tests/bdd/host-retry.steps.ts:121:49)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L34",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/negative-controls/retry-source-hash/cucumber.json"
+      ],
+      "scratchRemoved": true
+    },
+    {
+      "name": "retry-isolated-source",
+      "btId": "BT_L34",
+      "source": "src/host-retry.ts",
+      "old": "if (work.kind === 'check' || work.discussionId || op.isolated) return 'HOST_RETRY_ISOLATED_SOURCE';",
+      "new": "",
+      "mutationSites": 1,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "手动入口保留原始命令和任务边界",
+          "step": "用户尝试从该记录申请宿主执行",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\ntrue !== false\n\n    + expected - actual\n\n    -true\n    +false\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-zeti9izy/tests/bdd/host-retry.steps.ts:124:41)"
+        },
+        {
+          "scenario": "手动入口保留原始命令和任务边界",
+          "step": "用户尝试从该记录申请宿主执行",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\ntrue !== false\n\n    + expected - actual\n\n    -true\n    +false\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-zeti9izy/tests/bdd/host-retry.steps.ts:124:41)"
+        },
+        {
+          "scenario": "手动入口保留原始命令和任务边界",
+          "step": "用户尝试从该记录申请宿主执行",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\ntrue !== false\n\n    + expected - actual\n\n    -true\n    +false\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-zeti9izy/tests/bdd/host-retry.steps.ts:124:41)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L34",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/negative-controls/retry-isolated-source/cucumber.json"
+      ],
+      "scratchRemoved": true
+    },
+    {
+      "name": "retry-unconfirmed-effects",
+      "btId": "BT_L55",
+      "source": "src/host-retry.ts",
+      "old": "return !batchRequests(c, batch.id).some(request => retryEffectUnconfirmed(request, operations));",
+      "new": "return true;",
+      "mutationSites": 1,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "自动恢复不得越过仍缺失或未确认的记录",
+          "step": "不得越过缺失或未确认的首条记录启动后续命令",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   'cancelled',\n-   'active',\n    'pending'\n  ]\n\n    + expected - actual\n\n     [\n    -  \"cancelled\"\n    +  \"active\"\n       \"pending\"\n     ]\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-i24awogc/tests/bdd/host-retry-contract.steps.ts:93:46)"
+        },
+        {
+          "scenario": "自动恢复不得越过仍缺失或未确认的记录",
+          "step": "不得越过缺失或未确认的首条记录启动后续命令",
+          "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert(!m.c.trace.some(entry => entry.event === 'HOST_RETRY_BATCH_RETIRED'))\n\n    + expected - actual\n\n    -false\n    +true\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-i24awogc/tests/bdd/host-retry-contract.steps.ts:96:8)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L55",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/negative-controls/retry-unconfirmed-effects/cucumber.json"
+      ],
+      "scratchRemoved": true
+    },
+    {
+      "name": "retry-preserved-receipt",
+      "btId": "BT_L54",
+      "source": "src/host-retry.ts",
+      "old": "if (op?.finishedAt !== undefined) {",
+      "new": "if (false) {",
+      "mutationSites": 1,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "已结束的旧批次遗留记录可自动恢复",
+          "step": "遗留批次只解除一次且不得替换候选、已知回执或额度",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   'expired',\n-   'settled',\n    'active'\n  ]\n\n    + expected - actual\n\n     [\n    -  \"expired\"\n    +  \"settled\"\n       \"active\"\n     ]\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-15c979qa/tests/bdd/host-retry-contract.steps.ts:76:10)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L54",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/negative-controls/retry-preserved-receipt/cucumber.json"
+      ],
+      "scratchRemoved": true
+    },
+    {
+      "name": "retry-model-charge",
+      "btId": "BT_L49",
+      "source": "src/task/reducer.ts",
+      "old": "if (!c.hostRetryBatch.ownerClaimed || previousRequests > 0) c.usage.ordinary++;",
+      "new": "if (!c.hostRetryBatch.ownerClaimed) c.usage.ordinary++;",
+      "mutationSites": 1,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "恢复宿主续办仅为真实的新模型请求收费",
+          "step": "已结算命令不得重放且恢复后的收费对应真实新请求",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n4 !== 5\n\n    + expected - actual\n\n    -4\n    +5\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/negative-controls/host-bdd-control-lft2k454/tests/bdd/host-retry-contract.steps.ts:116:41)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L49",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/negative-controls/retry-model-charge/cucumber.json"
+      ],
+      "scratchRemoved": true
+    },
+    {
+      "name": "retry-source-warning",
+      "btId": "BT_L32",
+      "source": "src/host-retry.ts",
+      "old": "changed ?",
+      "new": "false ?",
+      "mutationSites": 1,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "用户从失败记录发起宿主请求并续办已结束的任务",
+          "step": "应从原始记录生成固定命令并显示按次审批而尚未执行",
+          "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert(retry.localOperations?.[0]?.action.type === 'runCli' && retry.localOperations[0].action.reason?.includes('1个文件变更'))\n\n    + expected - actual\n\n    -false\n    +true\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/additional-controls/host-bdd-control-8ox53njo/tests/bdd/host-retry.steps.ts:49:33)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L32",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/additional-controls/retry-source-warning/cucumber.json"
+      ],
+      "scratchRemoved": true
+    },
+    {
+      "name": "retry-request-idempotency",
+      "btId": "BT_L33",
+      "source": "src/host-retry.ts",
+      "old": "if (existing) { ok(c, existing.id); return; }",
+      "new": "",
+      "mutationSites": 1,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "手动请求不受模型是否主动申请影响且重复点击不重复运行",
+          "step": "用户重复点击对应记录的宿主请求入口",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n    code: 'OK',\n+   detail: 'local-model:host-retry:7',\n-   detail: 'local-model:host-retry:4',\n    ok: true\n  }\n\n    + expected - actual\n\n     {\n       \"code\": \"OK\"\n    -  \"detail\": \"local-model:host-retry:7\"\n    +  \"detail\": \"local-model:host-retry:4\"\n       \"ok\": true\n     }\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/additional-controls/host-bdd-control-hd6ori7n/tests/bdd/host-retry.steps.ts:88:88)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L33",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/additional-controls/retry-request-idempotency/cucumber.json"
+      ],
+      "scratchRemoved": true
+    },
+    {
+      "name": "retry-next-request",
+      "btId": "BT_L47",
+      "source": "src/host-retry.ts",
+      "old": "if (!c.stopped && !localRecoveryBlocked(c) && request.goalVersion === c.goalVersion) queueNext(c, work, at);",
+      "new": "",
+      "mutationSites": 1,
+      "exitCode": 1,
+      "failedAssertions": [
+        {
+          "scenario": "一条续办得到确定结果后处理下一条",
+          "step": "第一条命令\"被拒绝\"",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n'op1' !== 'op2'\n\n    + expected - actual\n\n    -op1\n    +op2\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/additional-controls/host-bdd-control-bwdsba38/tests/bdd/host-retry-queue.steps.ts:100:10)"
+        },
+        {
+          "scenario": "一条续办得到确定结果后处理下一条",
+          "step": "第一条命令\"确定失败\"",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n'op1' !== 'op2'\n\n    + expected - actual\n\n    -op1\n    +op2\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/host/additional-controls/host-bdd-control-bwdsba38/tests/bdd/host-retry-queue.steps.ts:100:10)"
+        }
+      ],
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "node_modules/@cucumber/cucumber/bin/cucumber.js",
+        "features/27_host_cli_approval.feature",
+        "features/30_host_capabilities.feature",
+        "--import",
+        "tests/bdd/*.ts",
+        "--tags",
+        "@BT_L47",
+        "--format",
+        "summary",
+        "--format",
+        "json:/workspace/work/kej-100/host/additional-controls/retry-next-request/cucumber.json"
+      ],
+      "scratchRemoved": true
+    }
+  ],
+  "negativeControlScope": "15 representative guard regressions through direct Gherkin, in isolated disposable real-source copies. Each must fail on an AssertionError in a named scenario/step, not an import error or timeout. These demonstrate sensitivity to the listed mutations and do not claim one mutation for every old assertion or every possible defect.",
+  "cleanup": {
+    "mutantScratchCopiesRemoved": true,
+    "productSourceHashesUnchanged": true,
+    "sourceBaselineHashes": {
+      "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
+      "src/conversation.ts": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
+      "src/darwin-process.ts": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b",
+      "src/delivery-acceptance.ts": "223ed59845004dac8fadcdb116f633af4fc6902338fb4277439a386b65f2ab2e",
+      "src/engine.ts": "e95cd5382a80bdc526f408ff73442dbd1b8bdc07226dbcf64dda7cbd9988c9a5",
+      "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
+      "src/host-retry.ts": "e68e16d090b7c76d5bc8ec18f2cb01c9c33730090d98a001bd7f3fd49ba1ba31",
+      "src/host-session.ts": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab",
+      "src/index.ts": "79ef24ede132e36388df54ccbb8e6e48efc472adff3c13d57f68ce745b98e331",
+      "src/input-intent.ts": "8c2886e4b9054655203f5b72fc357aaab0d3502927320b722f9fa196a951d266",
+      "src/inspector.machine.ts": "0c9ba840dd017b3149dfae33186ea850376c35048eb43da52a57a8618cc000f5",
+      "src/local-cli.ts": "db577455e9fb60f5d12e0cc6af6980c52eec7f8fbec0cbc3ff3a34223092e69e",
+      "src/local-operation.ts": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
+      "src/local-runtime.ts": "1efe59d4595fbe2058f0daa13c3869e8713ff9df174d94f698703c93652d3c77",
+      "src/local-skills.ts": "4d83827020c75e7888de71fb5c9b263048a80339fc318c0217e50a31fa566ae2",
+      "src/measurement-report.ts": "62a9010d7a112c52f7e93b6e21d5fcb6a6e6a8011c4852784dd44b811a196183",
+      "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
+      "src/model-adapter.ts": "fd7bf326612bed06517963a38bcc9ea0bad27e5748b313ce633907b58b83889d",
+      "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
+      "src/model-env.ts": "99dfbe11350e7c3c446fc13a1a61414ebbf4e73a999439f22e85441c3b26f530",
+      "src/presentation.ts": "44b39afe5955d6d95cc127f1d4a8e90a8961bdb9daa9c547e7d2d0f25b84a1b5",
+      "src/room.machine.ts": "1f2acd3d217731acd39b4258e0148b65b600f2b8cd7ae8cdcee8f047d8b696ab",
+      "src/runner.ts": "c6fb4e04da43e021634db60108ae33ebbe36c5f304efe953a0384b34ce622e69",
+      "src/skills.ts": "81bf7ae230a719f046a0caced6c0293807f259c4d500349c7a78ecdfbbf1e111",
+      "src/store.ts": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
+      "src/task-chart.ts": "98c932c3b32c93d5993faae1e1b7e2b6f02d626a30bec67ce64cb3aa6c554799",
+      "src/task-debug-view.ts": "07916f37867b20df2c5b9681bfbb8a82933ace2ade7f8eb6e2a76c6ee86930e7",
+      "src/task-debug.ts": "38dd3bf387bd69f1caf7f7aeb0f539a8b9d2361ee63ca56dc5c555714fbcaa89",
+      "src/task-inspection.ts": "a66a44d5b85f487b60ee33985fd9af54064bbacc6951dd47e7aaf3127a2fabd5",
+      "src/task-structure.ts": "03f4fdd3056848007d83d8381fb5f21df12fdd4dd3ea65a7dbfe87fdcde9a87a",
+      "src/task.machine.ts": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
+      "src/types.ts": "f8a70d5b344164eaff896ae11e40b84f7e0aff88f528724243847c906f1bc85d",
+      "src/web-tools.ts": "aefd3b4625fada48ef66e821bd6252c6b0dae9e454a8799f4c0c321efc531840",
+      "src/host-capabilities.ts": "21a2aec00a32046ff67e6517a948540235301bd7803852b551cf77809d64feb2",
+      "src/artifact-request.ts": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
+      "src/source-artifact.ts": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4",
+      "src/task/actions.ts": "78db542e7ad636342220336c2e21a7f15ec313a4bf559c6816771f0713cffda3",
+      "src/task/assistance.ts": "d472d9c7422118a217d23ef0019831ad1598e3d9137da794830f39ac286ee6df",
+      "src/task/budget.ts": "0d8454f4dbf0d62ffc7a8d5c615f9ec1ebbd688a6e3136e9832af893ff32e62c",
+      "src/task/context.ts": "e5efe2a6ca63f8c4835a18fb93737cb1c3d94ff96e972fc3f0b537fc821fba08",
+      "src/task/delivery.ts": "747e64b4e4372b98c93884314c688f4f6b4727ee51af3e0ca03ee656b54f407e",
+      "src/task/discussion.ts": "0bdf97c5438d24d381a194d6fc6406282044d41c5b5d5ba5c9f73cf1234bfa7b",
+      "src/task/evidence.ts": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
+      "src/task/execution.machine.ts": "7ed6793adbd8413de0c53161ea8adbe6bdcb29eae910864ccd01e29baf68fcff",
+      "src/task/facts.ts": "0ce2cdc949fa881f2be3267cc66292d1a6ad2f391c7e372139b2b17b05f3e8de",
+      "src/task/guards.ts": "34e5c8c4849d555b4f44b94cc51c129a4c31d1469c3bccc382eb99a0132d93d3",
+      "src/task/input.ts": "284080d64d88149851e0f058fd4aaa8c56a2d1c141c84b26acc453e2b6fe9efe",
+      "src/task/lifecycle.ts": "b4209d5324adb8fdfd8041902c9d1eb488036c6f21a02967850fb0e5579bbe26",
+      "src/task/operations.ts": "6f4cf5f12b046da9115f5d9f5d6af3be1c3f168fbbf259e551d2c8efba104804",
+      "src/task/policy.ts": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
+      "src/task/protocol.ts": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
+      "src/task/reducer.ts": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+      "src/task/verification.ts": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24",
+      "src/task/map-reduce-capacity.ts": "6397480888beae4db09321f45453a7d315bce56d8bcd4fe7b646f438ac171b6f",
+      "src/task/map-reduce.ts": "601bd32e42920fb7696294c1a0e550b3717be095ce02ab1be3502848100c3dc7",
+      "src/web/contracts.ts": "41d69f61d23bbd57913a2ba382dc12b12f3d795eb4a69ed0e8ddfaa4d2de8d69",
+      "src/web/debug-journal.ts": "5473cefd6b2f382f6a2d6a5928803569a19e09ceef4efd4a47d60a4b636a65c7",
+      "src/web/http.ts": "0353bf851274b11b4c31d6adf0cc60c62e49883541e6d1e2c67a6904e50bd3ad",
+      "src/web/service.ts": "5b5408fa4d69faf9acd449d107f61edba321d7c45043589c6a25d63d51b34024"
+    }
+  },
+  "typecheck": {
+    "command": "node_modules/.bin/tsc -p tests/bdd/tsconfig.json --pretty false",
+    "exitCode": 0,
+    "log": "/workspace/work/kej-100/host/typecheck-complete.log"
+  },
+  "migrationCorrections": [
+    {
+      "case": "BT_L33 saved retry identity",
+      "incorrectMigration": "Comparing entire HTTP response bodies after repeating the exact HTTP receipt ID expected no duplicate metadata.",
+      "originalPremise": "Original pure LocalModel request calls use distinct event IDs and compare the saved domain Reply; an identical HTTP receipt legitimately adds duplicate:true.",
+      "correction": "Keep the original complete pure Reply equality and intent-count assertion. HTTP repeats and a different click must retain code/detail/taskId and exactly one physical operation; receipt-level duplicate metadata is checked in its own boundary, not removed from the domain assertion.",
+      "productChanged": false
+    },
+    {
+      "case": "BT_L52 request deadline ordering",
+      "incorrectMigration": "A single waiting operation whose approval and parent work share the same deadline was expected to return HOST_APPROVAL_EXPIRED.",
+      "originalPremise": "The original exact HOST_APPROVAL_EXPIRED test creates two requests at distinct controlled times; the first request expires before its later parent work. The single waiting-operation test asserted refusal only.",
+      "correction": "Preserve the distinct timestamps 1 and 20 and exact HOST_APPROVAL_EXPIRED in the unexpired-successor row. The equal-deadline row respects existing parent-first WORK_EXPIRED and still requires expiry, refusal and no start. No deadline was widened and no expected refusal was weakened.",
+      "productChanged": false
+    },
+    {
+      "case": "BT_L23 persisted operation observation",
+      "incorrectMigration": "Reading localAwaitingApproval from the original cached m.work predating snapshot round trips.",
+      "originalPremise": "The original assertion reads the current persisted context intent.",
+      "correction": "Observe m.c.intents[0] exactly as the original did; negative claim/start replies are produced in When and the waiting status/checkpoint/quota are asserted in Then.",
+      "productChanged": false
+    },
+    {
+      "case": "BT_L26 explicit expiry final reply",
+      "incorrectMigration": "Requiring final context.reply.code to stay non-OK after a successful LOCAL_APPROVAL_EXPIRED settlement.",
+      "originalPremise": "The denied approval precedes a successful expiry settlement; final Reply is legitimately OK while approval/result record the expiry.",
+      "correction": "Keep the exact initial denial assertion and check final persisted expired approval and HOST_APPROVAL_EXPIRED receipt, with no startedAt or physical command.",
+      "productChanged": false
+    }
+  ],
+  "environmentFailures": [
+    {
+      "log": "/workspace/work/kej-100/host/model-gate-final.log",
+      "cause": "A concurrent map-capacity step import was temporarily stale; final fresh model-gate-restored run passed after its owner aligned the export."
+    },
+    {
+      "cause": "Managed sandbox denied spawnSync process-control invocation with EPERM after adding timeout/killSignal; command was rerun with the authorized process permissions. The gate rejects run.error and null status."
+    }
+  ],
+  "limits": "Pure model gate selects only host labels whose product operations use real taskMachine/persisted-snapshot round trips and controlled inputs; importing integration step definitions constructs no integration fixtures. Its outer runner reads source hashes/writes reports. HTTP/SQLite/process acceptance stays in the appropriate direct scenarios and existing integration tests; no product, business model, formal skill, dependency or acceptance-gap change."
+}

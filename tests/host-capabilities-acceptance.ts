@@ -6,7 +6,8 @@ import { LocalModel } from './local-model-fixture.js';
 import type { discoverHostCapabilities } from '../src/host-capabilities.js';
 type CapabilityReport = Awaited<ReturnType<typeof discoverHostCapabilities>>;
 
-export async function hostCapabilityAcceptance(useTools = false) {
+export interface HostCapabilityObservation { ordinary: number; backendCalls: number; actionTypes: string[]; statuses: string[]; instructions: string; receipts: string[] }
+export async function hostCapabilityAcceptance(useTools = false, observe?: (data: HostCapabilityObservation) => void) {
   const f = await LocalFixture.create('方案师', true);
   try {
     const bin = join(f.root, 'bin'); await mkdir(bin);
@@ -49,6 +50,7 @@ export async function hostCapabilityAcceptance(useTools = false) {
       assert.equal(await readFile(join(f.source, 'dist/runs.txt'), 'utf8'), 'once\n');
       assert(f.requests.at(-1)!.messages.some(message => message.content.includes('skill-ok')));
     }
+    observe?.({ ordinary: f.h.context().usage.ordinary, backendCalls: f.backend.calls.length, actionTypes: (work.localOperations ?? []).map(op => op.action.type), statuses: (work.localOperations ?? []).map(op => op.status), instructions, receipts: f.requests.flatMap(request => request.messages.map(message => message.content)) });
     return report;
   } finally { await f.close(); }
 }
@@ -59,8 +61,14 @@ export function hostCapabilityGuardAcceptance(constraint: string) {
   if (constraint === '旧目标') m.c.goalVersion++;
   if (constraint === '解析阶段') m.work.kind = 'interpretation';
   if (constraint === '未授权') delete (m.work.payload.capabilities as Record<string, unknown>).localTools;
-  const commands = constraint === '非法命令路径' ? ['/bin/node'] : constraint === '过量命令' ? Array(21).fill('node') : ['node'];
-  const result = m.request({ type: 'discoverHost', commands });
+  const invalid: Record<string, object> = {
+    '非法命令路径': { commands: ['/usr/bin/node'] }, '相对路径穿越': { commands: ['../node'] }, '命令夹带参数': { commands: ['node --version'] },
+    '命令替换表达式': { commands: ['$(whoami)'] }, '过量命令': { commands: Array(21).fill('node') }, '空命令': { commands: [''] },
+    '发现请求指定宿主执行': { commands: ['node'], execution: 'host' }, '发现请求伪造批准': { commands: ['node'], approval: true },
+  };
+  const action = { type: 'discoverHost', ...(invalid[constraint] ?? { commands: ['node'] }) };
+  const result = m.send({ type: 'LOCAL_REQUEST', intentId: m.work.id, operationId: 'op1', namespace: 'c'.repeat(64), requestHash: 'a'.repeat(64), action,
+    parentAttempt: m.work.attempt, messages: [{ role: 'assistant', content: JSON.stringify(action) }], fence: m.work });
   assert.equal(m.op, undefined); assert.equal(m.c.usage.ordinary, 1);
-  return result;
+  return { ...result, model: m };
 }

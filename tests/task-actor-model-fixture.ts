@@ -56,8 +56,9 @@ export function prepareConcurrentActors() {
   const members = m.c.intents.filter(work => work.discussionId && work.kind === 'assistance' && work.status === 'pending'); assert.equal(members.length, 2);
   return () => {
   for (const work of members) { m.claim(work.id); assert(m.start()); }
-  assert.equal(executionState(m.snapshot, owner.id, 1), 'running');
-  assert.equal(Object.values(m.snapshot.children).filter(child => child?.getSnapshot().value === 'running').length, 3);
+  const ownerStageDuringDiscussion = executionState(m.snapshot, owner.id, 1);
+  const runningActorCount = Object.values(m.snapshot.children).filter(child => child?.getSnapshot().value === 'running').length;
+  assert.equal(ownerStageDuringDiscussion, 'running'); assert.equal(runningActorCount, 3);
   for (const work of members) {
     assert(m.send({ type: 'DISCUSSION_RESULT', workId: work.id, fence: work, discussionId: work.discussionId, status: 'success', text: '独立意见：' + work.target }).ok);
     assert.equal(executionState(m.snapshot, work.id, 1), 'settled');
@@ -69,11 +70,11 @@ export function prepareConcurrentActors() {
   assert(m.send({ type: 'DELIVER', workId: owner.id, fence: owner, text: '初稿', artifactIds: [] }).ok);
   assert.equal(m.c.discussion!.status, 'delivered');
   const count = m.c.intents.filter(work => work.kind === 'owner').length;
-  assert(!m.send(result).ok); assert.equal(m.c.intents.filter(work => work.kind === 'owner').length, count);
-  return m;
+  const duplicate = m.send(result); assert(!duplicate.ok); assert.equal(m.c.intents.filter(work => work.kind === 'owner').length, count);
+  return { model: m, ownerStageDuringDiscussion, runningActorCount, ownerCountBeforeDuplicate: count, ownerCountAfterDuplicate: m.c.intents.filter(work => work.kind === 'owner').length, duplicateCode: duplicate.code };
   };
 }
-export const concurrentActors = () => prepareConcurrentActors()();
+export const concurrentActors = () => prepareConcurrentActors()().model;
 export function prepareStopActor(timing: string) {
   if (timing === '外部效果未知') {
     const local = new LocalModel(); local.snapshot = startTaskExecution(local.snapshot, local.work.id, 1, 1).snapshot;
@@ -81,21 +82,23 @@ export function prepareStopActor(timing: string) {
     assert.equal(executionState(local.snapshot, local.work.id, 1), 'uncertain');
     return () => {
     assert(local.send({ type: 'STOP' }).ok);
-    assert.equal(local.send({ type: 'SETTLE', intentId: local.work.id }).code, 'LOCAL_OPERATION_PENDING');
-    assert.equal(executionState(local.snapshot, local.work.id, 1), 'uncertain');
-    assert(!startTaskExecution(local.snapshot, local.work.id, 1, 20).allowed);
+    const settlement = local.send({ type: 'SETTLE', intentId: local.work.id }); assert.equal(settlement.code, 'LOCAL_OPERATION_PENDING');
+    const stage = executionState(local.snapshot, local.work.id, 1); assert.equal(stage, 'uncertain');
+    const restart = startTaskExecution(local.snapshot, local.work.id, 1, 20); assert(!restart.allowed);
+    return { timing, beforeSettle: stage, afterSettle: stage, startAllowed: restart.allowed, settlementCode: settlement.code, outcome: local.c.outcome, lateCode: 'notApplicable', ownersBefore: local.c.intents.filter(work => work.kind === 'owner').length, ownersAfter: local.c.intents.filter(work => work.kind === 'owner').length };
     };
   }
   const m = new ActorModel(); const work = m.claim();
   if (timing === '已提交启动许可') assert(m.start());
   return () => {
   assert(m.send({ type: 'STOP' }).ok);
-  assert.equal(m.stage(), timing === '领取后尚未启动' ? 'cancelled' : 'cancelling');
-  assert(!m.start()); assert(m.send({ type: 'SETTLE', intentId: work.id }).ok);
+  const beforeSettle = m.stage(); assert.equal(beforeSettle, timing === '领取后尚未启动' ? 'cancelled' : 'cancelling');
+  const startAllowed = m.start(); assert(!startAllowed); const settlement = m.send({ type: 'SETTLE', intentId: work.id }); assert(settlement.ok);
   assert.equal(m.c.outcome, 'stopped');
   const count = m.c.intents.filter(work => work.kind === 'owner').length;
-  assert(!m.send({ type: 'DELIVER', text: '迟到', artifactIds: [], workId: work.id, fence: work }).ok);
+  const late = m.send({ type: 'DELIVER', text: '迟到', artifactIds: [], workId: work.id, fence: work }); assert(!late.ok);
   assert.equal(m.c.intents.filter(work => work.kind === 'owner').length, count);
+  return { timing, beforeSettle, afterSettle: m.stage(), startAllowed, settlementCode: settlement.code, outcome: m.c.outcome, lateCode: late.code, ownersBefore: count, ownersAfter: m.c.intents.filter(work => work.kind === 'owner').length };
   };
 }
 export const stopActor = (timing: string) => prepareStopActor(timing)();
@@ -108,8 +111,9 @@ export function prepareActorRecovery(kind: string) {
   const before = structuredClone(m.c.usage), goal = structuredClone(m.c.goal);
   return () => {
   m.snapshot = restoreTask(JSON.parse(JSON.stringify(saved))); assert.deepEqual(m.c.usage, before); assert.deepEqual(m.c.goal, goal);
+  const restoredUsage = structuredClone(m.c.usage), restoredGoal = structuredClone(m.c.goal);
   assert(m.send({ type: 'RECOVER', config: m.c.config }).ok);
-  assert(!m.start(old.attempt));
+  const oldRestartAllowed = m.start(old.attempt); assert(!oldRestartAllowed);
   if (kind === '非幂等请求执行中') {
     assert.equal(m.work.status, 'uncertain'); assert.equal(m.stage(), 'uncertain');
     assert(m.send({ type: 'RECONCILE', intentId: old.id, resolution: 'notExecuted', detail: '可信核对未执行' }).ok);
@@ -119,10 +123,10 @@ export function prepareActorRecovery(kind: string) {
     if (kind !== '没有子 actor 的旧快照') assert.equal(m.stage(), 'interrupted');
   }
   m.claim(); assert(m.start()); assert.equal(m.stage(), 'running'); assert.equal(executionState(m.snapshot, old.id, old.attempt) === 'running', false);
-  return m;
+  return { model: m, beforeUsage: before, restoredUsage, beforeGoal: goal, restoredGoal, oldRestartAllowed, oldStage: executionState(m.snapshot, old.id, old.attempt), oldAttempt: old.attempt, currentAttempt: m.work.attempt };
   };
 }
-export const recoverActor = (kind: string) => prepareActorRecovery(kind)();
+export const recoverActor = (kind: string) => prepareActorRecovery(kind)().model;
 export function prepareDeniedActor(problem: string) {
   const m = new ActorModel(); if (problem !== '尚未领取') m.claim();
   if (problem === '重复启动') assert(m.start());
@@ -132,7 +136,8 @@ export function prepareDeniedActor(problem: string) {
   if (problem === '任务已结束') m.send({ type: 'EXHAUSTED', reason: 'Execution budget exhausted' });
   if (problem === '恢复不兼容') m.send({ type: 'RECOVER', config: { ...m.c.config, version: 'changed' } });
   return () => {
-  const before = structuredClone(m.c.usage); assert(!m.start(problem === '旧尝试' ? 1 : m.work.attempt)); assert.deepEqual(m.c.usage, before);
+  const before = structuredClone(m.c.usage), allowed = m.start(problem === '旧尝试' ? 1 : m.work.attempt); assert(!allowed); assert.deepEqual(m.c.usage, before);
+  return { allowed, beforeUsage: before, afterUsage: structuredClone(m.c.usage) };
   };
 }
 export const deniedActor = (problem: string) => prepareDeniedActor(problem)();
@@ -163,12 +168,14 @@ export function prepareStaleAttemptMessage(kind = '负责人') {
     }
     else if (type === 'DISCUSSION_RESULT') Object.assign(body, addressed, { discussionId: first.discussionId, status: 'success', text: '受控讨论结果' });
     else Object.assign(body, { intentId: first.id, reason: '旧错误', transient: false, issue: 'invalid_json' });
-    assert.equal(m.send(body).code, 'STALE_ATTEMPT'); assert.equal(m.stage(), 'running'); assert.equal(m.snapshot.value, phase);
+    const rejected = m.send(body); assert.equal(rejected.code, 'STALE_ATTEMPT'); assert.equal(m.stage(), 'running'); assert.equal(m.snapshot.value, phase);
+    const afterReject = { code: rejected.code, stage: m.stage(), phase: m.snapshot.value, usage: structuredClone(m.c.usage), analyses: structuredClone(m.c.inputAnalyses) };
     assert.equal(m.work.status, 'inflight'); assert.deepEqual(m.c.usage, before); assert.deepEqual(m.c.inputAnalyses, analyses);
     const completion: Record<string, unknown> = ['DELIVER', 'INTERPRETATION_RESULT', 'COORDINATE', 'RECORD_RESULT', 'CHECK_RESULT', 'DISCUSSION_RESULT'].includes(type)
       ? { ...body, attempt: next.attempt }
       : { type: 'DELIVER', workId: next.id, attempt: next.attempt, fence: next, text: '新尝试有效结果', artifactIds: [] };
     const completed = m.send(completion); assert(completed.ok, completed.code); assert.equal(m.stage(), 'settled');
+    return { beforeUsage: before, beforePhase: phase, beforeAnalyses: analyses, afterReject, completionCode: completed.code, finalStage: m.stage() };
   };
 }
 export const staleAttemptMessage = (type: string) => prepareStaleAttemptMessage(({ INTERPRETATION_RESULT: '输入解析', COORDINATE: '协调', RECORD_RESULT: '协助', CHECK_RESULT: '检查', DISCUSSION_RESULT: '讨论汇总' } as Record<string, string>)[type] ?? '负责人')(type);
@@ -176,9 +183,10 @@ export const staleAttemptMessage = (type: string) => prepareStaleAttemptMessage(
 export function oldExecutionCleanup() {
   const m = new ActorModel(), old = structuredClone(m.claim()); assert(m.start());
   assert(m.send({ type: 'RECOVER', config: m.c.config }).ok); const current = structuredClone(m.claim()); assert(m.start());
-  assert.equal(executionState(m.snapshot, old.id, old.attempt), 'interrupted');
-  assert.equal(m.send({ type: 'DELIVER', workId: old.id, attempt: old.attempt, fence: old, text: '旧输出', artifactIds: [] }).code, 'STALE_ATTEMPT');
-  assert.equal(m.stage(), 'running'); assert(m.send({ type: 'STOP' }).ok); assert.equal(m.stage(), 'cancelling');
+  const oldStage = executionState(m.snapshot, old.id, old.attempt); assert.equal(oldStage, 'interrupted');
+  const stale = m.send({ type: 'DELIVER', workId: old.id, attempt: old.attempt, fence: old, text: '旧输出', artifactIds: [] }); assert.equal(stale.code, 'STALE_ATTEMPT');
+  assert.equal(m.stage(), 'running'); assert(m.send({ type: 'STOP' }).ok); const afterStop = m.stage(); assert.equal(afterStop, 'cancelling');
   assert(m.send({ type: 'SETTLE', intentId: current.id, attempt: current.attempt }).ok); assert.equal(m.stage(), 'settled');
   assert.equal(m.c.outcome, 'stopped'); assert.equal(m.c.candidate, null);
+  return { oldStage, staleCode: stale.code, afterStop, finalStage: m.stage(), outcome: m.c.outcome, candidate: m.c.candidate };
 }

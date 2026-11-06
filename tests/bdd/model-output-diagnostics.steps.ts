@@ -33,8 +33,11 @@ Given('交付检查的模型响应因输出长度上限而截断', function (thi
 When('执行容量受限的交付检查', async function (this: SpecWorld) { await runs.get(this)!.run(); });
 Then('应报告明确输出容量失败且保留未完成状态', function (this: SpecWorld) {
   const f = runs.get(this)!;
+  assert.equal(f.h.view().phase, 'ended');
   assert.equal(f.h.context().outcome, 'partial');
   assert(f.h.context().reason.includes('CHECK_OUTPUT_LIMIT'));
+  assert(f.h.context().candidate);
+  assert.deepEqual(f.h.engine.pending(f.h.room, f.h.task), []);
 });
 Then('不得再次调用同一容量的模型或接受截断内容', async function (this: SpecWorld) {
   const f = runs.get(this)!; await f.run();

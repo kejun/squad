@@ -1,0 +1,54 @@
+{
+  "handoff": {
+    "status": "verified",
+    "sourceCommit": "c1f380da1527b8c22a8aaaaf7aef10cd2695146e",
+    "evidence": "reports/verify-squad-handoff/kej-100-final",
+    "reportSha256": "c636cfc64941745b50b4601a9cac4a46c639e0684ab28ac4757cf2b535541d60",
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "evidenceRetained": true
+    },
+    "seconds": 66.055,
+    "readbackExitCode": 0,
+    "exitCode": 0
+  },
+  "delivery": {
+    "status": "verified",
+    "sourceCommit": "c1f380da1527b8c22a8aaaaf7aef10cd2695146e",
+    "evidence": "reports/verify-squad-delivery/kej-100-final",
+    "reportSha256": "241498d44178d3b628771c17871a08f9c0e38f72ca9fa626482b8fc08dd14473",
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "evidenceRetained": true
+    },
+    "seconds": 29.650492528999166,
+    "readbackExitCode": 0,
+    "exitCode": 0
+  },
+  "authority": {
+    "status": "verified",
+    "sourceCommit": "c1f380da1527b8c22a8aaaaf7aef10cd2695146e",
+    "evidence": "reports/verify-squad-authority/kej-100-final",
+    "reportSha256": "58e46b0a7b5f583091cc16f12cd8908fb6e31461c0ae3025d5c0bff71e6f3638",
+    "cleanup": true,
+    "seconds": null,
+    "readbackExitCode": 0,
+    "exitCode": 0
+  },
+  "coordination": {
+    "status": "verified",
+    "sourceCommit": "c1f380da1527b8c22a8aaaaf7aef10cd2695146e",
+    "evidence": "reports/verify-squad-coordination/kej-100-final",
+    "reportSha256": "b21ab5c495c8a83103c757ecdcaf331761c40c1a1ae164af6bb5d25699f77128",
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "checkerInputsUnchanged": true
+    },
+    "seconds": 365.344,
+    "readbackExitCode": 0,
+    "exitCode": 0
+  }
+}

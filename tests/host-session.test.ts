@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { HostSessionFixture } from './host-session-fixture.js';
-import { validLocalAction } from '../src/local-operation.js';
 let f: HostSessionFixture;
 afterEach(async () => { await f?.close(); });
 async function pending() { f = new HostSessionFixture(); return f.pending(); }
@@ -39,7 +38,6 @@ describe('任务会话宿主授权接线：真实HTTP、SQLite及宿主进程', 
     expect((await f.request(data, 'http://other.example')).status).toBe(403);
     expect((await f.request({ ...data, decision: 'approveForever' })).status).toBe(400);
     expect((await f.request({ ...data, grantId: 'forged' })).status).toBe(400);
-    expect(validLocalAction({ type: 'runCli', executable: 'node', args: [], execution: 'host', reason: 'test', sessionGrantId: 'forged' })).toBe(false);
     const grant = f.grantWithoutNotify(a); expect((await f.revoke(grant.grantId, 'http://other.example')).status).toBe(403);
     expect((await f.revoke('forged-grant')).status).toBe(409); expect(f.snapshot().hostSessions).toHaveLength(1); expect(await f.runs()).toBe('');
   });

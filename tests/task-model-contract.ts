@@ -249,7 +249,8 @@ function assertFrame(snapshot: TaskSnapshot, expected: Frame, label: string, own
   }
   assert.equal(digest(value), expected.digest, `${label}: full persisted snapshot differs`);
 }
-export function replayLegacyTrace(name: string, diagnostics = false): TaskSnapshot {
+export interface DiagnosticComparison { pureDigest: string; inspectedDigest: string; evidence: DebugEvidence }
+export function replayLegacyTrace(name: string, diagnostics = false, comparisons?: DiagnosticComparison[]): TaskSnapshot {
   const trace = legacyTaskContract.traces.find(trace => trace.name === name);
   assert(trace, name);
   const input = structuredClone(trace.input);
@@ -261,6 +262,7 @@ export function replayLegacyTrace(name: string, diagnostics = false): TaskSnapsh
   if (diagnostics) {
     const initial = inspectInitialTask(input);
     assert.equal(snapshotDigest(initial.snapshot), snapshotDigest(snapshot));
+    comparisons?.push({ pureDigest: snapshotDigest(snapshot), inspectedDigest: snapshotDigest(initial.snapshot), evidence: initial.evidence });
     assertLegacyEvidence(initial.evidence, trace.frames[0]!.evidence, `${name}:initial diagnostics`);
   }
   for (const [index, recorded] of trace.events.entries()) {
@@ -274,6 +276,7 @@ export function replayLegacyTrace(name: string, diagnostics = false): TaskSnapsh
     if (diagnostics) {
       const inspected = inspectTask(before, event);
       assert.equal(snapshotDigest(inspected.snapshot), snapshotDigest(snapshot));
+      comparisons?.push({ pureDigest: snapshotDigest(snapshot), inspectedDigest: snapshotDigest(inspected.snapshot), evidence: inspected.evidence });
       assertLegacyEvidence(inspected.evidence, frame.evidence, `${name}:${index}:diagnostics`,
         before.context.outcome !== 'complete' && snapshot.context.outcome === 'complete', !!consume);
     }
@@ -286,6 +289,7 @@ export function replayLegacyTrace(name: string, diagnostics = false): TaskSnapsh
       if (diagnostics) {
         const inspected = inspectTask(claimed, consume);
         assert.equal(snapshotDigest(inspected.snapshot), snapshotDigest(snapshot));
+        comparisons?.push({ pureDigest: snapshotDigest(snapshot), inspectedDigest: snapshotDigest(inspected.snapshot), evidence: inspected.evidence });
         assert.deepEqual(inspected.evidence.evaluations[0], { ruleId: '*:CONSUME:0', source: '*', event: 'CONSUME', guard: 'valid', passed: true });
         assert.deepEqual(inspected.evidence.changed, ['intents', 'trace', 'usage', 'deliveryCycle']);
       }
@@ -351,7 +355,9 @@ export function verifyLegacyDiagnostics() {
       return rule.id === '*:@always:1' ? [rule, ...hostRetryAlwaysRules] : [rule];
     });
   assert.deepEqual(taskGraph(), { ...graph, definition: extendedDefinition, transitions });
-  for (const trace of legacyTaskContract.traces) replayLegacyTrace(trace.name, true);
+  const comparisons: DiagnosticComparison[] = [];
+  for (const trace of legacyTaskContract.traces) replayLegacyTrace(trace.name, true, comparisons);
   verifyCoordinationExtensionFaultDetection();
   verifyInterpretationCapacityFaultDetection();
+  return { graph: taskGraph(), expectedGraph: { ...graph, definition: extendedDefinition, transitions }, comparisons };
 }

@@ -2,13 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryStore, OpenAICompatibleAdapter, SqliteStore, TeamEngine, WorkRunner } from '../src/index.js';
-import { Details } from '../web/src/Details.js';
-import { conversationHistory } from '../src/conversation.js';
 import { configuration, Harness } from './helpers.js';
-import { artifactSnapshot, delivery, FULL_REPORT, HELPER_REPORT, HELPER_SUMMARY, helperDelivery, RESULT_SUMMARY } from './artifact-fixture.js';
+import { delivery, FULL_REPORT, HELPER_REPORT, HELPER_SUMMARY, helperDelivery, RESULT_SUMMARY } from './artifact-fixture.js';
 
 const stores = new Set<SqliteStore>();
 const directories: string[] = [];
@@ -151,39 +147,5 @@ describe('durable result artifacts and concise messages', () => {
     expect(JSON.stringify(next.payload.conversation)).toContain('恢复方案');
   });
 
-  it('[BT_A08] counts retained full detail text against the bounded historical context', () => {
-    const h = new Harness(); const c = h.context();
-    c.messages.push({ id: 'oversized-detail', taskId: c.taskId, kind: 'answer', author: 'A', at: 1,
-      text: '短摘要', detailText: '完整资料'.repeat(25_000) });
-    const history = conversationHistory([c]);
-    expect(history.truncated).toBe(true);
-    expect(history.messages.some(message => message.id === 'oversized-detail')).toBe(false);
-    const total = history.messages.reduce((size, message) => size + message.text.length + (message.detailText?.length ?? 0), 0)
-      + history.artifacts.reduce((size, artifact) => size + artifact.content.length, 0);
-    expect(total).toBeLessThanOrEqual(96_000);
-    expect(c.messages.at(-1)?.detailText?.length).toBe(100_000);
-  });
-});
 
-describe('report and result detail navigation', () => {
-  it('[BT_A09] previews the historical task report instead of the active task report', () => {
-    const html = renderToStaticMarkup(createElement(Details, { snapshot: artifactSnapshot(), agent: null, onClose() {}, connected: true,
-      target: { taskId: 'old-task', messageId: 'old-result', artifactId: 'old-report' } }));
-    expect(html).toContain('独特尾段：报告全文必须保留。');
-    expect(html).toContain('<h2>恢复方案.md</h2>'); expect(html).toContain('aria-label="导出详情"');
-    expect(html).not.toContain('不应展示的新任务报告正文');
-  });
-
-  it('[BT_A10] shows full detail text, sources and the matching observable tool record', () => {
-    const html = renderToStaticMarkup(createElement(Details, { snapshot: artifactSnapshot(), agent: null, onClose() {}, connected: true,
-      target: { taskId: 'old-task', messageId: 'old-result' } }));
-    for (const value of ['独特尾段：报告全文必须保留。', 'https://example.com/evidence', '读取官方资料', '版本围栏必须保留']) expect(html).toContain(value);
-    expect(html).not.toContain('不应展示的新任务报告正文');
-  });
-
-  it('[BT_A09] does not substitute the current report when an old report is missing', () => {
-    const html = renderToStaticMarkup(createElement(Details, { snapshot: artifactSnapshot(), agent: null, onClose() {}, connected: true,
-      target: { taskId: 'missing-task', messageId: 'old-result', artifactId: 'old-report' } }));
-    expect(html).not.toContain('独特尾段：报告全文必须保留。'); expect(html).not.toContain('不应展示的新任务报告正文');
-  });
 });

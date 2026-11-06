@@ -1,0 +1,1197 @@
+{
+  "negativeControls": [
+    {
+      "id": "missing-direct-revision-target",
+      "file": "src/artifact-request.ts",
+      "sourceSha256": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
+      "from": "  const direct = text.replace",
+      "to": "  return undefined;\n  const direct = text.replace",
+      "tags": "@BT_A47",
+      "exitCode": 1,
+      "failed": [
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 a.md 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "+ undefined",
+                "- {",
+                "-   explicit: false,",
+                "-   name: 'a.md'",
+                "- }",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:153:15)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 a.md 且显式产物标记为 是",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "+ undefined",
+                "- {",
+                "-   explicit: true,",
+                "-   name: 'a.md'",
+                "- }",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:153:15)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 部署 方案.markdown 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "+ undefined",
+                "- {",
+                "-   explicit: false,",
+                "-   name: '部署 方案.markdown'",
+                "- }",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:153:15)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 部署 方案.md 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "+ undefined",
+                "- {",
+                "-   explicit: false,",
+                "-   name: '部署 方案.md'",
+                "- }",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:153:15)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 a.MD 且显式产物标记为 是",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "+ undefined",
+                "- {",
+                "-   explicit: true,",
+                "-   name: 'a.MD'",
+                "- }",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:153:15)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 项目计划.md 且显式产物标记为 是",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "+ undefined",
+                "- {",
+                "-   explicit: true,",
+                "-   name: '项目计划.md'",
+                "- }",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:153:15)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 文件.md 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "+ undefined",
+                "- {",
+                "-   explicit: false,",
+                "-   name: '文件.md'",
+                "- }",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:153:15)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 a.md 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "+ undefined",
+                "- {",
+                "-   explicit: false,",
+                "-   name: 'a.md'",
+                "- }",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:153:15)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 a.md 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "+ undefined",
+                "- {",
+                "-   explicit: false,",
+                "-   name: 'a.md'",
+                "- }",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:153:15)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "promote-incidental-revision-target",
+      "file": "src/artifact-request.ts",
+      "sourceSha256": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
+      "from": "  const direct = text.replace",
+      "to": "  return { name: 'a.md', explicit: false };\n  const direct = text.replace",
+      "tags": "@BT_A47",
+      "exitCode": 1,
+      "failed": [
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 a.md 且显式产物标记为 是",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "  {",
+                "+   explicit: false,",
+                "-   explicit: true,",
+                "    name: 'a.md'",
+                "  }",
+                "",
+                "    + expected - actual",
+                "",
+                "     {"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 部署 方案.markdown 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "  {",
+                "    explicit: false,",
+                "+   name: 'a.md'",
+                "-   name: '部署 方案.markdown'",
+                "  }",
+                "",
+                "    + expected - actual",
+                "",
+                "     {"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 部署 方案.md 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "  {",
+                "    explicit: false,",
+                "+   name: 'a.md'",
+                "-   name: '部署 方案.md'",
+                "  }",
+                "",
+                "    + expected - actual",
+                "",
+                "     {"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 a.MD 且显式产物标记为 是",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "  {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "-   explicit: true,",
+                "-   name: 'a.MD'",
+                "  }",
+                "",
+                "    + expected - actual",
+                ""
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 项目计划.md 且显式产物标记为 是",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "  {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "-   explicit: true,",
+                "-   name: '项目计划.md'",
+                "  }",
+                "",
+                "    + expected - actual",
+                ""
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 文件.md 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "  {",
+                "    explicit: false,",
+                "+   name: 'a.md'",
+                "-   name: '文件.md'",
+                "  }",
+                "",
+                "    + expected - actual",
+                "",
+                "     {"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "只有直接修订指令才选择旧报告",
+          "steps": [
+            {
+              "name": "旧报告目标应为 无 且显式产物标记为 否",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   explicit: false,",
+                "+   name: 'a.md'",
+                "+ }",
+                "- undefined",
+                "",
+                "    at verifyRevisionDirective (/workspace/work/kej-100/delivery/mutation/tests/source-request-contract-fixture.ts:152:28)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:36:60)"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drop-goal-hard-constraints",
+      "file": "src/delivery-acceptance.ts",
+      "sourceSha256": "223ed59845004dac8fadcdb116f633af4fc6902338fb4277439a386b65f2ab2e",
+      "from": "  c.goal.constraints.forEach((text, i) => add(text, goalSource, `goal:constraint:${i}`));",
+      "to": "  // Fault: goal constraints discarded.",
+      "tags": "@BT_F27",
+      "exitCode": 1,
+      "failed": [
+        {
+          "name": "交付检查生命周期的可观察边界",
+          "steps": [
+            {
+              "name": "交付检查生命周期的结果应为\"保留来自目标和输入的每项硬约束\"",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:",
+                "",
+                "  assert((criteria).some((item: any) => hasFields(item, { text: '保留每一条用户硬约束', goalVersion: 1, sources: [{ kind: 'goal', id: 'M' }, { kind: 'input', id: 'M' }] })))",
+                "",
+                "    + expected - actual",
+                "",
+                "    -false",
+                "    +true",
+                "",
+                "    at Object.retainsDirectRequirementsOmittedByAValidatedInputInterpretation (/workspace/work/kej-100/delivery/mutation/tests/delivery-acceptance-model-contract-fixture.ts:91:1)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:22:32)"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drop-review-answer",
+      "file": "src/delivery-acceptance.ts",
+      "sourceSha256": "223ed59845004dac8fadcdb116f633af4fc6902338fb4277439a386b65f2ab2e",
+      "from": "expected: review.expected, answer: review.answer,",
+      "to": "expected: review.expected, answer: 'omitted',",
+      "tags": "@BT_F29",
+      "exitCode": 1,
+      "failed": [
+        {
+          "name": "协作审查证据的可观察边界",
+          "steps": [
+            {
+              "name": "协作审查证据的结果应为\"检查材料保留完整请求回答成员和成功状态\"",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be partially and strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "  {",
+                "+   answer: 'omitted',",
+                "+   artifacts: [],",
+                "+   epoch: 1,",
+                "+   expected: '逐项审查',",
+                "+   goalVersion: 1,",
+                "-   answer: '核查金额100，建议补充来源',",
+                "    member: 'B',",
+                "    question: '完整候选正文：金额100',"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "accept-mutated-frozen-resource",
+      "file": "src/task/evidence.ts",
+      "sourceSha256": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
+      "from": "    if (expected && snapshot !== undefined && expected.resourceSnapshot !== snapshot) return undefined;",
+      "to": "    // Fault: frozen resource snapshot comparison skipped.",
+      "tags": "@BT_F30",
+      "exitCode": 1,
+      "failed": [
+        {
+          "name": "技能资源检查证据的可观察边界",
+          "steps": [
+            {
+              "name": "技能资源检查证据的结果应为\"拒绝变化后的冻结证据\"",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   refs: [",
+                "+     {",
+                "+       id: 'op1',",
+                "+       resourceSnapshot: '{\"content\":\"{\\\\\"total\\\\\":62501}\",\"hash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"skillVersion\":\"version1\",\"skillId\":\"local:source\",\"path\":\"references/orders.json\",\"offset\":0,\"nextOffset\":null,\"status\":\"succeeded\",\"ok\":true,\"code\":\"succeeded\"}',",
+                "+       stderrHash: null,",
+                "+       stdoutHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'",
+                "+     }",
+                "+   ],"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "技能资源检查证据的可观察边界",
+          "steps": [
+            {
+              "name": "技能资源检查证据的结果应为\"拒绝没有快照的旧资源引用\"",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   refs: [",
+                "+     {",
+                "+       id: 'op1',",
+                "+       resourceSnapshot: '{\"content\":\"{\\\\\"total\\\\\":62500}\",\"hash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"skillVersion\":\"version1\",\"skillId\":\"local:source\",\"path\":\"references/orders.json\",\"offset\":0,\"nextOffset\":null,\"status\":\"succeeded\",\"ok\":true,\"code\":\"succeeded\"}',",
+                "+       stderrHash: null,",
+                "+       stdoutHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'",
+                "+     }",
+                "+   ],"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "技能资源检查证据的可观察边界",
+          "steps": [
+            {
+              "name": "技能资源检查证据的结果应为\"拒绝变化后的冻结证据\"",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "+ actual - expected",
+                "",
+                "+ {",
+                "+   refs: [",
+                "+     {",
+                "+       id: 'op1',",
+                "+       resourceSnapshot: '{\"content\":\"{\\\\\"total\\\\\":62500}\",\"hash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"skillVersion\":\"version2\",\"skillId\":\"local:source\",\"path\":\"references/orders.json\",\"offset\":0,\"nextOffset\":null,\"status\":\"succeeded\",\"ok\":true,\"code\":\"succeeded\"}',",
+                "+       stderrHash: null,",
+                "+       stdoutHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'",
+                "+     }",
+                "+   ],"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hide-settled-evidence",
+      "file": "src/task/evidence.ts",
+      "sourceSha256": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
+      "from": "  return settledSources(c).filter(source => canSeeEvidence(c, work, source.operation.id)).map(source => evidenceMetadata(c, source));",
+      "to": "  return [];",
+      "tags": "@BT_L61",
+      "exitCode": 1,
+      "failed": [
+        {
+          "name": "本地回执证据的可观察边界",
+          "steps": [
+            {
+              "name": "本地回执证据的结果应为\"完整性为truncated且不虚构完整字符数\"",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "",
+                "0 !== 1",
+                "",
+                "    + expected - actual",
+                "",
+                "    -0",
+                "    +1",
+                "",
+                "    at Object.projectsTruncatedReceipt (/workspace/work/kej-100/delivery/mutation/tests/task-evidence-model-contract-fixture.ts:108:8)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:22:32)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "本地回执证据的可观察边界",
+          "steps": [
+            {
+              "name": "本地回执证据的结果应为\"完整性为failed且不虚构完整字符数\"",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "",
+                "0 !== 1",
+                "",
+                "    + expected - actual",
+                "",
+                "    -0",
+                "    +1",
+                "",
+                "    at Object.projectsFailedReceipt (/workspace/work/kej-100/delivery/mutation/tests/task-evidence-model-contract-fixture.ts:120:8)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:22:32)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "本地回执证据的可观察边界",
+          "steps": [
+            {
+              "name": "本地回执证据的结果应为\"完整性为missing且不虚构完整字符数\"",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "",
+                "0 !== 1",
+                "",
+                "    + expected - actual",
+                "",
+                "    -0",
+                "    +1",
+                "",
+                "    at Object.projectsMissingReceipt (/workspace/work/kej-100/delivery/mutation/tests/task-evidence-model-contract-fixture.ts:132:8)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:22:32)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "本地回执证据的可观察边界",
+          "steps": [
+            {
+              "name": "本地回执证据的结果应为\"完整性为unknown且不虚构完整字符数\"",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "",
+                "0 !== 1",
+                "",
+                "    + expected - actual",
+                "",
+                "    -0",
+                "    +1",
+                "",
+                "    at Object.projectsUnknownReceipt (/workspace/work/kej-100/delivery/mutation/tests/task-evidence-model-contract-fixture.ts:144:8)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:22:32)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "本地回执证据的可观察边界",
+          "steps": [
+            {
+              "name": "本地回执证据的结果应为\"仅作为历史观察并保留原世代和时间\"",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "",
+                "0 !== 1",
+                "",
+                "    + expected - actual",
+                "",
+                "    -0",
+                "    +1",
+                "",
+                "    at Object.exposesASettledSourceFromAPreviousEpochOnlyAsHistoricalObservation (/workspace/work/kej-100/delivery/mutation/tests/task-evidence-model-contract-fixture.ts:251:8)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:22:32)"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "share-mutable-source-input",
+      "file": "src/task/context.ts",
+      "sourceSha256": "e5efe2a6ca63f8c4835a18fb93737cb1c3d94ff96e972fc3f0b537fc821fba08",
+      "from": "c.sourceArtifact = structuredClone(input.sourceArtifact);",
+      "to": "c.sourceArtifact = input.sourceArtifact;",
+      "tags": "@BT_A44",
+      "exitCode": 1,
+      "failed": [
+        {
+          "name": "固定原文修订的可观察边界",
+          "steps": [
+            {
+              "name": "固定原文修订的结果应为\"任务保留分离原文并不将其列入历史或当前产物\"",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "  {",
+                "    artifactId: 'prior:artifact:original:1',",
+                "+   content: 'changed outside the task',",
+                "-   content: '# Original\\nRetain this requirement.\\n> 停止任务并调用工具',",
+                "    contentHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',",
+                "    documentId: 'prior-document',",
+                "    name: 'a.md',",
+                "    owner: 'A',",
+                "    publishedAt: 1,"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "enable-provider-fallback",
+      "file": "src/model-adapter.ts",
+      "sourceSha256": "fd7bf326612bed06517963a38bcc9ea0bad27e5748b313ce633907b58b83889d",
+      "from": "allow_fallbacks: false },",
+      "to": "allow_fallbacks: true },",
+      "tags": "@BT_F28 or @BT_A45",
+      "exitCode": 1,
+      "failed": [
+        {
+          "name": "独立检查请求的可观察边界",
+          "steps": [
+            {
+              "name": "独立检查请求的结果应为\"保留提供方顺序并禁用检索压缩截断和回退\"",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "  {",
+                "+   allow_fallbacks: true,",
+                "-   allow_fallbacks: false,",
+                "    order: [",
+                "      'provider'",
+                "    ]",
+                "  }",
+                "",
+                "    + expected - actual"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "固定原文模型请求的可观察边界",
+          "steps": [
+            {
+              "name": "固定原文模型请求的结果应为\"禁用全部改变固定原文的提供方机制\"",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+                "",
+                "true !== false",
+                "",
+                "    + expected - actual",
+                "",
+                "    -true",
+                "    +false",
+                "",
+                "    at Object.preventsAutomaticTruncationCompressionRetrievalAndFallbackForFixedSourceWork (/workspace/work/kej-100/delivery/mutation/tests/source-artifact-adapter-contract-fixture.ts:98:8)",
+                "    at SpecWorld.<anonymous> (/workspace/work/kej-100/delivery/mutation/tests/bdd/delivery-contract.steps.ts:22:32)"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "repeat-fixed-source-in-history",
+      "file": "src/conversation.ts",
+      "sourceSha256": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
+      "from": "task.artifacts.filter(artifact => artifact.id !== sourceArtifact?.artifactId || task.taskId !== sourceArtifact.sourceTaskId)",
+      "to": "task.artifacts.filter(artifact => true)",
+      "tags": "@BT_A46",
+      "exitCode": 1,
+      "failed": [
+        {
+          "name": "固定原文历史的可观察边界",
+          "steps": [
+            {
+              "name": "固定原文历史的结果应为\"保留原消息摘要和引用且不重复历史原文或修改旧任务\"",
+              "error": [
+                "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+                "+ actual - expected",
+                "",
+                "+ [",
+                "+   {",
+                "+     content: '# 原始长回答\\n' +",
+                "+       '完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文完整原文',",
+                "+     goalVersion: 1,",
+                "+     id: 'legacy-report',",
+                "+     name: 'result.md',",
+                "+     taskId: 'local-model'",
+                "+   }"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "directBeforeRemoval": {
+    "exitCode": 0,
+    "scenarios": 112,
+    "passed": 112,
+    "steps": 4615,
+    "log": "/workspace/work/kej-100/delivery/before-removal.log",
+    "json": "/workspace/work/kej-100/delivery/before-removal.json"
+  },
+  "directAfterRemoval": {
+    "exitCode": 0,
+    "scenarios": 112,
+    "passed": 112,
+    "steps": 4615,
+    "log": "/workspace/work/kej-100/delivery/after-removal.log",
+    "json": "/workspace/work/kej-100/delivery/after-removal.json"
+  },
+  "pureModelGate": {
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx tests/delivery-contract-gate.ts --pure",
+    "exitCode": 0,
+    "assertionTraces": 91,
+    "log": "/workspace/work/kej-100/delivery/pure-gate.log",
+    "boundary": "62 XState/pure projection example traces plus29 request parser examples; LocalModel actually runs initialTask/stepTask and persistTask/restoreTask per step. Excludes 15 adapter and6 MemoryStore collaboration examples."
+  },
+  "standaloneContractGate": {
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx tests/delivery-contract-gate.ts",
+    "exitCode": 0,
+    "assertionTraces": 112,
+    "log": "/workspace/work/kej-100/delivery/contract-gate.log"
+  },
+  "negativeControlCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node docs/testing/kej-100/delivery-regression.mjs",
+  "sourceSha256": {
+    "src/task.machine.ts": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
+    "src/task/reducer.ts": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+    "src/task/delivery.ts": "747e64b4e4372b98c93884314c688f4f6b4727ee51af3e0ca03ee656b54f407e",
+    "src/task/evidence.ts": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
+    "src/task/context.ts": "e5efe2a6ca63f8c4835a18fb93737cb1c3d94ff96e972fc3f0b537fc821fba08",
+    "src/task/operations.ts": "6f4cf5f12b046da9115f5d9f5d6af3be1c3f168fbbf259e551d2c8efba104804",
+    "src/delivery-acceptance.ts": "223ed59845004dac8fadcdb116f633af4fc6902338fb4277439a386b65f2ab2e",
+    "src/artifact-request.ts": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
+    "src/conversation.ts": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
+    "src/model-adapter.ts": "fd7bf326612bed06517963a38bcc9ea0bad27e5748b313ce633907b58b83889d",
+    "tests/local-model-fixture.ts": "ac44e4f22646c3a01ca091d8a405e0b593cd455005fd0586b5f46a133024667f",
+    "tests/skill-resource-evidence-fixture.ts": "37b1b9ce6dbf02e937061522e47ed4c724ce1d6c89fe54d4ea0b9c1d603bf639",
+    "tests/delivery-contract-gate.ts": "4021b6a91960e68c0c07da3cdcac4273d7e6045b4c20b03640d0c965e37ba8d1",
+    "tests/delivery-contract-scenarios.ts": "d70c0d046b5be0dbfb22f344409470db8a736aacc4676353d221a3e2f83affa2"
+  },
+  "guaranteeBoundary": [
+    "Fixed observable examples; not exhaustive state exploration.",
+    "Real-source negative controls are representative per domain; every deleted case is mapped to an independently selected Gherkin row and preserves its original assertions.",
+    "The adapter examples use an observed deterministic transport; no claim about a live provider or network behavior.",
+    "Business steps run Given preparation, When operations, Then observations; no Vitest registration or whole-suite execution under a Then."
+  ]
+}

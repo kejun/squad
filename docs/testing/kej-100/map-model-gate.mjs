@@ -1,0 +1,24 @@
+// Pure XState pre-implementation gate; acceptance remains in the matching BDD flows.
+import assert from 'node:assert/strict';
+import { parallelMapModelGate, limitedMapModelGate, partialMapModelGate, changedMapModelGate, restoredMapModelGate, ordinaryMapModelGate, supplementMapModelGate, modelMapIntent } from '../../../tests/map-model-gate-fixture.ts';
+import { completeCapacityModelGate, snapshotCapacityModelGate, retriedCapacityModelGate, ordinaryCapacityModelGate, decreasedCapacityModelGate, historicalCapacityModelGate, pendingHistoricalCapacityModelGate } from '../../../tests/map-capacity-model-fixture.ts';
+import { replacementVersionModelGate, sameNameVersionModelGate, staleVersionModelGate, unboundVersionModelGate, legacyVersionModelGate } from '../../../tests/delivery-version-model-contract-fixture.ts';
+import { inputIntentSchema } from '../../../src/input-intent.ts';
+parallelMapModelGate();
+for (const limit of ['普通额度不足', '协助额度不足', '可用成员不足']) limitedMapModelGate(limit);
+partialMapModelGate();
+for (const change of ['停止', '修改目标']) changedMapModelGate(change);
+restoredMapModelGate(); ordinaryMapModelGate(); supplementMapModelGate();
+const duplicate = modelMapIntent(); duplicate.decomposition.partitions[1].id = 'alpha';
+const selected = modelMapIntent(); selected.decomposition.partitions[0].target = 'A';
+assert.equal(inputIntentSchema.safeParse(duplicate).success, false);
+assert.equal(inputIntentSchema.safeParse(selected).success, false);
+completeCapacityModelGate();
+for (const [limit, maximum] of [['四名可用成员', 4], ['剩余两次协助', 2], ['普通额度只够三片及归并续办', 3], ['本次理解后只够一片', 1], ['本次理解后不足一片', 0], ['资源充足仍受协议上限约束', 8], ['仅三名空闲成员', 3]]) snapshotCapacityModelGate(limit, maximum);
+retriedCapacityModelGate();
+for (const maximum of [0, 1]) ordinaryCapacityModelGate(maximum);
+for (const change of ['成员忙碌', '协助余额降低', '普通余额降低']) decreasedCapacityModelGate(change);
+for (const limited of [false, true]) historicalCapacityModelGate(limited);
+pendingHistoricalCapacityModelGate();
+replacementVersionModelGate(); sameNameVersionModelGate(); staleVersionModelGate(); unboundVersionModelGate(); legacyVersionModelGate();
+console.log('33 original pure XState/model contract cases passed independently');

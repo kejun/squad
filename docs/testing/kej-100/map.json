@@ -1,0 +1,898 @@
+[
+  {
+    "file": "tests/map-capacity-adapter.unit.test.ts",
+    "cases": [
+      "MapReduce planning capacity protocol [BT_Q07] describes the fixed host ceiling and grouping all documents in the interpretation request"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "实际请求必须携带宿主cap4，完整计划必须覆盖8文档各一次。同一场景的真实adapter请求记录验证宿主cap4，Q07受控web_fetch和归并验证分组后果；保留实际provider system prompt中context.maxPartitions与multiple documents两条断言，防受控provider自行遵守容量时掩盖指导缺失。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q07"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "omit-provider-capacity",
+        "drop-map-partition",
+        "discard-documents-prompt"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-capacity-adapter.unit.test.ts",
+    "cases": [
+      "MapReduce planning capacity protocol [BT_Q10] repairs an eight-part output instead of applying or truncating it at a four-part ceiling",
+      "MapReduce planning capacity protocol [BT_Q10] rejects decomposition above the host ceiling 4 at the protocol boundary"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "直接Q10先验证cap4下8片拒绝、一次格式修复和一次追加请求授权，再执行真实完整4分组；不截断8片。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q10"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "ignore-adapter-ceiling"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-capacity-adapter.unit.test.ts",
+    "cases": [
+      "MapReduce planning capacity protocol [BT_Q09] accepts the complete ordinary intent at capacity 0",
+      "MapReduce planning capacity protocol [BT_Q09] accepts the complete ordinary intent at capacity 1"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "outline参数0/1驱动world中同一普通意图的模型与真实adapter，精确比较完整spec且无格式修复；owner仍取得8份文档和原约束。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q09"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "lose-ordinary-intent"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-capacity-adapter.unit.test.ts",
+    "cases": [
+      "MapReduce planning capacity protocol [BT_Q10] rejects decomposition above the host ceiling 0 at the protocol boundary",
+      "MapReduce planning capacity protocol [BT_Q10] rejects decomposition above the host ceiling 1 at the protocol boundary"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "新增outline以cap0/1为实际固定输入，8片输出均被验证函数和真实adapter拒绝，经一次有界修复回普通任务。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q16"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "ignore-adapter-ceiling"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-capacity-adapter.unit.test.ts",
+    "cases": [
+      "MapReduce planning capacity protocol [BT_Q12] retains the protocol maximum for historical work without a capacity field"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "新增独立历史协议场景以CapacityAdapterScenario在Given准备cap缺省及8片合法输出，When执行真实adapter和公开validator，Then精确比较完整8片spec、无格式修复/追加授权且请求仍缺省cap。当前派发守卫另由Q12承接。具体可观察结果可用场景清楚表达，无保留重复unit入口的例外。",
+    "btIds": [
+      "BT_Q18"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "reject-legacy-eight-part-protocol"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-capacity-model.unit.test.ts",
+    "cases": [
+      "map-reduce capacity in the real task model [BT_Q07] advertises four partitions after the interpretation charge and assigns every complete group"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "world中的CapacityModel在When推进，并在Then验证真实XState收费1、全部4组/归并要求、无过早owner、唯一归并和全原始结果handoff；实际Q07继续验证8份文档正文。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q07"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "drop-map-partition"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-capacity-model.unit.test.ts",
+    "cases": [
+      "map-reduce capacity in the real task model [BT_Q08] snapshots the same capacity before and after the claim for 四名可用成员",
+      "map-reduce capacity in the real task model [BT_Q08] snapshots the same capacity before and after the claim for 剩余两次协助",
+      "map-reduce capacity in the real task model [BT_Q08] snapshots the same capacity before and after the claim for 普通额度只够三片及归并续办",
+      "map-reduce capacity in the real task model [BT_Q08] snapshots the same capacity before and after the claim for 本次理解后只够一片",
+      "map-reduce capacity in the real task model [BT_Q08] snapshots the same capacity before and after the claim for 本次理解后不足一片",
+      "map-reduce capacity in the real task model [BT_Q08] snapshots the same capacity before and after the claim for 资源充足仍受协议上限约束",
+      "map-reduce capacity in the real task model [BT_Q08] excludes a busy non-owner when refreshing the claimed capacity"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "7行资源outline参数分别驱动world中模型和Engine的同一业务前提与事件：准备预留理解费用、收费后同cap、无assist支出、忙碌成员排除与协议8上限。不是大量组合性质。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q08"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "unpaid-interpretation-reservation",
+        "include-busy-member"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-capacity-model.unit.test.ts",
+    "cases": [
+      "map-reduce capacity in the real task model [BT_Q08] refreshes capacity on every retried claim after charging that request"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "新增直接场景将首次收费后cap3/瞬时失败作为Given，When重新领取并收费，Then断言cap2、累计ordinary2且完整两组。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q14"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "stale-retried-capacity"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-capacity-model.unit.test.ts",
+    "cases": [
+      "map-reduce capacity in the real task model [BT_Q09] preserves all eight references for owner when capacity is 0 and decomposition is omitted",
+      "map-reduce capacity in the real task model [BT_Q09] preserves all eight references for owner when capacity is 1 and decomposition is omitted"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "cap0/1 outline实际驱动无decomposition的完整spec和8份历史引用，Then精确比较同一model中owner的spec及历史artifacts，实际接线无分片且完整目标保留。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q09"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "omit-ordinary-owner",
+        "lose-ordinary-intent"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-capacity-model.unit.test.ts",
+    "cases": [
+      "map-reduce capacity in the real task model [BT_Q11] falls back with the entire plan after 成员忙碌 without partial dispatch",
+      "map-reduce capacity in the real task model [BT_Q11] falls back with the entire plan after 协助余额降低 without partial dispatch",
+      "map-reduce capacity in the real task model [BT_Q11] falls back with the entire plan after 普通余额降低 without partial dispatch"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "三行真实容量下降参数同时驱动纯门槛和dispatch夹具：无discussion/assistance、完整owner计划、具体原因与usage不变。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q11"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "bypass-dispatch-capacity"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-capacity-model.unit.test.ts",
+    "cases": [
+      "map-reduce capacity in the real task model [BT_Q12] restores historical work without maxPartitions and applies the current guard (limited=false)",
+      "map-reduce capacity in the real task model [BT_Q12] restores historical work without maxPartitions and applies the current guard (limited=true)"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "把原布尔样本拆为资源充足/不足outline，分别驱动旧快照无cap的spec、decompositionApplied、4片或0片/owner回退，并保留重启重复结果保护。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q12"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "bypass-dispatch-capacity",
+        "reject-legacy-eight-part-protocol"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-capacity-model.unit.test.ts",
+    "cases": [
+      "map-reduce capacity in the real task model [BT_Q12] preserves the missing capacity on historical pending work through recovery and claim"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "独立历史pending场景在Given移除新增cap，When恢复/领取/返回计划，Then断言字段仍缺省且完整派发4片；同一model也由对应When推进且在Then验证此轨迹结果。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q15"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "backfill-legacy-ceiling"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-model.unit.test.ts",
+    "cases": [
+      "map-reduce uses the persisted XState discussion lane [BT_Q01] should create separate concurrent execution actors before either partition returns"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "同一world模型在When领取、Then验证两个独立authorized执行actor、宿主分配/约束、第二片先返回不早归并和唯一handoff；BDD实际并行的两成员在任一返回前均启动。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q01"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "drop-map-partition",
+        "premature-reduce"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-model.unit.test.ts",
+    "cases": [
+      "map-reduce uses the persisted XState discussion lane [BT_Q02] should preserve the entire plan for owner when ordinary cannot cover all partitions",
+      "map-reduce uses the persisted XState discussion lane [BT_Q02] should preserve the entire plan for owner when assists cannot cover all partitions",
+      "map-reduce uses the persisted XState discussion lane [BT_Q02] should preserve the entire plan for owner when members cannot cover all partitions"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "三个限制outline分别驱动world中的真实XState和engine，均检查无部分派发、assist0、单owner保留完整计划和未并行原因。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q02"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "bypass-dispatch-capacity"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-model.unit.test.ts",
+    "cases": [
+      "map-reduce uses the persisted XState discussion lane [BT_Q03] should preserve partial map evidence even if the reducer claims success"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "partial参数驱动同一world模型和Engine实际分片，When分别提交partial和归并success，Then精确保留partial/success状态，原partial/success结果与incomplete均保留，outcome为partial。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q03"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "erase-partial-map"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-model.unit.test.ts",
+    "cases": [
+      "map-reduce uses the persisted XState discussion lane [BT_Q04] should reject late map results after stop",
+      "map-reduce uses the persisted XState discussion lane [BT_Q04] should reject late map results after goal"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "停止/改目标的实际参数进入模型与engine；旧work返回拒绝、round cancelled且无旧summary。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q04"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "revive-cancelled-round"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-model.unit.test.ts",
+    "cases": [
+      "map-reduce uses the persisted XState discussion lane [BT_Q05] should restore saved partition results without recreating completed work"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "纯persist/restore保留已保存结果、拒绝重复并仅剩一片；SQLite两次重启实际仅执行剩余片并唯一归并/owner。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q05"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "forget-saved-results"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-model.unit.test.ts",
+    "cases": [
+      "map-reduce uses the persisted XState discussion lane [BT_Q01] should apply a supplement decomposition at the safe input boundary once"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "新增补充输入场景在普通owner任务上用真实supplement事件在安全输入边界应用两片一次，无同时owner，decompositionApplied保持true。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q13"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "deny-supplement-map"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-model.unit.test.ts",
+    "cases": [
+      "map-reduce uses the persisted XState discussion lane [BT_Q06] should reject duplicate partition identities and model-selected members"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "直接现有场景通过公开schema分别拒绝重复partition id及模型选择成员，两个原异常断言均保留。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q06"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "duplicate-partition-identity",
+        "allow-model-member-selection"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/map-reduce-model.unit.test.ts",
+    "cases": [
+      "map-reduce uses the persisted XState discussion lane [BT_Q06] should keep the legacy owner path when no decomposition is supplied"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "同一world中的普通意图模型与engine实际均无分解、一个owner且无assistance。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Q06"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "omit-ordinary-owner"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/measurement.unit.test.ts",
+    "cases": [
+      "execution measurement [BT_Z02] measures the union of overlapping and separate complete intervals"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "乱序到达的四个具体区间以Given数据表表达，真实coveredDuration在When计算，Then明确为19，覆盖重叠并集与分离区间。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Z06"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "double-count-overlapping-duration"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/measurement.unit.test.ts",
+    "cases": [
+      "execution measurement [BT_Z01] retains real zero usage and reports missing counters as unknown"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "真实adapter响应给出prompt0/completion42/无效total并另有缺省usage，观测直接断言0/42/null及unknown，未只测helper。 这是有限、可观察的具体样本，场景或场景大纲能清楚表达；纯函数/真实XState/运行快都不构成保留重复unit入口的理由。先直接BDD通过，再删除unit包装。",
+    "btIds": [
+      "BT_Z01"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/26_map_reduce.feature features/28_execution_measurement.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "directBeforeRemoval",
+        "directAfterRemoval"
+      ],
+      "negativeControls": [
+        "lose-real-zero-usage"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/delivery-version-model.unit.test.ts",
+    "cases": [
+      "candidate versions in taskMachine keeps the original published result and message until a checked replacement publishes"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "同一WebService/TeamEngine轨迹在When记录新候选检查前旧发布选择及新artifact身份，Then验证旧artifact/旧final完整深比、新revision2/documentId/replaces和检查后选择。 独立纯XState门槛另保留但不代替直接BDD断言；这些具体结果能用场景清楚表达，无unit例外。",
+    "btIds": [
+      "BT_A22"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "overwrite-original-report"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/delivery-version-model.unit.test.ts",
+    "cases": [
+      "candidate versions in taskMachine publishes two independent same-name documents"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "同一publicEngine在When提交两份同名drafts实际触发saveReports，Then验证两个独立documentId和全部published IDs及可分别查看内容。 独立纯XState门槛另保留但不代替直接BDD断言；这些具体结果能用场景清楚表达，无unit例外。",
+    "btIds": [
+      "BT_A23"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "shared-independent-document-id"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/delivery-version-model.unit.test.ts",
+    "cases": [
+      "candidate versions in taskMachine preserves the candidate on a stale revision and refuses an earlier check"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "同一publicEngine保存迟到check与stale提交的真实中间快照，Then检查旧check拒绝后的checking/unpublished、失败partial、stale拒绝及完整candidate/artifacts不变；后续独立When执行当前检查。 独立纯XState门槛另保留但不代替直接BDD断言；这些具体结果能用场景清楚表达，无unit例外。",
+    "btIds": [
+      "BT_A24"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "skip-version-conflict"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/delivery-version-model.unit.test.ts",
+    "cases": [
+      "candidate versions in taskMachine refuses an unbound old judgment after a second candidate before first publication"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "同一publicEngine在Given形成第二候选，When提交未绑定旧判断，Then明确CHECK_WORK_REQUIRED/false/checking且未发布。 独立纯XState门槛另保留但不代替直接BDD断言；这些具体结果能用场景清楚表达，无unit例外。",
+    "btIds": [
+      "BT_A41"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "misidentify-unbound-judgment"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/delivery-version-model.unit.test.ts",
+    "cases": [
+      "candidate versions in taskMachine derives separate document identities for old reports and retains their published selection"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "同一legacy publicEngine在When记录检查前双发布选择及新revision身份，Then完整深比旧两artifact和新revision2/documentId/replaces。 独立纯XState门槛另保留但不代替直接BDD断言；这些具体结果能用场景清楚表达，无unit例外。",
+    "btIds": [
+      "BT_A25"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "reset-legacy-revision"
+      ],
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/artifact-ui.test.ts",
+    "cases": [
+      "artifact and message details [BT_A09] exposes only report references that exist inside the same task"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "纯详情投影/SSR：Given三类引用，When公开messageArtifacts和ResultLinks，Then同任务真实report唯一、外任务和missing均无入口。 这些具体可观察结果可直接由场景/大纲表达，无保留独立unit例外；直接BDD先过后删除重复入口。",
+    "btIds": [
+      "BT_A42"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "cross-task-report-links"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/artifact-ui.test.ts",
+    "cases": [
+      "artifact and message details [BT_A09] never falls back to the latest task for unavailable historical content"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "3行定位大纲分别真正传入缺任务、外任务报告、缺消息target，Details均应显示不可用且没有当前任务/原报告正文；没有在Then另造目标。 这些具体可观察结果可直接由场景/大纲表达，无保留独立unit例外；直接BDD先过后删除重复入口。",
+    "btIds": [
+      "BT_A43"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "substitute-current-task-details"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/artifact-ui.test.ts",
+    "cases": [
+      "artifact and message details [BT_A08] keeps legacy long replies reachable while short replies need no empty details"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "长短两行参数决定Message正文，When计算公开hasMessageDetails并SSR入口，Then短回答没有空入口，旧长回答可查看完整原文。 这些具体可观察结果可直接由场景/大纲表达，无保留独立unit例外；直接BDD先过后删除重复入口。",
+    "btIds": [
+      "BT_A61"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "hide-legacy-long-details"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/artifact-ui.test.ts",
+    "cases": [
+      "artifact and message details [BT_A02] attributes a helper report to its author instead of the task owner"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "公开artifactsForAgent在同一ownerA/authorB快照计算两名成员列表，明确B有report、A无report，验证实际作者归属。 这些具体可观察结果可直接由场景/大纲表达，无保留独立unit例外；直接BDD先过后删除重复入口。",
+    "btIds": [
+      "BT_A62"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "attribute-report-to-owner"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/artifact-ui.test.ts",
+    "cases": [
+      "artifact and message details [BT_A10] renders report Markdown and links safely without executing embedded HTML",
+      "artifact and message details [BT_A10] preserves HTML and other code artifacts as literal source text"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "内容类型大纲真正决定Markdown/HTML文件名及原文，SSR后分别验证heading/https来源及无脚本/危险链接，或脚本/body作为完整字面源码；两种都保留导出。移除纯样式class匹配，完整原文/安全/导出保护不减。 这些具体可观察结果可直接由场景/大纲表达，无保留独立unit例外；直接BDD先过后删除重复入口。",
+    "btIds": [
+      "BT_A63"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "unsafe-markdown-url",
+        "execute-code-report-html"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/artifact-ui.test.ts",
+    "cases": [
+      "artifact and message details [BT_A01] keeps partial delivery visible without marking it as a completed success"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "SSR工作区的真实partial task/final消息作为Given，When展示后Then保留部分交付提示、无完成成功图标且完整detail/body不自动展开。 这些具体可观察结果可直接由场景/大纲表达，无保留独立unit例外；直接BDD先过后删除重复入口。",
+    "btIds": [
+      "BT_A64"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "mark-partial-complete"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/artifact-output.test.ts",
+    "cases": [
+      "durable result artifacts and concise messages [BT_A08] counts retained full detail text against the bounded historical context"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "隐藏纯计算的上下文边界：短摘要+100000字详情作为Given，公开conversationHistory计算后断言truncated、oversized消息排除、总量<=96000且原文长度不变。 这些具体可观察结果可直接由场景/大纲表达，无保留独立unit例外；直接BDD先过后删除重复入口。",
+    "btIds": [
+      "BT_A65"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "ignore-history-detail-budget"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/artifact-output.test.ts",
+    "cases": [
+      "report and result detail navigation [BT_A09] previews the historical task report instead of the active task report"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "原尾部SSR重复用例已由现有直接A09同fixture同Details公开渲染承接：旧完整尾段、正确报告标题、导出且无active任务正文均明确断言。 这些具体可观察结果可直接由场景/大纲表达，无保留独立unit例外；直接BDD先过后删除重复入口。",
+    "btIds": [
+      "BT_A09"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "lose-report-body"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/artifact-output.test.ts",
+    "cases": [
+      "report and result detail navigation [BT_A10] shows full detail text, sources and the matching observable tool record"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "原尾部SSR重复用例已由现有直接A10同fixture同Details公开渲染承接：full detail、https来源、原task工具记录、围栏依据齐全且无active正文。 这些具体可观察结果可直接由场景/大纲表达，无保留独立unit例外；直接BDD先过后删除重复入口。",
+    "btIds": [
+      "BT_A10"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "lose-message-detail-body"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  },
+  {
+    "file": "tests/artifact-output.test.ts",
+    "cases": [
+      "report and result detail navigation [BT_A09] does not substitute the current report when an old report is missing"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "原尾部缺任务SSR样本由不可用历史详情大纲的任务不存在行承接：显式缺失target，内容不可用，既不展示旧正文也不替换为当前任务正文。 这些具体可观察结果可直接由场景/大纲表达，无保留独立unit例外；直接BDD先过后删除重复入口。",
+    "btIds": [
+      "BT_A43"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/17_result_artifacts.feature --import 'tests/bdd/*.ts' --format progress",
+    "evidence": {
+      "report": "docs/testing/kej-100/map-evidence.json",
+      "directRuns": [
+        "artifactDirectBeforeRemoval",
+        "artifactDirectAfterRemoval"
+      ],
+      "negativeControls": [
+        "substitute-current-task-details"
+      ],
+      "finalDirectRun": "gwtFinalCombined"
+    }
+  }
+]

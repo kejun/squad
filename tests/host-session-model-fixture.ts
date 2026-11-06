@@ -20,3 +20,15 @@ export class SessionModel extends LocalModel {
   finishCurrent() { assert(this.claimCurrent().ok); assert(this.startCurrent().ok); return this.send({ type: 'LOCAL_RESULT', intentId: this.work.id, operationId: this.current.id, sessionId: this.current.sessionId, result: { ok: true, code: 'succeeded', data: {} }, settled: true, effectsKnown: true }); }
 }
 export function grantedSession() { const m = new SessionModel(); assert(m.prepare().ok); assert(m.decideCurrent().ok); assert(m.finishCurrent().ok); return m; }
+
+export function askSessionHelper(m: SessionModel) {
+  assert(m.send({ type: 'HELP', workId: m.work.id, fence: m.work, caller: 'A', requestId: 'help-B', target: 'B', question: '核查命令结果', expected: '真实回执' }).ok);
+  const helper = m.c.intents.find(work => work.kind === 'assistance')!; assert(m.send({ type: 'CLAIM', intentId: helper.id }).ok); m.work = m.c.intents.find(work => work.id === helper.id)!;
+}
+export function startSessionBackgroundHelper(m: SessionModel) {
+  assert(m.send({ type: 'USER_INPUT', text: '请 B 同时核查', reviewTargets: ['B'] }).ok);
+  const coordinator = m.c.intents.at(-1)!; assert(m.send({ type: 'CLAIM', intentId: coordinator.id }).ok);
+  assert(m.send({ type: 'DISCUSSION_PLAN', workId: coordinator.id, fence: coordinator, discussionId: coordinator.discussionId,
+    decision: { action: 'review', question: '核查工程', expected: '证据', reason: '用户邀请' } }).ok);
+  const helper = m.c.intents.find(work => work.kind === 'assistance')!; assert(m.send({ type: 'CLAIM', intentId: helper.id }).ok); m.work = m.c.intents.find(work => work.id === helper.id)!;
+}

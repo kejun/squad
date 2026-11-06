@@ -3,7 +3,6 @@ import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { detailSnapshot } from './detail-actions-fixture.js';
 import { SourceUIFixture } from './artifact-source-ui-fixture.js';
-import { canReferenceArtifact } from '../web/src/ResultLinks.js';
 
 const opened: SourceUIFixture[] = [];
 async function fixture(snapshot = detailSnapshot()) { const f = new SourceUIFixture(snapshot); opened.push(f); return f.mount(); }
@@ -53,13 +52,6 @@ describe('source artifact composer and details', () => {
     const snapshot = structuredClone(f.snapshot); snapshot.activeTaskId = 'new-task'; snapshot.tasks[1]!.phase = 'waitingHuman';
     await f.update(snapshot); await f.text('修改 旧方案.md，补充部署说明'); await f.click('发送消息');
     expect(f.posts[0]).not.toHaveProperty('intent'); expect(f.posts[0]).not.toHaveProperty('replyToTaskId');
-  });
-
-  it('[BT_A31] requires a confirmed publication list for a legacy successful artifact', () => {
-    const snapshot = detailSnapshot(), task = snapshot.tasks[0]!;
-    expect(canReferenceArtifact(task, task.artifacts[0]!)).toBe(false);
-    task.currentArtifactIds = ['report'];
-    expect(canReferenceArtifact(task, task.artifacts[0]!)).toBe(true);
   });
 
   it('[BT_A31] offers no reference action for failed or unpublished artifacts', async () => {

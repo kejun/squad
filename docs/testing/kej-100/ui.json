@@ -275,7 +275,7 @@
       "[BT_N13] observes true parent and child machine identities without starting or sending business work"
     ],
     "disposition": "migrated_to_direct_gherkin",
-    "reason": "BT_N13原直接步骤已调用同一ActorInspector.verify；补齐node:test mock对Actor.start/send的0调用约束并直接BDD通过后删除包装。父子机器真实definition/identity、parentId、settled子状态及不变快照断言原样承接，不用单纯BT关联代替实际执行。",
+    "reason": "BT_N13原直接步骤已调用同一ActorInspector.verify；补齐node:test mock对Actor.start/send的0调用约束并直接BDD通过后删除包装。父子机器真实definition/identity、parentId、settled子状态及不变快照断言原样承接，不用单纯BT关联代替实际执行。 最终两个Then读取When采集的真实registrations、before/after、errors及actor调用计数，逐项核对父子definition/parentId/settled状态与无业务执行；不以done旗标充当验收。",
     "btIds": [
       "BT_N13"
     ],
@@ -283,7 +283,8 @@
     "evidence": {
       "report": "docs/testing/kej-100/ui-evidence.json",
       "directRuns": [
-        "ui-n13-bdd"
+        "ui-n13-bdd",
+        "ui-final-n13-observed"
       ]
     }
   },
@@ -404,6 +405,29 @@
         "ui-discussion-direct"
       ],
       "negativeControl": "discussion-claim-fallback"
+    }
+  },
+  {
+    "file": "tests/artifact-source-ui.test.ts",
+    "cases": [
+      "source artifact composer and details [BT_A31] requires a confirmed publication list for a legacy successful artifact"
+    ],
+    "disposition": "migrated_to_direct_gherkin",
+    "reason": "混合文件逐case审计：原纯canReferenceArtifact两次能力投影由feature31新增BT_A48两行业务大纲直接承接。Given明确旧成功Markdown缺发布清单或确认清单含本报告，When仅打开同一报告预览，Then同时核对公开能力false/true、实际SSR引用入口不可用/可用及原报告正文保留。原A31服务端拒绝场景不能独自证明网页旧快照能力，因此补明确条件而不在Then另起轨迹。先通过两场景并在副本移除publication-list约束后确认缺清单场景失败，再删除该包装和无用import；其余8个真实DOM交互保留且全部通过。",
+    "btIds": [
+      "BT_A31",
+      "BT_A48"
+    ],
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/31_artifact_reference.feature --import tests/bdd/steps.ts --import tests/bdd/artifact-ui-contract.steps.ts --tags '@BT_A48' --format summary",
+    "evidence": {
+      "report": "docs/testing/kej-100/ui-evidence.json",
+      "directRuns": [
+        "ui-publication-direct",
+        "ui-publication-after-removal"
+      ],
+      "negativeControl": "legacy-publication-confirmation",
+      "modelGateCommand": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx --input-type=module -e \"import assert from 'node:assert/strict'; import {canReferenceArtifact} from './web/src/ResultLinks.tsx'; const task = {id:'legacy',goal:'旧任务',owner:'A',phase:'ended',outcome:'complete',reason:'',usage:{ordinary:1,checks:1},limits:{ordinary:300,checks:30},board:[],trace:[],artifacts:[{id:'report',name:'旧方案.md',content:'# 旧报告',goalVersion:1}]}; assert.equal(canReferenceArtifact(task,task.artifacts[0]),false); task.currentArtifactIds=['report']; assert.equal(canReferenceArtifact(task,task.artifacts[0]),true); console.log('PUBLICATION_API_GATE_PASSED');\"",
+      "remainingIntegration": "publicationRemainingIntegration"
     }
   }
 ]

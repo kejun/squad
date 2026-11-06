@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { describe, expect, it, vi } from 'vitest';
-import { OpenAICompatibleAdapter, resolveModel, TeamEngine, validateConfig, WorkRunner, type TeamConfig } from '../src/index.js';
+import { OpenAICompatibleAdapter, TeamEngine, WorkRunner, type TeamConfig } from '../src/index.js';
 import { configuration, Harness } from './helpers.js';
 
 function modelConfig(): TeamConfig {
@@ -28,14 +28,8 @@ function setup(config = modelConfig(), transport: typeof fetch = async () => com
 describe('third-party model configuration and transport', () => {
   it('routes member, facilitator and checking models independently', () => {
     const c = modelConfig();
-    expect(resolveModel(c, 'owner', 'A')?.serviceId).toBe('main');
-    expect(resolveModel(c, 'assistance', 'B')?.serviceId).toBe('fast');
-    expect(resolveModel(c, 'facilitator', 'facilitator')?.serviceId).toBe('fast');
-    expect(resolveModel(c, 'check', 'facilitator')?.serviceId).toBe('review');
     const h = new Harness(c); h.event({ type: 'BLOCKED', reason: 'needs coordination' });
     expect(h.engine.pending(h.room, h.task)[0]?.model?.serviceId).toBe('fast');
-    delete c.models!.check; delete c.models!.facilitator;
-    expect(resolveModel(c, 'check', 'facilitator')?.serviceId).toBe('main');
   });
 
   it('posts to the custom endpoint and keeps credentials outside snapshots', async () => {
@@ -234,15 +228,6 @@ describe('third-party model configuration and transport', () => {
     await new WorkRunner(h.engine, adapter, () => h.now, search).runOne(h.room, h.task);
     expect(searchAborted).toBe(true); expect(h.view().phase).toBe('waitingHuman');
     expect(h.context().usage.ordinary).toBe(2);
-  });
-
-  it('rejects invalid references, URLs and request overrides in configuration', () => {
-    for (const mutate of [
-      (c: TeamConfig) => { c.bots[0]!.model = 'missing'; },
-      (c: TeamConfig) => { c.models!.services.main!.baseUrl = 'https://user:password@provider.example/v1'; },
-      (c: TeamConfig) => { c.models!.services.main!.extraBody = { messages: [] }; },
-      (c: TeamConfig) => { c.models!.services.main!.maxTokens = -1; },
-    ]) { const c = modelConfig(); mutate(c); expect(() => validateConfig(c)).toThrow(); }
   });
 
   it('executes the full multi-model collaboration over real local HTTP', async () => {

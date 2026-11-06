@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  MemoryStore, OpenAICompatibleAdapter, WorkRunner, validateConfig, resolveModel,
+  MemoryStore, OpenAICompatibleAdapter, WorkRunner,
   type InputReference,
 } from '../src/index.js';
 import { createTeamConfig } from '../team.config.js';
@@ -135,11 +135,8 @@ describe('validated input interpretation', () => {
   it('[BT_I15] independently configured intent models inherit settings and isolate endpoint credentials', async () => {
     const config = createTeamConfig({ MODEL_BASE_URL: 'https://default.example/v1', MODEL_NAME: 'base', MODEL_API_KEY: 'private',
       FACILITATOR_MODEL_NAME: 'coordinator', INTENT_MODEL_NAME: 'parser', INTENT_MODEL_BASE_URL: 'https://parser.example/v1' });
-    expect(resolveModel(config, 'interpretation', 'facilitator')?.service).toMatchObject({ model: 'parser', apiKeyEnv: 'INTENT_MODEL_API_KEY' });
     const f = setup(config); f.submit(); await f.run(); expect(f.requests).toHaveLength(0); expect(f.context().reason).toContain('INTENT_MODEL_API_KEY');
     expect(JSON.stringify(f.context())).not.toContain('private');
-    const invalid = intentConfig(); invalid.models!.intent = 'unknown'; expect(() => validateConfig(invalid)).toThrow('Unknown model service');
-    expect(() => createTeamConfig({ SQUAD_INTENT_ANALYSIS_ENABLED: 'sometimes' })).toThrow();
   });
 
   it('[BT_I15] changing the interpretation switch during recovery remains paused', () => {

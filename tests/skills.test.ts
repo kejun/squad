@@ -1,22 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
-import { findSkills, WorkRunner, TeamEngine } from '../src/index.js';
+import { WorkRunner, TeamEngine } from '../src/index.js';
 import { configuration, Harness } from './helpers.js';
-import { malformedSkillResults, mixedSourceSkills, skillSearchCase } from './skill-search-fixture.js';
+import { malformedSkillResults, skillSearchCase } from './skill-search-fixture.js';
 
 const result = { id: 'owner/repo/review', name: 'review', source: 'owner/repo', installs: 1200 };
 const transport = () => vi.fn<typeof fetch>(async () => Response.json({ skills: [result] }));
 
 describe('default find skills capability', () => {
   it('[BT_M21] parses mixed repository/domain results and resumes the real model loop', async () => {
-    const skills = await findSkills('general purpose assistant skills', new AbortController().signal,
-      async () => Response.json({ skills: mixedSourceSkills }));
-    expect(skills.map(skill => skill.installs)).toEqual([71, 14]);
-    expect(skills[1]).toEqual({ id: 'skills.volces.com/gemini-assistant', source: 'skills.volces.com', name: 'gemini-assistant', installs: 14,
-      url: 'https://skills.sh/skills.volces.com/gemini-assistant' });
     const test = skillSearchCase(); await test.run();
     expect(test.searches).toBe(1); expect(test.requests).toHaveLength(2);
     const second = JSON.stringify(test.requests[1]);
-    for (const skill of skills) expect(second).toContain(skill.url);
+    expect(second).toContain('https://skills.sh/aliyun/alibabacloud-aiops-skills/alibabacloud-nas-mount-diagnosis');
+    expect(second).toContain('https://skills.sh/skills.volces.com/gemini-assistant');
     expect(test.h.context().usage.ordinary).toBe(3);
     expect(test.h.view().phase).toBe('checking');
     expect(test.h.context().intents.some(work => work.kind === 'tool')).toBe(false);
@@ -96,18 +92,6 @@ describe('default find skills capability', () => {
       await scope.findSkills('review'); return { type: 'answer', text: 'unreachable' };
     } }, () => 0, http);
     await runner.runOne(h.room, h.task);
-    expect(http).not.toHaveBeenCalled();
-  });
-
-  it('distinguishes failed searches from valid empty results', async () => {
-    const signal = new AbortController().signal;
-    await expect(findSkills('review', signal, async () => Response.json({ skills: [] }))).resolves.toEqual([]);
-    await expect(findSkills('review', signal, async () => new Response('', { status: 503 }))).rejects.toThrow('503');
-    await expect(findSkills('review', signal, async () => Response.json({ skills: [{}] }))).rejects.toThrow('Invalid skill search result');
-    const http = transport();
-    await expect(findSkills(' ', signal, http)).rejects.toThrow('requires a query');
-    const cancelled = new AbortController(); cancelled.abort();
-    await expect(findSkills('review', cancelled.signal, http)).rejects.toThrow();
     expect(http).not.toHaveBeenCalled();
   });
 });

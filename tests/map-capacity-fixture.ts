@@ -32,11 +32,12 @@ export class MapCapacityFixture extends InputIntentFixture {
   firstOverCapacity = false;
   firstCapacityOverride = false;
   readonly beforeProviderOrdinary: number[] = [];
+  readonly beforeProviderUsage: { ordinary: number; assists: number }[] = [];
   constructor(maxPartitions?: 0 | 1) {
     const config = intentConfig({ retries: 1 });
     if (maxPartitions !== undefined) config.limits.ordinary = maxPartitions + 3;
     super(config);
-    this.beforeResponse = request => { if (request.kind === 'interpretation') this.beforeProviderOrdinary.push(this.context().usage.ordinary); };
+    this.beforeResponse = request => { if (request.kind === 'interpretation') { this.beforeProviderOrdinary.push(this.context().usage.ordinary); this.beforeProviderUsage.push(structuredClone(this.context().usage)); } };
     this.response = request => this.reply(request);
   }
   reply(request: IntentRequest): Response {
@@ -150,6 +151,27 @@ function occupyMember(context: TaskContext) {
   context.intents.push({ ...structuredClone(base), id: 'busy-member-operation', kind: 'tool', target: 'B', status: 'uncertain', payload: {} });
 }
 
+export function prepareDispatchDecrease(change: string) {
+  const fixture = new MapCapacityFixture();
+  try {
+    assert(fixture.submit(documentRequest).ok); fixture.claim();
+    updateMapContext(fixture, context => {
+      if (change === '成员忙碌') occupyMember(context);
+      else if (change === '协助余额降低') context.usage.assists = context.config.limits.assists - 3;
+      else if (change === '普通余额降低') context.usage.ordinary = context.config.limits.ordinary - 5;
+      else assert.fail(`Unknown change ${change}`);
+    }); return fixture;
+  } catch (error) { fixture.close(); throw error; }
+}
+export function prepareLegacyCapacity(limited: boolean) {
+  const fixture = new MapCapacityFixture();
+  try {
+    assert(fixture.submit(documentRequest).ok); const work = fixture.claim();
+    updateMapContext(fixture, context => { delete context.intents.find(item => item.id === work.id)!.payload.maxPartitions; if (limited) context.usage.assists = context.config.limits.assists - 3; });
+    return fixture;
+  } catch (error) { fixture.close(); throw error; }
+}
+
 export function prepareCapacitySnapshot(limit: string) {
   const fixture = new MapCapacityFixture();
   try {
@@ -209,6 +231,7 @@ export async function verifyLegacyCapacityDispatch(limited = false) {
     });
     fixture.reopen();
     const work = fixture.claim();
+    assert(!Object.hasOwn(work.payload, 'maxPartitions'));
     assert.equal(fixture.result(work, groupedIntent(4)).ok, true);
     assert.equal(fixture.pending('assistance').length, limited ? 0 : 4);
     if (limited) assert.equal(fixture.pending('owner').length, 1);
@@ -228,4 +251,24 @@ export async function verifyLegacyCapacityDispatch(limited = false) {
       await fixture.finish();
     }
   } finally { fixture.close(); }
+}
+
+export function prepareLegacyPendingCapacity() {
+  const fixture = new MapCapacityFixture();
+  try {
+    assert(fixture.submit(documentRequest).ok);
+    updateMapContext(fixture, context => { delete context.intents.find(work => work.kind === 'interpretation')!.payload.maxPartitions; });
+    return fixture;
+  } catch (error) { fixture.close(); throw error; }
+}
+
+export function prepareRetriedCapacitySnapshot() {
+  const fixture = new MapCapacityFixture(); fixture.config.limits.ordinary = 6;
+  try {
+    assert(fixture.submit(documentRequest).ok); const first = fixture.claim();
+    assert.equal(first.payload.maxPartitions, 3);
+    assert(fixture.event({ type: 'CONSUME', intentId: first.id, fence: first, attempt: first.attempt }).ok);
+    assert(fixture.event({ type: 'WORK_FAILED', intentId: first.id, fence: first, attempt: first.attempt, transient: true, reason: 'temporary transport failure' }).ok);
+    return fixture;
+  } catch (error) { fixture.close(); throw error; }
 }

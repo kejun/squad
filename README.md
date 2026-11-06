@@ -18,7 +18,7 @@ npm run demo
 
 check 执行前后端、全部测试及夹具的严格 TypeScript 检查、回归测试、全部可自动验收的 Gherkin 场景，并生成 reports/spec-coverage.md。新增场景默认执行，漏绑定会失败；明确待验收项需在 features/acceptance-gaps.json 逐项登记。demo 使用受控模型替身演示 A 求助 B、保存回传、A 继续、检查交付与结束，不消耗真实模型费用。
 
-`npm run test:unit` 只运行隔离的单元测试；完整检查仍执行全部测试层次。分层、模型验证命令和随机顺序复验见 [测试说明](tests/README.md)。
+产品行为以可执行中文 Gherkin 为唯一验收契约。`npm run test:unit` 只运行符合准入的补充验证；完整检查仍执行全部适用层次。分层、独立模型验证命令和本次清理记录见 [测试说明](tests/README.md)。
 
 `npm run simulate:discussion` 批量运行后台讨论的真实 XState 转换，包括全部144种合法结果返回顺序与生命周期边界，输出逐步 JSON 轨迹和 Markdown 汇总到 `reports/`，任何断言失败都会返回非零退出码。[已运行的仿真结果与修正](docs/discussion-simulation.md)说明覆盖范围、实际轨迹和保证边界；脚本不调用真实模型或工具。
 

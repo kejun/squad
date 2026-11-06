@@ -3912,6 +3912,85 @@
           "steps": 40
         }
       ]
+    },
+    {
+      "run": "ui-final-n13-observed",
+      "exitCode": 0,
+      "sourceReport": "/workspace/work/kej-100/ui-final-n13-observed.json",
+      "scenarios": 1,
+      "steps": 41,
+      "results": [
+        {
+          "feature": "features/26_task_model_refactor.feature",
+          "name": "调试观察可区分任务和执行 actor",
+          "line": 158,
+          "btIds": [
+            "BT_N13"
+          ],
+          "status": "passed",
+          "steps": 41
+        }
+      ]
+    },
+    {
+      "run": "ui-publication-direct",
+      "exitCode": 0,
+      "sourceReport": "/workspace/work/kej-100/ui-publication-direct.json",
+      "scenarios": 2,
+      "steps": 8,
+      "results": [
+        {
+          "feature": "features/31_artifact_reference.feature",
+          "name": "旧成功任务只有确认发布的Markdown才提供引用入口",
+          "line": 203,
+          "btIds": [
+            "BT_A48"
+          ],
+          "status": "passed",
+          "steps": 4
+        },
+        {
+          "feature": "features/31_artifact_reference.feature",
+          "name": "旧成功任务只有确认发布的Markdown才提供引用入口",
+          "line": 204,
+          "btIds": [
+            "BT_A48"
+          ],
+          "status": "passed",
+          "steps": 4
+        }
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/31_artifact_reference.feature --import tests/bdd/steps.ts --import tests/bdd/artifact-ui-contract.steps.ts --tags '@BT_A48' --format summary"
+    },
+    {
+      "run": "ui-publication-after-removal",
+      "exitCode": 0,
+      "sourceReport": "/workspace/work/kej-100/ui-publication-after-removal.json",
+      "scenarios": 2,
+      "steps": 8,
+      "results": [
+        {
+          "feature": "features/31_artifact_reference.feature",
+          "name": "旧成功任务只有确认发布的Markdown才提供引用入口",
+          "line": 203,
+          "btIds": [
+            "BT_A48"
+          ],
+          "status": "passed",
+          "steps": 4
+        },
+        {
+          "feature": "features/31_artifact_reference.feature",
+          "name": "旧成功任务只有确认发布的Markdown才提供引用入口",
+          "line": 204,
+          "btIds": [
+            "BT_A48"
+          ],
+          "status": "passed",
+          "steps": 4
+        }
+      ],
+      "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/31_artifact_reference.feature --import tests/bdd/steps.ts --import tests/bdd/artifact-ui-contract.steps.ts --tags '@BT_A48' --format summary"
     }
   ],
   "negativeControls": [
@@ -4088,6 +4167,30 @@
         }
       ],
       "method": "仓库外复制副本把stateTransitions省略global fallback；仅副本修改生产文件，BT_V15直接BDD失败，副本随后删除，主产品无diff。"
+    },
+    {
+      "mutation": "legacy-publication-confirmation",
+      "isolatedFile": "web/src/ResultLinks.tsx",
+      "change": {
+        "from": "&& !!task.currentArtifactIds?.includes(artifact.id)",
+        "to": ""
+      },
+      "tags": "@BT_A48",
+      "exitCode": 1,
+      "failedScenarios": [
+        "旧成功任务只有确认发布的Markdown才提供引用入口"
+      ],
+      "fullReport": "/workspace/work/kej-100/legacy-publication-confirmation.json",
+      "log": "/workspace/work/kej-100/legacy-publication-confirmation.log",
+      "originalRepositoryChanged": false,
+      "failures": [
+        {
+          "scenario": "旧成功任务只有确认发布的Markdown才提供引用入口",
+          "step": "这份报告的引用到新任务能力应为\"不可用\"",
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\ntrue !== false\n\n    + expected - actual\n\n    -true\n    +false\n\n    at SpecWorld.<anonymous> (/workspace/work/kej-100/ui-publication-negative-worktree/tests/bdd/artifact-ui-contract.steps.ts:101:10)"
+        }
+      ],
+      "method": "仓库外复制src/web/tests/features/scripts及配置，只副本移除currentArtifactIds确认约束；相同A48直接BDD检出缺清单被错误允许。副本已删除，主工作区src/web未改。"
     }
   ],
   "pureModelGate": {
@@ -4102,5 +4205,20 @@
     "files": 3,
     "cases": 17,
     "scope": "实际SDK、HTTP/SQLite、事务观察及DOM交互接线；纯graph/SSR/模板/merge包装已迁出。"
+  },
+  "publicationApiGate": {
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node --import tsx --input-type=module -e \"import assert from 'node:assert/strict'; import {canReferenceArtifact} from './web/src/ResultLinks.tsx'; const task = {id:'legacy',goal:'旧任务',owner:'A',phase:'ended',outcome:'complete',reason:'',usage:{ordinary:1,checks:1},limits:{ordinary:300,checks:30},board:[],trace:[],artifacts:[{id:'report',name:'旧方案.md',content:'# 旧报告',goalVersion:1}]}; assert.equal(canReferenceArtifact(task,task.artifacts[0]),false); task.currentArtifactIds=['report']; assert.equal(canReferenceArtifact(task,task.artifacts[0]),true); console.log('PUBLICATION_API_GATE_PASSED');\"",
+    "exitCode": 0,
+    "output": "PUBLICATION_API_GATE_PASSED",
+    "scope": "公开canReferenceArtifact的纯能力投影，显式断言同一旧成功Markdown缺发布清单为false、确认清单包含报告后为true；不调用DOM、数据库、网络或文件系统。"
+  },
+  "publicationRemainingIntegration": {
+    "command": "MODEL_BASE_URL=https://example.test/v1 MODEL_NAME=fixture node node_modules/vitest/vitest.mjs run tests/artifact-source-ui.test.ts --maxWorkers=1",
+    "exitCode": 0,
+    "tests": 8,
+    "passed": 8,
+    "failed": 0,
+    "sourceReport": "/workspace/work/kej-100/ui-publication-remaining.json",
+    "scope": "保留8个真实DOM交互与网页请求接线用例，仅删除本次纯能力投影单测。"
   }
 }

@@ -3,7 +3,7 @@
 | 层次 | 范围 | 命令 |
 | --- | --- | --- |
 | 补充单元验证 | 仅限通过根目录 `AGENTS.md`「准入与评审记录」的验证形态；公开 API、纯函数或隔离渲染本身不构成准入理由。 | `npm run test:unit` |
-| 扩展模型验证 | `task-actors.test.ts`、`task-model-refactor.test.ts`、`discussion-debug.test.ts`、`discussion-simulation.test.ts`、`panel-layout-simulation.test.ts`：原生 actor 与旧快照契约、有限轨迹回放或枚举；旧契约读取固定 JSON 夹具，仿真不调用真实适配器。 | `node node_modules/vitest/vitest.mjs run tests/task-actors.test.ts tests/task-model-refactor.test.ts tests/discussion-debug.test.ts tests/discussion-simulation.test.ts tests/panel-layout-simulation.test.ts --maxWorkers=1` |
+| 扩展模型验证 | `discussion-simulation.test.ts` 和 `panel-layout-simulation.test.ts`：完整讨论返回顺序与生命周期矩阵、90 次连续拖拽转换；不同于代表性业务样本，保留有界枚举的独立验证形态。actor、旧快照和诊断的重复 Vitest 包装已由直接场景承接，原夹具及独立模型门槛保留。 | `node node_modules/vitest/vitest.mjs run tests/discussion-simulation.test.ts tests/panel-layout-simulation.test.ts --maxWorkers=1`；其他模型命令见下文审计链接 |
 | 集成、组件接线与专门检查 | 其余 `*.test.ts`：Engine/Store/Runner 协作、受控模型适配器、SQLite、真实 HTTP/文件系统/进程、DOM 接线、样式和验收门禁。不得仅因为较慢而删除。 | 包含在 `npm test` 中 |
 | Gherkin 验收 | 所有未登记验收缺口的 `.feature` 展开用例，自动发现并执行；部分真实接线流程只保留此处的入口，避免在完整验证中重复执行同一验收函数和输入。 | `npm run test:bdd` |
 | 完整检查 | 类型检查、全部 Vitest、全部可执行 Gherkin 和覆盖报告；单元测试筛选不会影响此入口。 | `npm run check` |
