@@ -1,0 +1,4364 @@
+[
+  {
+    "file": "tests/artifact-output.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "durable result artifacts and concise messages [BT_A01] keeps full candidate and real reports available to the checking model",
+        "status": "passed"
+      },
+      {
+        "name": "durable result artifacts and concise messages [BT_A02] gives the original owner the complete helper answer and report",
+        "status": "passed"
+      },
+      {
+        "name": "durable result artifacts and concise messages [BT_A03] memory rolls the report and candidate back together on failed commit",
+        "status": "passed"
+      },
+      {
+        "name": "durable result artifacts and concise messages [BT_A03] sqlite rolls the report and candidate back together on failed commit",
+        "status": "passed"
+      },
+      {
+        "name": "durable result artifacts and concise messages [BT_A04] deduplicates a re-delivered report without creating another check",
+        "status": "passed"
+      },
+      {
+        "name": "durable result artifacts and concise messages [BT_A05] does not create a report from a stop invalidated worker",
+        "status": "passed"
+      },
+      {
+        "name": "durable result artifacts and concise messages [BT_A05] does not create a report from a newGoal invalidated worker",
+        "status": "passed"
+      },
+      {
+        "name": "durable result artifacts and concise messages [BT_A06] reopens SQLite and resumes one owner using the same saved helper report",
+        "status": "passed"
+      },
+      {
+        "name": "durable result artifacts and concise messages [BT_A07] leaves short direct replies as direct messages",
+        "status": "passed"
+      },
+      {
+        "name": "durable result artifacts and concise messages [BT_A08] preserves an old-protocol long reply as an actual report",
+        "status": "passed"
+      },
+      {
+        "name": "durable result artifacts and concise messages [BT_A08] also recognizes a short document with many real line breaks",
+        "status": "passed"
+      },
+      {
+        "name": "durable result artifacts and concise messages [BT_A01] rejects empty artifact drafts before persisting a candidate",
+        "status": "passed"
+      },
+      {
+        "name": "durable result artifacts and concise messages [BT_A11] accepts report drafts through the real model adapter and does not add another model request",
+        "status": "passed"
+      },
+      {
+        "name": "durable result artifacts and concise messages [BT_A02] carries earlier report bodies to later reviewers instead of only their summaries",
+        "status": "passed"
+      },
+      {
+        "name": "durable result artifacts and concise messages [BT_A08] counts retained full detail text against the bounded historical context",
+        "status": "passed"
+      },
+      {
+        "name": "report and result detail navigation [BT_A09] previews the historical task report instead of the active task report",
+        "status": "passed"
+      },
+      {
+        "name": "report and result detail navigation [BT_A10] shows full detail text, sources and the matching observable tool record",
+        "status": "passed"
+      },
+      {
+        "name": "report and result detail navigation [BT_A09] does not substitute the current report when an old report is missing",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/artifact-read-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "historical artifacts in the durable local operation model [BT_A26] lets the owner read a saved report using one ordinary request",
+        "status": "passed"
+      },
+      {
+        "name": "historical artifacts in the durable local operation model [BT_A26] denies a foreign artifact without consuming an ordinary request",
+        "status": "passed"
+      },
+      {
+        "name": "historical artifacts in the durable local operation model [BT_A26] rejects a local artifact read under the independent check",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/artifact-reference-http.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "artifact reference HTTP boundary [BT_A29] validates source identity and returns source metadata without duplicating its body",
+        "status": "passed"
+      },
+      {
+        "name": "artifact reference HTTP boundary [BT_A30] returns only same-room candidate metadata in a structured conflict response",
+        "status": "passed"
+      },
+      {
+        "name": "artifact reference HTTP boundary [BT_A31] rejects malformed source payloads { sourceTaskId: 'task:source', artifactId: 'source:document', content: '伪造正文' }",
+        "status": "passed"
+      },
+      {
+        "name": "artifact reference HTTP boundary [BT_A31] rejects malformed source payloads { sourceTaskId: 'task:source' }",
+        "status": "passed"
+      },
+      {
+        "name": "artifact reference HTTP boundary [BT_A31] rejects malformed source payloads { sourceTaskId: '', artifactId: 'source:document' }",
+        "status": "passed"
+      },
+      {
+        "name": "artifact reference HTTP boundary [BT_A31] rejects malformed source payloads { sourceTaskId: 'task:source', artifactId: 1 }",
+        "status": "passed"
+      },
+      {
+        "name": "artifact reference HTTP boundary [BT_A33] rejects control fields instead of silently discarding them",
+        "status": "passed"
+      },
+      {
+        "name": "artifact reference HTTP boundary [BT_A36] returns one task and the original receipt for concurrent identical HTTP requests",
+        "status": "passed"
+      },
+      {
+        "name": "artifact reference HTTP boundary [BT_A36] creates at most one revision for concurrent distinct HTTP request identities",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/artifact-reference.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "fixed published artifact references creates a separate task with the exact original while preserving the source task",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references uses an explicit current member instead of the original owner",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references does not choose a replacement when the source owner was removed",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references requests a same-room choice before creating or modifying any task",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects a revision while the room is running without altering that task",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects a revision while the room is waitingHuman without altering that task",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references does not append a direct revision to waitingHuman through an automatic decision marker",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects a structured source combined with control fields: { intent: 'continue' }",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects a structured source combined with control fields: { intent: 'decision' }",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects a structured source combined with control fields: { intent: 'supplement' }",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects a structured source combined with control fields: { intent: 'retry' }",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects a structured source combined with control fields: { replyToTaskId: 'task:source' }",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects a structured source combined with control fields: { retryAssistanceId: 'help' }",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects a structured source combined with control fields: { extraOrdinary: 2 }",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects a structured source combined with control fields: { text: '停止' }",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects a structured source combined with control fields: { text: '继续' }",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references keeps a missing ordinary filename on the normal task path",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects missing or cross-room explicit sources: { text: '修改产物 missing.md，补充说明' }",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects missing or cross-room explicit sources: { sourceArtifact: { sourceTaskId: 'missing', artifactId: 'missing' } }",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects missing or cross-room explicit sources: { sourceArtifact: { sourceTaskId: 'task:private', artifactId: 'private:document' } }",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rejects drafts and failed tasks even when the exact source IDs are known",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references reports oversized UTF-8 input rather than treating it as a workspace file",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references replays the original receipt and rejects changed reference payloads",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rolls back all new task data and receipt in memory after commit failure",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references rolls back all new task data and receipt in sqlite after commit failure",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references retains the fixed input across SQLite reopen and recovery",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references [BT_A34] retains a source beyond the history window",
+        "status": "passed"
+      },
+      {
+        "name": "fixed published artifact references [BT_A39] supports legacy publication and a direct revision chain",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/artifact-source-ui.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "source artifact composer and details [BT_A38] copies only a removable exact reference from the published preview into a new request",
+        "status": "passed"
+      },
+      {
+        "name": "source artifact composer and details [BT_A38] preserves input and the selected reference on busy rejection, then sends a new request ID",
+        "status": "passed"
+      },
+      {
+        "name": "source artifact composer and details [BT_A38] reuses the full request after an uncertain network failure and changes ID after removing the source",
+        "status": "passed"
+      },
+      {
+        "name": "source artifact composer and details [BT_A33] never attaches an automatic human decision to a selected artifact revision",
+        "status": "passed"
+      },
+      {
+        "name": "source artifact composer and details [BT_A33] keeps a direct artifact command separate from an automatic waiting-human decision",
+        "status": "passed"
+      },
+      {
+        "name": "source artifact composer and details [BT_A31] requires a confirmed publication list for a legacy successful artifact",
+        "status": "passed"
+      },
+      {
+        "name": "source artifact composer and details [BT_A31] offers no reference action for failed or unpublished artifacts",
+        "status": "passed"
+      },
+      {
+        "name": "source artifact composer and details [BT_A30] shows metadata-only ambiguous choices and uses a fresh exact reference after selection",
+        "status": "passed"
+      },
+      {
+        "name": "source artifact composer and details [BT_A29] opens the exact source from both task details and the revised artifact preview",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/artifact-ui.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "artifact and message details [BT_A09] exposes only report references that exist inside the same task",
+        "status": "passed"
+      },
+      {
+        "name": "artifact and message details [BT_A09] never falls back to the latest task for unavailable historical content",
+        "status": "passed"
+      },
+      {
+        "name": "artifact and message details [BT_A08] keeps legacy long replies reachable while short replies need no empty details",
+        "status": "passed"
+      },
+      {
+        "name": "artifact and message details [BT_A02] attributes a helper report to its author instead of the task owner",
+        "status": "passed"
+      },
+      {
+        "name": "artifact and message details [BT_A10] renders report Markdown and links safely without executing embedded HTML",
+        "status": "passed"
+      },
+      {
+        "name": "artifact and message details [BT_A10] preserves HTML and other code artifacts as literal source text",
+        "status": "passed"
+      },
+      {
+        "name": "artifact and message details [BT_A01] keeps partial delivery visible without marking it as a completed success",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/background-discussion-web.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "background discussion through the real HTTP host [BT_T12] [BT_T08] actually runs idle members before the held owner request returns: owner-first",
+        "status": "passed"
+      },
+      {
+        "name": "background discussion through the real HTTP host [BT_T12] [BT_T08] actually runs idle members before the held owner request returns: stop",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/background-discussion.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "bounded background discussion [BT_T01] immediately coordinates while A remains inflight: 所有人都参与讨论一下",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T01] immediately coordinates while A remains inflight: 大家都提提意见",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T01] immediately coordinates while A remains inflight: 请大家一起讨论这个方案",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T01] immediately coordinates while A remains inflight: everyone discuss this",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T02] skips a busy helper and permits different idle members to be claimed concurrently",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T02] refuses a primary helper claim when the same member is already discussing",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T03] [BT_T04] joins both arrival orders once: owner-first",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T03] [BT_T04] joins both arrival orders once: discussion-first",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T05] continues with truthful partial results after 成员 失败",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T05] continues with truthful partial results after 成员 超时",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T05] continues with truthful partial results after 安排 失败",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T05] continues with truthful partial results after 汇总 失败",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T06] retains summary and owner capacity at ordinary limit 2",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T06] retains summary and owner capacity at ordinary limit 4",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T06] retains summary and owner capacity at ordinary limit 5",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T06] retains summary and owner capacity at ordinary limit 6",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T07] coalesces invitations and rejects repeated results without duplicating handoff",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T08] [BT_T09] isolates old work after stop",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T08] [BT_T09] isolates old work after goal",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T10] commits a member opinion once across SQLite restart and two recoveries",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T11] does not authorize quoted or negative invitations: > 所有人都参与讨论一下",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T11] does not authorize quoted or negative invitations: ```\n所有人都参与讨论一下\n```",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T11] does not authorize quoted or negative invitations: 大家不要参与讨论",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T11] does not authorize quoted or negative invitations: everyone do not discuss this",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T13] reports no idle member while an older cancelled round is still settling",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T14] pauses and cancels the discussion if a member was removed on recovery",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T12] uses member models and the coordinator summary protocol through controlled HTTP transport",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T05] settles invalid facilitator output without stranding the discussion",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T05] settles invalid assistance output without stranding the discussion",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T05] settles invalid discussionSummary output without stranding the discussion",
+        "status": "passed"
+      },
+      {
+        "name": "bounded background discussion [BT_T15] gives a blocked owner the discussion rather than scheduling a competing supervisor",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/check-runner.test.js",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "check runner process integration allows a progressing process to outlast the inactivity deadline",
+        "status": "passed"
+      },
+      {
+        "name": "check runner process integration enforces the hard deadline even while a process keeps logging",
+        "status": "passed"
+      },
+      {
+        "name": "check runner process integration cleans owned descendants after normal completion",
+        "status": "passed"
+      },
+      {
+        "name": "check runner process integration preserves a failing process exit status",
+        "status": "passed"
+      },
+      {
+        "name": "check runner process integration terminates an unresponsive process even if it ignores SIGTERM",
+        "status": "passed"
+      },
+      {
+        "name": "check runner process integration terminates descendants holding output pipes after their parent exits",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/control-and-delivery.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "human control and current-version fences [BT_C01] records a supplement before applying it at a safe boundary",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences [BT_C02] changing constraints invalidates old help and preserves old artifacts",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences [BT_C03] a supplement keeps artifacts and does not count as replanning",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences [BT_C04] stops from owner without dispatching new work",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences [BT_C04] stops from assistance without dispatching new work",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences [BT_C04] stops from facilitator without dispatching new work",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences [BT_C04] stops from check without dispatching new work",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences [BT_C05] remains stopping while an uncancellable request is in flight",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences [BT_C06] late E1 output cannot revive E2",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences [BT_C07][BT_C08] resume preserves usage and requires explicit extra quota",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences [BT_C09] a passed check for an old goal cannot publish success",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences [BT_C10] delivered work does not continue while awaiting adoption",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences [BT_C11] a stale dispatch claim is rejected at commit",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences [BT_C11] completion after stop settles physical work without publishing",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences late BLOCKED retires only its own old operation and unblocks new input",
+        "status": "passed"
+      },
+      {
+        "name": "human control and current-version fences late WORK_FAILED retires only its own old operation and unblocks new input",
+        "status": "passed"
+      },
+      {
+        "name": "budget and delivery [BT_F01] owner, helper and facilitator share the ordinary budget",
+        "status": "passed"
+      },
+      {
+        "name": "budget and delivery [BT_F02] assistance and replan limits are enforced",
+        "status": "passed"
+      },
+      {
+        "name": "budget and delivery [BT_F03] reserved check capacity cannot be spent on ordinary work",
+        "status": "passed"
+      },
+      {
+        "name": "budget and delivery [BT_F04] exhausted checking quota terminates without another explanation model",
+        "status": "passed"
+      },
+      {
+        "name": "budget and delivery [BT_F05] missing and infinite limits are invalid",
+        "status": "passed"
+      },
+      {
+        "name": "budget and delivery [BT_F07] text claiming files exist cannot satisfy missing artifacts",
+        "status": "passed"
+      },
+      {
+        "name": "budget and delivery [BT_F08] a semantic gap triggers bounded correction",
+        "status": "passed"
+      },
+      {
+        "name": "budget and delivery [BT_F09] an unsettled helper cannot be bypassed by a delivery",
+        "status": "passed"
+      },
+      {
+        "name": "budget and delivery [BT_F10] marks partial and failed results truthfully",
+        "status": "passed"
+      },
+      {
+        "name": "budget and delivery an invalid coordination judgment waits safely",
+        "status": "passed"
+      },
+      {
+        "name": "configuration and driver [BT_U05] new configuration enables a new member without changing history",
+        "status": "passed"
+      },
+      {
+        "name": "configuration and driver [BT_U06] incompatible versions block restoration",
+        "status": "passed"
+      },
+      {
+        "name": "configuration and driver [BT_U07] removed permissions cannot be supplied by an old snapshot",
+        "status": "passed"
+      },
+      {
+        "name": "configuration and driver [BT_U08] old identities survive configuration removal",
+        "status": "passed"
+      },
+      {
+        "name": "configuration and driver [BT_E01] runs the full collaboration using a real XState-backed driver",
+        "status": "passed"
+      },
+      {
+        "name": "configuration and driver invalid worker output cannot strand an unconsumed helper",
+        "status": "passed"
+      },
+      {
+        "name": "configuration and driver a human adoption after delivery records a decision without restarting work",
+        "status": "passed"
+      },
+      {
+        "name": "configuration and driver [BT_F11] malformed criteria cannot turn a failed judgment into success",
+        "status": "passed"
+      },
+      {
+        "name": "configuration and driver malformed decision values are rejected without crashing storage",
+        "status": "passed"
+      },
+      {
+        "name": "configuration and driver [BT_F01] nested provider requests must use the same persistent budget",
+        "status": "passed"
+      },
+      {
+        "name": "configuration and driver [BT_U07] a queued helper loses revoked tools before dispatch",
+        "status": "passed"
+      },
+      {
+        "name": "configuration and driver a persistent stop aborts the active adapter and waits for acknowledgement",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/conversation-review.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "same-room conversational context [BT_G01] carries the previous delivery into a new task without reviving it or duplicating public messages",
+        "status": "passed"
+      },
+      {
+        "name": "same-room conversational context [BT_G02] hydrates a legacy waiting task when the user asks the team to review the previous plan",
+        "status": "passed"
+      },
+      {
+        "name": "same-room conversational context also gives ordinary helpers the proposal and source-task references",
+        "status": "passed"
+      },
+      {
+        "name": "same-room conversational context [BT_G03] bounds historical input and labels omitted material",
+        "status": "passed"
+      },
+      {
+        "name": "same-room conversational context [BT_G03] cannot count a historical artifact as a current-goal delivery",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_G04] collects every other member sequentially, then runs one owner synthesis and one check",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_G05] keeps an explicit single-member review bounded to that selected member",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_G06] does not infer authority from negation, quoted requests, code or Bot messages",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review reserves synthesis capacity and reports partial completion at the ordinary limit",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review reserves synthesis capacity and reports partial completion at the assists limit",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_G09] continues collecting opinions after a reviewer fails and labels the final result partial",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_F12] protects synthesis capacity from a reviewer's additional model request before external I/O",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_F12] protects synthesis capacity from a reviewer's additional skill request before external I/O",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_F12] keeps the final ordinary request for synthesis instead of retrying a reviewer",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_F13] allows an extra reviewer request when synthesis still has its own unit",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_F12] settles a recovered reviewer that cannot be reclaimed without spending synthesis capacity",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_G07] waits for genuinely missing material without repeatedly calling the facilitator",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_G08] rejects a facilitator attempt to skip the required review",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_G10] stops an inflight review and only restarts the queue on an explicit new epoch",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_G11] applies new user input at the next safe boundary before dispatching further reviewers",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_G12] recovers a persisted helper result exactly once and resumes the remaining queue",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_G13] does not accept a review result prepared before a changed hard constraint",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review [BT_G14] blocks recovery when a required but not-yet-dispatched reviewer was removed",
+        "status": "passed"
+      },
+      {
+        "name": "bounded group review passes plan history to review roles and sends the fixed synthesis to the check",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/conversation-source.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "fixed source history material [BT_A34] passes a legacy long answer once through the fixed source while retaining the original message",
+        "status": "passed"
+      },
+      {
+        "name": "fixed source history material [BT_A34] replaces a legacy full-text message with a data note only in the new history",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/coordination-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M24] saves the actual owner after handoff while the default member and coordinator identity stay distinct",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M23] also pins the owner on the independent discussion facilitator without changing the main work",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M28] fills an old pending coordinator owner as part of the real claim snapshot",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M28] fills an old coordinator after safe recovery and reclaims without resetting the owner identity",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M28] preserves an existing owner value instead of silently replacing persisted work metadata",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M26] persists the self-dependency explanation and notice after a later accepted command replaces the reply",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M26] explains an invalid current decision without removing its domain rejection code",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M27] rejects {\"action\":\"assist\",\"target\":\"A\",\"question\":\"核查资料\",\"expected\":\"明确来源\",\"reason\":\"需要帮助\"} outside coordination without overwriting the actual human question",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M27] rejects {\"action\":\"unsupported\",\"reason\":\"非法决策\"} outside coordination without overwriting the actual human question",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M26] explains a malformed current decision only on the coordinating fallback",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M27] keeps the actual human question when a stale coordinator returns a malformed decision",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M23] authorizes invalid-decision repair and one additional request before applying a valid continue decision",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M25] saves an actionable coordinator failure when repair hits {\"retries\":0}",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M25] saves an actionable coordinator failure when repair hits {\"ordinary\":1}",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M23] blocks an additional request after stop even if a repair was saved before it",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M23] blocks repair under an old target version after a direct user decision",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M23] blocks repair at the original deadline without reserving another request",
+        "status": "passed"
+      },
+      {
+        "name": "coordination identity, repair and durable waiting reasons in the real XState model [BT_M23] keeps background discussion failure in its own lane without requesting a main-task retry",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/coordination-regeneration.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "coordination decision regeneration through the real execution engine [BT_M23] repairs invalid assist target A/A into continue/无 before application",
+        "status": "passed"
+      },
+      {
+        "name": "coordination decision regeneration through the real execution engine [BT_M23] repairs invalid assist target B/B into continue/无 before application",
+        "status": "passed"
+      },
+      {
+        "name": "coordination decision regeneration through the real execution engine [BT_M23] repairs invalid assist target B/B into assist/A before application",
+        "status": "passed"
+      },
+      {
+        "name": "coordination decision regeneration through the real execution engine [BT_M23] repairs invalid assist target A/不存在的成员 into assist/B before application",
+        "status": "passed"
+      },
+      {
+        "name": "coordination decision regeneration through the real execution engine [BT_M24] allows the original default member to assist after ownership moved to B",
+        "status": "passed"
+      },
+      {
+        "name": "coordination decision regeneration through the real execution engine [BT_M25] explains a blocked correction without requesting beyond 重试额度",
+        "status": "passed"
+      },
+      {
+        "name": "coordination decision regeneration through the real execution engine [BT_M25] explains a blocked correction without requesting beyond 普通额度",
+        "status": "passed"
+      },
+      {
+        "name": "coordination decision regeneration through the real execution engine [BT_M26] persists a rejected current self-assist reason after a subsequent successful activity receipt",
+        "status": "passed"
+      },
+      {
+        "name": "coordination decision regeneration through the real execution engine [BT_M27] preserves a real human question when a self-assist decision is 非协调状态",
+        "status": "passed"
+      },
+      {
+        "name": "coordination decision regeneration through the real execution engine [BT_M27] preserves a real human question when a self-assist decision is 旧目标版本",
+        "status": "passed"
+      },
+      {
+        "name": "coordination decision regeneration through the real execution engine [BT_M28] commits the current owner while claiming an old 待领取 coordination intent",
+        "status": "passed"
+      },
+      {
+        "name": "coordination decision regeneration through the real execution engine [BT_M28] commits the current owner while claiming an old 重启恢复 coordination intent",
+        "status": "passed"
+      },
+      {
+        "name": "coordination decision regeneration through the real execution engine [BT_M29] projects a helpful coordination failure message and saved repairs through WebService",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/core.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "routing and ownership [BT_R01][BT_R02] directly routes explicit and default requests",
+        "status": "passed"
+      },
+      {
+        "name": "routing and ownership [BT_R03][BT_R04] keeps one owner for a multi-mention request without approval",
+        "status": "passed"
+      },
+      {
+        "name": "routing and ownership [BT_R05] waits for missing essential information",
+        "status": "passed"
+      },
+      {
+        "name": "routing and ownership [BT_R06][BT_R13] refuses a second independent task in an occupied room",
+        "status": "passed"
+      },
+      {
+        "name": "routing and ownership [BT_R07] associates supplements with their explicit task",
+        "status": "passed"
+      },
+      {
+        "name": "routing and ownership [BT_R08] reference text with a mention cannot dispatch a member",
+        "status": "passed"
+      },
+      {
+        "name": "routing and ownership [BT_R09] helper replies never transfer task ownership",
+        "status": "passed"
+      },
+      {
+        "name": "routing and ownership [BT_R10] referring to an ended task is not implicit continuation",
+        "status": "passed"
+      },
+      {
+        "name": "routing and ownership [BT_R11] contexts from other rooms do not leak into owner input",
+        "status": "passed"
+      },
+      {
+        "name": "routing and ownership [BT_R12] explicitly hands off the existing task with its records",
+        "status": "passed"
+      },
+      {
+        "name": "bounded assistance [BT_H01][BT_H02] directly dispatches a visible request and suspends owner work",
+        "status": "passed"
+      },
+      {
+        "name": "bounded assistance [BT_H03] returns helper evidence to the same task for assessment",
+        "status": "passed"
+      },
+      {
+        "name": "bounded assistance [BT_H04] settles a partial helper result",
+        "status": "passed"
+      },
+      {
+        "name": "bounded assistance [BT_H04] settles a failed helper result",
+        "status": "passed"
+      },
+      {
+        "name": "bounded assistance [BT_H04] settles a timeout helper result",
+        "status": "passed"
+      },
+      {
+        "name": "bounded assistance [BT_H05] rejects UNKNOWN_BOT without creating a wait",
+        "status": "passed"
+      },
+      {
+        "name": "bounded assistance [BT_H05] rejects SELF_DEPENDENCY without creating a wait",
+        "status": "passed"
+      },
+      {
+        "name": "bounded assistance [BT_H05] rejects INCOMPLETE_HELP without creating a wait",
+        "status": "passed"
+      },
+      {
+        "name": "bounded assistance [BT_H06] prevents nested requests from helpers",
+        "status": "passed"
+      },
+      {
+        "name": "bounded assistance [BT_H07] does not launch another helper while one is unsettled",
+        "status": "passed"
+      },
+      {
+        "name": "bounded assistance [BT_H08] system-arranged help has truthful authorship",
+        "status": "passed"
+      },
+      {
+        "name": "bounded assistance [BT_H09] failed commit exposes neither successful request nor dispatch",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_O01] checks unreported lack of progress",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_O02] records an actionable help decision and reason",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_O03] human waits and healthy long tools do not trigger semantic polling",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_O04] activity text does not move the progress deadline",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_O05] repeated Chinese errors are retained and trigger a check",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_O06] duplicate supervision events do not invoke another check",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_O07] stale coordination cannot change state: {\"epoch\":0,\"goalVersion\":1}",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_O07] stale coordination cannot change state: {\"epoch\":1,\"goalVersion\":0}",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_O08] replanning retains sources, dead ends and existing artifacts",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_O09] a human decision suspends work without repeated questions",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_O10] a facilitator fault without retry quota waits safely",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_O11] defers coordination until the tool boundary",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_B01][BT_B02] stores sources and keeps hypotheses unverified",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_B03] CAS rejects stale edits and retains previous revisions",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_B04] different conclusions are separate sourced records",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_B05][BT_B09] protects human records from bot overwrites",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_B06] view derives progress from the machine state",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_B07] helper input contains relevant records and explicit refs",
+        "status": "passed"
+      },
+      {
+        "name": "supervision and shared record [BT_B08] records a user decision without a second approval",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/delivery-acceptance-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "bounded delivery acceptance model [BT_I04] fixes approved historical material and verifies its exact quote through recheck",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_I04] settles without a check when an approved historical reference can no longer be read",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_F14] retains direct requirements omitted by a validated input interpretation",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_F15] publishes the candidate after one independent all-pass request",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_F15] keeps the current check alive when a result has no attempt identity",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_M12] settles a claimed check without a model receipt as incomplete",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_F14] lets a missing artifact consume the only automatic correction opportunity",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_F14] settles missing artifacts without spending a correction when there is no check budget",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_F15] treats a missing criterion as a check failure, without scheduling author work",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_F15] treats a quotation attributed to the wrong source as a technical failure",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_F15] settles an unverified finding without automatically rewriting the candidate",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_F16] rechecks earlier passing requirements and settles a new regression after the only correction",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_F16] preserves an accepted user supplement before releasing the checked candidate",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_F16] retains the finding when the remaining check budget cannot reserve a review",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_M12] shares one technical retry across the first check, repair, and review",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_M12] makes an authorized request survive recovery without restoring the technical retry",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_F16] spends no third ordinary check when trusted supplements interrupt two checked candidates",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_M12] rejects a repeated invalid check result without settling the retry permit",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_M12] rejects a repeated transient failure without settling the retry permit",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_F16] applies a trusted supplement after restart even when the interrupted check has no retry left",
+        "status": "passed"
+      },
+      {
+        "name": "bounded delivery acceptance model [BT_F10] rejects a result arriving after the user stopped the task",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/delivery-check-adapter.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "one-request delivery check adapter sends the complete fixed input in one request and returns only the criterion results",
+        "status": "passed"
+      },
+      {
+        "name": "one-request delivery check adapter reports 'omitted criterion' as a technical failure without calling tools or repairing inline",
+        "status": "passed"
+      },
+      {
+        "name": "one-request delivery check adapter reports 'redundant overall verdict' as a technical failure without calling tools or repairing inline",
+        "status": "passed"
+      },
+      {
+        "name": "one-request delivery check adapter reports 'wrong receipt quote' as a technical failure without calling tools or repairing inline",
+        "status": "passed"
+      },
+      {
+        "name": "one-request delivery check adapter reports 'tool action' as a technical failure without calling tools or repairing inline",
+        "status": "passed"
+      },
+      {
+        "name": "one-request delivery check adapter preserves a negative result when its exact quote is present in the named receipt",
+        "status": "passed"
+      },
+      {
+        "name": "one-request delivery check adapter returns an explicit permanent capacity error without sending oversized material",
+        "status": "passed"
+      },
+      {
+        "name": "one-request delivery check adapter maps a provider capacity rejection to an unchecked scope without storing its message",
+        "status": "passed"
+      },
+      {
+        "name": "one-request delivery check adapter disables provider-side retrieval, context compression and fallbacks for an OpenRouter check",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/delivery-version-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "candidate versions in taskMachine keeps the original published result and message until a checked replacement publishes",
+        "status": "passed"
+      },
+      {
+        "name": "candidate versions in taskMachine publishes two independent same-name documents",
+        "status": "passed"
+      },
+      {
+        "name": "candidate versions in taskMachine preserves the candidate on a stale revision and refuses an earlier check",
+        "status": "passed"
+      },
+      {
+        "name": "candidate versions in taskMachine refuses an unbound old judgment after a second candidate before first publication",
+        "status": "passed"
+      },
+      {
+        "name": "candidate versions in taskMachine derives separate document identities for old reports and retains their published selection",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/detail-actions.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "detail transfer edge cases [BT_A19] keeps a pending copy when polling replaces the snapshot object with identical content",
+        "status": "passed"
+      },
+      {
+        "name": "detail transfer edge cases [BT_A19] does not revive an old receipt after leaving a document and returning to it",
+        "status": "passed"
+      },
+      {
+        "name": "detail transfer edge cases [BT_A17] exports the same complete document while clipboard confirmation is pending",
+        "status": "passed"
+      },
+      {
+        "name": "detail transfer edge cases [BT_A15] exports member information even when that member has not run yet",
+        "status": "passed"
+      },
+      {
+        "name": "detail transfer edge cases [BT_A13] [BT_A20] requests a valid dotfile name and preserves its source bytes",
+        "status": "passed"
+      },
+      {
+        "name": "detail transfer edge cases [BT_A20] [BT_A21] releases the Blob URL and removes the temporary node even when the download click fails",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/discussion-debug.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "real XState discussion sandbox [BT_V10] completes background discussion using the generated event templates",
+        "status": "passed"
+      },
+      {
+        "name": "real XState discussion sandbox [BT_V11] binds the primary delivery template to the owner during parallel work",
+        "status": "passed"
+      },
+      {
+        "name": "real XState discussion sandbox [BT_V12] preserves sandbox state and history on malformed discussion events",
+        "status": "passed"
+      },
+      {
+        "name": "real XState discussion sandbox [BT_V14] rejects 缺少版本边界 without retiring the current worker",
+        "status": "passed"
+      },
+      {
+        "name": "real XState discussion sandbox [BT_V14] rejects 错误讨论轮次 without retiring the current worker",
+        "status": "passed"
+      },
+      {
+        "name": "real XState discussion sandbox [BT_V14] rejects 过期版本边界 without retiring the current worker",
+        "status": "passed"
+      },
+      {
+        "name": "real XState discussion sandbox [BT_V14] rejects 关联主工作 without retiring the current worker",
+        "status": "passed"
+      },
+      {
+        "name": "real XState discussion sandbox [BT_V15] retains guarded global fallbacks while preserving unconditional local overrides",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/discussion-simulation.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "bounded XState discussion simulation [BT_V13] [BT_T06] checks every legal completion order and lifecycle boundaries using the production state machine",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/durability.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "durable transaction contracts [BT_D01] memory deduplicates requests and rejects changed payload identities",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_D01] sqlite deduplicates requests and rejects changed payload identities",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_D02][BT_D03][BT_D04] reconstructs from an exited process at afterHelp",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_D02][BT_D03][BT_D04] reconstructs from an exited process at afterClaim",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_D02][BT_D03][BT_D04] reconstructs from an exited process at afterResult",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_D05] same result with another delivery identity still only advances once",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_D06] memory rolls back consumed result and parent change together",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_D06] sqlite rolls back consumed result and parent change together",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_D07] a new client/engine reads current work without resubmitting",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_D08] restores deadlines and preserves human waits",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_D09] uncertain external operations require reconciliation rather than replay",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_D10] storage failure opens a fail-closed circuit",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_D11] a durable stop survives reopening",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_D12] safe interrupted work keeps its logical identity and charges new attempts",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_D13] transient safe reads retry once but permission errors do not loop",
+        "status": "passed"
+      },
+      {
+        "name": "durable transaction contracts [BT_E02] passive supervision recovers staged helper results exactly once",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/host-approval-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L23] waits with a bound command and no process or execution charge",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L24] charges only the approved execution and accepts a single receipt",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L25] delivers a denial without charging or launching and rejects a later approval",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L26] refuses a different approval identity",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L26] expires a waiting approval and returns a receipt",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L26] refuses an approved command after its permit expires",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L26] revokes a waiting approval when the task stops",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L26] refuses an old goal approval",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L26] respects revoked local capabilities",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L27] restores an unconsumed permit as a new pending approval without model work",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L27] never replays a host command claimed before a crash",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L27] requires a fresh permit even after trusted reconciliation proves no process started",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L28] treats a claimed host command without a permit as preparation only",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L29] leaves ordinary failed sandbox operations failed",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L28] rejects invalid host requests and model-supplied permission: {\"type\":\"runCli\",\"executable\":\"gh\",\"args\":[\"pr\",\"list\"],\"execution\":\"unknown\",\"reason\":\"使用已登录账号\"}",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L28] rejects invalid host requests and model-supplied permission: {\"type\":\"runCli\",\"executable\":\"gh\",\"args\":[\"pr\",\"list\"],\"execution\":\"host\",\"reason\":\"\"}",
+        "status": "passed"
+      },
+      {
+        "name": "按次宿主命令授权（真实 taskMachine，每步持久化恢复） [BT_L28] rejects invalid host requests and model-supplied permission: {\"type\":\"runCli\",\"executable\":\"gh\",\"args\":[\"pr\",\"list\"],\"execution\":\"host\",\"reason\":\"使用已登录账号\",\"approved\":true}",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/host-approval-ui.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "[BT_L30] closes without deciding, reopens the durable request and retries a failed denial",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/host-approval.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "宿主授权：真实 HTTP、SQLite、模型协议和宿主子进程 [BT_L23] [BT_L24] waits without model retries, then consumes one exact approval and returns a scrubbed real receipt",
+        "status": "passed"
+      },
+      {
+        "name": "宿主授权：真实 HTTP、SQLite、模型协议和宿主子进程 [BT_L25] returns a denial to the owner without starting any process",
+        "status": "passed"
+      },
+      {
+        "name": "宿主授权：真实 HTTP、SQLite、模型协议和宿主子进程 [BT_L26] refuses 工作区内容变化 after approval preparation",
+        "status": "passed"
+      },
+      {
+        "name": "宿主授权：真实 HTTP、SQLite、模型协议和宿主子进程 [BT_L26] refuses 可执行文件变化 after approval preparation",
+        "status": "passed"
+      },
+      {
+        "name": "宿主授权：真实 HTTP、SQLite、模型协议和宿主子进程 [BT_L26] rejects a stopped approval through the real HTTP endpoint",
+        "status": "passed"
+      },
+      {
+        "name": "宿主授权：真实 HTTP、SQLite、模型协议和宿主子进程 [BT_L27] preserves pending approvals on graceful restart and requires a fresh click",
+        "status": "passed"
+      },
+      {
+        "name": "宿主授权：真实 HTTP、SQLite、模型协议和宿主子进程 [BT_L28] rejects cross-origin, missing-origin, forged arguments and a different approval",
+        "status": "passed"
+      },
+      {
+        "name": "宿主授权：真实 HTTP、SQLite、模型协议和宿主子进程 [BT_L29] never upgrades an ordinary sandbox failure",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/host-capabilities-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L56] saves and returns metadata without workspace or execution quota",
+        "status": "passed"
+      },
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L57] rejects 'stopped' without creating an operation",
+        "status": "passed"
+      },
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L57] rejects 'stale goal' without creating an operation",
+        "status": "passed"
+      },
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L57] rejects 'disabled tools' without creating an operation",
+        "status": "passed"
+      },
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L57] rejects 'interpretation' without creating an operation",
+        "status": "passed"
+      },
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L57] rejects 'missing authorization' without creating an operation",
+        "status": "passed"
+      },
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"/usr/bin/node\"]}",
+        "status": "passed"
+      },
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"../node\"]}",
+        "status": "passed"
+      },
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"node --version\"]}",
+        "status": "passed"
+      },
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"$(whoami)\"]}",
+        "status": "passed"
+      },
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\",\"node\"]}",
+        "status": "passed"
+      },
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"\"]}",
+        "status": "passed"
+      },
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"node\"],\"execution\":\"host\"}",
+        "status": "passed"
+      },
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L57] rejects invalid or authority-expanding discovery {\"commands\":[\"node\"],\"approval\":true}",
+        "status": "passed"
+      },
+      {
+        "name": "host discovery through the persisted taskMachine [BT_L57] settles a late read after stop without resuming work",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/host-capabilities.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "host capability metadata [BT_L56] keeps sandbox and host presence distinct without implying execution",
+        "status": "passed"
+      },
+      {
+        "name": "host capability metadata [BT_L56] preserves incomplete skill metadata and pagination",
+        "status": "passed"
+      },
+      {
+        "name": "host capability metadata [BT_L56] probes a repeated command once in each execution environment",
+        "status": "passed"
+      },
+      {
+        "name": "host capability metadata [BT_L57] does not inspect anything after an already cancelled request",
+        "status": "passed"
+      },
+      {
+        "name": "host capability metadata [BT_L57] stops before the next environment when cancellation happens during a probe",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/host-retry-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L53] dispatches the queued successor after the settled batch owner submits 'delivery'",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L53] dispatches the queued successor after the settled batch owner submits 'rejected help'",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L53] 'SETTLE' retires only the unfinished commands of its own batch",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L53] 'WORK_FAILED' retires only the unfinished commands of its own batch",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L53] records an unstarted request even if its batch never assigned it an operation",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L54] 'RECOVER' repairs the old snapshot once without replacing the candidate or charging usage",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L54] 'HOST_RETRY_RECONCILE' repairs the old snapshot once without replacing the candidate or charging usage",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L54] recovers an orphaned batch pointer when all its command results are known",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L54] retains a denial saved before its deadline when reconciling a later snapshot",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L55] keeps a missing batch owner fenced when its command has no confirmed receipt",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L55] preserves a recorded uncertain execution when the batch owner reference is missing",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L55] keeps the active batch while the first command has unconfirmed effects",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L32] revives an ended round with a fixed, unapproved host operation and a saved model checkpoint",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L33] returns the saved identity when a different click identity is received",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L45] records multiple requests without cancelling the main work or advancing its fence",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L50] preserves ordinary assistance and its saved handoff for owner synthesis",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L46] holds a check that finishes after retry acceptance",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L46] applies a coordinator finish only after the pending retry boundary",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L47] a denial preserves its receipt and exposes only the next fixed operation",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L47] a known failure advances exactly once and keeps independent approvals",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L48] freezes unknown effects and advances only after trusted reconciliation",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L48] stops subsequent commands and settles a late receipt without reviving the task",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L49] recovery preserves settled operations, invalidates approval and does not charge owner twice",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L49] charges a new owner model attempt after recovery from an authorized synthesis",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L51] lets current work consume unreserved budget and reports boundary exhaustion",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L52] expires a saved request before launch and advances an unexpired successor",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L48] preserves started timeout effects and freezes the next request",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L48] a new goal invalidates remaining requests and keeps the prior receipt separate",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L37] revoking an approved but unstarted batch command requires a fresh approval",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L36] an invalidated plan is prepared again and requires a fresh user decision",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L52] persists expiry while original work is still active and reports it at handoff",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'stopped' without creating another operation",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'stale goal' without creating another operation",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'uncertain effects' without creating another operation",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'disabled' without creating another operation",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'succeeded' without creating another operation",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'host command' without creating another operation",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'pending local command' without creating another operation",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'truncated effects' without creating another operation",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] refuses 'budget' without creating another operation",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] prevents 'checking' source operations from moving into the owner workspace",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] prevents 'discussion' source operations from moving into the owner workspace",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] prevents 'explicitly isolated' source operations from moving into the owner workspace",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] rechecks the original member permission before a prepared command can run",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L34] binds the request to the immutable source hash",
+        "status": "passed"
+      },
+      {
+        "name": "用户从失败沙箱记录续办（真实XState，每步持久化） [BT_L32] carries a partial-write warning into the approval reason",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/host-retry.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "失败沙箱记录的手动宿主申请（真实HTTP/SQLite/模型协议/宿主进程） [BT_L31] distinguishes a mandatory approval request from unapproved host execution in the actual prompt",
+        "status": "passed"
+      },
+      {
+        "name": "失败沙箱记录的手动宿主申请（真实HTTP/SQLite/模型协议/宿主进程） [BT_L32] continues the ended task from a stored command without a new model selection",
+        "status": "passed"
+      },
+      {
+        "name": "失败沙箱记录的手动宿主申请（真实HTTP/SQLite/模型协议/宿主进程） [BT_L33] deduplicates identical clicks and prevents a second retry with a new request ID",
+        "status": "passed"
+      },
+      {
+        "name": "失败沙箱记录的手动宿主申请（真实HTTP/SQLite/模型协议/宿主进程） [BT_L45] batches two in-flight requests and returns both real receipts with one owner synthesis",
+        "status": "passed"
+      },
+      {
+        "name": "失败沙箱记录的手动宿主申请（真实HTTP/SQLite/模型协议/宿主进程） [BT_L34] rejects cross-origin requests and client-supplied replacement arguments",
+        "status": "passed"
+      },
+      {
+        "name": "失败沙箱记录的手动宿主申请（真实HTTP/SQLite/模型协议/宿主进程） [BT_L34] refuses to revive an older task when another task is active",
+        "status": "passed"
+      },
+      {
+        "name": "失败沙箱记录的手动宿主申请（真实HTTP/SQLite/模型协议/宿主进程） [BT_L34] blocks uncertain CLI effects at the actual trusted HTTP entry",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/host-session-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L35] approves a distinct next command while retaining exact per-operation plans and charges",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L35] keeps allow-once scoped to one command",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L36] requests a fresh decision on 'host' mismatch",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L36] requests a fresh decision on 'account' mismatch",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L36] requests a fresh decision on 'environment' mismatch",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L36] cannot reuse a grant for another workspace or independent task",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L36] clears scope on STOP",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L36] clears scope on EXHAUSTED",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L36] clears scope on RECOVER",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L36] clears scope when explicitly continuing a waiting round",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L36] clears scope on goal change",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L36] rejects a launch when permission is revoked after the operation was claimed",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L37] revokes queued session approvals and requires a fresh pending identity",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L37] revocation prevents claimed commands from starting",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权：真实XState、每步持久化 [BT_L37] refuses a stale revocation and model-injected grant on preparation",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/host-session-scope.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "任务会话宿主授权在成员之间的范围 [BT_L35] lets the same-task helper reuse its owner grant and charges the helper command once",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权在成员之间的范围 [BT_L35] adopts an already waiting parallel helper command when the owner allows this session",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权在成员之间的范围 [BT_L36] leaves a parallel helper pending when its prepared host environment differs",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/host-session.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "任务会话宿主授权接线：真实HTTP、SQLite及宿主进程 [BT_L35] executes distinct commands once from one session approval and returns both real receipts",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权接线：真实HTTP、SQLite及宿主进程 [BT_L35] keeps allow-once limited to the selected command",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权接线：真实HTTP、SQLite及宿主进程 [BT_L35] preserves an active grant across repeated page snapshot reads",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权接线：真实HTTP、SQLite及宿主进程 [BT_L36] clears a saved session on service recovery and waits for a fresh user decision",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权接线：真实HTTP、SQLite及宿主进程 [BT_L37] revokes an unconsumed session and restores per-command approval",
+        "status": "passed"
+      },
+      {
+        "name": "任务会话宿主授权接线：真实HTTP、SQLite及宿主进程 [BT_L37] denies cross-origin grants and revocations, unknown decisions and model-supplied grants",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/input-intent.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "validated input interpretation [BT_I03] every owner A receives the same user intent with its own role",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I03] every owner B receives the same user intent with its own role",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I03] every owner builder-1 receives the same user intent with its own role",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I03] every owner builder-2 receives the same user intent with its own role",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I03] every owner builder-3 receives the same user intent with its own role",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I08] actual parser HTTP is aborted through the persisted cancellation path",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I10] a failed claim commit prevents even the first parser HTTP request",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I10] parser result rollback can be recovered without publishing a partial result",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I07] schema repair cannot bypass a depleted ordinary budget",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I19] explicit continuation after a permanent failure retries interpretation, preserving usage",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I05] a short clarification answer still uses the model after a failed interpretation",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I04] current artifact and board bodies accompany their reference identities",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I12] parser protocol cannot escape into findSkills",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I12] parser protocol cannot escape into web_search",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I12] parser protocol cannot escape into help",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I18] host output validation rejects a custom adapter scheduling instead of interpreting",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I08] the machine rejects an expired result even before the timer runs",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I18] an unclaimed or unassociated result cannot move the interpretation phase",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I06] repairs missing constraints without accepting the invalid result",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I06] repairs extra owner without accepting the invalid result",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I06] repairs low confidence without accepting the invalid result",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I06] repairs wrong action without accepting the invalid result",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I06] repairs invalid references without accepting the invalid result",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I15] independently configured intent models inherit settings and isolate endpoint credentials",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I15] changing the interpretation switch during recovery remains paused",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I13] SQLite retains result deduplication after reopening",
+        "status": "passed"
+      },
+      {
+        "name": "validated input interpretation [BT_I16] task details display the interpretation entry and export its full data",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/inspector-bridge.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "official Inspector transport [BT_V27] registers a handshake during navigation without starting business work",
+        "status": "passed"
+      },
+      {
+        "name": "official Inspector transport [BT_V27] registers the latest frame when the handshake follows navigation",
+        "status": "passed"
+      },
+      {
+        "name": "official Inspector transport [BT_V28] validates source and origin, re-registers latest and detaches on close",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/inspector-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "Inspector observation model [BT_V27] registers the latest selection when a trusted handshake arrives",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector observation model [BT_V27] delivers an update after registration with the next sequence",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector observation model [BT_V28] refuses a handshake from 'wrong source'",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector observation model [BT_V28] refuses a handshake from 'foreign origin'",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector observation model [BT_V28] refuses a handshake from 'opaque origin'",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector observation model [BT_V28] re-registers on a repeated trusted handshake",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector observation model [BT_V28] ignores a late 'CONNECT' event after closing",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector observation model [BT_V28] ignores a late 'UPDATE' event after closing",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector observation model [BT_V28] ignores a late 'SELECT' event after closing",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector observation model [BT_V28] closes an unconnected channel without a delivery",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector observation model [BT_V31] registers a changed selection before delivering its updates",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector tab lifecycle model [BT_V29] requests opening when no tab exists",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector tab lifecycle model [BT_V29] requests focus when the tab is already open",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector tab lifecycle model [BT_V30] retries a blocked opening with a new open intent",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector tab lifecycle model [BT_V31] opens a replacement after the previous tab closes",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector tab lifecycle model [BT_V31] ignores late OPENED after disposal",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector tab lifecycle model [BT_V31] ignores late OPEN after disposal",
+        "status": "passed"
+      },
+      {
+        "name": "Inspector tab lifecycle model [BT_V31] ignores late WINDOW_CLOSED after disposal",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/inspector-window.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "official Inspector tab [BT_V29] opens on the click stack, preserves local UI and only focuses a repeated click",
+        "status": "passed"
+      },
+      {
+        "name": "official Inspector tab [BT_V30] displays popup blocking and retries with the latest selection",
+        "status": "passed"
+      },
+      {
+        "name": "official Inspector tab [BT_V31] changes identities without navigation and ignores the replaced tab and unmounted updates",
+        "status": "passed"
+      },
+      {
+        "name": "official Inspector tab [BT_V31] cancels a pending SDK import when disposed before it resolves",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/local-operation-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L02] [BT_L19] returns the child receipt to the same parent without another budget charge",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L19] refuses a repeated local receipt without charging again",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L02] does not charge ordinary quota for catalog metadata",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L21] binds a loaded skill to the version in its receipt",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] rejects 'budget' without a session or extra charge",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] rejects 'stopped' without a session or extra charge",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] rejects 'expired' without a session or extra charge",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] rejects 'stale goal' without a session or extra charge",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] rejects 'disabled tools' without a session or extra charge",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] rejects 'legacy authority' without a session or extra charge",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] rejects 'interpretation work' without a session or extra charge",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] rejects 'busy lease' without a session or extra charge",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] preserves reserved 'review' synthesis quota",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] preserves reserved 'discussion' synthesis quota",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] charges ordinary quota for a local child of final checking",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L17] rejects a checker command that differs from the user-requested test",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L17] will not send a semantic check before a successful isolated test",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L17] retains the candidate without publishing when a semantic pass lacks final version verification",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L17] ends without a check when required tests have no trusted command",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L17] keeps command examples from quoted source material out of the verification plan",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L05] stops queued local work without waiting for a physical process",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L05] [BT_L22] holds 'claimed' physical work until a matching cancellation receipt",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L05] [BT_L22] holds 'running' physical work until a matching cancellation receipt",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L06] [BT_L20] requeues safe parent work after a crash at 'before request'",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L06] [BT_L20] requeues safe parent work after a crash at 'queued'",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L06] [BT_L20] requeues safe parent work after a crash at 'succeeded'",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L06] retains a saved receipt across recovery",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L06] [BT_L20] requires trustworthy reconciliation after a crash at 'claimed'",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L06] [BT_L20] requires trustworthy reconciliation after a crash at 'running'",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L06] [BT_L14] settles an old-goal receipt without producing a current candidate",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L12] refuses local work after recovering 'legacy payload'",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L12] refuses local work after recovering 'revoked bot permission'",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L16] preserves the live owner draft while background effects are uncertain",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L12] keeps incompatible work paused after 'LOCAL_RESULT' settles its effects",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L12] keeps incompatible work paused after 'LOCAL_RECONCILE' settles its effects",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L18] carries an activated skill version through handoff and recovery",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L18] refuses to activate a skill version from an old goal receipt",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L17] refuses host version verification from owner work",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L17] reserves a workspace and ordinary quota for final version verification",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] settles a denied queued operation without an I/O budget charge",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L19] [BT_L22] records sandbox unavailability without authorizing another command",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] refuses a second local operation while the first is queued",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] refuses delivery while a local operation is pending",
+        "status": "passed"
+      },
+      {
+        "name": "persisted local operations in the real taskMachine [BT_L03] refuses a receipt from another session",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/local-tools-durability.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "local operation boundary and recovery integration [BT_L06] [BT_L11] startup reconciles a durable receipt before scheduling",
+        "status": "passed"
+      },
+      {
+        "name": "local operation boundary and recovery integration [BT_L06] startup retains a possibly launched command without guessing",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/local-tools.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "local skill registry and real child-process integration [BT_F22] forwards an actual skill file receipt to the independent delivery check",
+        "status": "passed"
+      },
+      {
+        "name": "local skill registry and real child-process integration [BT_L01] discovers once, supports top-level links, reports YAML failures and pins resources",
+        "status": "passed"
+      },
+      {
+        "name": "local skill registry and real child-process integration [BT_L07] format regeneration uses the original receipt and never repeats a CLI write",
+        "status": "passed"
+      },
+      {
+        "name": "local skill registry and real child-process integration [BT_L08] activation rejects a changed startup version, escapes and ambiguous names",
+        "status": "passed"
+      },
+      {
+        "name": "local skill registry and real child-process integration [BT_L09] check and background discussion build in writable copies and pin the tested revision",
+        "status": "passed"
+      },
+      {
+        "name": "local skill registry and real child-process integration [BT_L13] constructs deny-by-default policy and never inherits host secrets",
+        "status": "passed"
+      },
+      {
+        "name": "local skill registry and real child-process integration [BT_L13] refuses execution when sandbox dependencies are unavailable on this host",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/map-capacity-adapter.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "MapReduce planning capacity protocol [BT_Q07] describes the fixed host ceiling and grouping all documents in the interpretation request",
+        "status": "passed"
+      },
+      {
+        "name": "MapReduce planning capacity protocol [BT_Q10] repairs an eight-part output instead of applying or truncating it at a four-part ceiling",
+        "status": "passed"
+      },
+      {
+        "name": "MapReduce planning capacity protocol [BT_Q09] accepts the complete ordinary intent at capacity 0",
+        "status": "passed"
+      },
+      {
+        "name": "MapReduce planning capacity protocol [BT_Q09] accepts the complete ordinary intent at capacity 1",
+        "status": "passed"
+      },
+      {
+        "name": "MapReduce planning capacity protocol [BT_Q10] rejects decomposition above the host ceiling 0 at the protocol boundary",
+        "status": "passed"
+      },
+      {
+        "name": "MapReduce planning capacity protocol [BT_Q10] rejects decomposition above the host ceiling 1 at the protocol boundary",
+        "status": "passed"
+      },
+      {
+        "name": "MapReduce planning capacity protocol [BT_Q10] rejects decomposition above the host ceiling 4 at the protocol boundary",
+        "status": "passed"
+      },
+      {
+        "name": "MapReduce planning capacity protocol [BT_Q12] retains the protocol maximum for historical work without a capacity field",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/map-capacity.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q07] reads all eight controlled Markdown responses through four parallel maps and one reduction",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q09] preserves all eight source requirements for the owner at capacity 0",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q09] preserves all eight source requirements for the owner at capacity 1",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q10] repairs an eight-map plan into four complete groups without truncating source coverage",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q10] rejects a model-written capacity field before accepting a complete corrected plan",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q10] [BT_Q11] preserves the complete plan when repair spends the last available map unit",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q08] supplies charged capacity for 四名可用成员",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q08] supplies charged capacity for 仅三名空闲成员",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q08] supplies charged capacity for 剩余两次协助",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q08] supplies charged capacity for 普通额度只够三片及归并续办",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q08] supplies charged capacity for 本次理解后只够一片",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q08] supplies charged capacity for 本次理解后不足一片",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q08] supplies charged capacity for 资源充足仍受协议上限约束",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q11] falls back with the complete plan after 成员忙碌",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q11] falls back with the complete plan after 协助余额降低",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q11] falls back with the complete plan after 普通余额降低",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q12] restores legacy capacity snapshots with limited resources false",
+        "status": "passed"
+      },
+      {
+        "name": "capacity-aware map planning across production HTTP boundaries [BT_Q12] restores legacy capacity snapshots with limited resources true",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/map-host-capabilities.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "parallel map partitions retain independent host discovery receipts [BT_Q01] [BT_L56] [BT_L58] routes reversed discovery completions to their original work and model context",
+        "status": "passed"
+      },
+      {
+        "name": "parallel map partitions retain independent host discovery receipts [BT_Q04] [BT_L57] cancels both claimed discoveries without late model continuations or reduce work",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/map-reduce-capacity-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q07] advertises four partitions after the interpretation charge and assigns every complete group",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q08] snapshots the same capacity before and after the claim for 四名可用成员",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q08] snapshots the same capacity before and after the claim for 剩余两次协助",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q08] snapshots the same capacity before and after the claim for 普通额度只够三片及归并续办",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q08] snapshots the same capacity before and after the claim for 本次理解后只够一片",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q08] snapshots the same capacity before and after the claim for 本次理解后不足一片",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q08] snapshots the same capacity before and after the claim for 资源充足仍受协议上限约束",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q08] excludes a busy non-owner when refreshing the claimed capacity",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q08] refreshes capacity on every retried claim after charging that request",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q09] preserves all eight references for owner when capacity is 0 and decomposition is omitted",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q09] preserves all eight references for owner when capacity is 1 and decomposition is omitted",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q11] falls back with the entire plan after 成员忙碌 without partial dispatch",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q11] falls back with the entire plan after 协助余额降低 without partial dispatch",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q11] falls back with the entire plan after 普通余额降低 without partial dispatch",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q12] restores historical work without maxPartitions and applies the current guard (limited=false)",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q12] restores historical work without maxPartitions and applies the current guard (limited=true)",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce capacity in the real task model [BT_Q12] preserves the missing capacity on historical pending work through recovery and claim",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/map-reduce-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "map-reduce uses the persisted XState discussion lane [BT_Q01] should create separate concurrent execution actors before either partition returns",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce uses the persisted XState discussion lane [BT_Q02] should preserve the entire plan for owner when ordinary cannot cover all partitions",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce uses the persisted XState discussion lane [BT_Q02] should preserve the entire plan for owner when assists cannot cover all partitions",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce uses the persisted XState discussion lane [BT_Q02] should preserve the entire plan for owner when members cannot cover all partitions",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce uses the persisted XState discussion lane [BT_Q03] should preserve partial map evidence even if the reducer claims success",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce uses the persisted XState discussion lane [BT_Q04] should reject late map results after stop",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce uses the persisted XState discussion lane [BT_Q04] should reject late map results after goal",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce uses the persisted XState discussion lane [BT_Q05] should restore saved partition results without recreating completed work",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce uses the persisted XState discussion lane [BT_Q01] should apply a supplement decomposition at the safe input boundary once",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce uses the persisted XState discussion lane [BT_Q06] should reject duplicate partition identities and model-selected members",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce uses the persisted XState discussion lane [BT_Q06] should keep the legacy owner path when no decomposition is supplied",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/map-reduce.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "map-reduce engine, HTTP adapter and durable integration [BT_Q01] starts both model requests before either completes and hands every result to the owner",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce engine, HTTP adapter and durable integration [BT_Q03] retains 失败 despite a misleading success summary",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce engine, HTTP adapter and durable integration [BT_Q03] retains 部分完成 despite a misleading success summary",
+        "status": "passed"
+      },
+      {
+        "name": "map-reduce engine, HTTP adapter and durable integration [BT_Q05] reopens SQLite without rerunning the completed map or duplicating the reduce",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/markdown.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "chat Markdown rendering [BT_U10] renders formatting, lists, quotes and ordinary chat line breaks",
+        "status": "passed"
+      },
+      {
+        "name": "chat Markdown rendering [BT_U10] renders GFM tables, task lists and strikethrough",
+        "status": "passed"
+      },
+      {
+        "name": "chat Markdown rendering [BT_U11] preserves code whitespace and keeps code mentions literal",
+        "status": "passed"
+      },
+      {
+        "name": "chat Markdown rendering [BT_U11] keeps prose mentions clickable without rewriting emails or links",
+        "status": "passed"
+      },
+      {
+        "name": "chat Markdown rendering [BT_U12] blocks raw HTML and executable URLs in messages",
+        "status": "passed"
+      },
+      {
+        "name": "chat Markdown rendering [BT_U13] preserves footnote targets and in-message navigation",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/measurement.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "execution measurement [BT_Z02] measures the union of overlapping and separate complete intervals",
+        "status": "passed"
+      },
+      {
+        "name": "execution measurement [BT_Z01] retains real zero usage and reports missing counters as unknown",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/model-adapter.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "third-party model configuration and transport routes member, facilitator and checking models independently",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport posts to the custom endpoint and keeps credentials outside snapshots",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport allows local services without keys and providers without JSON mode",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport [BT_M01] keeps the OpenCode session stable across assistance, checking and recovery",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport [BT_M01] uses an explicitly supplied conversation ID and keeps the header safe",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport [BT_M02] shows the provider error identifier without persisting echoed secrets or raw messages",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport retains a short parameter identifier and discards oversized provider error bodies",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport [BT_M04] registers find skills in the model protocol and charges search plus follow-up",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport blocks the follow-up model request when the shared budget is spent",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport requires the configured key before issuing HTTP",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport [BT_M03] uses bounded orchestration retries for HTTP 401",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport [BT_M03] uses bounded orchestration retries for HTTP 403",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport [BT_M03] uses bounded orchestration retries for HTTP 408",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport [BT_M03] uses bounded orchestration retries for HTTP 429",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport [BT_M03] uses bounded orchestration retries for HTTP 503",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport rejects malformed or wrong-role output 0",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport rejects malformed or wrong-role output 1",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport rejects malformed or wrong-role output 2",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport [BT_M05] rejects truncated completions instead of publishing partial JSON",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport sanitizes transport failures before storing task errors",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport [BT_M06] cancels an in-flight HTTP request and does not publish its result",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport honors the original operation deadline",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport pauses recovery when the bound provider or model changes",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport also detects provider changes while waiting for human input",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport rejects empty answers before advancing the state machine",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport passes the operation deadline to skill searches",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport rejects invalid references, URLs and request overrides in configuration",
+        "status": "passed"
+      },
+      {
+        "name": "third-party model configuration and transport executes the full multi-model collaboration over real local HTTP",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/model-env.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "model services from .env keeps offline configuration usable without provider settings",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env lets every bot use its own model with shared connection defaults",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env supports independent providers and role-specific credentials",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env never forwards the default credential to a changed endpoint",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env allows an explicitly unauthenticated local service",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env configures facilitator, final check and request parameters",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env binds check context capacity to the configured provider model",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env leaves context capacity unset when the check profile selects a different model",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env rejects 'empty endpoint' without echoing the invalid value",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env rejects 'invalid JSON mode' without echoing the invalid value",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env rejects 'infinite temperature' without echoing the invalid value",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env rejects 'negative token limit' without echoing the invalid value",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env rejects 'malformed JSON body' without echoing the invalid value",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env rejects 'reserved request field' without echoing the invalid value",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env does not mutate an existing team when resolving environment settings",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env loads a real .env automatically and honors existing process variables",
+        "status": "passed"
+      },
+      {
+        "name": "model services from .env ignores a missing file and reports other file errors safely",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/model-output-capacity-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "model output capacity state boundary [BT_M32] preserves an unchecked candidate without retry on permanent check capacity failure",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/model-output-diagnostics.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "[BT_M31] repairs an empty answer and non-string status without coercing rejected values",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/model-regeneration.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "model output regeneration [BT_M10] retries a check with missing criteria once using the same fixed material",
+        "status": "passed"
+      },
+      {
+        "name": "model output regeneration [BT_M12] shares one retry ceiling between format corrections and transient HTTP failures",
+        "status": "passed"
+      },
+      {
+        "name": "model output regeneration [BT_M14] does not send a queued check retry after the user stops",
+        "status": "passed"
+      },
+      {
+        "name": "model output regeneration [BT_M14] does not renew the deadline or send an expired check retry",
+        "status": "passed"
+      },
+      {
+        "name": "model output regeneration [BT_M10] never executes a tool suggested by a malformed checking response",
+        "status": "passed"
+      },
+      {
+        "name": "model output regeneration [BT_M16] does not classify a real tool execution error as a format validation failure",
+        "status": "passed"
+      },
+      {
+        "name": "model output regeneration [BT_M13] fails closed when a custom host does not implement repair authorization",
+        "status": "passed"
+      },
+      {
+        "name": "model output regeneration [BT_M28] fails before requesting a model when a custom host omits the trusted coordinator identity",
+        "status": "passed"
+      },
+      {
+        "name": "model output regeneration [BT_M19] preserves a negative judgment regenerated from a malformed response",
+        "status": "passed"
+      },
+      {
+        "name": "model output regeneration [BT_W02] keeps explicitly disabled web capabilities outside the format-repair loop",
+        "status": "passed"
+      },
+      {
+        "name": "model output regeneration [BT_W02] keeps explicitly disabled skills capabilities outside the format-repair loop",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/panel-layout-simulation.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "[BT_P15] keeps the chat usable over the bounded drag transition matrix",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/panel-layout.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "pure panel drag transitions [BT_P15] sets navigation collapse to false at right width 827",
+        "status": "passed"
+      },
+      {
+        "name": "pure panel drag transitions [BT_P15] sets navigation collapse to true at right width 828",
+        "status": "passed"
+      },
+      {
+        "name": "pure panel drag transitions [BT_P15] sets navigation collapse to true at right width 900",
+        "status": "passed"
+      },
+      {
+        "name": "pure panel drag transitions [BT_P16] restores automatic collapse and the original navigation width after reversing a drag",
+        "status": "passed"
+      },
+      {
+        "name": "pure panel drag transitions [BT_P07] [BT_P18] preserves navigation visibility for 'tablet'",
+        "status": "passed"
+      },
+      {
+        "name": "pure panel drag transitions [BT_P07] [BT_P18] preserves navigation visibility for 'mobile'",
+        "status": "passed"
+      },
+      {
+        "name": "pure panel drag transitions [BT_P07] [BT_P18] preserves navigation visibility for 'left drag'",
+        "status": "passed"
+      },
+      {
+        "name": "pure panel drag transitions [BT_P07] [BT_P18] preserves navigation visibility for 'closed details'",
+        "status": "passed"
+      },
+      {
+        "name": "pure panel drag transitions [BT_P07] [BT_P18] preserves navigation visibility for 'invalid width'",
+        "status": "passed"
+      },
+      {
+        "name": "pure panel drag transitions [BT_P07] [BT_P18] preserves navigation visibility for 'unchanged width'",
+        "status": "passed"
+      },
+      {
+        "name": "pure panel drag transitions [BT_P07] [BT_P18] preserves navigation visibility for 'shrinking width'",
+        "status": "passed"
+      },
+      {
+        "name": "pure panel drag transitions [BT_P07] expands to the keyboard boundary without triggering drag collapse",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/panels.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "workspace panel interactions [BT_P01] [BT_P08] previews a captured drag without saving it before pointer-up",
+        "status": "passed"
+      },
+      {
+        "name": "workspace panel interactions [BT_P08] cancels on window blur and restores previous global cursor and selection styles",
+        "status": "passed"
+      },
+      {
+        "name": "workspace panel interactions [BT_P04] [BT_P08] cancels an in-progress drag when the viewport changes without overwriting the saved width",
+        "status": "passed"
+      },
+      {
+        "name": "workspace panel interactions [BT_P07] [BT_P08] lets a keyboard adjustment replace an unfinished drag rather than being overwritten by its later pointer-up",
+        "status": "passed"
+      },
+      {
+        "name": "workspace panel interactions [BT_P03] [BT_P07] returns focus to a usable header control when Enter removes the focused separator",
+        "status": "passed"
+      },
+      {
+        "name": "workspace panel interactions [BT_P16] preserves automatic collapse when drag reversal and pointer-up precede the next render",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/review-evidence-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "[BT_F24] persisted collaboration evidence freezes consumed review request and answer through recovery",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_F24] persisted collaboration evidence accepts a verbatim citation to the frozen review result at the state boundary",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_F24] persisted collaboration evidence rejects a fabricated quote from a real review result",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_F24] persisted collaboration evidence preserves partial review status without converting it to success",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_F24] persisted collaboration evidence excludes a completed review for an old goal",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_F24] persisted collaboration evidence excludes a pending request without a consumed member result",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/room-archive-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "room archive pure model [BT_G15] restores an archived room and advances its archive revision",
+        "status": "passed"
+      },
+      {
+        "name": "room archive pure model [BT_G17] defaults old rooms to active and restores a persisted empty-room archive",
+        "status": "passed"
+      },
+      {
+        "name": "room archive pure model [BT_G18] repeated desired states do not increment revisions or touch another room",
+        "status": "passed"
+      },
+      {
+        "name": "room archive pure model [BT_G19] refuses an archive event with an invalid timestamp",
+        "status": "passed"
+      },
+      {
+        "name": "room archive pure model [BT_G19] refuses a persisted archive with a corrupt revision",
+        "status": "passed"
+      },
+      {
+        "name": "room archive pure model [BT_G22] rejects stale list/snapshot archive versions and keeps lists disjoint",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/room-archive.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "durable room archive HTTP boundary [BT_G15] moves the same room between lists and preserves messages and task artifacts",
+        "status": "passed"
+      },
+      {
+        "name": "durable room archive HTTP boundary [BT_G16] finishes inflight work after archive and routes new messages without restoring it",
+        "status": "passed"
+      },
+      {
+        "name": "durable room archive HTTP boundary [BT_G17] restores archive metadata for empty rooms and defaults legacy records to active",
+        "status": "passed"
+      },
+      {
+        "name": "durable room archive HTTP boundary [BT_G18] rejects conflicting ids and prevents an old archive receipt from undoing restore",
+        "status": "passed"
+      },
+      {
+        "name": "durable room archive HTTP boundary [BT_G19] rejects 缺少标识 without mutation",
+        "status": "passed"
+      },
+      {
+        "name": "durable room archive HTTP boundary [BT_G19] rejects 空标识 without mutation",
+        "status": "passed"
+      },
+      {
+        "name": "durable room archive HTTP boundary [BT_G19] rejects 群聊不存在 without mutation",
+        "status": "passed"
+      },
+      {
+        "name": "durable room archive HTTP boundary [BT_G19] rejects 错误方法 without mutation",
+        "status": "passed"
+      },
+      {
+        "name": "durable room archive HTTP boundary [BT_G19] rejects 跨来源 without mutation",
+        "status": "passed"
+      },
+      {
+        "name": "durable room archive HTTP boundary [BT_G20] rolls back metadata and receipt on failed commit and retries after reopening",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/sandbox-mount-order.test.js",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "pinned SRT read/write mount integration [BT_L22] restores an explicitly writable output after its read-only parent",
+        "status": "passed"
+      },
+      {
+        "name": "pinned SRT read/write mount integration [BT_L22] preserves a denied child after restoring the writable output",
+        "status": "passed"
+      },
+      {
+        "name": "pinned SRT read/write mount integration [BT_L22] preserves an ancestor write denial over the explicitly writable output",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/sandbox-production-deny.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "production sandbox write-deny conversion [BT_L22] keeps an empty hooks ancestor read-only even when its child is an explicit output and no HEAD exists",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/sandbox-runtime-patch.test.js",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "reviewed sandbox-runtime patch integrity keeps the reviewed installed patch unchanged on repeated installation",
+        "status": "passed"
+      },
+      {
+        "name": "reviewed sandbox-runtime patch integrity reconstructs exactly the reviewed patched file from the original source",
+        "status": "passed"
+      },
+      {
+        "name": "reviewed sandbox-runtime patch integrity rejects a different dependency version even when its bytes match",
+        "status": "passed"
+      },
+      {
+        "name": "reviewed sandbox-runtime patch integrity rejects modified installed bytes rather than guessing an applicable patch",
+        "status": "passed"
+      },
+      {
+        "name": "reviewed sandbox-runtime patch integrity rejects a patch that does not produce the reviewed target hash",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/sandbox-runtime-policy.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "trusted sandbox runtime visibility [BT_L22] restores only the trusted architecture helper read-only while its installation remains hidden",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/skill-resource-evidence-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "skill resource delivery evidence [BT_F22] gives the check the actual complete resource and its provenance",
+        "status": "passed"
+      },
+      {
+        "name": "skill resource delivery evidence [BT_F22] does not present paged reading as complete content",
+        "status": "passed"
+      },
+      {
+        "name": "skill resource delivery evidence [BT_F22] does not present failed reading as complete content",
+        "status": "passed"
+      },
+      {
+        "name": "skill resource delivery evidence [BT_F22] rejects changed content after the candidate fixed its evidence",
+        "status": "passed"
+      },
+      {
+        "name": "skill resource delivery evidence [BT_F22] excludes reading from an older goal",
+        "status": "passed"
+      },
+      {
+        "name": "skill resource delivery evidence [BT_F22] rejects a legacy resource reference without its frozen receipt snapshot",
+        "status": "passed"
+      },
+      {
+        "name": "skill resource delivery evidence [BT_F22] rejects a changed hash in a frozen resource receipt",
+        "status": "passed"
+      },
+      {
+        "name": "skill resource delivery evidence [BT_F22] rejects a changed skillVersion in a frozen resource receipt",
+        "status": "passed"
+      },
+      {
+        "name": "skill resource delivery evidence [BT_F22] rejects a changed nextOffset in a frozen resource receipt",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/skill-search-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "skill search reuses the real taskMachine execution boundaries [BT_M21] sends a completed search back through the existing delivery path",
+        "status": "passed"
+      },
+      {
+        "name": "skill search reuses the real taskMachine execution boundaries [BT_M22] settles malformed search output once without a candidate or retry",
+        "status": "passed"
+      },
+      {
+        "name": "skill search reuses the real taskMachine execution boundaries [BT_M21] denies the search before I/O when its budget is exhausted",
+        "status": "passed"
+      },
+      {
+        "name": "skill search reuses the real taskMachine execution boundaries [BT_M21] stops the search lane and refuses a late candidate",
+        "status": "passed"
+      },
+      {
+        "name": "skill search reuses the real taskMachine execution boundaries [BT_M21] rejects references returned under an obsolete goal version",
+        "status": "passed"
+      },
+      {
+        "name": "skill search reuses the real taskMachine execution boundaries [BT_M21] recovers and reclaims the same saved safe work before another search",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/skill-search-web.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "skill search execution logs through HTTP and SQLite [BT_M21] records mixed-source results and completes the task without search errors",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/skills.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "default find skills capability [BT_M21] parses mixed repository/domain results and resumes the real model loop",
+        "status": "passed"
+      },
+      {
+        "name": "default find skills capability [BT_M22] rejects malformed 缺少名称 without hiding it as empty results",
+        "status": "passed"
+      },
+      {
+        "name": "default find skills capability [BT_M22] rejects malformed 非法来源 without hiding it as empty results",
+        "status": "passed"
+      },
+      {
+        "name": "default find skills capability [BT_M22] rejects malformed 非法安装量 without hiding it as empty results",
+        "status": "passed"
+      },
+      {
+        "name": "default find skills capability exposes discovery to owners, helpers and facilitators, including new members",
+        "status": "passed"
+      },
+      {
+        "name": "default find skills capability executes skill discovery through the driver and charges each search",
+        "status": "passed"
+      },
+      {
+        "name": "default find skills capability refuses the search before HTTP when execution budget is exhausted",
+        "status": "passed"
+      },
+      {
+        "name": "default find skills capability allows disabling discovery through configuration",
+        "status": "passed"
+      },
+      {
+        "name": "default find skills capability does not issue search requests after stop",
+        "status": "passed"
+      },
+      {
+        "name": "default find skills capability uses current configuration when discovery is revoked on recovery",
+        "status": "passed"
+      },
+      {
+        "name": "default find skills capability distinguishes failed searches from valid empty results",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/source-artifact-adapter.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "complete source artifact adapter input [BT_A34] sends the original complete text and source isolation instructions",
+        "status": "passed"
+      },
+      {
+        "name": "complete source artifact adapter input [BT_A34] fails owner before transport if fixed source exceeds context capacity",
+        "status": "passed"
+      },
+      {
+        "name": "complete source artifact adapter input [BT_A34] fails assistance before transport if fixed source exceeds context capacity",
+        "status": "passed"
+      },
+      {
+        "name": "complete source artifact adapter input [BT_A34] fails interpretation before transport if fixed source exceeds context capacity",
+        "status": "passed"
+      },
+      {
+        "name": "complete source artifact adapter input [BT_A34] reports provider context rejection without echoing its private response",
+        "status": "passed"
+      },
+      {
+        "name": "complete source artifact adapter input [BT_A34] prevents automatic truncation compression retrieval and fallback for fixed source work",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/source-artifact-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "fixed source artifact in the real task model [BT_A34] preserves a detached source and keeps it outside history and current artifacts",
+        "status": "passed"
+      },
+      {
+        "name": "fixed source artifact in the real task model [BT_A34] fixes the same source for model interpretation even when its result omits the reference",
+        "status": "passed"
+      },
+      {
+        "name": "fixed source artifact in the real task model [BT_A34] sends the complete source to helpers and the fixed independent check after history disappears",
+        "status": "passed"
+      },
+      {
+        "name": "fixed source artifact in the real task model [BT_A35] refuses successful publication for 只有结论",
+        "status": "passed"
+      },
+      {
+        "name": "fixed source artifact in the real task model [BT_A35] refuses successful publication for 旧ID列入候选",
+        "status": "passed"
+      },
+      {
+        "name": "fixed source artifact in the real task model [BT_A35] refuses successful publication for 旧ID列入背景",
+        "status": "passed"
+      },
+      {
+        "name": "fixed source artifact in the real task model [BT_A35] refuses successful publication for 旧ID作为修订基底",
+        "status": "passed"
+      },
+      {
+        "name": "fixed source artifact in the real task model [BT_A35] refuses successful publication for 非Markdown文档",
+        "status": "passed"
+      },
+      {
+        "name": "fixed source artifact in the real task model [BT_A35] refuses successful publication for 空Markdown",
+        "status": "passed"
+      },
+      {
+        "name": "fixed source artifact in the real task model [BT_A35] cannot inject the old source identity through the artifact event",
+        "status": "passed"
+      },
+      {
+        "name": "fixed source artifact in the real task model [BT_A29] publishes only the new document after an independent current-candidate check",
+        "status": "passed"
+      },
+      {
+        "name": "fixed source artifact in the real task model [BT_A35] retains an independent preservation failure and does not publish the candidate",
+        "status": "passed"
+      },
+      {
+        "name": "fixed source artifact in the real task model [BT_A37] preserves the fixed source on stop, stale completion and persisted recovery",
+        "status": "passed"
+      },
+      {
+        "name": "fixed source artifact in the real task model [BT_A39] retains existing behavior for snapshots with no source",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/source-artifact.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "direct artifact revision target recognizes the target of 修改 a.md，补充部署说明，输出为 b.md",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target recognizes the target of 请修改产物 `a.md`，补充说明",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target recognizes the target of @B 修订 \"部署 方案.markdown\"，保留原文",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target recognizes the target of 麻烦更新“部署 方案.md”，补充部署说明",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target recognizes the target of 改写产物 a.MD，输出新版",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target recognizes the target of 修改产物 项目计划.md，补充说明",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target recognizes the target of 修改文件.md，补充说明",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target recognizes the target of > 修改 secret.md\n修改 a.md，补充说明",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target recognizes the target of ```md\n修改 secret.md\n```\n修改 a.md，补充说明",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: 我们刚才提到了 a.md，稍后再讨论",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: 请解释如何修改 a.md",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: 不要修改 a.md",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: > 修改 a.md，补充说明",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: ```\n修改 a.md\n```",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: ~~~md\n修改 a.md\n~~~",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: ~~~md\n修改 a.md\n~~~\n随口提及",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text:     修改 a.md，补充说明",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: \t修改 a.md，补充说明",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: 这里有个示例：\n修改 a.md",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: 修改 ./a.md，补充说明",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: 修改 docs/a.md，补充说明",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: 修改 C:\\docs\\a.md，补充说明",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: 修改仓库中的 a.md，补充说明",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: 修改工作区 a.md，补充说明",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: 继续",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: 停止",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: 重试 @B",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: 同意修改 a.md",
+        "status": "passed"
+      },
+      {
+        "name": "direct artifact revision target does not promote incidental, quoted, path or control text: 修改 a.txt",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/spec-coverage.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "Gherkin acceptance gate discovers a newly added unbound scenario without an allowlist and fails execution",
+        "status": "passed"
+      },
+      {
+        "name": "Gherkin acceptance gate rejects missing direct executions even when a regression is linked",
+        "status": "passed"
+      },
+      {
+        "name": "Gherkin acceptance gate rejects duplicate scenario identities",
+        "status": "passed"
+      },
+      {
+        "name": "Gherkin acceptance gate rejects an exclusion tag absent from the explicit scenario registry",
+        "status": "passed"
+      },
+      {
+        "name": "Gherkin acceptance gate counts actual feature files and directly executed examples",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/task-actor-inspector.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "[BT_N13] observes true parent and child machine identities without starting or sending business work",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/task-actors.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "native transaction-local task and execution actors [BT_N06] owns a one-use execution lifecycle for 负责人",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N06] owns a one-use execution lifecycle for 协助",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N06] owns a one-use execution lifecycle for 协调",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N06] owns a one-use execution lifecycle for 检查",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N06] owns a one-use execution lifecycle for 输入解析",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N06] owns a one-use execution lifecycle for 讨论汇总",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N06] owns a one-use execution lifecycle for 工具",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N06] owns a one-use execution lifecycle for 取消",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N07] preserves simultaneously live owner and discussion actors, global budget and one handoff",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N08] stops safely at 领取后尚未启动",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N08] stops safely at 已提交启动许可",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N08] stops safely at 外部效果未知",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N09] deep-restores 未启动的执行 without reviving the old attempt",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N09] deep-restores 安全请求执行中 without reviving the old attempt",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N09] deep-restores 非幂等请求执行中 without reviving the old attempt",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N09] deep-restores 没有子 actor 的旧快照 without reviving the old attempt",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N10] refuses 重复启动 without another budget charge",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N10] refuses 旧尝试 without another budget charge",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N10] refuses 旧目标版本 without another budget charge",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N10] refuses 已停止 without another budget charge",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N10] refuses 尚未领取 without another budget charge",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N10] refuses 任务已结束 without another budget charge",
+        "status": "passed"
+      },
+      {
+        "name": "native transaction-local task and execution actors [BT_N10] refuses 恢复不兼容 without another budget charge",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_N14] isolates old-attempt DELIVER messages from the new execution",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_N14] isolates old-attempt WORK_FAILED messages from the new execution",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_N14] isolates old-attempt CONSUME messages from the new execution",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_N14] isolates old-attempt SETTLE messages from the new execution",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_N14] isolates old-attempt REGENERATE_MODEL_OUTPUT messages from the new execution",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_N14] isolates old-attempt INTERPRETATION_RESULT messages from the new execution",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_N14] isolates old-attempt COORDINATE messages from the new execution",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_N14] isolates old-attempt RECORD_RESULT messages from the new execution",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_N14] isolates old-attempt CHECK_RESULT messages from the new execution",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_N14] isolates old-attempt DISCUSSION_RESULT messages from the new execution",
+        "status": "passed"
+      },
+      {
+        "name": "[BT_N15] keeps the new execution cancellable after an old attempt ends",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/task-chart-ui.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "statechart interactions [BT_V32] opens every aggregated branch by keyboard and selects a later automatic condition",
+        "status": "passed"
+      },
+      {
+        "name": "statechart interactions [BT_V34] exposes global entry conditions and internal handling outside the local overview",
+        "status": "passed"
+      },
+      {
+        "name": "statechart interactions [BT_V33] draws captured stop microsteps and keeps the latest execution head while viewing history",
+        "status": "passed"
+      },
+      {
+        "name": "statechart interactions [BT_V33] does not mark a local candidate edge as executed when the captured transition used a global rule",
+        "status": "passed"
+      },
+      {
+        "name": "statechart interactions [BT_V33] clears captured-rule selection when the selected step advances",
+        "status": "passed"
+      },
+      {
+        "name": "statechart interactions [BT_V35] reports missing evidence without inventing a captured path",
+        "status": "passed"
+      },
+      {
+        "name": "statechart interactions [BT_V35] reports incompatible evidence without inventing a captured path",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/task-chart.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "statechart projection of the real task model [BT_V32] retains every running-to-coordinating event and ordered guard branch on one edge",
+        "status": "passed"
+      },
+      {
+        "name": "statechart projection of the real task model [BT_V34] focused edges preserve both directions and every branch for the selected state",
+        "status": "passed"
+      },
+      {
+        "name": "statechart projection of the real task model [BT_V34] retains global and internal rule access outside the cross-state overview",
+        "status": "passed"
+      },
+      {
+        "name": "statechart projection of the real task model [BT_V33] projects an accepted help step from the captured rules and microsteps",
+        "status": "passed"
+      },
+      {
+        "name": "statechart projection of the real task model [BT_V33] preserves the stop automatic microstep without changing the execution head",
+        "status": "passed"
+      },
+      {
+        "name": "statechart projection of the real task model [BT_V33] displays a rejected help request without inventing a move to waiting assistance",
+        "status": "passed"
+      },
+      {
+        "name": "statechart projection of the real task model [BT_V33] represents a repeated stop as empty local handling without the global stop path",
+        "status": "passed"
+      },
+      {
+        "name": "statechart projection of the real task model [BT_V34] keeps ended resumable and reports the captured continue rule",
+        "status": "passed"
+      },
+      {
+        "name": "statechart projection of the real task model [BT_V35] shows no captured path for a legacy record without diagnostic evidence",
+        "status": "passed"
+      },
+      {
+        "name": "statechart projection of the real task model [BT_V35] shows no captured path when the machine structure fingerprint differs",
+        "status": "passed"
+      },
+      {
+        "name": "statechart projection of the real task model [BT_V32] labels the state, event, condition and action in Chinese while preserving rule identifiers",
+        "status": "passed"
+      },
+      {
+        "name": "statechart projection of the real task model [BT_V32] preserves unknown source vocabulary rather than inventing a translation or condition",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/task-debug-experience.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "current-run diagnostic behavior [BT_V16] records the actual diagnostic path without changing the transition result",
+        "status": "passed"
+      },
+      {
+        "name": "current-run diagnostic behavior [BT_V17] distinguishes short-circuit and no-op from rejection",
+        "status": "passed"
+      },
+      {
+        "name": "current-run diagnostic behavior [BT_V18] previews without advancing and appends from the execution head",
+        "status": "passed"
+      },
+      {
+        "name": "current-run diagnostic behavior [BT_V24] distinguishes a ready discussion from unfinished owner work",
+        "status": "passed"
+      },
+      {
+        "name": "current-run diagnostic behavior [BT_V25] invalidates stale previews and preserves budget rejection",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/task-debug.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "browser state-machine debug [BT_V01] hides the entry and rejects snapshot reads by default",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V02] derives all states, guard branches and global events from the real machine",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V03] executes the real pure conversion and retains context updates without an executor",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V02] registers an actual machine definition with Inspector without running a shadow actor",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V04] preserves 向自己求助 -> SELF_DEPENDENCY",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V04] preserves 旧轮次结果 -> STALE_FENCE",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V04] preserves 额度耗尽 -> BUDGET_EXHAUSTED",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V04] preserves 停止后继续 -> running",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V03] templates settle claimed work and charge the real budgets",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V05] preserves state on malformed input, branches from history and resets its seed",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V06] never publishes a rolled-back transition and observer errors do not poison commits",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V06] falls back to the original transition when diagnostics cannot be collected",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V07] exposes every fast transition once and isolates room/session cursors",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V08] copies a real persisted snapshot into an isolated sandbox and disallows arbitrary HTTP events",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V06] publishes all transitions of a multi-step command only after its final commit",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V06] keeps SQLite rollback out of the committed observation log",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V07] bounds browser history and clears old sessions while retaining a current baseline",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V09] drives the browser panel controls and restores history without any requests",
+        "status": "passed"
+      },
+      {
+        "name": "browser state-machine debug [BT_V09] keeps the context disclosures reachable when wrapping keyboard focus",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/task-evidence-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "task evidence persisted by the real task machine [BT_L38] gives the checker one fixed source with its original text and denies paged reads",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L40] keeps a truncated check source as metadata without presenting a usable quotation",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L39] retains a distinct CLI operation even when its action and hash match the original",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L40] projects 'truncated' evidence as the original receipt allows",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L40] projects 'failed' evidence as the original receipt allows",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L40] projects 'missing' evidence as the original receipt allows",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L40] projects 'unknown' evidence as the original receipt allows",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L41] refuses source IDs outside the task",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L41] refuses a prior goal receipt from the new active work",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L41] refuses an existing source absent from the assignment",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L41] admits a host-selected source in the current assignment",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L42] cancels a queued read without consuming its budget",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L42] refuses a first read when ordinary budget is exhausted",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L42] preserves the completed read and its charge on recovery",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L42] reclaims a recovered in-progress read under the same identity without charging again",
+        "status": "passed"
+      },
+      {
+        "name": "task evidence persisted by the real task machine [BT_L43] exposes a settled source from a previous epoch only as historical observation",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/task-inspection.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "same-computation diagnostic API [BT_V16] returns the original initial snapshot when collecting initialization evidence",
+        "status": "passed"
+      },
+      {
+        "name": "same-computation diagnostic API [BT_V16] reports automatic STOP microsteps without altering the business result",
+        "status": "passed"
+      },
+      {
+        "name": "same-computation diagnostic API [BT_V16] reports a rejected self-assistance request without changing its outcome",
+        "status": "passed"
+      },
+      {
+        "name": "same-computation diagnostic API [BT_V16] reports a local claim rejection followed by the applicable discussion claim",
+        "status": "passed"
+      },
+      {
+        "name": "same-computation diagnostic API [BT_V17] stops evaluating retry alternatives after a branch matches",
+        "status": "passed"
+      },
+      {
+        "name": "same-computation diagnostic API [BT_V17] reports a repeated STOP as no change instead of reusing an old rejection",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/task-model-refactor.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N01] restores the original running snapshot without changing persisted data",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N01] restores the original waitingAssistance snapshot without changing persisted data",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N01] restores the original checking snapshot without changing persisted data",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N01] restores the original ended snapshot without changing persisted data",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N01] restores the original coordinating snapshot without changing persisted data",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N01] restores the original interpreting snapshot without changing persisted data",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N01] restores the original waitingHuman snapshot without changing persisted data",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N01] restores the original stopping snapshot without changing persisted data",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N02] [BT_N03] replays the original 协助结果交接 contract and every persistence boundary",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N02] [BT_N03] replays the original 成员评审 contract and every persistence boundary",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N02] [BT_N03] replays the original 后台讨论 contract and every persistence boundary",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N02] [BT_N03] replays the original 输入解析 contract and every persistence boundary",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N02] [BT_N03] replays the original 输出格式修正 contract and every persistence boundary",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N02] [BT_N03] replays the original 本地操作核对 contract and every persistence boundary",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N02] [BT_N03] replays the original 停止后迟到结果 contract and every persistence boundary",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N02] [BT_N03] replays the original 旧目标结果 contract and every persistence boundary",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N02] [BT_N03] replays the original 普通额度耗尽 contract and every persistence boundary",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N02] [BT_N03] replays the original 不兼容恢复 contract and every persistence boundary",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N02] [BT_N03] replays the original 瞬态失败重试 contract and every persistence boundary",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N02] [BT_N03] replays the original 协调与澄清 contract and every persistence boundary",
+        "status": "passed"
+      },
+      {
+        "name": "task model compatibility with the frozen pre-refactor XState model [BT_N04] preserves the graph, ordered guards, initial and automatic microsteps and pure diagnostic results",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/task-protocol-model.unit.test.ts",
+    "unitEntry": true,
+    "cases": [
+      {
+        "name": "task protocol compatibility in the real task machine [BT_A27] preserves incompatible active work as unresolved until the original effect settles",
+        "status": "passed"
+      },
+      {
+        "name": "task protocol compatibility in the real task machine [BT_A27] reconciles a known old effect without allowing an active snapshot upgrade",
+        "status": "passed"
+      },
+      {
+        "name": "task protocol compatibility in the real task machine [BT_A27] retires a legacy check with no unsettled external effect so the user can stop and continue",
+        "status": "passed"
+      },
+      {
+        "name": "task protocol compatibility in the real task machine [BT_A28] activates a settled old task under current configuration through 'continue'",
+        "status": "passed"
+      },
+      {
+        "name": "task protocol compatibility in the real task machine [BT_A28] activates a settled old task under current configuration through 'retry'",
+        "status": "passed"
+      },
+      {
+        "name": "task protocol compatibility in the real task machine [BT_A28] preserves the v1 final-message publication on explicit continuation",
+        "status": "passed"
+      },
+      {
+        "name": "task protocol compatibility in the real task machine [BT_A28] rejects a legacy pass after the next candidate was submitted",
+        "status": "passed"
+      },
+      {
+        "name": "task protocol compatibility in the real task machine [BT_A28] rejects a legacy host retry after current permission was revoked",
+        "status": "passed"
+      },
+      {
+        "name": "task protocol compatibility in the real task machine [BT_A28] refuses a different protocol mismatch without migrating history",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/ui-style.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "UI style contract (docs/ui-style.md) keeps ordinary and user message base typography across stylesheet overrides",
+        "status": "passed"
+      },
+      {
+        "name": "UI style contract (docs/ui-style.md) audits the text floor across every stylesheet, including native smaller-text defaults",
+        "status": "passed"
+      },
+      {
+        "name": "UI style contract (docs/ui-style.md) keeps equal fixed headers at a 1440px viewport",
+        "status": "passed"
+      },
+      {
+        "name": "UI style contract (docs/ui-style.md) keeps equal fixed headers at a 1100px viewport",
+        "status": "passed"
+      },
+      {
+        "name": "UI style contract (docs/ui-style.md) keeps equal fixed headers at a 800px viewport",
+        "status": "passed"
+      },
+      {
+        "name": "UI style contract (docs/ui-style.md) keeps equal fixed headers at a 390px viewport",
+        "status": "passed"
+      },
+      {
+        "name": "UI style contract (docs/ui-style.md) uses a square SVG viewport and places the collapsed-navigation brand before navigation",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/web-tools.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "Cloudflare SDK web tools [BT_W01] executes the real SDK search/fetch protocol in the model loop",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W01] caps search results and snippets while preserving host metadata",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W03] uses the documented multipart conversion API without sending credentials to the page",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W03] allows credential-free text and raw HTML but reports missing conversion credentials",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W03] enforces response bytes and keeps HTTP error statuses visible",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W04] rejects private destination http://10.0.0.1/ before transport",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W04] rejects private destination http://192.168.1.1/ before transport",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W04] rejects private destination http://169.254.169.254/ before transport",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W04] rejects private destination http://[::ffff:127.0.0.1]/ before transport",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W04] rejects private destination https://host.internal/ before transport",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W04] applies host restrictions and rejects HTTPS downgrades",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W05] distinguishes a valid empty search from malformed provider output",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W14] redacts the request token even when the environment changes before an error returns",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W05] bounds automatic transient retries through the existing task budget",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W05] sanitizes conversion failure HTTP 401",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W05] sanitizes conversion failure HTTP 429",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W05] sanitizes conversion failure HTTP 500",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W06] cancellation during conversion reaches the actual REST request",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W06] pre-aborted calls make no HTTP request",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W02] [BT_M11] regenerates malformed tool arguments without executing or charging a tool call",
+        "status": "passed"
+      },
+      {
+        "name": "Cloudflare SDK web tools [BT_W09] default capabilities and dotenv switch never persist credentials",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "tests/web.test.ts",
+    "unitEntry": false,
+    "cases": [
+      {
+        "name": "Web host and HTTP boundary [BT_H11] [BT_U16] resumes A after B retry through HTTP (button)",
+        "status": "passed"
+      },
+      {
+        "name": "Web host and HTTP boundary [BT_H11] [BT_U16] resumes A after B retry through HTTP (B 重试)",
+        "status": "passed"
+      },
+      {
+        "name": "Web host and HTTP boundary routes a selected member, returns actual execution records and preserves rooms/messages after reopening",
+        "status": "passed"
+      },
+      {
+        "name": "Web host and HTTP boundary cancels an inflight request immediately and can explicitly continue its history",
+        "status": "passed"
+      },
+      {
+        "name": "Web host and HTTP boundary records help and failures under the correct agent, and accepts a human reply",
+        "status": "passed"
+      },
+      {
+        "name": "Web host and HTTP boundary turns a follow-up chat message into a complete team review of the previous delivery",
+        "status": "passed"
+      },
+      {
+        "name": "Web host and HTTP boundary rejects malformed commands, unknown rooms, forged raw events and cross-origin writes",
+        "status": "passed"
+      }
+    ]
+  }
+]
