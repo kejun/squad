@@ -14,7 +14,11 @@ Then('两个成员应在任一返回前均已开始且收到不同分片和完�
 When('全部分片返回并完成归并', async function (this: SpecWorld) { await f(this).finishMaps(); });
 Then('原负责人应只续办一次并收到全部原始结果', async function (this: SpecWorld) { const fixture = f(this); fixture.assertHandoff(); await fixture.drain(); assert.equal(fixture.context().outcome, 'complete'); assert.equal(fixture.requests.filter(request => request.kind === 'owner').length, 1); });
 Given('分片计划受到{string}', function (this: SpecWorld, limit: string) { fixtures.set(this, new MapReduceFixture(limit)); });
-When('状态机接受该任务的输入解释', async function (this: SpecWorld) { await f(this).recognize(); });
+When('状态机接受该任务的输入解释', function (this: SpecWorld) {
+  const fixture = f(this);
+  assert(fixture.submit('分别研究甲乙两个来源；必须仅使用公开资料并保留出处；最后汇总差异').ok);
+  const work = fixture.claim(); assert(fixture.result(work, mapIntent()).ok);
+});
 Then('应保留全部任务给负责人且说明未并行原因', function (this: SpecWorld) { const fixture = f(this); assert.equal(fixture.pending('assistance').length, 0); assert.equal(fixture.pending('owner').length, 1); assert.equal(fixture.context().usage.assists, 0); assert(fixture.context().messages.some(message => message.text.includes('未启动并行分片'))); const inputs = fixture.pending('owner')[0]!.payload.inputIntents as { spec: { decomposition: unknown } }[]; assert.deepEqual(inputs[0]!.spec.decomposition, mapIntent().decomposition); });
 Given('两个独立分片已启动且其中一个{string}', async function (this: SpecWorld, failure: string) { const fixture = new MapReduceFixture(); fixture.failure = failure; fixtures.set(this, fixture); await fixture.recognize(); await fixture.run(); });
 When('另一个分片和归并工作返回', async function (this: SpecWorld) { await f(this).drain(); });

@@ -93,6 +93,8 @@ npm start
 
 ## 状态模型
 
+[MapReduce 分片容量](docs/state-diagrams.md#mapreduce-分片容量kej-99)让输入理解与派发共用成员及额度上限，每片可包含多份输入；容量不足时保留完整任务。
+
 [跨任务产物引用](docs/state-diagrams.md#跨任务产物引用kej-98)固定成功交付的单份 Markdown 原文，在独立任务中生成新文档；来源不依赖有界群历史，沿用原任务阶段与交付检查。
 
 宿主能力发现复用本地子操作的保存、领取、结果与停止边界，见[能力发现状态约束](docs/state-diagrams.md#宿主能力发现)。它不新增业务阶段，也不授予命令或 MCP 权限。

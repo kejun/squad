@@ -76,8 +76,10 @@ export function inputReferences(c: TaskContext): InputReference[] {
 }
 
 /** Schema validity alone grants no scheduling authority or reference identity. */
-export function validInputIntent(value: unknown, action: unknown, references: readonly InputReference[]): value is InputIntentSpec {
+export function validInputIntent(value: unknown, action: unknown, references: readonly InputReference[], maxPartitions?: number): value is InputIntentSpec {
   const parsed = inputIntentSchema.safeParse(value);
-  return parsed.success && parsed.data.action === action && parsed.data.references.every(ref =>
+  return parsed.success && parsed.data.action === action
+    && (maxPartitions === undefined || !parsed.data.decomposition || parsed.data.decomposition.partitions.length <= maxPartitions)
+    && parsed.data.references.every(ref =>
     references.some(allowed => allowed.kind === ref.kind && allowed.id === ref.id && allowed.taskId === ref.taskId));
 }
