@@ -1,0 +1,3854 @@
+{
+  "auditIssue": "KEJ-101",
+  "auditDate": "2026-11-07",
+  "baseline": {
+    "sha": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+    "tree": "eb568bca348806c3919d65d7d9a5f6b23dcba8fd"
+  },
+  "ci": {
+    "run": 42321996074,
+    "url": "https://github.com/kejun/squad/actions/runs/42321996074",
+    "jobs": [
+      {
+        "id": 128248476776,
+        "name": "Formal verification",
+        "head_sha": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/kejun/squad/actions/runs/42321996074/job/128248476776",
+        "started_at": "2026-11-07T01:04:30Z",
+        "completed_at": "2026-11-07T01:12:56Z",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-07T01:04:31Z",
+            "completed_at": "2026-11-07T01:04:32Z"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-07T01:04:32Z",
+            "completed_at": "2026-11-07T01:04:34Z"
+          },
+          {
+            "name": "Run actions/setup-node@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-07T01:04:34Z",
+            "completed_at": "2026-11-07T01:04:41Z"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-07T01:04:41Z",
+            "completed_at": "2026-11-07T01:04:41Z"
+          },
+          {
+            "name": "Install locked dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-07T01:04:41Z",
+            "completed_at": "2026-11-07T01:04:49Z"
+          },
+          {
+            "name": "Check handoff correspondence",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-07T01:04:49Z",
+            "completed_at": "2026-11-07T01:05:36Z"
+          },
+          {
+            "name": "Check delivery evidence and publication",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-11-07T01:05:36Z",
+            "completed_at": "2026-11-07T01:05:55Z"
+          },
+          {
+            "name": "Check execution and host authority",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-11-07T01:05:55Z",
+            "completed_at": "2026-11-07T01:06:49Z"
+          },
+          {
+            "name": "Check budgets and shard convergence",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-11-07T01:06:49Z",
+            "completed_at": "2026-11-07T01:12:49Z"
+          },
+          {
+            "name": "Retain formal verification evidence",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10,
+            "started_at": "2026-11-07T01:12:49Z",
+            "completed_at": "2026-11-07T01:12:52Z"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 18,
+            "started_at": "2026-11-07T01:12:52Z",
+            "completed_at": "2026-11-07T01:12:52Z"
+          },
+          {
+            "name": "Post Run actions/setup-node@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 19,
+            "started_at": "2026-11-07T01:12:52Z",
+            "completed_at": "2026-11-07T01:12:52Z"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 20,
+            "started_at": "2026-11-07T01:12:52Z",
+            "completed_at": "2026-11-07T01:12:52Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 21,
+            "started_at": "2026-11-07T01:12:52Z",
+            "completed_at": "2026-11-07T01:12:52Z"
+          }
+        ],
+        "labels": [
+          "ubuntu-22.04"
+        ]
+      },
+      {
+        "id": 128248476951,
+        "name": "Complete verification",
+        "head_sha": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/kejun/squad/actions/runs/42321996074/job/128248476951",
+        "started_at": "2026-11-07T01:04:30Z",
+        "completed_at": "2026-11-07T01:06:23Z",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-07T01:04:30Z",
+            "completed_at": "2026-11-07T01:04:31Z"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-07T01:04:31Z",
+            "completed_at": "2026-11-07T01:04:32Z"
+          },
+          {
+            "name": "Run actions/setup-node@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-07T01:04:32Z",
+            "completed_at": "2026-11-07T01:04:37Z"
+          },
+          {
+            "name": "Install sandbox dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-07T01:04:37Z",
+            "completed_at": "2026-11-07T01:04:49Z"
+          },
+          {
+            "name": "Install locked dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-07T01:04:49Z",
+            "completed_at": "2026-11-07T01:04:53Z"
+          },
+          {
+            "name": "Verify real sandbox boundaries",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-07T01:04:53Z",
+            "completed_at": "2026-11-07T01:04:53Z"
+          },
+          {
+            "name": "Type checks, all tests, Gherkin and coverage",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-11-07T01:04:53Z",
+            "completed_at": "2026-11-07T01:06:10Z"
+          },
+          {
+            "name": "Production build",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-11-07T01:06:10Z",
+            "completed_at": "2026-11-07T01:06:19Z"
+          },
+          {
+            "name": "Retain verification reports",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-11-07T01:06:19Z",
+            "completed_at": "2026-11-07T01:06:20Z"
+          },
+          {
+            "name": "Post Run actions/setup-node@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 17,
+            "started_at": "2026-11-07T01:06:20Z",
+            "completed_at": "2026-11-07T01:06:20Z"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 18,
+            "started_at": "2026-11-07T01:06:20Z",
+            "completed_at": "2026-11-07T01:06:20Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 19,
+            "started_at": "2026-11-07T01:06:20Z",
+            "completed_at": "2026-11-07T01:06:21Z"
+          }
+        ],
+        "labels": [
+          "ubuntu-22.04"
+        ]
+      }
+    ]
+  },
+  "existingIssues": [
+    {
+      "id": "KEJ-92",
+      "title": "修复 B→A 形式化验证的实现对应漂移",
+      "status": "Done",
+      "url": "https://linear.app/kejunz/issue/KEJ-92/修复-ba-形式化验证的实现对应漂移"
+    },
+    {
+      "id": "KEJ-97",
+      "title": "建立并行分片协作收敛形式化验证",
+      "status": "Done",
+      "url": "https://linear.app/kejunz/issue/KEJ-97/建立并行分片协作收敛形式化验证"
+    },
+    {
+      "id": "KEJ-100",
+      "title": "确立 BDD 唯一验收契约并清理存量单元测试",
+      "status": "Backlog",
+      "url": "https://linear.app/kejunz/issue/KEJ-100/确立-bdd-唯一验收契约并清理存量单yuan测试"
+    },
+    {
+      "id": "KEJ-96",
+      "title": "建立预算与有界重试形式化验证",
+      "status": "Done",
+      "url": "https://linear.app/kejunz/issue/KEJ-96/建立预算与有界重试形式化验证"
+    },
+    {
+      "id": "KEJ-98",
+      "title": "支持引用已交付产物，在新任务中生成修订版",
+      "status": "In Progress",
+      "url": "https://linear.app/kejunz/issue/KEJ-98/支持引用已交付产物在新任务中生成修订版"
+    },
+    {
+      "id": "KEJ-94",
+      "title": "建立执行授权与停止恢复形式化验证",
+      "status": "Done",
+      "url": "https://linear.app/kejunz/issue/KEJ-94/建立执行授权与停止恢复形式化验证"
+    },
+    {
+      "id": "KEJ-93",
+      "title": "建立交付证据与发布一致性形式化验证",
+      "status": "Done",
+      "url": "https://linear.app/kejunz/issue/KEJ-93/建立交付证据与发布一致性形式化验证"
+    },
+    {
+      "id": "KEJ-95",
+      "title": "建立宿主审批与租约形式化验证",
+      "status": "Done",
+      "url": "https://linear.app/kejunz/issue/KEJ-95/建立宿主审批与租约形式化验证"
+    },
+    {
+      "id": "KEJ-101",
+      "title": "盘点 Squad P0/P1 验证缺口并去重拆分实施任务",
+      "status": "Backlog",
+      "url": "https://linear.app/kejunz/issue/KEJ-101/盘点-squad-p0p1-验证缺口并去重拆分实施任务"
+    },
+    {
+      "id": "KEJ-99",
+      "title": "让输入理解按可用成员和剩余额度规划 MapReduce 分片",
+      "status": "In Progress",
+      "url": "https://linear.app/kejunz/issue/KEJ-99/让输入理解按可用成员和剩余额度规划-mapreduce-分片"
+    }
+  ],
+  "followups": [
+    {
+      "key": "browser",
+      "id": "KEJ-102",
+      "url": "https://linear.app/kejunz/issue/KEJ-102/补齐四个待验收网页场景的真实浏览器绑定",
+      "title": "补齐四个待验收网页场景的真实浏览器绑定"
+    },
+    {
+      "key": "effect",
+      "id": "KEJ-103",
+      "url": "https://linear.app/kejunz/issue/KEJ-103/验证-cli-外部效果发生后宿主进程崩溃的恢复边界",
+      "title": "验证 CLI 外部效果发生后宿主进程崩溃的恢复边界"
+    },
+    {
+      "key": "transaction",
+      "id": "KEJ-104",
+      "url": "https://linear.app/kejunz/issue/KEJ-104/验证-sqlite-写事务中进程终止时的提交原子性",
+      "title": "验证 SQLite 写事务中进程终止时的提交原子性"
+    },
+    {
+      "key": "response",
+      "id": "KEJ-105",
+      "url": "https://linear.app/kejunz/issue/KEJ-105/为模型成功响应读取设置资源上限与明确超限失败",
+      "title": "为模型成功响应读取设置资源上限与明确超限失败"
+    },
+    {
+      "key": "cancelled",
+      "id": "KEJ-106",
+      "url": "https://linear.app/kejunz/issue/KEJ-106/修复取消分片恢复后仍占用成员的组合时序缺陷",
+      "title": "修复取消分片恢复后仍占用成员的组合时序缺陷"
+    }
+  ],
+  "recordedAtUtc": "2026-11-07T07:25:57.344793+00:00",
+  "formal": {
+    "sourceCommit": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+    "run": 42321996074,
+    "job": 128248476776,
+    "ciLogSha256": "26f72d628b71570f43635380e3b345703c4775c208cee77ff88ed4d7aca36e14",
+    "artifact": {
+      "url": "https://github.com/kejun/squad/actions/runs/42321996074/artifacts/13552899707",
+      "size": 1039112,
+      "files": 592,
+      "sha256": "02209b3b4dcab98a47168b2759f741a433ee4d48957b7c35a7460bae9aed6299"
+    },
+    "suites": [
+      {
+        "source": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+        "status": "verified",
+        "evidence": "/home/runner/work/squad/squad/reports/verify-squad-handoff/20261107T010449Z-2340",
+        "seconds": 46.689,
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "evidenceRetained": true
+        }
+      },
+      {
+        "source": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+        "status": "verified",
+        "evidence": "/home/runner/work/squad/squad/reports/verify-squad-delivery/20261107T010536Z-2810",
+        "seconds": 18.84685213800003,
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "evidenceRetained": true
+        },
+        "bounds": {
+          "tasks": 1,
+          "candidates": 1,
+          "documents": 1,
+          "savedSkillResources": 1,
+          "goalVersions": 2,
+          "crashes": 1,
+          "rollbackFailures": 1,
+          "checkRequests": 1,
+          "candidateRevisionInputs": [
+            "current",
+            "stale"
+          ],
+          "resourceReceiptCorruptionCases": 9
+        },
+        "evidenceManifestSha256": "a6528d3f603abfb3947b821636c02faf7cd98637e2c30ee28498888146721ff6",
+        "implementation": {
+          "status": "verified",
+          "graphStates": 31,
+          "graphEdges": 79,
+          "backends": [
+            {
+              "backend": "memory",
+              "edgesReplayed": 79,
+              "snapshotCases": 9
+            },
+            {
+              "backend": "sqlite",
+              "edgesReplayed": 79,
+              "snapshotCases": 9
+            }
+          ],
+          "exitCode": 0
+        },
+        "negativeControls": {
+          "drop-final": {
+            "property": "AtomicPublication",
+            "backends": {
+              "memory": {
+                "status": "failed",
+                "exitCode": 1,
+                "error": "AssertionError [ERR_ASSERTION]: AtomicPublication: published delivery lacks exactly one final message"
+              },
+              "sqlite": {
+                "status": "failed",
+                "exitCode": 1,
+                "error": "AssertionError [ERR_ASSERTION]: AtomicPublication: published delivery lacks exactly one final message"
+              }
+            }
+          },
+          "accept-stale": {
+            "property": "CurrentCandidate",
+            "backends": {
+              "memory": {
+                "status": "failed",
+                "exitCode": 1,
+                "error": "AssertionError [ERR_ASSERTION]: CurrentCandidate: stale candidate judgment published"
+              },
+              "sqlite": {
+                "status": "failed",
+                "exitCode": 1,
+                "error": "AssertionError [ERR_ASSERTION]: CurrentCandidate: stale candidate judgment published"
+              }
+            }
+          },
+          "skip-snapshot": {
+            "property": "SnapshotBinding",
+            "backends": {
+              "memory": {
+                "status": "failed",
+                "exitCode": 1,
+                "error": "AssertionError [ERR_ASSERTION]: SnapshotBinding: content changed without invalidating frozen evidence"
+              },
+              "sqlite": {
+                "status": "failed",
+                "exitCode": 1,
+                "error": "AssertionError [ERR_ASSERTION]: SnapshotBinding: content changed without invalidating frozen evidence"
+              }
+            }
+          }
+        }
+      },
+      {
+        "status": "verified",
+        "evidence": "/home/runner/work/squad/squad/reports/verify-squad-coordination/20261107T010649Z-3889",
+        "seconds": 360.284
+      }
+    ],
+    "authority": {
+      "evidenceVerifiedAt": "2026-11-07T01:06:49.3539466Z",
+      "evidence": "reports/verify-squad-authority/20261107T010555389755Z",
+      "logLine": 854,
+      "note": "Authority main calls verify(out), 34 required steps including six mutations are checked before Evidence verified is printed."
+    }
+  },
+  "fingerprints": {
+    "timestamp": "2026-11-07T07:19:35.531109+00:00",
+    "sha": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+    "suites": [
+      {
+        "suite": "verify-squad-authority",
+        "syncCommit": "3ee6c875bbde0f802eae954d9017ffe5663a3cfc",
+        "fileCount": 62,
+        "drift": [],
+        "bounds": null
+      },
+      {
+        "suite": "verify-squad-coordination",
+        "syncCommit": "3ee6c875bbde0f802eae954d9017ffe5663a3cfc",
+        "fileCount": 62,
+        "drift": [],
+        "bounds": {
+          "Budget": "one current ordinary owner intent, 2 user epochs, ordinary limits 3 then 5, automatic retry limit 1, one safe inflight recovery; request/claim count bounded by total paid budget 5",
+          "Shards": "one round with exactly 2 shards, 3 result outcomes per shard, one reducer, stop or one goal change, one reopen including active safe inflight recovery; no recovery of cancelled inflight or second round",
+          "CheckBudget": "one delivery cycle, two candidates, at most one automatic revision, at most two ordinary + one technical request, two recoveries, one global retry allowance; no stop/goal-change or new user cycle"
+        }
+      },
+      {
+        "suite": "verify-squad-delivery",
+        "syncCommit": "3ee6c875bbde0f802eae954d9017ffe5663a3cfc",
+        "fileCount": 62,
+        "drift": [],
+        "bounds": {
+          "tasks": 1,
+          "candidates": 1,
+          "documents": 1,
+          "savedSkillResources": 1,
+          "goalVersions": 2,
+          "crashes": 1,
+          "rollbackFailures": 1,
+          "checkRequests": 1,
+          "candidateRevisionInputs": [
+            "current",
+            "stale"
+          ],
+          "resourceReceiptCorruptionCases": 9
+        }
+      },
+      {
+        "suite": "verify-squad-handoff",
+        "syncCommit": "756074087685bed3f52f0e6b6e06caf19c587a01",
+        "fileCount": 49,
+        "drift": [],
+        "bounds": {
+          "tasks": 1,
+          "owner": "A",
+          "assistant": "B",
+          "savedResults": 1,
+          "epochs": 2,
+          "goalVersions": 2,
+          "crashes": 1,
+          "rollbackFailures": 1,
+          "resumedOwnerClaims": 0
+        }
+      }
+    ]
+  },
+  "logEvidence": {
+    "ci-complete.log": {
+      "rawLogSha256": "cfbe79f8a7da511d4bf2c29baba82cb4eb7e9651f8c6665f3d1393b015756a70",
+      "rawLogBytes": 88537,
+      "source": "GitHub fetch_workflow_job_logs, run 42321996074",
+      "note": "Selected original lines only; full raw logs were read, artifact ZIP was not independently downloaded.",
+      "excerpts": [
+        {
+          "line": 101,
+          "text": "2026-11-07T01:04:32.1567122Z ##[group]Checking out the ref"
+        },
+        {
+          "line": 274,
+          "text": "2026-11-07T01:04:53.8546763Z OS sandbox file, snapshot-write, credential, network, check-source and cancellation boundaries passed"
+        },
+        {
+          "line": 348,
+          "text": "2026-11-07T01:05:42.2540759Z \u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m43 passed\u001b[39m\u001b[22m\u001b[90m (43)\u001b[39m"
+        },
+        {
+          "line": 349,
+          "text": "2026-11-07T01:05:42.2554502Z \u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m435 passed\u001b[39m\u001b[22m\u001b[90m (435)\u001b[39m"
+        },
+        {
+          "line": 351,
+          "text": "2026-11-07T01:05:42.2555405Z \u001b[2m   Duration \u001b[22m 36.32s\u001b[2m (transform 806ms, setup 0ms, collect 6.88s, tests 24.79s, environment 4ms, prepare 1.41s)\u001b[22m"
+        },
+        {
+          "line": 356,
+          "text": "2026-11-07T01:06:09.7760468Z 1157 scenarios (1157 passed)"
+        },
+        {
+          "line": 357,
+          "text": "2026-11-07T01:06:09.7760955Z 47458 steps (47458 passed)"
+        },
+        {
+          "line": 360,
+          "text": "2026-11-07T01:06:10.1925393Z   \"features\": 31,"
+        },
+        {
+          "line": 361,
+          "text": "2026-11-07T01:06:10.1925621Z   \"definitions\": 466,"
+        },
+        {
+          "line": 362,
+          "text": "2026-11-07T01:06:10.1925767Z   \"cases\": 1183,"
+        },
+        {
+          "line": 363,
+          "text": "2026-11-07T01:06:10.1925935Z   \"regressionTestsPassed\": 435,"
+        },
+        {
+          "line": 364,
+          "text": "2026-11-07T01:06:10.1926138Z   \"directlyExecutedGherkinCasesPassed\": 1157,"
+        },
+        {
+          "line": 365,
+          "text": "2026-11-07T01:06:10.1926358Z   \"fullyExecutedGherkinDefinitions\": 448,"
+        },
+        {
+          "line": 366,
+          "text": "2026-11-07T01:06:10.1926564Z   \"definitionsWithLinkedRegressionTests\": 241,"
+        },
+        {
+          "line": 367,
+          "text": "2026-11-07T01:06:10.1926789Z   \"deferredDefinitions\": 18,"
+        },
+        {
+          "line": 368,
+          "text": "2026-11-07T01:06:10.1927005Z   \"deferredCases\": 26"
+        },
+        {
+          "line": 424,
+          "text": "2026-11-07T01:06:19.7104225Z Artifact name is valid!"
+        },
+        {
+          "line": 432,
+          "text": "2026-11-07T01:06:20.7671084Z Artifact verification-1d7dc6e048b3927b6e2b51c7f7803dafd09217d5.zip successfully finalized. Artifact ID 13553801432"
+        },
+        {
+          "line": 433,
+          "text": "2026-11-07T01:06:20.7671749Z Artifact verification-1d7dc6e048b3927b6e2b51c7f7803dafd09217d5 has been successfully uploaded! Final size is 395135 bytes. Artifact ID is 13553801432"
+        }
+      ]
+    },
+    "ci-formal.log": {
+      "rawLogSha256": "26f72d628b71570f43635380e3b345703c4775c208cee77ff88ed4d7aca36e14",
+      "rawLogBytes": 73110,
+      "source": "GitHub fetch_workflow_job_logs, run 42321996074",
+      "note": "Selected original lines only; full raw logs were read, artifact ZIP was not independently downloaded.",
+      "excerpts": [
+        {
+          "line": 222,
+          "text": "2026-11-07T01:05:36.3566752Z   \"status\": \"verified\","
+        },
+        {
+          "line": 223,
+          "text": "2026-11-07T01:05:36.3567557Z   \"source\": \"1d7dc6e048b3927b6e2b51c7f7803dafd09217d5\","
+        },
+        {
+          "line": 225,
+          "text": "2026-11-07T01:05:36.3571029Z   \"seconds\": 46.689,"
+        },
+        {
+          "line": 240,
+          "text": "2026-11-07T01:05:55.3005850Z   \"status\": \"verified\","
+        },
+        {
+          "line": 258,
+          "text": "2026-11-07T01:05:55.3022673Z   \"source\": \"1d7dc6e048b3927b6e2b51c7f7803dafd09217d5\","
+        },
+        {
+          "line": 346,
+          "text": "2026-11-07T01:05:55.3114277Z       \"seconds\": 1.041604282000094,"
+        },
+        {
+          "line": 378,
+          "text": "2026-11-07T01:05:55.3130744Z       \"seconds\": 1.00655171599999,"
+        },
+        {
+          "line": 410,
+          "text": "2026-11-07T01:05:55.3146634Z       \"seconds\": 0.9380374090000032,"
+        },
+        {
+          "line": 442,
+          "text": "2026-11-07T01:05:55.3162344Z       \"seconds\": 0.9598102429999926,"
+        },
+        {
+          "line": 474,
+          "text": "2026-11-07T01:05:55.3174846Z       \"seconds\": 0.966793890999952,"
+        },
+        {
+          "line": 506,
+          "text": "2026-11-07T01:05:55.3189360Z       \"seconds\": 0.9563372220000019,"
+        },
+        {
+          "line": 538,
+          "text": "2026-11-07T01:05:55.3202737Z       \"seconds\": 1.0522736890000033,"
+        },
+        {
+          "line": 568,
+          "text": "2026-11-07T01:05:55.3218530Z           \"seconds\": 0.7126786139999695,"
+        },
+        {
+          "line": 594,
+          "text": "2026-11-07T01:05:55.3238338Z           \"seconds\": 0.5456794120000268,"
+        },
+        {
+          "line": 628,
+          "text": "2026-11-07T01:05:55.3250512Z         \"seconds\": 0.9634489410000242,"
+        },
+        {
+          "line": 657,
+          "text": "2026-11-07T01:05:55.3259970Z           \"seconds\": 0.7212682939999695,"
+        },
+        {
+          "line": 683,
+          "text": "2026-11-07T01:05:55.3270923Z           \"seconds\": 0.565782383999931,"
+        },
+        {
+          "line": 717,
+          "text": "2026-11-07T01:05:55.3282931Z         \"seconds\": 0.9691225970000232,"
+        },
+        {
+          "line": 740,
+          "text": "2026-11-07T01:05:55.3318043Z           \"seconds\": 0.6948175180000362,"
+        },
+        {
+          "line": 760,
+          "text": "2026-11-07T01:05:55.3340230Z           \"seconds\": 0.5180616489999466,"
+        },
+        {
+          "line": 780,
+          "text": "2026-11-07T01:05:55.3347477Z     \"status\": \"verified\","
+        },
+        {
+          "line": 797,
+          "text": "2026-11-07T01:05:55.3351333Z     \"seconds\": 3.1293857059999937,"
+        },
+        {
+          "line": 810,
+          "text": "2026-11-07T01:05:55.3356390Z     \"status\": \"verified\","
+        },
+        {
+          "line": 827,
+          "text": "2026-11-07T01:05:55.3359976Z     \"seconds\": 3.060675372999981,"
+        },
+        {
+          "line": 844,
+          "text": "2026-11-07T01:05:55.3365803Z   \"seconds\": 18.84685213800003,"
+        },
+        {
+          "line": 854,
+          "text": "2026-11-07T01:06:49.3539466Z Evidence verified: /home/runner/work/squad/squad/reports/verify-squad-authority/20261107T010555389755Z"
+        },
+        {
+          "line": 865,
+          "text": "2026-11-07T01:09:34.0906835Z Negative control: omit-interpretation-reservation"
+        },
+        {
+          "line": 866,
+          "text": "2026-11-07T01:09:35.2740244Z Negative control: omit-capacity-refresh"
+        },
+        {
+          "line": 867,
+          "text": "2026-11-07T01:09:36.6009294Z Negative control: backfill-legacy-capacity"
+        },
+        {
+          "line": 868,
+          "text": "2026-11-07T01:09:37.9432201Z Negative control: skip-capacity-dispatch-guard"
+        },
+        {
+          "line": 869,
+          "text": "2026-11-07T01:09:39.1767993Z Negative control: ignore-adapter-capacity"
+        },
+        {
+          "line": 870,
+          "text": "2026-11-07T01:09:40.3985892Z Negative control: omit-claim-charge"
+        },
+        {
+          "line": 871,
+          "text": "2026-11-07T01:09:41.6232204Z Negative control: ignore-retry-limit"
+        },
+        {
+          "line": 872,
+          "text": "2026-11-07T01:09:43.3770618Z Negative control: premature-reduce"
+        },
+        {
+          "line": 873,
+          "text": "2026-11-07T01:09:45.0054119Z Negative control: erase-partial-evidence"
+        },
+        {
+          "line": 874,
+          "text": "2026-11-07T01:09:46.6766494Z Negative control: duplicate-owner-handoff"
+        },
+        {
+          "line": 875,
+          "text": "2026-11-07T01:10:10.3509364Z Negative control: accept-old-shard-attempt"
+        },
+        {
+          "line": 876,
+          "text": "2026-11-07T01:10:11.7813376Z Negative control: omit-summary-progress"
+        },
+        {
+          "line": 877,
+          "text": "2026-11-07T01:10:17.1968660Z Negative control: omit-check-charge"
+        },
+        {
+          "line": 878,
+          "text": "2026-11-07T01:10:18.4973987Z Negative control: reuse-check-request-permit"
+        },
+        {
+          "line": 879,
+          "text": "2026-11-07T01:10:20.1133442Z Negative control: omit-technical-retry-charge"
+        },
+        {
+          "line": 880,
+          "text": "2026-11-07T01:10:21.5363013Z Negative control: omit-revision-marker"
+        },
+        {
+          "line": 881,
+          "text": "2026-11-07T01:12:49.7581338Z {\"status\": \"verified\", \"evidence\": \"/home/runner/work/squad/squad/reports/verify-squad-coordination/20261107T010649Z-3889\", \"seconds\": 360.284, \"error\": null}"
+        },
+        {
+          "line": 898,
+          "text": "2026-11-07T01:12:50.1027493Z Artifact name is valid!"
+        },
+        {
+          "line": 906,
+          "text": "2026-11-07T01:12:52.1736818Z Artifact formal-verification-1d7dc6e048b3927b6e2b51c7f7803dafd09217d5.zip successfully finalized. Artifact ID 13552899707"
+        },
+        {
+          "line": 907,
+          "text": "2026-11-07T01:12:52.1739074Z Artifact formal-verification-1d7dc6e048b3927b6e2b51c7f7803dafd09217d5 has been successfully uploaded! Final size is 1039112 bytes. Artifact ID is 13552899707"
+        }
+      ]
+    }
+  },
+  "localExecutions": [
+    {
+      "command": "MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture npm run check",
+      "environment": "Node24.22.1, locked checkout dependencies, MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture (host wrapper uses example.test internally); no provider requests",
+      "exitCode": 1,
+      "sourceSha": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+      "rawLogSha256": "7fa712217135442f3ef6de3e3bb2def1c406d0fe10450045a33f73b7611dd4eb",
+      "note": "restricted execution sandbox: Vitest idle deadline",
+      "outputTail": [
+        "",
+        "> bot-team-xstate@0.1.0 check",
+        "> node scripts/check.mjs",
+        "",
+        "No output for 60000ms: node node_modules/vitest/vitest.mjs run --maxWorkers=1 --reporter=default --reporter=json --outputFile=test-results/vitest.json"
+      ]
+    },
+    {
+      "command": "same command with required process/localhost permissions",
+      "environment": "Node24.22.1, locked checkout dependencies, MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture (host wrapper uses example.test internally); no provider requests",
+      "exitCode": 1,
+      "sourceSha": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+      "rawLogSha256": "e497d84290431f437bfda8ad67d10ac920b7f211c02b54f34bb4b8fff1ab8077",
+      "note": "435 Vitest passed; 1155 Gherkin passed, BT_L19/L22 failed: socat not installed; not local all-pass",
+      "outputTail": [
+        "  2) 原生沙箱继续限制文件网络和取消生命周期 # features/24_local_skills_cli.feature:208",
+        "       当在真实沙箱验证工作区写入和外部访问并取消长命令 # tests/bdd/native-local-tools.steps.ts:19",
+        "           Error: Command failed: /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node --import /workspace/squad/node_modules/tsx/dist/loader.mjs /workspace/squad/scripts/verify-local-sandbox.ts",
+        "           CLI_SANDBOX_UNAVAILABLE: socat not installed",
+        "           ",
+        "               at genericNodeError (node:internal/errors:986:15)",
+        "               at wrappedFn (node:internal/errors:540:14)",
+        "               at ChildProcess.exithandler (node:child_process:417:12)",
+        "               at ChildProcess.emit (node:events:514:28)",
+        "               at maybeClose (node:internal/child_process:1172:16)",
+        "               at ChildProcess._handle.onexit (node:internal/child_process:335:5)",
+        "",
+        "1157 scenarios (1155 passed, 2 failed)",
+        "47458 steps (47448 passed, 8 skipped, 2 failed)",
+        "0m 35.405s (0m 31.935s executing your code)"
+      ]
+    },
+    {
+      "command": "node --import tsx tests/core-model-gate.ts",
+      "environment": "Node24.22.1, locked checkout dependencies, MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture (host wrapper uses example.test internally); no provider requests",
+      "exitCode": 0,
+      "sourceSha": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+      "rawLogSha256": "a9ee8b0687d4bd9f875719699898b887207e7d5b5bc578043c841df105610e44",
+      "note": "80 pure real-XState traces",
+      "outputTail": [
+        "{\"verified\":80,\"scope\":\"pure real-XState scenario drivers; no model, network, file or process I/O\"}"
+      ]
+    },
+    {
+      "command": "node --import tsx tests/delivery-contract-gate.ts --pure",
+      "environment": "Node24.22.1, locked checkout dependencies, MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture (host wrapper uses example.test internally); no provider requests",
+      "exitCode": 0,
+      "sourceSha": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+      "rawLogSha256": "32eebc29cc2bb4f3839a8e054acb4d1a9ec3a05a2c52162f3fce9e465c4d54c8",
+      "note": "91 pure traces",
+      "outputTail": [
+        "{\"domain\":\"直接修订指令\",\"input\":\"~~~md\\n修改 a.md\\n~~~\\n随口提及\",\"target\":\"无\",\"explicit\":false,\"status\":\"passed\"}",
+        "{\"domain\":\"直接修订指令\",\"input\":\"    修改 a.md，补充说明\",\"target\":\"无\",\"explicit\":false,\"status\":\"passed\"}",
+        "{\"domain\":\"直接修订指令\",\"input\":\"\\t修改 a.md，补充说明\",\"target\":\"无\",\"explicit\":false,\"status\":\"passed\"}",
+        "{\"domain\":\"直接修订指令\",\"input\":\"这里有个示例：\\n修改 a.md\",\"target\":\"无\",\"explicit\":false,\"status\":\"passed\"}",
+        "{\"domain\":\"直接修订指令\",\"input\":\"修改 ./a.md，补充说明\",\"target\":\"无\",\"explicit\":false,\"status\":\"passed\"}",
+        "{\"domain\":\"直接修订指令\",\"input\":\"修改 docs/a.md，补充说明\",\"target\":\"无\",\"explicit\":false,\"status\":\"passed\"}",
+        "{\"domain\":\"直接修订指令\",\"input\":\"修改 C:\\\\docs\\\\a.md，补充说明\",\"target\":\"无\",\"explicit\":false,\"status\":\"passed\"}",
+        "{\"domain\":\"直接修订指令\",\"input\":\"修改仓库中的 a.md，补充说明\",\"target\":\"无\",\"explicit\":false,\"status\":\"passed\"}",
+        "{\"domain\":\"直接修订指令\",\"input\":\"修改工作区 a.md，补充说明\",\"target\":\"无\",\"explicit\":false,\"status\":\"passed\"}",
+        "{\"domain\":\"直接修订指令\",\"input\":\"继续\",\"target\":\"无\",\"explicit\":false,\"status\":\"passed\"}",
+        "{\"domain\":\"直接修订指令\",\"input\":\"停止\",\"target\":\"无\",\"explicit\":false,\"status\":\"passed\"}",
+        "{\"domain\":\"直接修订指令\",\"input\":\"重试 @B\",\"target\":\"无\",\"explicit\":false,\"status\":\"passed\"}",
+        "{\"domain\":\"直接修订指令\",\"input\":\"同意修改 a.md\",\"target\":\"无\",\"explicit\":false,\"status\":\"passed\"}",
+        "{\"domain\":\"直接修订指令\",\"input\":\"修改 a.txt\",\"target\":\"无\",\"explicit\":false,\"status\":\"passed\"}",
+        "{\"verified\":91,\"pure\":true}"
+      ]
+    },
+    {
+      "command": "node --import tsx docs/testing/kej-100/map-model-gate.mjs",
+      "environment": "Node24.22.1, locked checkout dependencies, MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture (host wrapper uses example.test internally); no provider requests",
+      "exitCode": 0,
+      "sourceSha": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+      "rawLogSha256": "f5effadff452f7e1a4659025018a65e1c941ac5cc8e834fee96222d3bcbf561b",
+      "note": "33 model cases",
+      "outputTail": [
+        "33 original pure XState/model contract cases passed independently"
+      ]
+    },
+    {
+      "command": "node --import tsx tests/host-model-gate.ts",
+      "environment": "Node24.22.1, locked checkout dependencies, MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture (host wrapper uses example.test internally); no provider requests",
+      "exitCode": 1,
+      "sourceSha": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+      "rawLogSha256": "5ac3dd620c94fcaec3d5259a2caebf956658fb87bd29e67208216fcd7a82af2f",
+      "note": "restricted sandbox spawnSync EPERM",
+      "outputTail": [
+        "      'tests/bdd/*.ts',",
+        "      '--tags',",
+        "      '@BT_L36 or @BT_L46 or @BT_L47 or @BT_L48 or @BT_L49 or @BT_L50 or @BT_L51 or @BT_L52 or @BT_L55 or @BT_L57',",
+        "      '--format',",
+        "      'summary',",
+        "      '--format',",
+        "      'json:reports/host-model-gate/cucumber.json'",
+        "    ]",
+        "  },",
+        "  expected: undefined,",
+        "  operator: 'strictEqual',",
+        "  diff: 'simple'",
+        "}",
+        "",
+        "Node.js v24.22.1"
+      ]
+    },
+    {
+      "command": "same host gate with process permission",
+      "environment": "Node24.22.1, locked checkout dependencies, MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture (host wrapper uses example.test internally); no provider requests",
+      "exitCode": 0,
+      "sourceSha": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+      "rawLogSha256": "58ef4bb2abe90d47aaaba390a63e54347ce3b511386344f3dc0e2044dc4a4fa8",
+      "note": "pure model scenarios; see final output",
+      "outputTail": [
+        "{",
+        "  \"status\": \"passed\",",
+        "  \"scenarios\": 54,",
+        "  \"sourceHashes\": {",
+        "    \"src/task.machine.ts\": \"24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e\",",
+        "    \"src/task/reducer.ts\": \"42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a\",",
+        "    \"src/local-operation.ts\": \"0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a\",",
+        "    \"src/host-session.ts\": \"9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab\",",
+        "    \"src/host-retry.ts\": \"e68e16d090b7c76d5bc8ec18f2cb01c9c33730090d98a001bd7f3fd49ba1ba31\",",
+        "    \"src/host-capabilities.ts\": \"21a2aec00a32046ff67e6517a948540235301bd7803852b551cf77809d64feb2\"",
+        "  },",
+        "  \"evidence\": \"reports/host-model-gate\"",
+        "}"
+      ]
+    },
+    {
+      "command": "python3 docs/testing/kej-100/verify-ledger.py",
+      "environment": "Node24.22.1, locked checkout dependencies, MODEL_BASE_URL=http://127.0.0.1:9/v1 MODEL_NAME=fixture (host wrapper uses example.test internally); no provider requests",
+      "exitCode": 1,
+      "sourceSha": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+      "rawLogSha256": "57d0c32f7ffd1aecbb7b47ef25c630787422ba194e94402ba732f79d18f22bf7",
+      "note": "historical script compares product to KEJ-100 baseline; PR41 changed three covered source files, not audit modifications",
+      "outputTail": [
+        "Traceback (most recent call last):",
+        "  File \"/workspace/squad/docs/testing/kej-100/verify-ledger.py\", line 62, in <module>",
+        "    assert not source_changes, ('Product, dependency or acceptance-gap change', source_changes)",
+        "           ^^^^^^^^^^^^^^^^^^",
+        "AssertionError: ('Product, dependency or acceptance-gap change', 'src/delivery-acceptance.ts\\nsrc/model-adapter.ts\\nsrc/task/delivery.ts\\n')"
+      ]
+    }
+  ],
+  "hostModelGate": {
+    "status": "passed",
+    "sourceHashes": {
+      "src/task.machine.ts": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
+      "src/task/reducer.ts": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+      "src/local-operation.ts": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
+      "src/host-session.ts": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab",
+      "src/host-retry.ts": "e68e16d090b7c76d5bc8ec18f2cb01c9c33730090d98a001bd7f3fd49ba1ba31",
+      "src/host-capabilities.ts": "21a2aec00a32046ff67e6517a948540235301bd7803852b551cf77809d64feb2"
+    },
+    "scenarios": 54,
+    "tags": [
+      "BT_L36",
+      "BT_L46",
+      "BT_L47",
+      "BT_L48",
+      "BT_L49",
+      "BT_L50",
+      "BT_L51",
+      "BT_L52",
+      "BT_L55",
+      "BT_L57"
+    ],
+    "boundary": "Real taskMachine + persisted-snapshot round trips and controlled clocks; selected product operations do not open stores, HTTP servers, files, adapters or commands; the outer gate reads source hashes and writes reports. Cucumber imports register unselected integration steps without constructing their fixtures.",
+    "traces": [
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"任务结束\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"停止\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"目标变化\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"服务重启\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"其他任务\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"环境变化\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"宿主变化\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"账号变化\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"工作区变化\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"明确继续\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"权限关闭\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"领取后权限关闭\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"已有授权\"的宿主会话准备核对边界",
+          "会话遇到\"用户撤销\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"并行协助待批\"的宿主会话准备核对边界",
+          "会话遇到\"并行协助环境变化\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"续办已经批准\"的宿主会话准备核对边界",
+          "会话遇到\"续办授权撤销后重新批准\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "会话授权不越过生命周期与权限边界",
+        "btIds": [
+          "@BT_L36"
+        ],
+        "eventsAndAssertions": [
+          "\"续办已经批准\"的宿主会话准备核对边界",
+          "会话遇到\"续办计划变化后重新准备\"",
+          "后续命令不得复用失效或不匹配的授权"
+        ]
+      },
+      {
+        "name": "已接受的宿主续办先于最终交付",
+        "btIds": [
+          "@BT_L46"
+        ],
+        "eventsAndAssertions": [
+          "当前候选的\"负责人\"尚在进行且用户已申请宿主续办",
+          "当前工作返回\"提交候选\"",
+          "应保留当前结果并等待已接受的续办处理",
+          "用户批准续办后提交新候选并取得检查通过结果",
+          "续办结果交接后的候选须重新检查才可最终交付"
+        ]
+      },
+      {
+        "name": "已接受的宿主续办先于最终交付",
+        "btIds": [
+          "@BT_L46"
+        ],
+        "eventsAndAssertions": [
+          "当前候选的\"检查员\"尚在进行且用户已申请宿主续办",
+          "当前工作返回\"检查通过\"",
+          "应保留当前结果并等待已接受的续办处理",
+          "用户批准续办后提交新候选并取得检查通过结果",
+          "续办结果交接后的候选须重新检查才可最终交付"
+        ]
+      },
+      {
+        "name": "已接受的宿主续办先于最终交付",
+        "btIds": [
+          "@BT_L46"
+        ],
+        "eventsAndAssertions": [
+          "当前候选的\"协调员\"尚在进行且用户已申请宿主续办",
+          "当前工作返回\"结束本轮\"",
+          "应保留当前结果并等待已接受的续办处理",
+          "用户批准续办后提交新候选并取得检查通过结果",
+          "续办结果交接后的候选须重新检查才可最终交付"
+        ]
+      },
+      {
+        "name": "一条续办得到确定结果后处理下一条",
+        "btIds": [
+          "@BT_L47"
+        ],
+        "eventsAndAssertions": [
+          "两条固定宿主命令按序等待续办",
+          "第一条命令\"被拒绝\"",
+          "运行器为第二条命令准备独立审批",
+          "第一条应保留真实结论且第二条仍须获得自己的有效授权"
+        ]
+      },
+      {
+        "name": "一条续办得到确定结果后处理下一条",
+        "btIds": [
+          "@BT_L47"
+        ],
+        "eventsAndAssertions": [
+          "两条固定宿主命令按序等待续办",
+          "第一条命令\"确定失败\"",
+          "运行器为第二条命令准备独立审批",
+          "第一条应保留真实结论且第二条仍须获得自己的有效授权"
+        ]
+      },
+      {
+        "name": "停止、目标变化和未知效果限制后续宿主执行",
+        "btIds": [
+          "@BT_L48"
+        ],
+        "eventsAndAssertions": [
+          "两条固定命令按序续办且第一条已经启动",
+          "续办遇到\"用户停止后收到迟到回执\"",
+          "应保留第一条的实际执行状态且第二条不得启动",
+          "未核对的执行效果不得用于宣告正常完成"
+        ]
+      },
+      {
+        "name": "停止、目标变化和未知效果限制后续宿主执行",
+        "btIds": [
+          "@BT_L48"
+        ],
+        "eventsAndAssertions": [
+          "两条固定命令按序续办且第一条已经启动",
+          "续办遇到\"目标变化后收到迟到回执\"",
+          "应保留第一条的实际执行状态且第二条不得启动",
+          "未核对的执行效果不得用于宣告正常完成"
+        ]
+      },
+      {
+        "name": "停止、目标变化和未知效果限制后续宿主执行",
+        "btIds": [
+          "@BT_L48"
+        ],
+        "eventsAndAssertions": [
+          "两条固定命令按序续办且第一条已经启动",
+          "续办遇到\"效果不明\"",
+          "应保留第一条的实际执行状态且第二条不得启动",
+          "未核对的执行效果不得用于宣告正常完成"
+        ]
+      },
+      {
+        "name": "停止、目标变化和未知效果限制后续宿主执行",
+        "btIds": [
+          "@BT_L48"
+        ],
+        "eventsAndAssertions": [
+          "两条固定命令按序续办且第一条已经启动",
+          "续办遇到\"运行已超时\"",
+          "应保留第一条的实际执行状态且第二条不得启动",
+          "未核对的执行效果不得用于宣告正常完成"
+        ]
+      },
+      {
+        "name": "停止、目标变化和未知效果限制后续宿主执行",
+        "btIds": [
+          "@BT_L48"
+        ],
+        "eventsAndAssertions": [
+          "两条固定命令按序续办且第一条已经启动",
+          "续办遇到\"核对确认实际结果\"",
+          "应保留第一条的实际执行状态且第二条不得启动",
+          "未核对的执行效果不得用于宣告正常完成"
+        ]
+      },
+      {
+        "name": "恢复宿主续办仅为真实的新模型请求收费",
+        "btIds": [
+          "@BT_L49"
+        ],
+        "eventsAndAssertions": [
+          "宿主续办恢复前处于\"第二条命令已批准未启动\"",
+          "重启恢复该续办并重新领取后继续命令或模型请求",
+          "已结算命令不得重放且恢复后的收费对应真实新请求"
+        ]
+      },
+      {
+        "name": "恢复宿主续办仅为真实的新模型请求收费",
+        "btIds": [
+          "@BT_L49"
+        ],
+        "eventsAndAssertions": [
+          "宿主续办恢复前处于\"整理模型已消耗请求\"",
+          "重启恢复该续办并重新领取后继续命令或模型请求",
+          "已结算命令不得重放且恢复后的收费对应真实新请求"
+        ]
+      },
+      {
+        "name": "宿主续办等待已有工作交接",
+        "btIds": [
+          "@BT_L50"
+        ],
+        "eventsAndAssertions": [
+          "\"普通协助\"仍需交接且当前无未结算物理操作",
+          "用户从确定失败的沙箱记录申请宿主续办",
+          "原有工作交回其结果",
+          "已有工作继续交接且其结果被保留",
+          "宿主续办只能在安全边界开始"
+        ]
+      },
+      {
+        "name": "宿主续办等待已有工作交接",
+        "btIds": [
+          "@BT_L50"
+        ],
+        "eventsAndAssertions": [
+          "\"成员评审\"仍需交接且当前无未结算物理操作",
+          "用户从确定失败的沙箱记录申请宿主续办",
+          "原有工作交回其结果",
+          "已有工作继续交接且其结果被保留",
+          "宿主续办只能在安全边界开始"
+        ]
+      },
+      {
+        "name": "宿主续办等待已有工作交接",
+        "btIds": [
+          "@BT_L50"
+        ],
+        "eventsAndAssertions": [
+          "\"后台讨论\"仍需交接且当前无未结算物理操作",
+          "用户从确定失败的沙箱记录申请宿主续办",
+          "原有工作交回其结果",
+          "已有工作继续交接且其结果被保留",
+          "宿主续办只能在安全边界开始"
+        ]
+      },
+      {
+        "name": "请求登记保留当前工作的剩余额度",
+        "btIds": [
+          "@BT_L51"
+        ],
+        "eventsAndAssertions": [
+          "当前工作还需一次模型请求且余额仅够一批宿主续办的最低要求",
+          "用户在当前工作结束前提交续办请求",
+          "当前工作继续申请一次模型请求",
+          "当前模型请求仍可使用原有额度",
+          "负责人提交当前候选并跨入续办安全边界",
+          "安全边界重核额度不足时应记录未执行原因且无宿主进程启动"
+        ]
+      },
+      {
+        "name": "尚未启动的宿主续办各自按期限结算",
+        "btIds": [
+          "@BT_L52"
+        ],
+        "eventsAndAssertions": [
+          "未启动的宿主续办处于\"等待批准\"",
+          "该宿主续办到期并在原负责人返回时保存结果",
+          "到期请求应未执行且只允许未过期的后续请求继续"
+        ]
+      },
+      {
+        "name": "尚未启动的宿主续办各自按期限结算",
+        "btIds": [
+          "@BT_L52"
+        ],
+        "eventsAndAssertions": [
+          "未启动的宿主续办处于\"原负责人尚未结束\"",
+          "该宿主续办到期并在原负责人返回时保存结果",
+          "到期请求应未执行且只允许未过期的后续请求继续"
+        ]
+      },
+      {
+        "name": "尚未启动的宿主续办各自按期限结算",
+        "btIds": [
+          "@BT_L52"
+        ],
+        "eventsAndAssertions": [
+          "未启动的宿主续办处于\"后续请求尚未到期\"",
+          "该宿主续办到期并在原负责人返回时保存结果",
+          "到期请求应未执行且只允许未过期的后续请求继续"
+        ]
+      },
+      {
+        "name": "自动恢复不得越过仍缺失或未确认的记录",
+        "btIds": [
+          "@BT_L55"
+        ],
+        "eventsAndAssertions": [
+          "首条续办保存为\"效果未确认\"且另一次请求仍在排队",
+          "核对缺失或未确认的首条续办记录",
+          "不得越过缺失或未确认的首条记录启动后续命令"
+        ]
+      },
+      {
+        "name": "自动恢复不得越过仍缺失或未确认的记录",
+        "btIds": [
+          "@BT_L55"
+        ],
+        "eventsAndAssertions": [
+          "首条续办保存为\"缺失负责人且无回执\"且另一次请求仍在排队",
+          "核对缺失或未确认的首条续办记录",
+          "不得越过缺失或未确认的首条记录启动后续命令"
+        ]
+      },
+      {
+        "name": "自动恢复不得越过仍缺失或未确认的记录",
+        "btIds": [
+          "@BT_L55"
+        ],
+        "eventsAndAssertions": [
+          "首条续办保存为\"缺失负责人但效果未确认\"且另一次请求仍在排队",
+          "核对缺失或未确认的首条续办记录",
+          "不得越过缺失或未确认的首条记录启动后续命令"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"已停止\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"STOPPED\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"旧目标\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"STALE_WORK\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"工具关闭\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"LOCAL_TOOLS_DISABLED\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"解析阶段\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"LOCAL_TOOLS_NOT_ALLOWED\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"未授权\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"LOCAL_TOOLS_NOT_AUTHORIZED\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"非法命令路径\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"过量命令\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"相对路径穿越\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"命令夹带参数\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"命令替换表达式\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"空命令\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"发现请求指定宿主执行\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"发现请求伪造批准\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"INVALID_LOCAL_REQUEST\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"查询前取消\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"CANCELLED\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"首个环境查询后取消\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"CANCELLED\"拒绝发现且不得产生新执行意图"
+        ]
+      },
+      {
+        "name": "能力发现沿用任务权限与版本边界",
+        "btIds": [
+          "@BT_L57"
+        ],
+        "eventsAndAssertions": [
+          "能力发现工作受到\"停止后迟到的发现回执\"约束",
+          "成员尝试保存或继续能力发现操作",
+          "应以\"STOPPED\"拒绝发现且不得产生新执行意图"
+        ]
+      }
+    ]
+  },
+  "cucumberLocal": {
+    "results": {
+      "@BT_R01": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_R02": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_R03": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_R04": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_R05": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_R06": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_R07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_R08": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_R09": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_R10": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_R11": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_R12": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_R13": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_H01": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_H02": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_H03": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_H04": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_H05": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_H06": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_H07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_H08": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_H09": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_O01": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_O02": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_O03": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_O04": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_O05": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_O06": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_O07": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_O08": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_O09": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_O10": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_O11": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_B01": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_B02": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_B03": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_B04": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_B05": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_B06": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_B07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_B08": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_B09": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_C01": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_C02": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_C03": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_C04": {
+        "cases": 5,
+        "passed": 5,
+        "failed": 0
+      },
+      "@BT_C05": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_C06": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_C07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_C08": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_C09": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_C10": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_C11": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_F01": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F02": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_F03": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F04": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F05": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F08": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F09": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F10": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_F11": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F12": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_F13": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F14": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_F15": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_F16": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F17": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F18": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F19": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F20": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F21": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_F22": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F23": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F24": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F25": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_F26": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_F27": {
+        "cases": 21,
+        "passed": 21,
+        "failed": 0
+      },
+      "@BT_F28": {
+        "cases": 9,
+        "passed": 9,
+        "failed": 0
+      },
+      "@BT_F29": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_F30": {
+        "cases": 9,
+        "passed": 9,
+        "failed": 0
+      },
+      "@BT_F31": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_U04": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_U05": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_U06": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_U07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_U08": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_U10": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_U11": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_U12": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_U13": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_U14": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_U17": {
+        "cases": 5,
+        "passed": 5,
+        "failed": 0
+      },
+      "@BT_U18": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_U19": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_E01": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_E02": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G01": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G02": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G03": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G04": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G05": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G06": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_G07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G08": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_G09": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G10": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G11": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G12": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G13": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G14": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M01": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M02": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M03": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_M04": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M05": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M06": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M07": {
+        "cases": 8,
+        "passed": 8,
+        "failed": 0
+      },
+      "@BT_M08": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M09": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_M21": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M22": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_M36": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_W01": {
+        "cases": 5,
+        "passed": 5,
+        "failed": 0
+      },
+      "@BT_W02": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_W03": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_W04": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_W05": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_W06": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_W07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_W08": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_W09": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_W10": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_W11": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_W12": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_W13": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_W14": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_H10": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_H11": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_H12": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_H13": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_H14": {
+        "cases": 8,
+        "passed": 8,
+        "failed": 0
+      },
+      "@BT_H15": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_H16": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_H17": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_U16": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_H18": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_H19": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_H20": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A01": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A02": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A03": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A04": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A05": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_A06": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A08": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A09": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A10": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A11": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A22": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A23": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A24": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A25": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A26": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A60": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_A41": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A42": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A43": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_A61": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_A62": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A63": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_A64": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A65": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_P21": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_P01": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_P02": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_P03": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_P04": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_P05": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_P06": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_P07": {
+        "cases": 8,
+        "passed": 8,
+        "failed": 0
+      },
+      "@BT_P08": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_P09": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_P11": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_P12": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_P13": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_P14": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_P15": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_P16": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_P17": {
+        "cases": 5,
+        "passed": 5,
+        "failed": 0
+      },
+      "@BT_P18": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_P19": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_P22": {
+        "cases": 7,
+        "passed": 7,
+        "failed": 0
+      },
+      "@BT_A12": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A13": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_A14": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A15": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_A16": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_A17": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A18": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_A19": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_A20": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A21": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M10": {
+        "cases": 9,
+        "passed": 9,
+        "failed": 0
+      },
+      "@BT_M11": {
+        "cases": 7,
+        "passed": 7,
+        "failed": 0
+      },
+      "@BT_M12": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M13": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_M14": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_M15": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_M16": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M17": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_M18": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M19": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M20": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_M30": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M23": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_M24": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M25": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_M26": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M27": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_M28": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_M29": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M31": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M32": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M33": {
+        "cases": 5,
+        "passed": 5,
+        "failed": 0
+      },
+      "@BT_M34": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_M35": {
+        "cases": 7,
+        "passed": 7,
+        "failed": 0
+      },
+      "@BT_M37": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_I01": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_I02": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_I03": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_I04": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_I05": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_I06": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_I07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_I08": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_I09": {
+        "cases": 5,
+        "passed": 5,
+        "failed": 0
+      },
+      "@BT_I10": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_I11": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_I12": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_I18": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_I19": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_I20": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_I21": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_I13": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_I14": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_I15": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_I16": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_I17": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_I22": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V01": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V02": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V03": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V04": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_V05": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V06": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V08": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V09": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V10": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V11": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V12": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V13": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V14": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_V15": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V16": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V17": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V18": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V19": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V20": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V21": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V22": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V23": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V24": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V25": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V26": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V27": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_V28": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V29": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V30": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V31": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V32": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V33": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V34": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_V35": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_V36": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_V37": {
+        "cases": 11,
+        "passed": 11,
+        "failed": 0
+      },
+      "@BT_V38": {
+        "cases": 7,
+        "passed": 7,
+        "failed": 0
+      },
+      "@BT_V39": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_V40": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_T01": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_T02": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_T03": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_T04": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_T05": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_T06": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_T07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_T08": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_T09": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_T10": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_T11": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_T12": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_T13": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_T14": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_T15": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_T16": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_T17": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L01": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L02": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_L03": {
+        "cases": 10,
+        "passed": 10,
+        "failed": 0
+      },
+      "@BT_L04": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L05": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_L06": {
+        "cases": 5,
+        "passed": 5,
+        "failed": 0
+      },
+      "@BT_L07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L08": {
+        "cases": 7,
+        "passed": 7,
+        "failed": 0
+      },
+      "@BT_L09": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L10": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_L11": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L12": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L13": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L14": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L15": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L16": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L17": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_L18": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L19": {
+        "cases": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "@BT_L20": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L21": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L22": {
+        "cases": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      "@BT_L70": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_L71": {
+        "cases": 14,
+        "passed": 14,
+        "failed": 0
+      },
+      "@BT_L72": {
+        "cases": 7,
+        "passed": 7,
+        "failed": 0
+      },
+      "@BT_L73": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_L74": {
+        "cases": 11,
+        "passed": 11,
+        "failed": 0
+      },
+      "@BT_L75": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_L76": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G15": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G16": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G17": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G18": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G19": {
+        "cases": 7,
+        "passed": 7,
+        "failed": 0
+      },
+      "@BT_G20": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G21": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_G22": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Q01": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Q02": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_Q03": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_Q04": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_Q05": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Q06": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Q07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Q08": {
+        "cases": 7,
+        "passed": 7,
+        "failed": 0
+      },
+      "@BT_Q09": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_Q10": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Q11": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_Q12": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_Q15": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Q13": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Q14": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Q16": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_Q17": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Q18": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_N01": {
+        "cases": 8,
+        "passed": 8,
+        "failed": 0
+      },
+      "@BT_N02": {
+        "cases": 7,
+        "passed": 7,
+        "failed": 0
+      },
+      "@BT_N03": {
+        "cases": 5,
+        "passed": 5,
+        "failed": 0
+      },
+      "@BT_N04": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_N05": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_N06": {
+        "cases": 8,
+        "passed": 8,
+        "failed": 0
+      },
+      "@BT_N07": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_N08": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_N09": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_N10": {
+        "cases": 7,
+        "passed": 7,
+        "failed": 0
+      },
+      "@BT_N11": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_N12": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_N13": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_N14": {
+        "cases": 10,
+        "passed": 10,
+        "failed": 0
+      },
+      "@BT_N15": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L23": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L24": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L25": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L26": {
+        "cases": 8,
+        "passed": 8,
+        "failed": 0
+      },
+      "@BT_L27": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_L28": {
+        "cases": 5,
+        "passed": 5,
+        "failed": 0
+      },
+      "@BT_L29": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L31": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L32": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_L59": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L33": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L34": {
+        "cases": 16,
+        "passed": 16,
+        "failed": 0
+      },
+      "@BT_L30": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L35": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_L36": {
+        "cases": 16,
+        "passed": 16,
+        "failed": 0
+      },
+      "@BT_L37": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_L45": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L46": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_L47": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_L48": {
+        "cases": 5,
+        "passed": 5,
+        "failed": 0
+      },
+      "@BT_L49": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_L50": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_L51": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L52": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_L53": {
+        "cases": 5,
+        "passed": 5,
+        "failed": 0
+      },
+      "@BT_L54": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_L55": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_Z01": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Z02": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Z06": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Z03": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Z04": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_Z05": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L38": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L39": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L40": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_L41": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_L42": {
+        "cases": 4,
+        "passed": 4,
+        "failed": 0
+      },
+      "@BT_L43": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_L61": {
+        "cases": 16,
+        "passed": 16,
+        "failed": 0
+      },
+      "@BT_L56": {
+        "cases": 5,
+        "passed": 5,
+        "failed": 0
+      },
+      "@BT_L57": {
+        "cases": 16,
+        "passed": 16,
+        "failed": 0
+      },
+      "@BT_L58": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A29": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A30": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A31": {
+        "cases": 9,
+        "passed": 9,
+        "failed": 0
+      },
+      "@BT_A32": {
+        "cases": 8,
+        "passed": 8,
+        "failed": 0
+      },
+      "@BT_A33": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_A34": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A35": {
+        "cases": 7,
+        "passed": 7,
+        "failed": 0
+      },
+      "@BT_A36": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A37": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A38": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A39": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A44": {
+        "cases": 14,
+        "passed": 14,
+        "failed": 0
+      },
+      "@BT_A45": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_A46": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_A47": {
+        "cases": 29,
+        "passed": 29,
+        "failed": 0
+      },
+      "@BT_A48": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_A27": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_A28": {
+        "cases": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "@BT_A70": {
+        "cases": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "@BT_A71": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_M40": {
+        "cases": 21,
+        "passed": 21,
+        "failed": 0
+      },
+      "@BT_M41": {
+        "cases": 8,
+        "passed": 8,
+        "failed": 0
+      },
+      "@BT_M42": {
+        "cases": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "@BT_M43": {
+        "cases": 22,
+        "passed": 22,
+        "failed": 0
+      },
+      "@BT_M44": {
+        "cases": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "@BT_M45": {
+        "cases": 5,
+        "passed": 5,
+        "failed": 0
+      }
+    }
+  }
+}

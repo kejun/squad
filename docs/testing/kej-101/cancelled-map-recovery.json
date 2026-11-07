@@ -1,0 +1,93 @@
+{
+  "kind": "read-only diagnostic reproducer, not acceptance success",
+  "sha": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+  "store": "real SQLite reopen with controlled provider; no product source changes",
+  "before": {
+    "phase": "running",
+    "discussion": "cancelled",
+    "works": [
+      {
+        "target": "B",
+        "status": "inflight"
+      },
+      {
+        "target": "builder-1",
+        "status": "inflight"
+      }
+    ]
+  },
+  "after": {
+    "phase": "running",
+    "discussion": "cancelled",
+    "works": [
+      {
+        "target": "B",
+        "status": "pending"
+      },
+      {
+        "target": "builder-1",
+        "status": "pending"
+      }
+    ],
+    "pending": [
+      {
+        "kind": "cancel",
+        "target": "B"
+      },
+      {
+        "kind": "cancel",
+        "target": "builder-1"
+      },
+      {
+        "kind": "owner",
+        "target": "A"
+      }
+    ]
+  },
+  "afterCancelDrain": [
+    {
+      "target": "B",
+      "status": "pending"
+    },
+    {
+      "target": "builder-1",
+      "status": "pending"
+    }
+  ],
+  "followup": {
+    "id": "discussion:intent-event:2",
+    "request": "请大家再讨论",
+    "targets": [],
+    "skipped": [
+      {
+        "target": "B",
+        "reason": "正在工作"
+      },
+      {
+        "target": "builder-1",
+        "reason": "正在工作"
+      }
+    ],
+    "results": [],
+    "status": "delivered",
+    "epoch": 1,
+    "goalVersion": 2,
+    "incomplete": "暂无空闲成员参与讨论。"
+  },
+  "lateReply": {
+    "ok": false,
+    "code": "STALE_FENCE",
+    "detail": "STALE_FENCE",
+    "taskId": "task:input-1"
+  },
+  "remainingGhost": [
+    {
+      "target": "B",
+      "status": "done"
+    },
+    {
+      "target": "builder-1",
+      "status": "pending"
+    }
+  ]
+}
