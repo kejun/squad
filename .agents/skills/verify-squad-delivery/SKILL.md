@@ -61,7 +61,9 @@ python3 .agents/skills/verify-squad-delivery/scripts/check.py --verify-evidence 
 
 ## 维护
 
-KEJ-100 当前依赖审查基线为 `c1f380da1527b8c22a8aaaaf7aef10cd2695146e`；仅 `package.json` 的空单测集合处理变化，产品源码、模型、性质、边界和回放均沿用原审查。当前指纹及运行状态见 [KEJ-100 审查记录](references/drift-review-kej-100.json) 与 [coverage.json](references/coverage.json)。下列 PR40 基线为产品源码对应审查的历史记录。
+当前审查基线为 `3ee6c875bbde0f802eae954d9017ffe5663a3cfc`（BT_M37 检查协议说明、BT_F31 冻结输入引用）。完整检查及独立读回已通过，逐文件对应、额外真实代码负对照与保证边界见[引用链审查](references/drift-review-raw-input-citation.json)和[协议说明审查](references/drift-review-check-envelope.json)；当前指纹见 coverage.json。
+
+KEJ-100 历史依赖审查基线为 `c1f380da1527b8c22a8aaaaf7aef10cd2695146e`；仅 `package.json` 的空单测集合处理变化，产品源码、模型、性质、边界和回放均沿用原审查。当前指纹及运行状态见 [KEJ-100 审查记录](references/drift-review-kej-100.json) 与 [coverage.json](references/coverage.json)。下列 PR40 基线为产品源码对应审查的历史记录。
 
 PR40 产品源码对应审查基线为 `21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR40）。从原cd987f2f基线的逐文件分类、传递依赖及运行证据见[PR40审查记录](references/drift-review-pr40.json)。原发布/回执模型的变量、边界和性质未改变；回放增加显式无来源、无解释和无并行分片的切片约束。精确源文件见coverage.json；保守包含src传递依赖不代表跨任务修订和容量规划均获形式化证明。
 

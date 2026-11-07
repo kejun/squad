@@ -141,3 +141,10 @@ coverage 增补 11 个新语义依赖：delivery/protocol/evidence/verification/
 初始原样运行blocked，首轮审查后验证 `20261106T101946Z-27406` 完整退出0，41.231秒，独立读回100件证据成功。原146状态/424条标记边、Memory/SQLite逐边回放、六个可达性见证和四种双存储真实代码负对照全部完成，原实现恢复后再次通过且源文件未变。此后才将同步基线推进到21ee460，并按技能再次完整运行；最终证据见coverage.review。
 
 更新同步后完整复跑 `20261106T102156Z-29383` 退出0，48.172秒；独立证据读回成功。原模型与双存储逐边回放、六个可达性见证、四类真实负对照及移除突变后的复验均保持，清理项全true。该轮保留完整checker-inputs（验证脚本、模型、cfg、coverage及逐文件审查），以免只留下摘要无法核对原验证输入。
+
+
+## BT_F31 冻结输入引用的传递依赖审查
+
+审查目标为 `756074087685bed3f52f0e6b6e06caf19c587a01`，产品代码对应 `3ee6c875bbde0f802eae954d9017ffe5663a3cfc`。旧覆盖清单49个文件逐一核对：47个未变，`src/delivery-acceptance.ts` 与 `src/task/delivery.ts` 两个传递依赖发生变化，见[逐文件审查](drift-review-raw-input-citation.json)。先前只复验另外三组形式化验证遗漏了此清单，首次原样运行已保留 blocked 证据。
+
+新增逻辑把冻结 rawInputs 转为既有引用来源，checkDisposition 从保存的检查意图读取该字段；未引入新的交接写入口，也未拆分事务。handoff 回放每次 observe 都断言 candidate 为 null、没有 check intent、没有发布记录且 deliveryCycle.requests 为0，因此新检查引用路径不在这个受断言约束的切片内。assistance 消费标记、唯一 owner 续办、停止取消、runner flush 和两种存储提交边界未改动。模型、性质、边界与回放驱动保持不变，完整原图、可达性见证和四类真实代码负对照仍必须执行。该结论不扩大为引用语义或供应商质量证明；对应行为由 BT_F31 与独立交付验证提供证据。

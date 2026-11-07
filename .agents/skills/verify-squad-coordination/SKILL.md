@@ -78,7 +78,9 @@ python3 .agents/skills/verify-squad-coordination/scripts/check.py --verify-evide
 
 ## 实现同步与维护
 
-KEJ-100 当前依赖审查基线为 `c1f380da1527b8c22a8aaaaf7aef10cd2695146e`；仅 `package.json` 的空单测集合处理变化，产品源码、模型、性质、边界和回放均沿用原审查。当前指纹及运行状态见 [KEJ-100 审查记录](references/drift-review-kej-100.json) 与 [coverage.json](references/coverage.json)。下列 PR40 基线为产品源码对应审查的历史记录。
+当前审查基线为 `3ee6c875bbde0f802eae954d9017ffe5663a3cfc`（BT_M37 检查协议说明、BT_F31 冻结输入引用）。完整检查及独立读回已通过，逐文件对应、额外真实代码负对照与保证边界见[引用链审查](references/drift-review-raw-input-citation.json)和[协议说明审查](references/drift-review-check-envelope.json)；当前指纹见 coverage.json。
+
+KEJ-100 历史依赖审查基线为 `c1f380da1527b8c22a8aaaaf7aef10cd2695146e`；仅 `package.json` 的空单测集合处理变化，产品源码、模型、性质、边界和回放均沿用原审查。当前指纹及运行状态见 [KEJ-100 审查记录](references/drift-review-kej-100.json) 与 [coverage.json](references/coverage.json)。下列 PR40 基线为产品源码对应审查的历史记录。
 
 PR40 产品源码对应审查基线：`21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR40）。从旧基线 `cd987f2f4a7e29ad3efae1af36a0f432ce813c8f` 逐文件审查21个变更/新增src依赖；分类、性质影响和首轮完整验证见 [PR40审查记录](references/drift-review-pr40.json)。旧基线是 PR37 合并前head，与 squash 合入的 main `d7b80a4b0e032d300a7201e2532238709eb601cf` 完整树相同。代码范围和精确 SHA 见 [coverage.json](references/coverage.json)。清单保守包含全部 src 模块及 config/package/lock 作为传递依赖漂移门禁；核心函数映射见对应文档，不代表逐个模块均有形式化性质。
 

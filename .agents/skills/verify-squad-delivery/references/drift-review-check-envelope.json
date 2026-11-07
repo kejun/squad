@@ -1,0 +1,19 @@
+{
+  "baseCommit": "670df3e08d80a2179c4ab9e733e7f810bb1a0bbe",
+  "scope": "BT_M37 check-envelope instruction clarification",
+  "file": "src/model-adapter.ts",
+  "beforeSha256": "fd7bf326612bed06517963a38bcc9ea0bad27e5748b313ce633907b58b83889d",
+  "afterSha256": "a3babb84683d174ae10f932f47fa59bdf1e4d39044e7deed219f1a0592b700b2",
+  "review": [
+    "Only two strings in checkMessages changed: item-only required fields are scoped to criteriaResults; outer type/check and criteriaResults explicitly required.",
+    "No response parsing, guards, state transitions, fixed materials, request authorization, retry limits, transaction boundaries, tools or publication behavior changed.",
+    "Existing finite model, projection, public replay prefixes and negative-control anchors remain applicable. No modeled variables, bounds or invariants changed.",
+    "Model gate exercised real XState check failure/retry/complete, stop refusal, and bounded partial termination before implementation."
+  ],
+  "validation": {
+    "status": "verified",
+    "fullChecker": "passed including actual negative controls",
+    "independentEvidenceReadback": "passed",
+    "evidence": "/workspace/squad-live-20261106/patched-formal-delivery"
+  }
+}

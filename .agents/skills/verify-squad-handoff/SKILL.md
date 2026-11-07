@@ -67,6 +67,8 @@ python3 .agents/skills/verify-squad-handoff/scripts/check.py --verify-evidence "
 
 ## Coverage and synchronization
 
+当前引用修复审查基线为 `756074087685bed3f52f0e6b6e06caf19c587a01`（产品代码 `3ee6c875bbde0f802eae954d9017ffe5663a3cfc`）。49个覆盖文件中两项冻结输入引用传递依赖变化，经逐文件及切片断言审查后，完整模型/双存储回放/真实负对照及独立读回通过。见[BT_F31审查](references/drift-review-raw-input-citation.json)。下文保留历史基线；当前哈希见 coverage.json。
+
 KEJ-100 当前依赖审查基线为 `c1f380da1527b8c22a8aaaaf7aef10cd2695146e`；仅 `package.json` 的空单测集合处理变化，产品源码、模型、性质、边界和回放均沿用原审查。当前指纹及运行状态见 [KEJ-100 审查记录](references/drift-review-kej-100.json) 与 [coverage.json](references/coverage.json)。下列 PR40 基线为产品源码对应审查的历史记录。
 
 PR40 产品源码对应审查：`21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR40 的已审 head）。PR40 的逐文件变更分类、旧新指纹与未覆盖新行为见 [drift-review-pr40.json](references/drift-review-pr40.json)；函数级对应见 [correspondence.md](references/correspondence.md)，精确同步与哈希见 [coverage.json](references/coverage.json)。更早审查保留在 [drift-review-2026-11-06.json](references/drift-review-2026-11-06.json)。这些记录是漂移门禁与人工审查，不是任意 TypeScript 等价证明。

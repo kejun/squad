@@ -24,7 +24,8 @@ After(async function (this: SpecWorld) {
 Given('检查模型先返回{string}再返回合法检查结果', function (this: SpecWorld, issue: string) {
   const f = setup(this, 'check', {}, false, issue === '引文不属于所指来源' ? ['原始第一份资料', '来自第二份资料的短引文'] : []);
   const results = candidateJudgments(f.h.context().candidate);
-  if (issue === '验收项ID重复') f.replies = [{ type: 'check', criteriaResults: [...results, results[0]] }, goodModelOutput('check')];
+  if (issue === 'type缺失') f.replies = [{ criteriaResults: results }, goodModelOutput('check')];
+  else if (issue === '验收项ID重复') f.replies = [{ type: 'check', criteriaResults: [...results, results[0]] }, goodModelOutput('check')];
   else if (issue === '验收项ID未知') f.replies = [{ type: 'check', criteriaResults: [{ criterionId: 'foreign', status: 'passed' }, ...results] }, goodModelOutput('check')];
   else if (issue === '引文不属于所指来源') f.replies = [{ type: 'check', criteriaResults: [
     { ...results[0], status: 'failed', reason: '内容争议', source: { id: f.sources[0], quote: '来自第二份资料的短引文' } }, ...results.slice(1),
@@ -49,6 +50,14 @@ Then('应重新请求一次并只提交合法检查结果', function (this: Spec
 Then('修正应消耗一次重试和一次检查额度', function (this: SpecWorld) {
   const f = state(this).fixture, c = f.h.context(); assert.equal(c.usage.retries, 1); assert.equal(c.usage.checks, 2);
   assert.equal(c.deliveryCycle?.requests, 2);
+});
+
+Then('首检与补试的协议应明确要求检查标识和逐项结果两个顶层字段', function (this: SpecWorld) {
+  const requests = state(this).fixture.requests;
+  assert.equal(requests.length, 2);
+  assert.match(requests[0]!.messages[0]!.content,
+    /Required top-level fields: "type" \(exactly "check"\) and "criteriaResults" \(array\)\. Neither field may be omitted\./);
+  assert.deepEqual(requests[1]!.messages, requests[0]!.messages);
 });
 
 Given('{string}模型先返回{string}再返回该角色合法结果', function (this: SpecWorld, kind: string, issue: string) {

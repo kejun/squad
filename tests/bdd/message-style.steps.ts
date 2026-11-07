@@ -71,7 +71,7 @@ Then('系统提示词应要求常规发言简洁自然并要求独立检查的�
   assert.equal(s.requests.length, 1);
   if (s.kind === 'check') {
     assert.match(system(s.requests[0]!), /For failed or unverified, explain the specific problem in the user’s language/);
-    assert.match(system(s.requests[0]!), /For passed, only the ID and status are required/);
+    assert.match(system(s.requests[0]!), /Within a passed item, only criterionId and status are required/);
     return;
   }
   const prompt = style(s.requests[0]!);

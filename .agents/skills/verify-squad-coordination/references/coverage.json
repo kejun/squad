@@ -1,5 +1,5 @@
 {
-  "syncCommit": "c1f380da1527b8c22a8aaaaf7aef10cd2695146e",
+  "syncCommit": "3ee6c875bbde0f802eae954d9017ffe5663a3cfc",
   "bounds": {
     "Budget": "one current ordinary owner intent, 2 user epochs, ordinary limits 3 then 5, automatic retry limit 1, one safe inflight recovery; request/claim count bounded by total paid budget 5",
     "Shards": "one round with exactly 2 shards, 3 result outcomes per shard, one reducer, stop or one goal change, one reopen including active safe inflight recovery; no recovery of cancelled inflight or second round",
@@ -12,7 +12,7 @@
     "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
     "src/conversation.ts": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
     "src/darwin-process.ts": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b",
-    "src/delivery-acceptance.ts": "223ed59845004dac8fadcdb116f633af4fc6902338fb4277439a386b65f2ab2e",
+    "src/delivery-acceptance.ts": "6d4a70291b12a3ed376e8e3658b428b7351e260e1d39043ee986a97fc2568396",
     "src/engine.ts": "e95cd5382a80bdc526f408ff73442dbd1b8bdc07226dbcf64dda7cbd9988c9a5",
     "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
     "src/host-capabilities.ts": "21a2aec00a32046ff67e6517a948540235301bd7803852b551cf77809d64feb2",
@@ -27,7 +27,7 @@
     "src/local-skills.ts": "4d83827020c75e7888de71fb5c9b263048a80339fc318c0217e50a31fa566ae2",
     "src/measurement-report.ts": "62a9010d7a112c52f7e93b6e21d5fcb6a6e6a8011c4852784dd44b811a196183",
     "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
-    "src/model-adapter.ts": "fd7bf326612bed06517963a38bcc9ea0bad27e5748b313ce633907b58b83889d",
+    "src/model-adapter.ts": "a3babb84683d174ae10f932f47fa59bdf1e4d39044e7deed219f1a0592b700b2",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
     "src/model-env.ts": "99dfbe11350e7c3c446fc13a1a61414ebbf4e73a999439f22e85441c3b26f530",
     "src/presentation.ts": "44b39afe5955d6d95cc127f1d4a8e90a8961bdb9daa9c547e7d2d0f25b84a1b5",
@@ -46,7 +46,7 @@
     "src/task/assistance.ts": "d472d9c7422118a217d23ef0019831ad1598e3d9137da794830f39ac286ee6df",
     "src/task/budget.ts": "0d8454f4dbf0d62ffc7a8d5c615f9ec1ebbd688a6e3136e9832af893ff32e62c",
     "src/task/context.ts": "e5efe2a6ca63f8c4835a18fb93737cb1c3d94ff96e972fc3f0b537fc821fba08",
-    "src/task/delivery.ts": "747e64b4e4372b98c93884314c688f4f6b4727ee51af3e0ca03ee656b54f407e",
+    "src/task/delivery.ts": "a56bfe48f77575dc110b08a598d32462994420a9e40e89ac7cb498f4ee98c101",
     "src/task/discussion.ts": "0bdf97c5438d24d381a194d6fc6406282044d41c5b5d5ba5c9f73cf1234bfa7b",
     "src/task/evidence.ts": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
     "src/task/execution.machine.ts": "7ed6793adbd8413de0c53161ea8adbe6bdcb29eae910864ccd01e29baf68fcff",
