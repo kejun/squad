@@ -1,5 +1,5 @@
 import { type Intent, type TaskContext, type TaskEvent } from '../types.js';
-import { localEnabled, localRecoveryBlocked } from '../local-operation.js';
+import { localEnabled, localPhysicalPending, localRecoveryBlocked } from '../local-operation.js';
 import { modelSignature, resolveModel } from '../model-config.js';
 import { isMarkdownRevision } from '../delivery-acceptance.js';
 
@@ -16,6 +16,11 @@ export const allInflight = (c: TaskContext) => c.intents.filter(i => i.status ==
 export const inflight = (c: TaskContext) => allInflight(c).filter(i => !i.discussionId);
 
 export const discussionActive = (c: TaskContext) => !!c.discussion && !['delivered', 'cancelled'].includes(c.discussion.status);
+
+/** Recovery or known local settlement may retire obsolete logical work, never unknown external effects. */
+export const canRetireDiscussionWork = (c: TaskContext, work: Intent) => !!work.discussionId
+  && ['pending', 'inflight'].includes(work.status) && work.replay === 'safe' && !localPhysicalPending(work)
+  && (!discussionActive(c) || work.discussionId !== c.discussion!.id || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion);
 
 export const remainingInflight = (c: TaskContext, e: TaskEvent) => inflight(c).filter(i => i.id !== e.workId);
 
@@ -81,7 +86,7 @@ export function recoveryIssue(c: TaskContext, config: TaskContext['config']): st
   if (discussionActive(c) && c.discussion!.targets.some(target => !config.bots.some(bot => bot.id === target))) return 'Execution member unavailable';
   if (c.review && ['pending', 'reviewing'].includes(c.review.status)
     && c.review.targets.some(target => !config.bots.some(bot => bot.id === target))) return 'Execution member unavailable';
-  for (const i of c.intents.filter(i => ['pending', 'inflight'].includes(i.status))) {
+  for (const i of c.intents.filter(i => ['pending', 'inflight'].includes(i.status) && !canRetireDiscussionWork(c, i))) {
     if (modelSignature(i.model) !== modelSignature(resolveModel(config, i.kind, i.target))) return 'Model configuration changed';
     if (['owner', 'assistance', 'tool'].includes(i.kind) && !config.bots.some(b => b.id === i.target)) return 'Execution member unavailable';
     const tools = config.bots.find(b => b.id === i.target)?.tools ?? [];

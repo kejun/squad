@@ -4,6 +4,7 @@ import { parallelMapModelGate, limitedMapModelGate, partialMapModelGate, changed
 import { completeCapacityModelGate, snapshotCapacityModelGate, retriedCapacityModelGate, ordinaryCapacityModelGate, decreasedCapacityModelGate, historicalCapacityModelGate, pendingHistoricalCapacityModelGate } from '../../../tests/map-capacity-model-fixture.ts';
 import { replacementVersionModelGate, sameNameVersionModelGate, staleVersionModelGate, unboundVersionModelGate, legacyVersionModelGate } from '../../../tests/delivery-version-model-contract-fixture.ts';
 import { inputIntentSchema } from '../../../src/input-intent.ts';
+import { cancelledDiscussionModelGate, historicalCancelledDiscussionModelGate, uncertainDiscussionModelGate, reconciledDiscussionModelGate, removedDiscussionMemberModelGate } from '../../../tests/map-model-gate-fixture.ts';
 parallelMapModelGate();
 for (const limit of ['普通额度不足', '协助额度不足', '可用成员不足']) limitedMapModelGate(limit);
 partialMapModelGate();
@@ -22,3 +23,8 @@ for (const limited of [false, true]) historicalCapacityModelGate(limited);
 pendingHistoricalCapacityModelGate();
 replacementVersionModelGate(); sameNameVersionModelGate(); staleVersionModelGate(); unboundVersionModelGate(); legacyVersionModelGate();
 console.log('33 original pure XState/model contract cases passed independently');
+for (const kind of ['并行分片', '后台讨论']) for (const change of ['修改目标', '停止后继续']) cancelledDiscussionModelGate(kind, change);
+historicalCancelledDiscussionModelGate();
+for (const stage of ['已领取', '已启动', '已退出但效果未知']) uncertainDiscussionModelGate(stage);
+reconciledDiscussionModelGate(); removedDiscussionMemberModelGate();
+console.log('10 cancelled-discussion recovery model cases passed independently (BT_Q19–BT_Q23)');
