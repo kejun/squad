@@ -32,7 +32,7 @@ export class MapModel {
     assert(this.send({ type: 'INTERPRETATION_RESULT', inputId: (work.payload.input as { id: string }).id, workId: work.id, fence: work, spec: value }).ok);
   }
   answer(work: Intent, status: 'success' | 'partial' = 'success') {
-    return this.send({ type: 'DISCUSSION_RESULT', discussionId: work.discussionId!, workId: work.id, fence: work, text: `${work.target} 原始证据`, status });
+    return this.send({ type: 'DISCUSSION_RESULT', discussionId: work.discussionId!, workId: work.id, attempt: work.attempt, fence: work, text: `${work.target} 原始证据`, status });
   }
 }
 
@@ -81,12 +81,18 @@ export function changedMapModelGate(change: string) {
 }
 export function restoredMapModelGate() {
   const model = new MapModel(); model.interpret(); const work = model.claim(model.pending('assistance')[0]!); assert(model.answer(work).ok);
+  const interrupted = model.claim(model.pending('assistance')[0]!);
   model.snapshot = restoreTask(persistTask(model.snapshot));
   assert(model.send({ type: 'RECOVER', config: model.context.config }).ok);
   model.snapshot = restoreTask(persistTask(model.snapshot));
   assert(model.send({ type: 'RECOVER', config: model.context.config }).ok);
   assert.equal(model.context.discussion!.results.length, 1); assert.equal(model.pending('assistance').length, 1);
-  assert.equal(model.answer(work).ok, false); assert(model.answer(model.claim(model.pending('assistance')[0]!)).ok);
+  assert.equal(model.answer(work).ok, false);
+  const current = model.claim(model.pending('assistance')[0]!);
+  assert.equal(current.id, interrupted.id); assert.equal(current.attempt, interrupted.attempt + 1);
+  assert.equal(model.answer(interrupted).ok, false);
+  assert.equal(model.context.intents.find(item => item.id === current.id)!.status, 'inflight');
+  assert(model.answer(current).ok);
   assert.equal(model.pending('discussionSummary').length, 1);
 }
 export function ordinaryMapModelGate() {
