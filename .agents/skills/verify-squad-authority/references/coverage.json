@@ -1,5 +1,5 @@
 {
-  "syncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+  "syncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
   "files": {
     "package-lock.json": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
     "package.json": "4d64527e75fc3a19c94e0e25ee490918a62d7a96681d212dce97c7f66e2bef93",
@@ -8,7 +8,7 @@
     "src/conversation.ts": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
     "src/darwin-process.ts": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b",
     "src/delivery-acceptance.ts": "6d4a70291b12a3ed376e8e3658b428b7351e260e1d39043ee986a97fc2568396",
-    "src/engine.ts": "e95cd5382a80bdc526f408ff73442dbd1b8bdc07226dbcf64dda7cbd9988c9a5",
+    "src/engine.ts": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
     "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
     "src/host-capabilities.ts": "21a2aec00a32046ff67e6517a948540235301bd7803852b551cf77809d64feb2",
     "src/host-retry.ts": "e68e16d090b7c76d5bc8ec18f2cb01c9c33730090d98a001bd7f3fd49ba1ba31",
@@ -85,6 +85,17 @@
       ],
       "validation": "reports/verify-squad-authority/kej-106-final",
       "outcome": "updated"
+    },
+    {
+      "issue": "KEJ-106-engine",
+      "review": "references/drift-review-kej-106.json",
+      "reviewedCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+      "changedCoveredFiles": [
+        "src/engine.ts"
+      ],
+      "validation": "reports/verify-squad-authority/kej-106-final-engine",
+      "outcome": "updated",
+      "checkInputSyncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa"
     }
   ]
 }

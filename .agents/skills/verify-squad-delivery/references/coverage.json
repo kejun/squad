@@ -1,5 +1,5 @@
 {
-  "syncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+  "syncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
   "bounds": {
     "tasks": 1,
     "candidates": 1,
@@ -47,7 +47,7 @@
     "src/local-skills.ts": "4d83827020c75e7888de71fb5c9b263048a80339fc318c0217e50a31fa566ae2",
     "src/runner.ts": "c6fb4e04da43e021634db60108ae33ebbe36c5f304efe953a0384b34ce622e69",
     "src/skills.ts": "81bf7ae230a719f046a0caced6c0293807f259c4d500349c7a78ecdfbbf1e111",
-    "src/engine.ts": "e95cd5382a80bdc526f408ff73442dbd1b8bdc07226dbcf64dda7cbd9988c9a5",
+    "src/engine.ts": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
     "src/model-env.ts": "99dfbe11350e7c3c446fc13a1a61414ebbf4e73a999439f22e85441c3b26f530",
     "src/host-session.ts": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab",
     "src/web/debug-journal.ts": "5473cefd6b2f382f6a2d6a5928803569a19e09ceef4efd4a47d60a4b636a65c7",
@@ -100,6 +100,17 @@
       ],
       "validation": "reports/verify-squad-delivery/kej-106-final",
       "outcome": "updated"
+    },
+    {
+      "issue": "KEJ-106-engine",
+      "review": "references/drift-review-kej-106.json",
+      "reviewedCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+      "changedCoveredFiles": [
+        "src/engine.ts"
+      ],
+      "validation": "reports/verify-squad-delivery/kej-106-final-engine",
+      "outcome": "updated",
+      "checkInputSyncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa"
     }
   ]
 }

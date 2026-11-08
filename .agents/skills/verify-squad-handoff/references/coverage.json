@@ -1,5 +1,5 @@
 {
-  "syncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+  "syncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
   "bounds": {
     "tasks": 1,
     "owner": "A",
@@ -13,7 +13,7 @@
   },
   "files": {
     "src/task.machine.ts": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
-    "src/engine.ts": "e95cd5382a80bdc526f408ff73442dbd1b8bdc07226dbcf64dda7cbd9988c9a5",
+    "src/engine.ts": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
     "src/store.ts": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
     "src/runner.ts": "c6fb4e04da43e021634db60108ae33ebbe36c5f304efe953a0384b34ce622e69",
     "src/types.ts": "f8a70d5b344164eaff896ae11e40b84f7e0aff88f528724243847c906f1bc85d",
@@ -64,13 +64,14 @@
   },
   "review": {
     "date": "2026-11-08",
-    "head": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+    "head": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
     "basis": "references/drift-review-kej-106.json",
     "status": "verified",
-    "previousSyncCommit": "756074087685bed3f52f0e6b6e06caf19c587a01",
+    "previousSyncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
     "initialBlockedEvidence": "reports/verify-squad-handoff/kej-106-initial",
-    "previousEvidence": "reports/verify-squad-handoff/kej-106-candidate-clean-env",
-    "evidence": "reports/verify-squad-handoff/kej-106-final"
+    "previousEvidence": "reports/verify-squad-handoff/kej-106-final",
+    "evidence": "reports/verify-squad-handoff/kej-106-final-engine",
+    "runSyncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa"
   },
   "maintenanceReviews": [
     {
@@ -103,6 +104,18 @@
         "src/task/facts.ts"
       ],
       "validation": "reports/verify-squad-handoff/kej-106-final",
+      "outcome": "updated"
+    },
+    {
+      "issue": "KEJ-106",
+      "scope": "final ended-discussion recovery entry audit",
+      "review": "references/drift-review-kej-106.json",
+      "reviewedCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+      "previousSyncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+      "changedCoveredFiles": [
+        "src/engine.ts"
+      ],
+      "validation": "reports/verify-squad-handoff/kej-106-final-engine",
       "outcome": "updated"
     }
   ]

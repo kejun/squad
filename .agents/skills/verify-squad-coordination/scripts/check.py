@@ -23,6 +23,9 @@ WITNESSES = {
     'CheckBudget': ['NeverThreeRequests', 'NeverTechnicalRetry', 'NeverRevised', 'NeverRepeatedRecovery', 'NeverBeforeRequestFailure', 'NeverUncertain'],
 }
 CONTROLS = {
+    'skip-ended-discussion-recovery': ('Shards', 'EndedDiscussionRecovery', 'src/engine.ts',
+        "if (taskPhase(snapshot) === 'ended' && !snapshot.context.intents.some(work => canRetireDiscussionWork(snapshot.context, work))) continue;",
+        "if (taskPhase(snapshot) === 'ended') continue;"),
     'omit-discussion-recovery-retirement': ('Shards', 'CancelledRecovery', 'src/task/reducer.ts',
         'for (const work of c.intents.filter(work => canRetireDiscussionWork(c, work))) release(c, work.id);',
         '/* faulty omission of obsolete discussion retirement at recovery */'),
@@ -163,7 +166,7 @@ def verify_evidence(area):
                     assert {probe['name'] for probe in capacity} == {'zero', 'one', 'two', 'four', 'refreshed-recovery', 'legacy-recovery'}, 'Missing finite capacity examples'
                     assert len(capacity) == 6, 'Duplicate finite capacity example'
                     recovery = [probe for probe in probes if probe['backend'] == backend and probe.get('family') == 'discussion-recovery' and probe.get('verified')]
-                    expected = {'map-goal', 'map-stop', 'discussion-goal', 'discussion-stop', 'active-safe', 'historical-pending', 'removed-member',
+                    expected = {'map-goal', 'map-stop', 'discussion-goal', 'discussion-stop', 'map-ended', 'discussion-ended', 'active-safe', 'historical-pending', 'removed-member',
                                 'physical-claimed', 'physical-started', 'physical-unknown', 'known-LOCAL_RESULT', 'known-LOCAL_RECONCILE', 'unsafe-compatibility'}
                     assert len(recovery) == len(expected) and {probe['name'] for probe in recovery} == expected, 'Missing or duplicate finite discussion recovery examples'
     assert set(report['negativeControls']) == set(CONTROLS), 'Missing real-code controls'

@@ -24,6 +24,28 @@ export function discussionRecoveryProbes(make, backend, directory) {
     assert.deepEqual(s.context().usage, usage, 'CancelledRecovery: recovery must preserve all prior charges');
     assert.equal(driver.summary(), undefined, 'CancelledRecovery: an abandoned round must not schedule a reducer');
   }
+  const publicContinue = (driver, suffix) => driver.session.engine().submit(driver.session.room,
+    { id: `continue:${suffix}`, text: '继续当前目标', intent: 'continue', replyToTaskId: driver.session.task });
+  function inviteAndClaim(driver, old, property = 'CancelledRecovery') {
+    const s = driver.session;
+    const owner = s.context().intents.find(w => w.kind === 'owner' && w.status === 'pending');
+    assert(owner && s.engine().claim(s.room, s.task, owner.id), `${property}: the current owner must remain executable`);
+    const targets = [old.target, driver.work(2).target];
+    assert(s.send({ type: 'USER_INPUT', text: '请成员重新核对', reviewTargets: targets }).ok);
+    assert.deepEqual(s.context().discussion.targets, targets, `${property}: retired work must not occupy its old members`);
+    assert.deepEqual(s.context().discussion.skipped, [], `${property}: both members must be available`);
+    const planner = s.context().intents.find(w => w.kind === 'facilitator' && w.status === 'pending');
+    const ticket = s.engine().claim(s.room, s.task, planner.id); assert(ticket);
+    assert(s.send({ type: 'DISCUSSION_PLAN', workId: ticket.id, attempt: ticket.attempt, fence: ticket, discussionId: ticket.discussionId,
+      decision: { action: 'review', question: '重新核对', expected: '当前依据', reason: '当前目标邀请' } }).ok);
+    const current = s.context().intents.filter(w => w.discussionId === s.context().discussion.id && w.kind === 'assistance');
+    assert.equal(current.length, 2, `${property}: all freed members must receive current work`);
+    for (const work of current) assert(s.engine().claim(s.room, s.task, work.id), `${property}: the new work must be claimable`);
+    const before = structuredClone(s.context().discussion), usage = structuredClone(s.context().usage);
+    assert.equal(s.send(driver.result(old)).ok, false, `${property}: the old reply must be rejected`);
+    assert.deepEqual(s.context().discussion, before, `${property}: an old reply must not change the current round`);
+    assert.deepEqual(s.context().usage, usage);
+  }
   for (const kind of ['map', 'discussion']) for (const change of ['goal', 'stop']) {
     example(`${kind}-${change}`, kind, driver => {
       claimPair(driver); const old = structuredClone(driver.work(1)); cancel(driver, change);
@@ -31,24 +53,23 @@ export function discussionRecoveryProbes(make, backend, directory) {
       recoverTwice(driver); retired(driver);
       const s = driver.session;
       if (change === 'stop') assert(s.send({ type: 'CONTINUE' }).ok);
-      const owner = s.context().intents.find(w => w.kind === 'owner' && w.status === 'pending');
-      assert(owner && s.engine().claim(s.room, s.task, owner.id), 'CancelledRecovery: the current owner must remain executable');
-      const targets = [old.target, driver.work(2).target];
-      assert(s.send({ type: 'USER_INPUT', text: '请成员重新核对', reviewTargets: targets }).ok);
-      assert.deepEqual(s.context().discussion.targets, targets, 'CancelledRecovery: retired work must not occupy its old members');
-      const planner = s.context().intents.find(w => w.kind === 'facilitator' && w.status === 'pending');
-      const ticket = s.engine().claim(s.room, s.task, planner.id); assert(ticket);
-      assert(s.send({ type: 'DISCUSSION_PLAN', workId: ticket.id, attempt: ticket.attempt, fence: ticket, discussionId: ticket.discussionId,
-        decision: { action: 'review', question: '重新核对', expected: '当前依据', reason: '当前目标邀请' } }).ok);
-      const current = s.context().intents.filter(w => w.discussionId === s.context().discussion.id && w.kind === 'assistance');
-      assert.equal(current.length, 2, 'CancelledRecovery: all freed members must receive current work');
-      for (const work of current) assert(s.engine().claim(s.room, s.task, work.id), 'CancelledRecovery: the new work must be claimable');
-      const before = structuredClone(s.context().discussion), usage = structuredClone(s.context().usage);
-      assert.equal(s.send(driver.result(old)).ok, false, 'CancelledRecovery: the old reply must be rejected');
-      assert.deepEqual(s.context().discussion, before, 'CancelledRecovery: an old reply must not change the current round');
-      assert.deepEqual(s.context().usage, usage);
+      inviteAndClaim(driver, old);
     });
   }
+  for (const kind of ['map', 'discussion']) example(`${kind}-ended`, kind, driver => {
+    claimPair(driver); const old = structuredClone(driver.work(1)), s = driver.session;
+    assert(s.send({ type: 'EXHAUSTED', reason: '本轮已结束，等待用户明确继续' }).ok);
+    const outcome = s.context().outcome, owners = s.context().intents.filter(work => work.kind === 'owner').map(work => work.id);
+    recoverTwice(driver);
+    assert([driver.work(1), driver.work(2)].every(work => ['done', 'cancelled'].includes(work.status)),
+      'EndedDiscussionRecovery: ended-task recovery must retire both obsolete safe members');
+    assert.equal(s.engine().view(s.room, s.task).phase, 'ended', 'EndedDiscussionRecovery: recovery must preserve the ended phase');
+    assert.equal(s.context().outcome, outcome, 'EndedDiscussionRecovery: recovery must preserve the outcome');
+    assert.deepEqual(s.context().intents.filter(work => work.kind === 'owner').map(work => work.id), owners,
+      'EndedDiscussionRecovery: recovery must not generate owner work');
+    assert(publicContinue(driver, `${kind}-ended`).ok, 'EndedDiscussionRecovery: explicit public CONTINUE must be accepted after retirement');
+    inviteAndClaim(driver, old, 'EndedDiscussionRecovery');
+  });
   example('active-safe', 'map', driver => {
     driver.apply('Claim1'); driver.session.reopen();
     assert.equal(driver.work(1).status, 'pending', 'ActiveDiscussionRecovery: current safe work must remain resumable');
@@ -85,17 +106,20 @@ export function discussionRecoveryProbes(make, backend, directory) {
     const identity = local(driver, stage); cancel(driver); driver.session.reopen(); driver.session.reopen();
     assert.equal(driver.work(1).status, 'uncertain', 'PhysicalRetention: unknown effects must retain the member');
     assert.equal(driver.work(1).localOperations.find(op => op.id === identity.operationId).status, 'uncertain', 'PhysicalRetention: local operation must remain uncertain');
-    assert(!driver.session.engine().pending(driver.session.room, driver.session.task).some(work => work.kind !== 'cancel' && work.target === driver.work(1).target),
-      'PhysicalRetention: the occupied member must not receive new physical work');
+    const s = driver.session;
+    assert.equal(s.engine().claim(s.room, s.task, driver.work(1).id), null, 'PhysicalRetention: uncertain old work must not be replayed');
   });
   for (const entry of ['LOCAL_RESULT', 'LOCAL_RECONCILE']) example(`known-${entry}`, 'map', driver => {
     const identity = local(driver, 'started'), s = driver.session;
     assert(s.send({ type: 'EXHAUSTED', reason: '任务结束，保留待核对效果' }).ok);
-    if (entry === 'LOCAL_RECONCILE') {
-      assert(s.send({ type: 'LOCAL_RESULT', ...identity, result: { ok: false, code: 'cancelled', data: {} },
-        settled: true, effectsKnown: false }).ok);
-      s.reopen(); // Ended tasks are not automatically RECOVERed; the unknown receipt persists.
-    }
+    const outcome = s.context().outcome, owners = s.context().intents.filter(work => work.kind === 'owner').map(work => work.id);
+    s.reopen(); s.reopen();
+    assert.equal(s.engine().view(s.room, s.task).phase, 'ended'); assert.equal(s.context().outcome, outcome);
+    assert.deepEqual(s.context().intents.filter(work => work.kind === 'owner').map(work => work.id), owners);
+    assert.equal(driver.work(1).status, 'uncertain', 'PhysicalRetention: unknown local effects must remain occupied');
+    assert(['done', 'cancelled'].includes(driver.work(2).status), 'EndedDiscussionRecovery: the safe companion must retire before local reconciliation');
+    const blocked = publicContinue(driver, `before-${entry}`);
+    assert.equal(blocked.ok, false); assert.equal(blocked.code, 'UNRESOLVED_WORK', 'PhysicalRetention: public CONTINUE must be denied before effects are known');
     const receipt = { ok: true, code: 'succeeded', data: { exitCode: 0, stdout: 'known effects' } };
     const response = s.send({ type: entry, ...identity, result: receipt, ...(entry === 'LOCAL_RESULT'
       ? { settled: true, effectsKnown: true } : { resolution: 'receipt', detail: 'formal host receipt' }) });
@@ -103,12 +127,16 @@ export function discussionRecoveryProbes(make, backend, directory) {
     assert.equal(driver.work(1).status, 'done', 'SettledDiscussionRecovery: known receipt must retire abandoned logical work');
     assert.deepEqual(driver.work(1).localOperations[0].result, receipt, 'SettledDiscussionRecovery: retirement must retain the receipt');
     assert.equal(s.context().discussion.status, 'cancelled'); assert.equal(driver.summary(), undefined);
+    assert(publicContinue(driver, `after-${entry}`).ok, 'SettledDiscussionRecovery: public CONTINUE must succeed only after known settlement');
+    inviteAndClaim(driver, driver.work(1), 'SettledDiscussionRecovery');
   });
   example('unsafe-compatibility', 'map', driver => {
     claimPair(driver);
     driver.session.rewriteSavedWork(driver.work(1).id, work => { work.replay = 'unsafe'; });
     cancel(driver); driver.session.reopen(); driver.session.reopen();
     assert.equal(driver.work(1).status, 'uncertain', 'UnsafeRetention: unsafe historical work must not be retired or replayed');
+    assert.equal(driver.session.engine().claim(driver.session.room, driver.session.task, driver.work(1).id), null,
+      'UnsafeRetention: unsafe old work must not be replayed');
   }, 'guard-input snapshot: public inflight prefix with replay classified unsafe; not a public reachable discussion history');
   return reports;
 }

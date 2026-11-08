@@ -1,7 +1,7 @@
 {
   "issue": "KEJ-106",
   "previousSyncCommit": "756074087685bed3f52f0e6b6e06caf19c587a01",
-  "reviewedCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+  "reviewedCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
   "outcome": "updated",
   "originalRun": {
     "command": "python3 .agents/skills/verify-squad-handoff/scripts/check.py --evidence reports/verify-squad-handoff/kej-106-initial",
@@ -30,11 +30,17 @@
       "after": "7d29345b1e74ed3ffcb70cd592161d2d1728f7c57d3c3b7b4eb91f84cc9cd273",
       "classification": "no effect on the bounded handoff projection",
       "reason": "Adds canRetireDiscussionWork, which requires a discussionId; the handoff public prefix and every replay observation exclude discussion-tagged intents. recoveryIssue excludes only this safe obsolete-discussion subset, so its existing non-discussion checks remain in force."
+    },
+    {
+      "file": "src/engine.ts",
+      "before": "e95cd5382a80bdc526f408ff73442dbd1b8bdc07226dbcf64dda7cbd9988c9a5",
+      "after": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
+      "classification": "no effect on the enforced no-discussion handoff slice",
+      "reason": "Imports canRetireDiscussionWork and narrows the ended-task skip in TeamEngine.recover only when an intent is safely retirable obsolete discussion work. The slice explicitly excludes every discussionId, so the predicate is false and ordinary ended tasks keep the original skip behavior. No send/flush transaction is split or merged."
     }
   ],
   "unchangedCoveredFiles": [
     "src/task.machine.ts",
-    "src/engine.ts",
     "src/store.ts",
     "src/runner.ts",
     "src/types.ts",
@@ -89,7 +95,7 @@
   ],
   "correspondence": "submit -> claim A -> HELP -> claim B -> RECORD_RESULT creates one ordinary assistance without discussionId. Handoff graph actions only flush/direct/retry/duplicate/stop/continue/change-goal/crash/rollback/reopen; none creates discussion-tagged work. Thus canRetireDiscussionWork is false in the complete enforced slice, while all existing non-discussion RECOVER branches, result markers, unique owner creation, stop cancellation and transaction boundaries are preserved.",
   "candidateProcedure": "After reading every changed covered file and preserving the original blocked evidence, only candidate file hashes are refreshed while syncCommit remains at the prior verified commit. Run the complete finite model, both-store graph replays, all reachability witnesses and all four real-code behavioral negative controls; promote syncCommit only after verified plus independent evidence readback.",
-  "limits": "The handoff finite graph does not prove discussion/MapReduce cancellation recovery, participant occupancy, LOCAL_RESULT/LOCAL_RECONCILE retirement or physical-effect safety. The coordination maintenance and BT_Q19-Q23 provide separate bounded evidence. No theorem about the Cartesian product of those protocols is added.",
+  "limits": "The handoff finite graph does not prove discussion/MapReduce cancellation recovery, participant occupancy, LOCAL_RESULT/LOCAL_RECONCILE retirement or physical-effect safety. The coordination maintenance and BT_Q19-Q23 provide separate bounded evidence. No theorem about the Cartesian product of those protocols is added. The ended-task selection branch in TeamEngine.recover is statically reviewed here but not dynamically traversed by the handoff graph; separate public-recovery coordination instances cover that behavior.",
   "validation": {
     "candidate": {
       "status": "verified",
@@ -123,9 +129,11 @@
         "scratchRemoved": true,
         "coveredFilesUnchanged": true,
         "evidenceRetained": true
-      }
+      },
+      "historicalOnlyForProductCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+      "notEvidenceForFinalEngineSource": true
     },
-    "final": {
+    "preEngineFinal": {
       "status": "verified",
       "command": "python3 .agents/skills/verify-squad-handoff/scripts/check.py --evidence reports/verify-squad-handoff/kej-106-final",
       "evidence": "reports/verify-squad-handoff/kej-106-final",
@@ -233,7 +241,126 @@
         "evidenceRetained": true
       },
       "reportSha256": "5cd7788114acd3903c267fc4ebc7dbdfa1d1cf29c0544393cbd79e71ce0c2b5a",
-      "recordedAfterFinalRun": true
+      "recordedAfterFinalRun": true,
+      "historicalOnlyForProductCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+      "notEvidenceForFinalEngineSource": true
+    },
+    "final": {
+      "status": "verified",
+      "command": "python3 .agents/skills/verify-squad-handoff/scripts/check.py --evidence reports/verify-squad-handoff/kej-106-final-engine",
+      "evidence": "reports/verify-squad-handoff/kej-106-final-engine",
+      "source": "0503c956a7c9af3d6ddaee7c7b54224e7f0f85ce",
+      "reviewedProductCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+      "sourceRelation": "No src/package.json/package-lock.json/team.config.ts differences from final reviewed product commit; actual runner HEAD additionally contains acceptance tests only.",
+      "runSyncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+      "syncPromotedOnlyAfterCompleteRunAndIndependentReadback": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+      "exitCode": 0,
+      "evidenceReadbackExitCode": 0,
+      "retainedArtifacts": 108,
+      "seconds": 36.308,
+      "modelCounts": [
+        425,
+        146,
+        0
+      ],
+      "restoredModelCounts": [
+        425,
+        146,
+        0
+      ],
+      "graphEdges": 424,
+      "storeEdges": [
+        {
+          "name": "memory",
+          "edgesReplayed": 424
+        },
+        {
+          "name": "sqlite",
+          "edgesReplayed": 424
+        }
+      ],
+      "reachabilityWitnesses": [
+        "NeverEligible",
+        "NeverHandedOff",
+        "NeverStoppedSaved",
+        "NeverStaleSaved",
+        "NeverRolledBack",
+        "NeverNewEpochSaved"
+      ],
+      "negativeControls": {
+        "drop-marker": {
+          "property": "AtomicHandoff",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: AtomicHandoff: durable result marker missing"
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: AtomicHandoff: durable result marker missing"
+            }
+          }
+        },
+        "double-resume": {
+          "property": "AtMostOnce",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: AtMostOnce: one saved result scheduled or published twice"
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: AtMostOnce: one saved result scheduled or published twice"
+            }
+          }
+        },
+        "skip-cancel": {
+          "property": "StopCancelsResume",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: StopCancelsResume: stopped task retains live successor"
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: StopCancelsResume: stopped task retains live successor"
+            }
+          }
+        },
+        "starve-flush": {
+          "property": "RunnerProgress",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: RunnerProgress: repeated runOne left an eligible saved result without an owner successor"
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: RunnerProgress: repeated runOne left an eligible saved result without an owner successor"
+            }
+          }
+        }
+      },
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true
+      },
+      "reportSha256": "94cf334214da26eefe4c612546f0aecfc23cac139eb38cb28f13e2adc8b529fb",
+      "environment": {
+        "javaToolOptions": "-Djava.io.tmpdir=/tmp/kej-106/formal/java-handoff-engine",
+        "modelProfiles": "same omitted prefix list as environmentPreparation",
+        "networkPermission": "enabled for TLC localhost listener"
+      },
+      "metadataOnlyPromotion": "After the passing candidate run, only sync/review references changed. No repeated full run is claimed; pin-to-source equality and independent evidence readback were repeated."
     }
   },
   "environmentAttempts": [
@@ -266,5 +393,43 @@
     "userEnvFileChanged": false,
     "credentialsPrinted": false,
     "reason": "Replay constructs createTeamConfig({}); unrelated injected profile variables must not break the module-level default configuration import."
-  }
+  },
+  "engineIncrement": {
+    "previousSyncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+    "reviewedProductCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+    "outcome": "updated",
+    "initialRun": {
+      "status": "blocked",
+      "exitCode": 1,
+      "evidence": "reports/verify-squad-handoff/kej-106-engine-initial",
+      "log": "/tmp/kej-106/formal/handoff-engine-initial.log",
+      "reason": "src/engine.ts is the only covered-file drift from the previously verified b6ea8ac product."
+    },
+    "commitsRead": [
+      "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b fix: recover obsolete safe discussion work in ended tasks",
+      "31dd4c16a81b32bc2fdc2686f8cc87ffc0bf3346 verify: audit discussion recovery and preserve formal boundaries",
+      "0a55e4a4c74a8089e8e773dc3fd08764ec3fdd2c test: model recovery of ended discussion rounds before wiring",
+      "84a67c72b7db3f1f73b140cfa46dbf38bbc676c8 test: bind cancelled discussion recovery to SQLite and Runner",
+      "5e05164306da44129723c90f48056d613f6a4f4d test: keep active discussion recovery and attempt isolation covered"
+    ],
+    "changes": [
+      {
+        "file": "src/engine.ts",
+        "before": "e95cd5382a80bdc526f408ff73442dbd1b8bdc07226dbcf64dda7cbd9988c9a5",
+        "after": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
+        "classification": "no effect on the enforced no-discussion handoff slice",
+        "reason": "Imports canRetireDiscussionWork and narrows the ended-task skip in TeamEngine.recover only when an intent is safely retirable obsolete discussion work. The slice explicitly excludes every discussionId, so the predicate is false and ordinary ended tasks keep the original skip behavior. No send/flush transaction is split or merged."
+      }
+    ],
+    "dynamicCorrespondenceLimit": "Handoff graph Reopen intentionally invokes the RECOVER event transaction directly and keeps result flushing separate; it does not replay the TeamEngine.recover task-selection loop. The new ended-discussion selection branch is outside this enforced slice and is checked by separate coordination public-entry examples. Static code-to-model review establishes no effect here; do not claim the old graph dynamically covered the new selection branch.",
+    "propertiesChanged": false,
+    "boundsChanged": false,
+    "modelsChanged": false,
+    "harnessesChanged": false,
+    "candidateSyncPreserved": true,
+    "oldEvidenceBoundary": "validation.candidate and validation.preEngineFinal are historical b6ea product evidence; current final Engine evidence is validation.final.",
+    "validationRef": "validation.final"
+  },
+  "initialReviewedCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+  "currentEvidence": "reports/verify-squad-handoff/kej-106-final-engine"
 }

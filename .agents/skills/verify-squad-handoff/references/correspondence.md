@@ -161,3 +161,12 @@ TLA+ 模型、配置、安全/活性性质、故障预算和界限均未改变�
 本次 handoff 通过不扩张到旧讨论取消后再恢复、成员占用、unsafe/uncertain 或物理操作效果安全；coordination 新增的有界实现实例和 BT_Q19–Q23 是不同层次的独立证据，也不能据二者单独通过推导整个组合的穷举保证。初始环境阻塞（TLC本地监听权限、注入的不完整模型配置）保留原始日志，修正执行环境后才作结果判断；未修改用户 `.env` 或打印凭据，也未调用供应商服务。
 
 候选完整检查37.841秒通过并独立读回108件证据后，才推进syncCommit；同步后再完整运行 `reports/verify-squad-handoff/kej-106-final`，38.996秒退出0，独立读回108件证据成功。原模型与恢复模型均为425个生成状态、146个不同状态、剩余队列0（424条标记边），Memory/SQLite各回放424边；六项可达性见证、四种双存储真实负对照与恢复复验全部完成，清理项全部true。实际执行HEAD `84a67c72b7db3f1f73b140cfa46dbf38bbc676c8` 与审查产品提交在src及配置/依赖文件上无差异。
+
+
+## KEJ-106 最终 engine 恢复入口增量
+
+最终审查产品提交为 `3d81b0792d9c00c16bbc59fa4f2914bcccc0189b`。相对已验证的 `b6ea8ac5d67b5acf331df0030d6157e582f016fa`，覆盖源码仅 `engine.ts` 两行改变：导入 `canRetireDiscussionWork`，并仅对存在可退休旧讨论工作的 ended 任务允许进入原有RECOVER/flush循环。原样检查先因engine哈希漂移blocked，见 `reports/verify-squad-handoff/kej-106-engine-initial`。
+
+handoff每次观察显式排除所有带discussionId的意图，该谓词在此切片恒false，因此普通ended任务仍保持原跳过行为；未拆分或合并send/flush事务。图中Reopen刻意直接发送RECOVER并单独建模flush，不调用engine.recover的任务选择循环：此处的同域无影响结论包含源码对应审查，不能把图回放说成动态覆盖新增ended讨论入口。新增入口由coordination公共恢复实例提供独立证据，原handoff模型、性质、范围和驱动未再改变。
+
+旧 `kej-106-candidate-clean-env` 与 `kej-106-final` 仅验证b6ea产品，不能代替最终engine源码验证。最终新源完整检查 `reports/verify-squad-handoff/kej-106-final-engine` 36.308秒通过；原模型及恢复模型均425生成/146不同状态/0剩余队列，Memory/SQLite各回放424条边，六见证与四类真实代码双存储负对照全部完成，清理项全true。独立读回108件证据成功后才推进同步到3d81。该运行准确记录旧sync=b6ea、实际source=`0503c956a7c9af3d6ddaee7c7b54224e7f0f85ce`；后者与3d81在src/配置/依赖上无差异。推进后只复核pin匹配和证据读回，不冒称又运行一次完整检查。

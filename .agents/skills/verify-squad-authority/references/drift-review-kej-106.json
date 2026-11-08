@@ -1,11 +1,11 @@
 {
   "issue": "KEJ-106",
-  "reviewedAtUtc": "2026-11-08T13:45:52.269420+00:00",
+  "reviewedAtUtc": "2026-11-08T13:58:58.431614+00:00",
   "previousSyncCommit": "3ee6c875bbde0f802eae954d9017ffe5663a3cfc",
-  "reviewedProductCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+  "reviewedProductCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
   "outcome": "updated",
   "sourceAccess": {
-    "note": "Old sync commit is absent from the local clone. Old facts.ts/reducer.ts were fetched read-only through GitHub at the exact sync ref, checked against the pinned SHA256, and compared to the frozen product sources. Remaining 60 covered file fingerprints are unchanged. GitHub comparison to 7f07dbbc is divergent due to PR41 squash; three-dot file lists are not treated as a direct snapshot diff.",
+    "note": "Initial facts/reducer review used exact remote old-sync sources and original pinned hashes. The engine increment is a local two-line snapshot diff b6ea..3d81. Of the original 62 coverage files, facts/reducer/engine changed and the other 59 remain unchanged; all final fingerprints match product 3d81.",
     "oldSources": [
       "https://github.com/kejun/squad/blob/3ee6c875bbde0f802eae954d9017ffe5663a3cfc/src/task/facts.ts",
       "https://github.com/kejun/squad/blob/3ee6c875bbde0f802eae954d9017ffe5663a3cfc/src/task/reducer.ts"
@@ -30,6 +30,14 @@
       {
         "sha": "84a67c72b7db3f1f73b140cfa46dbf38bbc676c8",
         "subject": "test: bind cancelled discussion recovery to SQLite and Runner"
+      },
+      {
+        "sha": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+        "subject": "fix: recover obsolete safe discussion work in ended tasks"
+      },
+      {
+        "sha": "0503c956a7c9af3d6ddaee7c7b54224e7f0f85ce",
+        "subject": "test: verify ended discussion recovery through public continuation"
       }
     ]
   },
@@ -53,6 +61,13 @@
       "reviewedSha256": "ada7f850f0c774c48ade21b50604b9e40e64a84fc49ec0d77a00ce3e6a962455",
       "classification": "no effect on enforced source-free, interpretation-free, discussion-free slice",
       "reason": "All replay prefixes and observations require discussion to be absent and every intent.discussionId to be absent. canRetireDiscussionWork therefore returns false: recoveryIssue keeps its prior work set, the new RECOVER retirement loop is empty, and LOCAL_RESULT/LOCAL_RECONCILE do not release any additional work. Execution permits, approval/session/lease checks, frozen evidence and publication transaction boundaries are unchanged."
+    },
+    {
+      "file": "src/engine.ts",
+      "previousSha256": "e95cd5382a80bdc526f408ff73442dbd1b8bdc07226dbcf64dda7cbd9988c9a5",
+      "reviewedSha256": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
+      "classification": "no effect on enforced no-discussion/no-discussionId slice",
+      "reason": "All checked prefixes and observed states have no discussion and no intent.discussionId. canRetireDiscussionWork is false, so ended snapshots still skip RECOVER. Non-ended snapshots still recover in the original single transaction. Added import only reuses existing pure predicate; no new I/O, transaction split, publication or permit writer."
     }
   ],
   "unchangedCoveredFiles": [
@@ -63,7 +78,6 @@
     "src/conversation.ts",
     "src/darwin-process.ts",
     "src/delivery-acceptance.ts",
-    "src/engine.ts",
     "src/evidence-reader.ts",
     "src/host-capabilities.ts",
     "src/host-retry.ts",
@@ -143,9 +157,11 @@
       "fullCheckExitCode": 0,
       "independentReadbackExitCode": 0,
       "cleanup": true,
-      "coveredFilesUnchanged": true
+      "coveredFilesUnchanged": true,
+      "reviewedProductCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+      "historicalBeforeEngineChange": true
     },
-    "final": {
+    "preEngineFinal": {
       "evidence": "reports/verify-squad-authority/kej-106-final",
       "sourceCommit": "84a67c72b7db3f1f73b140cfa46dbf38bbc676c8",
       "runJsonSha256": "ff7594e0de1894df1de6b4c288e62569f48aaaa16b526ec57a622a9cd58b60b6",
@@ -227,10 +243,104 @@
           "exitCode": 1,
           "behaviorFailure": "AssertionError [ERR_ASSERTION]: Authority:host:rejected edge"
         }
-      }
+      },
+      "reviewedProductCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+      "historicalBeforeEngineChange": true
+    },
+    "final": {
+      "evidence": "reports/verify-squad-authority/kej-106-final-engine",
+      "reviewedProductCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+      "sourceCommit": "0503c956a7c9af3d6ddaee7c7b54224e7f0f85ce",
+      "checkInputSyncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+      "runJsonSha256": "51a1c2eba9ecfea66d398b734b0f74610923305143ac4d02620034843b790ef9",
+      "status": "verified",
+      "fullCheckExitCode": 0,
+      "independentReadbackExitCode": 0,
+      "cleanup": true,
+      "metadataSyncUpdatedAfterSuccessfulCheck": true,
+      "metadataOnlyFullRerunPerformed": false,
+      "coveredFileCount": 62,
+      "allCoveredFilesMatchReviewedProductCommit": true,
+      "coveredFilesUnchanged": true,
+      "completedSteps": 34,
+      "models": {
+        "execution": {
+          "states": 8,
+          "edges": 19,
+          "observations": 56,
+          "backends": [
+            "memory",
+            "sqlite"
+          ],
+          "restoredStates": 8,
+          "restoredEdges": 19
+        },
+        "host": {
+          "states": 48,
+          "edges": 174,
+          "observations": 732,
+          "backends": [
+            "memory",
+            "sqlite"
+          ],
+          "restoredStates": 48,
+          "restoredEdges": 174
+        }
+      },
+      "sessionScopeStates": 512,
+      "sessionRecords": 1044,
+      "runtimeCases": 10,
+      "negativeControls": {
+        "negative-controls/command-digest/runtime.log": {
+          "exitCode": 1,
+          "behaviorFailure": "AssertionError [ERR_ASSERTION]: Authority:digest:args:unexpected launch boundary"
+        },
+        "negative-controls/session-namespace/memory.log": {
+          "exitCode": 1,
+          "behaviorFailure": "AssertionError [ERR_ASSERTION]: Authority:session:scope:memory:1:false"
+        },
+        "negative-controls/session-namespace/sqlite.log": {
+          "exitCode": 1,
+          "behaviorFailure": "AssertionError [ERR_ASSERTION]: Authority:session:scope:sqlite:1:false"
+        },
+        "negative-controls/one-use/memory.log": {
+          "exitCode": 1,
+          "behaviorFailure": "AssertionError [ERR_ASSERTION]: Authority:execution:rejected edge"
+        },
+        "negative-controls/one-use/sqlite.log": {
+          "exitCode": 1,
+          "behaviorFailure": "AssertionError [ERR_ASSERTION]: Authority:execution:rejected edge"
+        },
+        "negative-controls/approval-identity/memory.log": {
+          "exitCode": 1,
+          "behaviorFailure": "AssertionError [ERR_ASSERTION]: Authority:host:WrongApproval:memory:{\"expired\":false,\"starts\":0,\"busy\":false,\"unsafe\":false,\"recovered\":false,\"stopped\":false,\"stage\":0}:"
+        },
+        "negative-controls/approval-identity/sqlite.log": {
+          "exitCode": 1,
+          "behaviorFailure": "AssertionError [ERR_ASSERTION]: Authority:host:WrongApproval:sqlite:{\"expired\":false,\"starts\":0,\"busy\":false,\"unsafe\":false,\"recovered\":false,\"stopped\":false,\"stage\":0}:"
+        },
+        "negative-controls/lease-exclusion/memory.log": {
+          "exitCode": 1,
+          "behaviorFailure": "AssertionError [ERR_ASSERTION]: Authority:host:Claim:memory:{\"expired\":false,\"starts\":0,\"busy\":true,\"unsafe\":false,\"recovered\":false,\"stopped\":false,\"stage\":1}:Approve,LeaseBusy"
+        },
+        "negative-controls/lease-exclusion/sqlite.log": {
+          "exitCode": 1,
+          "behaviorFailure": "AssertionError [ERR_ASSERTION]: Authority:host:Claim:sqlite:{\"expired\":false,\"starts\":0,\"busy\":true,\"unsafe\":false,\"recovered\":false,\"stopped\":false,\"stage\":1}:Approve,LeaseBusy"
+        },
+        "negative-controls/approval-expiry/memory.log": {
+          "exitCode": 1,
+          "behaviorFailure": "AssertionError [ERR_ASSERTION]: Authority:host:rejected edge"
+        },
+        "negative-controls/approval-expiry/sqlite.log": {
+          "exitCode": 1,
+          "behaviorFailure": "AssertionError [ERR_ASSERTION]: Authority:host:rejected edge"
+        }
+      },
+      "postSyncIndependentReadbackExitCode": 0,
+      "postSyncCoveredHashesMatched": true
     }
   },
-  "sourceIdentityNote": "Candidate runtime HEAD is 5e05164306da44129723c90f48056d613f6a4f4d; final runtime HEAD is 84a67c72b7db3f1f73b140cfa46dbf38bbc676c8. Both are test-only descendants of frozen product b6ea8ac5d67b5acf331df0030d6157e582f016fa. All 62 covered source/dependency files match the frozen product commit byte-for-byte. Runtime source SHAs are preserved in run.json and never rewritten.",
+  "sourceIdentityNote": "The current final-engine check ran at test-only descendant 0503c956a7c9af3d6ddaee7c7b54224e7f0f85ce with the pre-update sync metadata b6ea8ac5d67b5acf331df0030d6157e582f016fa and reviewed engine hash. All 62 covered files match product 3d81b0792d9c00c16bbc59fa4f2914bcccc0189b byte-for-byte. Only after full check and independent readback succeeded was sync metadata advanced to 3d81. Older candidate/preEngineFinal evidence proves only the earlier b6ea product sources and is not used as current final evidence.",
   "environmentAttempts": [
     {
       "evidence": "reports/verify-squad-authority/kej-106-candidate-restricted",
@@ -246,9 +356,32 @@
   "limits": "No additional proof of cancelled/inflight discussion recovery, member occupancy, unknown external effect reconciliation or BT_Q19-Q23. Those product contracts use their own real XState model gate and integration/BDD. Existing finite graphs, representative-prefix correspondence, transaction assumptions and original exclusions remain unchanged. This is not an arbitrary TypeScript refinement proof.",
   "executionEnvironment": {
     "TLA2TOOLS_JAR": "/tmp/kej-106/formal/tla2tools.jar",
-    "JAVA_TOOL_OPTIONS": "-Djava.io.tmpdir=/tmp/kej-106/formal/java-authority",
+    "JAVA_TOOL_OPTIONS": "-Djava.io.tmpdir=/tmp/kej-106/formal/java-authority-engine",
     "MODEL_BASE_URL": "http://127.0.0.1:9/v1",
     "MODEL_NAME": "fixture",
     "note": "Local loopback permission permits TLC Java RMI. No model provider requests are issued by these drivers."
+  },
+  "engineIncrement": {
+    "previousSyncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+    "reviewedProductCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+    "changes": [
+      {
+        "file": "src/engine.ts",
+        "previousSha256": "e95cd5382a80bdc526f408ff73442dbd1b8bdc07226dbcf64dda7cbd9988c9a5",
+        "reviewedSha256": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
+        "classification": "no effect on enforced no-discussion/no-discussionId slice",
+        "reason": "All checked prefixes and observed states have no discussion and no intent.discussionId. canRetireDiscussionWork is false, so ended snapshots still skip RECOVER. Non-ended snapshots still recover in the original single transaction. Added import only reuses existing pure predicate; no new I/O, transaction split, publication or permit writer."
+      }
+    ],
+    "unchangedCoveredFileCount": 61,
+    "sliceReason": "All checked prefixes and observed states have no discussion and no intent.discussionId. canRetireDiscussionWork is false, so ended snapshots still skip RECOVER. Non-ended snapshots still recover in the original single transaction. Added import only reuses existing pure predicate; no new I/O, transaction split, publication or permit writer.",
+    "initialRun": {
+      "evidence": "reports/verify-squad-authority/kej-106-initial-engine",
+      "exitCode": 1,
+      "status": "blocked",
+      "reason": "Only src/engine.ts pinned hash drifted."
+    },
+    "sourceDiff": "engine.ts adds canRetireDiscussionWork import and changes ended skip to ended && !intents.some(canRetireDiscussionWork). Existing no-discussion/no-discussionId assertions make some false; ended snapshots still skip, non-ended snapshots keep the original RECOVER transaction. Delivery replay only reopens constructor and does not call Engine.recover.",
+    "noNewProof": "Ended obsolete-discussion recovery is outside these models. It is not made stuttering in a larger model and is not claimed proved here."
   }
 }
