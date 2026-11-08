@@ -5,6 +5,7 @@ import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { capacityProbes } from './capacity-probes.mjs';
+import { discussionRecoveryProbes } from './discussion-recovery-probes.mjs';
 const [rootArg, model, graphFile, output, selected = 'both'] = process.argv.slice(2);
 assert(rootArg && ['Budget', 'Shards', 'CheckBudget'].includes(model) && output, 'ROOT Budget|Shards GRAPH OUTPUT [BACKEND]');
 const root = resolve(rootArg);
@@ -43,6 +44,10 @@ function session(backend, directory, kind) {
   const context = () => {
     const c = engine.view(room, task).context;
     assert.equal(c.sourceArtifact, undefined, 'Scope: all three TLC slices require a source-free public prefix');
+    if (kind !== 'Shards') {
+      assert.equal(c.discussion, undefined, 'Scope: budget/check slices exclude discussion rounds');
+      assert(c.intents.every(work => !work.discussionId), 'Scope: budget/check slices exclude discussion work');
+    }
     return c;
   };
   const send = body => engine.send(room, task, { id: `event:${++seq}`, at: 0, ...body });
@@ -51,7 +56,8 @@ function session(backend, directory, kind) {
   assert(submit.ok, 'Public submission must initialize task');
   const reopen = () => { if (backend === 'sqlite') { store.close(); store = new SqliteStore(path); }
     engine = new TeamEngine(store, config, () => 0); engine.recover(room); };
-  return { context, send, reopen, engine: () => engine, close: () => store.close(), room, task, config };
+  const rewriteSavedWork = (id, change) => store.transact(room, tx => change(tx.room.tasks[task].snapshot.context.intents.find(work => work.id === id)));
+  return { context, send, reopen, engine: () => engine, close: () => store.close(), room, task, config, rewriteSavedWork };
 }
 function budget(backend, directory) {
   const s = session(backend, directory, 'Budget');
@@ -77,18 +83,28 @@ function budget(backend, directory) {
   }
   return { observe, apply, close: s.close };
 }
-function shards(backend, directory) {
+function shards(backend, directory, kind = 'map') {
   const s = session(backend, directory, 'Shards');
   const interpretation = s.context().intents.find(w => w.kind === 'interpretation');
   assert(interpretation, 'Interpretation prefix must be reached');
   const claimed = s.engine().claim(s.room, s.task, interpretation.id); assert(claimed);
   assert.equal(interpretation.payload.maxPartitions, 4, 'CapacitySnapshot: two-shard graph prefix must have sufficient prepared capacity');
   assert.equal(claimed.payload.maxPartitions, 4, 'CapacitySnapshot: charged interpretation must preserve the sufficient host ceiling');
-  assert(s.send({ type: 'INTERPRETATION_RESULT', workId: claimed.id, attempt: claimed.attempt, fence: claimed,
-    inputId: claimed.payload.input.id, spec: { action: 'request', objective: '比较甲乙来源', constraints: ['仅使用公开资料'],
+  const spec = { action: 'request', objective: '比较甲乙来源', constraints: ['仅使用公开资料'],
       expectedOutputs: ['比较报告'], acceptanceCriteria: ['保留出处'], references: [], confidence: .95, clarification: null,
       decomposition: { kind: 'mapReduce', partitions: [{ id: 'alpha', objective: '研究甲', expectedOutput: '甲证据' },
-        { id: 'beta', objective: '研究乙', expectedOutput: '乙证据' }], synthesis: '归并证据和未知' } } }).ok);
+        { id: 'beta', objective: '研究乙', expectedOutput: '乙证据' }], synthesis: '归并证据和未知' } };
+  if (kind === 'discussion') delete spec.decomposition;
+  assert(s.send({ type: 'INTERPRETATION_RESULT', workId: claimed.id, attempt: claimed.attempt, fence: claimed,
+    inputId: claimed.payload.input.id, spec }).ok);
+  if (kind === 'discussion') {
+    assert(s.engine().claim(s.room, s.task, s.context().intents.find(w => w.kind === 'owner' && w.status === 'pending').id));
+    assert(s.send({ type: 'USER_INPUT', text: '请成员核对来源', reviewTargets: ['B', 'builder-1'] }).ok);
+    const planner = s.engine().claim(s.room, s.task, s.context().intents.find(w => w.kind === 'facilitator' && w.status === 'pending').id);
+    assert(planner);
+    assert(s.send({ type: 'DISCUSSION_PLAN', workId: planner.id, attempt: planner.attempt, fence: planner, discussionId: planner.discussionId,
+      decision: { action: 'review', question: '核对来源', expected: '原始依据', reason: '直接邀请' } }).ok);
+  }
   const roundId = s.context().discussion.id;
   const maps = s.context().intents.filter(w => w.kind === 'assistance' && w.discussionId === roundId).map(w => w.id);
   assert.equal(maps.length, 2, 'Exactly two map shards must be scheduled');
@@ -138,7 +154,7 @@ function shards(backend, directory) {
     assert.deepEqual(observe(), before, 'NoStaleAttempt: old result must not settle or consume the new attempt');
     return { name: 'RecoveredStaleAttempt', oldAttempt: old.attempt, currentAttempt: work(1).attempt, rejected: true, stateUnchanged: true };
   }
-  return { observe, apply, close: s.close, recoveryProbe };
+  return { observe, apply, close: s.close, recoveryProbe, session: s, work, summary, result };
 }
 function checkBudget(backend, directory) {
   const s = session(backend, directory, 'CheckBudget');
@@ -209,6 +225,9 @@ mkdirSync(dirname(output), { recursive: true });
 try {
   for (const backend of selected === 'both' ? ['memory', 'sqlite'] : [selected]) {
     if (model === 'Shards') {
+      report.probes.push(...discussionRecoveryProbes(shards, backend, scratch));
+      for (const probe of report.probes.filter(p => p.backend === backend && p.family === 'discussion-recovery'))
+        appendFileSync(output + '.jsonl', JSON.stringify(probe) + '\n');
       const capacityDirectory = join(scratch, `${backend}-capacity-probes`); mkdirSync(capacityDirectory);
       try {
         const probes = capacityProbes({ TeamEngine, MemoryStore, SqliteStore, createTeamConfig, validInputIntent }, backend, capacityDirectory);

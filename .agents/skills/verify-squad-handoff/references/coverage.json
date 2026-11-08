@@ -1,5 +1,5 @@
 {
-  "syncCommit": "756074087685bed3f52f0e6b6e06caf19c587a01",
+  "syncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
   "bounds": {
     "tasks": 1,
     "owner": "A",
@@ -31,13 +31,13 @@
     "src/task/lifecycle.ts": "b4209d5324adb8fdfd8041902c9d1eb488036c6f21a02967850fb0e5579bbe26",
     "src/task/context.ts": "e5efe2a6ca63f8c4835a18fb93737cb1c3d94ff96e972fc3f0b537fc821fba08",
     "src/task/operations.ts": "6f4cf5f12b046da9115f5d9f5d6af3be1c3f168fbbf259e551d2c8efba104804",
-    "src/task/reducer.ts": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+    "src/task/reducer.ts": "ada7f850f0c774c48ade21b50604b9e40e64a84fc49ec0d77a00ce3e6a962455",
     "src/task/assistance.ts": "d472d9c7422118a217d23ef0019831ad1598e3d9137da794830f39ac286ee6df",
     "src/task/policy.ts": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
     "src/task/actions.ts": "78db542e7ad636342220336c2e21a7f15ec313a4bf559c6816771f0713cffda3",
     "src/task/budget.ts": "0d8454f4dbf0d62ffc7a8d5c615f9ec1ebbd688a6e3136e9832af893ff32e62c",
     "src/task/guards.ts": "34e5c8c4849d555b4f44b94cc51c129a4c31d1469c3bccc382eb99a0132d93d3",
-    "src/task/facts.ts": "0ce2cdc949fa881f2be3267cc66292d1a6ad2f391c7e372139b2b17b05f3e8de",
+    "src/task/facts.ts": "7d29345b1e74ed3ffcb70cd592161d2d1728f7c57d3c3b7b4eb91f84cc9cd273",
     "src/input-intent.ts": "8c2886e4b9054655203f5b72fc357aaab0d3502927320b722f9fa196a951d266",
     "src/local-operation.ts": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
     "src/room.machine.ts": "1f2acd3d217731acd39b4258e0148b65b600f2b8cd7ae8cdcee8f047d8b696ab",
@@ -63,14 +63,14 @@
     "src/task/map-reduce-capacity.ts": "6397480888beae4db09321f45453a7d315bce56d8bcd4fe7b646f438ac171b6f"
   },
   "review": {
-    "date": "2026-11-06",
-    "head": "21ee46039f594d9b93d400bf703e14d42fab2b0e",
-    "basis": "references/drift-review-pr40.json",
+    "date": "2026-11-08",
+    "head": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+    "basis": "references/drift-review-kej-106.json",
     "status": "verified",
-    "previousSyncCommit": "cd987f2f4a7e29ad3efae1af36a0f432ce813c8f",
-    "initialBlockedEvidence": "reports/verify-squad-handoff/20261106T101522Z-26134",
-    "previousEvidence": "reports/verify-squad-handoff/20261106T101946Z-27406",
-    "evidence": "reports/verify-squad-handoff/20261106T102156Z-29383"
+    "previousSyncCommit": "756074087685bed3f52f0e6b6e06caf19c587a01",
+    "initialBlockedEvidence": "reports/verify-squad-handoff/kej-106-initial",
+    "previousEvidence": "reports/verify-squad-handoff/kej-106-candidate-clean-env",
+    "evidence": "reports/verify-squad-handoff/kej-106-final"
   },
   "maintenanceReviews": [
     {
@@ -92,6 +92,17 @@
         "src/delivery-acceptance.ts"
       ],
       "validation": "/workspace/squad-pr-delivery-20261106/formal-handoff-reviewed",
+      "outcome": "updated"
+    },
+    {
+      "issue": "KEJ-106",
+      "review": "references/drift-review-kej-106.json",
+      "reviewedCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+      "changedCoveredFiles": [
+        "src/task/reducer.ts",
+        "src/task/facts.ts"
+      ],
+      "validation": "reports/verify-squad-handoff/kej-106-final",
       "outcome": "updated"
     }
   ]

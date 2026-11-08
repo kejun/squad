@@ -1,0 +1,419 @@
+{
+  "issue": "KEJ-106",
+  "outcome": "updated",
+  "previousSyncCommit": "3ee6c875bbde0f802eae954d9017ffe5663a3cfc",
+  "reviewedProductCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+  "candidateSyncPreserved": true,
+  "commitsRead": [
+    {
+      "sha": "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5",
+      "message": "修复交付检查协议说明与冻结原始输入引用 (#41)"
+    },
+    {
+      "sha": "7f07dbbc",
+      "message": "docs: audit verification gaps against current main evidence (#42)"
+    },
+    {
+      "sha": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+      "message": "fix: retire obsolete discussion work at recovery boundaries"
+    }
+  ],
+  "changedCoveredFiles": [
+    {
+      "file": "src/task/facts.ts",
+      "before": "0ce2cdc949fa881f2be3267cc66292d1a6ad2f391c7e372139b2b17b05f3e8de",
+      "after": "7d29345b1e74ed3ffcb70cd592161d2d1728f7c57d3c3b7b4eb91f84cc9cd273"
+    },
+    {
+      "file": "src/task/reducer.ts",
+      "before": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+      "after": "ada7f850f0c774c48ade21b50604b9e40e64a84fc49ec0d77a00ce3e6a962455"
+    }
+  ],
+  "unchangedCoveredFileCount": 60,
+  "review": [
+    {
+      "file": "src/task/facts.ts",
+      "classification": "new behavior outside original Shards domain; same-domain no effect",
+      "reason": "Only obsolete safe pending/inflight discussion work without physical pending is retirable. Current active Shards recovery is unchanged, cancelled inflight recovery is excluded by original Shards Reopen guard. Budget/CheckBudget explicitly exclude discussion."
+    },
+    {
+      "file": "src/task/reducer.ts",
+      "classification": "new implementation examples required; original modeled transactions unchanged",
+      "reason": "RECOVER retires obsolete safe work after local recovery. Known LOCAL_RESULT/LOCAL_RECONCILE retires logical work after effects settle, in the same event transaction; no local events in original Shards graph and no discussion in Budget/CheckBudget."
+    }
+  ],
+  "verificationChanges": [
+    "13 finite examples per backend, 11 public-entry histories plus 2 explicitly classified snapshot inputs; original TLC state domain unchanged",
+    "5 additional real-code negative controls, same correct TLC graphs and replay driver",
+    "Explicit no-discussion assertions in budget/check slices and evidence verification of exact example/control sets"
+  ],
+  "modelsAndBoundsChanged": false,
+  "initialRun": {
+    "status": "blocked",
+    "evidence": "reports/verify-squad-coordination/kej-106-initial",
+    "log": "/tmp/kej-106/formal/coordination-initial.log"
+  },
+  "validation": {
+    "candidate": {
+      "status": "verified",
+      "evidence": "reports/verify-squad-coordination/kej-106-candidate",
+      "fullCheckExitCode": 0,
+      "independentEvidenceReadbackExitCode": 0,
+      "retainedArtifacts": 295,
+      "runJsonSha256": "32ae48c574bcc43f881d8342f7ef770f1269ca34d0838174daeeacc25602cd63",
+      "source": "84a67c72b7db3f1f73b140cfa46dbf38bbc676c8",
+      "sourceRelation": "All 62 covered source/dependency hashes equal reviewed product b6ea8ac; actual run HEAD additionally contains test integration commits.",
+      "syncCommitDuringRun": "3ee6c875bbde0f802eae954d9017ffe5663a3cfc",
+      "seconds": 283.281,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "checkerInputsUnchanged": true
+      },
+      "models": {
+        "Budget": {
+          "counts": [
+            346,
+            151,
+            0
+          ],
+          "graphEdges": 345,
+          "backends": [
+            {
+              "name": "memory",
+              "edgesReplayed": 345
+            },
+            {
+              "name": "sqlite",
+              "edgesReplayed": 345
+            }
+          ]
+        },
+        "Shards": {
+          "counts": [
+            1380,
+            456,
+            0
+          ],
+          "graphEdges": 1379,
+          "backends": [
+            {
+              "name": "memory",
+              "edgesReplayed": 1379
+            },
+            {
+              "name": "sqlite",
+              "edgesReplayed": 1379
+            }
+          ]
+        },
+        "CheckBudget": {
+          "counts": [
+            238,
+            117,
+            0
+          ],
+          "graphEdges": 237,
+          "backends": [
+            {
+              "name": "memory",
+              "edgesReplayed": 237
+            },
+            {
+              "name": "sqlite",
+              "edgesReplayed": 237
+            }
+          ]
+        }
+      },
+      "negativeControls": {
+        "omit-discussion-recovery-retirement": {
+          "property": "CancelledRecovery",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "omit-obsolete-member-exclusion": {
+          "property": "ObsoleteMemberRecovery",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "omit-known-local-retirement": {
+          "property": "SettledDiscussionRecovery",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "retire-unsafe-discussion": {
+          "property": "UnsafeRetention",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "retire-current-discussion": {
+          "property": "ActiveDiscussionRecovery",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "omit-interpretation-reservation": {
+          "property": "CapacitySnapshot",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "omit-capacity-refresh": {
+          "property": "CapacityRefresh",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "backfill-legacy-capacity": {
+          "property": "LegacyCapacity",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "skip-capacity-dispatch-guard": {
+          "property": "CapacityDispatch",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "ignore-adapter-capacity": {
+          "property": "CapacityValidation",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "omit-claim-charge": {
+          "property": "PaidBudget",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "ignore-retry-limit": {
+          "property": "RetryBound",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "premature-reduce": {
+          "property": "AllSettledBeforeReduce",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "erase-partial-evidence": {
+          "property": "PreserveIncomplete",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "duplicate-owner-handoff": {
+          "property": "UniqueHandoff",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "accept-old-shard-attempt": {
+          "property": "NoStaleAttempt",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "omit-summary-progress": {
+          "property": "ProgressHandoff",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "omit-check-charge": {
+          "property": "CheckAccounting",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "reuse-check-request-permit": {
+          "property": "BoundedChecks",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "omit-technical-retry-charge": {
+          "property": "OneTechnicalRetry",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        },
+        "omit-revision-marker": {
+          "property": "OneRevision",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "behaviorFailure": true
+            }
+          }
+        }
+      },
+      "restored": "All original TLC models and dual-store all-edge replays passed again after removing temporary mutations."
+    },
+    "final": {
+      "status": "deferred-unverified",
+      "reason": "Task scope extended to Engine.recover of ended tasks after this complete candidate run. Per implementation coordinator instruction, avoid repeating the old Engine full suite; final four-skill complete checks will run after the new Engine change and corresponding audit. Current candidate is not claimed as evidence for that future change."
+    }
+  },
+  "remainingBoundaries": [
+    "Shards TLC still excludes cancelled inflight recovery and second round",
+    "Finite examples are not proof over arbitrary histories, unsafe snapshot input is not claimed reachable",
+    "No real command execution, physical effects verification, or full-product composition proof",
+    "Physical examples assert retained uncertain occupancy facts; no new competing work is constructed, so they do not independently prove arbitrary new-work contention."
+  ],
+  "formalSyncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa"
+}

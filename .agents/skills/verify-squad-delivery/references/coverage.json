@@ -1,5 +1,5 @@
 {
-  "syncCommit": "3ee6c875bbde0f802eae954d9017ffe5663a3cfc",
+  "syncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
   "bounds": {
     "tasks": 1,
     "candidates": 1,
@@ -65,9 +65,9 @@
     "src/task/policy.ts": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
     "src/task/operations.ts": "6f4cf5f12b046da9115f5d9f5d6af3be1c3f168fbbf259e551d2c8efba104804",
     "src/task/protocol.ts": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
-    "src/task/facts.ts": "0ce2cdc949fa881f2be3267cc66292d1a6ad2f391c7e372139b2b17b05f3e8de",
+    "src/task/facts.ts": "7d29345b1e74ed3ffcb70cd592161d2d1728f7c57d3c3b7b4eb91f84cc9cd273",
     "src/task/input.ts": "284080d64d88149851e0f058fd4aaa8c56a2d1c141c84b26acc453e2b6fe9efe",
-    "src/task/reducer.ts": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+    "src/task/reducer.ts": "ada7f850f0c774c48ade21b50604b9e40e64a84fc49ec0d77a00ce3e6a962455",
     "src/task/verification.ts": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24",
     "src/task/map-reduce.ts": "601bd32e42920fb7696294c1a0e550b3717be095ce02ab1be3502848100c3dc7",
     "src/task/guards.ts": "34e5c8c4849d555b4f44b94cc51c129a4c31d1469c3bccc382eb99a0132d93d3",
@@ -88,6 +88,17 @@
         "package.json"
       ],
       "validation": "reports/verify-squad-delivery/kej-100-final",
+      "outcome": "updated"
+    },
+    {
+      "issue": "KEJ-106",
+      "review": "references/drift-review-kej-106.json",
+      "reviewedCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+      "changedCoveredFiles": [
+        "src/task/facts.ts",
+        "src/task/reducer.ts"
+      ],
+      "validation": "reports/verify-squad-delivery/kej-106-final",
       "outcome": "updated"
     }
   ]

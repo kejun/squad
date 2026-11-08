@@ -148,3 +148,16 @@ coverage 增补 11 个新语义依赖：delivery/protocol/evidence/verification/
 审查目标为 `756074087685bed3f52f0e6b6e06caf19c587a01`，产品代码对应 `3ee6c875bbde0f802eae954d9017ffe5663a3cfc`。旧覆盖清单49个文件逐一核对：47个未变，`src/delivery-acceptance.ts` 与 `src/task/delivery.ts` 两个传递依赖发生变化，见[逐文件审查](drift-review-raw-input-citation.json)。先前只复验另外三组形式化验证遗漏了此清单，首次原样运行已保留 blocked 证据。
 
 新增逻辑把冻结 rawInputs 转为既有引用来源，checkDisposition 从保存的检查意图读取该字段；未引入新的交接写入口，也未拆分事务。handoff 回放每次 observe 都断言 candidate 为 null、没有 check intent、没有发布记录且 deliveryCycle.requests 为0，因此新检查引用路径不在这个受断言约束的切片内。assistance 消费标记、唯一 owner 续办、停止取消、runner flush 和两种存储提交边界未改动。模型、性质、边界与回放驱动保持不变，完整原图、可达性见证和四类真实代码负对照仍必须执行。该结论不扩大为引用语义或供应商质量证明；对应行为由 BT_F31 与独立交付验证提供证据。
+
+
+## KEJ-106：旧讨论退休修复的无讨论切片对应审查
+
+审查产品提交为 `b6ea8ac5d67b5acf331df0030d6157e582f016fa`，旧同步为 `756074087685bed3f52f0e6b6e06caf19c587a01`。读取两者之间的全部提交消息及覆盖文件 diff 后，仅 `src/task/facts.ts` 和 `src/task/reducer.ts` 两项改变，另47项哈希未变；逐项旧新哈希、分类、原样 blocked 与完整运行记录见 [drift-review-kej-106.json](drift-review-kej-106.json)。
+
+`canRetireDiscussionWork` 必须有 discussionId，且只允许安全、无物理未结算操作的旧轮 pending/inflight 工作。RECOVER 的恢复兼容检查和本地结果/核对后的退休都复用该谓词；单次事件的事务边界没有拆分。handoff 的公共前缀仅创建普通 A/B 协助，图动作没有启动讨论或分片的入口。`compare.mjs.observe` 在每次观察保留无 discussion/localOperations/decomposition 的检查，并新增所有 intent 无 discussionId 的显式断言。因此此切片中退休谓词恒为 false，新增 LOCAL_* 路径不可达，旧 RECOVER、消费标记、唯一 owner 续办、停止取消与 RunnerProgress 路径保持。
+
+TLA+ 模型、配置、安全/活性性质、故障预算和界限均未改变。仍要求全部146状态与424条标记边的两存储回放、六项可达性见证、四类真实代码负对照及移除突变后的复验。对照失败必须来自原目标行为，不能是编译、依赖或哈希门禁。
+
+本次 handoff 通过不扩张到旧讨论取消后再恢复、成员占用、unsafe/uncertain 或物理操作效果安全；coordination 新增的有界实现实例和 BT_Q19–Q23 是不同层次的独立证据，也不能据二者单独通过推导整个组合的穷举保证。初始环境阻塞（TLC本地监听权限、注入的不完整模型配置）保留原始日志，修正执行环境后才作结果判断；未修改用户 `.env` 或打印凭据，也未调用供应商服务。
+
+候选完整检查37.841秒通过并独立读回108件证据后，才推进syncCommit；同步后再完整运行 `reports/verify-squad-handoff/kej-106-final`，38.996秒退出0，独立读回108件证据成功。原模型与恢复模型均为425个生成状态、146个不同状态、剩余队列0（424条标记边），Memory/SQLite各回放424边；六项可达性见证、四种双存储真实负对照与恢复复验全部完成，清理项全部true。实际执行HEAD `84a67c72b7db3f1f73b140cfa46dbf38bbc676c8` 与审查产品提交在src及配置/依赖文件上无差异。

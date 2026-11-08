@@ -57,7 +57,8 @@ function setup(backend, directory) {
   const observe = () => {
     const c = context(), publication = c.publishedDelivery;
     assert.equal(c.sourceArtifact, undefined, 'ModelScope: cross-task source revisions require a separate model');
-    assert(!c.discussion?.mapReduce, 'ModelScope: capacity-aware shard dispatch is outside this publication slice');
+    assert.equal(c.discussion, undefined, 'ModelScope: discussion recovery requires a separate model');
+    assert(c.intents.every(work => !work.discussionId), 'ModelScope: no discussion work in this publication slice');
     assert(c.intents.every(work => work.kind !== 'interpretation'), 'ModelScope: interpretation requests are outside this publication slice');
     if (publication) {
       assert.equal(publication.revision, candidate.revision, 'CurrentCandidate: publication changed candidate');

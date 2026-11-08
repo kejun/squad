@@ -1,0 +1,270 @@
+{
+  "issue": "KEJ-106",
+  "previousSyncCommit": "756074087685bed3f52f0e6b6e06caf19c587a01",
+  "reviewedCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+  "outcome": "updated",
+  "originalRun": {
+    "command": "python3 .agents/skills/verify-squad-handoff/scripts/check.py --evidence reports/verify-squad-handoff/kej-106-initial",
+    "exitCode": 1,
+    "status": "blocked",
+    "evidence": "reports/verify-squad-handoff/kej-106-initial",
+    "log": "/tmp/kej-106/formal/handoff-initial.log",
+    "reason": "Only src/task/facts.ts and src/task/reducer.ts differ from the 49 covered-file pins."
+  },
+  "commitsRead": [
+    "b6ea8ac5d67b5acf331df0030d6157e582f016fa fix: retire obsolete discussion work at recovery boundaries",
+    "7f07dbbc30f59923a336ccafb60c31708c1f59c2 docs: audit verification gaps against current main evidence (#42)",
+    "1d7dc6e048b3927b6e2b51c7f7803dafd09217d5 修复交付检查协议说明与冻结原始输入引用 (#41)"
+  ],
+  "changes": [
+    {
+      "file": "src/task/reducer.ts",
+      "before": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+      "after": "ada7f850f0c774c48ade21b50604b9e40e64a84fc49ec0d77a00ce3e6a962455",
+      "classification": "no effect on the bounded handoff projection",
+      "reason": "Calls the new predicate after LOCAL_RESULT/LOCAL_RECONCILE and during RECOVER. This slice has no local operations or discussion-tagged intents, making the local-event paths unreachable and RECOVER retirement filter empty. No transaction is split; saved result consumption and unique owner successor creation are unchanged."
+    },
+    {
+      "file": "src/task/facts.ts",
+      "before": "0ce2cdc949fa881f2be3267cc66292d1a6ad2f391c7e372139b2b17b05f3e8de",
+      "after": "7d29345b1e74ed3ffcb70cd592161d2d1728f7c57d3c3b7b4eb91f84cc9cd273",
+      "classification": "no effect on the bounded handoff projection",
+      "reason": "Adds canRetireDiscussionWork, which requires a discussionId; the handoff public prefix and every replay observation exclude discussion-tagged intents. recoveryIssue excludes only this safe obsolete-discussion subset, so its existing non-discussion checks remain in force."
+    }
+  ],
+  "unchangedCoveredFiles": [
+    "src/task.machine.ts",
+    "src/engine.ts",
+    "src/store.ts",
+    "src/runner.ts",
+    "src/types.ts",
+    "src/model-config.ts",
+    "src/assistance-retry.ts",
+    "src/presentation.ts",
+    "src/conversation.ts",
+    "src/model-env.ts",
+    "src/index.ts",
+    "team.config.ts",
+    "package.json",
+    "package-lock.json",
+    "src/task/discussion.ts",
+    "src/task/input.ts",
+    "src/task/lifecycle.ts",
+    "src/task/context.ts",
+    "src/task/operations.ts",
+    "src/task/assistance.ts",
+    "src/task/policy.ts",
+    "src/task/actions.ts",
+    "src/task/budget.ts",
+    "src/task/guards.ts",
+    "src/input-intent.ts",
+    "src/local-operation.ts",
+    "src/room.machine.ts",
+    "src/task-debug.ts",
+    "src/task-inspection.ts",
+    "src/task-structure.ts",
+    "src/skills.ts",
+    "src/web-tools.ts",
+    "src/task/execution.machine.ts",
+    "src/task/delivery.ts",
+    "src/task/protocol.ts",
+    "src/task/evidence.ts",
+    "src/task/verification.ts",
+    "src/task/map-reduce.ts",
+    "src/host-retry.ts",
+    "src/host-session.ts",
+    "src/delivery-acceptance.ts",
+    "src/evidence-reader.ts",
+    "src/measurement.ts",
+    "src/local-skills.ts",
+    "src/artifact-request.ts",
+    "src/source-artifact.ts",
+    "src/task/map-reduce-capacity.ts"
+  ],
+  "propertiesChanged": false,
+  "boundsChanged": false,
+  "modelsChanged": false,
+  "harnessChanges": [
+    "compare.mjs observe now explicitly rejects any intent carrying discussionId. This makes the guard input added by the product fix visible at every replay observation, rather than relying only on the existing absence of current discussion/decomposition/local-operation state."
+  ],
+  "correspondence": "submit -> claim A -> HELP -> claim B -> RECORD_RESULT creates one ordinary assistance without discussionId. Handoff graph actions only flush/direct/retry/duplicate/stop/continue/change-goal/crash/rollback/reopen; none creates discussion-tagged work. Thus canRetireDiscussionWork is false in the complete enforced slice, while all existing non-discussion RECOVER branches, result markers, unique owner creation, stop cancellation and transaction boundaries are preserved.",
+  "candidateProcedure": "After reading every changed covered file and preserving the original blocked evidence, only candidate file hashes are refreshed while syncCommit remains at the prior verified commit. Run the complete finite model, both-store graph replays, all reachability witnesses and all four real-code behavioral negative controls; promote syncCommit only after verified plus independent evidence readback.",
+  "limits": "The handoff finite graph does not prove discussion/MapReduce cancellation recovery, participant occupancy, LOCAL_RESULT/LOCAL_RECONCILE retirement or physical-effect safety. The coordination maintenance and BT_Q19-Q23 provide separate bounded evidence. No theorem about the Cartesian product of those protocols is added.",
+  "validation": {
+    "candidate": {
+      "status": "verified",
+      "command": "python3 .agents/skills/verify-squad-handoff/scripts/check.py --evidence reports/verify-squad-handoff/kej-106-candidate-clean-env",
+      "evidence": "reports/verify-squad-handoff/kej-106-candidate-clean-env",
+      "source": "5e05164306da44129723c90f48056d613f6a4f4d",
+      "productCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+      "sourceRelation": "All 49 covered source/dependency hashes equal the reviewed product commit; source HEAD additionally contains BDD integration only.",
+      "exitCode": 0,
+      "evidenceReadbackExitCode": 0,
+      "retainedArtifacts": 108,
+      "seconds": 37.841,
+      "modelCounts": [
+        425,
+        146,
+        0
+      ],
+      "graphEdges": 424,
+      "storeEdges": [
+        {
+          "name": "memory",
+          "edgesReplayed": 424
+        },
+        {
+          "name": "sqlite",
+          "edgesReplayed": 424
+        }
+      ],
+      "negativeControls": "All four original real-code mutations failed by their intended behavioral assertion in each store; matching model counterexamples completed.",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true
+      }
+    },
+    "final": {
+      "status": "verified",
+      "command": "python3 .agents/skills/verify-squad-handoff/scripts/check.py --evidence reports/verify-squad-handoff/kej-106-final",
+      "evidence": "reports/verify-squad-handoff/kej-106-final",
+      "source": "84a67c72b7db3f1f73b140cfa46dbf38bbc676c8",
+      "productCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+      "sourceRelation": "No src/package.json/package-lock.json/team.config.ts differences from the reviewed frozen product commit; later commits contain acceptance integration only.",
+      "exitCode": 0,
+      "evidenceReadbackExitCode": 0,
+      "retainedArtifacts": 108,
+      "seconds": 38.996,
+      "modelCounts": [
+        425,
+        146,
+        0
+      ],
+      "restoredModelCounts": [
+        425,
+        146,
+        0
+      ],
+      "graphEdges": 424,
+      "storeEdges": [
+        {
+          "name": "memory",
+          "edgesReplayed": 424
+        },
+        {
+          "name": "sqlite",
+          "edgesReplayed": 424
+        }
+      ],
+      "reachabilityWitnesses": [
+        "NeverEligible",
+        "NeverHandedOff",
+        "NeverStoppedSaved",
+        "NeverStaleSaved",
+        "NeverRolledBack",
+        "NeverNewEpochSaved"
+      ],
+      "negativeControls": {
+        "drop-marker": {
+          "property": "AtomicHandoff",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: AtomicHandoff: durable result marker missing"
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: AtomicHandoff: durable result marker missing"
+            }
+          }
+        },
+        "double-resume": {
+          "property": "AtMostOnce",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: AtMostOnce: one saved result scheduled or published twice"
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: AtMostOnce: one saved result scheduled or published twice"
+            }
+          }
+        },
+        "skip-cancel": {
+          "property": "StopCancelsResume",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: StopCancelsResume: stopped task retains live successor"
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: StopCancelsResume: stopped task retains live successor"
+            }
+          }
+        },
+        "starve-flush": {
+          "property": "RunnerProgress",
+          "stores": {
+            "memory": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: RunnerProgress: repeated runOne left an eligible saved result without an owner successor"
+            },
+            "sqlite": {
+              "exitCode": 1,
+              "status": "failed",
+              "error": "AssertionError [ERR_ASSERTION]: RunnerProgress: repeated runOne left an eligible saved result without an owner successor"
+            }
+          }
+        }
+      },
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true
+      },
+      "reportSha256": "5cd7788114acd3903c267fc4ebc7dbdfa1d1cf29c0544393cbd79e71ce0c2b5a",
+      "recordedAfterFinalRun": true
+    }
+  },
+  "environmentAttempts": [
+    {
+      "evidence": "reports/verify-squad-handoff/kej-106-candidate",
+      "status": "failed",
+      "classification": "execution environment",
+      "reason": "Sandbox denied TLC localhost RMI listener (SocketException: Operation not permitted); no model conclusion."
+    },
+    {
+      "evidence": "reports/verify-squad-handoff/kej-106-candidate-network",
+      "status": "failed",
+      "classification": "execution environment",
+      "reason": "TLC completed, but injected incomplete model-profile environment blocked team.config import before code replay; no implementation conclusion."
+    }
+  ],
+  "environmentPreparation": {
+    "networkPermission": "enabled for TLC localhost RMI listener",
+    "omittedEnvironmentPrefixes": [
+      "MODEL_",
+      "A_MODEL_",
+      "B_MODEL_",
+      "BUILDER_1_MODEL_",
+      "BUILDER_2_MODEL_",
+      "BUILDER_3_MODEL_",
+      "FACILITATOR_MODEL_",
+      "CHECK_MODEL_",
+      "INTENT_MODEL_"
+    ],
+    "userEnvFileChanged": false,
+    "credentialsPrinted": false,
+    "reason": "Replay constructs createTeamConfig({}); unrelated injected profile variables must not break the module-level default configuration import."
+  }
+}

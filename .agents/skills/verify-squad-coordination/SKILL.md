@@ -42,6 +42,8 @@ python3 .agents/skills/verify-squad-coordination/scripts/check.py --verify-evide
 
 `capacity-probes.mjs` 在每个存储另跑六个有限实现实例：容量0/1时两片整体回退，容量2时两片完整派发，容量4时四片完整派发，恢复重领后容量4→3时原四片整体回退，以及旧快照缺少提示时重领不补字段、仍按当前容量回退。断言准备时预留一次未付理解请求、CLAIM收费后刷新、无部分派发且owner保留完整计划；另直接调用适配器使用的验证函数，确认数字容量限制与缺省旧协议。这些实例及独立负对照不属于 TLC 状态图，不声称容量或0/1/4片的穷举证明；不执行模型 HTTP、格式修复请求或语义分组。旧快照实例只从公共前缀的持久快照移除新增提示，明确区分于三个模型的可达起点。
 
+`discussion-recovery-probes.mjs` 复用同一真实入口回放驱动，在每个存储另跑13个有限实例：讨论/MapReduce × 换目标/停止后继续的4条链、当前安全工作正常恢复、已取消安全成员移除、3种本地未知效果阶段、LOCAL_RESULT及LOCAL_RECONCILE的已知回执结算，共11条公开入口历史；另有旧版恢复产生pending状态的兼容快照与将replay标为unsafe的守卫输入快照。后两者不声称从当前公开入口可达。实例检查重复恢复不新增计费、成员可重新领取、新轮不受旧回复影响、物理/uncertain/unsafe保留占用事实（未枚举任意新工作竞争）、已知回执保留。它们不扩张原Shards图，尤其不把取消后inflight→RECOVER称为原TLC穷举范围；不运行真实命令或证明OS效果。删除退休步骤/旧成员排除/已知回执退休，或放行unsafe/退休当前轮次，必须由两存储各自的行为断言检出。
+
 这是**有限抽象模型的穷举检查 + 代表前缀的真实实现对应验证**，不是 TypeScript 的机器证明、无限大小证明或全部历史等价证明。文件哈希是漂移门禁，不是行为等价证明。SQLite 事务/文件系统原子性是假设；此处不注入断电、部分磁盘写入或真实网络故障。三个模型不是整个系统的笛卡尔乘积，不证明预算与所有宿主/目标/输入行为的组合。
 
 ## 安全、进度与可达性
@@ -77,6 +79,8 @@ python3 .agents/skills/verify-squad-coordination/scripts/check.py --verify-evide
 一个改坏只能说明对这一变体敏感，不能推出检测全部同类缺陷；NoStaleHandoff 的停止/换目标由全部图边比较和显式迟到拒绝覆盖，不声称对每种越权错误有独立突变完备性。故障副本移除后必须完整重跑三个模型和真实回放；原工作区覆盖文件哈希必须保持不变。
 
 ## 实现同步与维护
+
+KEJ-106 对应审查与候选/正式运行状态见 [讨论恢复审查](references/drift-review-kej-106.json)。受审产品提交为 `b6ea8ac5d67b5acf331df0030d6157e582f016fa`；只有 `facts.ts` 与 `reducer.ts` 两项覆盖源码变化。新增安全旧轮次退休保持原事务边界；Budget/CheckBudget显式排除discussion，原Shards的活动恢复、迟到结算及取消后无inflight重开域不变。新增取消恢复链由上述有限实例承接，原TLA模型、配置、性质、公平性和边界未变；不得把新增实例算入TLC状态/边数。完整原始结果与最终同步以审查JSON和coverage.json为准，下列基线为历史记录。
 
 当前审查基线为 `3ee6c875bbde0f802eae954d9017ffe5663a3cfc`（BT_M37 检查协议说明、BT_F31 冻结输入引用）。完整检查及独立读回已通过，逐文件对应、额外真实代码负对照与保证边界见[引用链审查](references/drift-review-raw-input-citation.json)和[协议说明审查](references/drift-review-check-envelope.json)；当前指纹见 coverage.json。
 
