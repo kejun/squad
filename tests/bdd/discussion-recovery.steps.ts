@@ -46,7 +46,9 @@ Given('同一目标的讨论已结束但成员命令仍待核对', async functio
   await fixture.preparePhysical('已退出但效果未知'); fixture.finishCurrentGoal();
 });
 When('宿主提交匹配会话的已知结算回执', function (this: SpecWorld) { state(this).fixture.reconcile(); });
-Then('应释放该成员及工程占用并保持旧轮次结束且不重新排队', function (this: SpecWorld) { state(this).fixture.assertReconciled(); });
+Then('应释放该成员及工程占用并保持旧轮次结束且不重新排队', async function (this: SpecWorld) {
+  const fixture = state(this).fixture; fixture.assertReconciled(); await fixture.continueAfterReconcile();
+});
 
 Given('已取消分片的原成员已不在当前团队中', async function (this: SpecWorld) {
   removedDiscussionMemberModelGate();

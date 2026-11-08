@@ -42,7 +42,8 @@ export class DiscussionRecoveryFixture extends MapReduceFixture {
   }
 
   cancel() {
-    assert(this.event(this.change === '停止后继续' ? { type: 'STOP' }
+    assert(this.event(this.change === '任务结束后继续' ? { type: 'EXHAUSTED', reason: '当前轮次结束，等待用户明确继续' }
+      : this.change === '停止后继续' ? { type: 'STOP' }
       : { type: 'USER_INPUT', text: '新目标', goal: { ...this.context().goal, text: '新目标' } }).ok);
     assert.equal(this.context().discussion!.status, 'cancelled');
     this.usage = structuredClone(this.context().usage);
@@ -50,12 +51,25 @@ export class DiscussionRecoveryFixture extends MapReduceFixture {
   }
 
   async recoverAndInvite() {
+    const outcome = this.context().outcome;
+    const owners = this.context().intents.filter(work => work.kind === 'owner').map(work => work.id);
     this.reopen(); this.reopen();
     assert.deepEqual(this.context().usage, this.usage, 'Recovery must preserve charged usage');
-    if (this.change === '停止后继续') assert(this.event({ type: 'CONTINUE' }).ok);
+    if (this.change === '任务结束后继续') {
+      assert.equal(this.view().phase, 'ended', 'Recovery must not reactivate an ended task');
+      assert.equal(this.context().outcome, outcome);
+      assert.deepEqual(this.context().intents.filter(work => work.kind === 'owner').map(work => work.id), owners,
+        'Recovery must not generate new owner work for an ended task');
+      assert.equal(this.requests.length, this.requestCount);
+    }
+    if (this.change !== '修改目标') this.continueCurrentGoal();
     await this.consumeCancellations();
     assert.deepEqual(this.context().usage, this.usage, 'Cancel delivery must not charge model requests');
     assert.equal(this.requests.length, this.requestCount, 'Recovery and cancellation must not replay old provider calls');
+    await this.inviteOriginalMembers();
+  }
+
+  private async inviteOriginalMembers() {
     this.claimOwner();
     assert(this.event({ type: 'USER_INPUT', text: '请原成员再讨论', reviewTargets: this.works.map(work => work.target) }).ok);
     this.newRoundId = this.context().discussion!.id;
@@ -142,11 +156,18 @@ export class DiscussionRecoveryFixture extends MapReduceFixture {
     assert.equal(this.context().epoch, this.works[0]!.epoch);
     this.usage = structuredClone(this.context().usage);
     this.requestCount = this.requests.length;
-    this.reopen();
+    this.reopen(); this.reopen();
   }
 
   reconcile() {
     const work = this.works[0]!, op = this.operation!;
+    assert(['done', 'cancelled'].includes(this.context().intents.find(item => item.id === this.works[1]!.id)!.status),
+      'Recovery must retire the safe member while preserving the other member’s unknown physical effect');
+    const blocked = this.engine.submit(this.room, { id: `continue-before-reconcile:${this.roundId}`,
+      text: '继续当前目标', intent: 'continue', replyToTaskId: this.task });
+    assert.equal(blocked.ok, false);
+    assert.equal(blocked.code, 'UNRESOLVED_WORK', 'Unknown physical effects must still block public continuation');
+    this.assertWorkspaceAvailable(false);
     const receipt = { ok: true, code: 'succeeded', data: { exitCode: 0, stdout: '宿主核对的原始结果' } };
     const reply = this.event({ type: 'LOCAL_RECONCILE', intentId: work.id, operationId: op.id, sessionId: op.sessionId!,
       resolution: 'receipt', result: receipt, detail: '宿主已核对本会话的实际效果' });
@@ -164,6 +185,16 @@ export class DiscussionRecoveryFixture extends MapReduceFixture {
     assert.deepEqual(this.context().usage, this.usage);
     assert.equal(this.requests.length, this.requestCount);
     this.assertWorkspaceAvailable(true);
+  }
+
+  async continueAfterReconcile() {
+    this.continueCurrentGoal();
+    await this.consumeCancellations();
+    assert.deepEqual(this.context().usage, this.usage);
+    assert.equal(this.requests.length, this.requestCount);
+    await this.inviteOriginalMembers();
+    this.assertMembersReturned();
+    this.assertLateResultsRejected();
   }
 
   recoverWithoutMember() {
@@ -185,6 +216,11 @@ export class DiscussionRecoveryFixture extends MapReduceFixture {
   }
 
   private runner() { return new WorkRunner(this.engine, this.adapter, () => this.now); }
+  private continueCurrentGoal() {
+    const reply = this.engine.submit(this.room, { id: `continue-recovered:${this.roundId}:${this.context().epoch}`,
+      text: '继续当前目标', intent: 'continue', replyToTaskId: this.task });
+    assert(reply.ok, `Public continuation must succeed after obsolete work retires: ${JSON.stringify(reply)}`);
+  }
   private claimOwner() {
     const owner = this.pending('owner')[0]; assert(owner, 'Current owner must be available after recovery');
     assert(this.engine.claim(this.room, this.task, owner.id));
