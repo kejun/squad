@@ -29,6 +29,8 @@ function fixture(backend){
  assert.equal(engine.view(room,task).context.sourceArtifact,undefined,'Authority:slice:source revisions are outside this model');
  assert.equal(work.kind,'owner','Authority:slice:already claimed owner intent');
  assert(!engine.view(room,task).context.intents.some(w=>w.kind==='interpretation'),'Authority:slice:no interpretation or capacity planning');
+ assert.equal(engine.view(room,task).context.discussion,undefined,'Authority:slice:discussion recovery requires a separate model');
+ assert(engine.view(room,task).context.intents.every(w=>!w.discussionId),'Authority:slice:no discussion work');
  let operation,session,stage=0,starts=0,recovered=false,busy=false,unsafe=false;
  const send=body=>engine.send(room,task,{id:`event${++seq}`,at:time,...body});
  const current=()=>engine.view(room,task).context.intents.find(w=>w.id===work.id).localOperations?.find(o=>o.id===operation.id);
@@ -51,7 +53,7 @@ function fixture(backend){
    default:throw Error(action);
   }
  }
- return {apply,observe(){return {stage,starts,stopped:engine.view(room,task).context.stopped,expired:time>=900,recovered,busy,unsafe};},close(){store.close();rmSync(dir,{recursive:true,force:true});}};
+ return {apply,observe(){const c=engine.view(room,task).context;assert.equal(c.discussion,undefined,'Authority:slice:discussion recovery requires a separate model');assert(c.intents.every(w=>!w.discussionId),'Authority:slice:no discussion work');return {stage,starts,stopped:c.stopped,expired:time>=900,recovered,busy,unsafe};},close(){store.close();rmSync(dir,{recursive:true,force:true});}};
 }
 function expected(s,a){const valid=!s.stopped&&!s.expired&&!s.recovered;if(a==='Start')return valid&&s.stage===(domain==='host'?2:0);if(a==='Claim')return valid&&s.stage===1&&!s.busy;if(a==='Approve')return valid&&s.stage===0;return false;}
 const observations=[];

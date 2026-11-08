@@ -1,5 +1,5 @@
 {
-  "syncCommit": "3ee6c875bbde0f802eae954d9017ffe5663a3cfc",
+  "syncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
   "bounds": {
     "Budget": "one current ordinary owner intent, 2 user epochs, ordinary limits 3 then 5, automatic retry limit 1, one safe inflight recovery; request/claim count bounded by total paid budget 5",
     "Shards": "one round with exactly 2 shards, 3 result outcomes per shard, one reducer, stop or one goal change, one reopen including active safe inflight recovery; no recovery of cancelled inflight or second round",
@@ -13,7 +13,7 @@
     "src/conversation.ts": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
     "src/darwin-process.ts": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b",
     "src/delivery-acceptance.ts": "6d4a70291b12a3ed376e8e3658b428b7351e260e1d39043ee986a97fc2568396",
-    "src/engine.ts": "e95cd5382a80bdc526f408ff73442dbd1b8bdc07226dbcf64dda7cbd9988c9a5",
+    "src/engine.ts": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
     "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
     "src/host-capabilities.ts": "21a2aec00a32046ff67e6517a948540235301bd7803852b551cf77809d64feb2",
     "src/host-retry.ts": "e68e16d090b7c76d5bc8ec18f2cb01c9c33730090d98a001bd7f3fd49ba1ba31",
@@ -50,7 +50,7 @@
     "src/task/discussion.ts": "0bdf97c5438d24d381a194d6fc6406282044d41c5b5d5ba5c9f73cf1234bfa7b",
     "src/task/evidence.ts": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
     "src/task/execution.machine.ts": "7ed6793adbd8413de0c53161ea8adbe6bdcb29eae910864ccd01e29baf68fcff",
-    "src/task/facts.ts": "0ce2cdc949fa881f2be3267cc66292d1a6ad2f391c7e372139b2b17b05f3e8de",
+    "src/task/facts.ts": "7d29345b1e74ed3ffcb70cd592161d2d1728f7c57d3c3b7b4eb91f84cc9cd273",
     "src/task/guards.ts": "34e5c8c4849d555b4f44b94cc51c129a4c31d1469c3bccc382eb99a0132d93d3",
     "src/task/input.ts": "284080d64d88149851e0f058fd4aaa8c56a2d1c141c84b26acc453e2b6fe9efe",
     "src/task/lifecycle.ts": "b4209d5324adb8fdfd8041902c9d1eb488036c6f21a02967850fb0e5579bbe26",
@@ -59,7 +59,7 @@
     "src/task/operations.ts": "6f4cf5f12b046da9115f5d9f5d6af3be1c3f168fbbf259e551d2c8efba104804",
     "src/task/policy.ts": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
     "src/task/protocol.ts": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
-    "src/task/reducer.ts": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+    "src/task/reducer.ts": "ada7f850f0c774c48ade21b50604b9e40e64a84fc49ec0d77a00ce3e6a962455",
     "src/task/verification.ts": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24",
     "src/types.ts": "f8a70d5b344164eaff896ae11e40b84f7e0aff88f528724243847c906f1bc85d",
     "src/web-tools.ts": "aefd3b4625fada48ef66e821bd6252c6b0dae9e454a8799f4c0c321efc531840",
@@ -79,6 +79,29 @@
       ],
       "validation": "reports/verify-squad-coordination/kej-100-final",
       "outcome": "updated"
+    },
+    {
+      "issue": "KEJ-106",
+      "review": "references/drift-review-kej-106.json",
+      "reviewedCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+      "changedCoveredFiles": [
+        "src/task/facts.ts",
+        "src/task/reducer.ts"
+      ],
+      "validation": "reports/verify-squad-coordination/kej-106-candidate",
+      "outcome": "updated",
+      "scope": "Old Engine product b6ea8ac; final new Engine scope explicitly pending."
+    },
+    {
+      "issue": "KEJ-106-engine",
+      "review": "references/drift-review-kej-106.json",
+      "reviewedCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+      "changedCoveredFiles": [
+        "src/engine.ts"
+      ],
+      "validation": "reports/verify-squad-coordination/kej-106-final-engine",
+      "outcome": "updated",
+      "scope": "Full checks on final Engine sources; original TLC domains unchanged, 15 finite examples and 22 real-code controls."
     }
   ]
 }

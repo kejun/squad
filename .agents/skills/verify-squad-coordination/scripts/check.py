@@ -23,6 +23,24 @@ WITNESSES = {
     'CheckBudget': ['NeverThreeRequests', 'NeverTechnicalRetry', 'NeverRevised', 'NeverRepeatedRecovery', 'NeverBeforeRequestFailure', 'NeverUncertain'],
 }
 CONTROLS = {
+    'skip-ended-discussion-recovery': ('Shards', 'EndedDiscussionRecovery', 'src/engine.ts',
+        "if (taskPhase(snapshot) === 'ended' && !snapshot.context.intents.some(work => canRetireDiscussionWork(snapshot.context, work))) continue;",
+        "if (taskPhase(snapshot) === 'ended') continue;"),
+    'omit-discussion-recovery-retirement': ('Shards', 'CancelledRecovery', 'src/task/reducer.ts',
+        'for (const work of c.intents.filter(work => canRetireDiscussionWork(c, work))) release(c, work.id);',
+        '/* faulty omission of obsolete discussion retirement at recovery */'),
+    'omit-obsolete-member-exclusion': ('Shards', 'ObsoleteMemberRecovery', 'src/task/facts.ts',
+        "['pending', 'inflight'].includes(i.status) && !canRetireDiscussionWork(c, i)",
+        "['pending', 'inflight'].includes(i.status)"),
+    'omit-known-local-retirement': ('Shards', 'SettledDiscussionRecovery', 'src/task/reducer.ts',
+        "if ((e.type === 'LOCAL_RESULT' || e.type === 'LOCAL_RECONCILE') && work && canRetireDiscussionWork(c, work)) release(c, work.id);",
+        '/* faulty omission of obsolete discussion retirement after known local effects */'),
+    'retire-unsafe-discussion': ('Shards', 'UnsafeRetention', 'src/task/facts.ts',
+        "&& work.replay === 'safe' && !localPhysicalPending(work)",
+        '&& !localPhysicalPending(work)'),
+    'retire-current-discussion': ('Shards', 'ActiveDiscussionRecovery', 'src/task/facts.ts',
+        '&& (!discussionActive(c) || work.discussionId !== c.discussion!.id || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion);',
+        '&& true;'),
     'omit-interpretation-reservation': ('Shards', 'CapacitySnapshot', 'src/task/input.ts',
         'maxPartitions: mapReduceCapacity(c, 1),', 'maxPartitions: mapReduceCapacity(c),'),
     'omit-capacity-refresh': ('Shards', 'CapacityRefresh', 'src/task/reducer.ts',
@@ -144,9 +162,13 @@ def verify_evidence(area):
             if model == 'Shards':
                 probes = value['replay']['probes']
                 for backend in ['memory', 'sqlite']:
-                    capacity = [probe for probe in probes if probe['backend'] == backend and probe.get('verified')]
+                    capacity = [probe for probe in probes if probe['backend'] == backend and probe.get('verified') and probe.get('family') != 'discussion-recovery']
                     assert {probe['name'] for probe in capacity} == {'zero', 'one', 'two', 'four', 'refreshed-recovery', 'legacy-recovery'}, 'Missing finite capacity examples'
                     assert len(capacity) == 6, 'Duplicate finite capacity example'
+                    recovery = [probe for probe in probes if probe['backend'] == backend and probe.get('family') == 'discussion-recovery' and probe.get('verified')]
+                    expected = {'map-goal', 'map-stop', 'discussion-goal', 'discussion-stop', 'map-ended', 'discussion-ended', 'active-safe', 'historical-pending', 'removed-member',
+                                'physical-claimed', 'physical-started', 'physical-unknown', 'known-LOCAL_RESULT', 'known-LOCAL_RECONCILE', 'unsafe-compatibility'}
+                    assert len(recovery) == len(expected) and {probe['name'] for probe in recovery} == expected, 'Missing or duplicate finite discussion recovery examples'
     assert set(report['negativeControls']) == set(CONTROLS), 'Missing real-code controls'
     for name, (_, expected, _, _, _) in CONTROLS.items():
         value = report['negativeControls'][name]
@@ -191,7 +213,7 @@ def main():
         assert sha(jar) == JAR_SHA, 'Wrong pinned TLC archive'
         report['tool'] = {'release': 'TLA+ Tools v1.7.4 / TLC 2.19', 'jarSha256': JAR_SHA}
         shutil.copytree(SKILL / 'scripts', area / 'checker-inputs', ignore=shutil.ignore_patterns('__pycache__'))
-        for name in ['SKILL.md', 'references/correspondence.md', 'references/drift-review-pr40.json']:
+        for name in ['SKILL.md', 'references/correspondence.md', 'references/drift-review-pr40.json', 'references/drift-review-kej-106.json']:
             retained = area / 'checker-inputs' / name
             retained.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(SKILL / name, retained)

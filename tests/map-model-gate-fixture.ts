@@ -32,7 +32,7 @@ export class MapModel {
     assert(this.send({ type: 'INTERPRETATION_RESULT', inputId: (work.payload.input as { id: string }).id, workId: work.id, fence: work, spec: value }).ok);
   }
   answer(work: Intent, status: 'success' | 'partial' = 'success') {
-    return this.send({ type: 'DISCUSSION_RESULT', discussionId: work.discussionId!, workId: work.id, fence: work, text: `${work.target} 原始证据`, status });
+    return this.send({ type: 'DISCUSSION_RESULT', discussionId: work.discussionId!, workId: work.id, attempt: work.attempt, fence: work, text: `${work.target} 原始证据`, status });
   }
 }
 
@@ -81,9 +81,18 @@ export function changedMapModelGate(change: string) {
 }
 export function restoredMapModelGate() {
   const model = new MapModel(); model.interpret(); const work = model.claim(model.pending('assistance')[0]!); assert(model.answer(work).ok);
+  const interrupted = model.claim(model.pending('assistance')[0]!);
   model.snapshot = restoreTask(persistTask(model.snapshot));
+  assert(model.send({ type: 'RECOVER', config: model.context.config }).ok);
+  model.snapshot = restoreTask(persistTask(model.snapshot));
+  assert(model.send({ type: 'RECOVER', config: model.context.config }).ok);
   assert.equal(model.context.discussion!.results.length, 1); assert.equal(model.pending('assistance').length, 1);
-  assert.equal(model.answer(work).ok, false); assert(model.answer(model.claim(model.pending('assistance')[0]!)).ok);
+  assert.equal(model.answer(work).ok, false);
+  const current = model.claim(model.pending('assistance')[0]!);
+  assert.equal(current.id, interrupted.id); assert.equal(current.attempt, interrupted.attempt + 1);
+  assert.equal(model.answer(interrupted).ok, false);
+  assert.equal(model.context.intents.find(item => item.id === current.id)!.status, 'inflight');
+  assert(model.answer(current).ok);
   assert.equal(model.pending('discussionSummary').length, 1);
 }
 export function ordinaryMapModelGate() {
@@ -96,4 +105,148 @@ export function supplementMapModelGate() {
   model.interpret({ ...modelMapIntent(), action: 'supplement' });
   assert.equal(model.pending('assistance').length, 2); assert.equal(model.pending('owner').length, 0);
   assert.equal(model.context.inputAnalyses!.at(-1)!.decompositionApplied, true);
+}
+
+export type RecoveryWork = '并行分片' | '后台讨论';
+export type RecoveryChange = '修改目标' | '停止后继续' | '任务结束后继续';
+export interface DiscussionRecoveryCase {
+  model: MapModel; works: Intent[]; roundId: string; change: RecoveryChange; usage: MapModel['context']['usage'];
+}
+
+function startedDiscussionModel(kind: RecoveryWork) {
+  const model = new MapModel();
+  if (kind === '并行分片') model.interpret();
+  else {
+    const ordinary = modelMapIntent(); delete ordinary.decomposition; model.interpret(ordinary);
+    model.claim(model.pending('owner')[0]!);
+    assert(model.send({ type: 'USER_INPUT', text: '请大家讨论', reviewTargets: ['B', 'builder-1'] }).ok);
+    const planner = model.claim(model.pending('facilitator')[0]!);
+    assert(model.send({ type: 'DISCUSSION_PLAN', workId: planner.id, fence: planner, discussionId: planner.discussionId!,
+      decision: { action: 'review', question: '核对来源', expected: '原始依据', reason: '用户直接邀请' } }).ok);
+  }
+  const works = [model.claim(model.pending('assistance')[0]!), model.claim(model.pending('assistance')[0]!)];
+  const roundId = model.context.discussion!.id;
+  return { model, works, roundId };
+}
+
+/** Shared scenario driver. All transitions use the real taskMachine, with no store or adapter. */
+export function prepareDiscussionRecoveryModel(kind: RecoveryWork, change: RecoveryChange): DiscussionRecoveryCase {
+  const { model, works, roundId } = startedDiscussionModel(kind);
+  assert(model.send(change === '任务结束后继续' ? { type: 'EXHAUSTED', reason: '额度耗尽后结束' }
+    : change === '停止后继续' ? { type: 'STOP' }
+    : { type: 'USER_INPUT', text: '新目标', goal: { ...model.context.goal, text: '新目标' } }).ok);
+  assert.equal(model.context.discussion!.status, 'cancelled');
+  assert(works.every(work => model.context.intents.find(item => item.id === work.id)!.status === 'inflight'),
+    'Sending cancellation alone must not settle a live request');
+  return { model, works, roundId, change, usage: structuredClone(model.context.usage) };
+}
+
+export function recoverDiscussionModel(state: DiscussionRecoveryCase) {
+  const { model } = state;
+  const config = structuredClone(model.context.config);
+  const outcome = model.context.outcome;
+  const owners = model.context.intents.filter(work => work.kind === 'owner').map(work => work.id);
+  model.snapshot = restoreTask(persistTask(model.snapshot));
+  assert(model.send({ type: 'RECOVER', config }).ok);
+  model.snapshot = restoreTask(persistTask(model.snapshot));
+  assert(model.send({ type: 'RECOVER', config }).ok);
+  assert.deepEqual(model.context.usage, state.usage, 'Recovery must not charge or restart the old discussion');
+  assert(state.works.every(work => ['done', 'cancelled'].includes(model.context.intents.find(item => item.id === work.id)!.status)),
+    'Abandoned safe discussion work must settle instead of occupying members after recovery');
+  assert.equal(model.pending('discussionSummary').length, 0);
+  if (state.change === '任务结束后继续') {
+    assert.equal(model.snapshot.value, 'ended', 'Recovery cannot reactivate an ended task');
+    assert.equal(model.context.outcome, outcome);
+    assert.deepEqual(model.context.intents.filter(work => work.kind === 'owner').map(work => work.id), owners,
+      'Recovery cannot generate new owner work for an ended task');
+  }
+  if (state.change !== '修改目标') assert(model.send({ type: 'CONTINUE' }).ok);
+}
+
+export function inviteRecoveredMembersModel(state: DiscussionRecoveryCase) {
+  const { model, works } = state;
+  model.claim(model.pending('owner')[0]!);
+  assert(model.send({ type: 'USER_INPUT', text: '请大家再讨论', reviewTargets: works.map(work => work.target) }).ok);
+  assert.deepEqual(model.context.discussion!.targets, ['B', 'builder-1']);
+  assert.deepEqual(model.context.discussion!.skipped, []);
+  const planner = model.claim(model.pending('facilitator')[0]!);
+  assert(model.send({ type: 'DISCUSSION_PLAN', workId: planner.id, fence: planner, discussionId: planner.discussionId!,
+    decision: { action: 'review', question: '重新核对', expected: '当前依据', reason: '当前目标邀请' } }).ok);
+  const first = model.claim(model.pending('assistance')[0]!), second = model.claim(model.pending('assistance')[0]!);
+  assert.deepEqual([first.target, second.target], ['B', 'builder-1']);
+  const current = structuredClone(model.context.discussion), usage = structuredClone(model.context.usage);
+  assert.equal(model.answer(works[0]!).ok, false);
+  assert.deepEqual(model.context.discussion, current, 'An old reply cannot change the new round');
+  assert.deepEqual(model.context.usage, usage);
+  assert.equal(model.context.intents.filter(work => work.discussionId === state.roundId && work.kind === 'discussionSummary').length, 0);
+}
+
+export function cancelledDiscussionModelGate(kind: RecoveryWork, change: RecoveryChange) {
+  const state = prepareDiscussionRecoveryModel(kind, change);
+  recoverDiscussionModel(state); inviteRecoveredMembersModel(state);
+}
+
+export function historicalCancelledDiscussionModelGate() {
+  const state = prepareDiscussionRecoveryModel('并行分片', '修改目标');
+  // This is the persisted shape produced by the pre-KEJ-106 RECOVER regression.
+  const saved = persistTask(state.model.snapshot) as { context: MapModel['context'] };
+  for (const work of saved.context.intents) if (state.works.some(old => old.id === work.id)) work.status = 'pending';
+  state.model.snapshot = restoreTask(saved);
+  recoverDiscussionModel(state); inviteRecoveredMembersModel(state);
+}
+
+export type PhysicalStage = '已领取' | '已启动' | '已退出但效果未知';
+export function preparePhysicalDiscussionModel(stage: PhysicalStage) {
+  const state = startedDiscussionModel('并行分片'), { model, works } = state;
+  const work = works[0]!, operationId = `${work.id}:local:0`, sessionId = 'discussion-command-session';
+  assert(model.send({ type: 'LOCAL_REQUEST', intentId: work.id, operationId, namespace: 'c'.repeat(64), requestHash: 'a'.repeat(64),
+    action: { type: 'runCli', executable: 'node', args: ['-e', 'console.log(1)'] }, parentAttempt: work.attempt,
+    workspaceId: 'workspace', messages: [], fence: work }).ok);
+  assert(model.send({ type: 'LOCAL_CLAIM', intentId: work.id, operationId, parentAttempt: work.attempt, sessionId,
+    leaseAvailable: true, fence: work }).ok);
+  if (stage !== '已领取') assert(model.send({ type: 'LOCAL_STARTED', intentId: work.id, operationId, sessionId,
+    workspaceRevision: 'revision', isolated: true }).ok);
+  if (stage === '已退出但效果未知') assert(model.send({ type: 'LOCAL_RESULT', intentId: work.id, operationId, sessionId,
+    result: { ok: false, code: 'cancelled', data: {} }, settled: true, effectsKnown: false }).ok);
+  return { ...state, work, operationId, sessionId };
+}
+
+export function uncertainDiscussionModelGate(stage: PhysicalStage) {
+  const state = preparePhysicalDiscussionModel(stage), { model, work, operationId } = state;
+  assert(model.send({ type: 'USER_INPUT', text: '新目标', goal: { ...model.context.goal, text: '新目标' } }).ok);
+  const usage = structuredClone(model.context.usage);
+  model.snapshot = restoreTask(persistTask(model.snapshot));
+  assert(model.send({ type: 'RECOVER', config: model.context.config }).ok);
+  model.snapshot = restoreTask(persistTask(model.snapshot));
+  assert(model.send({ type: 'RECOVER', config: model.context.config }).ok);
+  const current = model.context.intents.find(item => item.id === work.id)!;
+  assert.equal(current.status, 'uncertain', 'Unknown external effects must keep their member occupied');
+  assert.equal(current.localOperations!.find(op => op.id === operationId)!.status, 'uncertain');
+  assert.equal(model.pending('owner').length, 0); assert.equal(model.pending('discussionSummary').length, 0);
+  assert.deepEqual(model.context.usage, usage);
+}
+
+export function reconciledDiscussionModelGate() {
+  const state = preparePhysicalDiscussionModel('已启动'), { model, work, operationId, sessionId } = state;
+  assert(model.send({ type: 'EXHAUSTED', reason: '任务结束，保留尚未核对效果' }).ok);
+  assert(model.send({ type: 'RECOVER', config: model.context.config }).ok);
+  const receipt = { ok: true, code: 'succeeded', data: { exitCode: 0, stdout: '已核对的原始结果' } };
+  assert(model.send({ type: 'LOCAL_RECONCILE', intentId: work.id, operationId, sessionId,
+    resolution: 'receipt', result: receipt, detail: '宿主已核对效果' }).ok);
+  const current = model.context.intents.find(item => item.id === work.id)!;
+  assert(['done', 'cancelled'].includes(current.status), 'A settled abandoned round cannot requeue its model work');
+  assert.deepEqual(current.localOperations![0]!.result, receipt);
+  assert.equal(model.context.discussion!.status, 'cancelled');
+  assert.equal(model.pending('discussionSummary').length, 0);
+}
+
+export function removedDiscussionMemberModelGate() {
+  const state = prepareDiscussionRecoveryModel('并行分片', '修改目标'), { model } = state;
+  const config = structuredClone(model.context.config); config.bots = config.bots.filter(bot => bot.id !== 'B');
+  model.snapshot = restoreTask(persistTask(model.snapshot));
+  assert(model.send({ type: 'RECOVER', config }).ok, 'An obsolete safe member must not block current recovery');
+  assert(!model.context.reason.includes('unavailable'));
+  assert(model.context.intents.filter(work => state.works.some(old => old.id === work.id)).every(work => ['done', 'cancelled'].includes(work.status)));
+  assert.equal(model.pending('owner').length, 1);
+  assert.equal(model.context.config.bots.some(bot => bot.id === 'B'), false);
 }

@@ -75,6 +75,7 @@ function setup(backend, base) {
     assert.equal(c.candidate, null, 'Slice: unexpected delivery candidate');
     assert.equal(c.publishedDelivery, undefined, 'Slice: unexpected publication');
     assert.equal(c.discussion, undefined, 'Slice: unexpected parallel discussion');
+    assert.equal(c.intents.some(work => work.discussionId !== undefined), false, 'Slice: unexpected discussion-tagged intent');
     assert.equal(c.review, undefined, 'Slice: unexpected review queue');
     assert.equal(c.hostSession, undefined, 'Slice: unexpected host approval');
     assert.equal(c.hostRetryBatch, undefined, 'Slice: unexpected host retry batch');

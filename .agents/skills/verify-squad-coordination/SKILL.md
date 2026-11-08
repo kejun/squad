@@ -42,6 +42,8 @@ python3 .agents/skills/verify-squad-coordination/scripts/check.py --verify-evide
 
 `capacity-probes.mjs` 在每个存储另跑六个有限实现实例：容量0/1时两片整体回退，容量2时两片完整派发，容量4时四片完整派发，恢复重领后容量4→3时原四片整体回退，以及旧快照缺少提示时重领不补字段、仍按当前容量回退。断言准备时预留一次未付理解请求、CLAIM收费后刷新、无部分派发且owner保留完整计划；另直接调用适配器使用的验证函数，确认数字容量限制与缺省旧协议。这些实例及独立负对照不属于 TLC 状态图，不声称容量或0/1/4片的穷举证明；不执行模型 HTTP、格式修复请求或语义分组。旧快照实例只从公共前缀的持久快照移除新增提示，明确区分于三个模型的可达起点。
 
+`discussion-recovery-probes.mjs` 另跑双存储各15个有限实例：13条公开入口历史与2个明确标注的快照输入。修改讨论取消/终局恢复、成员占用或本地效果核对时，先读[实例分类与实现对应](references/correspondence.md#kej-106-旧讨论工作的安全退休)，再核对[本轮审查及6项新增真实负对照](references/drift-review-kej-106.json)。这些实例与原Shards图分开计数，不扩大TLC穷举域，也不执行真实命令。
+
 这是**有限抽象模型的穷举检查 + 代表前缀的真实实现对应验证**，不是 TypeScript 的机器证明、无限大小证明或全部历史等价证明。文件哈希是漂移门禁，不是行为等价证明。SQLite 事务/文件系统原子性是假设；此处不注入断电、部分磁盘写入或真实网络故障。三个模型不是整个系统的笛卡尔乘积，不证明预算与所有宿主/目标/输入行为的组合。
 
 ## 安全、进度与可达性
@@ -78,7 +80,9 @@ python3 .agents/skills/verify-squad-coordination/scripts/check.py --verify-evide
 
 ## 实现同步与维护
 
-当前审查基线为 `3ee6c875bbde0f802eae954d9017ffe5663a3cfc`（BT_M37 检查协议说明、BT_F31 冻结输入引用）。完整检查及独立读回已通过，逐文件对应、额外真实代码负对照与保证边界见[引用链审查](references/drift-review-raw-input-citation.json)和[协议说明审查](references/drift-review-check-envelope.json)；当前指纹见 coverage.json。
+KEJ-106 最终受审产品为 `3d81b0792d9c00c16bbc59fa4f2914bcccc0189b`，当前同步与验证状态以 [coverage.json](references/coverage.json) 和[审查记录](references/drift-review-kej-106.json)为准。维护读取 facts/reducer 的首轮修复及 Engine 的终局恢复选择增量；代码到模型和新增有限实例的边界见[对应说明](references/correspondence.md#kej-106-旧讨论工作的安全退休)。原TLA/CFG、性质、公平性和边界保持不变。下列基线均为历史记录。
+
+历史审查基线为 `3ee6c875bbde0f802eae954d9017ffe5663a3cfc`（BT_M37 检查协议说明、BT_F31 冻结输入引用）。完整检查及独立读回已通过，逐文件对应、额外真实代码负对照与保证边界见[引用链审查](references/drift-review-raw-input-citation.json)和[协议说明审查](references/drift-review-check-envelope.json)；当前指纹见 coverage.json。
 
 KEJ-100 历史依赖审查基线为 `c1f380da1527b8c22a8aaaaf7aef10cd2695146e`；仅 `package.json` 的空单测集合处理变化，产品源码、模型、性质、边界和回放均沿用原审查。当前指纹及运行状态见 [KEJ-100 审查记录](references/drift-review-kej-100.json) 与 [coverage.json](references/coverage.json)。下列 PR40 基线为产品源码对应审查的历史记录。
 

@@ -3,7 +3,7 @@ import { mapReduceCapacity } from './map-reduce-capacity.js';
 import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { artifactSourceMetadata, type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
-import { capabilities, discussionActive, fence, fresh, inflight, ok, recoveryIssue, reject } from './facts.js';
+import { canRetireDiscussionWork, capabilities, discussionActive, fence, fresh, inflight, ok, recoveryIssue, reject } from './facts.js';
 import { cancelWork, coordinate, finish, intent, message, owner, release, saveReports } from './operations.js';
 import { applyLocalEvent, localEnabled, localPhysicalPending, recoverLocalOperations, type LocalEvent } from '../local-operation.js';
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
@@ -44,6 +44,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     const resumeCheck = isBoundedCheck(work) && work.status === 'uncertain';
     applyLocalEvent(c, local);
     settleHostRetryOperation(c, local.intentId, local.operationId, e.at);
+    if ((e.type === 'LOCAL_RESULT' || e.type === 'LOCAL_RECONCILE') && work && canRetireDiscussionWork(c, work)) release(c, work.id);
     if (resumeCheck && work.status === 'pending' && work.requestCount > 0 && !hasDeliveryRetryPermit(c, work)) {
       if (deliveryInterruptionPending(c)) release(c, work.id);
       else if (canRetryDeliveryCheck(c, work, e.at)) reserveDeliveryRetry(c, work);
@@ -389,6 +390,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       c.config.bots = e.config.bots; // Current permissions always win.
       c.config.localTools = { enabled: e.config.localTools?.enabled !== false };
       for (const work of c.intents) recoverLocalOperations(work, e.id);
+      for (const work of c.intents.filter(work => canRetireDiscussionWork(c, work))) release(c, work.id);
       c.config.skillSearch = { enabled: e.config.skillSearch?.enabled !== false };
       c.config.webTools = { enabled: e.config.webTools?.enabled !== false };
       for (const work of c.intents.filter(i => ['pending', 'inflight'].includes(i.status) && ['owner', 'assistance', 'facilitator', 'check'].includes(i.kind))) {

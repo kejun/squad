@@ -1,5 +1,5 @@
 {
-  "syncCommit": "3ee6c875bbde0f802eae954d9017ffe5663a3cfc",
+  "syncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
   "bounds": {
     "tasks": 1,
     "candidates": 1,
@@ -47,7 +47,7 @@
     "src/local-skills.ts": "4d83827020c75e7888de71fb5c9b263048a80339fc318c0217e50a31fa566ae2",
     "src/runner.ts": "c6fb4e04da43e021634db60108ae33ebbe36c5f304efe953a0384b34ce622e69",
     "src/skills.ts": "81bf7ae230a719f046a0caced6c0293807f259c4d500349c7a78ecdfbbf1e111",
-    "src/engine.ts": "e95cd5382a80bdc526f408ff73442dbd1b8bdc07226dbcf64dda7cbd9988c9a5",
+    "src/engine.ts": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
     "src/model-env.ts": "99dfbe11350e7c3c446fc13a1a61414ebbf4e73a999439f22e85441c3b26f530",
     "src/host-session.ts": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab",
     "src/web/debug-journal.ts": "5473cefd6b2f382f6a2d6a5928803569a19e09ceef4efd4a47d60a4b636a65c7",
@@ -65,9 +65,9 @@
     "src/task/policy.ts": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
     "src/task/operations.ts": "6f4cf5f12b046da9115f5d9f5d6af3be1c3f168fbbf259e551d2c8efba104804",
     "src/task/protocol.ts": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
-    "src/task/facts.ts": "0ce2cdc949fa881f2be3267cc66292d1a6ad2f391c7e372139b2b17b05f3e8de",
+    "src/task/facts.ts": "7d29345b1e74ed3ffcb70cd592161d2d1728f7c57d3c3b7b4eb91f84cc9cd273",
     "src/task/input.ts": "284080d64d88149851e0f058fd4aaa8c56a2d1c141c84b26acc453e2b6fe9efe",
-    "src/task/reducer.ts": "42bc966510311241f97501ca22a7c1e07c1458ec5ed7060c24d15d3f8a3ecb1a",
+    "src/task/reducer.ts": "ada7f850f0c774c48ade21b50604b9e40e64a84fc49ec0d77a00ce3e6a962455",
     "src/task/verification.ts": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24",
     "src/task/map-reduce.ts": "601bd32e42920fb7696294c1a0e550b3717be095ce02ab1be3502848100c3dc7",
     "src/task/guards.ts": "34e5c8c4849d555b4f44b94cc51c129a4c31d1469c3bccc382eb99a0132d93d3",
@@ -89,6 +89,28 @@
       ],
       "validation": "reports/verify-squad-delivery/kej-100-final",
       "outcome": "updated"
+    },
+    {
+      "issue": "KEJ-106",
+      "review": "references/drift-review-kej-106.json",
+      "reviewedCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
+      "changedCoveredFiles": [
+        "src/task/facts.ts",
+        "src/task/reducer.ts"
+      ],
+      "validation": "reports/verify-squad-delivery/kej-106-final",
+      "outcome": "updated"
+    },
+    {
+      "issue": "KEJ-106-engine",
+      "review": "references/drift-review-kej-106.json",
+      "reviewedCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+      "changedCoveredFiles": [
+        "src/engine.ts"
+      ],
+      "validation": "reports/verify-squad-delivery/kej-106-final-engine",
+      "outcome": "updated",
+      "checkInputSyncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa"
     }
   ]
 }

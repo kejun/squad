@@ -1,0 +1,74 @@
+{
+  "baseline": "7f07dbbc30f59923a336ccafb60c31708c1f59c2",
+  "integrationCommit": "84a67c72b7db3f1f73b140cfa46dbf38bbc676c8",
+  "withdrawnFiles": [
+    "src/task/facts.ts",
+    "src/task/reducer.ts"
+  ],
+  "method": "Detached checkout at integrationCommit; only withdrawnFiles restored from baseline; same real SQLite/Engine/Runner BDD fixture; no snapshot mutation in this case.",
+  "boundary": "Controlled provider and no launched OS process; exact old defect must be detected, not any arbitrary assertion failure.",
+  "negative": {
+    "mode": "old-source",
+    "failure": {
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   'B',\n-   'builder-1'\n- ]\n",
+      "actual": [],
+      "expected": [
+        "B",
+        "builder-1"
+      ]
+    },
+    "round": {
+      "id": "discussion:intent-event:2",
+      "status": "delivered",
+      "targets": [],
+      "skipped": [
+        {
+          "target": "B",
+          "reason": "正在工作"
+        },
+        {
+          "target": "builder-1",
+          "reason": "正在工作"
+        }
+      ]
+    },
+    "obsolete": [
+      {
+        "target": "B",
+        "status": "pending",
+        "attempt": 1
+      },
+      {
+        "target": "builder-1",
+        "status": "pending",
+        "attempt": 1
+      }
+    ]
+  },
+  "green": {
+    "mode": "fixed-source",
+    "failure": null,
+    "round": {
+      "id": "discussion:intent-event:2",
+      "status": "summarizing",
+      "targets": [
+        "B",
+        "builder-1"
+      ],
+      "skipped": []
+    },
+    "obsolete": [
+      {
+        "target": "B",
+        "status": "done",
+        "attempt": 1
+      },
+      {
+        "target": "builder-1",
+        "status": "done",
+        "attempt": 1
+      }
+    ]
+  }
+}

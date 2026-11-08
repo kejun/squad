@@ -8,7 +8,7 @@ import { inputControl, leadingInputMention } from './input-intent.js';
 import { debugFrame, type DebugEvent, type DebugFrame } from './task-debug.js';
 import { inspectInitialTask, inspectTask, type DebugEvidence } from './task-inspection.js';
 import { validateConfig, type Goal, type Intent, type Reply, type TaskContext, type TaskEvent, type TeamConfig } from './types.js';
-import { recoveryIssue } from './task/facts.js';
+import { canRetireDiscussionWork, recoveryIssue } from './task/facts.js';
 import { legacyTerminalConfig, taskProtocolChanged, taskStorageVersion } from './task/protocol.js';
 import { restoreRoomArchive, stepRoomArchive } from './room.machine.js';
 import { hostRetryAction, hostRetryBatchRetirable } from './host-retry.js';
@@ -389,7 +389,7 @@ export class TeamEngine {
     const room = this.store.read(roomId);
     for (const [id, value] of Object.entries(room.tasks)) {
       const snapshot = decode(value);
-      if (taskPhase(snapshot) === 'ended') continue;
+      if (taskPhase(snapshot) === 'ended' && !snapshot.context.intents.some(work => canRetireDiscussionWork(snapshot.context, work))) continue;
       this.send(roomId, id, { type: 'RECOVER', id: `recover:${this.instanceId}:${id}`, at: this.clock(), config: this.config });
       while (this.flushResults(roomId, id)) { /* Each durable result is consumed at most once. */ }
     }

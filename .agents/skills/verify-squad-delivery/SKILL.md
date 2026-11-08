@@ -61,7 +61,9 @@ python3 .agents/skills/verify-squad-delivery/scripts/check.py --verify-evidence 
 
 ## 维护
 
-当前审查基线为 `3ee6c875bbde0f802eae954d9017ffe5663a3cfc`（BT_M37 检查协议说明、BT_F31 冻结输入引用）。完整检查及独立读回已通过，逐文件对应、额外真实代码负对照与保证边界见[引用链审查](references/drift-review-raw-input-citation.json)和[协议说明审查](references/drift-review-check-envelope.json)；当前指纹见 coverage.json。
+当前 KEJ-106 对应审查基线为 `3d81b0792d9c00c16bbc59fa4f2914bcccc0189b`。原样检查因 facts/reducer 指纹漂移而 blocked；逐项审查后，新增无 discussion 及无 discussionId 的可执行切片断言，候选完整检查和独立读回通过后才推进同步基线。模型、性质、边界及事务假设不变；最终运行、真实代码负对照与读回状态见 [KEJ-106 审查](references/drift-review-kej-106.json)。随后 engine 的 ended 恢复入口也经逐项审查，并在新产品源上完整运行及独立读回；成功后只推进同步元数据并复核指纹，不为元数据更新重复完整运行。前轮 b6ea 的候选/最终证据仅作历史，当前最终证据为 `kej-106-final-engine`。本切片不证明 BT_Q19–Q24 的取消分片恢复、成员占用或已结束任务续办；以下保留历史审查记录。
+
+BT_F31 历史审查基线为 `3ee6c875bbde0f802eae954d9017ffe5663a3cfc`（BT_M37 检查协议说明、BT_F31 冻结输入引用）。完整检查及独立读回已通过，逐文件对应、额外真实代码负对照与保证边界见[引用链审查](references/drift-review-raw-input-citation.json)和[协议说明审查](references/drift-review-check-envelope.json)；当前指纹见 coverage.json。
 
 KEJ-100 历史依赖审查基线为 `c1f380da1527b8c22a8aaaaf7aef10cd2695146e`；仅 `package.json` 的空单测集合处理变化，产品源码、模型、性质、边界和回放均沿用原审查。当前指纹及运行状态见 [KEJ-100 审查记录](references/drift-review-kej-100.json) 与 [coverage.json](references/coverage.json)。下列 PR40 基线为产品源码对应审查的历史记录。
 

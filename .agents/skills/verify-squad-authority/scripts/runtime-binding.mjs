@@ -12,6 +12,8 @@ for(const variant of ['unchanged','args','requestHash','workId','epoch','goalVer
   const context=initialTask(localModelInput()).context;
   assert.equal(context.sourceArtifact,undefined,'Authority:slice:source revisions are outside this model');
   assert(!context.intents.some(w=>w.kind==='interpretation'),'Authority:slice:no interpretation or capacity planning');
+  assert.equal(context.discussion,undefined,'Authority:slice:discussion recovery requires a separate model');
+  assert(context.intents.every(w=>!w.discussionId),'Authority:slice:no discussion work');
   const work=structuredClone(context.intents[0]);assert.equal(work.kind,'owner','Authority:slice:owner runtime input');work.attempt=1;work.status='inflight';work.deadline=1000;
   const op={id:'op',namespace:'a'.repeat(64),requestHash:'b'.repeat(64),workspaceId:runtime.workspaceId(work,'a'.repeat(64)),sessionId:'preparation',status:'claimed',parentAttempt:1,attempt:1,createdAt:0,action:{type:'runCli',execution:'host',executable,args:[],reason:'formal'}};
   let reachedLaunch=0;const stopBeforeSpawn=()=>{reachedLaunch++;throw Error('Deliberate gate: no fixture command is spawned');};
