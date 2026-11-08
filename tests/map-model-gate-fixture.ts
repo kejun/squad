@@ -108,7 +108,7 @@ export function supplementMapModelGate() {
 }
 
 export type RecoveryWork = '并行分片' | '后台讨论';
-export type RecoveryChange = '修改目标' | '停止后继续';
+export type RecoveryChange = '修改目标' | '停止后继续' | '任务结束后继续';
 export interface DiscussionRecoveryCase {
   model: MapModel; works: Intent[]; roundId: string; change: RecoveryChange; usage: MapModel['context']['usage'];
 }
@@ -132,7 +132,8 @@ function startedDiscussionModel(kind: RecoveryWork) {
 /** Shared scenario driver. All transitions use the real taskMachine, with no store or adapter. */
 export function prepareDiscussionRecoveryModel(kind: RecoveryWork, change: RecoveryChange): DiscussionRecoveryCase {
   const { model, works, roundId } = startedDiscussionModel(kind);
-  assert(model.send(change === '停止后继续' ? { type: 'STOP' }
+  assert(model.send(change === '任务结束后继续' ? { type: 'EXHAUSTED', reason: '额度耗尽后结束' }
+    : change === '停止后继续' ? { type: 'STOP' }
     : { type: 'USER_INPUT', text: '新目标', goal: { ...model.context.goal, text: '新目标' } }).ok);
   assert.equal(model.context.discussion!.status, 'cancelled');
   assert(works.every(work => model.context.intents.find(item => item.id === work.id)!.status === 'inflight'),
@@ -143,6 +144,8 @@ export function prepareDiscussionRecoveryModel(kind: RecoveryWork, change: Recov
 export function recoverDiscussionModel(state: DiscussionRecoveryCase) {
   const { model } = state;
   const config = structuredClone(model.context.config);
+  const outcome = model.context.outcome;
+  const owners = model.context.intents.filter(work => work.kind === 'owner').map(work => work.id);
   model.snapshot = restoreTask(persistTask(model.snapshot));
   assert(model.send({ type: 'RECOVER', config }).ok);
   model.snapshot = restoreTask(persistTask(model.snapshot));
@@ -151,7 +154,13 @@ export function recoverDiscussionModel(state: DiscussionRecoveryCase) {
   assert(state.works.every(work => ['done', 'cancelled'].includes(model.context.intents.find(item => item.id === work.id)!.status)),
     'Abandoned safe discussion work must settle instead of occupying members after recovery');
   assert.equal(model.pending('discussionSummary').length, 0);
-  if (state.change === '停止后继续') assert(model.send({ type: 'CONTINUE' }).ok);
+  if (state.change === '任务结束后继续') {
+    assert.equal(model.snapshot.value, 'ended', 'Recovery cannot reactivate an ended task');
+    assert.equal(model.context.outcome, outcome);
+    assert.deepEqual(model.context.intents.filter(work => work.kind === 'owner').map(work => work.id), owners,
+      'Recovery cannot generate new owner work for an ended task');
+  }
+  if (state.change !== '修改目标') assert(model.send({ type: 'CONTINUE' }).ok);
 }
 
 export function inviteRecoveredMembersModel(state: DiscussionRecoveryCase) {

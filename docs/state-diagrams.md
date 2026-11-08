@@ -1157,7 +1157,7 @@ stateDiagram-v2
 
 ### 讨论取消与恢复（KEJ-106）
 
-图型：父任务拥有的上下文生命周期；所有者为 `taskMachine` 的 `Intent` 与 `DiscussionRound`，转移位于 `src/task/facts.ts`、`src/task/reducer.ts` 和 `src/task/operations.ts`。不是新的顶层状态、parallel 区域或独立 actor。BT_Q19–BT_Q22 复用 BT_Q04/Q05 与后台讨论的取消/恢复契约。
+图型：父任务拥有的上下文生命周期；所有者为 `taskMachine` 的 `Intent` 与 `DiscussionRound`，转移位于 `src/task/facts.ts`、`src/task/reducer.ts` 和 `src/task/operations.ts`，宿主恢复入口为 `src/engine.ts`。不是新的顶层状态、parallel 区域或独立 actor。BT_Q19–BT_Q24 复用 BT_Q04/Q05 与后台讨论的取消/恢复契约。
 
 ```mermaid
 stateDiagram-v2
@@ -1176,6 +1176,8 @@ stateDiagram-v2
 “旧轮次”包括当前轮次已取消或已交接、轮次身份不匹配，以及 epoch/目标版本失效；状态为 pending 的历史幽灵工作也在恢复清理范围。只有 safe 且没有 claimed/running/cancelling/uncertain 本地操作的待领或在途工作可退休。共享判定同时用于恢复兼容性检查及纯状态更新，已废弃的安全工作不再因成员权限变化阻塞当前任务；真实未决或 unsafe 工作仍接受原兼容性和核对规则。
 
 普通运行中的 STOP 仍只请求取消，在原执行器确认前保留占用。这里的 RECOVER 是宿主重建后的恢复边界；不能把发送取消请求等同外部效果已结算。恢复先处理本地操作，再退休安全旧逻辑工作，保存状态、取消意图结算与后继资格仍在同一事务内。已知物理效果的可信回传若将旧工作恢复为 pending，应在同一状态更新中退休；不能依赖未来旧模型回执清理占用。新讨论仅在当前任务/成员/额度守卫允许时派发，旧结果不得生成旧归并、发布候选或改变新轮次。
+
+已结束任务若仍含可退休的旧安全讨论工作，宿主恢复也须发送 RECOVER 清理这些工作；保持 ended、原 outcome、费用和候选，只有用户 CONTINUE 后才可创建新工作。没有此类旧工作时保持既有跳过结束任务的规则。物理未决成员在恢复时仍需核对；已核对后可继续，不因同轮其他安全成员的残留占用再次阻塞。
 
 
 ### 原生沙箱运行时可见性（BT_L22）
