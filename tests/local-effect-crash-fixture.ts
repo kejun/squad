@@ -18,6 +18,7 @@ import { identityAlive, type CliCompletion } from '../src/local-cli.js';
 interface Barrier { type: 'barrier'; window: string; hostPid: number; roomId: string; taskId: string; workId: string;
   operationId: string; sessionId: string; workspaceId: string; completion: CliCompletion }
 type Mode = 'beforeReceipt' | 'afterJournal' | 'stopped';
+interface ModelRequest { messages: { content: string }[] }
 
 function childBarrier(child: ChildProcess): Promise<Barrier> {
   return new Promise((accept, reject) => {
@@ -32,6 +33,10 @@ function exited(child: ChildProcess) {
     const timer = setTimeout(() => reject(new Error('Killed host did not exit in 5s')), 5_000);
     child.once('exit', (code, signal) => { clearTimeout(timer); accept({ code, signal }); });
   });
+}
+function processGroupGone(pid: number) {
+  try { process.kill(-pid, 0); return false; }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === 'ESRCH') return true; throw error; }
 }
 function sqliteProof(path: string) {
   const db = new DatabaseSync(path, { readOnly: true });
@@ -67,9 +72,9 @@ export async function localEffectCrashAcceptance(mode: Mode = 'beforeReceipt') {
     sourceDiff: execFileSync('git', ['diff', '--stat'], { encoding: 'utf8' }), node: process.version, evidence };
   let child: ChildProcess | undefined, runtime: LocalRuntime | undefined, service: WebService | undefined;
   let hostOutput = '', hostExited = false;
-  const backend = new ControlledProcessBackend(); const modelRequests: unknown[] = [];
+  const backend = new ControlledProcessBackend(); const modelRequests: ModelRequest[] = [];
   try {
-    child = spawn(process.execPath, ['--import', 'tsx', 'tests/fixtures/local-effect-crash-host.ts', root,
+    child = spawn(process.execPath, ['--experimental-transform-types', '--loader', './tests/fixtures/typescript-loader.mjs', 'tests/fixtures/local-effect-crash-host.ts', root,
       mode === 'afterJournal' ? 'afterJournal' : 'beforeReceipt'], { cwd: process.cwd(), detached: true,
       env: { PATH: process.env.PATH, TSX_TSCONFIG_PATH: 'tests/bdd/tsconfig.json' }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
     child.stdout!.on('data', data => { hostOutput += String(data); }); child.stderr!.on('data', data => { hostOutput += String(data); });
@@ -78,12 +83,13 @@ export async function localEffectCrashAcceptance(mode: Mode = 'beforeReceipt') {
     assert.equal(await readFile(join(root, 'source', 'once.txt'), 'utf8'), 'x', 'Barrier must follow the actual non-idempotent effect');
     const termination = exited(child); process.kill(-child.pid!, 'SIGKILL'); proof.exit = await termination; hostExited = true;
     assert.deepEqual(proof.exit, { code: null, signal: 'SIGKILL' });
+    assert(processGroupGone(child.pid!), 'Killed host process group must have no surviving descendants');
     runtime = await LocalRuntime.create({ dataRoot: join(root, 'runtime'), workspaceRoot: join(root, 'source'), skillRoots: [], backend });
     const record = await runtime.journal.read(barrier.sessionId); proof.journalAfterKill = record;
     assert.equal(record?.phase, mode === 'afterJournal' ? 'settled' : 'spawned', 'Fault must land on the declared durable receipt boundary');
     assert(record?.identity); assert.equal(await identityAlive(record.identity), false, 'CLI must have exited before operator acknowledgement');
     const adapter = new OpenAICompatibleAdapter(localConfig(), { transport: async (_url, init) => {
-      const request = JSON.parse(String(init?.body)) as { messages: { content: string }[] }; modelRequests.push(request);
+      const request = JSON.parse(String(init?.body)) as ModelRequest; modelRequests.push(request);
       const check = request.messages[0]!.content.includes('executing check work');
       if (!check) assert(request.messages.some(message => message.content.includes(mode === 'afterJournal' ? 'real-effect-receipt' : 'CLI_EFFECTS_RECONCILED')),
         'Parent model must see the original trusted receipt, not ask to execute the command again');
@@ -126,6 +132,9 @@ export async function localEffectCrashAcceptance(mode: Mode = 'beforeReceipt') {
         assert.equal(modelRequests.length, 0, 'Stopped parent must not resume the model');
       } else await waitComplete(service!, barrier);
     }
+    const checkRequests = modelRequests.filter(request => request.messages[0]!.content.includes('executing check work')).length;
+    assert.equal(modelRequests.length - checkRequests, mode === 'stopped' ? 0 : 1, 'Trusted receipt must resume the original owner exactly once');
+    assert.equal(checkRequests, mode === 'stopped' ? 0 : 1, 'Receipt recovery must publish through exactly one original candidate check');
     const requestsAfterSettlement = modelRequests.length;
     const settledBeforeRestart = settledProjection(service!, barrier); proof.settledBeforeRestart = settledBeforeRestart;
     await service!.close(); service = undefined; await reopen();
@@ -147,7 +156,8 @@ export async function localEffectCrashAcceptance(mode: Mode = 'beforeReceipt') {
     await service?.close(); await runtime?.close();
     await writeFile(join(evidence, 'host.log'), hostOutput);
     await rm(root, { recursive: true, force: true });
-    proof.cleanup = { hostExited, temporaryDirectoryRemoved: true, runtimeClosed: true, serviceClosed: true };
+    proof.cleanup = { hostExited, processGroupGone: child?.pid ? processGroupGone(child.pid) : true,
+      temporaryDirectoryRemoved: true, runtimeClosed: true, serviceClosed: true };
     await writeFile(join(evidence, 'run.json'), JSON.stringify(proof, null, 2));
   }
 }

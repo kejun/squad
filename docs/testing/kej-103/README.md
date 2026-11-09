@@ -31,6 +31,8 @@ env -u MODEL_API_KEY TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx
 
 父进程收到屏障后向自己创建的宿主进程组发送 SIGKILL，断言退出为 `code=null, signal=SIGKILL`。每轮保存宿主 PID、故障点、退出结果、journal、SQLite 快照/回执/租约、网页宿主投影、模型检查点、账本和清理结果。已结算任务再次打开后不得重复请求模型、执行 CLI 或丢失结算。所有运行只接触本轮临时文件；清理保留证据并删除临时数据库和会话。
 
+被终止的宿主使用 Node 24 原生类型转换与最小 `.js → .ts` 解析 loader（与 KEJ-104 复用），避免杀死 tsx 宿主时遗留编译服务子进程；退出后断言整个宿主进程组消失。正常续办精确断言负责人请求一次、检查请求一次，停止路径两者均为零，再次恢复不增加调用且完整保留原 owner/回执/检查点/消息/候选/产物。
+
 ```sh
 env -u MODEL_API_KEY node --import tsx scripts/verify-local-crash.ts
 env -u MODEL_API_KEY node --import tsx scripts/verify-local-crash.ts --negative-controls
