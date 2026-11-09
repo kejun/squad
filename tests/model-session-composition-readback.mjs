@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { resolve,join } from 'node:path';
-const area=resolve(process.argv[2] ?? 'reports/kej-108-model-session');
+import { generateMessages } from '@cucumber/gherkin';
+import { IdGenerator, SourceMediaType } from '@cucumber/messages';
+const [evidenceArg='reports/kej-108-model-session',cucumberArg,...unexpected]=process.argv.slice(2);
+assert.equal(unexpected.length,0,'Usage: node tests/model-session-composition-readback.mjs [evidence-directory] [cucumber-report]');
+const area=resolve(evidenceArg), cucumberPath=resolve(cucumberArg ?? join(area,'cucumber.json'));
 for(const [name,expected] of [['representative',1],['generated',48]]) {
  const record=JSON.parse(readFileSync(join(area,name+'.json'),'utf8'));
  assert.equal(record.status,'verified');assert.equal(record.sequences,expected);assert.equal(record.results.length,expected);
@@ -23,7 +27,25 @@ for(const [name,expected] of [['drop-web-result','SessionEvidence'],['echo-inval
  const log=readFileSync(join(area,'controls',name,'process.log'),'utf8');assert(log.includes(expected));
  const proof=JSON.parse(readFileSync(join(area,'controls',name+'.diff'),'utf8'));assert.notEqual(proof.originalHash,proof.mutatedHash);assert(proof.from&&proof.to);
 }
-const cucumber=JSON.parse(readFileSync(join(area,'cucumber.json'),'utf8'));
-let scenarios=0,businessSteps=0;for(const feature of cucumber)for(const scenario of feature.elements ?? []) { scenarios++;for(const step of scenario.steps ?? []) { assert.equal(step.result.status,'passed'); if (typeof step.name === 'string') businessSteps++; } }
-assert.equal(scenarios,10,'complete adapter feature expected');
-console.log(JSON.stringify({status:'verified',sequences:49,controls:4,scenarios,businessSteps}));
+const cucumberRaw=readFileSync(cucumberPath,'utf8'), cucumber=JSON.parse(cucumberRaw);
+const featurePath='features/38_adapter_composition.feature';
+const features=cucumber.filter(feature=>feature.uri?.replaceAll('\\','/').match(/(?:^|\/)features\/38_adapter_composition\.feature$/));
+assert.equal(features.length,1,'report must contain the adapter feature exactly once');
+const messages=generateMessages(readFileSync(featurePath,'utf8'),featurePath,SourceMediaType.TEXT_X_CUCUMBER_GHERKIN_PLAIN,
+ {newId:IdGenerator.incrementing(),includeGherkinDocument:false,includePickles:true,includeSource:false});
+assert(!messages.some(message=>message.parseError),'adapter feature must parse');
+const expected=messages.flatMap(message=>message.pickle ? [message.pickle] : []);
+const actual=features[0].elements.filter(scenario=>scenario.type==='scenario');
+const signature=(name,tags,steps)=>JSON.stringify({name,tags:tags.map(tag=>tag.name).filter(name=>/^@BT_[A-Z]\d+$/.test(name)).sort(),steps});
+const business=scenario=>scenario.steps.filter(step=>!step.hidden && typeof step.name==='string');
+assert.deepEqual(actual.map(scenario=>signature(scenario.name,scenario.tags,business(scenario).map(step=>step.name))).sort(),
+ expected.map(pickle=>signature(pickle.name,pickle.tags,pickle.steps.map(step=>step.text))).sort(),'report must contain every expanded adapter scenario exactly once');
+let businessSteps=0;
+for(const scenario of actual)for(const step of scenario.steps) {
+ assert.equal(step.result.status,'passed',`adapter scenario did not pass: ${scenario.name}`);
+ if(!step.hidden && typeof step.name==='string')businessSteps++;
+}
+assert.equal(actual.length,10,'complete adapter feature expected');
+assert.equal(businessSteps,31,'complete adapter business steps expected');
+console.log(JSON.stringify({status:'verified',sequences:49,controls:4,scenarios:actual.length,businessSteps,cucumber:cucumberPath,
+ cucumberSha256:createHash('sha256').update(cucumberRaw).digest('hex')}));

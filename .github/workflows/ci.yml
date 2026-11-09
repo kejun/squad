@@ -57,7 +57,7 @@ jobs:
           node tests/preparation-composition-controls.mjs
           node tests/preparation-composition-readback.mjs
           node tests/model-session-composition-controls.mjs
-          node tests/model-session-composition-readback.mjs
+          node tests/model-session-composition-readback.mjs reports/kej-108-model-session test-results/cucumber.json
       - name: Production build
         run: npm run build
       - name: Retain verification reports

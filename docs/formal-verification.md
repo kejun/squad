@@ -85,7 +85,7 @@ node --import tsx tests/inspector-generation-fixture.ts
 
 B2 的 K05 六种顺序由 Gherkin 大纲驱动，单跑时可加 `--case BT_K05 --variant 定时、重复、完成`。诊断加载器只在独立测试进程观察/故障注入公开执行边界，不向生产代码增加开关；普通适配器 WorkFailure 不冒充 hostError。B5 复用真实观察模型及其生产控制器，不把已有 dispose-import 实例冒称本次两代交错增量。
 
-B3/B4 的准备、会话序列、源码负对照与独立读回入口为：
+B3/B4 的准备、会话序列、源码负对照与独立读回入口如下。读回使用前述 `npm run check` 生成的真实全量 `test-results/cucumber.json`，逐项核对当前适配器场景；手工单跑时也可显式传入专用 Cucumber 报告：
 
 ```sh
 node --import tsx tests/preparation-composition-fixture.ts --all
@@ -93,7 +93,7 @@ node tests/preparation-composition-controls.mjs
 node tests/preparation-composition-readback.mjs
 node --import tsx --input-type=module -e "import { modelSessionComposition } from './tests/model-session-composition-fixture.ts'; await modelSessionComposition(false); await modelSessionComposition(true);"
 node tests/model-session-composition-controls.mjs
-node tests/model-session-composition-readback.mjs
+node tests/model-session-composition-readback.mjs reports/kej-108-model-session test-results/cucumber.json
 ```
 
 具体参数以脚本和对应说明为准。准备期使用真实文件系统和命名屏障处 SIGKILL，执行后端用于观察交付的目录，不证明 OS 沙箱隔离。模型会话用受控 HTTP 回应，不证明供应商输出质量。
