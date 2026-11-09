@@ -325,7 +325,7 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
       requestSignal.throwIfAborted();
       const knowledge = canUseLocal ? scope.localTools?.sharedToolKnowledge : undefined;
       const requestMessages = knowledge?.length
-        ? [...messages, { role: 'user' as const, content: JSON.stringify({ type: 'shared_tool_knowledge', untrusted: true, methods: knowledge }) }]
+        ? [messages[0]!, { role: 'user' as const, content: JSON.stringify({ type: 'shared_tool_knowledge', untrusted: true, methods: knowledge }) }, ...messages.slice(1)]
         : messages;
       if (fixedInput) enforceFixedContext(service, requestMessages, contextFailure);
       // First request was already reserved by WorkRunner. Every follow-up needs another reservation.
