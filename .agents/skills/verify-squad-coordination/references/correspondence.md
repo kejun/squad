@@ -128,3 +128,14 @@ InputBoundary/ReviewQueue/Deferred 的恢复边使用 constructor 重开连接�
 产品源码e77f052acacd208fd8eb8587ac6901ba19003220上，`reports/verify-squad-coordination/kej-107-108-extensions-complete`完整通过，389.684秒。21配置正向及未改坏原版复验，各阶段每个存储比较2998条模型边；58个声明的前提见证、18项真实源码负对照在两存储均以正常exit1、AssertionError及各自目标性质失败。5个外层SHA自洽删除输入分别因目标raw缺失/必需进度性质缺失被拒绝。独立读回889份保留证据通过，三个cleanup字段均为true。原三图当前产品复验及330份读回为`reports/verify-squad-coordination/kej-107-108-original-reviewed`，339.623秒。
 
 此前candidate/final目录是模型投影/负控定位的未完成红运行，不是当前产品缺陷结论，不作为通过证据。最终完整轮中源码、模型、checker和fixture均未变化；后续仅推进当前成功元数据，不把元数据推进说成额外完整复跑。场景BT_J01–J06另直接执行18实例全部通过；这与21配置TLC及双存储图对应证据分别计数。
+
+
+## KEJ-109 CLI 元数据与定向引用诊断审查
+
+最终受审产品提交为 `8f4a1acb31f1aa9d73996e60dbb9aa3becce0596`。历史同步 e77 提交在当前浅克隆不可用，已逐项核对可用基线 5b8c596 的全部原覆盖文件与旧 SHA 完全一致，再审阅其后三个提交及10个已覆盖文件和3个新导入模块。逐文件理由、原样 blocked、运行和独立读回记录见 [KEJ-109审查](drift-review-kej-109.json)。
+
+CLI catalog/分页及共享调用经验是纯投影或适配器路径，不新增调度、计费或执行授权。交付引用诊断在原 CHECK_RESULT/WORK_FAILED 事务内只追加当前候选的 checkDiagnostics；原引用错误码、补试/请求/修订上限和事务边界保留。非引文错误不追加诊断，CheckBudget 的 BadProtocol 和无诊断技术失败仍得到相同固定材料。现有模型、性质、公平性和界限均不变；新引用正文诊断、真实CLI发现与模型HTTP质量由独立场景验收，不能因本检查通过声称已形式化证明。
+
+本轮原三图完整检查及原版复验在 `reports/verify-squad-coordination/kej-109-reviewed` 通过，422.184秒：Budget151状态/345边、CheckBudget117状态/237边、Shards456状态/1379边，双存储每阶段比较1961边，19个见证、22项真实双存储源码负对照通过；独立读回331文件通过。组合入口 `reports/verify-squad-coordination/kej-109-extensions-reviewed` 完整通过，467.595秒：21配置、58见证、18项双存储真实源码负对照、恢复后全域复验、5项自洽证据删除负控、每存储每阶段2998边以及892份原始证据独立读回通过。两入口cleanup全true。
+
+实际运行在2cd9bad加当时已存在的适配器消息排序改动上；随后逐文件证明全部覆盖源码与最终产品提交 `8f4a1acb31f1aa9d73996e60dbb9aa3becce0596` 完全一致，再推进两个syncCommit。新增场景身份的后续重编号不改本模型或覆盖代码。当前元数据不是一次额外完整复跑；旧e77记录和本轮初始blocked证据均保留。

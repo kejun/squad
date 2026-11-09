@@ -20,3 +20,9 @@
 15. `tests/local-effects-formal-readback-controls.py` 对最终证据临时副本运行四类独立反控：改原始TLC日志、删一条JSONL并重签、删全体真实负对照并重签、删真实负对照JSON/diff并重签，均被拒绝；原件前后读回通过且未变。保留可复现脚本、reader及原始日志在 `reports/formal-readback-controls/local-effects-all-four`。
 
 最终完整重跑及独立读回见 coverage.json.review 与最终证据的 run.json。证据目录中的 checker-inputs 是该次实际输入，后续只推进同步元数据时不冒称又重新运行。
+
+## KEJ-109 漂移维护
+
+- 原样执行因源指纹变化阻塞；旧77个覆盖源与可用5b8c596字节逐项相同，再读取当前变化，记录十个变化及三个新增传递依赖的原因与SHA。
+- 不改变模型、性质、界限、公平性、投影或真实源码负控；完整24阶段检查于reports/verify-squad-local-effects/kej-109-reviewed通过，105.686秒，108状态/282边、双存储各边回放、六见证、四模型与八次真实源码负控、恢复复验及七进程桥完整。
+- 220件证据独立读回成功，scratchRemoved和coveredFilesUnchanged均true。受测工作区已逐文件证明与8f4a1ac产品提交相同，随后才推进同步元数据，不以摘要代替原始证据。

@@ -89,3 +89,5 @@ python3 .agents/skills/verify-squad-authority/scripts/composition-check.py --ver
 **完整运行必须同时完成旧 `scripts/check.py` 与新 `scripts/composition-check.py`，并分别独立读回；只运行默认旧检查不能声称新增授权组合已验证。** KEJ-108 原authority完整复验及读回已经通过，随后才推进覆盖元数据。当前受测源码为 `64322436c87b216f9dd9ba1a137738e5cd923497` 加已审查的准备期修复工作区差异；精确差异、源哈希及未创建最终提交的说明保存在维护记录，不能把HEAD本身说成包含尚未提交的修复。新增组合图及其夹具有独立coverage门禁；任何新写入口、事务拆分、身份维度或轮次上限变化都须先重审对应再更新哈希。
 
 e77 最终维护：当前受测产品提交 `e77f052acacd208fd8eb8587ac6901ba19003220`。服务启动仅增加 closing 检查的无影响对应审查见 `references/drift-review-kej-108-service.json`；随后仍完整重跑原检查到 `reports/verify-squad-authority/e77-final-current`，34步骤和单独读回通过。最终新增组合完整运行位于 `reports/verify-squad-authority-composition/e77-final-inputs-complete`，冻结后的工具强制必需invariants/Progress、捕获全部covered实现和fixture正文、保存实际退出码并要求每个负控正常exit1且绑定AssertionError与目标性质，175件独立读回通过。较早的110/111件证明只作各自工具版本的历史，不能补拷新inputs冒充最新完整运行。
+
+KEJ-109 元数据与引用诊断维护：当前同步产品为 `8f4a1acb31f1aa9d73996e60dbb9aa3becce0596`。十个变化文件及三个新增传递依赖逐项审查后，原授权与授权组合均完整运行并独立读回通过；模型、性质、公平性和事务边界保持。受测运行始于较早 HEAD 加已审查工作区差异，随后逐文件证明与该同步提交字节一致；详情见 [原授权审查](references/drift-review-kej-109.json) 与 [组合审查](references/drift-review-kej-109-composition.json)。CLI 检索、共享方法和检查诊断仍由独立 BDD 承担，不扩大本有限证明。

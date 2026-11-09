@@ -1,0 +1,124 @@
+{
+  "issue": "KEJ-109",
+  "outcome": "updated",
+  "previousSyncCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
+  "equivalentAvailableBaseline": "5b8c596",
+  "baselineProof": "Every formerly covered file at5b8c596 is byte-identical to the recorded coverage pin; historical e77 commit is absent in this shallow clone.",
+  "reviewedCommit": "8f4a1acb31f1aa9d73996e60dbb9aa3becce0596",
+  "commitsRead": [
+    "700e595 fix: discover host CLIs and target delivery-check retries (KEJ-109)",
+    "2cd9bad fix: retain fixed materials for non-citation check retries",
+    "8f4a1ac fix: keep shared CLI observations separate from tool receipts"
+  ],
+  "sourceReview": {
+    "src/delivery-acceptance.ts": {
+      "classification": "No effect on existing modeled projection, promises or atomicity",
+      "rationale": "Existing exact citation acceptance/error codes are preserved by judgmentsProblem delegating to judgmentsDiagnostic. New host-generated source location is diagnostic context only. CheckBudget BadProtocol with empty criteria remains same rejection; semantic text/citation quality remains outside these models.",
+      "sha256": "e725df453b3f9916b528bd15f3f1792b17afd4c1709057ce8757bf4eac053d07"
+    },
+    "src/host-capabilities.ts": {
+      "classification": "No effect on existing modeled projection, promises or atomicity",
+      "rationale": "Adds trusted catalog metadata and presence lookup for selected catalog commands. No model or harness invokes discovery I/O; no task, permission, budget or host-retry state transition changed.",
+      "sha256": "887050d6c668a648c8e61f21503aa4322870e6139c10b9b05b8be2a804625414"
+    },
+    "src/local-operation.ts": {
+      "classification": "No effect on existing modeled projection, promises or atomicity",
+      "rationale": "discoverHost schema accepts bounded query/cursor in addition to commands. Execution roles, local lifecycle, fee exemptions, session identity and effects settlement are unchanged. Existing local fixture prefixes use runCli, not discovery.",
+      "sha256": "7f635776d9c0ceabb69074af06f03c0ea05a24270720cbfea16ee29a980f8f2c"
+    },
+    "src/local-runtime.ts": {
+      "classification": "No effect on existing modeled projection, promises or atomicity",
+      "rationale": "Adds trusted CLI catalog construction, discovery projection and catalog errors only. Checkers use direct TeamEngine synthetic events; no LocalRuntime or filesystem CLI execution. No modeled state write moved to adapter.",
+      "sha256": "09c7050c7214d6b4a1c7da87bb1859c1323c036c666d66bc80970e06b2cf3a32"
+    },
+    "src/local-skills.ts": {
+      "classification": "No effect on existing modeled projection, promises or atomicity",
+      "rationale": "Token matching and catalog/query-bound pagination cursor replace literal substring/numeric offset. Registry list only; no modeled intent, budget or batch mutation.",
+      "sha256": "8f1548221fab864d3c33c397b814d6d883ed7e0783da41de48e748f92df4701f"
+    },
+    "src/model-adapter.ts": {
+      "classification": "No effect on existing modeled projection, promises or atomicity",
+      "rationale": "Adds catalog/shared-method instructions and citation retry feedback, returns unchanged check judgments. No HTTP model request is used by these direct-engine graph replays. Capacity validation remains in input-intent public validator and is unchanged.",
+      "sha256": "d6c3cd08fbcba3049a743143c59a5591324d34b87435657fb43f183f4aa833d6"
+    },
+    "src/runner.ts": {
+      "classification": "No effect on existing modeled projection, promises or atomicity",
+      "rationale": "Projects read-only shared CLI methods per model request and carries host-generated citation diagnostics in WORK_FAILED/fixed check material. No change to CONSUME authorization, local claim, evidence binding or unsafe settlement. Graphs do not instantiate WorkRunner.",
+      "sha256": "8f3ad25d1b179db71165d28d1cc2493c89f12e69e5f8236ea15b4c7d132ee2b2"
+    },
+    "src/task/delivery.ts": {
+      "classification": "No effect on existing modeled projection, promises or atomicity",
+      "rationale": "checkDisposition returns same retry/finish disposition for all previous fixed error codes; adds optional diagnostic. saveCheckDiagnostic only writes checkDiagnostics for current bound candidate and quote/source errors, no usage/retry/deadline/outcome changes. Commit2cd9bad narrows this to citation errors so non-citation CheckBudget materials remain fixed. Original model projections deliberately exclude arbitrary source body and diagnostics.",
+      "sha256": "9036c48684ef3824766a1c81e9c62d09b1a86746225c6dc5a66cd1eab2ca37e4"
+    },
+    "src/task/reducer.ts": {
+      "classification": "No effect on existing modeled projection, promises or atomicity",
+      "rationale": "Calls saveCheckDiagnostic within existing CHECK_RESULT/WORK_FAILED transaction before original reserve/release/finish path. CheckBudget writes same request/retry/revision counters; Budget/Shards/extension/HostRetry non-check failures pass no diagnostic. Transaction and ordered always boundaries unchanged.",
+      "sha256": "c577bc15b1dad75b81142f2b4e60faada12d18fcd48e6c2d4e54096217152c02"
+    },
+    "src/types.ts": {
+      "classification": "No effect on existing modeled projection, promises or atomicity",
+      "rationale": "Adds optional CheckDiagnostic types to persisted intent and trusted WORK_FAILED event. Existing events remain valid and interpretation/source/permission contracts unchanged.",
+      "sha256": "d5d8ddc218e598521f1351700b1ef82c0739bdefdb21b983a40719c564e3ecb8"
+    },
+    "src/catalog-search.ts": {
+      "classification": "No effect on existing modeled projection, promises or atomicity",
+      "rationale": "New pure bounded search/cursor helper imported by CLI/skill metadata adapters. No task state write or I/O.",
+      "sha256": "94f713cda0ee9f6e817b0e2682d91ee6efa555d18e677421d3f241eab37eda3f"
+    },
+    "src/cli-catalog.ts": {
+      "classification": "No effect on existing modeled projection, promises or atomicity",
+      "rationale": "New host-configured immutable metadata catalog with schema validation, size bounds and query/version cursor. No task permission or execution authority; adapter not invoked by finite graph prefixes.",
+      "sha256": "dc8cb8346a3e5c33ff69deff7ffea77d8f0761993db055a73a913f45ced0e29e"
+    },
+    "src/task/tool-knowledge.ts": {
+      "classification": "No effect on existing modeled projection, promises or atomicity",
+      "rationale": "New pure read-only projection of successful same-goal/epoch CLI actions for tool-enabled members, capped10 actions and4KB/action; no source body or state mutation. Graph drivers never request the projection and no scheduler/budget write is introduced.",
+      "sha256": "8274057c9c426ecab15036257911d4ffa7e254a085255a7a50d1a75bf71736de"
+    }
+  },
+  "modelDecision": "Existing TLA/CFG, properties, fairness, bounds and every-edge replay unchanged. These finite domains exclude model HTTP, CLI catalog/search I/O and arbitrary citation text. Preserve independent BDD for KEJ-109; do not claim these models prove new citation diagnostics or shared method quality.",
+  "beforeValidation": {
+    "coordination": "reports/verify-squad-coordination/kej-109-before",
+    "coordinationExtensions": "reports/verify-squad-coordination/kej-109-extensions-before",
+    "hostRetry": "reports/verify-squad-host-retry/kej-109-before"
+  },
+  "verification": {
+    "outcome": "verified",
+    "evidence": "reports/verify-squad-host-retry/kej-109-reviewed",
+    "seconds": 30.745,
+    "states": 41,
+    "labeledEdgesPerStorePerStage": 111,
+    "realCodeNegativeControls": 4,
+    "witnesses": 4,
+    "readbackArtifacts": 139,
+    "evidenceNegativeControls": {
+      "status": "verified",
+      "rejections": 7,
+      "output": "reports/verify-squad-host-retry/evidence-controls.json"
+    },
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "evidenceRetained": true
+    },
+    "scope": "Finite host-retry two-source/two-batch model and every labeled edge representative prefix; not CLI/catalog/quote quality verification."
+  },
+  "testedWorktreeDelta": {
+    "src/model-adapter.ts": {
+      "sha256": "d6c3cd08fbcba3049a743143c59a5591324d34b87435657fb43f183f4aa833d6",
+      "reason": "Root moved shared knowledge after system/before user context so existing latest local receipt remains the final message. This adapter-only edit was present before these runs captured source; it is not claimed to belong to2cd9bad."
+    },
+    "subsequentlyCommittedAs": "8f4a1acb31f1aa9d73996e60dbb9aa3becce0596",
+    "commitBytesVerified": true
+  },
+  "syncCommitAdvancedTo": "8f4a1acb31f1aa9d73996e60dbb9aa3becce0596",
+  "metadataAdvance": "Only after complete positive/real-code negative/restored verification, independent readback and all7 evidence controls; every covered source byte matches final committed product. This metadata advance is not an additional full run.",
+  "equivalentBaselineVerification": {
+    "coverage.json": {
+      "originalFilesCompared": 64,
+      "mismatches": [],
+      "hashManifestSha256": "5225b190a0d61019dd9e375ede92b1dea95b519473ea0381ed61bde48d8929de"
+    }
+  }
+}

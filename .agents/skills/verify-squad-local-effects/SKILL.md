@@ -49,3 +49,5 @@ python3 .agents/skills/verify-squad-local-effects/scripts/check.py --verify-evid
 coverage.json 保守记录本轮实际源码、夹具和依赖 SHA；哈希门禁不是实现证明。源码变化先审查动作原子边界、身份/恢复守卫和新写入口，按 [对应说明](references/correspondence.md) 修改模型、回放和真实负对照。不得仅刷新指纹，不得放宽性质使真实缺陷通过。
 
 请求 `$create-formal-verification-skill 维护 kejun/squad 的 verify-squad-local-effects` 时，先原样执行，区分 drift/bug/blocked；逐项审查同步提交后的差异，再完整运行及独立读回。记录实际提交、脏源哈希及覆盖边界；只有受测代码与记录一致且全阶段通过后才推进同步元数据。
+
+KEJ-109 维护同步产品为 `8f4a1acb31f1aa9d73996e60dbb9aa3becce0596`。原样执行先检出覆盖漂移；逐文件审查十个变化及三个新传递依赖后，原108状态/282边、双存储回放、正负见证、恢复复验和七条真实进程接线全部通过，220件原始证据独立读回成功。受测工作区字节与同步提交逐项一致；详见 [本轮对应审查](references/drift-review-kej-109.json)。模型、性质、公平性、界限及真实故障检出保持，目录/共享方法/检查诊断的语义另由 BDD 验收。

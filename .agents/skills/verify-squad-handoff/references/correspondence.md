@@ -203,3 +203,8 @@ handoff 的 createTeamConfig({}) 无模型服务；RunnerProgress 在 adapter �
 两配置独立检查失败/已保存域；边界和四真实代码改坏锚点保存在composition-suite.json。实际TLC状态/边数与有限进度以本轮run.json和原始tlc.log为准。真实行为由BT_K01（两起点）和BT_K02（权限/owner）直接执行；补充穷举对应通过所有抽象交错而不是在BDD里复制模型。
 
 名称映射：TLC `UniqueRetry`对应真实断言`RetryUniqueness`；TLC `RetryAuthority`同时要求memberRevoked与ownerChanged都为false，分别由真实`RetryAuthority`和`RetryOwner`检查。`ExclusiveResultChoice`/`RetryHandoff`两侧同名；suite列出实际必需TLC不变量与Progress，真实源码负控的property列使用行为断言名称。
+
+
+## KEJ-109：发现与检查诊断依赖审查
+
+旧覆盖指纹逐文件与可用主线 `5b8c596` 字节相同；从该源等价基线审查到本次产品修复。逐文件原因、旧新指纹及执行结果见 [审查记录](drift-review-kej-109.json)。Handoff 的消费/续办/停止事务及 A2 的 retryOf、保存复用、当前权限与 owner 守卫均不变。检查诊断只写 check 意图，模型切片要求没有候选和 check；运行器的 flushResults 仍先于领取、共享命令上下文或适配器调用。新增三个纯目录/投影依赖纳入指纹。保留全部有限域、性质、公平性、可达性与真实代码变异；新增 CLI 和错引行为由 BT_L77–L87/BT_F29–F31 独立验收，不能从本切片推导其正确性。

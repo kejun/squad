@@ -46,6 +46,16 @@ Progress 的弱公平是环境假设：在线、未停止、未换目标且有�
 
 ## 维护审查
 
+### KEJ-109：目录与检查诊断的切片审查
+
+逐文件审查见 [KEJ-109 记录](drift-review-kej-109.json)。旧名义 sync `e77f052` 在当前 clone 不可用；已逐项证明可用 `5b8c596` 的全部 62 项覆盖源码/依赖与旧 coverage 清单字节一致，再审阅两条产品提交及当前工作树差异。
+
+`judgmentsDiagnostic` 保持原逐项完整性、来源存在和逐字子串校验，只为错误结果附带定位；`checkDisposition` 的处置和预算不变。`saveCheckDiagnostic` 仅在当前检查的引文错误时写工作元数据，与原 `CHECK_RESULT`／`WORK_FAILED` 同一事务，不写 publication、candidate、final 或冻结回执。原 Delivery、Verification、Cycles、SourceLineage 回放均提供合法且无引文的检查条目；Verification 失败事件无诊断，因此新增保存分支在这些切片为无操作。有效结果、一次语义修订、旧发布保留、停止、目标隔离、工作区复核及原子提交路径保持。
+
+CLI 目录、技能搜索和共享方法通过 `catalog-search.ts`、`cli-catalog.ts`、`task/tool-knowledge.ts` 新增传递依赖，纳入保守漂移清单。四个回放从公开 engine 注入保存回执，不创建 LocalRuntime、不枚举目录、不运行模型 HTTP；新增目录或提示不会修改既有回执或赋予调用权限。模型、性质、有限域、公平假设、回放和真实负对照保持。新目录分页、方法关联、引用定位准确性及模型修正效果仍由独立行为验收承担，未扩展为形式化保证。
+
+完整检查 `reports/verify-squad-delivery/kej-109-audited-outer` 用时 204.592 秒退出 0：原 31 状态／79 边，组合 47／91、79／203、71／226，每条边在 Memory/SQLite 均回放；十类真实代码负对照在两后端命中，原版恢复复验全通过，四项清理门禁为 true。独立读回 290 件证据通过。沙箱内 Java RMI 端口限制的失败单独保留，不算性质反例。受测工作树的 65 项源/依赖与产品提交 `8f4a1ac` 逐项同字节后才推进 sync；仅元数据更新不冒称第二次完整运行。
+
 coverage.json 保守列出当前 src 的所有 TypeScript 文件以及配置/锁文件，捕捉传递依赖漂移。重点审查 task.machine、task/lifecycle、task/policy、task/delivery、task/evidence、task/reducer、task/operations、task/input、store、engine；其他模块门禁只表示须检查是否影响这些入口，不扩大验证范围。
 
 当增加第二候选、部分失败、WORKSPACE 验证、恢复动作或发布后继续时，应扩展变量和真实回放，而非直接把新路径投影成 stuttering。每个新原子动作必须对应实际事务；每个新字段要讨论它是否影响未来行为。现有模型没有候选替换历史，不可用于证明多修订场景正确。

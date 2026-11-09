@@ -1,5 +1,5 @@
 {
-  "syncCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
+  "syncCommit": "8f4a1acb31f1aa9d73996e60dbb9aa3becce0596",
   "bounds": {
     "tasks": 1,
     "candidates": 1,
@@ -20,32 +20,32 @@
     "src/room.machine.ts": "1f2acd3d217731acd39b4258e0148b65b600f2b8cd7ae8cdcee8f047d8b696ab",
     "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
     "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
-    "src/local-operation.ts": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
-    "src/model-adapter.ts": "1f219a6b770dfc97a54ff2762be0cb1862fda35eb48aee9c03e3e960fb23a060",
+    "src/local-operation.ts": "7f635776d9c0ceabb69074af06f03c0ea05a24270720cbfea16ee29a980f8f2c",
+    "src/model-adapter.ts": "d6c3cd08fbcba3049a743143c59a5591324d34b87435657fb43f183f4aa833d6",
     "src/local-cli.ts": "db577455e9fb60f5d12e0cc6af6980c52eec7f8fbec0cbc3ff3a34223092e69e",
     "src/task.machine.ts": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
     "src/darwin-process.ts": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b",
     "src/web-tools.ts": "aefd3b4625fada48ef66e821bd6252c6b0dae9e454a8799f4c0c321efc531840",
     "src/conversation.ts": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
-    "src/local-runtime.ts": "1c128ff31e4b8c658ed3a92590048c927c14f67152ee0241722733ca6036f9bb",
+    "src/local-runtime.ts": "09c7050c7214d6b4a1c7da87bb1859c1323c036c666d66bc80970e06b2cf3a32",
     "src/index.ts": "79ef24ede132e36388df54ccbb8e6e48efc472adff3c13d57f68ce745b98e331",
     "src/task-inspection.ts": "a66a44d5b85f487b60ee33985fd9af54064bbacc6951dd47e7aaf3127a2fabd5",
-    "src/types.ts": "cefccc84532d9c55b36a8f3278988347e72a417f634066e020703a13c24497fa",
+    "src/types.ts": "d5d8ddc218e598521f1351700b1ef82c0739bdefdb21b983a40719c564e3ecb8",
     "src/measurement-report.ts": "62a9010d7a112c52f7e93b6e21d5fcb6a6e6a8011c4852784dd44b811a196183",
     "src/task-debug.ts": "38dd3bf387bd69f1caf7f7aeb0f539a8b9d2361ee63ca56dc5c555714fbcaa89",
     "src/store.ts": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
     "src/presentation.ts": "44b39afe5955d6d95cc127f1d4a8e90a8961bdb9daa9c547e7d2d0f25b84a1b5",
     "src/task-structure.ts": "03f4fdd3056848007d83d8381fb5f21df12fdd4dd3ea65a7dbfe87fdcde9a87a",
     "src/host-retry.ts": "e68e16d090b7c76d5bc8ec18f2cb01c9c33730090d98a001bd7f3fd49ba1ba31",
-    "src/host-capabilities.ts": "21a2aec00a32046ff67e6517a948540235301bd7803852b551cf77809d64feb2",
+    "src/host-capabilities.ts": "887050d6c668a648c8e61f21503aa4322870e6139c10b9b05b8be2a804625414",
     "src/task-debug-view.ts": "07916f37867b20df2c5b9681bfbb8a82933ace2ade7f8eb6e2a76c6ee86930e7",
     "src/input-intent.ts": "8c2886e4b9054655203f5b72fc357aaab0d3502927320b722f9fa196a951d266",
-    "src/delivery-acceptance.ts": "6d4a70291b12a3ed376e8e3658b428b7351e260e1d39043ee986a97fc2568396",
+    "src/delivery-acceptance.ts": "e725df453b3f9916b528bd15f3f1792b17afd4c1709057ce8757bf4eac053d07",
     "src/task-chart.ts": "98c932c3b32c93d5993faae1e1b7e2b6f02d626a30bec67ce64cb3aa6c554799",
     "src/inspector.machine.ts": "0c9ba840dd017b3149dfae33186ea850376c35048eb43da52a57a8618cc000f5",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
-    "src/local-skills.ts": "d5d3465670df6cb44858a88405aa8b456d9000bfc5b10eaed8aeeced4c554b7f",
-    "src/runner.ts": "c6fb4e04da43e021634db60108ae33ebbe36c5f304efe953a0384b34ce622e69",
+    "src/local-skills.ts": "8f1548221fab864d3c33c397b814d6d883ed7e0783da41de48e748f92df4701f",
+    "src/runner.ts": "8f3ad25d1b179db71165d28d1cc2493c89f12e69e5f8236ea15b4c7d132ee2b2",
     "src/skills.ts": "81bf7ae230a719f046a0caced6c0293807f259c4d500349c7a78ecdfbbf1e111",
     "src/engine.ts": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
     "src/model-env.ts": "7f8bb277dab42d749c82dab229d66cbb508e1af83b78986895da41956a9e6cf0",
@@ -55,7 +55,7 @@
     "src/web/service.ts": "33cea3afb02fa7805b7476b18a17c45cb19950c24c532ff55e880c2d29552d07",
     "src/web/http.ts": "0353bf851274b11b4c31d6adf0cc60c62e49883541e6d1e2c67a6904e50bd3ad",
     "src/task/budget.ts": "0d8454f4dbf0d62ffc7a8d5c615f9ec1ebbd688a6e3136e9832af893ff32e62c",
-    "src/task/delivery.ts": "a56bfe48f77575dc110b08a598d32462994420a9e40e89ac7cb498f4ee98c101",
+    "src/task/delivery.ts": "9036c48684ef3824766a1c81e9c62d09b1a86746225c6dc5a66cd1eab2ca37e4",
     "src/task/execution.machine.ts": "7ed6793adbd8413de0c53161ea8adbe6bdcb29eae910864ccd01e29baf68fcff",
     "src/task/discussion.ts": "0bdf97c5438d24d381a194d6fc6406282044d41c5b5d5ba5c9f73cf1234bfa7b",
     "src/task/evidence.ts": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
@@ -67,7 +67,7 @@
     "src/task/protocol.ts": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
     "src/task/facts.ts": "7d29345b1e74ed3ffcb70cd592161d2d1728f7c57d3c3b7b4eb91f84cc9cd273",
     "src/task/input.ts": "284080d64d88149851e0f058fd4aaa8c56a2d1c141c84b26acc453e2b6fe9efe",
-    "src/task/reducer.ts": "ada7f850f0c774c48ade21b50604b9e40e64a84fc49ec0d77a00ce3e6a962455",
+    "src/task/reducer.ts": "c577bc15b1dad75b81142f2b4e60faada12d18fcd48e6c2d4e54096217152c02",
     "src/task/verification.ts": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24",
     "src/task/map-reduce.ts": "601bd32e42920fb7696294c1a0e550b3717be095ce02ab1be3502848100c3dc7",
     "src/task/guards.ts": "34e5c8c4849d555b4f44b94cc51c129a4c31d1469c3bccc382eb99a0132d93d3",
@@ -77,7 +77,10 @@
     "package-lock.json": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
     "src/artifact-request.ts": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
     "src/source-artifact.ts": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4",
-    "src/task/map-reduce-capacity.ts": "6397480888beae4db09321f45453a7d315bce56d8bcd4fe7b646f438ac171b6f"
+    "src/task/map-reduce-capacity.ts": "6397480888beae4db09321f45453a7d315bce56d8bcd4fe7b646f438ac171b6f",
+    "src/catalog-search.ts": "94f713cda0ee9f6e817b0e2682d91ee6efa555d18e677421d3f241eab37eda3f",
+    "src/cli-catalog.ts": "dc8cb8346a3e5c33ff69deff7ffea77d8f0761993db055a73a913f45ced0e29e",
+    "src/task/tool-knowledge.ts": "8274057c9c426ecab15036257911d4ffa7e254a085255a7a50d1a75bf71736de"
   },
   "maintenanceReviews": [
     {
@@ -150,6 +153,15 @@
       "validation": "reports/verify-squad-delivery/kej-107-108-reviewed-raw",
       "outcome": "updated",
       "scope": "Original Delivery retained; three independent finite composition slices with complete TLC, every-edge memory/sqlite replay, reachability, real-code controls, restored reruns and independent readback."
+    },
+    {
+      "issue": "KEJ-109",
+      "review": "references/drift-review-kej-109.json",
+      "reviewedCommit": "8f4a1acb31f1aa9d73996e60dbb9aa3becce0596",
+      "previousSyncCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
+      "validation": "reports/verify-squad-delivery/kej-109-audited-outer",
+      "outcome": "updated",
+      "scope": "Same four declared finite slices; audited ten changed covered files and three new transitive dependencies. All baseline/restored edge replays, ten real-code controls in both backends, and 290-artifact independent readback passed."
     }
   ]
 }

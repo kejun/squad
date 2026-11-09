@@ -1,0 +1,241 @@
+{
+  "issue": "KEJ-109",
+  "status": "updated",
+  "previousSyncCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
+  "availableByteIdenticalBaseline": "5b8c596e031ae17a389ae43b19520d99f9923383",
+  "baselineConfirmation": "All 62 previous coverage entries match git show 5b8c596:path byte-for-byte. Nominal sync e77f052 is not available in this clone.",
+  "reviewedCommits": [
+    {
+      "commit": "700e595",
+      "subject": "fix: discover host CLIs and target delivery-check retries (KEJ-109)"
+    },
+    {
+      "commit": "2cd9bad",
+      "subject": "fix: retain fixed materials for non-citation check retries"
+    },
+    {
+      "commit": "8f4a1acb31f1aa9d73996e60dbb9aa3becce0596",
+      "subject": "fix: keep shared CLI observations separate from tool receipts",
+      "relevance": "Preserves the latest tool receipt position when injecting shared method observations; no change to four direct-engine formal slices."
+    }
+  ],
+  "sourceCommit": "2cd9bad9d95c23de50645930181c06ae469d28e9",
+  "coveredChanges": [
+    {
+      "file": "src/local-operation.ts",
+      "previousSha256": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
+      "sha256": "7f635776d9c0ceabb69074af06f03c0ea05a24270720cbfea16ee29a980f8f2c",
+      "classification": "No effect in the four declared finite replay slices",
+      "reason": "discoverHost adds query/cursor validation only. Existing readSkillResource, runCli, verifyWorkspace, local fencing, receipt and execution transitions are unchanged; replay inputs use these existing action forms.",
+      "addedToConservativeCoverage": false
+    },
+    {
+      "file": "src/model-adapter.ts",
+      "previousSha256": "1f219a6b770dfc97a54ff2762be0cb1862fda35eb48aee9c03e3e960fb23a060",
+      "sha256": "d6c3cd08fbcba3049a743143c59a5591324d34b87435657fb43f183f4aa833d6",
+      "classification": "No effect in the four declared finite replay slices",
+      "reason": "CLI guidance, shared knowledge request projection and check retry diagnostic feedback affect model HTTP requests. The four formal slices invoke public engine events with controlled complete judgments and do not execute model HTTP or WorkRunner. Read-only check scope remains enforced; candidate/evidence material is not replaced.",
+      "addedToConservativeCoverage": false
+    },
+    {
+      "file": "src/local-runtime.ts",
+      "previousSha256": "1c128ff31e4b8c658ed3a92590048c927c14f67152ee0241722733ca6036f9bb",
+      "sha256": "09c7050c7214d6b4a1c7da87bb1859c1323c036c666d66bc80970e06b2cf3a32",
+      "classification": "No effect in the four declared finite replay slices",
+      "reason": "CLI catalog construction and discovery receipt metadata do not change saved resource or workspace receipt contracts. All four replays inject local results through public engine calls and never construct LocalRuntime or resolve catalog commands.",
+      "addedToConservativeCoverage": false
+    },
+    {
+      "file": "src/types.ts",
+      "previousSha256": "cefccc84532d9c55b36a8f3278988347e72a417f634066e020703a13c24497fa",
+      "sha256": "d5d8ddc218e598521f1351700b1ef82c0739bdefdb21b983a40719c564e3ecb8",
+      "classification": "No effect in the four declared finite replay slices",
+      "reason": "Optional CheckDiagnosticRecord arrays and WORK_FAILED diagnostic are metadata. Existing publication, candidate, goalVersion, fence, artifactIds and transaction shapes are unchanged; legacy records without metadata remain valid.",
+      "addedToConservativeCoverage": false
+    },
+    {
+      "file": "src/host-capabilities.ts",
+      "previousSha256": "21a2aec00a32046ff67e6517a948540235301bd7803852b551cf77809d64feb2",
+      "sha256": "887050d6c668a648c8e61f21503aa4322870e6139c10b9b05b8be2a804625414",
+      "classification": "No effect in the four declared finite replay slices",
+      "reason": "Discovery locates host-configured catalog commands and returns metadata; it does not run commands or modify task state. Capability discovery is outside all four direct-engine replay prefixes.",
+      "addedToConservativeCoverage": false
+    },
+    {
+      "file": "src/delivery-acceptance.ts",
+      "previousSha256": "6d4a70291b12a3ed376e8e3658b428b7351e260e1d39043ee986a97fc2568396",
+      "sha256": "e725df453b3f9916b528bd15f3f1792b17afd4c1709057ce8757bf4eac053d07",
+      "classification": "No effect in the four declared finite replay slices",
+      "reason": "judgmentsProblem delegates to judgmentsDiagnostic but preserves schema, remaining criterion set, source ID lookup and exact stdout/stderr/content substring checks and error codes. Location calculation runs only for rejected quotes. Formal pass/fail judgments contain valid criterion IDs with no source citations, so valid results and semantic revision behavior are unchanged.",
+      "addedToConservativeCoverage": false
+    },
+    {
+      "file": "src/local-skills.ts",
+      "previousSha256": "d5d3465670df6cb44858a88405aa8b456d9000bfc5b10eaed8aeeced4c554b7f",
+      "sha256": "8f1548221fab864d3c33c397b814d6d883ed7e0783da41de48e748f92df4701f",
+      "classification": "No effect in the four declared finite replay slices",
+      "reason": "Only list search/cursor projection changes, with query-bound catalog windows. Existing resource snapshots and frozen read receipts are untouched. Formal replays inject readSkillResource results and do not use SkillRegistry.list.",
+      "addedToConservativeCoverage": false
+    },
+    {
+      "file": "src/runner.ts",
+      "previousSha256": "c6fb4e04da43e021634db60108ae33ebbe36c5f304efe953a0384b34ce622e69",
+      "sha256": "8f3ad25d1b179db71165d28d1cc2493c89f12e69e5f8236ea15b4c7d132ee2b2",
+      "classification": "No effect in the four declared finite replay slices",
+      "reason": "Adds a read-only shared-tool-knowledge getter, check retry material metadata and structured failure forwarding. The four formal slices use engine events directly; Verification ModelResult is an explicit local carrier, not a real adapter request. Existing request/receipt/publication guards and transaction boundaries are not moved.",
+      "addedToConservativeCoverage": false
+    },
+    {
+      "file": "src/task/delivery.ts",
+      "previousSha256": "a56bfe48f77575dc110b08a598d32462994420a9e40e89ac7cb498f4ee98c101",
+      "sha256": "9036c48684ef3824766a1c81e9c62d09b1a86746225c6dc5a66cd1eab2ca37e4",
+      "classification": "No effect in the four declared finite replay slices",
+      "reason": "checkDisposition computes the same validity codes/disposition with an additional diagnostic field. saveCheckDiagnostic only writes current check metadata for quote mismatch or missing source; it changes no publication/selection, evidence, outcome, budget or fencing facts. The four slices use valid uncited judgments; Verification WORK_FAILED inputs have no diagnostics. Non-citation retries retain old fixed materials after 2cd9bad.",
+      "addedToConservativeCoverage": false
+    },
+    {
+      "file": "src/task/reducer.ts",
+      "previousSha256": "ada7f850f0c774c48ade21b50604b9e40e64a84fc49ec0d77a00ce3e6a962455",
+      "sha256": "c577bc15b1dad75b81142f2b4e60faada12d18fcd48e6c2d4e54096217152c02",
+      "classification": "No effect in the four declared finite replay slices",
+      "reason": "CHECK_RESULT and WORK_FAILED call saveCheckDiagnostic inside the existing reduce/store transaction. Complete judgments and fixture WORK_FAILED contain no citation diagnostic, making these calls no-ops in all four slices. Publish still reaches operations.finish atomically; stop/version checks precede reduction and reject stale work.",
+      "addedToConservativeCoverage": false
+    },
+    {
+      "file": "src/catalog-search.ts",
+      "previousSha256": null,
+      "sha256": "94f713cda0ee9f6e817b0e2682d91ee6efa555d18e677421d3f241eab37eda3f",
+      "classification": "No effect in the four declared finite replay slices",
+      "reason": "New transitive import from local-skills and cli-catalog. Pure query normalization and bounded cursor windows; no task context or publication writes. The four slices never enumerate a live catalog.",
+      "addedToConservativeCoverage": true
+    },
+    {
+      "file": "src/cli-catalog.ts",
+      "previousSha256": null,
+      "sha256": "dc8cb8346a3e5c33ff69deff7ffea77d8f0761993db055a73a913f45ced0e29e",
+      "classification": "No effect in the four declared finite replay slices",
+      "reason": "New transitive import from host-capabilities/local-runtime. Trusted configuration validation and discovery metadata only; no task scheduling, execution authority, receipts or publication writes.",
+      "addedToConservativeCoverage": true
+    },
+    {
+      "file": "src/task/tool-knowledge.ts",
+      "previousSha256": null,
+      "sha256": "8274057c9c426ecab15036257911d4ffa7e254a085255a7a50d1a75bf71736de",
+      "classification": "No effect in the four declared finite replay slices",
+      "reason": "New transitive import from runner. Pure observation of current successful peer CLI receipts with epoch/goal/role/local-tool filters. It does not write context or replace another source receipt. Formal slices do not call the runner getter.",
+      "addedToConservativeCoverage": true
+    }
+  ],
+  "initialBlockedEvidence": "reports/verify-squad-delivery/kej-109-before-audit",
+  "originalAndCompositionModels": "Delivery, Verification, Cycles, SourceLineage: models, safety/temporal properties, bounds, fairness, transaction correspondence, graph replays and real-code mutation anchors unchanged.",
+  "atomicityReview": "No new write entry for publication, final messages, candidate revision selection or resource snapshot. Diagnostic writes stay inside existing CHECK_RESULT/WORK_FAILED transactions; engine/store/policy/operations/verification/evidence code is byte-identical to the available baseline.",
+  "scopeLimits": "Does not formally prove new CLI catalog discovery/pagination, shared tool method relevance, diagnostic locator accuracy, model response repair, supplier behavior or their combinations. New features/44_cli_catalog.feature, features/45_delivery_diagnostics.feature and features/46_shared_tool_knowledge.feature provide separate executable acceptance; formal slices retain their existing exclusions.",
+  "verification": {
+    "command": "env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true python3 .agents/skills/verify-squad-delivery/scripts/check.py --jar /tmp/kej-109-deps/tla2tools.jar --evidence reports/verify-squad-delivery/kej-109-audited-outer",
+    "exitCode": 0,
+    "evidence": "reports/verify-squad-delivery/kej-109-audited-outer",
+    "seconds": 204.59188222700004,
+    "status": "verified",
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "evidenceRetained": true,
+      "checkerInputsUnchanged": true
+    },
+    "independentReadback": {
+      "command": "python3 .agents/skills/verify-squad-delivery/scripts/check.py --verify-evidence reports/verify-squad-delivery/kej-109-audited-outer",
+      "exitCode": 0,
+      "artifacts": 290
+    },
+    "original": {
+      "states": 31,
+      "edges": 79,
+      "backends": [
+        {
+          "backend": "memory",
+          "edgesReplayed": 79,
+          "snapshotCases": 9
+        },
+        {
+          "backend": "sqlite",
+          "edgesReplayed": 79,
+          "snapshotCases": 9
+        }
+      ]
+    },
+    "originalRealCodeNegativeControls": [
+      "drop-final",
+      "accept-stale",
+      "skip-snapshot"
+    ],
+    "compositionRealCodeNegativeControls": [
+      "skip-validation",
+      "skip-version",
+      "accept-changed",
+      "drop-publication",
+      "accept-old-cycle",
+      "corrupt-freeze",
+      "transitive-source"
+    ],
+    "modelsUnchanged": true,
+    "composition": {
+      "Verification": {
+        "states": 47,
+        "edges": 91,
+        "backends": [
+          {
+            "backend": "memory",
+            "edgesReplayed": 91
+          },
+          {
+            "backend": "sqlite",
+            "edgesReplayed": 91
+          }
+        ],
+        "restoredStatus": "verified"
+      },
+      "Cycles": {
+        "states": 79,
+        "edges": 203,
+        "backends": [
+          {
+            "backend": "memory",
+            "edgesReplayed": 203
+          },
+          {
+            "backend": "sqlite",
+            "edgesReplayed": 203
+          }
+        ],
+        "restoredStatus": "verified"
+      },
+      "SourceLineage": {
+        "states": 71,
+        "edges": 226,
+        "backends": [
+          {
+            "backend": "memory",
+            "edgesReplayed": 226
+          },
+          {
+            "backend": "sqlite",
+            "edgesReplayed": 226
+          }
+        ],
+        "restoredStatus": "verified"
+      }
+    }
+  },
+  "workingTreeReview": "model-adapter shared knowledge observation inserted after the system message and before the original user context, preserving existing latest tool receipt position; no formal slice executes this adapter loop.",
+  "reviewedCommit": "8f4a1acb31f1aa9d73996e60dbb9aa3becce0596",
+  "syncCommit": "8f4a1acb31f1aa9d73996e60dbb9aa3becce0596",
+  "proofInputSourceCommit": "2cd9bad9d95c23de50645930181c06ae469d28e9",
+  "proofInputWorkingTree": "M .agents/skills/verify-squad-authority/references/composition-coverage.json\n M .agents/skills/verify-squad-authority/references/coverage.json\n M .agents/skills/verify-squad-coordination/references/correspondence.md\n M .agents/skills/verify-squad-coordination/references/coverage.json\n M .agents/skills/verify-squad-coordination/references/extensions-coverage.json\n M .agents/skills/verify-squad-delivery/references/correspondence.md\n M .agents/skills/verify-squad-delivery/references/coverage.json\n M .agents/skills/verify-squad-handoff/references/composition-coverage.json\n M .agents/skills/verify-squad-handoff/references/correspondence.md\n M .agents/skills/verify-squad-handoff/references/coverage.json\n M .agents/skills/verify-squad-host-retry/references/correspondence.md\n M .agents/skills/verify-squad-host-retry/references/coverage.json\n M .agents/skills/verify-squad-local-effects/references/coverage.json\n M src/model-adapter.ts\n?? .agents/skills/verify-squad-authority/references/drift-review-kej-109-composition.json\n?? .agents/skills/verify-squad-authority/references/drift-review-kej-109.json\n?? .agents/skills/verify-squad-coordination/references/drift-review-kej-109.json\n?? .agents/skills/verify-squad-delivery/references/drift-review-kej-109.json\n?? .agents/skills/verify-squad-handoff/references/drift-review-kej-109.json\n?? .agents/skills/verify-squad-host-retry/references/drift-review-kej-109.json\n?? .agents/skills/verify-squad-local-effects/references/drift-review-kej-109.json",
+  "allCoveredSourcesMatchReviewedCommit": true,
+  "environmentFailure": {
+    "evidence": "reports/verify-squad-delivery/kej-109-audited",
+    "reason": "TLC Java RMI Listen failed on port 0 / Operation not permitted inside sandbox; not a property counterexample. Retried unchanged command in approved outer executor.",
+    "syncNotAdvancedForFailure": true
+  },
+  "metadataAdvance": "Full check and independent readback succeeded with the old sync metadata. Advanced sync to 8f4a1ac only after proving all 65 covered files equal that commit; source/producer/model unchanged. Reverified recorded evidence after metadata update, without claiming another full run."
+}
