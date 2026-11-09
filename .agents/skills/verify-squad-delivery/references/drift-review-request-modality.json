@@ -1,0 +1,19 @@
+{
+  "base": "a40f8456f63452baaef951470ad917c885fe47b5",
+  "file": "src/model-adapter.ts",
+  "oldSha256": "d6c3cd08fbcba3049a743143c59a5591324d34b87435657fb43f183f4aa833d6",
+  "newSha256": "97d56380e7f631bbe5cc3f2b0dbbc01fe374c1a1196b4e3f95212ac37d87f1b3",
+  "classification": "Interpretation/check prompt wording only; preserve raw user modality and explicit prohibitions",
+  "review": [
+    "Full diff adds a shared constant and two prompt insertions only. No changes to output schemas, parsing, source citation checks, budgets, retries, timeout, transport, tool calls, event generation or state transitions.",
+    "Existing Delivery/Verification/Cycles/SourceLineage finite models represent accepted results, validation events, publication and lineage. Prompt wording is outside their state domain; raw request/response controls and code negative controls stay unchanged.",
+    "BT_I23 inspects actual adapter request wiring and frozen raw inputs even with an intentionally stronger interpreted criterion. This cannot prove provider semantic compliance; unchanged real task inputs are separately re-executed."
+  ],
+  "validation": {
+    "status": "verified",
+    "evidence": "reports/verify-squad-delivery/20261109T141513Z-17123",
+    "seconds": 128.0654379319999,
+    "independentReadback": "exit 0; 290 artifacts verified",
+    "scope": "Four unchanged finite slices with baseline/restored TLC, dual-store edge replay, reachability and real-code negative controls. Prompt semantic compliance remains a real-provider validation boundary."
+  }
+}

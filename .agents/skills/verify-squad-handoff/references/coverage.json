@@ -1,5 +1,5 @@
 {
-  "syncCommit": "8f4a1acb31f1aa9d73996e60dbb9aa3becce0596",
+  "syncCommit": "95ae75c91689ad4e94a78d7bdc86cbdf490dd593",
   "bounds": {
     "tasks": 1,
     "owner": "A",
@@ -54,7 +54,7 @@
     "src/task/map-reduce.ts": "601bd32e42920fb7696294c1a0e550b3717be095ce02ab1be3502848100c3dc7",
     "src/host-retry.ts": "e68e16d090b7c76d5bc8ec18f2cb01c9c33730090d98a001bd7f3fd49ba1ba31",
     "src/host-session.ts": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab",
-    "src/delivery-acceptance.ts": "e725df453b3f9916b528bd15f3f1792b17afd4c1709057ce8757bf4eac053d07",
+    "src/delivery-acceptance.ts": "99b639b34ad8c3db33030de3ad280fc708f864ee1e4aa6711278c0b1659484bc",
     "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
     "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
     "src/local-skills.ts": "8f1548221fab864d3c33c397b814d6d883ed7e0783da41de48e748f92df4701f",
@@ -146,5 +146,6 @@
       "outcome": "updated",
       "scope": "Original Handoff and A2 finite scopes, properties and real-code controls preserved."
     }
-  ]
+  ],
+  "mapReduceLiveReview": "references/drift-review-map-reduce-live.json"
 }
