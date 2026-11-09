@@ -106,7 +106,8 @@ export function automaticRevisionActive(c: TaskContext): boolean {
 type CheckDisposition = { kind: 'handoff' | 'complete' | 'revise' | 'finish' | 'retry'; code?: string; detail?: string; checked?: true; diagnostic?: CheckDiagnostic };
 
 export function saveCheckDiagnostic(c: TaskContext, work: Intent, diagnostic: CheckDiagnostic | undefined): void {
-  if (!diagnostic || !isBoundedCheck(work) || c.stopped || c.outcome !== null || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion) return;
+  if (!diagnostic || !['CHECK_SOURCE_QUOTE_MISMATCH', 'CHECK_SOURCE_NOT_FOUND'].includes(diagnostic.code)
+    || !isBoundedCheck(work) || c.stopped || c.outcome !== null || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion) return;
   const revision = (work.payload.candidate as Candidate | undefined)?.revision;
   if (!revision || revision !== c.candidate?.revision) return;
   const records = work.checkDiagnostics ??= [];
