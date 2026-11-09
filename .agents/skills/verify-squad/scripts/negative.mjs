@@ -67,6 +67,12 @@ try {
     const output = readFileSync(join(folder, 'failure.log'), 'utf8');
     normalExit(result, 1, `Mutation ${test.name}`);
     assert(output.includes(test.detects), `Mutation ${test.name} failed without the intended business assertion: ${test.detects}`);
+    const scenarios = JSON.parse(readFileSync(join(folder, 'cucumber.json'), 'utf8')).flatMap(feature => feature.elements.filter(element => element.type === 'scenario'));
+    assert.equal(scenarios.length, 1, 'A mutation must execute exactly its target scenario');
+    assert(scenarios[0].tags.some(tag => tag.name === `@${test.tag}`), 'Counterexample target identity must match');
+    const firstFailure = scenarios[0].steps.find(step => step.result.status === 'failed');
+    assert(firstFailure?.result.error_message?.includes(test.detects), 'The first failed Gherkin step must detect the intended business fault');
+
     const runs = browserRuns(join(directory, 'reports/verify-squad'), 'failed');
     assert.equal(runs.length, 1, 'A mutation executes exactly one original browser contract');
     if (existsSync(join(directory, 'reports/verify-squad'))) {
