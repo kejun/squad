@@ -53,7 +53,7 @@ node .agents/skills/verify-squad/scripts/negative.mjs
 - 原五组代表流程：`--feature all` 完整退出 0；rooms/reports/control/assistance/layout 全部 completed，`run.status=verified`。证据：`reports/verify-squad/2026-11-09T02-34-36.830Z-14487/`。
 - 8 项故障检出：`reports/verify-squad-negative/2026-11-09T02-33-55.840Z-13253/negative.json`。八项均成功构建、正常退出 1、signal=null，由目标原 Gherkin 的第一个失败步骤检出；不是编译失败或外层进程超时。逐份读回八个负向 manifest，均 failed 且清理全 true；恢复后四份均 verified 且清理全 true，故障工作树已移除。
 - 严格入口追加烟测：`reports/verify-squad-negative/2026-11-09T02-38-02.459Z-19719/`，状态行破坏被正常业务失败检出；该入口强制检查进程正常退出和全部负向清理，再恢复原四项全绿。
-- 执行环境：Node v24.22.1、Playwright 1.62.1、Chromium 155.0.8059.79，截图实际使用 Noto Sans CJK 字形。每次运行保留截图/trace、服务日志、模型 HTTP、快照和只读 SQLite 证据。
+- 执行环境：Node v24.22.1、Playwright 1.62.1、Chromium 155.0.8059.79，截图实际使用 Noto Sans CJK 字形。每次运行保留截图/trace、服务日志、模型 HTTP、快照和只读 SQLite 证据。上述早期清理字段只覆盖当时已登记的检查，后代进程保证由下方补验取代。
 
 | 隔离产品故障 | 被原契约检出的行为 |
 | --- | --- |
@@ -67,6 +67,25 @@ node .agents/skills/verify-squad/scripts/negative.mjs
 | 每次重试生成新消息 ID | BT_U09 原请求去重身份丢失 |
 
 本票不验证真实供应方的回答质量、Pi Durable、金额、硬件断电或外部 CLI 恰好执行一次，也不把五组代表流程扩大为全部网页功能验收。
+
+## 宿主后代进程清理补验
+
+最终交叉审查发现，早期 `tsx` 启动方式可能留下独立编译服务，单看父 PID 退出不足以证明清理完成。改用 Node `--experimental-transform-types` 和共享的绝对路径 `tests/fixtures/typescript-loader.mjs` 后，新增进程组检查又实际检出了本环境沙箱探测留下的 `bwrap` 孤儿僵尸。因此没有将「父退出」放宽成「清理成功」。
+
+实现提交 `5d7990c1791e604a99da54b83c97b09d6194d151` 使用一个专用 Python 3 监督器：监督器与真实 Node app 分别拥有独立进程组，Linux 监督器设置 subreaper；只等待和回收它创建的应用及其后代。停止/离线 SIGKILL 只发送到本轮登记的应用组，监督器留在组外完成 `waitpid`。所属验证器丢失或关闭输出管道时触发有界清理；后代若另建会话，最后的有界回退也只处理监督器自己收养的直接后代。无需改变生产沙箱、能力探测或工具权限。
+
+Doctor、ready 和 `instance.json` 使用真实 Node PID；`run.appProcesses` 分别保存实际 app PID/PGID、实际退出码/信号、supervisor PID/PGID、监督器正常退出及已回收 PID。Node app 和监督器的实际 PGID 均须等于各自 PID，所有登记组都完全消失后才记录 `cleanup.processGroupGone=true`。loader 与监督器源码摘要也随运行记录；loader 读取在受保护的启动阶段内，缺失时仍进入清理。
+
+补验结果：
+
+- 原四场景直接执行 4/4、180/180 通过；随后在已提交 `5d7990c` 的隔离工作树再次完整恢复重跑四项全绿。
+- 同一已提交 SHA 的原五组 `rooms/reports/control/assistance/layout` 全部通过，证据为 `reports/verify-squad/2026-11-09T02-54-23.869Z-29168/`。三次实际应用启动和各自监督器均退出并回收，最终 `processGroupGone=true`。
+- 离线故障检出及恢复：`reports/verify-squad-negative/2026-11-09T02-53-41.776Z-28677/negative.json`。`offline-working-spinner` 被 BT_U09 的原业务断言检出，正常退出 1；负向 app 28780 实际 SIGKILL，supervisor 28779 正常退出并回收 28794/28780，负向清理全部通过。恢复原实现后四项全部 verified。
+- 恢复后的 U09 中，真实 Node app 30526 实际因 SIGKILL 退出，supervisor 30525 回收 app 与探测后代 30541 后正常退出；重连后的 Node 30853 与 supervisor 30852 同样清理完成。逐份读回负向、恢复四项和五组回归的所有清单，并向其登记 PGID 作只读存活检查，均确认进程组已经不存在。
+- 外层失败检查故意提供不存在的浏览器模块。验收正确失败，但 Node 28632、探测后代 28646 由 supervisor 28631 回收，监督器正常退出，全部清理字段为 true；证据 `reports/verify-squad-supervisor-failure/1794192801560/`。这项仅证明外层启动失败的清理，不计为产品场景通过。
+- 日志、Cucumber 与跨清单读回结果：`reports/kej-102/native-process-cleanup/`。本地监督器使用 Python 3.12.14；Linux CI 显式准备 Python 3。
+
+早期无 subreaper 的失败轮留下了已由 PID 1 收养的僵尸；当前父进程不能对这些历史进程调用 `waitpid`，它们没有计入新运行的清理保证。没有操作 PID 1 或无关进程，也不声称整个执行环境全局零残留。本票的新保证严格限定为每次清单登记的 app、supervisor 及其后代；这些补验均已完成回收。
 
 ## 操作与判断记录
 
