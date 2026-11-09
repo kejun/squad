@@ -44,10 +44,13 @@ const require = createRequire(join(root, 'package.json'));
 const run = { status: 'running', feature: selected, source: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
   workingTree: execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(),
   node: process.version, evidence, state, database, completed: [], doctor: [], cleanup: {} };
-let fixture, child, browser, context, page, port, url, timer, cleanupPromise;
+let fixture, child, appProcess, appReaped, browser, context, page, port, url, timer, cleanupPromise;
 const failures = [];
 const observed = {};
 const posted = [];
+const ownedProcessGroups = new Set();
+run.appProcesses = [];
+run.appRuntime = { typescript: 'node --experimental-transform-types', loader: 'tests/fixtures/typescript-loader.mjs', supervisor: '.agents/skills/verify-squad/scripts/app-supervisor.py' };
 run.steps = [];
 run.verificationInputs = ['verify.mjs', 'model-fixture.mjs', 'doctor.mjs', 'build-proof.mjs'].map(file => ({ file, sha256: createHash('sha256').update(readFileSync(join(root, '.agents/skills/verify-squad/scripts', file))).digest('hex') }));
 
@@ -73,18 +76,55 @@ async function freePort() {
   await new Promise(resolve => server.close(resolve));
   return value;
 }
+function processGroupGone(pid) {
+  try { process.kill(-pid, 0); return false; }
+  catch (error) { if (error.code === 'ESRCH') return true; throw error; }
+}
+function signalOwnedGroup(pid, signal) {
+  assert(ownedProcessGroups.has(pid), 'Only a process group created by this run may receive a signal');
+  try { process.kill(-pid, signal); }
+  catch (error) { if (error.code !== 'ESRCH') throw error; }
+}
 async function stopApp(signal = 'SIGTERM') {
   if (!child) return;
   const owned = child;
-  if (owned.exitCode === null && owned.signalCode === null) {
-    const ended = once(owned, 'exit');
-    owned.kill(signal);
-    const killTimer = setTimeout(() => owned.kill('SIGKILL'), 5000);
-    try { await ended; } finally { clearTimeout(killTimer); }
+  if (!appProcess) {
+    // A startup failure can precede the app-PID message. The owned supervisor
+    // handles TERM, stops its own app group and reaps before it closes.
+    const closed = owned.exitCode === null && owned.signalCode === null
+      ? new Promise(resolve => owned.once('close', resolve)) : Promise.resolve();
+    if (Number.isInteger(owned.pid) && ownedProcessGroups.has(owned.pid)) signalOwnedGroup(owned.pid, 'SIGTERM');
+    const deadline = setTimeout(() => { if (ownedProcessGroups.has(owned.pid)) signalOwnedGroup(owned.pid, 'SIGKILL'); }, 8000);
+    try { await closed; } finally { clearTimeout(deadline); }
+    if (appProcess) return stopApp('SIGTERM');
+    assert(!owned.pid || processGroupGone(owned.pid), 'Failed startup supervisor must be gone');
+    child = undefined;
+    return;
   }
-  log('app-stopped', { pid: owned.pid, code: owned.exitCode, signal: owned.signalCode });
+  const app = appProcess;
+  assert(app && ownedProcessGroups.has(app.appPid), 'The real Node app must belong to an owned detached process group');
+  const ended = owned.exitCode === null && owned.signalCode === null ? once(owned, 'close') : Promise.resolve();
+  if (!processGroupGone(app.appPid)) signalOwnedGroup(app.appPid, signal);
+  const killTimer = setTimeout(() => signalOwnedGroup(app.appPid, 'SIGKILL'), 5000);
+  try {
+    await ended;
+    assert.equal(owned.exitCode, 0, 'The retained supervisor must finish reaping normally');
+    assert.equal(owned.signalCode, null, 'The retained supervisor must survive app termination');
+    assert.equal(appReaped?.appPid, app.appPid);
+    assert.equal(appReaped?.reapedAll, true, 'All owned app descendants must be reaped');
+    if (signal === 'SIGKILL') assert.equal(appReaped.appExit.signal, 'SIGKILL', 'Offline acceptance must lose the actual Node app by SIGKILL');
+    await until(async () => processGroupGone(app.appPid) && processGroupGone(owned.pid), gone => gone, `owned app process group ${app.appPid} is gone`, 5000);
+  } finally { clearTimeout(killTimer); }
+  const proof = { pid: app.appPid, processGroup: app.appPid, ...appReaped.appExit,
+    supervisorPid: owned.pid, supervisorProcessGroup: owned.pid, supervisorExitCode: owned.exitCode, supervisorSignal: owned.signalCode,
+    reapedPids: appReaped.reapedPids, reapedAll: true, processGroupGone: true };
+  run.appProcesses.push(proof);
+  log('app-stopped', proof);
   child = undefined;
+  appProcess = undefined;
+  appReaped = undefined;
 }
+
 async function launch() {
   port ??= await freePort();
   url = `http://127.0.0.1:${port}`;
@@ -92,9 +132,32 @@ async function launch() {
     WEB_PORT: String(port), WEB_DATABASE: database, MODEL_BASE_URL: fixture.url,
     MODEL_NAME: 'squad-verification-fixture', MODEL_NO_AUTH: 'true', MODEL_JSON_MODE: 'true', SQUAD_WEB_TOOLS_ENABLED: 'false', SQUAD_LOCAL_SKILLS_ROOTS: join(state, 'skills'), SQUAD_WORKSPACE_ROOT: workspace };
   const output = [];
-  const loader = pathToFileURL(require.resolve('tsx')).href;
-  child = spawn(process.execPath, ['--import', loader, join(root, 'scripts/web.ts')], { cwd: state, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const loader = pathToFileURL(join(root, run.appRuntime.loader)).href;
+  run.appRuntime.loaderSha256 = createHash('sha256').update(readFileSync(join(root, run.appRuntime.loader))).digest('hex');
+  run.appRuntime.supervisorSha256 = createHash('sha256').update(readFileSync(join(root, run.appRuntime.supervisor))).digest('hex');
+  appProcess = undefined;
+  appReaped = undefined;
+  child = spawn('python3', ['-u', join(root, run.appRuntime.supervisor), String(process.pid), process.execPath,
+    '--experimental-transform-types', '--loader', loader, join(root, 'scripts/web.ts')],
+    { cwd: state, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
   child.on('error', error => failures.push(error.message));
+  assert(Number.isInteger(child.pid), 'Owned app supervisor must have a process-group leader PID');
+  ownedProcessGroups.add(child.pid);
+  let control = '';
+  child.stdout.on('data', chunk => {
+    control += chunk.toString();
+    let end;
+    while ((end = control.indexOf('\n')) >= 0) {
+      const line = control.slice(0, end); control = control.slice(end + 1);
+      if (!line.startsWith('SQUAD_BROWSER_APP ')) continue;
+      const value = JSON.parse(line.slice('SQUAD_BROWSER_APP '.length));
+      assert.equal(value.supervisorPid, child.pid);
+      assert.equal(value.supervisorProcessGroup, child.pid, 'Supervisor must own a detached group');
+      assert.equal(value.processGroup, value.appPid, 'The actual Node app must own its group');
+      if (value.phase === 'spawned') { appProcess = value; ownedProcessGroups.add(value.appPid); }
+      if (value.phase === 'reaped') appReaped = value;
+    }
+  });
   for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => {
     output.push(chunk.toString()); appendFileSync(join(evidence, 'server.log'), chunk);
   });
@@ -102,14 +165,14 @@ async function launch() {
     assert(child.exitCode === null && child.signalCode === null, `App exited: ${output.join('')}`);
     assert.equal(failures.length, 0, failures.join('\n'));
     return output.join('');
-  }, text => text.includes(`Squad API: ${url}`), 'owned server ready');
-  log('app-launched', { pid: child.pid, url, database });
-  writeFileSync(join(evidence, 'instance.json'), JSON.stringify({ pid: child.pid, url, database, root, source: run.source }, null, 2));
+  }, text => appProcess && text.includes(`Squad API: ${url}`), 'owned Node app server ready');
+  log('app-launched', { pid: appProcess.appPid, processGroup: appProcess.processGroup, supervisorPid: child.pid, url, database, runtime: run.appRuntime });
+  writeFileSync(join(evidence, 'instance.json'), JSON.stringify({ pid: appProcess.appPid, processGroup: appProcess.processGroup, supervisorPid: child.pid, url, database, root, source: run.source }, null, 2));
   await doctor();
 }
 async function doctor() {
   assert(child && child.exitCode === null && child.signalCode === null, 'Owned child must be alive');
-  const value = await inspectInstance({ pid: child.pid, url, database, root });
+  const value = await inspectInstance({ pid: appProcess.appPid, url, database, root });
   run.doctor.push(value);
   log('doctor', value);
 }
@@ -749,7 +812,7 @@ async function performCleanup() {
   if (fixture) await fixture.close();
   rmSync(state, { recursive: true, force: true });
   rmSync(workspace, { recursive: true, force: true });
-  run.cleanup = { stateRemoved: !existsSync(state) && !existsSync(workspace), appStopped: !child, browserClosed: !browser?.isConnected(), evidenceRetained: existsSync(actions) };
+  run.cleanup = { stateRemoved: !existsSync(state) && !existsSync(workspace), appStopped: !child, processGroupGone: [...ownedProcessGroups].every(pid => processGroupGone(pid)), browserClosed: !browser?.isConnected(), evidenceRetained: existsSync(actions) };
 }
 async function interrupted(reason) {
   run.status = 'failed';

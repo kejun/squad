@@ -33,7 +33,7 @@ export SQUAD_PLAYWRIGHT_MODULE="$SQUAD_BROWSER_RUNNER/node_modules/playwright/in
 node "$SQUAD_BROWSER_RUNNER/node_modules/playwright/cli.js" install chromium
 ```
 
-默认启动配套 Chromium，已有浏览器时用 `SQUAD_CHROMIUM` 指定绝对可执行路径。先实际启动并记录版本，确认中文可显示。Linux 可检查 `fc-match ':charset=4e2d'`；截图旁的 `*.fonts.json` 记录实际平台字体和 glyphCount。缺中文字形时修复环境再重跑。Google Fonts 请求被阻止并记录，使用系统字体，这不验证远程字体的视觉效果。
+Linux 验收另需 Python 3，用于只管理本轮应用的 subreaper 监督器；CI 显式准备该依赖。应用使用 Node `--experimental-transform-types` 和绝对路径 `tests/fixtures/typescript-loader.mjs` 启动，避免 SIGKILL 后遗留 tsx 编译服务。默认启动配套 Chromium，已有浏览器时用 `SQUAD_CHROMIUM` 指定绝对可执行路径。先实际启动并记录版本，确认中文可显示。Linux 可检查 `fc-match ':charset=4e2d'`；截图旁的 `*.fonts.json` 记录实际平台字体和 glyphCount。缺中文字形时修复环境再重跑。Google Fonts 请求被阻止并记录，使用系统字体，这不验证远程字体的视觉效果。
 
 ## Doctor
 
@@ -80,7 +80,7 @@ TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumb
 
 ## Cleanup
 
-助手在成功、失败、SIGINT、SIGTERM 和 180 秒浏览器驱动期限后关闭自己创建的浏览器、应用子进程及模型夹具。应用先 SIGTERM，5 秒后仍未退出才对同一子进程 SIGKILL。移除临时数据库与构建链接，保留证据，并再次检查 `run.json` / `actions.jsonl` 存在。强制 SIGKILL 无法运行清理；残留只按本轮日志确认归属后处置，禁止按进程名批量杀进程。
+助手在成功、失败、SIGINT、SIGTERM 和 180 秒浏览器驱动期限后关闭自己创建的浏览器、应用子进程及模型夹具。应用属于独立进程组，先向本轮登记的应用组发送 SIGTERM，5 秒后仍未退出才向同一组 SIGKILL。Python 监督器留在组外，仅等待/回收自己创建的 Node 应用及其后代；Linux subreaper 会回收沙箱能力探测产生的孤儿。监督器正常退出后，必须检查应用组和监督器组均完全消失，`cleanup.processGroupGone=true` 才能通过。Doctor 和 ready 使用真实 Node app PID，不能以 Python PID代替。`appProcesses` 分别保存 app PID/PGID、实际退出信号、supervisor PID/退出与 reapedPids。监督器监控所属验证器丢失并在有界期限内清理自身后代，不按进程名操作系统其他进程。移除临时数据库与构建链接，保留证据，并再次检查 `run.json` / `actions.jsonl` 存在。强制 SIGKILL 无法运行清理；残留只按本轮日志确认归属后处置，禁止按进程名批量杀进程。
 
 若创建了 `SQUAD_BROWSER_RUNNER`，最后删除该变量指向的安装目录并 unset；保留证据。浏览器和系统字体安装属于执行环境，助手不删除它们。
 
