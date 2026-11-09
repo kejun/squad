@@ -59,7 +59,7 @@ tests/model-regeneration.test.ts tests/model-env.test.ts --maxWorkers=1
 node node_modules/typescript/bin/tsc -p tests/tsconfig.json --noEmit
 ```
 
-41 项现有适配器/重生成/环境配置回归通过；测试 TypeScript 检查通过。集成分支仍需统一 `npm run check`、生产构建与四套 formal drift 审查/门禁，不能把本票局部通过等同全部 CI。
+41 项现有适配器/重生成/环境配置回归通过；测试 TypeScript 检查通过。集成阶段又完成 437 项回归、1187 个直接 Gherkin 用例、覆盖门禁、构建、真实沙箱与四套 formal 对应审查及完整检查，见[集成记录](../../implementation/kej-102-105.md)。CI 结果以实际提交的运行和保留证据为准。
 
 ## 形式化边界影响
 

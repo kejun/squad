@@ -8,7 +8,7 @@ squad 是一个群聊协作工作台，依据中文 Gherkin 规格以 TypeScript
 
 ## 运行
 
-需要 Node.js 22.18+（22.x）或 24.11+，以满足 Agents SDK 的依赖要求。本次在 Node.js 24.19 上验证。XState 固定为 v5，依赖版本和完整性由 package-lock.json 记录。
+需要 Node.js 22.18+（22.x）或 24.11+，以满足 Agents SDK 的依赖要求。本轮使用 Node.js 24.22.1。XState 固定为 v5，依赖版本和完整性由 package-lock.json 记录。完整检查还需要 Python 3、Playwright、Chromium 和可显示中文的字体，安装方式见[浏览器验收技能](.agents/skills/verify-squad/SKILL.md#launch)；CI 已固定准备这些依赖。
 
 ```sh
 npm ci
@@ -93,7 +93,7 @@ npm start
 
 ## 状态模型
 
-模型成功响应的实际字节读取上限沿用既有失败、停止和检查结算路径，见[成功响应资源边界](docs/state-diagrams.md#模型成功响应资源边界bt_m38bt_m41)（BT_M38–M41）；无需新增任务状态。
+模型成功响应的实际字节读取上限沿用既有失败、停止和检查结算路径，见[成功响应资源边界](docs/state-diagrams.md#模型成功响应资源边界bt_m46bt_m49)（BT_M46–M49）；无需新增任务状态。
 
 CLI 外部效果后的真实宿主终止沿用已领取操作 → uncertain → 可信核对或持久回执续办的既有路径；BT_L06 的进程屏障、重复恢复和停止边界见[效果后宿主崩溃](docs/state-diagrams.md#效果后宿主崩溃kej-103)。该依赖接线验证不增加状态或调度权限。
 
@@ -280,6 +280,7 @@ CHECK_MODEL_NAME=YOUR_CHECK_MODEL
 | `JSON_MODE` | `B_MODEL_JSON_MODE=false` | 是否发送 JSON 输出格式参数 |
 | `TEMPERATURE` | `MODEL_TEMPERATURE=0.2` | 温度 |
 | `MAX_TOKENS` | `MODEL_MAX_TOKENS=8192` | 单次输出 Token 上限 |
+| `MAX_RESPONSE_BYTES` | `CHECK_MODEL_MAX_RESPONSE_BYTES=8388608` | 成功响应实际解压后字节上限，默认 8 MiB；超限取消并明确失败 |
 | `CONTEXT_WINDOW_TOKENS` | `CHECK_MODEL_CONTEXT_WINDOW_TOKENS=131072` | 可选。完成检查发送固定材料前，按该模型上下文容量做保守预检 |
 | `EXTRA_BODY` | `MODEL_EXTRA_BODY={"enable_thinking":false}` | 供应商扩展 JSON 参数 |
 
@@ -353,7 +354,7 @@ mentions 是编辑器实际点名得到的成员身份；不要从引用资料�
 
 Gherkin 已直接覆盖消息路由、协助、监督、黑板、人类控制、额度、交付、群历史、成员评审、模型传输和 Markdown 渲染。全部未登记为待验收的场景及例子必须直接通过；回归关联不能代替直接执行。覆盖报告同时检查唯一场景编号、排除登记与执行遗漏，场景说明见 features/README.md。
 
-尚待验收的要求保持原文并逐项记录原因：features/06_durability.feature 要求真实 Pi Durable 接入；BT_U01、U02、U03、U09 仍需完整浏览器交互验收；BT_F06 仍需费用及未知费用展示。当前 SQLite 故障回归、评审恢复与 Markdown 服务端渲染测试不冒充这些验收。
+BT_U01、U02、U03、U09 已通过真实 Chromium 逐条执行，并纳入默认检查。尚待验收的要求保持原文并逐项记录原因：features/06_durability.feature 要求真实 Pi Durable 接入；BT_F06 仍需费用及未知费用展示。当前 SQLite 故障回归不冒充 Pi Durable 接入验收。
 
 后续集成工作集中在 Pi Durable 的 WorkAdapter 与宿主唤醒、真实供应商联调与通用工具接入、自然语言目标/意图提取。网页已提供已有产物的下载入口；文件是否实际生成仍取决于 WorkAdapter，不能把模型声称的文件当作产物。核心状态与 Gherkin 基线可继续复用。
 

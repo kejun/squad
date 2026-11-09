@@ -6,6 +6,8 @@
 
 报告区分直接执行的 Gherkin、仅关联的回归断言和明确待验收项。更新功能遵循根目录 `AGENTS.md` 的顺序。
 
+BT_U01、BT_U02、BT_U03、BT_U09 使用 `@real_browser`，由默认 BDD 逐条驱动真实 Chromium；运行前须按[浏览器验收技能](../.agents/skills/verify-squad/SKILL.md)准备 Playwright、浏览器及中文字体。默认入口先构建并核对源码与产物，截图、trace、HTTP/SQLite 观察和清理记录保留在 `reports/verify-squad/`。这些编号已从待验收登记移除；下方 2026-10-30 数字保留为历史记录。
+
 单测只补充场景无法清楚表达的验证形态，准入和评审记录遵循根目录 `AGENTS.md`。存量测试的逐项承接、直接执行及故障检出证据见 [KEJ-100 测试审计](../docs/testing/kej-100/README.md)；既有验收缺口继续如实登记。
 
 ## 场景粒度
