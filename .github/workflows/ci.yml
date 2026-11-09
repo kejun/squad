@@ -29,9 +29,15 @@ jobs:
       - name: Install sandbox dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes bubblewrap socat ripgrep
+          sudo apt-get install --yes bubblewrap socat ripgrep fonts-noto-cjk
       - name: Install locked dependencies
         run: npm ci
+      - name: Install pinned real browser runner
+        run: |
+          npm install --prefix "$RUNNER_TEMP/squad-browser" --no-package-lock --no-save playwright@1.62.1
+          node "$RUNNER_TEMP/squad-browser/node_modules/playwright/cli.js" install --with-deps chromium
+          echo "SQUAD_PLAYWRIGHT_MODULE=$RUNNER_TEMP/squad-browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+          fc-match ":charset=4e2d"
       - name: Verify real sandbox boundaries
         run: npm run verify:local-sandbox
       - name: Type checks, all tests, Gherkin and coverage
@@ -46,6 +52,11 @@ jobs:
           path: |
             test-results/
             reports/spec-coverage.md
+            reports/spec-coverage.json
+            reports/verify-squad/
+            reports/kej-103/
+            reports/verify-sqlite-crash/
+            reports/kej-105*/
           if-no-files-found: warn
           retention-days: 14
 

@@ -1,9 +1,12 @@
 import { mkdirSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { runNode } from './check-runner.mjs';
+import { build } from './build.mjs';
 
 export async function runBdd() {
   mkdirSync('test-results', { recursive: true });
+  const built = await build();
+  if (built !== 0) return built;
   const gaps = JSON.parse(readFileSync('features/acceptance-gaps.json', 'utf8'));
   const excluded = Object.keys(gaps).map(tag => `@${tag}`);
   const tagArgs = excluded.length ? ['--tags', `not (${excluded.join(' or ')})`] : [];
