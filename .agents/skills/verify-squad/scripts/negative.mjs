@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 // Mutations live only in an owned detached worktree. The acceptance assertions
@@ -33,6 +33,21 @@ function command(program, args, path, log, timeout = 180_000) {
   writeFileSync(log, (result.stdout ?? '') + (result.stderr ?? '') + (result.error ? String(result.error) : ''));
   return result;
 }
+function normalExit(result, status, label) {
+  assert.equal(result.error, undefined, `${label}: external process failure is not behavioral evidence`);
+  assert.equal(result.signal, null, `${label}: a killed process is not behavioral evidence`);
+  assert.equal(result.status, status, `${label}: expected a normal exit ${status}`);
+}
+function browserRuns(path, status) {
+  const runs = readdirSync(path).map(name => JSON.parse(readFileSync(join(path, name, 'run.json'), 'utf8')));
+  assert(runs.length, 'Browser evidence must exist');
+  for (const run of runs) {
+    assert.equal(run.status, status, `Browser run must be ${status}`);
+    assert.equal(run.source, source, 'Browser run must use the isolated source commit');
+    assert(Object.values(run.cleanup).length > 0 && Object.values(run.cleanup).every(value => value === true), 'Every owned browser/app/state must be cleaned, including negative runs');
+  }
+  return runs;
+}
 try {
   const added = spawnSync('git', ['worktree', 'add', '--detach', directory, source], { encoding: 'utf8' });
   assert.equal(added.status, 0, added.stderr);
@@ -47,23 +62,27 @@ try {
     const mutated = test.all ? original.replaceAll(test.from, test.to) : original.replace(test.from, test.to);
     writeFileSync(path, mutated);
     const build = command(process.execPath, ['scripts/build.mjs'], directory, join(folder, 'build.log'));
-    assert.equal(build.status, 0, `Mutation ${test.name} must build; failures must be behavioral`);
+    normalExit(build, 0, `Mutation ${test.name} build`);
     const result = command(process.execPath, ['--import', 'tsx', 'node_modules/@cucumber/cucumber/bin/cucumber.js', 'features', '--import', 'tests/bdd/*.ts', '--tags', `@${test.tag}`, '--format', 'progress', '--format', `json:${join(folder, 'cucumber.json')}`], directory, join(folder, 'failure.log'));
     const output = readFileSync(join(folder, 'failure.log'), 'utf8');
-    assert.notEqual(result.status, 0, `Mutation survived: ${test.name}`);
+    normalExit(result, 1, `Mutation ${test.name}`);
     assert(output.includes(test.detects), `Mutation ${test.name} failed without the intended business assertion: ${test.detects}`);
+    const runs = browserRuns(join(directory, 'reports/verify-squad'), 'failed');
+    assert.equal(runs.length, 1, 'A mutation executes exactly one original browser contract');
     if (existsSync(join(directory, 'reports/verify-squad'))) {
       cpSync(join(directory, 'reports/verify-squad'), join(folder, 'browser'), { recursive: true });
       rmSync(join(directory, 'reports/verify-squad'), { recursive: true });
     }
-    report.results.push({ mutation: test.name, scenario: test.tag, file: test.file, mutatedSha256: createHash('sha256').update(mutated).digest('hex'), exitCode: result.status, signal: result.signal, detectedBy: test.detects });
+    report.results.push({ mutation: test.name, scenario: test.tag, file: test.file, mutatedSha256: createHash('sha256').update(mutated).digest('hex'), exitCode: result.status, signal: result.signal, cleanupVerified: true, detectedBy: test.detects });
     writeFileSync(path, original);
     console.log(`Killed ${test.name} with ${test.tag}: ${test.detects}`);
   }
   const restored = command(process.execPath, ['scripts/build.mjs'], directory, join(evidence, 'restored-build.log'));
-  assert.equal(restored.status, 0);
+  normalExit(restored, 0, 'Restored build');
   const positive = command(process.execPath, ['--import', 'tsx', 'node_modules/@cucumber/cucumber/bin/cucumber.js', 'features', '--import', 'tests/bdd/*.ts', '--tags', '@BT_U01 or @BT_U02 or @BT_U03 or @BT_U09', '--format', 'progress', '--format', `json:${join(evidence, 'restored-cucumber.json')}`], directory, join(evidence, 'restored.log'));
-  assert.equal(positive.status, 0, readFileSync(join(evidence, 'restored.log'), 'utf8'));
+  normalExit(positive, 0, 'Restored original contracts');
+  const runs = browserRuns(join(directory, 'reports/verify-squad'), 'verified');
+  assert.deepEqual(runs.flatMap(run => run.completed).sort(), ['BT_U01', 'BT_U02', 'BT_U03', 'BT_U09']);
   cpSync(join(directory, 'reports/verify-squad'), join(evidence, 'restored-browser'), { recursive: true });
   report.restored = '4 original browser contracts passed';
 } finally {
