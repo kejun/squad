@@ -21,7 +21,7 @@
     "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
     "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
     "src/local-operation.ts": "7f635776d9c0ceabb69074af06f03c0ea05a24270720cbfea16ee29a980f8f2c",
-    "src/model-adapter.ts": "d6c3cd08fbcba3049a743143c59a5591324d34b87435657fb43f183f4aa833d6",
+    "src/model-adapter.ts": "97d56380e7f631bbe5cc3f2b0dbbc01fe374c1a1196b4e3f95212ac37d87f1b3",
     "src/local-cli.ts": "db577455e9fb60f5d12e0cc6af6980c52eec7f8fbec0cbc3ff3a34223092e69e",
     "src/task.machine.ts": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
     "src/darwin-process.ts": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b",
@@ -138,6 +138,11 @@
     {
       "review": "references/drift-review-map-delivery.json",
       "scope": "Current-goal delivered map evidence projection; existing four formal slices have no map decomposition.",
+      "status": "verified with independent evidence readback"
+    },
+    {
+      "review": "references/drift-review-request-modality.json",
+      "scope": "Prompt-only change; no finite model transition or validation rule change.",
       "status": "verified with independent evidence readback"
     }
   ],

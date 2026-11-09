@@ -1269,6 +1269,9 @@ stateDiagram-v2
 模型层复验 `tests/input-intent.test.ts` 的输入结果绑定、去重、失败恢复与角色上下文路径后，才修改适配器。
 这避免将 host 的 replacesArtifactId 指令混入用户约束，不保证消除模型自行虚构条件；原始输入仍为验收权威。
 
+BT_I23 沿用上述 interpreting → running 及 DELIVER → checking 路径，状态模型与冻结原文不变。仅调整解释和检查的指令边界：保留“无需”与“禁止”的不同语义，不从资料齐备说明推导额外执行审计；解释加强了条件时，检查仍按对应 ID 核验原文实际要求，不丢弃用户明确禁令或明确要求的审计证据。先复验真实 XState 的输入绑定、冻结交付与引用路径，再验证两类请求均收到此边界。受控提示接线不证明自然语言判断正确；语义效果须另行真实模型验收。
+BT_I24 反向验证明确“必须离线、不得联网、禁止发送及外部写入、必须提供审计证据”保持在原文与冻结要求中；CHECK_RESULT 含 unverified 仍沿用 ended(partial)，不能因“无需”语义规则或其余业务结果正确而发布。
+
 ### 协议字段诊断与输出容量失败（BT_M31、BT_M32）
 类型：现有真实 XState 转移与适配器边界；源码所有者 `src/task.machine.ts`、`src/model-adapter.ts`。
 - `running --REGENERATE_MODEL_OUTPUT [合法在途工作且有重试额度] / 增加既有修复计数--> running`：仅追加白名单字段名和固定规则，不保存或回显无效正文，不补字段、不改变校验与额度。
