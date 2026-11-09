@@ -1,5 +1,5 @@
 {
-  "syncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+  "syncCommit": "32c26b376b46ae1a03718a6820683b59b802b413",
   "bounds": {
     "tasks": 1,
     "owner": "A",
@@ -16,15 +16,15 @@
     "src/engine.ts": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
     "src/store.ts": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
     "src/runner.ts": "c6fb4e04da43e021634db60108ae33ebbe36c5f304efe953a0384b34ce622e69",
-    "src/types.ts": "f8a70d5b344164eaff896ae11e40b84f7e0aff88f528724243847c906f1bc85d",
+    "src/types.ts": "cefccc84532d9c55b36a8f3278988347e72a417f634066e020703a13c24497fa",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
     "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
     "src/presentation.ts": "44b39afe5955d6d95cc127f1d4a8e90a8961bdb9daa9c547e7d2d0f25b84a1b5",
     "src/conversation.ts": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
-    "src/model-env.ts": "99dfbe11350e7c3c446fc13a1a61414ebbf4e73a999439f22e85441c3b26f530",
+    "src/model-env.ts": "7f8bb277dab42d749c82dab229d66cbb508e1af83b78986895da41956a9e6cf0",
     "src/index.ts": "79ef24ede132e36388df54ccbb8e6e48efc472adff3c13d57f68ce745b98e331",
     "team.config.ts": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb",
-    "package.json": "4d64527e75fc3a19c94e0e25ee490918a62d7a96681d212dce97c7f66e2bef93",
+    "package.json": "3116143dffa7c27a4fc9a8892e08603d754bc5e2f506752b500d874befb0ab3c",
     "package-lock.json": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
     "src/task/discussion.ts": "0bdf97c5438d24d381a194d6fc6406282044d41c5b5d5ba5c9f73cf1234bfa7b",
     "src/task/input.ts": "284080d64d88149851e0f058fd4aaa8c56a2d1c141c84b26acc453e2b6fe9efe",
@@ -63,15 +63,14 @@
     "src/task/map-reduce-capacity.ts": "6397480888beae4db09321f45453a7d315bce56d8bcd4fe7b646f438ac171b6f"
   },
   "review": {
-    "date": "2026-11-08",
-    "head": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
-    "basis": "references/drift-review-kej-106.json",
+    "date": "2026-11-09",
+    "head": "32c26b376b46ae1a03718a6820683b59b802b413",
+    "basis": "references/drift-review-kej-102-105.json",
     "status": "verified",
-    "previousSyncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa",
-    "initialBlockedEvidence": "reports/verify-squad-handoff/kej-106-initial",
-    "previousEvidence": "reports/verify-squad-handoff/kej-106-final",
-    "evidence": "reports/verify-squad-handoff/kej-106-final-engine",
-    "runSyncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa"
+    "previousSyncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+    "initialBlockedEvidence": "reports/verify-squad-handoff/kej-102-105-initial",
+    "evidence": "reports/verify-squad-handoff/kej-102-105-controlled-env",
+    "runSyncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b"
   },
   "maintenanceReviews": [
     {
@@ -117,6 +116,25 @@
       ],
       "validation": "reports/verify-squad-handoff/kej-106-final-engine",
       "outcome": "updated"
+    },
+    {
+      "issues": [
+        "KEJ-102",
+        "KEJ-103",
+        "KEJ-104",
+        "KEJ-105"
+      ],
+      "review": "references/drift-review-kej-102-105.json",
+      "reviewedCommit": "32c26b376b46ae1a03718a6820683b59b802b413",
+      "previousSyncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+      "changedCoveredFiles": [
+        "src/types.ts",
+        "src/model-env.ts",
+        "package.json"
+      ],
+      "validation": "reports/verify-squad-handoff/kej-102-105-controlled-env",
+      "outcome": "updated",
+      "scope": "Same original finite slices; HTTP resource caps and actual process/SQLite crash acceptance remain independent."
     }
   ]
 }

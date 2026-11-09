@@ -67,11 +67,13 @@ python3 .agents/skills/verify-squad-handoff/scripts/check.py --verify-evidence "
 
 ## Coverage and synchronization
 
-KEJ-106 当前审查产品基线为 `3d81b0792d9c00c16bbc59fa4f2914bcccc0189b`。初轮 `facts.ts`/`reducer.ts` 审查后，最终增量仅改变 `engine.ts` 的 ended 任务恢复选择；本切片逐项排除 discussionId，故退休谓词恒false、普通 ended 仍跳过，原交接状态域保持。最终源码完整检查、独立读回及旧版证据区别见 [KEJ-106 审查](references/drift-review-kej-106.json) 的 engineIncrement。handoff图将RECOVER事务与flush拆开，不动态覆盖新增的ended讨论选择分支；该行为由 coordination 的公共入口实例与产品场景承接，不扩张为成员占用或物理效果证明。以下保留历史对应记录。
+本轮 KEJ-102–105 对应审查及完整检查已通过，当前同步产品/包基线为 `32c26b376b46ae1a03718a6820683b59b802b413`。逐文件分类、原样漂移、受控环境、真实负对照、恢复后复验及独立读回见 [本轮审查](references/drift-review-kej-102-105.json)。原模型、性质、公平性和边界保持；成功响应字节限制与真实进程/SQLite 崩溃验收不扩大本技能的有限保证。成功后仅推进同步元数据并复核指纹、读回原证据，不冒称又完整运行一次。
+
+KEJ-106 历史审查产品基线为 `3d81b0792d9c00c16bbc59fa4f2914bcccc0189b`。初轮 `facts.ts`/`reducer.ts` 审查后，最终增量仅改变 `engine.ts` 的 ended 任务恢复选择；本切片逐项排除 discussionId，故退休谓词恒false、普通 ended 仍跳过，原交接状态域保持。最终源码完整检查、独立读回及旧版证据区别见 [KEJ-106 审查](references/drift-review-kej-106.json) 的 engineIncrement。handoff图将RECOVER事务与flush拆开，不动态覆盖新增的ended讨论选择分支；该行为由 coordination 的公共入口实例与产品场景承接，不扩张为成员占用或物理效果证明。以下保留历史对应记录。
 
 历史引用修复审查基线为 `756074087685bed3f52f0e6b6e06caf19c587a01`（产品代码 `3ee6c875bbde0f802eae954d9017ffe5663a3cfc`）。49个覆盖文件中两项冻结输入引用传递依赖变化，经逐文件及切片断言审查后，完整模型/双存储回放/真实负对照及独立读回通过。见[BT_F31审查](references/drift-review-raw-input-citation.json)。下文保留历史基线；当前哈希见 coverage.json。
 
-KEJ-100 当前依赖审查基线为 `c1f380da1527b8c22a8aaaaf7aef10cd2695146e`；仅 `package.json` 的空单测集合处理变化，产品源码、模型、性质、边界和回放均沿用原审查。当前指纹及运行状态见 [KEJ-100 审查记录](references/drift-review-kej-100.json) 与 [coverage.json](references/coverage.json)。下列 PR40 基线为产品源码对应审查的历史记录。
+KEJ-100 历史依赖审查基线为 `c1f380da1527b8c22a8aaaaf7aef10cd2695146e`；仅 `package.json` 的空单测集合处理变化，产品源码、模型、性质、边界和回放均沿用原审查。当前指纹及运行状态见 [KEJ-100 审查记录](references/drift-review-kej-100.json) 与 [coverage.json](references/coverage.json)。下列 PR40 基线为产品源码对应审查的历史记录。
 
 PR40 产品源码对应审查：`21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR40 的已审 head）。PR40 的逐文件变更分类、旧新指纹与未覆盖新行为见 [drift-review-pr40.json](references/drift-review-pr40.json)；函数级对应见 [correspondence.md](references/correspondence.md)，精确同步与哈希见 [coverage.json](references/coverage.json)。更早审查保留在 [drift-review-2026-11-06.json](references/drift-review-2026-11-06.json)。这些记录是漂移门禁与人工审查，不是任意 TypeScript 等价证明。
 
@@ -100,3 +102,6 @@ PR40 产品源码对应审查：`21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR4
 - [TLA+ Tools CLI](https://github.com/tlaplus/tlaplus/blob/master/USE.md)：工具运行方式。
 - [固定 v1.7.4 发行说明](https://github.com/tlaplus/tlaplus/releases/tag/v1.7.4)：发行版本和原始校验值。
 - 结构与维护流程改编自 [pstack](https://github.com/cursor/plugins/tree/99b609a72323b70204eab407c622f436e858e112/pstack/skills/create-formal-verification-skill)，保留 [MIT LICENSE](LICENSE)。
+
+
+托管宿主若仅注入 `MODEL_API_KEY` 而没有模型端点，`team.config.ts` 的模块默认导出会在回放前报配置错误。验证命令可加前缀 `env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true`，仅给当前进程提供导入前提；实际回放仍使用显式固定配置，不调用该地址，也不修改用户 `.env`。本轮原配置失败及受控重跑证据均保留。
