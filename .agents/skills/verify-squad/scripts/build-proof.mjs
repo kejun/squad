@@ -12,16 +12,20 @@ function files(root, path) {
   return readdirSync(join(root, path)).sort().flatMap(name => files(root, join(path, name)));
 }
 function sourceInputs(root) {
-  const paths = ['src', 'web/src', 'web/public', 'web/index.html', 'web/vite.config.ts', 'web/tsconfig.json', 'scripts/web.ts', 'team.config.ts', 'tsconfig.json', 'package.json', 'package-lock.json'];
+  const paths = ['src', 'web/src', 'web/public', 'web/index.html', 'web/vite.config.ts', 'web/tsconfig.json', 'scripts/web.ts', 'team.config.ts', 'tsconfig.json', 'package.json', 'package-lock.json', 'scripts/build.mjs', '.agents/skills/verify-squad/scripts/build-proof.mjs'];
   return paths.flatMap(path => files(root, path)).map(path => ({ path, sha256: hash(readFileSync(join(root, path))) }));
 }
 function bundles(root) {
   return files(root, 'dist/web').filter(path => !path.endsWith('/build-proof.json')).map(path => ({ path: relative('dist/web', path), sha256: hash(readFileSync(join(root, path))) }));
 }
-export function recordBuild(root = process.cwd()) {
+export function captureSource(root = process.cwd()) {
   const inputs = sourceInputs(root);
-  const proof = { source: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
-    sourceInputSha256: hash(JSON.stringify(inputs)), inputs, bundles: bundles(root), builtAt: new Date().toISOString() };
+  return { source: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceInputSha256: hash(JSON.stringify(inputs)), inputs };
+}
+export function recordBuild(root = process.cwd(), before = undefined) {
+  const current = captureSource(root);
+  if (before) assert.deepEqual(current, before, 'Source changed during build; rebuild from stable inputs');
+  const proof = { ...current, bundles: bundles(root), builtAt: new Date().toISOString() };
   assert(proof.bundles.length > 1, 'A production web bundle must exist');
   writeFileSync(join(root, 'dist/web/build-proof.json'), JSON.stringify(proof, null, 2));
   return proof;

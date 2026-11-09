@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer } from 'node:net';
@@ -9,12 +10,14 @@ import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
-import { startFixture, report } from './model-fixture.mjs';
+import { startFixture, report, revisedReport } from './model-fixture.mjs';
 import { inspectInstance } from './doctor.mjs';
+import { verifyBuild } from './build-proof.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const args = process.argv.slice(2);
 const allowed = ['rooms', 'reports', 'control', 'assistance', 'layout'];
+const browserContracts = ['BT_U01', 'BT_U02', 'BT_U03', 'BT_U09'];
 if (args.includes('--help')) {
   console.log('Usage: verify.mjs [--feature rooms|reports|control|assistance|layout|all] [--evidence ABSOLUTE_NEW_DIRECTORY]\nRequires npm ci, npm run build, Playwright and Chromium. See SKILL.md.');
   process.exit(0);
@@ -25,13 +28,16 @@ function option(name, fallback) {
   assert(args[i + 1] && !args[i + 1].startsWith('--'), `Missing ${name} value`);
   return args[i + 1];
 }
-for (let i = 0; i < args.length; i += 2) assert(['--feature', '--evidence'].includes(args[i]), `Unknown option: ${args[i]}`);
-const selected = option('--feature', 'rooms');
-assert([...allowed, 'all'].includes(selected), `Unknown feature: ${selected}`);
+for (let i = 0; i < args.length; i += 2) assert(['--feature', '--evidence', '--bdd'].includes(args[i]), `Unknown option: ${args[i]}`);
+const contract = option('--bdd', undefined);
+if (contract) assert(process.send && browserContracts.includes(contract), 'Browser contracts require Cucumber IPC and a known original scenario');
+const selected = contract || option('--feature', 'rooms');
+assert([...allowed, ...browserContracts, 'all'].includes(selected), `Unknown feature: ${selected}`);
 const evidence = resolve(option('--evidence', join(root, 'reports/verify-squad', new Date().toISOString().replaceAll(':', '-') + '-' + process.pid)));
 assert(!existsSync(evidence), 'Use a new evidence directory; existing proof is never overwritten');
 mkdirSync(evidence, { recursive: true });
 const state = mkdtempSync(join(tmpdir(), 'squad-verify-'));
+const workspace = mkdtempSync(join(tmpdir(), 'squad-verify-workspace-'));
 const database = join(state, 'team.sqlite');
 const actions = join(evidence, 'actions.jsonl');
 const require = createRequire(join(root, 'package.json'));
@@ -40,6 +46,11 @@ const run = { status: 'running', feature: selected, source: execFileSync('git', 
   node: process.version, evidence, state, database, completed: [], doctor: [], cleanup: {} };
 let fixture, child, browser, context, page, port, url, timer, cleanupPromise;
 const failures = [];
+const observed = {};
+const posted = [];
+run.steps = [];
+run.verificationInputs = ['verify.mjs', 'model-fixture.mjs', 'doctor.mjs', 'build-proof.mjs'].map(file => ({ file, sha256: createHash('sha256').update(readFileSync(join(root, '.agents/skills/verify-squad/scripts', file))).digest('hex') }));
+
 const log = (action, detail = {}) => appendFileSync(actions, JSON.stringify({ at: new Date().toISOString(), action, ...detail }) + '\n');
 async function until(get, predicate, label, timeout = 15_000) {
   const start = Date.now();
@@ -62,12 +73,12 @@ async function freePort() {
   await new Promise(resolve => server.close(resolve));
   return value;
 }
-async function stopApp() {
+async function stopApp(signal = 'SIGTERM') {
   if (!child) return;
   const owned = child;
   if (owned.exitCode === null && owned.signalCode === null) {
     const ended = once(owned, 'exit');
-    owned.kill('SIGTERM');
+    owned.kill(signal);
     const killTimer = setTimeout(() => owned.kill('SIGKILL'), 5000);
     try { await ended; } finally { clearTimeout(killTimer); }
   }
@@ -79,7 +90,7 @@ async function launch() {
   url = `http://127.0.0.1:${port}`;
   const env = { PATH: process.env.PATH, HOME: state, TMPDIR: state, NODE_ENV: 'production',
     WEB_PORT: String(port), WEB_DATABASE: database, MODEL_BASE_URL: fixture.url,
-    MODEL_NAME: 'squad-verification-fixture', MODEL_NO_AUTH: 'true', MODEL_JSON_MODE: 'true', SQUAD_WEB_TOOLS_ENABLED: 'false' };
+    MODEL_NAME: 'squad-verification-fixture', MODEL_NO_AUTH: 'true', MODEL_JSON_MODE: 'true', SQUAD_WEB_TOOLS_ENABLED: 'false', SQUAD_LOCAL_SKILLS_ROOTS: join(state, 'skills'), SQUAD_WORKSPACE_ROOT: workspace };
   const output = [];
   const loader = pathToFileURL(require.resolve('tsx')).href;
   child = spawn(process.execPath, ['--import', loader, join(root, 'scripts/web.ts')], { cwd: state, env, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -113,6 +124,7 @@ async function capture(name) {
     if (nodeId) {
       const fonts = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
       writeFileSync(join(evidence, `${name}.fonts.json`), JSON.stringify(fonts, null, 2));
+      assert(fonts.fonts.some(font => font.glyphCount > 0 && /Noto Sans CJK|WenQuanYi|Microsoft YaHei|PingFang|Source Han|Droid Sans Fallback/i.test(font.familyName)), 'Capture must use actual Chinese font glyphs');
     }
   } finally { await cdp.detach(); }
   await page.screenshot({ path: join(evidence, `${name}.png`), fullPage: true });
@@ -374,18 +386,370 @@ async function layout() {
   await page.getByRole('complementary', { name: '群聊和成员' }).getByRole('button', { name: '收起导航', exact: true }).click();
   await page.setViewportSize({ width: 1440, height: 1000 });
 }
+const statusRow = () => page.locator('.task-status-row');
+const taskButton = () => page.locator('.task-status-button');
+const inputBox = () => page.getByRole('textbox', { name: '群聊消息输入框' });
+const timeline = () => page.getByRole('log', { name: '群聊消息', exact: true });
+async function snapshotProof(name, room = observed.room) {
+  const snapshot = await get(`/api/rooms/${room.id}`);
+  writeFileSync(join(evidence, `${name}.snapshot.json`), JSON.stringify(snapshot, null, 2));
+  const db = new DatabaseSync(database, { readOnly: true });
+  try {
+    const stored = JSON.parse(db.prepare('SELECT data FROM rooms WHERE id=?').get(room.id).data);
+    writeFileSync(join(evidence, `${name}.sqlite-proof.json`), JSON.stringify(stored, null, 2));
+  } finally { db.close(); }
+  return snapshot;
+}
+async function running(room) {
+  return until(() => get(`/api/rooms/${room.id}`), s => s.works.some(w => w.kind === 'owner' && w.status === 'inflight'), 'owner is executing');
+}
+async function rememberRow(phase) {
+  await statusRow().waitFor({ state: 'visible' });
+  assert.equal(await statusRow().count(), 1, 'One task has exactly one status row');
+  await statusRow().waitFor({ state: 'visible' });
+  const handle = await statusRow().elementHandle();
+  if (!observed.row) observed.row = handle;
+  assert.equal(await handle.evaluate((element, original) => element === original, observed.row), true, `The ${phase} phase must update the original DOM status row`);
+  observed.phases ??= [];
+  observed.phases.push({ phase, text: await statusRow().innerText() });
+  await capture(`state-${phase}`);
+}
+async function prepareState() {
+  observed.room = await newRoom();
+  await send('VERIFY_STATE 连续状态与真实工具记录');
+  await running(observed.room);
+  await rememberRow('running');
+}
+async function receiveStates() {
+  fixture.release('state-owner');
+  await until(() => get(`/api/rooms/${observed.room.id}`), s => s.tasks[0]?.phase === 'waitingAssistance', 'waiting for B');
+  await taskButton().getByText('等待协助', { exact: true }).waitFor();
+  await rememberRow('waitingAssistance');
+  fixture.release('state-assistance');
+  await done(observed.room, 'A');
+  await taskButton().getByText('已完成', { exact: true }).waitFor();
+  await rememberRow('complete');
+  observed.final = await snapshotProof('state-complete');
+}
+async function assertTimeline() {
+  const snapshot = observed.final;
+  assert(snapshot.messages.some(m => m.kind === 'help' && m.author === 'A'));
+  assert(snapshot.messages.some(m => m.kind === 'answer' && m.author === 'B'));
+  assert(snapshot.messages.some(m => m.author === 'facilitator' && m.text.includes('已交给 A')));
+  assert(snapshot.events.some(event => event.kind === 'tool-start'), 'A real local-tool invocation must precede detail assertions');
+  assert(snapshot.events.some(event => event.kind === 'tool-result'));
+  assert.deepEqual(snapshot.messages.map(message => [message.kind, message.author, message.text]), [
+    ['user', 'user', 'VERIFY_STATE 连续状态与真实工具记录'],
+    ['help', 'A', '核对原始来源'],
+    ['answer', 'B', 'B 已核对原始来源'],
+    ['notice', 'facilitator', 'B 的核查结果已交给 A，已安排继续完善方案。'],
+    ['final', 'A', '验证任务已完成，请查看报告。'],
+  ], 'State updates must not create extra persisted status messages');
+  // Compare the displayed message identities with the persisted conversation;
+  // status transitions must not produce extra synthetic messages.
+  const rendered = timeline().locator('.message');
+  assert.equal(await rendered.count(), snapshot.messages.length, 'Timeline contains exactly the persisted actual messages');
+  assert.deepEqual(await timeline().locator('.message-text').allTextContents(), snapshot.messages.map(message => message.text), 'Timeline preserves each actual statement in order');
+  for (const event of snapshot.events.filter(event => ['tool-start', 'tool-result'].includes(event.kind))) {
+    assert.equal(await timeline().getByText(event.detail, { exact: true }).count(), 0, `Raw execution record ${event.id} must stay outside the timeline`);
+  }
+  log('timeline-contract', { messages: snapshot.messages.map(m => ({ id: m.id, kind: m.kind, author: m.author })), events: snapshot.events.length });
+}
+async function assertCollapsed() {
+  await page.getByRole('complementary', { name: '群聊和成员' }).getByRole('button', { name: '查看方案师的执行过程' }).click();
+  const details = page.getByRole('complementary', { name: '方案师的执行过程', exact: true });
+  const trigger = details.getByRole('button', { name: /查看本地技能/ }).first();
+  await trigger.waitFor();
+  assert.equal(await trigger.getAttribute('aria-expanded'), 'false', 'Raw tool details start collapsed');
+  await trigger.click();
+  assert.equal(await trigger.getAttribute('aria-expanded'), 'true');
+  await details.getByText('来源：任务执行 · 轮次 1', { exact: true }).first().waitFor();
+  await capture('state-tool-expanded');
+  await trigger.click();
+  assert.equal(await trigger.getAttribute('aria-expanded'), 'false');
+}
+async function basics() {
+  const first = observed.room;
+  const second = await newRoom(true);
+  await click('button', '点名成员');
+  await click('option', 'Builder 2 @builder-2');
+  assert.match(await inputBox().inputValue(), /@builder-2/);
+  await inputBox().fill('@builder-2');
+  await inputBox().press('Enter');
+  await until(() => inputBox().inputValue(), text => text === '@builder-2 ', 'keyboard mention completion');
+  await send('@builder-2 VERIFY_STOP 单页面停止与继续', true);
+  observed.room = second;
+  observed.beforeStop = await running(second);
+  observed.placeholder = await until(() => inputBox().getAttribute('placeholder'), text => text?.startsWith('补充当前工作'), 'active task input placeholder');
+  await capture('basic-running');
+  await click('button', '停止');
+  await until(() => get(`/api/rooms/${second.id}`), s => s.tasks[0]?.outcome === 'stopped', 'user stop persisted');
+  await until(() => fixture.cancelled, n => n > 0, 'provider request aborted by Stop');
+  await capture('basic-stopped');
+  const firstSnapshot = await get(`/api/rooms/${first.id}`);
+  await page.getByRole('navigation', { name: '群聊列表' }).getByRole('button', { name: firstSnapshot.room.title, exact: true }).click();
+  await until(() => page.evaluate(() => localStorage.getItem('squad-room')), id => id === first.id, 'switch to first room');
+  const secondSnapshot = await get(`/api/rooms/${second.id}`);
+  await page.getByRole('navigation', { name: '群聊列表' }).getByRole('button', { name: secondSnapshot.room.title, exact: true }).click();
+  await until(() => page.evaluate(() => localStorage.getItem('squad-room')), id => id === second.id, 'switch back to stopped task');
+}
+async function inputAndContinue() {
+  await click('button', '继续执行', false);
+  const continued = await done(observed.room, 'builder-2');
+  assert.equal(continued.tasks.length, 1);
+  assert.equal(continued.tasks[0].id, observed.beforeStop.tasks[0].id);
+  assert(continued.tasks[0].trace.some(entry => entry.event === 'STOP'));
+  assert(continued.tasks[0].trace.some(entry => entry.event === 'CONTINUE'));
+  assert(continued.events.some(event => event.kind === 'cancelled'), 'The stopped execution remains visible in history');
+  await capture('basic-continued');
+  observed.room = await newRoom();
+  await send('VERIFY_INPUT 执行中的真实补充');
+  await running(observed.room);
+  await until(() => inputBox().getAttribute('placeholder'), text => text?.startsWith('补充当前工作'), 'active task input placeholder');
+  await send('追加资料：验收必须保留来源');
+  const received = await until(() => get(`/api/rooms/${observed.room.id}`), s => s.messages.some(m => m.text === '追加资料：验收必须保留来源'), 'supplement persisted while owner is running');
+  assert.equal(received.tasks.length, 1, 'Midflight input stays in the original task');
+  await timeline().getByText('追加资料：验收必须保留来源', { exact: true }).waitFor();
+  await capture('input-received');
+  fixture.release('input-owner');
+  const waiting = await until(() => get(`/api/rooms/${observed.room.id}`), s => s.tasks[0]?.phase === 'waitingHuman' && s.works.filter(work => work.kind === 'owner').length >= 2, 'explicit user question after supplement handoff');
+  await timeline().getByText('请确认是否采用追加资料中的来源要求？', { exact: true }).waitFor();
+  assert.match(await page.locator('.task-status-row').innerText(), /等待你的回复/);
+  await capture('input-waiting-human');
+  await send('确认采用来源要求');
+  const completed = await done(observed.room, 'A');
+  assert.equal(completed.tasks[0].id, waiting.tasks[0].id);
+  const requests = readFileSync(join(evidence, 'model-http.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+  assert(requests.some(request => request.goal?.includes('VERIFY_INPUT') && request.hasSupplement), 'The model receives the actual midflight supplement at a safe boundary');
+  await snapshotProof('input-complete');
+}
+async function retryFromHelp() {
+  observed.room = await newRoom();
+  await send('VERIFY_RETRY 浏览器原求助重试');
+  const before = await until(() => get(`/api/rooms/${observed.room.id}`), s => s.tasks[0]?.phase === 'waitingHuman' && s.tasks[0].assists?.some(help => help.retryable), 'retryable assistance');
+  await timeline().getByText('核查中断，请重试 B', { exact: true }).waitFor();
+  await capture('retry-failed');
+  await timeline().getByRole('button', { name: '重试 B 的这次协助', exact: true }).first().click();
+  const after = await done(observed.room, 'A');
+  assert.equal(after.tasks.length, 1);
+  assert.equal(after.tasks[0].id, before.tasks[0].id);
+  assert.deepEqual(after.works.filter(w => w.kind === 'assistance').map(w => w.agentId), ['B', 'B']);
+  assert.equal(after.messages.filter(m => m.author === 'facilitator' && m.text.includes('已交给 A')).length, 1);
+  await snapshotProof('retry-complete');
+}
+async function prepareDetails() {
+  observed.room = await newRoom();
+  await send('VERIFY_DETAILS 来源版本与按需详情');
+  observed.final = await done(observed.room, 'A');
+  for (const kind of ['tool-start', 'tool-result', 'error', 'output']) assert(observed.final.events.some(event => event.kind === kind && event.agentId === 'A'), `A must have real ${kind} events`);
+  assert(observed.final.tasks[0].artifacts.length);
+  await snapshotProof('details-seed');
+}
+async function openDetails() {
+  await taskButton().click();
+  await page.getByRole('complementary', { name: '结果详情', exact: true }).waitFor();
+  await capture('details-task');
+  observed.taskText = await page.getByRole('complementary', { name: '结果详情', exact: true }).innerText();
+  await page.getByRole('complementary', { name: '群聊和成员' }).getByRole('button', { name: '查看方案师的执行过程' }).click();
+  await page.getByRole('complementary', { name: '方案师的执行过程', exact: true }).waitFor();
+  assert.equal(await page.locator('.details').count(), 1, 'Task and member records share one details area');
+  await capture('details-agent');
+}
+async function detailSources() {
+  const details = page.getByRole('complementary', { name: '方案师的执行过程', exact: true });
+  const work = observed.final.works.find(w => w.kind === 'owner');
+  assert(work.reason);
+  await details.getByText(work.reason, { exact: true }).first().waitFor();
+  const tool = details.getByRole('button', { name: /查看本地技能/ }).first();
+  assert.equal(await tool.getAttribute('aria-expanded'), 'false');
+  await tool.click();
+  await details.getByText('来源：任务执行 · 轮次 1', { exact: true }).first().waitFor();
+  await details.getByRole('button', { name: /模型输出格式不合规，重新生成/ }).first().click();
+  await capture('details-sources-errors');
+}
+async function artifactVersion() {
+  const artifact = observed.final.tasks[0].artifacts[0];
+  await click('tab', '产物', false);
+  await page.getByRole('complementary', { name: '方案师的执行过程', exact: true }).getByRole('button', { name: `查看 ${artifact.name}`, exact: true }).click();
+  const preview = page.getByRole('complementary', { name: '报告预览', exact: true });
+  await preview.getByRole('heading', { name: '验证报告', exact: true }).waitFor();
+  assert.match(await preview.innerText(), /来源/);
+  assert.match(await preview.innerText(), /方案师/);
+  observed.agentArtifactText = await preview.innerText();
+  await capture('details-agent-artifact');
+  await taskButton().click();
+  await page.getByRole('complementary', { name: '结果详情', exact: true }).getByRole('button', { name: `查看 ${artifact.name}`, exact: true }).click();
+  await preview.getByRole('heading', { name: '验证报告', exact: true }).waitFor();
+  assert.equal(await preview.innerText(), observed.agentArtifactText, 'Task and member entries resolve the same report, source and version');
+  await click('button', '引用到新任务');
+  await send('VERIFY_REVISION 根据已引用原报告补齐回执核对');
+  const revision = await until(() => get(`/api/rooms/${observed.room.id}`), s => s.tasks.length === 2 && s.tasks[1].outcome === 'complete', 'referenced report revision complete');
+  const revisedTask = revision.tasks[1];
+  assert.equal(revisedTask.sourceArtifact.sourceTaskId, observed.final.tasks[0].id);
+  assert.equal(revisedTask.sourceArtifact.artifactId, artifact.id);
+  assert.equal(revisedTask.sourceArtifact.revision, artifact.revision);
+  assert.equal(revisedTask.artifacts[0].content, revisedReport);
+  assert.equal(revision.tasks[0].artifacts[0].content, report, 'Original version stays unchanged');
+  await taskButton().getByText(revisedTask.goal, { exact: true }).waitFor();
+  await taskButton().click();
+  const result = page.getByRole('complementary', { name: '结果详情', exact: true });
+  await result.getByRole('button', { name: '查看 verification-report-v2.md', exact: true }).click();
+  await preview.getByRole('heading', { name: '修订验证报告', exact: true }).waitFor();
+  const sourceLink = preview.getByRole('button', { name: /来源.*verification-report.md/ });
+  await sourceLink.waitFor();
+  const sourceLabel = await sourceLink.innerText();
+  assert.match(sourceLabel, /来源 verification-report.md/);
+  await capture('details-revision-source');
+  await sourceLink.click();
+  await preview.getByRole('heading', { name: '验证报告', exact: true }).waitFor();
+  assert.equal(await preview.getByRole('heading', { name: '修订验证报告', exact: true }).count(), 0, 'Source link must resolve the original version');
+  await capture('details-original-from-source');
+  await page.getByRole('complementary', { name: '群聊和成员' }).getByRole('button', { name: '查看方案师的执行过程' }).click();
+  await click('tab', '产物', false);
+  const artifacts = page.getByRole('complementary', { name: '方案师的执行过程', exact: true });
+  await artifacts.getByRole('button', { name: '查看 verification-report-v2.md', exact: true }).click();
+  await preview.getByRole('heading', { name: '修订验证报告', exact: true }).waitFor();
+  await preview.getByRole('button', { name: '来源 verification-report.md', exact: true }).waitFor();
+  await capture('details-revision-from-member');
+  await snapshotProof('details-artifact-version');
+}
+async function prepareOffline() {
+  observed.room = await newRoom();
+  await send('VERIFY_RECONNECT 活动刷新与宿主重连');
+  observed.beforeOffline = await running(observed.room);
+  await capture('offline-before-refresh');
+  await page.reload();
+  await page.getByText('已连接', { exact: true }).waitFor();
+  await timeline().getByText('VERIFY_RECONNECT 活动刷新与宿主重连', { exact: true }).waitFor();
+  const refreshed = await get(`/api/rooms/${observed.room.id}`);
+  assert.equal(refreshed.tasks[0].id, observed.beforeOffline.tasks[0].id);
+  assert.equal(refreshed.tasks.length, 1);
+  await capture('offline-active-refreshed');
+  await stopApp('SIGKILL');
+  await page.getByText('连接中断', { exact: true }).first().waitFor();
+  observed.offlineText = await timeline().innerText();
+  observed.offlineWorks = observed.beforeOffline.works;
+}
+async function noOfflineProgress() {
+  // Poll through two actual failed requests; elapsed time alone is not evidence.
+  let failedPolls = 0;
+  const listener = request => { if (request.url().startsWith(url + '/api/')) failedPolls++; };
+  page.on('requestfailed', listener);
+  try { await until(async () => failedPolls, count => count >= 2, 'two failed offline polls', 12_000); }
+  finally { page.off('requestfailed', listener); }
+  assert.equal(await timeline().innerText(), observed.offlineText, 'No new conversation progress appears while the host is absent');
+  assert.equal(await inputBox().isDisabled(), true);
+  assert.equal(await page.locator('.is-working').count(), 0, 'Offline host cannot be presented as executing');
+  await capture('offline-no-progress');
+}
+async function reconnect() {
+  await launch();
+  await page.getByText('已连接', { exact: true }).waitFor(); // No reload: exercise automatic reconnection.
+  const after = await done(observed.room, 'A');
+  assert.equal(after.tasks.length, 1);
+  assert.equal(after.tasks[0].id, observed.beforeOffline.tasks[0].id);
+  const oldWork = observed.beforeOffline.works.find(w => w.kind === 'owner');
+  assert.equal(after.works.filter(w => w.kind === 'owner').length, 1, 'Recovery preserves the safe work identity');
+  assert.equal(after.works.find(w => w.kind === 'owner').id, oldWork.id);
+  assert.equal(after.messages.filter(m => m.text === 'VERIFY_RECONNECT 活动刷新与宿主重连').length, 1);
+  await snapshotProof('offline-reconnected');
+}
+async function lostReceiptRetry() {
+  observed.room = await newRoom();
+  let lost = false;
+  const route = async route => {
+    if (!lost && route.request().method() === 'POST') {
+      lost = true;
+      const realResponse = await route.fetch(); // The production service commits first.
+      assert.equal(realResponse.status(), 200);
+      log('real-response-lost', { path: new URL(route.request().url()).pathname });
+      return route.abort('failed'); // Drop only transport delivery, never invent API state.
+    }
+    return route.continue();
+  };
+  await page.route('**/api/rooms/*/messages', route);
+  await send('VERIFY_ROOMS 丢失回执后重试同一消息');
+  await page.getByRole('alert').waitFor();
+  assert.equal(await inputBox().inputValue(), 'VERIFY_ROOMS 丢失回执后重试同一消息', 'Failed send retains the draft');
+  await capture('retry-lost-receipt');
+  await page.unroute('**/api/rooms/*/messages', route);
+  await click('button', '发送消息');
+  const after = await done(observed.room, 'A');
+  const messages = posted.filter(post => post.path.endsWith('/messages') && JSON.parse(post.body).text === 'VERIFY_ROOMS 丢失回执后重试同一消息');
+  assert.equal(messages.length, 2, 'The browser performs the actual retry');
+  assert.equal(JSON.parse(messages[0].body).id, JSON.parse(messages[1].body).id, 'Retry keeps the original request identity');
+  assert.equal(after.messages.filter(m => m.text === 'VERIFY_ROOMS 丢失回执后重试同一消息').length, 1);
+  assert.equal(after.tasks.length, 1);
+  assert.equal(after.works.filter(w => w.kind === 'owner').length, 1);
+  await snapshotProof('retry-deduplicated');
+}
+const contractCommands = {
+  openRoom: async () => { observed.room = await newRoom(); await capture('basic-open'); },
+  basics,
+  placeholder: async () => assert.match(observed.placeholder, /^补充当前工作/),
+  singlePage: async () => { assert.equal(new URL(page.url()).pathname, '/'); assert.equal(await page.getByRole('link', { name: /设置|任务看板|审批/ }).count(), 0); },
+  inputAndContinue, retryFromHelp,
+  prepareState, receiveStates,
+  sameRow: async () => { assert.deepEqual(observed.phases.map(p => p.phase), ['running', 'waitingAssistance', 'complete']); writeFileSync(join(evidence, 'status-row.json'), JSON.stringify(observed.phases, null, 2)); },
+  timeline: assertTimeline, collapsed: assertCollapsed,
+  prepareDetails, openDetails,
+  sharedDetails: async () => { assert.equal(await page.locator('.details').count(), 1); assert.match(observed.taskText, /VERIFY_DETAILS/); await page.getByRole('complementary', { name: '方案师的执行过程', exact: true }).getByRole('tab', { name: /执行过程/ }).waitFor(); },
+  detailSources,
+  noHiddenReasoning: async () => { assert.doesNotMatch(await page.locator('.details').innerText(), /隐藏推理|chain.of.thought|hidden.reasoning/i); },
+  artifactVersion,
+  prepareOffline,
+  observeOffline: async () => { assert.equal(child, undefined); await page.getByText('连接中断', { exact: true }).first().waitFor(); await capture('offline-visible'); },
+  disconnected: async () => { assert.match(await taskButton().innerText(), /连接中断/); assert.equal(await page.getByRole('button', { name: '发送消息', exact: true }).isDisabled(), true); },
+  noOfflineProgress, reconnect, lostReceiptRetry,
+};
+const requiredCommands = {
+  BT_U01: ['openRoom', 'basics', 'placeholder', 'singlePage', 'inputAndContinue', 'retryFromHelp'],
+  BT_U02: ['prepareState', 'receiveStates', 'sameRow', 'timeline', 'collapsed'],
+  BT_U03: ['prepareDetails', 'openDetails', 'sharedDetails', 'detailSources', 'noHiddenReasoning', 'artifactVersion'],
+  BT_U09: ['prepareOffline', 'observeOffline', 'disconnected', 'noOfflineProgress', 'reconnect', 'lostReceiptRetry'],
+};
+async function driveContract() {
+  process.send({ id: 'ready', result: { evidence, source: run.source, browser: run.browser } });
+  await new Promise(resolve => {
+    let busy = false;
+    process.on('message', async message => {
+      if (message.command === 'close') { resolve(); return; }
+      try {
+        assert(!busy, 'Browser contract steps are sequential');
+        assert(requiredCommands[contract].includes(message.command), `Unexpected ${contract} command ${message.command}`);
+        busy = true;
+        await contractCommands[message.command]();
+        log('contract-step-pass', { contract, command: message.command });
+        run.steps.push(message.command);
+        process.send({ id: message.id, result: { command: message.command } });
+      } catch (error) {
+        run.error = error.stack;
+        failures.push(`${message.command}: ${error.message}`);
+        await capture('step-failure').catch(() => {});
+        process.send({ id: message.id, error: error.stack });
+      } finally { busy = false; }
+    });
+    process.once('disconnect', resolve);
+  });
+  assert.deepEqual(run.steps, requiredCommands[contract], 'Every original Gherkin requirement must execute in order');
+  assert.equal(failures.length, 0, failures.join('\n'));
+  run.completed.push(contract);
+}
+
 function cleanup() {
   cleanupPromise ??= performCleanup();
   return cleanupPromise;
 }
 async function performCleanup() {
   clearTimeout(timer);
+  if (page && !page.isClosed() && contract) await capture('contract-final').catch(e => failures.push(`capture: ${e.message}`));
   if (context) await context.tracing.stop({ path: join(evidence, 'trace.zip') }).catch(e => failures.push(`trace: ${e.message}`));
   if (browser) await browser.close().catch(e => failures.push(`browser cleanup: ${e.message}`));
   await stopApp();
   if (fixture) await fixture.close();
   rmSync(state, { recursive: true, force: true });
-  run.cleanup = { stateRemoved: !existsSync(state), appStopped: !child, browserClosed: !browser?.isConnected(), evidenceRetained: existsSync(actions) };
+  rmSync(workspace, { recursive: true, force: true });
+  run.cleanup = { stateRemoved: !existsSync(state) && !existsSync(workspace), appStopped: !child, browserClosed: !browser?.isConnected(), evidenceRetained: existsSync(actions) };
 }
 async function interrupted(reason) {
   run.status = 'failed';
@@ -403,7 +767,9 @@ process.once('SIGTERM', () => { void interrupted('SIGTERM'); });
 log('run-start', { source: run.source, feature: selected });
 try {
   assert(existsSync(join(root, 'dist/web/index.html')), 'Run npm run build first');
+  run.build = verifyBuild(root);
   symlinkSync(join(root, 'dist'), join(state, 'dist'), 'dir');
+  mkdirSync(join(state, 'skills'));
   fixture = await startFixture(join(evidence, 'model-http.jsonl'));
   await launch();
   const runtimeModule = process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES && join(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES, 'playwright/index.mjs');
@@ -425,13 +791,14 @@ try {
   page = await context.newPage();
   page.setDefaultTimeout(15_000);
   page.on('pageerror', error => failures.push(`pageerror: ${error.message}`));
-  page.on('request', request => { if (request.method() === 'POST') log('browser-post', { path: new URL(request.url()).pathname, body: request.postData() }); });
+  page.on('request', request => { if (request.method() === 'POST') { const value = { path: new URL(request.url()).pathname, body: request.postData() }; posted.push(value); log('browser-post', value); } });
   run.browser = browser.version();
   run.url = url;
   timer = setTimeout(() => { void interrupted('Global verification deadline (180s)'); }, 180_000);
   await page.goto(url);
   await page.getByText('已连接', { exact: true }).waitFor();
-  for (const name of selected === 'all' ? allowed : [selected]) {
+  if (contract) await driveContract();
+  for (const name of contract ? [] : selected === 'all' ? allowed : [selected]) {
     await doctor();
     log('feature-start', { feature: name });
     await ({ rooms, reports, control, assistance, layout })[name]();
@@ -449,8 +816,10 @@ try {
 } finally {
   try { await cleanup(); } catch (error) { failures.push(`cleanup: ${error.message}`); process.exitCode = 1; }
   run.failures = failures;
-  if (failures.length) run.status = 'failed';
+  if (failures.length) { run.status = 'failed'; process.exitCode = 1; }
   writeFileSync(join(evidence, 'run.json'), JSON.stringify(run, null, 2));
   assert(existsSync(join(evidence, 'run.json')) && existsSync(actions), 'Evidence must survive cleanup');
   console.log(JSON.stringify(run, null, 2));
 }
+
+if (process.connected) process.disconnect();

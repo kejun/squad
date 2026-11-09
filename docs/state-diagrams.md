@@ -800,6 +800,23 @@ flowchart TD
 
 ## 网页与观察
 
+### 网页原契约的浏览器验收
+
+图型：UI 投影与真实依赖接线验证；所有者：`Workspace/useWorkspace/Details`，业务事件所有者仍为 `taskMachine`。验收：BT_U01/U02/U03/U09。保留原 Gherkin 编号及业务要求，补齐执行中输入、等待原因、停止/继续/协助重试、产物来源版本、活动刷新与回执丢失重试。没有新增业务状态、事件、守卫或操作意图，无需改变 XState。
+
+```mermaid
+stateDiagram-v2
+    state "同一任务状态行" as Row
+    state "连接中断且保留旧记录" as Offline
+    Row --> Row: 快照更新 [taskId相同] / 更新执行、等待协助、等待用户或终态
+    Row --> Row: 直接用户补充、停止、继续或重试 [既有守卫通过] / HTTP提交可信命令
+    Row --> Offline: 轮询失败 [宿主不可用] / 禁用发送且不伪造进展
+    Offline --> Row: 自动重连 [同库恢复] / 同步同一任务及已保存记录
+    Row --> Row: 页面刷新或丢失回执后重试 [原请求身份] / 读取快照及返回原命令回执
+```
+
+输入与恢复复验沿用 `USER_INPUT → BOUNDARY`、`STOP → SETTLE → CONTINUE`、`RETRY_ASSISTANCE → RECORD_RESULT → HELP_RESULT`，以及已保存意图经 `RECOVER → CLAIM → CONSUME` 的安全接续。模型门槛先运行真实任务机器的 BT_C01–C08 与 BT_H10–H15；浏览器接线通过后才撤销四项 `manual_browser` 登记。时间线只投影实际消息，同一状态行持续更新；任务/成员/产物入口共用 Details，工具明细默认折叠。真实 Chromium、HTTP 与 SQLite 提供直接依赖证据；中文字体、截图、trace、构建源码摘要及清理结果随运行保存。受控模型只替换提供方 HTTP，不直接改 React 或数据库。
+
 ### 网页交互
 
 对应 React 状态和服务器快照的投影，不直接修改业务状态或调用模型。连接、发送与详情面板分别变化，分为三张图；它们不是一个实际 XState parallel 机器。

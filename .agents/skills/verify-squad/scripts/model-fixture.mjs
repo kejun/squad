@@ -2,6 +2,8 @@
 import { createServer } from 'node:http';
 import { appendFileSync } from 'node:fs';
 
+export const revisedReport = '# 修订验证报告\n\n修订版保留原报告来源，并增加回执核对结果。\n';
+
 export const report = '# 验证报告\n\n这是通过真实模型 HTTP 边界返回的完整产物。\n\n| 步骤 | 结果 |\n| --- | --- |\n| 保存 | 已完成 |\n\n来源：https://example.org/squad-verification\n';
 
 // Replace only the production provider boundary; the app still parses, budgets,
@@ -10,6 +12,7 @@ export async function startFixture(log) {
   const counts = new Map();
   const pending = new Set();
   const archivePending = new Map();
+  const barriers = new Map();
   let cancelled = 0;
   const server = createServer(async (req, res) => {
     try {
@@ -28,8 +31,40 @@ export async function startFixture(log) {
       const count = (counts.get(key) ?? 0) + 1;
       counts.set(key, count);
       const repair = request.messages.some(m => m.content.includes('model_output_validation_error'));
-      appendFileSync(log, JSON.stringify({ workId, goal, target, kind, count, repair }) + '\n');
+      appendFileSync(log, JSON.stringify({ workId, goal, target, kind, count, repair, hasSupplement: JSON.stringify(context).includes('追加资料：验收必须保留来源') }) + '\n');
       const respond = output => res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }] }));
+      const hold = (name, output) => {
+        pending.add(res);
+        const release = () => {
+          pending.delete(res); barriers.delete(name);
+          res.writeHead(200, { 'content-type': 'application/json' });
+          respond(output);
+        };
+        barriers.set(name, release);
+        res.on('close', () => { pending.delete(res); if (barriers.get(name) === release) barriers.delete(name); });
+        appendFileSync(log, JSON.stringify({ event: 'barrier-held', name, workId, goal }) + '\n');
+      };
+      if (kind === 'interpretation') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return respond({ type: 'interpretation', spec: { action: context.input.action, objective: context.goal.text,
+          constraints: ['验收必须保留来源'], expectedOutputs: [], acceptanceCriteria: [], references: [], confidence: 1, clarification: null } });
+      }
+      if (goal.includes('VERIFY_INPUT') && kind === 'owner' && count === 2) {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return respond({ type: 'askUser', question: '请确认是否采用追加资料中的来源要求？' });
+      }
+      if (goal.includes('VERIFY_STATE') && kind === 'owner' && count === 1) return hold('state-owner', { type: 'listSkills', query: 'browser verification' });
+      if (goal.includes('VERIFY_STATE') && kind === 'owner' && count === 2) {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return respond({ type: 'help', target: 'B', question: '核对原始来源', expected: '可追溯依据' });
+      }
+      if (goal.includes('VERIFY_STATE') && kind === 'assistance') return hold('state-assistance', { type: 'answer', text: 'B 已核对原始来源', summary: 'B 已核对原始来源' });
+      if (goal.includes('VERIFY_INPUT') && kind === 'owner' && count === 1) return hold('input-owner', { type: 'askUser', question: '请补充报告的来源要求。' });
+      if (goal.includes('VERIFY_RECONNECT') && kind === 'owner' && count === 1) return hold('reconnect-owner', { type: 'askUser', question: '不应看到的离线结果' });
+      if (goal.includes('VERIFY_DETAILS') && kind === 'owner' && count < 3) {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return respond(count === 1 ? { type: 'listSkills', query: 'browser verification' } : { type: 'deliver', text: 'invalid: missing artifactIds' });
+      }
       if (goal.includes('VERIFY_ARCHIVE') && kind === 'owner' && count === 1) {
         pending.add(res);
         archivePending.set(res, () => {
@@ -65,6 +100,7 @@ export async function startFixture(log) {
       if (kind === 'assistance') return respond({ type: 'answer', text: `${target} 已核查完成`, summary: `${target} 已核查完成` });
       if (goal.includes('VERIFY_RETRY') && count === 1) return respond({ type: 'help', target: 'B', question: '核查报告', expected: '依据' });
       if (goal.includes('VERIFY_RETRY') && count === 2) return respond({ type: 'askUser', question: '核查中断，请重试 B' });
+      if (goal.includes('VERIFY_REVISION')) return respond({ type: 'deliver', text: '已根据原报告生成修订版本。', summary: '验证任务已完成，请查看报告。', artifacts: [{ name: 'verification-report-v2.md', content: revisedReport }], artifactIds: [] });
       return respond({ type: 'deliver', text: '完整结果已保存到验证报告。', summary: '验证任务已完成，请查看报告。',
         artifacts: [{ name: 'verification-report.md', content: report }], artifactIds: [] });
     } catch (error) {
@@ -77,6 +113,7 @@ export async function startFixture(log) {
   return {
     url: `http://127.0.0.1:${server.address().port}/v1`,
     get cancelled() { return cancelled; },
+    release(name) { const release = barriers.get(name); if (!release) throw new Error(`No held provider request: ${name}`); release(); },
     releaseArchive() { for (const release of [...archivePending.values()]) release(); },
     async close() {
       for (const response of pending) response.destroy();

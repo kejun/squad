@@ -64,6 +64,20 @@ node .agents/skills/verify-squad/scripts/doctor.mjs /absolute/evidence/instance.
 
 使用合成输入。只模拟模型服务边界；不得拦截 `/api` 伪造成功、直接设置 React 状态、向数据库写预期结果或用内部事件跳过用户流程。证据可能含内容和本地路径，分享前检查。
 
+## 原网页契约与故障检出
+
+默认 `npm run check` / `npm run test:bdd` 包含 BT_U01/U02/U03/U09，必须有 Playwright、Chromium 和中文字体。CI 使用 Ubuntu 22.04、Node 24.22.1、Playwright 1.62.1 配套 Chromium 与 fonts-noto-cjk。`--bdd` 是 Cucumber 拥有的 IPC 入口，不是可绕过步骤的独立通过开关。
+
+只复跑四项时先 `npm run build`，再执行：
+
+```sh
+TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags '@BT_U01 or @BT_U02 or @BT_U03 or @BT_U09' --format progress
+```
+
+`run.json` 另存原场景编号、逐步通过记录、验证脚本摘要和 `dist/web/build-proof.json` 的构建输入/资源摘要。构建前后源码及 HEAD 必须相同；浏览器启动时再次核对源码、bundle 和提交。每张截图必须有实际中文字体 glyphCount 证据。断线使用当前拥有的宿主 PID 的 SIGKILL，重连不重载页面；回执丢失只丢弃已经真实提交的 HTTP 响应，不伪造 API 成功。
+
+故障检出运行 `node .agents/skills/verify-squad/scripts/negative.mjs`。它从当前 HEAD 创建独立 detached worktree，分别破坏产品的输入提示、中途输入、同一状态行、时间线、折叠、来源导航、离线投影和重试身份，每项都需成功构建且被原业务断言检出。恢复原文件后四项须重新全绿。报告、trace、截图、故障摘要和清理结果保存在 `reports/verify-squad-negative/`；不修改当前工作树或用户实例。
+
 ## Cleanup
 
 助手在成功、失败、SIGINT、SIGTERM 和 180 秒浏览器驱动期限后关闭自己创建的浏览器、应用子进程及模型夹具。应用先 SIGTERM，5 秒后仍未退出才对同一子进程 SIGKILL。移除临时数据库与构建链接，保留证据，并再次检查 `run.json` / `actions.jsonl` 存在。强制 SIGKILL 无法运行清理；残留只按本轮日志确认归属后处置，禁止按进程名批量杀进程。
@@ -78,7 +92,7 @@ node .agents/skills/verify-squad/scripts/doctor.mjs /absolute/evidence/instance.
 
 ## Coverage and maintenance
 
-源码覆盖见[地图索引](features/README.md#source-coverage)。`all` 通过仍不等于全部子功能、Gherkin 或真实供应商验收通过。报告实际经过的入口、未执行分支、夹具/执行环境和证据位置。补充检查使用 `npm run check`，分别引用 Vitest、直接执行的 Gherkin 与待验收项；本技能不改 `features/acceptance-gaps.json`，浏览器运行也不是 Cucumber 绑定。
+源码覆盖见[地图索引](features/README.md#source-coverage)。`all` 通过仍不等于全部子功能、Gherkin 或真实供应商验收通过。报告实际经过的入口、未执行分支、夹具/执行环境和证据位置。补充检查使用 `npm run check`，分别引用 Vitest、直接执行的 Gherkin 与待验收项；五组代表流程本身不冒充完整 Cucumber 绑定。原 BT_U01/U02/U03/U09 由 `tests/bdd/browser.steps.ts` 通过 IPC 逐条驱动同一助手，原 Given/When/Then 每步都执行真实动作或断言；默认 `npm run test:bdd` 先构建当前源码，再执行这些浏览器契约。仅在四项完整通过后移除了相应缺口登记，Pi Durable 与金额缺口不变。
 
 维护时请求 `$create-verification-skill 维护 kejun/squad 的 verify-squad`，遵循[维护流程](references/maintenance.md)，逐文件核对源码并执行所有功能组。
 

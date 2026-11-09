@@ -34,4 +34,4 @@
 | assistance | `src/assistance-retry.ts`、`src/conversation.ts`、`src/task.machine.ts`、`web/src/AssistanceRetry.tsx` | `10_conversation_review.feature`、`13_assistance_retry.feature`，BT_H11/BT_U16 |
 | layout | `web/src/PanelLayout.tsx`、`panel-layout.ts`、`panels.css`、`styles.css` | `18_workspace_panels.feature`，BT_P01–BT_P11 |
 
-规格位于仓库 `features/`；状态图入口为 `README.md`「状态模型」和 `docs/state-diagrams.md`。尚未覆盖真实模型/Cloudflare/技能搜索服务、Pi Durable、供应商金额、全量 Markdown 安全、权限/版本、崩溃恢复和全部预算分支。已有测试用 `npm run check` 补充；`features/acceptance-gaps.json` 的登记保持原状态。
+规格位于仓库 `features/`；状态图入口为 `README.md`「状态模型」和 `docs/state-diagrams.md`。尚未覆盖真实模型/Cloudflare/技能搜索服务、Pi Durable、供应商金额、全量 Markdown 安全、权限/版本、崩溃恢复和全部预算分支。已有测试用 `npm run check` 补充；原 BT_U01/U02/U03/U09 的完整点击、输入、状态与详情、断线与重连由 Cucumber IPC 直接绑定；其登记在完整通过后移除，其他缺口继续保留。具体范围与命令见 [SKILL.md](../SKILL.md#原网页契约与故障检出)。
