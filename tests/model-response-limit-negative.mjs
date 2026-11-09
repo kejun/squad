@@ -13,7 +13,7 @@ const run = (name, fault) => {
   const fd = openSync(`${evidence}/${name}.log`, 'w');
   const args = ['--import', 'tsx', ...(fault ? ['--import', './tests/model-response-limit-fault-loader.mjs'] : []),
     'node_modules/@cucumber/cucumber/bin/cucumber.js', 'features/32_model_response_limit.feature', '--import', 'tests/bdd/*.ts',
-    '--tags', fault ? '@BT_M39' : '@BT_M38 or @BT_M39 or @BT_M40 or @BT_M41', '--format', 'progress', '--format', `json:${evidence}/${name}.json`];
+    '--tags', fault ? '@BT_M47' : '@BT_M46 or @BT_M47 or @BT_M48 or @BT_M49', '--format', 'progress', '--format', `json:${evidence}/${name}.json`];
   const result = spawnSync(process.execPath, args, { timeout: 30000, stdio: ['ignore', fd, fd], env: { ...process.env,
     MODEL_BASE_URL: 'http://127.0.0.1:1/v1', MODEL_NAME: 'controlled', MODEL_NO_AUTH: 'true',
     TSX_TSCONFIG_PATH: 'tests/bdd/tsconfig.json', MODEL_RESPONSE_FAULT_PROOF: proof, MODEL_RESPONSE_EVIDENCE: `${evidence}/${name}-http` } });
