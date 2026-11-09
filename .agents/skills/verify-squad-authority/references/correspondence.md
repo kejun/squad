@@ -79,3 +79,11 @@ authority 的 Execution/Host/SessionScope 与 LocalRuntime 启动前中止探针
 图显式包含Approve/ReclaimParent/NewPermit/Claim/Start的弱公平性，在至多一次撤销与恢复后证明`Progress`。这是调度与用户批准的条件性活性；用户永久不批准、物理效果未核清、无限轮次和任意外部I/O均不在图内。
 
 最终完整证据为`reports/verify-squad-authority-composition/final-complete`：基线/恢复各183生成、36不同、0队列，双存储各182标记边；四见证、四源码变异各双存储检出及原实现恢复复验通过。独立读回110件并额外核对双负后端/见证/活性。BT_N30–N32直接执行3场景、12业务步骤（另132共享钩子）；这些实例没有冒充新图。
+
+## KEJ-109：命令元数据与检查诊断的切片审查
+
+逐文件差异、等价基线及完整运行状态见 [原授权审查](drift-review-kej-109.json) 与 [授权组合审查](drift-review-kej-109-composition.json)。旧同步提交在本 checkout 不可读取；先证明可用主分支基线 `5b8c596` 的全部 62 / 64 个覆盖文件与旧清单 SHA 逐一相同，再审查本轮提交及受测工作区差异。新增 `catalog-search`、`cli-catalog`、`task/tool-knowledge` 三个传递实现依赖也纳入门禁。
+
+`validLocalAction` 只扩展 `discoverHost` 的查询/游标；上述有限前缀仍请求 `runCli`。原 `LOCAL_CLAIM`、审批身份/摘要/期限、session、一次性许可、租约、停止与恢复守卫没有变化。目录类只读取/克隆受信元数据，空目录构造没有 I/O；原运行时绑定夹具保留默认空目录、无技能的 owner 输入。共享方法是已有确定成功回执的纯投影，不能产生新操作或批准。检查诊断只写当前候选的 bounded check；本技能的 owner/runCli 前缀没有 check/candidate，新增保存调用在此返回而不改变状态。
+
+原 Authority/SessionScope 和 ApprovalComposition 的模型、性质、公平性、有限界限、逐边回放与真实代码负对照保持原样。目录与分页正确性、共享方法语义、引用诊断和任意新旧操作组合继续由各自场景验收承担；本审查不把源指纹扩展当作新领域的证明。

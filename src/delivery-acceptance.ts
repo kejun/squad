@@ -13,6 +13,16 @@ export type DeliveryAcceptance = { revision: string; criteria: AcceptanceCriteri
 export type CheckReferenceSource = { id: string; taskId: string; kind: InputReference['kind']; content: string };
 export interface CheckReviewSource { id: string; content: string; stdout?: string }
 
+/** Host-generated location only: never retain rejected model text or unknown IDs. */
+export interface CheckDiagnostic {
+  code: string;
+  criterionId?: string;
+  sourceId?: string;
+  quoteLength?: number;
+  location?: { field: 'stdout' | 'stderr' | 'content'; offset: number; matchedPrefixLength: number };
+}
+export interface CheckDiagnosticRecord { attempt: number; candidateRevision: string; diagnostic: CheckDiagnostic }
+
 /** Freeze accepted current-goal collaboration records; these prove process, not correctness. */
 export function checkReviewSources(c: TaskContext): CheckReviewSource[] {
   return c.assists.filter(review => review.goalVersion === c.goalVersion && review.consumed
@@ -39,6 +49,7 @@ export interface CheckMaterials {
   previousResults: CriterionJudgment[];
   revisionNotes?: string;
   verification?: { id: string; stdout?: string; stderr?: string; workspaceRevision: string };
+  retryDiagnostic?: CheckDiagnostic;
 }
 
 export function checkCitationSources({ evidence, references, reviewRecords, verification, rawInputs }: Pick<CheckMaterials, 'evidence' | 'references' | 'reviewRecords' | 'verification'> & Partial<Pick<CheckMaterials, 'rawInputs'>>) {
@@ -109,18 +120,46 @@ export function validCriterionJudgments(value: unknown): value is CriterionJudgm
 
 export function judgmentsProblem(criteria: readonly AcceptanceCriterion[], results: unknown,
   sources: readonly { id: string; stdout?: string; stderr?: string; content?: string }[]): string | null {
-  if (!validCriterionJudgments(results)) return 'CHECK_INVALID_CRITERIA_RESULTS';
+  return judgmentsDiagnostic(criteria, results, sources)?.code ?? null;
+}
+
+type CitationSource = { id: string; stdout?: string; stderr?: string; content?: string };
+
+function quoteLocation(source: CitationSource, quote: string): CheckDiagnostic['location'] {
+  let best: CheckDiagnostic['location'];
+  for (const field of ['stdout', 'stderr', 'content'] as const) {
+    const text = source[field];
+    if (text === undefined) continue;
+    let low = 0, high = quote.length;
+    while (low < high) {
+      const length = Math.ceil((low + high) / 2);
+      if (text.includes(quote.slice(0, length))) low = length;
+      else high = length - 1;
+    }
+    if (!best || low > best.matchedPrefixLength)
+      best = { field, offset: low ? text.indexOf(quote.slice(0, low)) : 0, matchedPrefixLength: low };
+  }
+  return best;
+}
+
+export function judgmentsDiagnostic(criteria: readonly AcceptanceCriterion[], results: unknown,
+  sources: readonly CitationSource[]): CheckDiagnostic | null {
+  if (!validCriterionJudgments(results)) return { code: 'CHECK_INVALID_CRITERIA_RESULTS' };
   const remaining = new Set(criteria.map(item => item.id));
   for (const item of results) {
-    if (!remaining.delete(item.criterionId)) return 'CHECK_UNKNOWN_OR_DUPLICATE_CRITERION';
+    if (!remaining.delete(item.criterionId)) return { code: 'CHECK_UNKNOWN_OR_DUPLICATE_CRITERION' };
     if (item.source) {
       const { id, quote } = item.source;
       const source = sources.find(entry => entry.id === id);
-      if (!source) return 'CHECK_SOURCE_NOT_FOUND';
-      if (!source.stdout?.includes(quote) && !source.stderr?.includes(quote) && !source.content?.includes(quote)) return 'CHECK_SOURCE_QUOTE_MISMATCH';
+      if (!source) return { code: 'CHECK_SOURCE_NOT_FOUND', criterionId: item.criterionId };
+      if (!source.stdout?.includes(quote) && !source.stderr?.includes(quote) && !source.content?.includes(quote)) {
+        const location = quoteLocation(source, quote);
+        return { code: 'CHECK_SOURCE_QUOTE_MISMATCH', criterionId: item.criterionId, sourceId: source.id,
+          quoteLength: quote.length, ...(location ? { location } : {}) };
+      }
     }
   }
-  return remaining.size ? 'CHECK_MISSING_CRITERION' : null;
+  return remaining.size ? { code: 'CHECK_MISSING_CRITERION' } : null;
 }
 
 const gap = (candidateRevision: string, kind: DeliveryGapKind, reason: string, criterionId: string | null = null, refs: DeliveryReference[] = []): DeliveryGap =>

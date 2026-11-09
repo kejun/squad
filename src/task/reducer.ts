@@ -9,7 +9,7 @@ import { applyLocalEvent, localEnabled, localPhysicalPending, recoverLocalOperat
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
 import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requestReview, resetReviewAtBoundary, savedHelpResult, startHelp } from './assistance.js';
 import { recordInput } from './input.js';
-import { automaticRevisionActive, canReviseDelivery, checkDisposition, checkReferenceSources, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication, settlingDeliveryCheck } from './delivery.js';
+import { automaticRevisionActive, canReviseDelivery, checkDisposition, checkReferenceSources, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication, saveCheckDiagnostic, settlingDeliveryCheck } from './delivery.js';
 import { canRetryDeliveryCheck, canRetryWork, reserveDeliveryRetry } from './budget.js';
 import { checkReviewSources, deliveryJudgments, deliveryPreflight } from '../delivery-acceptance.js';
 import { adoptLegacyTerminalConfig } from './protocol.js';
@@ -232,6 +232,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'CHECK_RESULT': {
       const work = c.intents.find(item => item.id === e.workId)!;
       const outcome = checkDisposition(c, e, work);
+      saveCheckDiagnostic(c, work, outcome.diagnostic);
       c.consumedResults.push(e.resultId);
       if (outcome.kind === 'retry') {
         reserveDeliveryRetry(c, work);
@@ -342,6 +343,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'WORK_FAILED': {
       const work = c.intents.find(i => i.id === e.intentId);
       if (!work) { reject(c, 'UNKNOWN_WORK'); break; }
+      saveCheckDiagnostic(c, work, e.checkDiagnostic);
       if (work.discussionId) {
         if (discussionActive(c) && work.discussionId === c.discussion!.id) discussionFailed(c, e, work, e.reason);
         else release(c, work.id);

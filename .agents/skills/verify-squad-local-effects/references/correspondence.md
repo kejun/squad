@@ -58,3 +58,11 @@ replay-unknown的实际负对照在分类返回处被NoFalseNotStarted检出；�
 确定回执保存和任务提交分开；故障可落在两者之间。单次 Commit 对应已有 Store.transact，数据库原子性作为假设。Rollback 真实检查完整 room JSON 与租约保持，不把其强度描述成 SQLite 实现证明。
 
 SettledProgress 仅在最多一次 crash/提交失败、Reopen/Commit 弱公平下成立；未知日志无自动活性承诺。Six witnesses 与已恢复正路径防止不可达空通过。BT_L93 的无日志恢复/新 session 是独立真实接口实例，未增加进主图，不声称其组合已经穷举。
+
+## KEJ-109：元数据读取与检查诊断审查
+
+详见 [逐文件审查和运行记录](drift-review-kej-109.json)。先执行未修改技能，得到覆盖源漂移；旧同步提交不可读取时，逐项证明可用主分支 `5b8c596` 的全部 77 个旧覆盖文件与原清单字节相同，再审查本轮差异。新增目录、分页和共享方法三个传递依赖纳入 SHA 门禁。
+
+本轮 `LOCAL_*` 效果守卫及 `finishOperation`、`recoverLocalOperations`、`CliJournal`、Store 未改变。命令目录只扩展发现动作，模型前缀仍为 owner/runCli，真实进程桥仍使用空目录及原命令。新 `saveCheckDiagnostic` 仅针对 bounded check，本切片没有 check 或 candidate，所以 WORK_FAILED 中该调用不写状态。共享方法是确定成功回执的纯投影，运行器只追加模型上下文，没有新增命令意图、journal 写入、检查点消费或租约释放入口。
+
+维持原 LocalEffects 图、全部安全/活性性质、界限与恢复/提交事务映射，保留六个见证、四类模型/真实源码负对照、双存储逐边回放及七条实际进程接线。命令目录搜索、共享方法和检查诊断的产品语义由各自 BDD 验收承担，本有限效果模型不扩大为这些新领域的任意组合证明。

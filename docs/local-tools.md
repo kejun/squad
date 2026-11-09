@@ -94,3 +94,34 @@ npm run verify:local-sandbox
 ```
 
 前3项覆盖真实 XState、事务、技能目录、受控 HTTP 模型协议和真实子进程夹具；进程夹具明确不宣称 OS 隔离。最后一项必须在支持该后端的部署宿主另行通过。具体场景、模型摘要和执行结果见 [local-tools-verification.md](local-tools-verification.md)。
+
+## 按用途或域名查找宿主 CLI
+
+服务可从受信宿主配置读取 CLI 目录，让成员无需先猜命令名。设置 `SQUAD_CLI_CATALOG_FILE` 为服务账号可读的 JSON 文件路径；嵌入运行时使用 `LocalRuntimeOptions.cliCatalog`。未配置时目录为空，显式命令发现仍可用。文件只保存用途说明，不填写认证值、账号文件路径或环境变量值；服务拒绝未知字段、重复命令、命令路径、超过 200 条的目录及序列化后超过 2000 字符的单条说明。目录更新后重启服务。
+
+```json
+[
+  {
+    "command": "gh",
+    "description": "Read GitHub repositories, issues and pull requests",
+    "domains": ["github.com"],
+    "helpArgs": ["--help"],
+    "examples": [
+      { "description": "Read repository issues as JSON", "args": ["issue", "list", "--repo", "OWNER/REPO", "--json", "number,title"] }
+    ],
+    "execution": "host",
+    "requirements": ["GitHub CLI must already be installed; host authentication and network access are required"]
+  }
+]
+```
+
+参数示例依据 [GitHub CLI 官方帮助](https://cli.github.com/manual/gh_issue_list)。宿主维护者应按安装版本核对说明；目录不会自动运行帮助、验证登录或安装依赖。用途、域名、环境要求、帮助 argv 和示例全部作为资料交给成员。成员仍须经 `runCli` 实际读取帮助并验证所用参数；`execution: host` 仍需现有宿主批准。
+
+```json
+{"type":"discoverHost","query":"GitHub issues"}
+{"type":"discoverHost","query":"github.com","commands":["gh"]}
+```
+
+目录按命令、说明、域名和环境要求进行多词检索，每个词都须命中；本地技能按名称、说明、来源和兼容要求使用相同规则，不要求词序一致。每页最多 20 条；若返回 `cli.catalog.nextCursor`，下一次传入相同查询和该游标。`listSkills` 同样只接受它返回的 `nextCursor`。游标绑定查询和目录版本，修改查询、重启后版本变化或传入旧数字偏移会明确返回 `CLI_CATALOG_CURSOR_INVALID` / `SKILL_CURSOR_INVALID`；应从新查询首页开始。
+
+CLI 查询最多核实当前目录页的 20 个命令及最多 20 个显式裸命令名，重叠命令仅核实一次。目录条目可能尚未安装，回执分别报告存在性；不存在目录之外的命令仍属未知，必要时用显式 `commands` 查询。目录不会授予执行、联网、凭据或 MCP 权限，也不保证命令未来仍可用。

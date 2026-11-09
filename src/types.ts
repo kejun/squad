@@ -1,5 +1,5 @@
 import type { HostRetryBatch, HostRetryRequest } from './host-retry.js';
-import type { CriterionJudgment, DeliveryAcceptance, DeliveryAssessment, DeliveryGap } from './delivery-acceptance.js';
+import type { CheckDiagnostic, CheckDiagnosticRecord, CriterionJudgment, DeliveryAcceptance, DeliveryAssessment, DeliveryGap } from './delivery-acceptance.js';
 import type { DeliveryEvidenceRef } from './task/evidence.js';
 import type { HostSessionGrant } from './host-session.js';
 import type { LocalCheckpoint, LocalEvent, LocalOperation, SkillBinding } from './local-operation.js';
@@ -90,6 +90,8 @@ export interface Intent extends Fence {
   outputRepair?: { count: number; issue: ModelOutputIssue };
   /** The independently checked criteria for this work's fixed candidate revision. */
   criteriaResults?: CriterionJudgment[];
+  /** Bounded check failures, retained across recovery without rejected model text. */
+  checkDiagnostics?: CheckDiagnosticRecord[];
 }
 export interface Reply { ok: boolean; code: string; detail: string }
 export interface InputNote { id: string; text: string; applied: boolean }
@@ -205,7 +207,7 @@ export type TaskEvent = Envelope & (
   | { type: 'EXECUTION_START'; intentId: string; attempt: number }
   | { type: 'EXECUTION_RECONCILE' }
   | { type: 'CONSUME'; intentId: string; capability?: 'web_search' | 'web_fetch' }
-  | { type: 'WORK_FAILED'; intentId: string; reason: string; transient: boolean; resultUncertain?: boolean }
+  | { type: 'WORK_FAILED'; intentId: string; reason: string; transient: boolean; resultUncertain?: boolean; checkDiagnostic?: CheckDiagnostic }
   | { type: 'RECOVER'; config: TeamConfig }
   | { type: 'EXHAUSTED'; reason: string }
   | { type: 'RECONCILE'; intentId: string; resolution: 'confirmed' | 'notExecuted'; detail: string }

@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import { parseCliCatalog } from "../src/cli-catalog.js";
 import { fileURLToPath } from "node:url";
 import { LocalRuntime } from "../src/local-runtime.js";
 import { delimiter, dirname, join, resolve } from "node:path";
@@ -11,6 +13,7 @@ const runtime = config.localTools?.enabled === false ? undefined : await LocalRu
   dataRoot: process.env.SQUAD_LOCAL_DATA_DIR ?? join(dirname(resolve(process.env.WEB_DATABASE ?? "team.sqlite")), ".squad-local"),
   ...(process.env.SQUAD_LOCAL_SKILLS_ROOTS ? { skillRoots: process.env.SQUAD_LOCAL_SKILLS_ROOTS.split(delimiter).filter(Boolean) } : {}),
   ...(process.env.SQUAD_WORKSPACE_ROOT ? { workspaceRoot: process.env.SQUAD_WORKSPACE_ROOT } : {}),
+  ...(process.env.SQUAD_CLI_CATALOG_FILE ? { cliCatalog: parseCliCatalog(JSON.parse(await readFile(process.env.SQUAD_CLI_CATALOG_FILE, "utf8"))) } : {}),
   redact: Object.values(config.models?.services ?? {}).flatMap(model => model.apiKeyEnv && process.env[model.apiKeyEnv] ? [process.env[model.apiKeyEnv]!] : []),
 });
 if (runtime) console.log(`Local skills: ${runtime.catalog().skills.length} on first page; CLI sandbox: ${runtime.backend.available ? "ready" : "unavailable"}`);

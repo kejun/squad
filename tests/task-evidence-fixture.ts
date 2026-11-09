@@ -156,7 +156,8 @@ export async function restartEvidenceRead(stage: 'claimed' | 'succeeded') {
 }
 
 export function evidenceIndexInModel(fixture: LocalFixture): Record<string, unknown>[] {
-  const contextMessage = fixture.requests.at(-1)?.messages[1]?.content;
+  const contextMessage = fixture.requests.at(-1)?.messages.find(message => message.role === 'user'
+    && typeof (JSON.parse(message.content) as { workId?: unknown }).workId === 'string')?.content;
   assert(contextMessage);
   return (JSON.parse(contextMessage) as { context: { evidenceIndex: Record<string, unknown>[] } }).context.evidenceIndex;
 }

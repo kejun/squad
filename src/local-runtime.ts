@@ -1,4 +1,5 @@
 import { discoverHostCapabilities } from './host-capabilities.js';
+import { CliCatalog, CliCatalogError, type CliCatalogEntry } from './cli-catalog.js';
 import { publishObservation } from './measurement.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { constants, createReadStream } from 'node:fs';
@@ -14,6 +15,8 @@ export interface LocalRuntimeOptions {
   dataRoot: string; skillRoots?: string[]; workspaceRoot?: string; commandTimeoutMs?: number;
   /** Trusted host profiles only; neither skill text nor model actions can change these. */
   commandEnv?: Record<string, Record<string, string>>; redact?: string[];
+  /** Host-maintained usage metadata only; does not grant execution permission. */
+  cliCatalog?: CliCatalogEntry[];
   backend?: CliBackend; registryLimits?: Omit<RegistryOptions, 'roots' | 'snapshotRoot'>;
   /** Explicit for non-service embedding/tests; production bootstrap always takes the single-host lock. */
   acquireServiceLock?: boolean;
@@ -39,8 +42,10 @@ export class LocalRuntime {
   private lockPath: string | undefined;
   private readonly workspaceWaiters = new Map<string, { generation: number; waiters: Set<() => void> }>();
   private readonly lockToken = randomUUID();
+  private readonly cliCatalog: CliCatalog;
   private constructor(readonly options: LocalRuntimeOptions, backend: CliBackend, readonly sourceRoot?: string) {
     this.backend = backend; this.journal = new CliJournal(join(options.dataRoot, 'sessions'));
+    this.cliCatalog = new CliCatalog(options.cliCatalog);
   }
   static async create(options: LocalRuntimeOptions): Promise<LocalRuntime> {
     await mkdir(resolve(options.dataRoot), { recursive: true, mode: 0o700 }); const dataRoot = await realpath(resolve(options.dataRoot));
@@ -180,6 +185,7 @@ export class LocalRuntime {
           platform: process.platform, arch: process.arch, runtimeVersion: process.version,
           sandbox: { available: this.backend.available, ...(this.backend.unavailableReason ? { reason: this.backend.unavailableReason } : {}) },
           skills: this.catalog(),
+          catalog: this.cliCatalog.list(action),
           locate: async (command, execution) => {
             const profile = this.options.commandEnv?.[command];
             const env = { PATH: cliSearchPath(execution, profile) };
@@ -207,7 +213,7 @@ export class LocalRuntime {
         signal.throwIfAborted();
         return { result: this.boundedResult({ ok: true, code: action.type, data: data as Record<string, unknown> }), settled: true, effectsKnown: true };
       } catch (error) {
-        signal.throwIfAborted(); return { result: { ok: false, code: error instanceof LocalToolError ? error.code : 'LOCAL_READ_FAILED', data: {} }, settled: true, effectsKnown: true };
+        signal.throwIfAborted(); return { result: { ok: false, code: error instanceof LocalToolError || error instanceof CliCatalogError ? error.code : 'LOCAL_READ_FAILED', data: {} }, settled: true, effectsKnown: true };
       }
     }
     const sessionId = op.sessionId!;

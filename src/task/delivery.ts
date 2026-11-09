@@ -1,5 +1,5 @@
 import type { Artifact, Candidate, InputReference, Intent, TaskContext, TaskEvent } from '../types.js';
-import { checkCitationSources, deliveryPreflight, judgmentsProblem, type CheckMaterials, type CheckReferenceSource, type CheckReviewSource } from '../delivery-acceptance.js';
+import { checkCitationSources, deliveryPreflight, judgmentsDiagnostic, type CheckDiagnostic, type CheckMaterials, type CheckReferenceSource, type CheckReviewSource } from '../delivery-acceptance.js';
 import { hostRetryReservation, pendingHostRetry } from '../host-retry.js';
 import { localPhysicalPending } from '../local-operation.js';
 import { canRetryDeliveryCheck } from './budget.js';
@@ -103,7 +103,16 @@ export function automaticRevisionActive(c: TaskContext): boolean {
     && ['pending', 'inflight'].includes(work.status));
 }
 
-type CheckDisposition = { kind: 'handoff' | 'complete' | 'revise' | 'finish' | 'retry'; code?: string; detail?: string; checked?: true };
+type CheckDisposition = { kind: 'handoff' | 'complete' | 'revise' | 'finish' | 'retry'; code?: string; detail?: string; checked?: true; diagnostic?: CheckDiagnostic };
+
+export function saveCheckDiagnostic(c: TaskContext, work: Intent, diagnostic: CheckDiagnostic | undefined): void {
+  if (!diagnostic || !['CHECK_SOURCE_QUOTE_MISMATCH', 'CHECK_SOURCE_NOT_FOUND'].includes(diagnostic.code)
+    || !isBoundedCheck(work) || c.stopped || c.outcome !== null || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion) return;
+  const revision = (work.payload.candidate as Candidate | undefined)?.revision;
+  if (!revision || revision !== c.candidate?.revision) return;
+  const records = work.checkDiagnostics ??= [];
+  if (!records.some(record => record.attempt === work.attempt)) records.push({ attempt: work.attempt, candidateRevision: revision, diagnostic });
+}
 
 function beforeCheckResult(c: TaskContext, e: CheckResult, work: Intent): CheckDisposition | null {
   if (deliveryInterruptionPending(c)) return { kind: 'handoff' };
@@ -135,9 +144,9 @@ export function checkDisposition(c: TaskContext, e: CheckResult, work: Intent): 
   const reviewRecords = (work.payload.reviewRecords as CheckReviewSource[] | undefined) ?? [];
   const rawInputs = (work.payload.rawInputs as CheckMaterials['rawInputs'] | undefined) ?? [];
   const sources = checkCitationSources({ evidence: evidence.sources, references, reviewRecords, rawInputs, ...(test ? { verification: test } : {}) });
-  const protocol = e.passed !== undefined || e.gaps !== undefined ? 'CHECK_INVALID_CRITERIA_RESULTS'
-    : judgmentsProblem(c.candidate!.acceptance!.criteria, e.criteriaResults, sources);
-  if (protocol) return { kind: canRetryDeliveryCheck(c, work, e.at) ? 'retry' : 'finish', code: protocol };
+  const diagnostic = e.passed !== undefined || e.gaps !== undefined ? { code: 'CHECK_INVALID_CRITERIA_RESULTS' }
+    : judgmentsDiagnostic(c.candidate!.acceptance!.criteria, e.criteriaResults, sources);
+  if (diagnostic) return { kind: canRetryDeliveryCheck(c, work, e.at) ? 'retry' : 'finish', code: diagnostic.code, diagnostic };
   return checkedDelivery(c, e, work);
 }
 
