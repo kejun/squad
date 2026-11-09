@@ -59,7 +59,7 @@ python3 .agents/skills/verify-squad-authority/scripts/check.py --verify-evidence
 
 ## 维护
 
-本轮 KEJ-102–105 对应审查及完整检查已通过，当前同步产品/包基线为 `32c26b376b46ae1a03718a6820683b59b802b413`。逐文件分类、原样漂移、受控环境、真实负对照、恢复后复验及独立读回见 [本轮审查](references/drift-review-kej-102-105.json)。原模型、性质、公平性和边界保持；成功响应字节限制与真实进程/SQLite 崩溃验收不扩大本技能的有限保证。成功后仅推进同步元数据并复核指纹、读回原证据，不冒称又完整运行一次。
+本轮 KEJ-102–105 对应审查及完整检查已通过，该轮同步产品/包基线为 `32c26b376b46ae1a03718a6820683b59b802b413`。逐文件分类、原样漂移、受控环境、真实负对照、恢复后复验及独立读回见 [本轮审查](references/drift-review-kej-102-105.json)。原模型、性质、公平性和边界保持；成功响应字节限制与真实进程/SQLite 崩溃验收不扩大本技能的有限保证。成功后仅推进同步元数据并复核指纹、读回原证据，不冒称又完整运行一次。
 
 KEJ-106 历史对应审查基线为 `3d81b0792d9c00c16bbc59fa4f2914bcccc0189b`。原样检查因 facts/reducer 指纹漂移而 blocked；逐项审查后，新增无 discussion 及无 discussionId 的可执行切片断言，候选完整检查和独立读回通过后才推进同步基线。模型、性质、边界及事务假设不变；最终运行、真实代码负对照与读回状态见 [KEJ-106 审查](references/drift-review-kej-106.json)。随后 engine 的 ended 恢复入口也经逐项审查，并在新产品源上完整运行及独立读回；成功后只推进同步元数据并复核指纹，不为元数据更新重复完整运行。前轮 b6ea 的候选/最终证据仅作历史，该轮最终证据为 `kej-106-final-engine`。本切片不证明 BT_Q19–Q24 的取消分片恢复、成员占用或已结束任务续办；以下保留历史审查记录。
 
@@ -70,3 +70,22 @@ KEJ-100 历史依赖审查基线为 `c1f380da1527b8c22a8aaaaf7aef10cd2695146e`�
 PR40 产品源码对应审查基线为 21ee46039f594d9b93d400bf703e14d42fab2b0e；逐文件判定与验证结果见 [PR40 漂移审查](references/drift-review-pr40.json)。保守记录全部 src TypeScript、依赖锁与夹具哈希；哈希仅为漂移门禁，不是对应证明。文件变化先审查模型原子边界、权限守卫和新写入口，不能直接刷新哈希。模型/回放通过并完成真实负对照后才能推进对应基线。
 
 请求 `$create-formal-verification-skill 维护 kejun/squad 的 verify-squad-authority`，按 [维护过程](references/maintenance.md) 执行。发现真实违约保留反例，区分模型缺陷和产品缺陷；不能放宽性质让它通过。
+
+## KEJ-108 授权组合扩展
+
+除原三种切片外，运行新增的小组合图：
+
+```sh
+TLA2TOOLS_JAR=/absolute/path/tla2tools-1.7.4.jar python3 .agents/skills/verify-squad-authority/scripts/composition-check.py
+python3 .agents/skills/verify-squad-authority/scripts/composition-check.py --verify-evidence reports/verify-squad-authority-composition/实际目录
+```
+
+对应 BT_N30–BT_N32，详细状态、事务映射与公平性见 [授权组合说明](../../../docs/authority-composition.md)（仓库 `docs/authority-composition.md`）。界限为一个owner、两个parent attempt、一个宿主操作、最多三代审批ID、一次未领取撤销和一次物理领取前重开。真实TLC图把新审批、重新领取父工作、一次性许可、旧审批/旧attempt/旧session/旧permit以及旧成功command ID回执重放组合起来。旧command ID可返回保存的成功，但工作、授权、许可、额度和候选不能变化；不把幂等成功误判成未拒绝的新操作。
+
+所有标记边按公共可达前缀在两种存储分别回放，旧20实例不代替新图；四类真实源码负对照也分别跑Memory与SQLite，然后完整重跑原模型与原实现。`Progress`以当前用户批准和可信调度动作持续可用时的弱公平为条件，不证明用户一直不批准仍会执行，也不覆盖命令已领取后的未知物理效果。独立读回额外核对两种存储的负对照、四项可达性和活性完成；缺失或导入失败不能冒充性质检出。
+
+本轮原authority检查曾因KEJ-108准备期修复的两个文件哈希变化而blocked。修复只补既有技能目录只读准备和隔离副本临时目录准备；原runtime-binding使用无skill的非隔离owner，二者不改变原许可/审批状态、守卫、事务、界限或控制。逐项对应及原样阻塞见 `references/drift-review-kej-108-preparation.json`；不能将本轮准备恢复证据扩大为OS权限或命令副作用证明。
+
+**完整运行必须同时完成旧 `scripts/check.py` 与新 `scripts/composition-check.py`，并分别独立读回；只运行默认旧检查不能声称新增授权组合已验证。** KEJ-108 原authority完整复验及读回已经通过，随后才推进覆盖元数据。当前受测源码为 `64322436c87b216f9dd9ba1a137738e5cd923497` 加已审查的准备期修复工作区差异；精确差异、源哈希及未创建最终提交的说明保存在维护记录，不能把HEAD本身说成包含尚未提交的修复。新增组合图及其夹具有独立coverage门禁；任何新写入口、事务拆分、身份维度或轮次上限变化都须先重审对应再更新哈希。
+
+e77 最终维护：当前受测产品提交 `e77f052acacd208fd8eb8587ac6901ba19003220`。服务启动仅增加 closing 检查的无影响对应审查见 `references/drift-review-kej-108-service.json`；随后仍完整重跑原检查到 `reports/verify-squad-authority/e77-final-current`，34步骤和单独读回通过。最终新增组合完整运行位于 `reports/verify-squad-authority-composition/e77-final-inputs-complete`，冻结后的工具强制必需invariants/Progress、捕获全部covered实现和fixture正文、保存实际退出码并要求每个负控正常exit1且绑定AssertionError与目标性质，175件独立读回通过。较早的110/111件证明只作各自工具版本的历史，不能补拷新inputs冒充最新完整运行。

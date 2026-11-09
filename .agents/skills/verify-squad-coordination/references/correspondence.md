@@ -93,3 +93,38 @@ Budget/CheckBudget/Shards 及容量/讨论恢复实例仍由合成事件和省�
 成功响应的实际解压字节上限、取消读取、UTF-8 边界与非瞬时失败由 BT_M46–M49 的真实 HTTP/SQLite/Runner 验收及撤销读取上限的负对照承接；本有限检查不证明供应方 I/O 读取、资源上界、真实进程终止、SQLite 底层抗断电或这几种领域的组合。KEJ-103/104 的真实 SIGKILL/SQLite 依赖验收是额外证据，不替换原模型的事务假设。审查后先更新已确认的覆盖指纹，保留旧 sync；只有完整正负/恢复检查与独立读回成功后才推进同步元数据。
 
 完整检查与独立读回已通过：`reports/verify-squad-coordination/kej-102-105-controlled-env`，396.510 秒，保留 301 项原始证据。三套原图及恢复图的队列均为零，两存储全部边与有限实例比较通过，22 项真实源码负对照均因目标行为失败，清理和 checker 输入不变检查通过；具体数量见审查 JSON 的 verification。同步推进到受测产品 `32c26b376b46ae1a03718a6820683b59b802b413`，后续集成 HEAD 的全部覆盖源/依赖逐项保持相同字节；不把元数据推进说成第二次完整验证。
+
+## KEJ-107/108：协作组合的新增有限域
+
+原 Budget/CheckBudget/Shards 保持其完整历史域。新增入口 `scripts/check-extensions.py` 独立运行以下**真实 TLC 有限图**，不把旧 capacity/discussion-recovery 有限实例改名为证明。每图每条边从公共可达前缀重新建立真实 TeamEngine，在 MemoryStore 与 SQLite 逐步比较所有图变量；每条边只选一条最短代表前缀，未证明其他隐藏历史等价。记录源码实际 SHA、checker 输入、原始 TLC 图/日志、完整双存储回放、独立可达见证、真实源码负对照、原版复验与证据读回。
+
+- **DiscussionBudget**：原负责人已领取且消费首请求；直接邀请两位空闲成员并由已领取促进者保存计划为 Init。`used/requests` 对应 usage.ordinary 与原工作 requestCount；`member1/2` 对应两个已承诺意图状态；`summary` 对应 discussionSummary；`handoff/successor` 对应 delivered 与新负责人领取；`reserve` 独立从 pending 成员/汇总和轮次状态推导。成员 CLAIM、结果、汇总 CLAIM、结果、原 owner SETTLE、后继 CLAIM 均是独立事务。一个额外 owner CONSUME 可与它们交错；达到保护边界拒绝。证明两成员、一次归并、一次负责人续办在此余额7的动态域，**不是任意多轮或所有预算领域笛卡尔乘积证明**。
+- **ReservedRequests**：review/retry/host/verification 四个独立可达前缀固定当前义务，枚举首次免费使用已付请求、额外付费请求及前沿拒绝。host 前缀中活跃宿主批次与背景讨论同时存在；保留量3含一个尚未收费宿主命令、一次讨论归并及一次 owner 续办。verification 是缺报告后真正生成的唯一修订 owner，保留验证费用；没有执行 CLI 或模型。四域不枚举义务生命周期任意变化，变化部分由 DiscussionBudget 和其他技能承接。依据 `task/budget.requestBudgetProblem`、reducer CLAIM/CONSUME。
+- **InputBoundary**：help/check 两前缀。help 枚举补充与保存结果的先后、独立 Flush、解释领取、成功/澄清、一次恢复、一次明确继续及停止。check 的 Init 是一个已消费首请求且已冻结证据的真实候选；旧 CHECK_RESULT 在补充未解析时只能交接，解释成功在同宏步 BOUNDARY 清除旧检查证据。`InputNote.applied` 与 `InputAnalysis.status` 是不同事实：help 消费可能先标 applied，再解释；check 路径解释结束后才标 applied。CONTINUE 新建 deliveryCycle，会清除旧 evidence；这是源码行为而不是额外模型迁移。没有第二个补充、真实语义质量或无限澄清。
+- **ReviewQueue**：两名明确请求的评审成员、成功/确定失败、RECORD_RESULT 与 Flush 分立、一次安全恢复、重复/迟到结果、一次对第一位失败成员的显式 retryOf 修复。completed 必须属于 targets 且唯一；同一收集阶段只有一个有效成员工作；每次完整收集只生成一个有效汇总。修复沿用同 reviewId，会保留第二位结果并取代旧 pending owner，因此完整历史可以有两份汇总意图，但只有当前一份有效。停止后只有无在途工作时显式继续才建立空的新 pending 轮次；新轮次后续执行不在这个图里。预算足够，不冒充共享预算组合保证。
+- **DeferredCoordination**：一个 safe 工具、两个失败指纹、阈值2、一次新证据进展、一次普通 ACTIVITY、一次恢复和停止。repeat 的重置不等于撤销已有协调义务；工具结算或安全恢复后由当前宏步生成唯一协调意图，STOP 阻止后继。`Progress` 在持续有效的延期请求、可执行工具最终结算/安全恢复/领取动作弱公平下成立；不证明真实调度公平或永久未知效果下进展。
+- **CancelledDiscussion**：map/discussion 两公共前缀 × goal/stop/end 三失效来源 × 无物理操作/一项已启动隔离 CLI，共12域。两个旧成员均真实 CLAIM，物理变体的 request、claim、start 各自先经公开事务到达 Init。Cancel、RECOVER、可信 LOCAL_RESULT、显式继续、owner CLAIM、新邀请、planner CLAIM、计划、新成员 CLAIM、旧结果拒绝分别为图边。最多两次恢复；一个旧成员未知时保留占用并拒绝继续，安全同伴退休；已知原回执后释放，再公开邀请双方。没有 unsafe 讨论快照、人为改状态或 OS 命令。本地进程是否真结算由外部可信回执假设承担，其他技能检查其执行接线。
+
+### 原子性及活性边界
+
+InputBoundary/ReviewQueue/Deferred 的恢复边使用 constructor 重开连接后 `engine.send(RECOVER)`，**不调用会继续 flush 的 engine.recover**；Flush 单列。CancelledDiscussion 没有保存结果、只有一个任务、时钟0且所有期限尚未到：其 engine.recover 至多产生一个 RECOVER 事务；已退休 ended 任务重开为0提交 no-op。测试 Store 代理独立计算提交次数并断言这一限制，所以并未把多个提交伪装为原子操作。TLC 的单个环境重开/恢复尝试可对应0或1提交，执行中间没有其他被模型省略的存储变更。
+
+所有安全结论独立于公平性。Input Progress 允许合法澄清或 STOP 作明确终点；不把“用户最终回答所有澄清”写成无条件保证。Review Progress 假设可领取工作/合成返回/Flush 弱公平，允许用户停止。Cancelled RetirementProgress 除恢复弱公平，还假设已启动效果最终有可信已知回执；若永远未知，安全保留但不声称终会释放。Discussion 的公平推进动作只覆盖有预算的基础领取/返回/交接，不证明额外工具总能成功。ReservedRequests 只证明授权/计费安全，不作业务完成活性声明。
+
+### 首轮模型误差及新增源码审阅
+
+首轮发现的是模型投影问题：澄清是合法人工等待终点；CONTINUE 新建周期清 evidence；旧事件拒绝可能退休自己的已取消工作，不能一律 stutter；safe 工具恢复为 pending 后达到重复阈值仍可协调并取消该 pending。这些修正从现有源码和公共回放取得，没有弱化产品承诺或改产品代码。
+
+原覆盖清单从6432243到当前工作树的额外传递依赖变化为 `local-runtime.prepareScratch` 对缓存工程副本再次准备，以及 `local-skills.readonlyDirectories` 对已发布技能目录再次设只读。旧三模型和新增组合图均不调用这些文件系统适配器；其初始化模块不增加业务动作、调度、许可或事务。因此保留原域并更新实际字节漂移门禁，真实执行可靠性由独立接线验收负责。源码版本以最终证据中的 commit 与 coveredFileHashes 为准；未完成整轮检查前不推进成功同步声明。
+
+当前产品e77f052还在WebService启动效果核对循环中增加closing提前退出。新增/旧协调驱动不实例化该服务，模型无启动I/O，故不改变有限切片；真实接线由服务恢复验收负责。以上三项已逐文件审查，非仅更新哈希。
+
+首次全域回放还区分了ended恢复选择：若安全旧同伴已由迟到结果退休，而只剩带物理未决的旧成员，engine.recover可能0提交跳过，原成员仍为inflight/cancelling并继续占用，不是已结算。CancelledDiscussion因此将Host RECOVER与room Reopen分别建边；后者包含明确0提交条件，前者单独做1次RECOVER。两者均保留未知成员，可信结算后才退休。本模型不证明WebService会为这条ended历史自动发起效果核对。
+
+可信回执退休的负对照单独指向KnownReceiptRetirement：receiptAfterCancel来自持久trace中cancel-round与trusted-receipt的顺序，只在取消后得到可信已知回执时要求原工作立即done，不把“恢复前已获得的回执”错误等同为已退休。primaryBusy直接投影原负责人inflight，LateOwner仅结算该原工作。两字段均进入真实TLC变量和每边双存储投影，不隐藏影响Continue的状态。
+
+### 最终执行结果
+
+产品源码e77f052acacd208fd8eb8587ac6901ba19003220上，`reports/verify-squad-coordination/kej-107-108-extensions-complete`完整通过，389.684秒。21配置正向及未改坏原版复验，各阶段每个存储比较2998条模型边；58个声明的前提见证、18项真实源码负对照在两存储均以正常exit1、AssertionError及各自目标性质失败。5个外层SHA自洽删除输入分别因目标raw缺失/必需进度性质缺失被拒绝。独立读回889份保留证据通过，三个cleanup字段均为true。原三图当前产品复验及330份读回为`reports/verify-squad-coordination/kej-107-108-original-reviewed`，339.623秒。
+
+此前candidate/final目录是模型投影/负控定位的未完成红运行，不是当前产品缺陷结论，不作为通过证据。最终完整轮中源码、模型、checker和fixture均未变化；后续仅推进当前成功元数据，不把元数据推进说成额外完整复跑。场景BT_J01–J06另直接执行18实例全部通过；这与21配置TLC及双存储图对应证据分别计数。

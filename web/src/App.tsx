@@ -115,11 +115,10 @@ export function Workspace({
   const chat = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   const [showScrollDown, setShowScrollDown] = useState(false);
-  const sendIdentity = useRef<{
-    roomId: string;
+  const sendIdentities = useRef<Record<string, {
     payload: string;
     id: string;
-  } | null>(null);
+  }>>({});
   const draftKey = roomId ?? "new";
   const text = drafts[draftKey] ?? "";
   const sourceArtifact = sourcesByRoom[draftKey];
@@ -143,7 +142,7 @@ export function Workspace({
     if (sending) return;
     setSourcesByRoom(previous => ({ ...previous, [draftKey]: source }));
     setCandidatesByRoom(previous => ({ ...previous, [draftKey]: [] }));
-    sendIdentity.current = null;
+    delete sendIdentities.current[draftKey];
     setError("");
     textarea.current?.focus();
   };
@@ -151,7 +150,7 @@ export function Workspace({
     if (sending) return;
     setSourcesByRoom(previous => ({ ...previous, [draftKey]: undefined }));
     setCandidatesByRoom(previous => ({ ...previous, [draftKey]: [] }));
-    sendIdentity.current = null;
+    delete sendIdentities.current[draftKey];
     textarea.current?.focus();
   };
 
@@ -261,8 +260,10 @@ export function Workspace({
     if (sending || !connected || (!text.trim() && !continueTask)) return;
     setSending(true);
     setError("");
+    let submittedRoom = roomId;
     try {
       const targetRoom = roomId ?? (await createRoom());
+      submittedRoom = targetRoom;
       const content = continueTask ? "继续执行当前任务" : text.trim();
       if (!roomId && !continueTask) {
         setDrafts((previous) => ({ ...previous, [targetRoom]: text }));
@@ -285,11 +286,11 @@ export function Workspace({
             : {}),
       };
       const serialized = JSON.stringify(payload);
-      const identity = sendIdentity.current;
-      const id = identity?.roomId === targetRoom && identity.payload === serialized ? identity.id : crypto.randomUUID();
-      sendIdentity.current = { roomId: targetRoom, payload: serialized, id };
+      const identity = sendIdentities.current[targetRoom];
+      const id = identity?.payload === serialized ? identity.id : crypto.randomUUID();
+      sendIdentities.current[targetRoom] = { payload: serialized, id };
       await api(`/rooms/${targetRoom}/messages`, { id, ...payload });
-      sendIdentity.current = null;
+      delete sendIdentities.current[targetRoom];
       if (!continueTask) {
         setSourcesByRoom(previous => ({ ...previous, [draftKey]: undefined, [targetRoom]: undefined }));
         setCandidatesByRoom(previous => ({ ...previous, [draftKey]: [], [targetRoom]: [] }));
@@ -311,7 +312,7 @@ export function Workspace({
       textarea.current?.focus();
     } catch (error) {
       if (error instanceof ApiError) {
-        sendIdentity.current = null;
+        if (submittedRoom) delete sendIdentities.current[submittedRoom];
         setCandidatesByRoom(previous => ({ ...previous, [draftKey]: error.sourceCandidates ?? [] }));
       }
       setError((error as Error).message);

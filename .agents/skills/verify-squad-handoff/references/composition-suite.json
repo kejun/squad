@@ -1,0 +1,91 @@
+{
+  "report": "verify-squad-handoff-composition",
+  "bounds": {
+    "tasks": 1,
+    "commands": 2,
+    "retrySuccessors": 1,
+    "savedOriginalResults": 1,
+    "recoveries": 1,
+    "currentOwners": 2,
+    "permissionChanges": 1,
+    "scope": "Separate saved and failed public prefixes; owner/tool revocation before dispatch, one bounded recovery; original result after failed work is late and rejected"
+  },
+  "replay": "retry-composition-replay.mjs",
+  "models": [
+    {
+      "module": "RetryComposition",
+      "config": "RetryFailed.cfg",
+      "domain": "failed",
+      "witnesses": [
+        "NeverRetry",
+        "NeverRecovery",
+        "NeverRevokedRequest",
+        "NeverOwnerChangedRequest"
+      ],
+      "invariants": [
+        "TypeOK",
+        "UniqueRetry",
+        "ExclusiveResultChoice",
+        "RetryAuthority",
+        "RetryHandoff"
+      ],
+      "properties": [
+        "Progress"
+      ]
+    },
+    {
+      "module": "RetryComposition",
+      "config": "RetrySaved.cfg",
+      "domain": "saved",
+      "witnesses": [
+        "NeverSavedConsumption",
+        "NeverRecovery",
+        "NeverRevokedRequest"
+      ],
+      "invariants": [
+        "TypeOK",
+        "UniqueRetry",
+        "ExclusiveResultChoice",
+        "RetryAuthority",
+        "RetryHandoff"
+      ],
+      "properties": [
+        "Progress"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "name": "duplicate-retry",
+      "property": "RetryUniqueness",
+      "file": "src/task/assistance.ts",
+      "old": "  if (c.assists.some(item => item.retryOf === h.id)) return 'ASSISTANCE_ALREADY_RETRIED';",
+      "new": "  /* faulty: allow another successor of a settled retry */",
+      "domain": "failed"
+    },
+    {
+      "name": "repeat-saved-work",
+      "property": "ExclusiveResultChoice",
+      "file": "src/task/reducer.ts",
+      "old": "      if (saved) { acceptHelpResult(c, { ...e, ...saved, type: 'HELP_RESULT' }); break; }",
+      "new": "      if (false && saved) { acceptHelpResult(c, { ...e, ...saved, type: 'HELP_RESULT' }); break; }",
+      "domain": "saved"
+    },
+    {
+      "name": "ignore-retry-permission",
+      "property": "RetryAuthority",
+      "file": "src/task/assistance.ts",
+      "old": "  if (helpTools(c, h).some(tool => !config.bots.find(b => b.id === h.target)?.tools.includes(tool))) return 'TOOL_PERMISSION';",
+      "new": "  /* faulty: retry uses revoked tool authority */",
+      "domain": "failed"
+    },
+    {
+      "name": "ignore-retry-owner",
+      "property": "RetryOwner",
+      "file": "src/task/assistance.ts",
+      "old": "  if (h.target === c.owner || (h.requestedBy && h.requestedBy !== c.owner)) return 'OWNER_CHANGED';",
+      "new": "  /* faulty: old helper belongs to a different current owner */",
+      "domain": "failed"
+    }
+  ]
+}

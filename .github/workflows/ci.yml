@@ -50,6 +50,14 @@ jobs:
           node tests/model-response-limit-negative.mjs
       - name: Verify original browser contracts detect faults
         run: node .agents/skills/verify-squad/scripts/negative.mjs
+      - name: Verify composition fault detection and evidence
+        run: |
+          node tests/web-composition-negative.mjs
+          node tests/service-composition-negative.mjs
+          node tests/preparation-composition-controls.mjs
+          node tests/preparation-composition-readback.mjs
+          node tests/model-session-composition-controls.mjs
+          node tests/model-session-composition-readback.mjs reports/kej-108-model-session test-results/cucumber.json
       - name: Production build
         run: npm run build
       - name: Retain verification reports
@@ -59,15 +67,7 @@ jobs:
           name: verification-${{ github.sha }}
           path: |
             test-results/
-            reports/spec-coverage.md
-            reports/spec-coverage.json
-            reports/verify-squad/
-            reports/verify-squad-negative/
-            reports/verify-squad-supervisor-failure/
-            reports/kej-102/
-            reports/kej-103/
-            reports/verify-sqlite-crash/
-            reports/kej-105*/
+            reports/
           if-no-files-found: warn
           retention-days: 14
 
@@ -104,11 +104,71 @@ jobs:
               python3 .agents/skills/verify-squad-$skill/scripts/check.py --verify-evidence "$evidence"
             done
           done
+      - name: Verify delivery evidence rejects self-consistent omissions
+        run: |
+          for evidence in reports/verify-squad-delivery/*/; do
+            python3 .agents/skills/verify-squad-delivery/scripts/composition-evidence-controls.py "$evidence" --output reports/verify-squad-delivery-reader-controls/detailed.json
+            python3 tests/local-effects-formal-readback-controls.py --checker .agents/skills/verify-squad-delivery/scripts/check.py --proof "$evidence" --evidence reports/verify-squad-delivery-reader-controls/raw
+          done
       - name: Retain formal verification evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: formal-verification-${{ github.sha }}
           path: reports/verify-squad-*/
+          if-no-files-found: error
+          retention-days: 14
+
+  formal-composition:
+    name: Formal composition (${{ matrix.slice }})
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - slice: handoff
+            checker: .agents/skills/verify-squad-handoff/scripts/check-composition.py
+          - slice: authority
+            checker: .agents/skills/verify-squad-authority/scripts/composition-check.py
+          - slice: coordination
+            checker: .agents/skills/verify-squad-coordination/scripts/check-extensions.py
+          - slice: local-effects
+            checker: .agents/skills/verify-squad-local-effects/scripts/check.py
+          - slice: host-retry
+            checker: .agents/skills/verify-squad-host-retry/scripts/check.py
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Prepare pinned TLC for each isolated matrix job
+        run: |
+          SQUAD_TLA_JAR="$RUNNER_TEMP/tla2tools-1.7.4.jar"
+          curl --fail --location --retry 2 --max-time 60 --output "$SQUAD_TLA_JAR" https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          printf '936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88  %s\n' "$SQUAD_TLA_JAR" | sha256sum --check
+          echo "TLA2TOOLS_JAR=$SQUAD_TLA_JAR" >> "$GITHUB_ENV"
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Check complete finite domain and implementation correspondence
+        run: python3 "${{ matrix.checker }}" --evidence "reports/ci-${{ matrix.slice }}"
+      - name: Independently read back retained evidence
+        run: python3 "${{ matrix.checker }}" --verify-evidence "reports/ci-${{ matrix.slice }}"
+      - name: Verify evidence readers reject missing and truncated proof
+        if: matrix.slice == 'handoff' || matrix.slice == 'local-effects' || matrix.slice == 'host-retry'
+        run: python3 tests/local-effects-formal-readback-controls.py --checker "${{ matrix.checker }}" --proof "reports/ci-${{ matrix.slice }}" --evidence "reports/ci-reader-controls-${{ matrix.slice }}"
+      - name: Retain composition verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: formal-composition-${{ matrix.slice }}-${{ github.sha }}
+          path: reports/
           if-no-files-found: error
           retention-days: 14

@@ -117,7 +117,11 @@ export class SkillRegistry {
     await mkdir(this.options.snapshotRoot, { recursive: true, mode: 0o700 });
     const path = join(this.options.snapshotRoot, entry.skillVersion);
     try {
-      if (JSON.stringify(await packageManifest(path, this.options, Date.now() + this.options.scanTimeoutMs)) === JSON.stringify(entry.files)) return path;
+      if (JSON.stringify(await packageManifest(path, this.options, Date.now() + this.options.scanTimeoutMs)) === JSON.stringify(entry.files)) {
+        // A prior host can exit after rename but before making the directories read-only.
+        await readonlyDirectories(path);
+        return path;
+      }
       throw new LocalToolError('SKILL_SNAPSHOT_CORRUPTED');
     } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; if (entry.root === path) throw new LocalToolError('SKILL_VERSION_UNAVAILABLE'); }
     const temp = join(this.options.snapshotRoot, `.pending-${randomUUID()}`);

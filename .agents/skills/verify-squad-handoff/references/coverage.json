@@ -1,5 +1,5 @@
 {
-  "syncCommit": "32c26b376b46ae1a03718a6820683b59b802b413",
+  "syncCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
   "bounds": {
     "tasks": 1,
     "owner": "A",
@@ -57,20 +57,18 @@
     "src/delivery-acceptance.ts": "6d4a70291b12a3ed376e8e3658b428b7351e260e1d39043ee986a97fc2568396",
     "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
     "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
-    "src/local-skills.ts": "4d83827020c75e7888de71fb5c9b263048a80339fc318c0217e50a31fa566ae2",
+    "src/local-skills.ts": "d5d3465670df6cb44858a88405aa8b456d9000bfc5b10eaed8aeeced4c554b7f",
     "src/artifact-request.ts": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
     "src/source-artifact.ts": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4",
     "src/task/map-reduce-capacity.ts": "6397480888beae4db09321f45453a7d315bce56d8bcd4fe7b646f438ac171b6f"
   },
   "review": {
-    "date": "2026-11-09",
-    "head": "32c26b376b46ae1a03718a6820683b59b802b413",
-    "basis": "references/drift-review-kej-102-105.json",
     "status": "verified",
-    "previousSyncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
-    "initialBlockedEvidence": "reports/verify-squad-handoff/kej-102-105-initial",
-    "evidence": "reports/verify-squad-handoff/kej-102-105-controlled-env",
-    "runSyncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b"
+    "date": "2026-11-09",
+    "head": "e77f052acacd208fd8eb8587ac6901ba19003220",
+    "basis": "references/drift-review-kej-107-108.json",
+    "previousSyncCommit": "32c26b376b46ae1a03718a6820683b59b802b413",
+    "evidence": "reports/verify-squad-handoff/kej-107-108-reviewed"
   },
   "maintenanceReviews": [
     {

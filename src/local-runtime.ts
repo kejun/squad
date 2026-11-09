@@ -120,7 +120,11 @@ export class LocalRuntime {
     const marker = `${copy}.json`;
     try {
       const old = JSON.parse(await readFile(marker, 'utf8')) as { revision: string; workId: string };
-      if (old.workId === work.id && /^[a-f0-9]{64}$/.test(old.revision)) return { path: copy, revision: old.revision, isolated };
+      if (old.workId === work.id && /^[a-f0-9]{64}$/.test(old.revision)) {
+        // The source marker can survive a host exit before scratch preparation finishes.
+        await prepareScratch(copy);
+        return { path: copy, revision: old.revision, isolated };
+      }
     } catch { /* An unpublished copy is rebuilt before any command is launched. */ }
     await rm(copy, { recursive: true, force: true }); await mkdir(copy, { recursive: true, mode: 0o700 });
     for (const file of files) {

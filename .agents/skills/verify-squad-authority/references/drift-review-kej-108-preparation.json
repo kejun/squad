@@ -1,0 +1,37 @@
+{
+  "issues": [
+    "KEJ-107",
+    "KEJ-108"
+  ],
+  "previousSyncCommit": "32c26b376b46ae1a03718a6820683b59b802b413",
+  "reviewedCommit": "64322436c87b216f9dd9ba1a137738e5cd923497",
+  "workingTreeProductDiff": "diff --git a/src/local-runtime.ts b/src/local-runtime.ts\nindex da86bdb..d37b3ba 100644\n--- a/src/local-runtime.ts\n+++ b/src/local-runtime.ts\n@@ -120,7 +120,11 @@ export class LocalRuntime {\n     const marker = `${copy}.json`;\n     try {\n       const old = JSON.parse(await readFile(marker, 'utf8')) as { revision: string; workId: string };\n-      if (old.workId === work.id && /^[a-f0-9]{64}$/.test(old.revision)) return { path: copy, revision: old.revision, isolated };\n+      if (old.workId === work.id && /^[a-f0-9]{64}$/.test(old.revision)) {\n+        // The source marker can survive a host exit before scratch preparation finishes.\n+        await prepareScratch(copy);\n+        return { path: copy, revision: old.revision, isolated };\n+      }\n     } catch { /* An unpublished copy is rebuilt before any command is launched. */ }\n     await rm(copy, { recursive: true, force: true }); await mkdir(copy, { recursive: true, mode: 0o700 });\n     for (const file of files) {\ndiff --git a/src/local-skills.ts b/src/local-skills.ts\nindex 53b0936..de645a3 100644\n--- a/src/local-skills.ts\n+++ b/src/local-skills.ts\n@@ -117,7 +117,11 @@ export class SkillRegistry {\n     await mkdir(this.options.snapshotRoot, { recursive: true, mode: 0o700 });\n     const path = join(this.options.snapshotRoot, entry.skillVersion);\n     try {\n-      if (JSON.stringify(await packageManifest(path, this.options, Date.now() + this.options.scanTimeoutMs)) === JSON.stringify(entry.files)) return path;\n+      if (JSON.stringify(await packageManifest(path, this.options, Date.now() + this.options.scanTimeoutMs)) === JSON.stringify(entry.files)) {\n+        // A prior host can exit after rename but before making the directories read-only.\n+        await readonlyDirectories(path);\n+        return path;\n+      }\n       throw new LocalToolError('SKILL_SNAPSHOT_CORRUPTED');\n     } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; if (entry.root === path) throw new LocalToolError('SKILL_VERSION_UNAVAILABLE'); }\n     const temp = join(this.options.snapshotRoot, `.pending-${randomUUID()}`);\n",
+  "originalRun": "reports/verify-squad-authority/kej-108-before-composition",
+  "initialOutcome": "blocked: two covered file hashes changed",
+  "changes": [
+    {
+      "file": "src/local-runtime.ts",
+      "oldHash": "1efe59d4595fbe2058f0daa13c3869e8713ff9df174d94f698703c93652d3c77",
+      "newHash": "1c128ff31e4b8c658ed3a92590048c927c14f67152ee0241722733ca6036f9bb",
+      "classification": "No effect on original Authority/SessionScope/Execution slices",
+      "reason": "The only product delta repairs preparation after an existing isolated workspace marker or existing skill snapshot. Original host/runtime replay uses owner work without discussion/check and no skills; normal non-isolated workspace and command digest gates are unchanged. Pure authority transitions, receipt and transaction boundaries unchanged."
+    },
+    {
+      "file": "src/local-skills.ts",
+      "oldHash": "4d83827020c75e7888de71fb5c9b263048a80339fc318c0217e50a31fa566ae2",
+      "newHash": "d5d3465670df6cb44858a88405aa8b456d9000bfc5b10eaed8aeeced4c554b7f",
+      "classification": "No effect on original Authority/SessionScope/Execution slices",
+      "reason": "The only product delta repairs preparation after an existing isolated workspace marker or existing skill snapshot. Original host/runtime replay uses owner work without discussion/check and no skills; normal non-isolated workspace and command digest gates are unchanged. Pure authority transitions, receipt and transaction boundaries unchanged."
+    }
+  ],
+  "modelsAndProperties": "Original models, bounds, fairness, controls and public prefix unchanged. New ApprovalComposition is a separate bounded extension.",
+  "validation": "reports/verify-squad-authority/kej-108-reviewed",
+  "outcome": "updated: original full check and independent readback passed",
+  "verification": {
+    "command": "TLA2TOOLS_JAR=/workspace/work/tla2tools-1.7.4.jar python3 .agents/skills/verify-squad-authority/scripts/check.py --evidence reports/verify-squad-authority/kej-108-reviewed",
+    "status": "verified",
+    "steps": 34,
+    "independentReadback": "passed",
+    "sourceFilesUnchanged": true
+  }
+}

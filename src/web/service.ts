@@ -122,6 +122,7 @@ export class WebService {
         const context = this.engine.view(room.id, taskId)!.context;
         for (const work of context.intents) for (const op of work.localOperations ?? []) {
           if (op.status !== 'uncertain' || !op.sessionId) continue;
+          if (this.closing) return;
           const reconciliation = await this.localRuntime!.reconcile(op);
           if (reconciliation) {
             const reply = this.engine.send(room.id, taskId, { type: 'LOCAL_RECONCILE', id: `startup-local:${randomUUID()}`, at: Date.now(),

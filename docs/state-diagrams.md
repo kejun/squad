@@ -18,6 +18,7 @@
 - [房间与可信命令](#房间与可信命令)：路由、历史与归档。
 - [网页与观察](#网页与观察)：群聊、导出、面板、调试和 Inspector。
 - [验证模型与文档](#验证模型与文档)：模型回归、文档核对与验收报告边界。
+- [KEJ-107/108 组合验证](#kej-107108-组合验证补充)：17 项的所有者、现有模型、有限抽象与宿主接线。
 
 ## 事务与外部执行的共同边界
 
@@ -1393,3 +1394,252 @@ flowchart LR
 上限覆盖 HTTP 成功体的实际解压后字节；`Content-Length` 仅是供应方声明，缺失、夸大或压缩长度都不能替代实际计数。每服务 `maxResponseBytes` 为正安全整数，缺省 8 MiB，环境参数 `MODEL_MAX_RESPONSE_BYTES` 与各角色前缀可配置；它与 `maxTokens` 分别约束宿主资源和模型输出期望，不互相推导。读取不完整内容不能生成结果、产物、候选或格式修复请求，超限明确报告 `MODEL_RESPONSE_TOO_LARGE`，且不是可自动重试的瞬时故障。
 
 这次不新增 XState 状态或调度：复验真实模型的非瞬时 `WORK_FAILED`、`STOP` 和迟到结果守卫。预算和重启仍沿用既有领取/CONSUME/RECOVER；已结算超限请求不会重放，未完成安全请求恢复时重新领取并受相同配置签名检查。若配置上限改变，旧绑定由现有配置版本守卫拒绝，需可信恢复。
+<a id="kej-107108-组合验证补充"></a>
+
+## KEJ-107／108 组合验证补充
+
+下表是六组 KEJ-107 与十一组 KEJ-108 的状态所有权索引。TLA 节点是声明域内的验证投影，不是新增 taskMachine 状态、parallel 区域或 actor。完整运行与独立读回入口见[有限形式化验证](formal-verification.md#kej-107108-组合覆盖)；Gherkin、TLC、双存储回放、真实进程和浏览器分别报告。
+
+| 范围 | 图型与源码所有者 | 细化图与场景 |
+| --- | --- | --- |
+| KEJ-107 #1 本地效果 | 上下文与日志协议：taskMachine/localOperations、TeamEngine、CliJournal | [可信回执与工程独占](#本地效果可信回执与工程独占)，BT_L90–L93 |
+| KEJ-107 #2 宿主续办 | 上下文：taskMachine/hostRetryRequests/hostRetryBatch | [失败命令的宿主续办](#失败命令的宿主续办)，两个来源、两批的有限验证 |
+| KEJ-107 #3 工程验证 | 上下文与执行流程：task/verification、WorkRunner、checkDisposition | [工程验证与发布](#工程验证与发布)，BT_F50–F51 |
+| KEJ-107 #4 共享预算 | 上下文：task/budget、discussion、map-reduce、review与hostRetry预留 | [协作预算、输入与取消恢复](#协作预算输入与取消恢复)，BT_J01–J02 |
+| KEJ-107 #5 输入边界 | 上下文：task/input、assistance、delivery、生命周期守卫 | [输入意图解析](#输入意图解析)及[组合边界](#协作预算输入与取消恢复)，BT_J03 |
+| KEJ-107 #6 取消恢复 | 上下文：task/facts、reducer、operations与engine.recover | [讨论取消与恢复](#讨论取消与恢复kej-106)及[组合边界](#协作预算输入与取消恢复)，BT_J04 |
+| KEJ-108 A1 交付周期 | 上下文：候选、检查意图、publishedDelivery与历史final | [连续交付周期](#连续交付周期)，BT_F52 |
+| KEJ-108 A2 协助重试 | 上下文：assistance、results、retryOf与TeamEngine可信命令 | [重试的结果选择](#协助重试的结果选择)，BT_K01–K02 |
+| KEJ-108 A3 评审队列 | 上下文：task/assistance、review.targets/completed与汇总意图 | [成员评审](#成员评审)及[组合边界](#协作预算输入与取消恢复)，BT_J05 |
+| KEJ-108 A4 延期协调 | 上下文：task/policy、guards、deferredCoordination与进展事实 | [延期协调义务](#延期协调义务)，BT_J06 |
+| KEJ-108 A5 授权组合 | 真实XState与上下文：executionMachine、LocalOperation、hostSession | [授权组合图](authority-composition.md#状态域与共同边界)，BT_N30–N32 |
+| KEJ-108 A6 冻结来源 | 房间事务与上下文：engine.submit、resolveArtifactSource、sourceArtifact | [直接来源与冻结原文](#直接来源与冻结原文)，BT_F53 |
+| KEJ-108 B1 网页回执/快照 | UI投影：Workspace每群草稿/身份、useWorkspace轮询 | [跨群发送回执与快照](#kej-108-b1跨群发送回执与快照隔离)，BT_U20–U21 |
+| KEJ-108 B2 服务 | 宿主控制器：WebService的startup/closing、登记与故障范围 | [启动关闭与泵](#kej-108-b2服务启动关闭与泵调度隔离)，BT_K03–K07 |
+| KEJ-108 B3 准备 | 宿主流程：SkillRegistry快照、LocalRuntime隔离副本 | [准备重入](#技能与隔离副本准备重入)，BT_L81–L84 |
+| KEJ-108 B4 会话 | 适配器流程：WorkRunner、OpenAICompatibleAdapter消息与资料 | [混合工具和格式修正](#模型工具会话和格式修正)，BT_M50–M51 |
+| KEJ-108 B5 观察器 | 已有两个真实XState的I/O适配：generation、bridge与消息端口 | [两代装载](#kej-108-b5两代-inspector-装载隔离)，BT_V41 |
+
+### 本地效果、可信回执与工程独占
+
+类型：持久化上下文/日志协议的有限验证投影；所有者：`taskMachine` 的本地子操作、`TeamEngine` 事务、`CliJournal`。验收 BT_L90–L93；真实进程窗口继续由 KEJ-103/104 承担。
+
+```mermaid
+flowchart LR
+    Q[已保存待领取] -->|LOCAL_CLAIM / 原子占工程| C[已领取]
+    C -->|journal prepared / 保存准备日志| P[可能启动且没有确定回执]
+    P -->|宿主丢失后RECOVER / 保留占用| U[效果未知]
+    C -->|可信notStarted且无日志 / 更换领取身份| Q
+    P -->|journal settled / 保存原回执| R[原确定回执已保存]
+    U -->|可信原回执| R
+    R -->|LOCAL_RESULT或LOCAL_RECONCILE / 原子保存检查点和释放工程| D[原操作已结算]
+    R -->|提交失败 / 全部回滚| R
+```
+
+准备日志不证明未启动，未知效果不重放；停止后只结算原命令，错误session不能推进检查点。主图只追踪一个原命令、一个竞争工程的任务、至多一次丢失/提交失败；无日志重新领取是独立公开实例。宿主续办的[既有批次图](#失败命令的宿主续办)另以两个来源、两批及排队/成功/拒绝/未知四种前缀组合，不能把批次退休视为物理效果消失。确定回执后的进展依赖恢复/提交公平，未知效果允许一直等待。
+
+### 工程验证与发布
+
+类型：任务上下文与执行器流程；所有者：`task/verification`、`WorkRunner.prepareCheckVerification/finishCheckVerification` 与检查处置。验收 BT_F50–F51。判断暂存是执行器本地输出，不是新增任务节点。
+
+```mermaid
+stateDiagram-v2
+    [*] --> validationRequired
+    validationRequired --> validationRequired: CONSUME [没有成功隔离回执] / 拒绝且不扣检查请求
+    validationRequired --> validationReady: LOCAL_RESULT [当前隔离CLI成功] / 保存工程版本
+    validationReady --> checking: CONSUME [回执绑定当前检查] / 请求独立模型检查
+    checking --> heldJudgment: 模型返回 / 暂存判断
+    heldJudgment --> versionChecked: LOCAL_RESULT [verifyWorkspace成功] / 保存复核版本
+    heldJudgment --> incomplete: CHECK_RESULT [缺少最终复核] / 保留未完成原因
+    versionChecked --> published: CHECK_RESULT [版本相同且逐项通过] / 原子发布
+    versionChecked --> incomplete: CHECK_RESULT [工作区版本变化] / 拒绝发布
+```
+
+外部版本变化用一个不相等值代表。验证回执、请求许可、模型返回、版本复核与发布是不同步骤，不把它们合成一个事务。真实回放使用公开本地操作 API 的受控回执，不执行CLI或证明文件系统散列；调用真实工程的接线沿用原验收。
+
+### 连续交付周期
+
+类型：上下文生命周期；所有者：`CONTINUE/DELIVER/CHECK_RESULT`、`boundCheckProblem` 与 `operations.finish`。验收 BT_F52。
+
+```mermaid
+stateDiagram-v2
+    published --> working: CONTINUE [原工作已结算] / 新epoch和交付周期，保留原发布
+    working --> checking: DELIVER [当前版本有效] / 固定新候选和检查
+    checking --> checking: 旧检查或candidateRevision不符 / 拒绝且保留原发布
+    checking --> working: CHECK_RESULT [可修正] / 保留旧文档和final
+    checking --> published: CHECK_RESULT [当前绑定全部通过] / 新发布和新final
+    published --> published: 重复或迟到回执 / 不改历史选择
+```
+
+Cycles 只覆盖一个任务、三个发布周期、四个文档修订、跨周期一次自动修正及一次回滚/重开；历史artifact/final逐步保持相同身份和正文。活性假设持续可用的Draft/Pass/Reopen最终被调度，不保证无限周期或供应商永远成功。
+
+### 直接来源与冻结原文
+
+类型：房间可信事务与任务上下文；所有者：`engine.submit/resolveArtifactSource`、任务固定来源和交付。验收 BT_F53，沿用[跨任务产物引用](#跨任务产物引用kej-98)的真实阶段。
+
+```mermaid
+flowchart LR
+    A1[A第一版已发布] -->|submit / 固定原文及元数据| B1[B冻结A第一版]
+    B1 -->|STOP / 保留来源| BS[B已停止]
+    BS -->|A继续并发布新版| A2[A新版取代旧选择]
+    A2 -->|新请求选择A旧版 / 拒绝| A2
+    A2 -->|CONTINUE B / 来源仍为A第一版| BR[B继续冻结来源]
+    BR -->|独立检查通过| BP[B独立发布]
+    BP -->|submit直接引用B| C[C只标记直接来源B]
+```
+
+来源全文、哈希与元数据创建时冻结，不随A后续发布漂移；原请求重放不能换来源。有限域为同群三个任务，A两版、B停止后继续、C引用B；一次重开与特定安全位置的公开RECOVER。它不证明任意来源图、跨群权限或正文保留语义。
+
+### 协助重试的结果选择
+
+类型：任务上下文生命周期；所有者：`task/assistance`、`results`、`retryOf` 以及 `TeamEngine.submit` 的可信命令事务。验收 BT_K01–K02，原子消费仍复用[协助结果交接](#协助重试与结果交接)。
+
+```mermaid
+flowchart TD
+    U[直接用户RETRY_ASSISTANCE] --> G{当前负责人和权限允许}
+    G -->|否 / 拒绝且状态不变| N[不产生新核查或交接]
+    G -->|是| R{已有有效待消费结果}
+    R -->|是 / 原子消费原结果| H[负责人收到一次结果]
+    R -->|否且可重试 / 保存retryOf| A[至多一个新核查]
+    A -->|重复新命令 / 不重复新尝试| A
+    A -->|当前重试结果有效 / 原子交接| H
+```
+
+已保存与失败前缀分别建模；失败后的原结果是迟到结果，不能伪装成当前成功。有限域含一个逻辑协助、一个重试后继、一次恢复、两种负责人及一次权限变化；不保证无限重试。合法的旧成功命令回执重放与新的错误资格请求分别处理，不把回执`ok`误当新增权限。
+
+### 协作预算、输入与取消恢复
+
+类型：真实任务拥有的上下文投影；所有者：`task/budget/input/assistance/discussion/map-reduce/facts/operations` 与生命周期守卫。验收 BT_J01–J05，沿用原输入、协助、评审和讨论图。
+
+```mermaid
+stateDiagram-v2
+    [*] --> promised: 直接邀请 [成员与基础余额充足] / 保存协作义务
+    promised --> collecting: CLAIM [仍保留后继费用] / 一次计费
+    collecting --> synthesis: 最后成员结算 [回执有效] / 保存唯一汇总
+    synthesis --> owner: DISCUSSION_HANDOFF [主通道与物理效果已结算] / 唯一负责人续办
+    collecting --> retired: STOP或目标变化后RECOVER [效果已知] / 退休废弃工作
+    collecting --> uncertain: RECOVER [效果未知] / 保留占用并拒绝继续
+    uncertain --> retired: LOCAL_RESULT [匹配且可信结算] / 保存原回执
+```
+
+额外请求复用原计费接口，不得耗尽已承诺的成员、汇总、负责人和检查费用。输入在旧协助/检查结算后才解释，旧检查不能忽略未处理补充。评审修复保留其余成员结果，已完成成员集合去重，完整收集只生成一个当前汇总。
+
+DiscussionBudget/ReservedRequests、InputBoundary、CancelledDiscussion、ReviewQueue 是独立小模型：分别有两成员、四种预留前缀、一次补充/恢复、分片或讨论×三种取消×两种物理效果，以及两评审者/一次显式修复等各自上限。取消域还保留主通道的 `primaryBusy`：旧成员退休不代表旧负责人已结算，新邀请须同时满足两者。公开回放检查真实模型及双存储；输入域、有限实例和TLC探索不混计。不知道效果何时能核清时，只保证保留边界，不保证后继最终执行。
+
+直接发送任务 `RECOVER` 与重新打开房间后的宿主恢复选择分别建边。已结束任务若安全旧同伴已退休、只剩物理效果未决的成员，房间恢复可能零提交并保持原占用；不能将此路径画成已发生任务 `RECOVER` 或效果已知。可信结算与旧负责人返回仍分别核对，模型不承诺该历史下 WebService 自动启动物理核对。
+
+### 延期协调义务
+
+类型：任务上下文生命周期；所有者：`task/policy`、`guards`、进展/活动/重复失败事实及 `deferredCoordination`。验收 BT_J06，复用[协调决策与等待原因](#协调决策校验与等待原因)。
+
+```mermaid
+stateDiagram-v2
+    [*] --> monitoring
+    monitoring --> deferred: 重复失败达到阈值 [边界尚不安全] / 保存协调义务
+    deferred --> deferred: 普通活动 / 不抹除协调义务或伪造真实进展
+    deferred --> deferred: 新证据 / 更新真实进展及重复检测事实
+    deferred --> coordinating: 安全边界 [无旧在途或未知效果] / 保存唯一协调意图
+    deferred --> stopped: STOP / 停止并保留历史
+```
+
+验证域只有一条安全工具工作、两个失败指纹、阈值2、一次真实进展/普通活动和一次恢复；履行义务依赖声明的安全边界与弱公平。这里不增加产品状态，也不声称所有时间和失败序列的活性证明。
+
+### 技能与隔离副本准备重入
+
+类型：宿主准备处理流程；所有者：`SkillRegistry` 的快照发布和 `LocalRuntime` 的隔离副本准备。验收 BT_L81–L84。完整流程、真实rename/marker屏障和准备义务见[准备状态图](preparation-composition.md#准备状态与所有者)。
+
+成功路径要求同一固定版本的正文、资源和脚本完整；已有最终路径仍须补足只读目录，合法marker仍须核对本次使用的HOME、TMPDIR与适用检查输出目录准备。复制失败或源变化不能交给执行器，同一工作可重试。原图不将可解析marker等同为整个准备步骤原子完成。检查输出目录的重入场景通过既有生产流程，无新增产品修复。真实SIGKILL只证明声明窗口的进程重入，不证明硬件断电或任意外部篡改；模型/工具I/O仍从已保存并领取的意图发起。
+
+### 模型工具会话和格式修正
+
+类型：执行器/适配器处理流程；所有者：`WorkRunner`、`OpenAICompatibleAdapter` 的当前工作消息与资料。验收 BT_M50–M51，沿用[格式修正](#模型输出格式修正)及本地操作领取/回执边界。
+
+```mermaid
+flowchart LR
+    W[当前工作与固定身份] --> T[按已授权请求取得工具资料]
+    T --> M[模型请求保留当前工作已取得资料]
+    M -->|输出不合规 / 保存诊断而非回显无效原文| R[有界格式修正]
+    R -->|不自动重跑工具| M
+    M -->|合法角色动作 / 回传现有状态机| D[真实结果提交]
+    D --> N[另一工作从独立资料上下文开始]
+```
+
+有限短序列交错网页搜索、抓取、公共技能、本地技能读取与格式修正；真实适配器/执行器处理消息，网络回应受控，本地资料是真实不可变快照。只证明这些声明序列中的资料保留、无隐式重跑与工作隔离，不证明任意长度会话、模型语义或所有协议输入。格式修正和已付请求仍受既有预算、停止、期限与版本规则约束。
+
+### KEJ-108 B2：服务启动、关闭与泵调度隔离
+
+类型：宿主控制器生命周期，不是新业务XState；所有者：`WebService.startup/initialized/closing/running/failedRooms`。验收BT_K03–K07。实际意图、领取、预算、停止与恢复继续由真实taskMachine及其executionMachine子actor和TeamEngine事务拥有。
+
+```mermaid
+stateDiagram-v2
+    [*] --> recovering
+    recovering --> running: startup完成 [未关闭] / 允许kick
+    recovering --> closing: close / 禁止新的核对与执行，等待已开始核对返回
+    running --> closing: close / 禁止排队微任务启动，结算已开始工作
+    closing --> closed: startup与登记工作结算 / 释放timer与SQLite
+    running --> roomFailed: 非存储hostError / 隔离本房间并保留错误
+    roomFailed --> roomFailed: 同实例定时、提交或finally / 不启动此房间外部操作
+    roomFailed --> running: 其他房间有效工作 / 继续独立调度
+    running --> storageFault: 任一存储提交失败 / 同engine所有房间拒绝新的事务许可
+    storageFault --> storageFault: 定时、提交、微任务 / 无新外部执行
+    storageFault --> closed: close / 释放故障实例
+    closed --> recovering: 新实例打开同库 / 依既有RECOVER核对持久事实
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> absent
+    absent --> registered: kick [持久化pending且该room/work未登记] / 先保存执行Promise
+    registered --> registered: timer或重复提交 / 不重复登记
+    registered --> started: 执行微任务 [未关闭] / runOne领取与一次性许可后调用适配器
+    registered --> settled: 执行微任务 [关闭] / 不调用执行器
+    started --> settled: 结果或失败返回 / 原状态机结算
+    settled --> absent: finally / 释放登记并按新意图重新kick
+```
+
+不新增XState业务状态：startup、close与微任务/定时器是宿主资源与调度控制，不能伪装成任务状态。实现前复验真实taskMachine的RECOVER将未决物理操作保留unknown、STOP拒绝旧工作领取、重复提交保持同一回执；保存模型版本和轨迹。接线测试使用真实SQLite、公开WebService与TeamEngine API建立前缀，不读取私有Map；用公开LocalRuntime.reconcile实例方法的受控Promise阻塞外部依赖，用Node受控setInterval驱动实际回调。ESM加载器仅在独立诊断进程观察公开WorkRunner.runOne或在该宿主边界抛出非存储错误，不把适配器WorkFailure当成hostError，不新增生产测试开关。存储故障使用真实SqliteStore.failNextCommit回滚。重开必须关闭旧连接并打开同一路径，不复制预期数据库状态。有限序列与接线证据不声称是TLC证明或真实OS进程恢复验收。
+
+### KEJ-108 B1：跨群发送回执与快照隔离
+
+类型：UI 投影。所有者：`Workspace` 的每群草稿、来源与待核对发送身份；`useWorkspace` 的当前群与轮询。验收：BT_U20、BT_U21。
+
+```mermaid
+stateDiagram-v2
+    [*] --> editing
+    editing --> sending: 发送 [连接且输入有效] / 捕获群、完整载荷和请求身份
+    sending --> receiptUnknown: 网络回执丢失 / 按群保留草稿、来源和身份
+    receiptUnknown --> receiptUnknown: 切群并在另一群发送成功 / 不清除此群身份
+    receiptUnknown --> sending: 重试 [同群同载荷] / 复用原身份
+    sending --> editing: 提交成功 / 仅清本群草稿、来源和身份
+    sending --> editing: 明确拒绝 / 保留本群输入并使本次身份失效
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> pollingCurrent
+    pollingCurrent --> pollingCurrent: 切群 / 取消旧请求并以新群开始轮询
+    pollingCurrent --> pollingCurrent: 快照成功 [未取消且仍为当前群] / 更新当前快照和连接
+    pollingCurrent --> pollingCurrent: 快照失败 [未取消且仍为当前群] / 显示连接中断
+    pollingCurrent --> pollingCurrent: 旧请求成功或失败 [已取消或群不同] / 忽略且不再安排旧群轮询
+```
+
+不增加业务 XState 状态或转移：UI 只提交既有可信 HTTP 消息命令，业务请求指纹与回执继续由 `TeamEngine.submit` 同一事务拥有。实现前以真实 taskMachine/TeamEngine 内存模型复验提交、重复标识、不同内容拒绝及两个群隔离，不模拟网页调度为业务机。真实 Chromium 验收只在生产服务已提交后丢弃传输回执；SQLite 只读核对消息/任务，所有产品写入经网页。旧快照来自实际 HTTP 读取，通过传输屏障控制交付顺序；不注入React状态或伪造业务成功。
+
+### KEJ-108 B5：两代 Inspector 装载隔离
+
+类型：已有真实 XState 的浏览器适配器异步生命周期；所有者：`createInspectorWindow` 的 generation、target、bridge、watcher；真实协议模型仍为 `inspectorWindowMachine` 和 `inspectorMachine`。验收：BT_V41。
+
+```mermaid
+stateDiagram-v2
+    [*] --> loadingCurrent
+    loadingCurrent --> loadingCurrent: 关闭旧窗并重新打开 / 释放旧监听并增加generation
+    loadingCurrent --> waitingHandshake: 装载成功 [token等于当前generation且窗口未关闭] / 连接、先监听后导航
+    loadingCurrent --> loadingCurrent: 旧装载成功或失败 [token过期] / 不导航、不发送、不改变反馈
+    waitingHandshake --> connected: 握手 [source和origin可信] / 先注册最新身份再发快照
+    connected --> connected: 选择身份变化 / 同窗先注册新身份再发快照
+    loadingCurrent --> disposed: DISPOSE / 增加generation并释放资源
+    waitingHandshake --> disposed: DISPOSE / 释放资源
+    connected --> disposed: DISPOSE / 最多一次断连通知并释放资源
+```
+
+沿用真实两张XState模型，不改业务模型；实现前用纯 initialTransition/transition 复验 OPEN/OPENED/WINDOW_CLOSED/OPEN/DISPOSE 与可信/不可信握手、SELECT先注册的路径。随后有限枚举两代装载先后×旧代成功/失败，在生产控制器和真实 bridge 上通过受控 host、deferred loader、消息端口验证；不接官方网络，不把浏览器端口替身当作真实官方登录验收。关闭前后的迟到回调不得重新创建监听；允许关闭时协议要求的一次 disconnected 消息。

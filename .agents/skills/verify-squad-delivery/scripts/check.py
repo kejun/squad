@@ -22,6 +22,10 @@ spec = importlib.util.spec_from_file_location('handoff_helpers', HELPER)
 helpers = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(helpers)
 digest, execute, jar_at = helpers.digest, helpers.execute, helpers.jar_at
+composition_spec = importlib.util.spec_from_file_location('delivery_composition', SKILL / 'scripts/composition-check.py')
+composition = importlib.util.module_from_spec(composition_spec)
+composition_spec.loader.exec_module(composition)
+
 CONTROLS = {
     'drop-final': ('AtomicPublication', 'src/task/operations.ts',
                    "if (outcome !== 'stopped') {", "if (outcome !== 'stopped' && outcome !== 'complete') {"),
@@ -45,7 +49,9 @@ def model(jar, area, mutation='none', witness=None):
         cfg = re.sub(r'^INVARIANTS .*$', 'INVARIANT ' + witness, cfg, flags=re.M)
         cfg = cfg.replace('PROPERTY Progress\n', '')
     (area / 'Delivery.cfg').write_text(cfg)
-    command = ['java', '-XX:+UseParallelGC', '-Xmx512m', '-jar', str(jar), '-workers', '1', '-seed', '1',
+    java_tmp = area / 'java-tmp'
+    java_tmp.mkdir()
+    command = ['java', '-Djava.io.tmpdir=' + str(java_tmp), '-XX:+UseParallelGC', '-Xmx512m', '-jar', str(jar), '-workers', '1', '-seed', '1',
                '-metadir', str(area / 'states'), '-dump', 'dot,actionlabels', str(area / 'graph.dot'), '-config', 'Delivery.cfg', 'Delivery.tla']
     code, seconds = execute(command, area / 'tlc.log', area)
     log = (area / 'tlc.log').read_text()
@@ -81,7 +87,7 @@ def main():
     parser.add_argument('--jar', type=Path, default=Path(os.environ.get('TLA2TOOLS_JAR', str(Path.home() / '.cache/squad-formal/tla2tools-1.7.4.jar'))))
     args = parser.parse_args()
     if args.verify_evidence:
-        print(f'Evidence verified: {helpers.verify_evidence(args.verify_evidence.resolve())} artifacts')
+        print(f'Evidence verified: {composition.verify_composition_evidence(args.verify_evidence.resolve())} artifacts')
         return 0
     evidence = (args.evidence or ROOT / 'reports/verify-squad-delivery' / (time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()) + f'-{os.getpid()}')).resolve()
     assert not evidence.exists(), 'Evidence directory must be new'
@@ -93,12 +99,23 @@ def main():
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(SKILL / relative, destination)
     shutil.copyfile(HELPER, inputs / 'handoff-check-helper.py')
+    composition_inputs = [*SKILL.glob('scripts/composition-*'), *SKILL.glob('scripts/Verification.*'), *SKILL.glob('scripts/Cycles.*'), *SKILL.glob('scripts/SourceLineage.*'),
+                          ROOT / 'tests/delivery-composition-fixture.ts', ROOT / 'tests/source-lineage-formal-fixture.ts',
+                          ROOT / 'features/40_delivery_composition.feature', ROOT / 'tests/bdd/delivery-composition.steps.ts',
+                          SKILL / 'references/drift-review-kej-107-108.json']
+    for source in composition_inputs:
+        destination = inputs / 'composition' / source.relative_to(ROOT)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+
     coverage = json.loads((SKILL / 'references/coverage.json').read_text())
     before = {p: digest(ROOT / p) for p in coverage['files']}
+    checker_paths = set(composition_inputs + [HELPER, SKILL / 'scripts/check.py', SKILL / 'scripts/compare.mjs', SKILL / 'scripts/Delivery.tla', SKILL / 'scripts/Delivery.cfg', SKILL / 'references/coverage.json', SKILL / 'references/correspondence.md', SKILL / 'SKILL.md'])
+    checker_before = {str(path.relative_to(ROOT)): digest(path) for path in checker_paths}
     report = {'status': 'running', 'evidence': str(evidence), 'syncCommit': coverage['syncCommit'], 'bounds': coverage['bounds'],
               'source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
               'workingTree': subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT, text=True).strip(),
-              'coveredFileHashes': before, 'models': {}, 'negativeControls': {}}
+              'coveredFileHashes': before, 'checkerFileHashes': checker_before, 'models': {}, 'negativeControls': {}}
     scratch = Path(tempfile.mkdtemp(prefix='squad-delivery-check-'))
     started = time.monotonic()
     try:
@@ -144,13 +161,14 @@ def main():
         restored = replay(ROOT, evidence / 'restored/graph.dot', evidence / 'restored-code.json', scratch)
         report['restoredImplementation'] = restored
         assert restored['exitCode'] == 0 and restored['status'] == 'verified', 'Restored implementation did not pass'
+        report['composition'] = composition.run(jar, evidence / 'composition', scratch / 'composition')
         report['status'] = 'verified'
     except Exception as error:
         report['status'] = 'blocked' if str(error).startswith('BLOCKED:') else 'failed'
         report['error'] = str(error)
     finally:
         shutil.rmtree(scratch)
-        report['cleanup'] = {'scratchRemoved': not scratch.exists(), 'coveredFilesUnchanged': before == {p: digest(ROOT / p) for p in before}, 'evidenceRetained': evidence.exists()}
+        report['cleanup'] = {'scratchRemoved': not scratch.exists(), 'coveredFilesUnchanged': before == {p: digest(ROOT / p) for p in before}, 'evidenceRetained': evidence.exists(), 'checkerInputsUnchanged': checker_before == {path: digest(ROOT / path) for path in checker_before}}
         if not all(report['cleanup'].values()): report['status'] = 'failed'
         report['seconds'] = time.monotonic() - started
         artifacts = {str(p.relative_to(evidence)): {'sha256': digest(p), 'bytes': p.stat().st_size}
@@ -158,7 +176,7 @@ def main():
         helpers.save_bytes(evidence / 'artifacts.json', json.dumps(artifacts, indent=2).encode())
         report['evidenceManifestSha256'] = digest(evidence / 'artifacts.json')
         helpers.save_bytes(evidence / 'run.json', json.dumps(report, ensure_ascii=False, indent=2).encode())
-        if report['status'] == 'verified': helpers.verify_evidence(evidence)
+        if report['status'] == 'verified': composition.verify_composition_evidence(evidence)
         print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report['status'] == 'verified' else 1
 

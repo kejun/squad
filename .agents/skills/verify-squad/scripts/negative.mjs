@@ -23,7 +23,7 @@ const cases = [
   { name: 'raw-tool-open', tag: 'BT_U02', file: 'web/src/Details.tsx', from: '<Collapsible.Root\n                                  className={`execution-event', to: '<Collapsible.Root defaultOpen\n                                  className={`execution-event', detects: 'Raw tool details start collapsed' },
   { name: 'wrong-artifact-source', tag: 'BT_U03', file: 'web/src/Details.tsx', from: 'onOpen({ taskId: source.sourceTaskId, artifactId: source.artifactId })', to: 'onOpen({ taskId: source.sourceTaskId + ":missing", artifactId: source.artifactId })', detects: 'name: \'验证报告\'' },
   { name: 'offline-working-spinner', tag: 'BT_U09', file: 'web/src/App.tsx', from: 'working && connected', to: 'working', all: true, detects: 'Offline host cannot be presented as executing' },
-  { name: 'new-id-on-retry', tag: 'BT_U09', file: 'web/src/App.tsx', from: 'const id = identity?.roomId === targetRoom && identity.payload === serialized ? identity.id : crypto.randomUUID();', to: 'const id = crypto.randomUUID();', detects: 'Retry keeps the original request identity' },
+  { name: 'new-id-on-retry', tag: 'BT_U09', file: 'web/src/App.tsx', from: 'const id = identity?.payload === serialized ? identity.id : crypto.randomUUID();', to: 'const id = crypto.randomUUID();', detects: 'Retry keeps the original request identity' },
 ];
 const selected = process.argv[2] ? cases.filter(test => test.name === process.argv[2]) : cases;
 assert(selected.length, 'Unknown mutation name');
@@ -51,6 +51,11 @@ function browserRuns(path, status) {
 try {
   const added = spawnSync('git', ['worktree', 'add', '--detach', directory, source], { encoding: 'utf8' });
   assert.equal(added.status, 0, added.stderr);
+  // Verify the current checkout during an uncommitted repair as well as clean CI.
+  // The browser build proof retains the exact copied inputs and working-tree diff.
+  for (const path of ['src', 'web', 'scripts', 'team.config.ts', 'tsconfig.json', 'package.json', 'package-lock.json', '.agents/skills/verify-squad/scripts']) {
+    cpSync(join(root, path), join(directory, path), { recursive: true });
+  }
   symlinkSync(resolve('node_modules'), join(directory, 'node_modules'), 'dir');
   for (const test of selected) {
     const folder = join(evidence, test.name);

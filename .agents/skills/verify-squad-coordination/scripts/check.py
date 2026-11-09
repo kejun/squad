@@ -110,13 +110,14 @@ def execute(command, cwd, log, timeout=180):
 
 def tlc(jar, model, area, witness=None):
     area.mkdir(parents=True)
+    (area / 'java-tmp').mkdir()
     shutil.copyfile(SKILL / f'scripts/{model}.tla', area / f'{model}.tla')
     cfg = (SKILL / f'scripts/{model}.cfg').read_text()
     if witness:
         cfg = re.sub(r'^INVARIANTS .*$', 'INVARIANT ' + witness, cfg, flags=re.M)
         cfg = re.sub(r'^PROPERTY .*\n?', '', cfg, flags=re.M)
     (area / f'{model}.cfg').write_text(cfg)
-    result = execute(['java', '-XX:+UseParallelGC', '-Xmx512m', '-jar', str(jar), '-workers', '1', '-seed', '1',
+    result = execute(['java', '-XX:+UseParallelGC', '-Xmx512m', '-Djava.io.tmpdir=' + str(area / 'java-tmp'), '-jar', str(jar), '-workers', '1', '-seed', '1',
         '-metadir', str(area / 'states'), '-dump', 'dot,actionlabels', str(area / 'graph.dot'),
         '-config', f'{model}.cfg', f'{model}.tla'], area, area / 'tlc.log', timeout=45)
     raw = (area / 'tlc.log').read_text()

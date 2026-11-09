@@ -1,6 +1,6 @@
 ---
 name: verify-squad-coordination
-description: "验证 Squad 的普通请求计费、交付检查与修订上限、两分片乱序结算和唯一归并续办。修改 budget、discussion、map-reduce、领取/恢复/CONSUME 或交付检查重试时使用；运行 TLC、双存储逐边回放与真实代码故障对照。"
+description: "验证 Squad 的计费与共享预留、输入安全应用、评审及延期协调、取消讨论恢复、交付检查上限和分片归并。修改相关任务守卫、领取/恢复/CONSUME 或交接时使用；运行 TLC、双存储逐边回放与真实代码负对照。"
 ---
 
 # Verify squad coordination
@@ -100,3 +100,31 @@ TLA+ 版本、下载器与证据组织沿用项目 `verify-squad-handoff`。形�
 
 
 托管宿主若仅注入 `MODEL_API_KEY` 而没有模型端点，`team.config.ts` 的模块默认导出会在回放前报配置错误。验证命令可加前缀 `env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true`，仅给当前进程提供导入前提；实际回放仍使用显式固定配置，不调用该地址，也不修改用户 `.env`。本轮原配置失败及受控重跑证据均保留。
+
+## KEJ-107/108 协作组合扩展
+
+在原三模型检查之外，还必须执行独立组合入口：
+
+```sh
+python3 .agents/skills/verify-squad-coordination/scripts/check-extensions.py
+```
+
+使用与原入口相同的固定 TLA+ Tools 1.7.4（`TLA2TOOLS_JAR` 或 `--jar` 可指定）。每次 Java 调用使用该模型证据目录内独立的 `java-tmp`，避免并行TLC抽取标准模块相互删除。Node 运行若受 MODEL_API_KEY 导入前提影响，使用本文末尾相同受控环境前缀，不调用模型 HTTP。
+
+扩展保护五项用户承诺：共享普通额度不被额外请求侵占已承诺后继；补充先经过安全解释再续办且旧检查不能越过；取消讨论的已知旧工作退休、未知效果先核对；评审队列不漏成员、不重复汇总且显式修复保留其余结果；延期协调请求在安全边界履行或被用户停止。分别由 DiscussionBudget、ReservedRequests、InputBoundary、CancelledDiscussion、ReviewQueue、DeferredCoordination 六份TLA覆盖。确切21个配置、状态载体、公开前缀及原子动作见 [新增对应说明](references/correspondence.md#kej-107108协作组合的新增有限域) 与 [扩展覆盖记录](references/extensions-coverage.json)。它们是独立小模型，不声称全系统组合或任意大小证明。
+
+必须完成全部21配置的TLC、每条边在MemoryStore/SQLite的代表前缀回放、声明的独立可达性见证、18项隔离真实源码负对照（双存储）、未改坏原版全域复验与独立读回。只有退出0、run.json.status=verified且cleanup全部true才通过；导入失败、超时、图不完整或非目标断言失败不得计通过。每个TLC最多45秒、每个回放最多180秒；不得缩小原域让超时通过。证据位于 reports/verify-squad-coordination/extensions-*，拒绝覆盖旧目录。读回命令：
+
+```sh
+python3 .agents/skills/verify-squad-coordination/scripts/check-extensions.py --verify-evidence "$SQUAD_COORDINATION_EXTENSION_EVIDENCE"
+```
+
+扩展由场景 BT_J01–J06 的18个直接实例提供独立产品行为验收；不把TLC回放冒称运行Gherkin，也不把这18例称为穷举。安全与进度分开：ReservedRequests仅保护授权/计费；其他模型的公平推进、有限恢复及可信效果最终结算假设见对应说明。未知效果永久不返回时只保证保留占用，不保证最终释放。SQLite事务是模型原子性假设，不证明数据库抗断电、真实CLI或供应商可用。
+
+扩展覆盖源变化时，按本文维护流程逐文件审阅，更新模型/回放和真实负对照后完整运行；不要仅刷新扩展覆盖哈希。单个已保存R1的原子消费和检查2+1上限仍由既有handoff/CheckBudget承接，未在本域重复申报新保证。
+
+KEJ-107/108 原三图已在产品e77f052源码上完整复验（339.6秒）并独立读回330份证据，记录见coverage.json末项。runtime/skills缓存准备与WebService关闭守卫已逐项审阅，原保证不扩大。新增21域仍以本轮扩展入口最终run.json及独立读回为完成依据，不用原三图通过代替新增验证。
+
+扩展读回固定校验每模型必需INVARIANTS及Progress/RetirementProgress，实际TLC日志/图/配置/结果，保存的逐边JSONL完整性、双存储真实投影与正常子进程退出码。全部covered源码与未提交fixture正文归档；真实负控须保留原始JSON/log/diff且正常exit=1、AssertionError和目标性质。还必须拒绝5种外层SHA已自洽更新的删除：负控JSON、负控日志、真实diff、必需进度性质及fixture正文。它保证证据协议完整，不是数字签名或远端证明。
+
+本次新增域已完整执行通过：`reports/verify-squad-coordination/kej-107-108-extensions-complete`，389.684秒；21配置、58见证、18项双存储真实代码负对照、全域原版复验、5项自洽删除读回负控，889份原始证据独立读回通过。两阶段各自每个存储均比较2998条边。源码基线为e77f052acacd208fd8eb8587ac6901ba19003220；具体fingerprint和成功记录在extensions-coverage.json。后续变更仍须重做对应审查与执行，不能直接照抄本次统计。

@@ -1,0 +1,68 @@
+{
+  "report": "verify-squad-authority-composition",
+  "bounds": {
+    "parents": 2,
+    "hostOperations": 1,
+    "approvalGenerations": 3,
+    "revocations": 1,
+    "reopens": 1,
+    "scope": "recover only before physical claim; no CLI effects or content"
+  },
+  "models": [
+    {
+      "module": "ApprovalComposition",
+      "config": "approval-composition.cfg",
+      "domain": "approval",
+      "witnesses": [
+        "NeverReapproved",
+        "NeverFreshAttempt",
+        "NeverFreshStart",
+        "NeverRevokedRecovered"
+      ],
+      "invariants": [
+        "TypeOK",
+        "OneHostStart",
+        "CurrentAttemptOnly",
+        "StartedWithPermit"
+      ],
+      "properties": [
+        "Progress"
+      ]
+    }
+  ],
+  "replay": "composition-replay.mjs",
+  "controls": [
+    {
+      "name": "approval-identity",
+      "domain": "approval",
+      "file": "src/local-operation.ts",
+      "old": "if (op.approval.id !== event.approvalId) return 'HOST_APPROVAL_MISMATCH';",
+      "new": "",
+      "property": "OldApprovalIsolation"
+    },
+    {
+      "name": "parent-attempt",
+      "domain": "approval",
+      "file": "src/local-operation.ts",
+      "old": "if (!work || work.status !== 'inflight' || attempt !== undefined && attempt !== work.attempt) return 'WORK_NOT_INFLIGHT';",
+      "new": "if (!work || work.status !== 'inflight') return 'WORK_NOT_INFLIGHT';",
+      "property": "OldParentIsolation"
+    },
+    {
+      "name": "one-use-new-permit",
+      "domain": "approval",
+      "file": "src/task.machine.ts",
+      "old": "if (executionState(snapshot, intentId, attempt) !== 'authorized') return { snapshot, allowed: false };",
+      "new": "",
+      "property": "OneUsePermit"
+    },
+    {
+      "name": "revoked-session",
+      "domain": "approval",
+      "file": "src/host-session.ts",
+      "old": "  c.hostSession = undefined;",
+      "new": "",
+      "property": "SessionRevocation"
+    }
+  ]
+}
