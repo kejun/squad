@@ -10,7 +10,7 @@ export type LocalAction =
   | { type: 'verifyWorkspace'; expectedRevision: string }
   | { type: 'readArtifact'; artifactId: string; cursor?: string }
   | { type: 'readEvidence'; sourceOperationId: string; stream: EvidenceStream; cursor?: string }
-  | { type: 'discoverHost'; commands?: string[] }
+  | { type: 'discoverHost'; commands?: string[]; query?: string; cursor?: string }
   | { type: 'listSkills'; query?: string; cursor?: string }
   | { type: 'loadSkill'; skillId: string }
   | { type: 'readSkillResource'; skillId: string; path: string; offset?: number }
@@ -60,12 +60,12 @@ export function validLocalAction(value: unknown): value is LocalAction {
   const a = value as Record<string, unknown>;
   const text = (v: unknown, max = 4096) => typeof v === 'string' && !!v.trim() && v.length <= max && !v.includes('\0');
   const optional = (key: string) => a[key] === undefined || text(a[key]);
-  const keys: Record<string, string[]> = { discoverHost: ['commands'], verifyWorkspace: ['expectedRevision'], listSkills: ['query', 'cursor'], loadSkill: ['skillId'], readSkillResource: ['skillId', 'path', 'offset'], readEvidence: ['sourceOperationId', 'stream', 'cursor'], readArtifact: ['artifactId', 'cursor'], runCli: ['executable', 'args', 'cwd', 'timeoutMs', 'skillId', 'execution', 'reason'] };
+  const keys: Record<string, string[]> = { discoverHost: ['commands', 'query', 'cursor'], verifyWorkspace: ['expectedRevision'], listSkills: ['query', 'cursor'], loadSkill: ['skillId'], readSkillResource: ['skillId', 'path', 'offset'], readEvidence: ['sourceOperationId', 'stream', 'cursor'], readArtifact: ['artifactId', 'cursor'], runCli: ['executable', 'args', 'cwd', 'timeoutMs', 'skillId', 'execution', 'reason'] };
   if (typeof a.type !== 'string' || !keys[a.type] || Object.keys(a).some(k => k !== 'type' && !keys[a.type as string]!.includes(k))) return false;
   switch (a.type) {
     case 'verifyWorkspace': return typeof a.expectedRevision === 'string' && /^[a-f0-9]{64}$/.test(a.expectedRevision);
-    case 'discoverHost': return a.commands === undefined || Array.isArray(a.commands) && a.commands.length <= 20
-      && a.commands.every(command => typeof command === 'string' && /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/.test(command));
+    case 'discoverHost': return optional('query') && optional('cursor') && (a.commands === undefined || Array.isArray(a.commands) && a.commands.length <= 20
+      && a.commands.every(command => typeof command === 'string' && /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/.test(command)));
     case 'listSkills': return optional('query') && optional('cursor');
     case 'loadSkill': return text(a.skillId);
     case 'readArtifact': return text(a.artifactId, 1024)

@@ -1302,6 +1302,23 @@ stateDiagram-v2
 
 类型：已有检查协议边界；所有者 delivery-acceptance.ts、model-adapter.ts 与 task/delivery.ts。沿用 checking 的技术失败有界补试/partial路径，不新增状态或调度。未知来源返回 CHECK_SOURCE_NOT_FOUND；已知来源但非逐字正文返回 CHECK_SOURCE_QUOTE_MISMATCH。错误只包含固定码，不含被拒绝ID、引文或响应正文。引用真实性规则不变。实现前复验交付状态模型路径。
 
+### 交付检查定向诊断（KEJ-109）
+
+类型：真实 XState `checking` 的上下文生命周期；所有者 `src/task/reducer.ts`、`src/task/delivery.ts`、`src/delivery-acceptance.ts`。验收 BT_F29–F31；复用现有状态、事件、一次技术补试和固定材料，不新增调度器。
+
+```mermaid
+stateDiagram-v2
+  checking --> checking: WORK_FAILED 或 CHECK_RESULT [引用协议错误且可补试] / 保存定向诊断并预留一次补试
+  checking --> checking: CLAIM 和 CONSUME [补试授权有效] / 使用固定材料及已保存诊断
+  checking --> ended: CHECK_RESULT [全部验收通过] / 发布候选
+  checking --> ended: WORK_FAILED [补试耗尽] / 保留成果并标明检查未完成
+  checking --> stopped: STOP / 取消工作并拒绝迟到诊断
+```
+
+定向诊断只保存已核实的验收项和已知来源编号、引用字符数、来源字段、字符偏移与匹配前缀长度。偏移按 JavaScript UTF-16 索引，供模型在同份固定来源定位并重新选取逐字原文。未知来源编号、被拒绝引文及模型响应正文不得保存或回显；公开错误文本仍只有 BT_F25 的固定码。诊断是宿主生成的数据，不授予工具或调度权限。无部分原文可匹配时只给出已知来源和零前缀；不得猜测来源或放宽逐字校验。
+
+领取后 WorkRunner 调用检查适配器，校验失败经事件保存到当前工作；重启后复用该诊断。每个检查意图只记录本轮有界请求对应的诊断，目标、候选或执行轮次变化不得混入旧诊断。成功采集的工具回执与候选保持原状；引用补试失败是交付检查未完成。停止、预算、迟到结果和恢复沿用既有门禁。实现前先以真实 XState 及合成检查事件跑通保存、持久化往返、一次补试、耗尽和停止路径，再接入适配器。
+
 ### 审查原文引用（BT_F26）
 类型：DELIVER固定材料的纯投影；沿用BT_F24状态路径。JSON元数据之外同时冻结question/expected/answer及附件正文的原文片段视图，供逐字引用。模型引文不做转义修复、去空白或模糊匹配。旧意图无原文视图时不事后添加。相关真实模型路径先复验再接入。
 
@@ -1643,3 +1660,41 @@ stateDiagram-v2
 ```
 
 沿用真实两张XState模型，不改业务模型；实现前用纯 initialTransition/transition 复验 OPEN/OPENED/WINDOW_CLOSED/OPEN/DISPOSE 与可信/不可信握手、SELECT先注册的路径。随后有限枚举两代装载先后×旧代成功/失败，在生产控制器和真实 bridge 上通过受控 host、deferred loader、消息端口验证；不接官方网络，不把浏览器端口替身当作真实官方登录验收。关闭前后的迟到回调不得重新创建监听；允许关闭时协议要求的一次 disconnected 消息。
+
+
+## 同任务 CLI 调用经验投影
+
+类型：上下文只读投影；所有者 `src/task/tool-knowledge.ts`，输入为真实任务 XState 已保存的 `localOperations`。验收 BT_L86–L87。复用原有 LOCAL_REQUEST → LOCAL_CLAIM → LOCAL_STARTED → LOCAL_RESULT 生命周期，不新增任务状态、操作或调度权。
+
+```mermaid
+stateDiagram-v2
+  [*] --> 未验证
+  未验证 --> 已验证: LOCAL_RESULT [succeeded且exitCode为0] / 保存原命令回执
+  已验证 --> 可见经验: 模型请求 [同任务当前epoch与goalVersion且成员有工具权限] / 投影命令参数和回执标识
+  可见经验 --> 独立读取: LOCAL_REQUEST [成员自行选择命令且原授权守卫通过] / 保存新的操作意图
+  独立读取 --> 已验证: LOCAL_RESULT [成功] / 保存独立回执
+```
+
+经验只含受限命令、来源成员、执行环境、结束时间及回执标识，不复制资料正文、认证环境或执行批准，不证明其他资源读取成功。任务停止、旧目标/轮次、撤权、失败或效果不明的操作不可见。模型每次请求前重新投影，正在并行的成员能在后续轮次复用先完成者的方法；首轮同时发起的探路不自动合并。每条实际命令仍单独持久化、批准、领取、结算和计费，停止及重启恢复沿用原生命周期。
+
+模型层先以真实 taskMachine 合成事件验证成功/失败/效果不明/版本和权限过滤，再接入运行器的动态读取与适配器上下文。不对未知命令做只读推断，不跨任务共享数据。
+
+### 命令目录与技能检索（KEJ-109）
+
+对应 BT_L77–BT_L85。图型：上下文生命周期及读取处理流程；所有者：真实 `taskMachine` 的 `Intent.localOperations`、`src/local-operation.ts`、`src/host-capabilities.ts` 与 `src/local-skills.ts`。沿用现有 `LOCAL_REQUEST → LOCAL_CLAIM → LOCAL_RESULT`，不新增 XState 状态或业务调度。宿主预先登记命令用途、域名、帮助 argv、示例和环境要求，发现只返回元数据并核实命令存在性；帮助调用仍须由后续 `runCli` 操作领取执行。
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued: LOCAL_REQUEST [当前授权和查询参数有效] / 保存查询意图
+    queued --> claimed: LOCAL_CLAIM [原工作有效] / 免费领取发现
+    claimed --> succeeded: LOCAL_RESULT [会话匹配] / 保存目录页到原检查点
+    claimed --> failed: LOCAL_RESULT [游标或查询无效] / 保存明确错误
+    queued --> cancelled: STOP或目标失效 / 取消未启动发现
+    claimed --> cancelling: STOP / 取消读取
+    cancelling --> cancelled: LOCAL_RESULT [原会话取消结算] / 禁止继续模型
+    succeeded --> queued: LOCAL_REQUEST [下一页游标与原查询和目录版本匹配] / 保存新查询意图
+```
+
+CLI 目录按命令、用途、域名与要求进行多词检索；技能按名称、用途、来源及兼容要求检索，全部词均须命中。每页最多 20 条，游标绑定原归一化查询和目录版本，错误、伪造或跨版本游标明确拒绝，不静默返回空页。每页 CLI 目录最多核实 20 个命令，显式命令查询另按既有 20 个上限，重复命令合并探测。不执行 `--help`、安装或读取账号凭据；未登记命令仍可显式查询，未查询能力未知。目录所写执行环境是使用要求，存在性不能证明已授权、认证或可联网。
+
+模型层门槛复验查询在真实 taskMachine 的持久化往返、免费领取、停止、旧目标、撤权和非法参数路径；目录过滤和分页属于无业务转移的有界读取，随后通过真实注册表、运行时和模型接线验收。恢复与迟到结果沿用现有本地操作规则；没有新外部效果需要另建恢复状态。

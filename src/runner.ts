@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { deliveryObservations, initialModelRequestId, publishObservation, type ExecutionObservation, type MeasurementSink, type ModelObservation } from './measurement.js';
 import { readSavedArtifact, readSavedEvidence } from './evidence-reader.js';
 import { deliveryEvidence, evidenceIndex } from './task/evidence.js';
-import { acceptanceCriteria, checkCitationSources, judgmentsProblem, validCriterionJudgments, type CheckMaterials, type CriterionJudgment } from './delivery-acceptance.js';
+import { sharedToolKnowledge } from './task/tool-knowledge.js';
+import { acceptanceCriteria, checkCitationSources, judgmentsDiagnostic, validCriterionJudgments, type CheckDiagnostic, type CheckMaterials, type CriterionJudgment } from './delivery-acceptance.js';
 import { deliveryValidationOperation, deliveryVerificationEvidence, deliveryVerificationProblem, type DeliveryVerificationPlan } from './task/verification.js';
 import { hostRetrySourceAllowed, isSavedRead, localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
 import type { LocalRuntime } from './local-runtime.js';
@@ -31,6 +32,7 @@ export interface WorkAdapter {
 }
 export interface LocalWorkTools {
   readonly catalog: SkillPage;
+  readonly sharedToolKnowledge?: ReturnType<typeof sharedToolKnowledge>;
   readonly checkpoint: LocalCheckpoint | undefined;
   invoke(action: LocalAction, messages: LocalMessage[], signal: AbortSignal, requested?: (operationId: string) => void): Promise<LocalToolResult>;
   resume(operationId: string, signal: AbortSignal): Promise<LocalToolResult>;
@@ -51,7 +53,7 @@ export interface WorkScope {
 }
 
 export class WorkFailure extends Error {
-  constructor(message: string, readonly transient = false, readonly resultUncertain = false) { super(message); }
+  constructor(message: string, readonly transient = false, readonly resultUncertain = false, readonly checkDiagnostic?: CheckDiagnostic) { super(message); }
 }
 class ApprovalSuspended extends Error {}
 export function validWorkOutput(value: unknown): value is WorkOutput {
@@ -85,11 +87,13 @@ function fixedCheckMaterials(c: TaskContext, work: Intent): CheckMaterials {
   const references = work.payload.references as CheckMaterials['references'];
   const reviewRecords = work.payload.reviewRecords as CheckMaterials['reviewRecords'];
   const verification = deliveryVerificationEvidence(work);
+  const retryDiagnostic = work.checkDiagnostics?.filter(record => record.candidateRevision === candidate.revision && record.attempt < work.attempt).at(-1)?.diagnostic;
   return { requirements: candidate.acceptance.criteria, candidate: { revision: candidate.revision, text: candidate.text }, artifacts,
     ...(work.payload.sourceArtifact ? { sourceArtifact: work.payload.sourceArtifact as NonNullable<CheckMaterials['sourceArtifact']> } : {}),
     evidence: evidence.sources, rawInputs: work.payload.rawInputs as CheckMaterials['rawInputs'], previousResults,
     ...(references?.length ? { references } : {}), ...(reviewRecords?.length ? { reviewRecords } : {}),
-    ...(previousResults.length && candidate.summary ? { revisionNotes: candidate.summary } : {}), ...(verification ? { verification } : {}) };
+    ...(previousResults.length && candidate.summary ? { revisionNotes: candidate.summary } : {}), ...(verification ? { verification } : {}),
+    ...(retryDiagnostic ? { retryDiagnostic } : {}) };
 }
 
 function readOnlyCheckScope(scope: WorkScope): WorkScope {
@@ -242,6 +246,10 @@ export class WorkRunner {
       return result;
     } };
     const currentWork = () => this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === work.id)!;
+    const toolKnowledge = () => {
+      const current = this.engine.view(roomId, taskId)!.context;
+      return this.localRuntime!.clean(sharedToolKnowledge(current, currentWork()));
+    };
     const retryBatch = this.engine.view(roomId, taskId)?.context.hostRetryBatch;
     const hostRetry = retryBatch?.workId === work.id;
     const localCorrelation = (op: LocalOperation) => ({
@@ -375,6 +383,7 @@ export class WorkRunner {
       };
       Object.defineProperty(scope, 'localTools', { value: {
         catalog: runtime.catalog(), get checkpoint() { return currentWork().localCheckpoint; },
+        get sharedToolKnowledge() { return toolKnowledge(); },
         invoke: async (action: LocalAction, messages: LocalMessage[], signal: AbortSignal, requested?: (operationId: string) => void) => {
           signal.throwIfAborted(); controller.signal.throwIfAborted();
           if (!localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_TOOLS_DISABLED');
@@ -422,9 +431,9 @@ export class WorkRunner {
         scope.authorizeAdditionalRequest(initialModelRequestId);
         output = await this.adapter.execute(work, controller.signal, readOnlyCheckScope(scope));
         const sources = checkCitationSources(materials);
-        const problem = validWorkOutput(output) && output.type === 'check'
-          ? judgmentsProblem(materials.requirements, output.criteriaResults, sources) : 'CHECK_INVALID_CRITERIA_RESULTS';
-        if (problem) throw new WorkFailure(problem, true);
+        const diagnostic = validWorkOutput(output) && output.type === 'check'
+          ? judgmentsDiagnostic(materials.requirements, output.criteriaResults, sources) : { code: 'CHECK_INVALID_CRITERIA_RESULTS' };
+        if (diagnostic) throw new WorkFailure(diagnostic.code, true, false, diagnostic);
         if (output.type === 'check' && output.criteriaResults.every(item => item.status === 'passed'))
           await finishCheckVerification(currentWork, scope.localTools, controller.signal);
       } else {
@@ -439,6 +448,7 @@ export class WorkRunner {
       } else {
         submitResult({ id: `${work.id}:failed:${work.attempt}`, at: this.clock(), type: 'WORK_FAILED', intentId: work.id,
           reason: String(error), transient: error instanceof WorkFailure && error.transient,
+          ...(error instanceof WorkFailure && error.checkDiagnostic ? { checkDiagnostic: error.checkDiagnostic } : {}),
           resultUncertain: work.replay === 'unsafe' || (error instanceof WorkFailure && error.resultUncertain), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       }
       this.controllers.delete(executionKey);

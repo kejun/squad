@@ -4,6 +4,7 @@ import { chmod, copyFile, lstat, mkdir, open, opendir, readFile, readdir, realpa
 import { homedir } from 'node:os';
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { parseDocument } from 'yaml';
+import { catalogWindow, matchesCatalogQuery, normalizeCatalogQuery } from './catalog-search.js';
 import type { SkillBinding } from './local-operation.js';
 
 export class LocalToolError extends Error { constructor(readonly code: string) { super(code); } }
@@ -79,12 +80,11 @@ export class SkillRegistry {
     return new SkillRegistry(entries, opts, diagnostics, complete, archived);
   }
   list({ query, cursor }: { query?: string; cursor?: string } = {}): SkillPage {
-    const offset = cursor === undefined ? 0 : Number(cursor);
-    if (!Number.isSafeInteger(offset) || offset < 0) throw new LocalToolError('SKILL_CURSOR_INVALID');
-    const q = query?.trim().toLowerCase();
-    const found = q ? this.entries.filter(e => `${e.name} ${e.description}`.toLowerCase().includes(q)) : this.entries;
-    const skills = found.slice(offset, offset + 20).map(({ root: _root, files: _files, ...metadata }) => metadata);
-    return { catalogVersion: this.catalogVersion, skills, nextCursor: offset + 20 < found.length ? String(offset + 20) : null,
+    const q = normalizeCatalogQuery(query);
+    const found = this.entries.filter(e => matchesCatalogQuery(`${e.name} ${e.description} ${e.source} ${e.compatibility ?? ''}`, q));
+    const page = catalogWindow(found, this.catalogVersion, q, cursor, () => new LocalToolError('SKILL_CURSOR_INVALID'));
+    const skills = page.entries.map(({ root: _root, files: _files, ...metadata }) => metadata);
+    return { catalogVersion: this.catalogVersion, skills, nextCursor: page.nextCursor,
       diagnostics: this.diagnostics.slice(0, 50), complete: this.complete };
   }
   private entry(id: string, version?: string): SkillEntry {
