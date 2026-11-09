@@ -1304,7 +1304,7 @@ stateDiagram-v2
 
 ### 交付检查定向诊断（KEJ-109）
 
-类型：真实 XState `checking` 的上下文生命周期；所有者 `src/task/reducer.ts`、`src/task/delivery.ts`、`src/delivery-acceptance.ts`。验收 BT_F29–F31；复用现有状态、事件、一次技术补试和固定材料，不新增调度器。
+类型：真实 XState `checking` 的上下文生命周期；所有者 `src/task/reducer.ts`、`src/task/delivery.ts`、`src/delivery-acceptance.ts`。验收 BT_F60–F62；复用现有状态、事件、一次技术补试和固定材料，不新增调度器。
 
 ```mermaid
 stateDiagram-v2
@@ -1664,7 +1664,7 @@ stateDiagram-v2
 
 ## 同任务 CLI 调用经验投影
 
-类型：上下文只读投影；所有者 `src/task/tool-knowledge.ts`，输入为真实任务 XState 已保存的 `localOperations`。验收 BT_L86–L87。复用原有 LOCAL_REQUEST → LOCAL_CLAIM → LOCAL_STARTED → LOCAL_RESULT 生命周期，不新增任务状态、操作或调度权。
+类型：上下文只读投影；所有者 `src/task/tool-knowledge.ts`，输入为真实任务 XState 已保存的 `localOperations`。验收 BT_L109–L110。复用原有 LOCAL_REQUEST → LOCAL_CLAIM → LOCAL_STARTED → LOCAL_RESULT 生命周期，不新增任务状态、操作或调度权。
 
 ```mermaid
 stateDiagram-v2
@@ -1681,7 +1681,7 @@ stateDiagram-v2
 
 ### 命令目录与技能检索（KEJ-109）
 
-对应 BT_L77–BT_L85。图型：上下文生命周期及读取处理流程；所有者：真实 `taskMachine` 的 `Intent.localOperations`、`src/local-operation.ts`、`src/host-capabilities.ts` 与 `src/local-skills.ts`。沿用现有 `LOCAL_REQUEST → LOCAL_CLAIM → LOCAL_RESULT`，不新增 XState 状态或业务调度。宿主预先登记命令用途、域名、帮助 argv、示例和环境要求，发现只返回元数据并核实命令存在性；帮助调用仍须由后续 `runCli` 操作领取执行。
+对应 BT_L100–BT_L108。图型：上下文生命周期及读取处理流程；所有者：真实 `taskMachine` 的 `Intent.localOperations`、`src/local-operation.ts`、`src/host-capabilities.ts` 与 `src/local-skills.ts`。沿用现有 `LOCAL_REQUEST → LOCAL_CLAIM → LOCAL_RESULT`，不新增 XState 状态或业务调度。宿主预先登记命令用途、域名、帮助 argv、示例和环境要求，发现只返回元数据并核实命令存在性；帮助调用仍须由后续 `runCli` 操作领取执行。
 
 ```mermaid
 stateDiagram-v2

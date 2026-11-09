@@ -63,5 +63,5 @@ export function verifyDeliveryDiagnosticModel() {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   verifyDeliveryDiagnosticModel();
-  process.stdout.write('BT_F29–F31 real XState diagnostic lifecycle passed (snapshot round trip after every event).\n');
+  process.stdout.write('BT_F60–F62 real XState diagnostic lifecycle passed (snapshot round trip after every event).\n');
 }
