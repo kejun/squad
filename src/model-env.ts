@@ -3,7 +3,7 @@ import { parseEnv } from 'node:util';
 import { validateConfig, type ModelService, type TeamConfig } from './types.js';
 
 export type ModelEnvironment = Record<string, string | undefined>;
-const suffixes = ['BASE_URL', 'NAME', 'API_KEY', 'NO_AUTH', 'JSON_MODE', 'TEMPERATURE', 'MAX_TOKENS', 'CONTEXT_WINDOW_TOKENS', 'EXTRA_BODY'] as const;
+const suffixes = ['BASE_URL', 'NAME', 'API_KEY', 'NO_AUTH', 'JSON_MODE', 'TEMPERATURE', 'MAX_TOKENS', 'CONTEXT_WINDOW_TOKENS', 'MAX_RESPONSE_BYTES', 'EXTRA_BODY'] as const;
 const slots = [
   ['A', 'A_MODEL'], ['B', 'B_MODEL'], ['builder-1', 'BUILDER_1_MODEL'],
   ['builder-2', 'BUILDER_2_MODEL'], ['builder-3', 'BUILDER_3_MODEL'],
@@ -74,10 +74,12 @@ export function configureModelsFromEnv(base: TeamConfig, env: ModelEnvironment):
     }
     const temperature = number(`${prefix}_TEMPERATURE`, fallback?.temperature);
     const maxTokens = number(`${prefix}_MAX_TOKENS`, fallback?.maxTokens);
+    const maxResponseBytes = number(`${prefix}_MAX_RESPONSE_BYTES`, fallback?.maxResponseBytes);
     const inheritedContext = !differentEndpoint && model === fallback?.model ? fallback.contextWindowTokens : undefined;
     const contextWindowTokens = number(`${prefix}_CONTEXT_WINDOW_TOKENS`, inheritedContext);
     if (temperature !== undefined) service.temperature = temperature;
     if (maxTokens !== undefined) service.maxTokens = maxTokens;
+    if (maxResponseBytes !== undefined) service.maxResponseBytes = maxResponseBytes;
     if (contextWindowTokens !== undefined) service.contextWindowTokens = contextWindowTokens;
     const body = value(`${prefix}_EXTRA_BODY`);
     if (body !== undefined) {

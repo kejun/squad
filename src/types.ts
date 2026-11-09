@@ -9,7 +9,7 @@ export type { InputIntentSpec, InputReference } from './input-intent.js';
 export interface Bot { id: string; name: string; instructions: string; tools: string[]; model?: string; localTools?: boolean }
 export interface ModelService {
   baseUrl: string; model: string; apiKeyEnv?: string;
-  jsonMode?: boolean; temperature?: number; maxTokens?: number; contextWindowTokens?: number;
+  jsonMode?: boolean; temperature?: number; maxTokens?: number; contextWindowTokens?: number; maxResponseBytes?: number;
   extraBody?: Record<string, unknown>;
 }
 export interface ModelConfiguration {
@@ -248,6 +248,7 @@ export function validateModels(config: TeamConfig): void {
     if (service.jsonMode !== undefined && typeof service.jsonMode !== 'boolean') throw new Error('Invalid model JSON mode');
     if (service.temperature !== undefined && (!Number.isFinite(service.temperature) || service.temperature < 0 || service.temperature > 2)) throw new Error('Invalid model temperature');
     if (service.maxTokens !== undefined && (!Number.isSafeInteger(service.maxTokens) || service.maxTokens <= 0)) throw new Error('Invalid model token limit');
+    if (service.maxResponseBytes !== undefined && (!Number.isSafeInteger(service.maxResponseBytes) || service.maxResponseBytes <= 0)) throw new Error('Invalid model response byte limit');
     if (service.contextWindowTokens !== undefined && (!Number.isSafeInteger(service.contextWindowTokens) || service.contextWindowTokens <= 0)) throw new Error('Invalid model context window');
     if (service.extraBody !== undefined) {
       if (!service.extraBody || typeof service.extraBody !== 'object' || Array.isArray(service.extraBody)) throw new Error('Invalid extra model parameters');
