@@ -21,6 +21,24 @@
 
 ## 事务与外部执行的共同边界
 
+### 效果后宿主崩溃（KEJ-103）
+
+图型：宿主恢复处理流程；所有者：`LocalRuntime / CliJournal / WebService`，业务决策仍属于真实 `taskMachine`。验收：BT_L06、BT_L14，模型边界复验 BT_L73、BT_L74；不引入新 XState 状态。
+
+```mermaid
+flowchart LR
+    Claimed[持久化领取及租约] -->|LOCAL_STARTED / 执行隔离 CLI| Effect[不可幂等效果已落地]
+    Effect -->|宿主 SIGKILL / 日志仅有启动记录| Unknown[恢复为 uncertain]
+    Effect -->|日志回执 fsync / 任务回执未提交时 SIGKILL| Known[恢复读取同一会话回执]
+    Unknown -->|RECOVER / 保留未知效果和租约| Unknown
+    Unknown -->|匹配且已退出的可信摘要核对 / LOCAL_RECONCILE| Settled[结算原操作及租约]
+    Known -->|LOCAL_RECONCILE / 保存检查点且不执行 CLI| Settled
+    Settled -->|原任务仍有效 / 领取父工作| Resume[携带原回执续办]
+    Settled -->|STOP 已保存 / 拒绝迟到发布| Stopped[保持停止且无候选]
+```
+
+父进程仅在真实 CLI 已写入隔离追加账本且退出后，于 `CliJournal.write(settled)` 前或该调用 fsync 返回后收到屏障，再 SIGKILL 宿主；不以 close/reopen 或抛异常模拟进程丢失。未知效果反复启动服务不能重新执行命令、释放租约或启动模型。匹配的公开宿主 `reviewOperation → acknowledgeOperation → LOCAL_RECONCILE` 接口结算；停止和迟到回执沿用现有模型守卫。测试在真实文件、SQLite 和实际进程边界执行，受控 CLI 后端不声称 OS 沙箱隔离或供应商恰好一次。
+
 **图型：处理流程；所有者：`TeamEngine` / 持久存储 / `WorkRunner`。**
 
 ```mermaid
