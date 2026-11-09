@@ -93,6 +93,8 @@ npm start
 
 ## 状态模型
 
+模型成功响应的实际字节读取上限沿用既有失败、停止和检查结算路径，见[成功响应资源边界](docs/state-diagrams.md#模型成功响应资源边界bt_m38bt_m41)（BT_M38–M41）；无需新增任务状态。
+
 讨论取消后的恢复沿用父任务的事务上下文，区分可退休的旧安全模型工作与必须核对的物理效果；恢复及可信效果结算不能重新排队已废弃轮次，结束任务清理后须由用户继续，见[讨论取消与恢复](docs/state-diagrams.md#讨论取消与恢复kej-106)。
 
 [MapReduce 分片容量](docs/state-diagrams.md#mapreduce-分片容量kej-99)让输入理解与派发共用成员及额度上限，每片可包含多份输入；容量不足时保留完整任务。
@@ -228,7 +230,7 @@ CLOUDFLARE_API_TOKEN=你的API令牌
 
 ## 第三方模型配置
 
-模型服务统一在项目根目录的 `.env` 中配置，启动时自动读取，无需修改 TypeScript。先复制示例文件：
+模型服务统一在项目根目录的 `.env` 中配置，启动时自动读取，无需修改 TypeScript。成功响应默认最多读取实际解压后的 8 MiB；可设置正整数字节数 `MODEL_MAX_RESPONSE_BYTES`，各角色也支持同后缀覆盖（如 `CHECK_MODEL_MAX_RESPONSE_BYTES`），或在 `ModelService.maxResponseBytes` 配置。它独立于 `maxTokens`，超限会取消读取，明确报错并停止自动重试；不得将部分结果视为交付。先复制示例文件：
 
 ```sh
 cp .env.example .env
