@@ -12,3 +12,6 @@ reports/
 !.env.example
 
 .squad-local/
+
+__pycache__/
+*.pyc

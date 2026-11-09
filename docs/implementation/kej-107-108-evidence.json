@@ -1,0 +1,245 @@
+{
+  "issues": [
+    "KEJ-107",
+    "KEJ-108"
+  ],
+  "date": "2026-11-09",
+  "baselineCommit": "64322436c87b216f9dd9ba1a137738e5cd923497",
+  "productCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
+  "localToolchain": {
+    "node": "v24.22.1",
+    "python": "Python 3.12.14",
+    "playwright": "1.57.0",
+    "chromium": "Chromium 155.0.8059.79 built on Debian GNU/Linux 13 (trixie)",
+    "ciPlaywright": "1.62.1"
+  },
+  "baselineChecks": [
+    {
+      "skill": "handoff",
+      "exitCode": 0,
+      "seconds": 37.107,
+      "readbackExitCode": 0
+    },
+    {
+      "skill": "delivery",
+      "exitCode": 0,
+      "seconds": 16.265,
+      "readbackExitCode": 0
+    },
+    {
+      "skill": "authority",
+      "exitCode": 0,
+      "seconds": 49.745,
+      "readbackExitCode": 0
+    },
+    {
+      "skill": "coordination",
+      "exitCode": 0,
+      "seconds": 320.529,
+      "readbackExitCode": 0
+    }
+  ],
+  "completeProductCheck": {
+    "command": "npm run check",
+    "exitCode": 0,
+    "totals": {
+      "features": 40,
+      "definitions": 510,
+      "cases": 1276,
+      "regressionTestsPassed": 437,
+      "directlyExecutedGherkinCasesPassed": 1254,
+      "fullyExecutedGherkinDefinitions": 496,
+      "definitionsWithLinkedRegressionTests": 242,
+      "deferredDefinitions": 14,
+      "deferredCases": 22
+    },
+    "newFeatures": [
+      {
+        "feature": "features/36_coordination_composition.feature",
+        "passedScenarios": 18
+      },
+      {
+        "feature": "features/37_local_effects_composition.feature",
+        "passedScenarios": 4
+      },
+      {
+        "feature": "features/38_adapter_composition.feature",
+        "passedScenarios": 10
+      },
+      {
+        "feature": "features/39_web_composition.feature",
+        "passedScenarios": 8
+      },
+      {
+        "feature": "features/40_delivery_composition.feature",
+        "passedScenarios": 10
+      },
+      {
+        "feature": "features/41_service_composition.feature",
+        "passedScenarios": 10
+      },
+      {
+        "feature": "features/42_authority_composition.feature",
+        "passedScenarios": 3
+      },
+      {
+        "feature": "features/43_handoff_composition.feature",
+        "passedScenarios": 4
+      }
+    ],
+    "newScenarios": 67,
+    "vitestReportSha256": "1e1fc8d5df2e1614df8cad36210cd78c79f2c426140a3164c466cff1d298bd45",
+    "gherkinReportSha256": "2e4f75fd7c362f166b7327c5c1d7d6b498e1a2fc05255456778d076fcc6867ea",
+    "coverageReportSha256": "aab9db43508727bd1ca4c2634c73afe898c8068f4893bada8f010c33c1e6c9a5"
+  },
+  "formalChecks": [
+    {
+      "skill": "handoff",
+      "checker": ".agents/skills/verify-squad-handoff/scripts/check.py",
+      "localEvidence": "reports/verify-squad-handoff/kej-107-108-reviewed",
+      "runSha256": "14db05f38c38856f6140991a11d91ace1cf75b64e3e487b3afc0bd4a24ac3afc",
+      "manifestSha256": "c9798458f949e233251dcf4ada1ffe6ab4dae7b7d3234283eb50f2c98cd9e0f1",
+      "artifacts": 108,
+      "status": "verified",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true
+      },
+      "readbackExitCode": 0,
+      "readback": "Evidence verified: 108 retained artifacts",
+      "readerSha256": "3f12a42ed84b16546d4de37505acb68fe98645c7ed497d61fd7a113e016337e3"
+    },
+    {
+      "skill": "handoff",
+      "checker": ".agents/skills/verify-squad-handoff/scripts/check-composition.py",
+      "localEvidence": "reports/verify-squad-handoff-composition/final-inputs-complete",
+      "runSha256": "ebcf79d82c433b0d7f36d2c8b533a7c1e9d6b771dce274bf651ba299daa66128",
+      "manifestSha256": "4a7ce191a69afd0beb6ddafb5f1ba3701f7772aa72d92bb898bd70db72381cc1",
+      "artifacts": 141,
+      "status": "verified",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true
+      },
+      "readbackExitCode": 0,
+      "readback": "Evidence verified: 141 artifacts",
+      "readerSha256": "73442e649cfbd850078124927e954487ff3fdce03363916961b1635ee4633552"
+    },
+    {
+      "skill": "delivery",
+      "checker": ".agents/skills/verify-squad-delivery/scripts/check.py",
+      "localEvidence": "reports/verify-squad-delivery/kej-107-108-reviewed-raw",
+      "runSha256": "fe5b2d32abbe7d562d87f1b2d50c11eb556aadeb1e03736fec506c6af78bdb12",
+      "manifestSha256": "844770cd1124adc93f55d83e217bae1a7fca7cd57c5795d0d0c76bde5f4b3a21",
+      "artifacts": 290,
+      "status": "verified",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true,
+        "checkerInputsUnchanged": true
+      },
+      "readbackExitCode": 0,
+      "readback": "Evidence verified: 290 artifacts",
+      "readerSha256": "8e35481e695016df2cd4535af1b150a952fb7f3ecf084786fbcfb1972d5afa77"
+    },
+    {
+      "skill": "authority",
+      "checker": ".agents/skills/verify-squad-authority/scripts/check.py",
+      "localEvidence": "reports/verify-squad-authority/e77-final-current",
+      "runSha256": "6992cc31c0a688e5ee98a8f06e28e49faf2147dcc042db3bd96912ada133d582",
+      "manifestSha256": "19ce0548bdd24b3da9d552a866e9b6bde0aed7b1cdbff020fa1a738dfa0aad70",
+      "artifacts": 134,
+      "status": "verified",
+      "cleanup": true,
+      "readbackExitCode": 0,
+      "readback": "Evidence verified: /workspace/squad/reports/verify-squad-authority/e77-final-current",
+      "readerSha256": "e12cea5e71bc5ec9d7cfa7c57330157957057f37c9ffa04d770c8c389b539d03"
+    },
+    {
+      "skill": "authority",
+      "checker": ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+      "localEvidence": "reports/verify-squad-authority-composition/e77-final-inputs-complete",
+      "runSha256": "9af5aadf9c9557943a39798031d73b5053225f0023349b7696d7be852531575e",
+      "manifestSha256": "d9236d953764040a3907a24c73ac881a691ce2561983ad4f272d09493b24e795",
+      "artifacts": 175,
+      "status": "verified",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true
+      },
+      "readbackExitCode": 0,
+      "readback": "Evidence verified: 175 artifacts\nAuthority composition: both negative backends, all witnesses and liveness independently verified",
+      "readerSha256": "4402ec7a1d48bc4ea077b0309186fea1a38b0f5f840ce47e9f3abf350dbb2f54"
+    },
+    {
+      "skill": "coordination",
+      "checker": ".agents/skills/verify-squad-coordination/scripts/check.py",
+      "localEvidence": "reports/verify-squad-coordination/kej-107-108-original-reviewed",
+      "runSha256": "b7d2db4cdec73ec959ee8c6906c76200aa9813193b01b884f5a055bd38b9d5ed",
+      "manifestSha256": "1c82efb5fbd667d246ed3538caa605a64eab18429e8f80afd2562469c0c2ba78",
+      "artifacts": 330,
+      "status": "verified",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "checkerInputsUnchanged": true
+      },
+      "readbackExitCode": 0,
+      "readback": "Verified 330 retained artifacts",
+      "readerSha256": "726c82c128af38522b137f6e91be518ee124e2caa34ce52ac290341ed17e1720"
+    },
+    {
+      "skill": "coordination",
+      "checker": ".agents/skills/verify-squad-coordination/scripts/check-extensions.py",
+      "localEvidence": "reports/verify-squad-coordination/kej-107-108-extensions-complete",
+      "runSha256": "03bbc645ff818c163f9ee0e91b3743ba5ea3567c62750f09ab3181c0e1b215a2",
+      "manifestSha256": "5728552eec8e209d1c42711556c8429a7fde416fcc47e9d77af5b2f747745382",
+      "artifacts": 889,
+      "status": "verified",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "checkerInputsUnchanged": true
+      },
+      "readbackExitCode": 0,
+      "readback": "Verified 889 coordination extension evidence files",
+      "readerSha256": "ba18e4d0e39fcbdb4b2ee9efc161a8fd745546ef6e0c944c0ee23b598c210ebc"
+    },
+    {
+      "skill": "local-effects",
+      "checker": ".agents/skills/verify-squad-local-effects/scripts/check.py",
+      "localEvidence": "reports/verify-squad-local-effects/kej107-inputs-complete",
+      "runSha256": "a6c56e1dfc5ddaf40bde6e27e9f537c3d75f596b218e734cd1d391d9e72a4467",
+      "manifestSha256": "a1272a687074a4c8bef95303108fbf3097402e6578a689517f5248d6ec7c4511",
+      "artifacts": 216,
+      "status": "verified",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true
+      },
+      "readbackExitCode": 0,
+      "readback": "Evidence verified: /workspace/squad/reports/verify-squad-local-effects/kej107-inputs-complete (216 retained artifacts)",
+      "readerSha256": "d80af2454c55272994a85e71d7ae395f5daa7130042d3e9032fc09812cab19bd"
+    },
+    {
+      "skill": "host-retry",
+      "checker": ".agents/skills/verify-squad-host-retry/scripts/check.py",
+      "localEvidence": "reports/verify-squad-host-retry/e77-implementation-complete",
+      "runSha256": "ce04b27dadf89ad760344b0644e5f002f8f7ca21d8749dee16ad3bfbe48d5142",
+      "manifestSha256": "ae2afb9b2445d24f6706c1281624fc7d15a972d4977bf87e88df5b2035171414",
+      "artifacts": 136,
+      "status": "verified",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true
+      },
+      "readbackExitCode": 0,
+      "readback": "{\"status\": \"verified\", \"artifacts\": 136}",
+      "readerSha256": "c6bb660a4101ed93867823538e2eb43b8ed8bfb205d950b55933a7e85318f18f"
+    }
+  ],
+  "meaning": "These hashes identify retained local run artifacts. CI regenerates evidence for the PR head and uploads reports for 14 days. Product sync commit and captured checker inputs are separate: verification fixtures were initially uncommitted and their exact bodies are retained. Reading back an existing run is not a new model execution. See each skill for finite bounds, fairness, exclusions and post-run reader-only audit notes."
+}

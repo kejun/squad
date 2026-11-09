@@ -1,16 +1,27 @@
 # 持续集成
 
-`CI` 工作流在 PR、main 推送和手动运行时执行。唯一必需 job 名为 `Complete verification`。
+`CI` 工作流在 PR、main 推送和手动运行时执行。工作流定义7个实际作业：完整产品验收、原形式化集合，以及5个并行组合切片。GitHub分支保护的required状态以仓库设置为准；增加workflow job不会自动修改保护规则。
 
-此 job 使用 Node 24.22.1、锁文件安装和 Ubuntu 22.04，依次执行：
+## 完整产品验收
 
-1. 安装 Linux 沙箱的 bubblewrap、socat 和 ripgrep 依赖。
-2. `npm run verify:local-sandbox`，用真实生产后端验证文件、技能快照、环境、网络和进程取消边界。不可用退出 78 仍失败，不改安全设置、不退回无沙箱执行。
-3. `npm run check`，包含生产、网页、测试三份严格类型检查，全部 Vitest、全部已登记可自动验收的 Gherkin，以及规格覆盖报告。现有验收缺口仍由仓库登记，CI 不增加排除条件。
-4. `npm run build`，验证后端编译和网页生产构建。
+`Complete verification`使用Node24.22.1、锁文件和Ubuntu22.04，20分钟上限：
 
-测试报告在成功或失败时保留 14 天；缺少报告不是通过证据。20 分钟 job 上限只负责终止失控 job，各测试仍保留断言、步骤时限和叶进程监督。
+1. 安装bubblewrap、socat、ripgrep、中文字体及固定Playwright1.62.1/Chromium。
+2. `npm run verify:local-sandbox`运行真实生产后端，验证文件、技能快照、环境、网络及进程取消边界。不可用退出78仍失败，不退回无沙箱执行。
+3. `npm run check`执行生产、网页、测试三份严格类型检查，全部Vitest、所有已登记可自动验收Gherkin及规格覆盖。既有延期需求保留原规格和记录，不新增排除条件。
+4. 运行CLI与SQLite真实崩溃、响应字节限制故障对照和原浏览器故障对照；再运行网页/服务组合的真实源码故障检出、准备与模型会话控制/独立读回。
+5. `npm run build`生成当前提交的生产构建与输入指纹。
 
-合并前应确认 PR 最终 head SHA 的本工作流最新运行及 `Complete verification` job 均为 success，并再次核对 head 未变化。空 checks、跳过、取消、超时、旧提交成功或仅本地成功均不满足这一条件。此文件不更改 GitHub 分支保护或授予写权限。
+## 形式化集合
 
-此门槛不声称验收真实模型供应商、用户账号或全部浏览器流程；界面变更仍须按 verify-squad 技能补充真实浏览器验收。工作流只使用合成测试输入，不配置模型服务密钥。
+`Formal verification`安装Node24.22.1和Java21，15分钟内顺序运行handoff、delivery、authority、coordination原入口，再独立读回实际证据。delivery主入口包含原Delivery及Verification、Cycles、SourceLineage三个新域。
+
+`Formal composition (...)`为handoff、authority、coordination、local-effects、host-retry五个独立matrix作业，各25分钟。每个干净runner独立下载官方TLA+ Tools v1.7.4并校验固定SHA-256，导出`TLA2TOOLS_JAR`，不假设另一作业已准备缓存。各切片完整探索后，用同一checker另行`--verify-evidence`读回；handoff/local-effects/host-retry还运行证据损坏与删件控制。具体九入口和有限保证见[形式化验证](formal-verification.md)。
+
+## 结果与证据
+
+所有作业在成功或失败时上传reports原始证据并保留14天；完整验收另上传test-results。缺报告、空checks、skip、cancel、timeout或旧提交成功都不能当作当前head完成。job上限只用于终止失控执行，叶进程保留自己的时限、断言与清理。
+
+合并前核对PR最终head的本工作流全部7个作业成功，并确认head未变化。仅本地成功不能替代CI；本文不修改分支保护或授予写权限。独立读回检查声明协议下的证据完整性，不重新运行模型，不是防恶意作者伪造的数字签名。
+
+工作流使用合成输入和受控模型HTTP，不配置真实供应商密钥。真实浏览器覆盖限定的原始契约及组合场景；不声称验收真实供应商质量、用户账号、任意浏览器流程或无限故障。
