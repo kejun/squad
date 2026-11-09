@@ -1202,6 +1202,7 @@ stateDiagram-v2
   collecting --> summarizing: 最后分片结算 / 保存归并意图
   summarizing --> ready: DISCUSSION_RESULT [当前归并工作] / 保存汇总及未完成标志
   ready --> delivered: DISCUSSION_HANDOFF [主通道安全边界] / 原始分片与汇总交回负责人一次
+  delivered --> checking: DELIVER [当前目标且交付守卫通过] / 冻结成员分片记录和候选并保存检查意图
   collecting --> cancelled: STOP 或目标变更 / 取消全部工作并隔离迟到结果
   summarizing --> cancelled: STOP 或目标变更 / 取消全部工作并隔离迟到结果
 ```
@@ -1297,6 +1298,8 @@ stateDiagram-v2
 冻结内容包括请求ID、成员、状态、目标/epoch、完整问题（含草稿）、期望、答复、结果ID及关联审查附件正文。只纳入当前goalVersion已消费且有结果ID和答复的success/partial/failed记录；旧目标、pending/running/cancelled、尚未消费的记录排除。partial/failed保留原状态，绝不提升为通过。记录可证明成员实际返回了什么，不能证明其业务判断正确；仍独立逐项检查。
 
 快照在DELIVER时写入持久化意图，执行和技术补试使用同份内容；不会重新发起协作或读取外部资料。旧检查意图没有此字段时视为空集，不补入后来记录。停止、迟到结果、版本隔离、额度与恢复沿用已有规则。模型门槛先验证快照、恢复、旧目标与未完成隔离，再接入runner和引用校验。
+
+BT_Q25–Q26：同一冻结投影也纳入当前 goalVersion、已 delivered 的 Map-Reduce 轮次。每条记录保存宿主分配的分片与成员、轮次身份/epoch、原始问题与期望、结果状态、完整答复和关联附件。只从已保存轮次派生，不把普通产物文件名当作协作来源 ID；旧目标、取消或尚未交接的轮次排除。记录证明分工及结果交接，不证明业务内容正确或外部效果成功。沿用 DISCUSSION_RESULT → DISCUSSION_HANDOFF → DELIVER → checking 的真实状态路径，变更仅为 DELIVER 的纯数据投影，无新状态、调度或 I/O；先用真实模型检验冻结/恢复/目标隔离，再验证适配器检查材料与逐字引用。
 
 ### 引用失败诊断（BT_F25）
 

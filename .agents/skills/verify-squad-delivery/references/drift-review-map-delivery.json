@@ -1,0 +1,23 @@
+{
+  "base": "6bebcf8d0eed1aa0434783bc77c824f279634e65",
+  "file": "src/delivery-acceptance.ts",
+  "oldSha256": "e725df453b3f9916b528bd15f3f1792b17afd4c1709057ce8757bf4eac053d07",
+  "newSha256": "99b639b34ad8c3db33030de3ad280fc708f864ee1e4aa6711278c0b1659484bc",
+  "classification": "DELIVER pure evidence projection extension for delivered current-goal Map-Reduce results",
+  "review": [
+    "Reviewed complete diff: existing ordinary assists projection unchanged; appends new mapReviewSources only.",
+    "New projection returns [] unless discussion.mapReduce exists, discussion.status is delivered and goalVersion is current. It preserves member assignment, partition, status, answer and current-goal artifacts.",
+    "Original Delivery compare.mjs observe explicitly rejects discussion and discussionId. New helper is therefore identically [] in that model slice.",
+    "Verification/Cycles use deliveryHost with input analysis disabled and no discussion scheduling events. SourceLineage uses ordinary owner deliveries and frozen source metadata, not map decomposition. New helper also returns [] in these three finite slices.",
+    "No event, guard, I/O, transaction boundary, publication gate, quotation validation, budget, timeout, model variable, invariant, fairness or bound changed.",
+    "New Map-Reduce projection is exercised by BT_Q25/26 real XState and SQLite/adapter BDD; existing formal slices do not prove that new map projection."
+  ],
+  "validation": {
+    "status": "verified",
+    "command": "env -u MODEL_API_KEY python3 .agents/skills/verify-squad-delivery/scripts/check.py --jar /workspace/squad-map-reduce-20261109/tla2tools-1.7.4.jar",
+    "evidence": "reports/verify-squad-delivery/20261109T134940Z-2278",
+    "seconds": 121.40539105699986,
+    "independentReadback": "exit 0; all evidence verified",
+    "scope": "Original Delivery and three composition slices; baseline/restored TLC, dual-store edge replay, reachability and real-code negative controls. Does not extend finite model to map semantic correctness."
+  }
+}

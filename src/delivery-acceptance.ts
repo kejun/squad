@@ -23,9 +23,29 @@ export interface CheckDiagnostic {
 }
 export interface CheckDiagnosticRecord { attempt: number; candidateRevision: string; diagnostic: CheckDiagnostic }
 
+function mapReviewSources(c: TaskContext): CheckReviewSource[] {
+  const round = c.discussion;
+  if (!round?.mapReduce || round.goalVersion !== c.goalVersion || round.status !== 'delivered') return [];
+  const plan = round.mapReduce;
+  return round.results.flatMap(result => {
+    const assignment = plan.assignments.find(item => item.target === result.target);
+    const partition = plan.partitions.find(item => item.id === assignment?.partitionId);
+    if (!partition) return [];
+    const artifacts = c.artifacts.filter(item => result.artifactIds.includes(item.id) && item.goalVersion === round.goalVersion)
+      .map(({ id, name, content }) => ({ id, name, content }));
+    return [{ id: `${round.id}:member:${result.target}`,
+      stdout: ['Question:', partition.objective, 'Expected:', partition.expectedOutput, 'Answer:', result.answer,
+        ...artifacts.flatMap(item => ['Artifact:', item.name, item.content])].join('\n'),
+      content: JSON.stringify({ discussionId: round.id, member: result.target, status: result.status,
+        goalVersion: round.goalVersion, epoch: round.epoch, partition, question: partition.objective,
+        expected: partition.expectedOutput, answer: result.answer, artifacts }),
+    }];
+  });
+}
+
 /** Freeze accepted current-goal collaboration records; these prove process, not correctness. */
 export function checkReviewSources(c: TaskContext): CheckReviewSource[] {
-  return c.assists.filter(review => review.goalVersion === c.goalVersion && review.consumed
+  const reviews = c.assists.filter(review => review.goalVersion === c.goalVersion && review.consumed
     && review.resultId && review.answer !== undefined && ['success', 'partial', 'failed'].includes(review.status))
     .map(review => ({ id: review.resultId!, stdout: ['Question:', review.question, 'Expected:', review.expected, 'Answer:', review.answer!,
       ...c.artifacts.filter(artifact => review.artifactIds?.includes(artifact.id) && artifact.goalVersion === c.goalVersion)
@@ -35,6 +55,7 @@ export function checkReviewSources(c: TaskContext): CheckReviewSource[] {
       artifacts: c.artifacts.filter(artifact => review.artifactIds?.includes(artifact.id) && artifact.goalVersion === c.goalVersion)
         .map(({ id, name, content }) => ({ id, name, content })),
     }) }));
+  return [...reviews, ...mapReviewSources(c)];
 }
 
 export interface CheckMaterials {
