@@ -1,0 +1,22 @@
+{
+  "syncCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
+  "review": "references/drift-review-kej-107-108.json",
+  "files": {
+    "src/task/assistance.ts": "d472d9c7422118a217d23ef0019831ad1598e3d9137da794830f39ac286ee6df",
+    "src/task/reducer.ts": "ada7f850f0c774c48ade21b50604b9e40e64a84fc49ec0d77a00ce3e6a962455",
+    "src/task/operations.ts": "6f4cf5f12b046da9115f5d9f5d6af3be1c3f168fbbf259e551d2c8efba104804",
+    "src/task/policy.ts": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
+    "src/task/guards.ts": "34e5c8c4849d555b4f44b94cc51c129a4c31d1469c3bccc382eb99a0132d93d3",
+    "src/task/lifecycle.ts": "b4209d5324adb8fdfd8041902c9d1eb488036c6f21a02967850fb0e5579bbe26",
+    "src/task.machine.ts": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
+    "src/engine.ts": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
+    "src/store.ts": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
+    "src/types.ts": "cefccc84532d9c55b36a8f3278988347e72a417f634066e020703a13c24497fa",
+    "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
+    "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
+    "team.config.ts": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb",
+    "package.json": "3116143dffa7c27a4fc9a8892e08603d754bc5e2f506752b500d874befb0ab3c",
+    "package-lock.json": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
+    "tests/handoff-composition-fixture.ts": "ea3c811adc84d179a112b9a1b076245a41e773a505ab3bee0cddb53e905d6fbc"
+  }
+}

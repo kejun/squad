@@ -181,3 +181,25 @@ handoff 的 createTeamConfig({}) 无模型服务；RunnerProgress 在 adapter �
 成功响应的实际解压字节上限、取消读取、UTF-8 边界与非瞬时失败由 BT_M46–M49 的真实 HTTP/SQLite/Runner 验收及撤销读取上限的负对照承接；本有限检查不证明供应方 I/O 读取、资源上界、真实进程终止、SQLite 底层抗断电或这几种领域的组合。KEJ-103/104 的真实 SIGKILL/SQLite 依赖验收是额外证据，不替换原模型的事务假设。审查后先更新已确认的覆盖指纹，保留旧 sync；只有完整正负/恢复检查与独立读回成功后才推进同步元数据。
 
 完整检查与独立读回已通过：`reports/verify-squad-handoff/kej-102-105-controlled-env`，保留 108 项原始证据；具体原图/恢复图规模、真实源码负对照和清理结果见审查 JSON 的 verification。同步推进到受测产品 `32c26b376b46ae1a03718a6820683b59b802b413`，后续集成 HEAD 的全部覆盖源/依赖逐项保持相同字节；不把元数据推进说成第二次完整验证。
+
+## KEJ-108 A2：重试组合
+
+状态所有者仍是TaskContext中Assistance、HelpResult、Intent及receipt的组合；没有新增XState state/actor。`tests/handoff-composition-fixture.ts`由公开TeamEngine接口建立失败或已保存结果的初始前缀。失败协助的status与重试Intent是否pending分别投影为stage/retryPending，不能将RECOVER保留的running协助误当成pending。
+
+| 动作/变量 | 真实入口与约束 |
+| --- | --- |
+| Retry1/Retry2、ReplayCommand | `submit(intent=retry)`，两个新commandId；重放第一个完全相同载荷只读原receipt |
+| LateOriginal | 携原workId/attempt/fence发送原协助结果，失败原工作不得复活 |
+| RevokePermission | 重建引擎并注入可信当前TeamConfig，移除B工具权限；不是篡改context |
+| ChangeOwner | 失败域公开HANDOFF切换当前owner；新retry命令检查requestedBy/current owner |
+| ClaimRetry/SaveRetry | `claim`及`send(RECORD_RESULT)`，必须匹配新work/attempt |
+| ConsumeOriginal/ConsumeRetry | 仅一个可消费结果/任务，`flushResults`实际提交一次；由真实投影检查 |
+| Recover | 关闭重开SQLite并重建引擎，只提交一个`send(RECOVER)`；消费是独立动作 |
+| successors/command1/command2 | 原协助retryOf关系数量与持久命令receipt；重复命令不等于重复工作 |
+| originalConsumed/resumes | 原结果消费标记和对应owner续办总数，不能靠当前pending数掩盖历史重复 |
+
+对应关键函数：`assistanceRetryProblem`、`savedHelpResult`、reducer RETRY_ASSISTANCE/RECORD_RESULT/RECOVER、`acceptHelpResult`、TeamEngine.submit/claim/send/flushResults。原子边界是上述单事务，不把整个engine.recover连同flush循环当一条原子动作。
+
+两配置独立检查失败/已保存域；边界和四真实代码改坏锚点保存在composition-suite.json。实际TLC状态/边数与有限进度以本轮run.json和原始tlc.log为准。真实行为由BT_K01（两起点）和BT_K02（权限/owner）直接执行；补充穷举对应通过所有抽象交错而不是在BDD里复制模型。
+
+名称映射：TLC `UniqueRetry`对应真实断言`RetryUniqueness`；TLC `RetryAuthority`同时要求memberRevoked与ownerChanged都为false，分别由真实`RetryAuthority`和`RetryOwner`检查。`ExclusiveResultChoice`/`RetryHandoff`两侧同名；suite列出实际必需TLC不变量与Progress，真实源码负控的property列使用行为断言名称。

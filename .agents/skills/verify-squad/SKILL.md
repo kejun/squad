@@ -1,6 +1,6 @@
 ---
 name: verify-squad
-description: "验证 kejun/squad 的真实群聊网页和本地服务。用于改动后的用户流程验收、协助重试或停止恢复回归、报告导出和面板交互检查；隔离运行并保留操作、截图、HTTP 与持久化证据。"
+description: "验证 kejun/squad 的真实群聊网页和本地服务。用于用户流程、协助重试、停止恢复、报告导出、面板，以及跨群回执、快照隔离、服务关闭和Inspector装载组合检查；隔离运行并保留浏览器、HTTP、SQLite和故障证据。"
 ---
 
 # Verify squad
@@ -76,7 +76,57 @@ TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumb
 
 `run.json` 另存原场景编号、逐步通过记录、验证脚本摘要和 `dist/web/build-proof.json` 的构建输入/资源摘要。构建前后源码及 HEAD 必须相同；浏览器启动时再次核对源码、bundle 和提交。每张截图必须有实际中文字体 glyphCount 证据。断线使用当前拥有的宿主 PID 的 SIGKILL，重连不重载页面；回执丢失只丢弃已经真实提交的 HTTP 响应，不伪造 API 成功。
 
-故障检出运行 `node .agents/skills/verify-squad/scripts/negative.mjs`。它从当前 HEAD 创建独立 detached worktree，分别破坏产品的输入提示、中途输入、同一状态行、时间线、折叠、来源导航、离线投影和重试身份，每项都需成功构建且被原业务断言检出。恢复原文件后四项须重新全绿。报告、trace、截图、故障摘要和清理结果保存在 `reports/verify-squad-negative/`；不修改当前工作树或用户实例。
+故障检出运行 `node .agents/skills/verify-squad/scripts/negative.mjs`。它从当前 HEAD 创建独立 detached worktree，再复制本次工作区的产品源码和验证器，分别破坏产品的输入提示、中途输入、同一状态行、时间线、折叠、来源导航、离线投影和重试身份，每项都需成功构建且被原业务断言检出。恢复原文件后四项须重新全绿。报告、trace、截图、故障摘要和清理结果保存在 `reports/verify-squad-negative/`；不修改当前工作树或用户实例。
+
+## KEJ-108 组合验证入口
+
+原 `--feature all` 仍只运行五组代表流程。新增 B1/B2/B5 使用独立驱动，由 `features/39_web_composition.feature`、`41_service_composition.feature` 的完整中文步骤进入默认Gherkin。旧BT_U09和旧dispose-import不冒充本次增量；其他主项的六个形式化技能及准备/会话接线见[17项组合索引](../../../docs/formal-verification.md#kej-107108-组合覆盖)。
+
+### B1：跨群回执和快照
+
+先 `npm run build`，使用与本技能相同的Playwright/Chromium环境。新增驱动读取 `SQUAD_PLAYWRIGHT_MODULE`；可用 `SQUAD_CHROMIUM` 指定已有Chromium，否则使用项目可解析的Playwright及其配套浏览器。
+
+```sh
+node .agents/skills/verify-squad/scripts/composition.mjs --case BT_U20 --variant 普通
+node .agents/skills/verify-squad/scripts/composition.mjs --case BT_U20 --variant 来源引用
+node .agents/skills/verify-squad/scripts/composition.mjs --case BT_U21 --variant 成功
+node .agents/skills/verify-squad/scripts/composition.mjs --case BT_U21 --variant 失败
+node tests/web-composition-negative.mjs
+```
+
+可加 `--evidence` 指定全新目录，默认写入 `reports/verify-web-composition/`。驱动复用provider fixture、真实生产服务、SQLite、进程监督器、Doctor与精确构建指纹。BT_U20在真实提交后丢回执，再到另一群成功发送并返回重试，检查原ID/完整载荷、只保存一次和两群草稿/引用隔离。BT_U21持有原群真实读取，切群后放行成功或失败，观察当前群快照与连接不被旧响应污染。只能调节实际响应的传输顺序，不能伪造API成功或设置React状态；SQLite只读核对。
+
+每轮保留 `run.json`、`actions.jsonl`、`trace.zip`、截图/可访问快照、实际POST、SQLite证明与构建输入。退出0、status=verified和cleanup全true才通过；源或bundle变化必须重建，不跳过build-proof。`--bdd`只供 `tests/web-composition-browser.ts` 的Cucumber IPC使用，每个Given/When/Then实际执行对应阶段。直接复跑新网页契约：
+
+```sh
+TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/39_web_composition.feature --import 'tests/bdd/*.ts' --tags '@BT_U20 or @BT_U21' --format progress
+```
+
+新负对照在独立worktree破坏每群身份、旧快照取消/身份防线和旧代装载错误守卫，须被目标行为断言检出；之后复验四条原版浏览器路径及四种Inspector顺序。证据默认在 `reports/verify-web-composition-negative/`。原 `negative.mjs` 的BT_U09仍单独检查同群丢回执立即重试，两套证据不能替代。
+
+### B2：服务生命周期
+
+BT_K03–K07检查真实WebService/SQLite，不需要浏览器、模型服务或真实CLI。覆盖启动等待期间close、登记后微任务前close、定时/重复提交/完成六顺序、storageFault全实例停止和非存储hostError仅隔离本房间；两种故障都关闭旧实例并打开同库验证恢复。
+
+```sh
+node --import ./tests/service-composition-fault-loader.mjs --import tsx tests/service-composition-driver.mjs --case BT_K03
+node --import ./tests/service-composition-fault-loader.mjs --import tsx tests/service-composition-driver.mjs --case BT_K05 --variant 定时、重复、完成
+node tests/service-composition-negative.mjs
+TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/41_service_composition.feature --import 'tests/bdd/*.ts' --format progress
+```
+
+诊断加载器只在独立子进程控制公开执行边界；不读取私有Map，不增加生产开关，普通adapter WorkFailure不冒充宿主故障。`reports/service-composition/`及 `reports/service-composition-negative/`保留真实数据库、模型门槛、公开执行记录、加载源哈希和清理结果。五个关键守卫的源码变体应被目标性质检出，丢弃变异后复验十个展开例。它是有限顺序与宿主接线证据，不是TLC证明。
+
+### B5：两代 Inspector 装载
+
+```sh
+node --import tsx tests/inspector-generation-fixture.ts
+TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features/39_web_composition.feature --import 'tests/bdd/*.ts' --tags '@BT_V41' --format progress
+```
+
+BT_V41通过生产 `createInspectorWindow`、`connectInspector`和真实观察模型枚举旧/新装载先后×旧代成功/失败四顺序，检查旧代无导航/投递/错误反馈、当前窗注册最新身份、关闭后释放监听并忽略迟到握手。窗口/装载端口受控，不访问官方网络，不宣称再次完成Stately登录；真实官方标签页沿用 `scripts/verify-inspector.mjs`。B1/B2/B5沿用既有业务状态，不授予真实任务任意事件入口。
+
+当前宿主若只有MODEL_API_KEY而无端点，按[形式化验证说明](../../../docs/formal-verification.md#六个技能与完整入口)的受控导入前提运行纯模型/适配器夹具，不向本地验证传入用户凭据。结论区分直接Gherkin、有限控制器序列、浏览器、SQLite和TLC；一个层次通过不等于其他层次通过。
 
 ## Cleanup
 
@@ -89,10 +139,11 @@ TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json node --import tsx node_modules/@cucumb
 - `node .agents/skills/verify-squad/scripts/verify.mjs --feature rooms`：启动 → Doctor → 驱动 → 证据 → 清理。
 - `node .agents/skills/verify-squad/scripts/doctor.mjs /absolute/evidence/instance.json`：传入本轮真实清单路径，只读检查正在运行的实例。
 - [model-fixture.mjs](scripts/model-fixture.mjs) 由主助手导入启动和关闭，不单独运行；提供故障、取消和格式修复前提。
+- [composition.mjs](scripts/composition.mjs)：跨群回执与快照的真实浏览器入口，使用独立实例和逐场景证据。
 
 ## Coverage and maintenance
 
-源码覆盖见[地图索引](features/README.md#source-coverage)。`all` 通过仍不等于全部子功能、Gherkin 或真实供应商验收通过。报告实际经过的入口、未执行分支、夹具/执行环境和证据位置。补充检查使用 `npm run check`，分别引用 Vitest、直接执行的 Gherkin 与待验收项；五组代表流程本身不冒充完整 Cucumber 绑定。原 BT_U01/U02/U03/U09 由 `tests/bdd/browser.steps.ts` 通过 IPC 逐条驱动同一助手，原 Given/When/Then 每步都执行真实动作或断言；默认 `npm run test:bdd` 先构建当前源码，再执行这些浏览器契约。仅在四项完整通过后移除了相应缺口登记，Pi Durable 与金额缺口不变。
+源码覆盖见[地图索引](features/README.md#source-coverage)，新增组合入口和边界见上文。`all`通过不等于全部子功能、Gherkin或供应商验收通过。报告实际入口、未执行分支、环境与证据。`npm run check`分别执行Vitest、完整Gherkin与覆盖报告；五组代表流程不冒充全部Cucumber绑定。原BT_U01/U02/U03/U09和新增BT_U20/U21通过各自Cucumber IPC实际驱动Chromium，默认BDD先构建当前源码；BT_K03–K07与BT_V41也完整直接绑定，但属于服务/控制器层。Pi Durable与金额缺口保持原登记。
 
 维护时请求 `$create-verification-skill 维护 kejun/squad 的 verify-squad`，遵循[维护流程](references/maintenance.md)，逐文件核对源码并执行所有功能组。
 

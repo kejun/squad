@@ -1,0 +1,6 @@
+interface:
+  display_name: "Verify squad host retry"
+  short_description: "核对宿主续办批次退休、回执保留与后批推进"
+  default_prompt: "Use $verify-squad-host-retry to run the finite host-retry retirement proof, all-edge double-store correspondence, real-code controls and drift review."
+policy:
+  allow_implicit_invocation: true

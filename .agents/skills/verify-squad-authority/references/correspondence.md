@@ -57,3 +57,25 @@ authority 的 Execution/Host/SessionScope 与 LocalRuntime 启动前中止探针
 成功响应的实际解压字节上限、取消读取、UTF-8 边界与非瞬时失败由 BT_M46–M49 的真实 HTTP/SQLite/Runner 验收及撤销读取上限的负对照承接；本有限检查不证明供应方 I/O 读取、资源上界、真实进程终止、SQLite 底层抗断电或这几种领域的组合。KEJ-103/104 的真实 SIGKILL/SQLite 依赖验收是额外证据，不替换原模型的事务假设。审查后先更新已确认的覆盖指纹，保留旧 sync；只有完整正负/恢复检查与独立读回成功后才推进同步元数据。
 
 完整检查与独立读回已通过：`reports/verify-squad-authority/kej-102-105-final`，保留 126 项原始证据；具体原图/恢复图规模、真实源码负对照和清理结果见审查 JSON 的 verification。同步推进到受测产品 `32c26b376b46ae1a03718a6820683b59b802b413`，后续集成 HEAD 的全部覆盖源/依赖逐项保持相同字节；不把元数据推进说成第二次完整验证。
+
+## KEJ-108 ApprovalComposition：重新授权与新父attempt组合
+
+这是新增独立有限图，原Authority/SessionScope/Execution的模型和范围未被替换。TLC变量是`attempt`、`stage`、审批身份等价类、一次撤销、一次恢复、父工作是否待重新领取、新permit是否消费、原审批command是否已有成功回执及实际开始计数。首次预备领取及LOCAL_APPROVAL_REQUIRED已在公开前缀完成；允许RECOVER时操作为awaitingApproval或queued，尚未为实际执行再次领取，不覆盖claimed/running的物理恢复。
+
+| 图动作 | 真实公共入口/存储原子边界 | 不变量与观测 |
+| --- | --- | --- |
+| Init前缀 | submit→claim→beginExecution→requestLocal→claimLocal→send(LOCAL_APPROVAL_REQUIRED) | owner attempt1许可已消费、宿主操作待审批、无讨论/分片/检查/来源/hostRetry |
+| Approve | TeamEngine.decideHostApproval→send的一次事务 | 当前approval ID批准为approveSession；固定commandId `approve:审批代` |
+| Revoke | TeamEngine.revokeHostSession→纯revokeHostSession | queued操作回awaitingApproval、换ID、清会话；最多一次 |
+| Recover | SQLite实际close/reopen（Memory重建Engine）→engine.recover的一次RECOVER事务 | 旧owner pending、审批换ID、会话清除；不触及任何已实际领取/启动命令 |
+| ReclaimParent / NewPermit | 公开claim与beginExecution分别是两次事务 | 产生attempt2并消费其独立一次性票据，不能合并成一个模型动作 |
+| Claim / Start | claimLocal与send(LOCAL_STARTED)分别一次事务 | 当前parentAttempt/session/授权有效，开始计数从已接受的公开事件记录投影 |
+| LateDecision / LateClaim / LateStart | 使用旧approval ID、旧parentAttempt或旧预备session提交的新事件 | 拒绝，当前work/grant/permits/usage/candidate不变 |
+| OldPermit / DuplicatePermit | beginExecution传入旧attempt票据或重复消费attempt2票据 | 返回false，不影响当前许可或工作 |
+| ReplayDecision | 用原成功approve:0和完全相同命令体再次decideHostApproval | 可以返回保存的ok=true，但上述领域投影全部不变；不能以ok=false作幂等假设 |
+
+开始计数只数该宿主提交的已接受LOCAL_STARTED事件ID，不把同一转换的附加诊断记录重复算成另一次执行。审批ID投影是公开结果中观察到的三个不同身份映射，不从内部私有Map构造状态。每条TLC边从一次公共可达最短前缀重放，Memory/SQLite均覆盖182边；不同具体历史映射到同一抽象状态时不据此宣称全程序等价。
+
+图显式包含Approve/ReclaimParent/NewPermit/Claim/Start的弱公平性，在至多一次撤销与恢复后证明`Progress`。这是调度与用户批准的条件性活性；用户永久不批准、物理效果未核清、无限轮次和任意外部I/O均不在图内。
+
+最终完整证据为`reports/verify-squad-authority-composition/final-complete`：基线/恢复各183生成、36不同、0队列，双存储各182标记边；四见证、四源码变异各双存储检出及原实现恢复复验通过。独立读回110件并额外核对双负后端/见证/活性。BT_N30–N32直接执行3场景、12业务步骤（另132共享钩子）；这些实例没有冒充新图。

@@ -1,0 +1,32 @@
+{
+  "sourceCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
+  "sourceFile": "src/web/service.ts",
+  "oldHash": "5b5408fa4d69faf9acd449d107f61edba321d7c45043589c6a25d63d51b34024",
+  "newHash": "33cea3afb02fa7805b7476b18a17c45cb19950c24c532ff55e880c2d29552d07",
+  "diff": "diff --git a/src/web/service.ts b/src/web/service.ts\nindex 7a796a6..c96c9ef 100644\n--- a/src/web/service.ts\n+++ b/src/web/service.ts\n@@ -122,6 +122,7 @@ export class WebService {\n         const context = this.engine.view(room.id, taskId)!.context;\n         for (const work of context.intents) for (const op of work.localOperations ?? []) {\n           if (op.status !== 'uncertain' || !op.sessionId) continue;\n+          if (this.closing) return;\n           const reconciliation = await this.localRuntime!.reconcile(op);\n           if (reconciliation) {\n             const reply = this.engine.send(room.id, taskId, { type: 'LOCAL_RECONCILE', id: `startup-local:${randomUUID()}`, at: Date.now(),\n",
+  "classification": "No effect on original or composition Authority state domain",
+  "reason": "The only added check is this.closing in WebService local startup reconciliation. Neither authority fixture constructs WebService or starts reconciliation. Public TeamEngine / taskMachine / stores and every permission-writing entry are unchanged. Module import has no startup invocation.",
+  "originalVerification": {
+    "status": "verified",
+    "sourceCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
+    "evidence": "reports/verify-squad-authority/e77-final-current",
+    "steps": 34,
+    "independentReadback": "passed"
+  },
+  "compositionVerification": {
+    "status": "verified",
+    "sourceCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
+    "evidence": "reports/verify-squad-authority-composition/e77-final-inputs-complete",
+    "artifacts": 175,
+    "baselineAndRestoredCounts": [
+      183,
+      36,
+      0
+    ],
+    "allEdgeReplay": "182 edges on memory and sqlite per graph",
+    "negativeControlRuns": 8,
+    "independentReadback": "passed on frozen helper: required properties, complete captured implementation, actual normal exit1 and expected AssertionError"
+  },
+  "originalVerificationHistorical": "Historical full34-step original run reports/verify-squad-authority/kej-108-reviewed remains tied to its recorded source hashes; this record is correspondence review, not a rerun.",
+  "outcome": "updated: current e77 original and strengthened composition full checks plus independent readbacks passed"
+}

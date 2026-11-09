@@ -1,0 +1,23 @@
+{
+  "issues": [
+    "KEJ-107",
+    "KEJ-108"
+  ],
+  "date": "2026-11-09",
+  "productCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
+  "changedCoveredFiles": [
+    "src/local-skills.ts"
+  ],
+  "correspondence": "The only changed covered file is local-skills.ts: existing immutable bundle reuse reapplies readonlyDirectories after a host exit between rename and chmod. Original handoff fixture does not construct LocalSkillRuntime or load skills; Handoff.tla, all properties, bounds and controls remain unchanged. The new retry slices use public failed/saved prefixes and separate RECOVER from Flush.",
+  "baselineEvidence": "/workspace/work/kej-107-108-baseline/summary.json",
+  "status": "verified",
+  "evidence": "reports/verify-squad-handoff/kej-107-108-reviewed",
+  "compositionEvidence": "reports/verify-squad-handoff-composition/final-inputs-complete",
+  "independentReadback": true,
+  "readbackControls": "reports/formal-readback-controls/handoff-inputs-complete",
+  "metadataNote": "sync metadata advanced only after full checks; subsequent readback is not a new TLC execution",
+  "independentReview": {
+    "reviewer": "service_debug",
+    "conclusion": "No product counterexample in declared domain; fixed required properties, captured fixture source and persisted actual normal exit status before final rerun."
+  }
+}

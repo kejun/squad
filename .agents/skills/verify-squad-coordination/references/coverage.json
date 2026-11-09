@@ -1,5 +1,5 @@
 {
-  "syncCommit": "32c26b376b46ae1a03718a6820683b59b802b413",
+  "syncCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
   "bounds": {
     "Budget": "one current ordinary owner intent, 2 user epochs, ordinary limits 3 then 5, automatic retry limit 1, one safe inflight recovery; request/claim count bounded by total paid budget 5",
     "Shards": "one round with exactly 2 shards, 3 result outcomes per shard, one reducer, stop or one goal change, one reopen including active safe inflight recovery; no recovery of cancelled inflight or second round",
@@ -23,8 +23,8 @@
     "src/inspector.machine.ts": "0c9ba840dd017b3149dfae33186ea850376c35048eb43da52a57a8618cc000f5",
     "src/local-cli.ts": "db577455e9fb60f5d12e0cc6af6980c52eec7f8fbec0cbc3ff3a34223092e69e",
     "src/local-operation.ts": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
-    "src/local-runtime.ts": "1efe59d4595fbe2058f0daa13c3869e8713ff9df174d94f698703c93652d3c77",
-    "src/local-skills.ts": "4d83827020c75e7888de71fb5c9b263048a80339fc318c0217e50a31fa566ae2",
+    "src/local-runtime.ts": "1c128ff31e4b8c658ed3a92590048c927c14f67152ee0241722733ca6036f9bb",
+    "src/local-skills.ts": "d5d3465670df6cb44858a88405aa8b456d9000bfc5b10eaed8aeeced4c554b7f",
     "src/measurement-report.ts": "62a9010d7a112c52f7e93b6e21d5fcb6a6e6a8011c4852784dd44b811a196183",
     "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
     "src/model-adapter.ts": "1f219a6b770dfc97a54ff2762be0cb1862fda35eb48aee9c03e3e960fb23a060",
@@ -66,7 +66,7 @@
     "src/web/contracts.ts": "41d69f61d23bbd57913a2ba382dc12b12f3d795eb4a69ed0e8ddfaa4d2de8d69",
     "src/web/debug-journal.ts": "5473cefd6b2f382f6a2d6a5928803569a19e09ceef4efd4a47d60a4b636a65c7",
     "src/web/http.ts": "0353bf851274b11b4c31d6adf0cc60c62e49883541e6d1e2c67a6904e50bd3ad",
-    "src/web/service.ts": "5b5408fa4d69faf9acd449d107f61edba321d7c45043589c6a25d63d51b34024",
+    "src/web/service.ts": "33cea3afb02fa7805b7476b18a17c45cb19950c24c532ff55e880c2d29552d07",
     "team.config.ts": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb"
   },
   "maintenanceReviews": [
@@ -122,6 +122,21 @@
       "validation": "reports/verify-squad-coordination/kej-102-105-controlled-env",
       "outcome": "updated",
       "scope": "Original Budget/CheckBudget/Shards, finite capacity/recovery probes and real-code controls unchanged; actual HTTP/process/SQLite acceptance remains independent."
+    },
+    {
+      "issues": [
+        "KEJ-107",
+        "KEJ-108"
+      ],
+      "reviewedCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
+      "changedCoveredFiles": [
+        "src/local-runtime.ts",
+        "src/local-skills.ts",
+        "src/web/service.ts"
+      ],
+      "outcome": "updated",
+      "scope": "local-runtime.prepareScratch and local-skills.readonlyDirectories recheck on cached paths; old pure model/event replay never invokes these filesystem adapters. No change to original models, guards, projection or fairness. WebService startup-reconciliation closing guard is outside the direct-engine slices; no WebService instantiated. Original three graphs, all 22 controls, restored replay and independent readback verified in isolated e77f052 checkout; no extension proof implied.",
+      "validation": "reports/verify-squad-coordination/kej-107-108-original-reviewed"
     }
   ]
 }

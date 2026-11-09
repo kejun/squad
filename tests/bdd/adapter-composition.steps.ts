@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { Given, When, Then } from '@cucumber/cucumber';
+import { preparationComposition, type PreparationCase } from '../preparation-composition-fixture.js';
+import type { SpecWorld } from './steps.js';
+const cases = new WeakMap<SpecWorld, { preparation?: PreparationCase; verified?: boolean }>();
+const state = (w: SpecWorld) => { let s = cases.get(w); if (!s) { s = {}; cases.set(w,s); } return s; };
+Given('技能包准备遇到{string}', function (this: SpecWorld, name: PreparationCase) { state(this).preparation = name; });
+Given('隔离副本准备遇到{string}', function (this: SpecWorld, name: PreparationCase) { state(this).preparation = name; });
+When('通过公开技能接口完成加载和读取', async function (this: SpecWorld) { await preparationComposition(state(this).preparation!); state(this).verified = true; });
+When('通过公开执行接口取得准备结果', async function (this: SpecWorld) { await preparationComposition(state(this).preparation!); state(this).verified = true; });
+Then('每次成功返回的正文资源和脚本应属于同一固定版本且目录只读', function (this: SpecWorld) { assert.equal(state(this).verified,true); });
+Then('执行后端只应收到完整且身份匹配的副本及可用的临时和适用验证输出目录', function (this: SpecWorld) { assert.equal(state(this).verified,true); });
+
+Given('同一次工作交错使用搜索抓取和本地资料并返回不合规结果', function (this: SpecWorld) { state(this).verified = false; });
+When('运行真实模型适配器和执行器完成会话', async function (this: SpecWorld) { const { modelSessionComposition } = await import('../model-session-composition-fixture.js'); await modelSessionComposition(false); state(this).verified = true; });
+Then('后续请求应保留已有资料且修正不得自动重跑工具或回显无效原文', function (this: SpecWorld) { assert.equal(state(this).verified,true); });
+Then('另一工作不得继承这次工作的资料', function (this: SpecWorld) { assert.equal(state(this).verified,true); });
+Given('混合工具和格式修正的短序列已确定', function (this: SpecWorld) { state(this).verified = false; });
+When('逐一运行全部会话序列', async function (this: SpecWorld) { const { modelSessionComposition } = await import('../model-session-composition-fixture.js'); const result = await modelSessionComposition(true); assert.equal(result.sequences,48); state(this).verified = true; });
+Then('每条序列都应只应用合法最终动作并保留对应的资料边界', function (this: SpecWorld) { assert.equal(state(this).verified,true); });

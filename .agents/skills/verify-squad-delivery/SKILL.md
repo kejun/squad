@@ -47,9 +47,9 @@ python3 .agents/skills/verify-squad-delivery/scripts/check.py --verify-evidence 
 - Progress：当前可发布检查最终发布，或被停止/换目标失效。假设崩溃/提交失败各至多一次、重开与有效审查返回满足弱公平。重开只是存储/engine constructor，不是 TeamEngine.recover；不证明恢复调度器或供应商一定完成。
 - SnapshotBinding：9 个明确损坏/旧格式输入分别改变技能回执正文、哈希、技能版本、分页 nextOffset、状态、ok、code、offset，或移除冻结快照。真实 deliveryEvidence 必须拒绝。它们是有限输入测试，不是可达业务事件或穷举所有损坏组合的形式化证明。
 
-精确边界：一个任务、一个候选、一个文档、一份已结算完整技能资源回执、一次检查请求、目标版本 1..2、至多一次进程丢失与一次回滚；错误候选输入使用一个不相等代表；允许重复审查/迟到结果和重复查询。模型通常为 31 个状态和 79 条标记边，但应读取实际日志，不能照抄统计。
+原 Delivery 模型精确边界：一个任务、一个候选、一个文档、一份已结算完整技能资源回执、一次检查请求、目标版本 1..2、至多一次进程丢失与一次回滚；错误候选输入使用一个不相等代表；允许重复审查/迟到结果和重复查询。模型通常为 31 个状态和 79 条标记边，但应读取实际日志，不能照抄统计。
 
-这是有限抽象模型穷举 + 每边一个代表前缀的真实实现回放，不是所有 TypeScript 历史的等价证明。未证明 SQLite/文件系统断电可靠性、文本语义真实性、技能 hash 与文件内容的密码学核验、分页重组、多候选连续修订/已发布版本替换、审查失败自动修订、工作区验证执行、审批租约、无限重试、外部工具副作用或 UI 渲染。文件哈希是漂移门禁，不能证明对应性。源码读取细节与未覆盖情况见 correspondence.md。
+这是有限抽象模型穷举 + 每边一个代表前缀的真实实现回放，不是所有 TypeScript 历史的等价证明。原 Delivery 单切片未证明 SQLite/文件系统断电可靠性、文本语义真实性、技能 hash 与文件内容的密码学核验、分页重组、多候选连续修订/已发布版本替换、审查失败自动修订、工作区验证执行、审批租约、无限重试、外部工具副作用或 UI 渲染。文件哈希是漂移门禁，不能证明对应性。源码读取细节与未覆盖情况见 correspondence.md。
 
 ## 负对照
 
@@ -77,3 +77,22 @@ PR40 产品源码对应审查基线为 `21ee46039f594d9b93d400bf703e14d42fab2b0e
 
 
 托管宿主若仅注入 `MODEL_API_KEY` 而没有模型端点，`team.config.ts` 的模块默认导出会在回放前报配置错误。验证命令可加前缀 `env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true`，仅给当前进程提供导入前提；实际回放仍使用显式固定配置，不调用该地址，也不修改用户 `.env`。本轮原配置失败及受控重跑证据均保留。
+
+
+## KEJ-107 #3 / KEJ-108 A1、A6 组合切片
+
+同一 `scripts/check.py` 命令在保留原Delivery完整检查之后，额外运行三个独立有限模型：
+
+| 模型 | 用户承诺 | 有限范围 |
+| --- | --- | --- |
+| Verification | 工程验证成功后才可请求模型检查，最终发布必须完成同版本复核 | 单检查，成功/失败CLI，两个工作区版本，单次最终复核与回滚/重开 |
+| Cycles | 连续修订保留旧交付，陈旧检查不能发布新候选 | 三个发布周期、四个文档修订、跨周期一次自动修正 |
+| SourceLineage | 来源在创建时冻结，后继任务只记录直接交付来源 | 同群三个任务，A两版、B冻结A1并发布，C直接引用B |
+
+申请、领取、启动、结果、模型请求、交付和发布分别对应真实事务；不把多次公开调用画成原子一步。所有模型完整探索后均逐标记边重放Memory/SQLite，执行正前提见证、七类真实代码负对照和匹配模型反例，最后完整复验原版。详细边界、外部版本事实、输入失败、弱公平及代码对应见[组合对应审查](references/correspondence.md#kej-107-3--kej-108-a1a6三个独立有限切片)。BT_F50–F53有可直接执行的中文Gherkin，不能把formal命令通过称为这些场景直接执行。
+
+`--verify-evidence` 除旧manifest还逐项读回三个模型的原始完成统计/活性、图、双存储全部边、目标投影、见证及真实负对照。开发时可单独运行 `python3 .agents/skills/verify-squad-delivery/scripts/composition-check.py --jar /absolute/path/tla2tools.jar`；最终交付仍执行完整技能命令。所有子进程维持45秒TLC、90秒真实回放上限。
+
+本扩展不证明真实CLI/文件系统散列、外部编辑与发布之间的全局原子性、无限周期/重试/来源图；原Delivery排除项中只有这里明确列出的有限部分新增了证据。源码在工作树中的适配器恢复修复经过逐文件无影响审查，指纹与精确结果记录在[KEJ-107/108维护记录](references/drift-review-kej-107-108.json)；sync commit仅在完整验证成功后推进，未提交源码以运行报告hash绑定。
+
+独立审查补强：新负控的原始JSON/log/diff与回放fixture正文均为读回必需输入；不能只保留run摘要并重签manifest。运行 `python3 .agents/skills/verify-squad-delivery/scripts/composition-evidence-controls.py "$SQUAD_DELIVERY_EVIDENCE" --output /absolute/path/evidence-controls.json` 可检验新增与原Delivery域十一种自洽缺件/性质移除/摘要冲突均被拒绝。该检验只复制/修改临时证据副本，不触碰产品或正本。

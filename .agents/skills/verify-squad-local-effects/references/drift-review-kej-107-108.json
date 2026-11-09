@@ -1,0 +1,25 @@
+{
+  "previousSyncCommit": "64322436c87b216f9dd9ba1a137738e5cd923497",
+  "sourceCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
+  "initialBlockedEvidence": "reports/verify-squad-local-effects/kej107-classification-final",
+  "changedCoveredFiles": {
+    "src/web/service.ts": {
+      "oldSha256": "5b5408fa4d69faf9acd449d107f61edba321d7c45043589c6a25d63d51b34024",
+      "newSha256": "33cea3afb02fa7805b7476b18a17c45cb19950c24c532ff55e880c2d29552d07",
+      "classification": "No change to finite local-effects protocol",
+      "reason": "recoverLocal now returns before further reconcile when closing. Finite graph uses TeamEngine/CliJournal directly; KEJ103 bridge awaits ready before shutdown. Existing journal/LOCAL_RESULT/lease transaction boundaries unchanged."
+    }
+  },
+  "verification": {
+    "status": "verified",
+    "evidence": "reports/verify-squad-local-effects/kej107-inputs-complete",
+    "seconds": 54.507,
+    "independentReadback": "216 retained artifacts verified; all 77 covered implementation inputs captured and SHA-bound",
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true
+    },
+    "scope": "Same original local-effects finite protocol, additionally precise rejected-session and prepared-classification observation properties; no OS replay claim.",
+    "readbackControls": "reports/formal-readback-controls/local-effects-all-four"
+  }
+}

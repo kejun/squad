@@ -1,6 +1,6 @@
 ---
 name: verify-squad-handoff
-description: "形式化检查 kejun/squad 中已保存的 B 协助结果向 A 交接的原子性、幂等性、停止取消和调度活性。修改结果消费、保存/恢复、停止/继续、目标版本或 WorkRunner 时使用；运行 TLC、真实代码迁移回放及故障对照，检查模型漂移。"
+description: "形式化检查 kejun/squad 中已保存的 B 协助结果向 A 交接的原子性、幂等性、停止取消和调度活性。同时检查失败重试资格、retryOf 唯一后继与保存结果复用。修改结果消费、重试、保存/恢复、停止/继续、目标版本或 WorkRunner 时使用；运行 TLC、真实代码迁移回放及故障对照，检查模型漂移。"
 ---
 
 # Verify squad handoff
@@ -14,6 +14,7 @@ description: "形式化检查 kejun/squad 中已保存的 B 协助结果向 A �
 ```sh
 npm ci
 python3 .agents/skills/verify-squad-handoff/scripts/check.py
+python3 .agents/skills/verify-squad-handoff/scripts/check-composition.py
 ```
 
 首次运行下载固定的 TLA+ Tools v1.7.4（TLC 2.19），后续复用用户缓存。JAR 的 SHA-256 必须为 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`。已准备 JAR 时设置 `TLA2TOOLS_JAR`，或传 `--jar` 绝对路径。TLC 使用单 worker、512MiB Java 堆，不需要浏览器、模型 API Key 或供应商服务。
@@ -105,3 +106,17 @@ PR40 产品源码对应审查：`21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR4
 
 
 托管宿主若仅注入 `MODEL_API_KEY` 而没有模型端点，`team.config.ts` 的模块默认导出会在回放前报配置错误。验证命令可加前缀 `env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true`，仅给当前进程提供导入前提；实际回放仍使用显式固定配置，不调用该地址，也不修改用户 `.env`。本轮原配置失败及受控重跑证据均保留。
+
+## KEJ-108 A2：重试资格与唯一后继
+
+完整 handoff 验证需要上述两个入口分别完整通过、分别独立读回。`check.py` 仍检查原 Handoff 图；`check-composition.py` 检查新的失败/已保存两域，不能用其中一个替代另一个。新证据默认写入 `reports/verify-squad-handoff-composition/`；支持同样的 `--jar`、`--evidence`、`--verify-evidence` 参数。每个子进程最多120秒，TLC使用隔离Java临时目录，空白、部分或工具错误均失败。
+
+[组合对应](references/correspondence.md#kej-108-a2重试组合)、[配置](references/composition-suite.json)和[指纹](references/composition-coverage.json)定义精确域：一个任务、A/B两角色、两个新命令身份、最多一个retryOf后继、一个原保存结果、一次恢复、dispatch前最多一次权限或owner变化。起点由真实 submit/claim/HELP/RECORD_RESULT 或失败事件形成；不手写 TaskContext，不修改live store。
+
+`RetryUniqueness`要求原协助最多一条后继；`ExclusiveResultChoice`要求已保存有效结果走消费而不重做B工作；`RetryAuthority`/`RetryOwner`要求新命令使用当前权限和owner；`RetryHandoff`保持消费与唯一A续办一致。已接受命令的相同载荷重放允许返回旧receipt，不视为重新授权。新命令才重新检查资格。旧失败原工作的迟到结果不成为新结果。
+
+每条抽象边分别从一条最短公共前缀在Memory/SQLite重放，恢复的RECOVER事务与Flush分开。七项可达性见证防止未触及资格分支；四项真实代码变异分别删除唯一后继、保存复用、权限、owner守卫，必须在两种存储以目标AssertionError检出；原模型与原实现再次完整复验。Progress依赖ClaimRetry/SaveRetry/ConsumeRetry/ConsumeOriginal的弱公平；不要求用户必然请求重试，也不证明被永久撤销权限的工作必然执行。
+
+读回检查捕获的suite、实际TLC完成/活性/统计、每域所有边的两存储JSONL与目标投影、全部原始负对照JSON/diff、见证集合和清理。负对照错误的原始证据在JSON中；旧兼容日志可能为空。独立读回不是重新执行TLC，也不是恶意作者不可伪造的签名证明。
+
+这仍是有限模型穷举与代表前缀对应；不证明无限重试、任意成员数、dispatch后的owner/工具变化、外部效果恰好一次或所有未投影历史。原Handoff切片的排除项保留于其范围，不把新切片合并成全系统证明。
