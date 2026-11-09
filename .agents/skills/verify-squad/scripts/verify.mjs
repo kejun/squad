@@ -808,11 +808,24 @@ async function performCleanup() {
   if (page && !page.isClosed() && contract) await capture('contract-final').catch(e => failures.push(`capture: ${e.message}`));
   if (context) await context.tracing.stop({ path: join(evidence, 'trace.zip') }).catch(e => failures.push(`trace: ${e.message}`));
   if (browser) await browser.close().catch(e => failures.push(`browser cleanup: ${e.message}`));
-  await stopApp();
-  if (fixture) await fixture.close();
-  rmSync(state, { recursive: true, force: true });
-  rmSync(workspace, { recursive: true, force: true });
-  run.cleanup = { stateRemoved: !existsSync(state) && !existsSync(workspace), appStopped: !child, processGroupGone: [...ownedProcessGroups].every(pid => processGroupGone(pid)), browserClosed: !browser?.isConnected(), evidenceRetained: existsSync(actions) };
+  try { await stopApp(); } catch (error) { failures.push(`app cleanup: ${error.message}`); }
+  let fixtureClosed = !fixture;
+  try { if (fixture) { await fixture.close(); fixtureClosed = true; } }
+  catch (error) { failures.push(`fixture cleanup: ${error.message}`); }
+  let groupsGone = false;
+  try { groupsGone = [...ownedProcessGroups].every(pid => processGroupGone(pid)); }
+  catch (error) { failures.push(`process group cleanup: ${error.message}`); }
+  if (groupsGone) {
+    try { rmSync(state, { recursive: true, force: true }); } catch (error) { failures.push(`state cleanup: ${error.message}`); }
+    try { rmSync(workspace, { recursive: true, force: true }); } catch (error) { failures.push(`workspace cleanup: ${error.message}`); }
+  } else {
+    log('state-retained', { state, workspace, reason: 'Owned app exit is not proven; retain active database' });
+    // Let the supervisor's parent-loss/closed-pipe guard finish bounded cleanup;
+    // do not hang this failed verifier or remove a possibly active database.
+    child?.unref(); child?.stdout?.destroy(); child?.stderr?.destroy();
+  }
+  run.cleanup = { stateRemoved: !existsSync(state) && !existsSync(workspace), appStopped: groupsGone,
+    processGroupGone: groupsGone, fixtureClosed, browserClosed: !browser?.isConnected(), evidenceRetained: existsSync(actions) };
 }
 async function interrupted(reason) {
   run.status = 'failed';

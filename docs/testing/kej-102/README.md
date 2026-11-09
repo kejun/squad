@@ -83,6 +83,7 @@ Doctor、ready 和 `instance.json` 使用真实 Node PID；`run.appProcesses` �
 - 离线故障检出及恢复：`reports/verify-squad-negative/2026-11-09T02-53-41.776Z-28677/negative.json`。`offline-working-spinner` 被 BT_U09 的原业务断言检出，正常退出 1；负向 app 28780 实际 SIGKILL，supervisor 28779 正常退出并回收 28794/28780，负向清理全部通过。恢复原实现后四项全部 verified。
 - 恢复后的 U09 中，真实 Node app 30526 实际因 SIGKILL 退出，supervisor 30525 回收 app 与探测后代 30541 后正常退出；重连后的 Node 30853 与 supervisor 30852 同样清理完成。逐份读回负向、恢复四项和五组回归的所有清单，并向其登记 PGID 作只读存活检查，均确认进程组已经不存在。
 - 外层失败检查故意提供不存在的浏览器模块。验收正确失败，但 Node 28632、探测后代 28646 由 supervisor 28631 回收，监督器正常退出，全部清理字段为 true；证据 `reports/verify-squad-supervisor-failure/1794192801560/`。这项仅证明外层启动失败的清理，不计为产品场景通过。
+- 异常收尾控制：在全部后代已回收后故意令监督器退出 17，再触发外层浏览器导入失败。验证器正常退出 1并保留 failed 与明确的监督器错误，但仍关闭模型夹具、确认 owned 组消失后删除临时目录；`fixtureClosed/processGroupGone/stateRemoved` 均 true。证据 `reports/verify-squad-supervisor-failure/1794193150388/`。若组退出无法证明，则保留可能仍活动的数据库，不伪造清理完成。故障脚本随后恢复。
 - 日志、Cucumber 与跨清单读回结果：`reports/kej-102/native-process-cleanup/`。本地监督器使用 Python 3.12.14；Linux CI 显式准备 Python 3。
 
 早期无 subreaper 的失败轮留下了已由 PID 1 收养的僵尸；当前父进程不能对这些历史进程调用 `waitpid`，它们没有计入新运行的清理保证。没有操作 PID 1 或无关进程，也不声称整个执行环境全局零残留。本票的新保证严格限定为每次清单登记的 app、supervisor 及其后代；这些补验均已完成回收。
