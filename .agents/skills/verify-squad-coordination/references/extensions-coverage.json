@@ -1,5 +1,5 @@
 {
-  "syncCommit": "8f4a1acb31f1aa9d73996e60dbb9aa3becce0596",
+  "syncCommit": "95ae75c91689ad4e94a78d7bdc86cbdf490dd593",
   "bounds": {
     "budget": "2 discussion participants, one original owner, one synthesis, one extra request, protected owner continuation; 4 bounded reserve-frontier slices",
     "input": "one supplemental input, original help or check, one recovery, two epochs, clarification/success/stop",
@@ -16,7 +16,7 @@
     "src/cli-catalog.ts": "dc8cb8346a3e5c33ff69deff7ffea77d8f0761993db055a73a913f45ced0e29e",
     "src/conversation.ts": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
     "src/darwin-process.ts": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b",
-    "src/delivery-acceptance.ts": "e725df453b3f9916b528bd15f3f1792b17afd4c1709057ce8757bf4eac053d07",
+    "src/delivery-acceptance.ts": "99b639b34ad8c3db33030de3ad280fc708f864ee1e4aa6711278c0b1659484bc",
     "src/engine.ts": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
     "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
     "src/host-capabilities.ts": "887050d6c668a648c8e61f21503aa4322870e6139c10b9b05b8be2a804625414",
@@ -31,7 +31,7 @@
     "src/local-skills.ts": "8f1548221fab864d3c33c397b814d6d883ed7e0783da41de48e748f92df4701f",
     "src/measurement-report.ts": "62a9010d7a112c52f7e93b6e21d5fcb6a6e6a8011c4852784dd44b811a196183",
     "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
-    "src/model-adapter.ts": "d6c3cd08fbcba3049a743143c59a5591324d34b87435657fb43f183f4aa833d6",
+    "src/model-adapter.ts": "97d56380e7f631bbe5cc3f2b0dbbc01fe374c1a1196b4e3f95212ac37d87f1b3",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
     "src/model-env.ts": "7f8bb277dab42d749c82dab229d66cbb508e1af83b78986895da41956a9e6cf0",
     "src/presentation.ts": "44b39afe5955d6d95cc127f1d4a8e90a8961bdb9daa9c547e7d2d0f25b84a1b5",
@@ -112,5 +112,6 @@
       "validation": "reports/verify-squad-coordination/kej-109-extensions-reviewed",
       "outcome": "updated"
     }
-  ]
+  ],
+  "mapReduceLiveReview": "references/drift-review-map-reduce-live.json"
 }

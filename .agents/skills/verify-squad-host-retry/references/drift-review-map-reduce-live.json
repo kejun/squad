@@ -1,0 +1,55 @@
+{
+  "productSource": "95ae75c91689ad4e94a78d7bdc86cbdf490dd593",
+  "equivalentOldSource": "6bebcf8d0eed1aa0434783bc77c824f279634e65",
+  "coverageReview": [
+    {
+      "coverage": ".agents/skills/verify-squad-host-retry/references/coverage.json",
+      "changes": [
+        {
+          "file": "src/delivery-acceptance.ts",
+          "old": "e725df453b3f9916b528bd15f3f1792b17afd4c1709057ce8757bf4eac053d07",
+          "new": "99b639b34ad8c3db33030de3ad280fc708f864ee1e4aa6711278c0b1659484bc",
+          "baselineMatches": true
+        },
+        {
+          "file": "src/model-adapter.ts",
+          "old": "d6c3cd08fbcba3049a743143c59a5591324d34b87435657fb43f183f4aa833d6",
+          "new": "97d56380e7f631bbe5cc3f2b0dbbc01fe374c1a1196b4e3f95212ac37d87f1b3",
+          "baselineMatches": true
+        }
+      ],
+      "total": 67
+    }
+  ],
+  "correspondence": "Public prefix prepares two failed sandbox sources and owner DELIVER without any map round. mapReviewSources returns empty. Host retirement, known receipt preservation, source deduplication, unknown effects and next-batch transitions are unchanged; original candidate equality checks remain intact.",
+  "perFileReview": {
+    "src/delivery-acceptance.ts": "Adds pure projection of delivered current-goal map assignments/results/artifacts into existing frozen review sources; ordinary assist projection unchanged. No event or I/O, no transaction split, no budget change. Non-map and non-delivered/old-goal rounds return empty.",
+    "src/model-adapter.ts": "Only shared requirement-modality prompt text and interpretation/check insertions. Parser, schema, citation validation, transport, deadlines, retry/accounting and tool invocation unchanged. Formal accepted-event domain does not model provider language semantics; BT_I23/I24 and real provider tasks supply separate evidence."
+  },
+  "preserved": "All TLA/CFG, invariants, liveness assumptions, domains, replay drivers, negative controls and timeout limits unchanged. No claim of whole-system/provider semantic proof.",
+  "validation": {
+    "status": "verified",
+    "entries": [
+      {
+        "name": "host-retry",
+        "entry": ".agents/skills/verify-squad-host-retry/scripts/check.py",
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-host-retry/scripts/check.py",
+          "--jar",
+          "/workspace/squad-map-reduce-20261109/tla2tools-1.7.4.jar",
+          "--evidence",
+          "/workspace/squad/reports/verify-squad-host-retry/live-20261109-check"
+        ],
+        "environment": "env -u MODEL_API_KEY",
+        "evidence": "/workspace/squad/reports/verify-squad-host-retry/live-20261109-check",
+        "startedAt": "2026-11-09T14:31:21.172579+00:00",
+        "exit": 0,
+        "readbackExit": 0,
+        "evidenceControlsExit": 0,
+        "endedAt": "2026-11-09T14:31:48.455096+00:00"
+      }
+    ],
+    "synchronization": "Only after full positive/negative/restored runs and independent readbacks. Model/driver/property/bounds unchanged; product bytes remain 95ae75c. Updating metadata is not another full execution."
+  }
+}
