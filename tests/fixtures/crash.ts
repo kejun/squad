@@ -1,9 +1,14 @@
 import { SqliteStore, TeamEngine } from '../../src/index.js';
 import { createTeamConfig } from '../../team.config.js';
+import { runTransactionCrashChild, type TransactionBoundary, type TransactionOperation } from './sqlite-transaction-child.js';
 // The crash fixture must use the same isolated configuration as the parent test.
 const config = createTeamConfig({});
 const [file, point] = process.argv.slice(2);
 if (!file) throw new Error('Database path required');
+if (point?.startsWith('transaction:')) {
+  const [, operation, boundary, mutation] = point.split(':');
+  runTransactionCrashChild(file, operation as TransactionOperation, boundary as TransactionBoundary, mutation === 'splitReceipt');
+}
 const store = new SqliteStore(file); const e = new TeamEngine(store, config, () => 0);
 e.submit('r', { id: 'M1', text: 'plan' });
 e.send('r', 'task:M1', { id: 'H1', at: 0, type: 'HELP', caller: 'A', requestId: 'H1', target: 'B', question: 'check', expected: 'evidence' });

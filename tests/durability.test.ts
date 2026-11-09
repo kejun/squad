@@ -5,12 +5,16 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { MemoryStore, SqliteStore, TeamEngine } from '../src/index.js';
 import { configuration, Harness } from './helpers.js';
+import { crashEvidenceDirectory, crashWriterArguments, verifyAtomicityNegativeControl } from './sqlite-transaction-crash.js';
 
 const dirs: string[] = []; const stores: SqliteStore[] = [];
 afterEach(() => { for (const s of stores.splice(0)) s.close(); for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }); });
 function sqlite() { const d = mkdtempSync(join(tmpdir(), 'bot-team-')); dirs.push(d); const p = join(d, 'state.sqlite'); const s = new SqliteStore(p); stores.push(s); return { path: p, store: s }; }
 
 describe('durable transaction contracts', () => {
+  it.each(['report', 'lease'] as const)('[BT_A66] %s detects a receipt committed separately from its snapshot and lease', async operation => {
+    await verifyAtomicityNegativeControl(operation, crashEvidenceDirectory(`${operation}-negative-control`));
+  });
   it.each(['memory', 'sqlite'])('[BT_D01] %s deduplicates requests and rejects changed payload identities', kind => {
     const store = kind === 'memory' ? new MemoryStore() : sqlite().store;
     const e = new TeamEngine(store, configuration(), () => 0);
@@ -21,7 +25,7 @@ describe('durable transaction contracts', () => {
   });
   it.each(['afterHelp', 'afterClaim', 'afterResult'])('[BT_D02][BT_D03][BT_D04] reconstructs from an exited process at %s', point => {
     const db = sqlite(); db.store.close(); stores.splice(stores.indexOf(db.store), 1);
-    const child = spawnSync(process.execPath, ['--import', 'tsx', 'tests/fixtures/crash.ts', db.path, point], { cwd: process.cwd(), timeout: 10000, encoding: 'utf8' });
+    const child = spawnSync(process.execPath, [...crashWriterArguments, db.path, point], { cwd: process.cwd(), timeout: 10000, encoding: 'utf8' });
     expect(child.status, child.stderr).toBe(23);
     const s = new SqliteStore(db.path); stores.push(s); const e = new TeamEngine(s, configuration(), () => 0); e.recover('r');
     const c = e.view('r', 'task:M1')!.context;
