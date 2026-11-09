@@ -1,5 +1,5 @@
 {
-  "syncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+  "syncCommit": "32c26b376b46ae1a03718a6820683b59b802b413",
   "bounds": {
     "Budget": "one current ordinary owner intent, 2 user epochs, ordinary limits 3 then 5, automatic retry limit 1, one safe inflight recovery; request/claim count bounded by total paid budget 5",
     "Shards": "one round with exactly 2 shards, 3 result outcomes per shard, one reducer, stop or one goal change, one reopen including active safe inflight recovery; no recovery of cancelled inflight or second round",
@@ -7,7 +7,7 @@
   },
   "files": {
     "package-lock.json": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
-    "package.json": "4d64527e75fc3a19c94e0e25ee490918a62d7a96681d212dce97c7f66e2bef93",
+    "package.json": "3116143dffa7c27a4fc9a8892e08603d754bc5e2f506752b500d874befb0ab3c",
     "src/artifact-request.ts": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
     "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
     "src/conversation.ts": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
@@ -27,9 +27,9 @@
     "src/local-skills.ts": "4d83827020c75e7888de71fb5c9b263048a80339fc318c0217e50a31fa566ae2",
     "src/measurement-report.ts": "62a9010d7a112c52f7e93b6e21d5fcb6a6e6a8011c4852784dd44b811a196183",
     "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
-    "src/model-adapter.ts": "a3babb84683d174ae10f932f47fa59bdf1e4d39044e7deed219f1a0592b700b2",
+    "src/model-adapter.ts": "1f219a6b770dfc97a54ff2762be0cb1862fda35eb48aee9c03e3e960fb23a060",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
-    "src/model-env.ts": "99dfbe11350e7c3c446fc13a1a61414ebbf4e73a999439f22e85441c3b26f530",
+    "src/model-env.ts": "7f8bb277dab42d749c82dab229d66cbb508e1af83b78986895da41956a9e6cf0",
     "src/presentation.ts": "44b39afe5955d6d95cc127f1d4a8e90a8961bdb9daa9c547e7d2d0f25b84a1b5",
     "src/room.machine.ts": "1f2acd3d217731acd39b4258e0148b65b600f2b8cd7ae8cdcee8f047d8b696ab",
     "src/runner.ts": "c6fb4e04da43e021634db60108ae33ebbe36c5f304efe953a0384b34ce622e69",
@@ -61,7 +61,7 @@
     "src/task/protocol.ts": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
     "src/task/reducer.ts": "ada7f850f0c774c48ade21b50604b9e40e64a84fc49ec0d77a00ce3e6a962455",
     "src/task/verification.ts": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24",
-    "src/types.ts": "f8a70d5b344164eaff896ae11e40b84f7e0aff88f528724243847c906f1bc85d",
+    "src/types.ts": "cefccc84532d9c55b36a8f3278988347e72a417f634066e020703a13c24497fa",
     "src/web-tools.ts": "aefd3b4625fada48ef66e821bd6252c6b0dae9e454a8799f4c0c321efc531840",
     "src/web/contracts.ts": "41d69f61d23bbd57913a2ba382dc12b12f3d795eb4a69ed0e8ddfaa4d2de8d69",
     "src/web/debug-journal.ts": "5473cefd6b2f382f6a2d6a5928803569a19e09ceef4efd4a47d60a4b636a65c7",
@@ -102,6 +102,26 @@
       "validation": "reports/verify-squad-coordination/kej-106-final-engine",
       "outcome": "updated",
       "scope": "Full checks on final Engine sources; original TLC domains unchanged, 15 finite examples and 22 real-code controls."
+    },
+    {
+      "issues": [
+        "KEJ-102",
+        "KEJ-103",
+        "KEJ-104",
+        "KEJ-105"
+      ],
+      "review": "references/drift-review-kej-102-105.json",
+      "reviewedCommit": "32c26b376b46ae1a03718a6820683b59b802b413",
+      "previousSyncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+      "changedCoveredFiles": [
+        "package.json",
+        "src/model-adapter.ts",
+        "src/model-env.ts",
+        "src/types.ts"
+      ],
+      "validation": "reports/verify-squad-coordination/kej-102-105-controlled-env",
+      "outcome": "updated",
+      "scope": "Original Budget/CheckBudget/Shards, finite capacity/recovery probes and real-code controls unchanged; actual HTTP/process/SQLite acceptance remains independent."
     }
   ]
 }

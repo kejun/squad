@@ -21,6 +21,24 @@
 
 ## 事务与外部执行的共同边界
 
+### 效果后宿主崩溃（KEJ-103）
+
+图型：宿主恢复处理流程；所有者：`LocalRuntime / CliJournal / WebService`，业务决策仍属于真实 `taskMachine`。验收：BT_L06、BT_L14，模型边界复验 BT_L73、BT_L74；不引入新 XState 状态。
+
+```mermaid
+flowchart LR
+    Claimed[持久化领取及租约] -->|LOCAL_STARTED / 执行隔离 CLI| Effect[不可幂等效果已落地]
+    Effect -->|宿主 SIGKILL / 日志仅有启动记录| Unknown[恢复为 uncertain]
+    Effect -->|日志回执 fsync / 任务回执未提交时 SIGKILL| Known[恢复读取同一会话回执]
+    Unknown -->|RECOVER / 保留未知效果和租约| Unknown
+    Unknown -->|匹配且已退出的可信摘要核对 / LOCAL_RECONCILE| Settled[结算原操作及租约]
+    Known -->|LOCAL_RECONCILE / 保存检查点且不执行 CLI| Settled
+    Settled -->|原任务仍有效 / 领取父工作| Resume[携带原回执续办]
+    Settled -->|STOP 已保存 / 拒绝迟到发布| Stopped[保持停止且无候选]
+```
+
+父进程仅在真实 CLI 已写入隔离追加账本且退出后，于 `CliJournal.write(settled)` 前或该调用 fsync 返回后收到屏障，再 SIGKILL 宿主；不以 close/reopen 或抛异常模拟进程丢失。未知效果反复启动服务不能重新执行命令、释放租约或启动模型。匹配的公开宿主 `reviewOperation → acknowledgeOperation → LOCAL_RECONCILE` 接口结算；停止和迟到回执沿用现有模型守卫。测试在真实文件、SQLite 和实际进程边界执行，受控 CLI 后端不声称 OS 沙箱隔离或供应商恰好一次。
+
 **图型：处理流程；所有者：`TeamEngine` / 持久存储 / `WorkRunner`。**
 
 ```mermaid
@@ -45,6 +63,25 @@ flowchart LR
 | 重复与交接 | 命令回执、结果消费和后继意图在事务内去重；临时拒绝不把未消费结果永久封死 |
 | 重启恢复 | 先校验配置、成员、权限、模型绑定和物理会话；已结算不重放，安全未完成操作可再领取，未知写入先核对 |
 | 观察与 UI | 只观察提交后的状态；日志、历史、引用、工具输出和 Bot 发言不获得调度权限 |
+
+### SQLite 写事务的进程丢失边界（KEJ-104）
+
+**图型：持久存储处理流程；所有者：`SqliteStore.transact` / `TeamEngine.send`。验收：BT_A66，承接 BT_A03/A36 与 BT_C02 的提交、去重和版本隔离边界。**
+
+```mermaid
+flowchart LR
+    B["可信 DELIVER 或 LOCAL_CLAIM"] -->|"BEGIN IMMEDIATE / 读取当前快照"| T["同一写事务"]
+    T -->|"事件 [身份、版本、权限有效] / 更新纯模型"| W["写快照、请求回执及适用租约"]
+    W -->|"宿主 SIGKILL [COMMIT 前] / 无显式回滚"| U["SQLite 重开仅见原提交"]
+    W -->|"COMMIT / 三类记录一起可见"| C["完整提交"]
+    C -->|"宿主 SIGKILL [响应前] / 保留提交"| R["SQLite 重开保留原结果"]
+    U -->|"相同请求 / 安全提交一次"| C
+    R -->|"相同请求 [回执匹配] / 返回原结果"| R
+```
+
+该验证只补实际进程与 SQLite 接线证据，不改变 `taskMachine` 的 `DELIVER → checking`、`LOCAL_REQUEST → LOCAL_CLAIM` 或停止/版本守卫。实现前复验既有真实 XState core 与 delivery 纯模型门槛，模型不添加文件或进程操作。任何模型或工具 I/O 仍须在意图及领取事务提交后才由执行器启动；COMMIT 前宿主丢失不能凭未提交快照派发、发布候选或留下工作区锁。COMMIT 后重复请求只返回保存回执，不重建候选、不重新领取或消耗额度。
+
+屏障仅存在于测试子进程：包装公开 `node:sqlite` 语句，在生产 `SqliteStore` 已完成真实写入后阻塞，父进程向自己拥有的进程组发送 SIGKILL。未调用 `close`、抛异常或显式 ROLLBACK。故障证据包含精确屏障、PID/退出信号、三表记录和清理结果。负对照仅在隔离子进程把回执提前提交，使跨记录原子性断言必须失败。此范围不证明硬件断电、磁盘损坏或外部效果恰好一次，也不执行 Pi Durable 的 BT_D06。
 
 ## 任务拥有的上下文生命周期
 
@@ -763,6 +800,23 @@ flowchart TD
 
 ## 网页与观察
 
+### 网页原契约的浏览器验收
+
+图型：UI 投影与真实依赖接线验证；所有者：`Workspace/useWorkspace/Details`，业务事件所有者仍为 `taskMachine`。验收：BT_U01/U02/U03/U09。保留原 Gherkin 编号及业务要求，补齐执行中输入、等待原因、停止/继续/协助重试、产物来源版本、活动刷新与回执丢失重试。没有新增业务状态、事件、守卫或操作意图，无需改变 XState。
+
+```mermaid
+stateDiagram-v2
+    state "同一任务状态行" as Row
+    state "连接中断且保留旧记录" as Offline
+    Row --> Row: 快照更新 [taskId相同] / 更新执行、等待协助、等待用户或终态
+    Row --> Row: 直接用户补充、停止、继续或重试 [既有守卫通过] / HTTP提交可信命令
+    Row --> Offline: 轮询失败 [宿主不可用] / 禁用发送且不伪造进展
+    Offline --> Row: 自动重连 [同库恢复] / 同步同一任务及已保存记录
+    Row --> Row: 页面刷新或丢失回执后重试 [原请求身份] / 读取快照及返回原命令回执
+```
+
+输入与恢复复验沿用 `USER_INPUT → BOUNDARY`、`STOP → SETTLE → CONTINUE`、`RETRY_ASSISTANCE → RECORD_RESULT → HELP_RESULT`，以及已保存意图经 `RECOVER → CLAIM → CONSUME` 的安全接续。模型门槛先运行真实任务机器的 BT_C01–C08 与 BT_H10–H15；浏览器接线通过后才撤销四项 `manual_browser` 登记。时间线只投影实际消息，同一状态行持续更新；任务/成员/产物入口共用 Details，工具明细默认折叠。真实 Chromium、HTTP 与 SQLite 提供直接依赖证据；中文字体、截图、trace、构建源码摘要及清理结果随运行保存。受控模型只替换提供方 HTTP，不直接改 React 或数据库。
+
 ### 网页交互
 
 对应 React 状态和服务器快照的投影，不直接修改业务状态或调用模型。连接、发送与详情面板分别变化，分为三张图；它们不是一个实际 XState parallel 机器。
@@ -1318,3 +1372,24 @@ flowchart TD
 共享纯容量为 `max(0,min(8,可用非负责人成员数,剩余协助额度,剩余普通额度-2))`。可用成员排除本任务pending/inflight/uncertain的非cancel工作。预留2次普通额度对应归并与负责人续办；不承诺覆盖后续工具或修复额外请求。理解初次费用在CLAIM扣除，prepare阶段预扣1，CLAIM后用实际余额刷新；重试/修复仍走既有扣费入口。快照只读，模型不能写回容量或挑选成员。校验使用调用固定容量，派发另按当前资源重算，容量下降时保留完整计划并给出可观察原因，不slice输入或部分启动。
 
 旧意图缺maxPartitions时维持原协议范围与恢复兼容，派发必须通过当前共享守卫。普通输入无分解仍走负责人；0/1容量不发明分片。停止、目标版本、评审、讨论、迟到结果与重启边界沿用原真实XState路径。新增材料、成员派发与归并仍是事务持久化意图后领取和回传，输入理解没有执行或工具权限。模型提示要求完整分配全部文档；语义覆盖由独立检查及逐文集成断言验证，不以容量数值本身证明内容完整。
+
+
+## 模型成功响应资源边界（BT_M46–BT_M49）
+
+**图型：适配器传输处理流程；所有者：`OpenAICompatibleAdapter`。任务生命周期仍由真实 `taskMachine` 管理，`WorkRunner` 只执行已持久化且领取通过的意图。**
+
+```mermaid
+flowchart LR
+    I[持久化模型意图] -->|CLAIM / 校验版本与预算| C[已领取]
+    C -->|CONSUME / 保存请求计费| R[读取成功响应]
+    R -->|完整结束且实际字节不超过上限 / 解析完整协议| V[既有结果事件]
+    R -->|实际字节超过上限 / 取消读取| F[WORK_FAILED transient=false]
+    R -->|STOP / 取消读取并丢弃部分内容| S[既有停止结算]
+    R -->|期限到达 / 取消读取| F
+    F -->|owner 失败 / 保留明确原因| H[waitingHuman]
+    F -->|check 失败 / 不发布候选| E[ended partial]
+```
+
+上限覆盖 HTTP 成功体的实际解压后字节；`Content-Length` 仅是供应方声明，缺失、夸大或压缩长度都不能替代实际计数。每服务 `maxResponseBytes` 为正安全整数，缺省 8 MiB，环境参数 `MODEL_MAX_RESPONSE_BYTES` 与各角色前缀可配置；它与 `maxTokens` 分别约束宿主资源和模型输出期望，不互相推导。读取不完整内容不能生成结果、产物、候选或格式修复请求，超限明确报告 `MODEL_RESPONSE_TOO_LARGE`，且不是可自动重试的瞬时故障。
+
+这次不新增 XState 状态或调度：复验真实模型的非瞬时 `WORK_FAILED`、`STOP` 和迟到结果守卫。预算和重启仍沿用既有领取/CONSUME/RECOVER；已结算超限请求不会重放，未完成安全请求恢复时重新领取并受相同配置签名检查。若配置上限改变，旧绑定由现有配置版本守卫拒绝，需可信恢复。

@@ -18,6 +18,7 @@ import { configuration, Harness } from './helpers.js';
 import { modelResponse } from './model-regeneration-fixture.js';
 import type { LocalAction, LocalOperation } from '../src/local-operation.js';
 import type { Intent } from '../src/types.js';
+import { localEffectCrashAcceptance } from './local-effect-crash-fixture.js';
 
 export async function registryAcceptance() {
   const root = await mkdtemp(join(tmpdir(), 'squad-skill-bdd-'));
@@ -152,6 +153,8 @@ export async function cliFailureAcceptance(fault: string, expected: string) {
   } finally { await f.close(); }
 }
 export async function crashAcceptance(window: string) {
+  if (window === '启动后回执前') return localEffectCrashAcceptance('beforeReceipt');
+  if (window === '日志回执后任务提交前') return localEffectCrashAcceptance('afterJournal');
   const f = await LocalFixture.create('方案师', true); f.backend.before = undefined;
   let currentStore = f.h.store;
   try {
@@ -237,6 +240,7 @@ export async function policyAcceptance() {
 }
 
 export async function acknowledgementAcceptance() {
+  await localEffectCrashAcceptance('stopped');
   const f = await LocalFixture.create(); f.backend.before = undefined;
   try {
     const work = f.h.claim(); const action: LocalAction = { type: 'runCli', executable: 'node', args: ['-e', "require('fs').writeFileSync('effect.txt','written')"] };

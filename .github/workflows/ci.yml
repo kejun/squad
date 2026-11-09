@@ -29,13 +29,27 @@ jobs:
       - name: Install sandbox dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes bubblewrap socat ripgrep
+          sudo apt-get install --yes bubblewrap socat ripgrep fonts-noto-cjk python3
       - name: Install locked dependencies
         run: npm ci
+      - name: Install pinned real browser runner
+        run: |
+          npm install --prefix "$RUNNER_TEMP/squad-browser" --no-package-lock --no-save playwright@1.62.1
+          node "$RUNNER_TEMP/squad-browser/node_modules/playwright/cli.js" install --with-deps chromium
+          echo "SQUAD_PLAYWRIGHT_MODULE=$RUNNER_TEMP/squad-browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+          fc-match ":charset=4e2d"
       - name: Verify real sandbox boundaries
         run: npm run verify:local-sandbox
       - name: Type checks, all tests, Gherkin and coverage
         run: npm run check
+      - name: Verify crash and response-limit fault detection
+        run: |
+          node --import tsx scripts/verify-local-crash.ts --negative-controls
+          node --import tsx scripts/verify-local-crash.ts
+          node --import tsx scripts/verify-sqlite-crash.ts
+          node tests/model-response-limit-negative.mjs
+      - name: Verify original browser contracts detect faults
+        run: node .agents/skills/verify-squad/scripts/negative.mjs
       - name: Production build
         run: npm run build
       - name: Retain verification reports
@@ -46,6 +60,14 @@ jobs:
           path: |
             test-results/
             reports/spec-coverage.md
+            reports/spec-coverage.json
+            reports/verify-squad/
+            reports/verify-squad-negative/
+            reports/verify-squad-supervisor-failure/
+            reports/kej-102/
+            reports/kej-103/
+            reports/verify-sqlite-crash/
+            reports/kej-105*/
           if-no-files-found: warn
           retention-days: 14
 
@@ -75,6 +97,13 @@ jobs:
         run: python3 .agents/skills/verify-squad-authority/scripts/check.py
       - name: Check budgets and shard convergence
         run: python3 .agents/skills/verify-squad-coordination/scripts/check.py
+      - name: Independently read back formal evidence
+        run: |
+          for skill in handoff delivery authority coordination; do
+            for evidence in reports/verify-squad-$skill/*/; do
+              python3 .agents/skills/verify-squad-$skill/scripts/check.py --verify-evidence "$evidence"
+            done
+          done
       - name: Retain formal verification evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -1,0 +1,557 @@
+{
+  "status": "updated",
+  "issues": [
+    "KEJ-102",
+    "KEJ-103",
+    "KEJ-104",
+    "KEJ-105"
+  ],
+  "previousSyncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+  "availableEquivalentBaseline": "8a2f82bf26d467e8974ecbf8cc4ac3861fcf96da",
+  "baselineExplanation": "The old development sync object is not present in this clone after squash. Every recorded covered file was individually compared to the available main squash baseline and all SHA256 values exactly match. All changes are therefore reviewed against those exact source bytes, without pretending the unavailable commit was diffed.",
+  "reviewedProductCommit": "32c26b376b46ae1a03718a6820683b59b802b413",
+  "commitsReviewed": [
+    {
+      "commit": "32c26b376b46ae1a03718a6820683b59b802b413",
+      "subject": "build: bind browser acceptance to current production assets"
+    },
+    {
+      "commit": "6dfa03dfcd15a753dde8054674f1197be5838c36",
+      "subject": "docs: retain SQLite crash acceptance evidence and limits"
+    },
+    {
+      "commit": "4600ee31491bc629e97011e593a0f1e47f1962c8",
+      "subject": "test: kill SQLite writers across the real commit boundary"
+    },
+    {
+      "commit": "bd2b5d3447539f91dd6a245e67000dce732e8b96",
+      "subject": "test: specify SQLite process-loss atomicity acceptance"
+    },
+    {
+      "commit": "f72af6010ea4efd91f51900eb668feeffdcb484b",
+      "subject": "docs: record clean-SHA CLI crash acceptance evidence"
+    },
+    {
+      "commit": "08ea2bb9626c10e6cf9f6702d43d046292858f70",
+      "subject": "test: reap complete crash host groups and pin one continuation"
+    },
+    {
+      "commit": "f2c4a7923efa5682a529800e90f3c65f22f25f2f",
+      "subject": "test: prove CLI recovery across real host loss (KEJ-103)"
+    },
+    {
+      "commit": "bf0992b1aabebf5aaf5a85c480cc6106cdb0c12d",
+      "subject": "fix: bound successful model response reads"
+    },
+    {
+      "commit": "eac501e05208c1502ab72750a49dcdaa86be4bd6",
+      "subject": "test: define model success-body resource contract"
+    }
+  ],
+  "coveredFileCount": 49,
+  "coveredFiles": [
+    {
+      "path": "src/task.machine.ts",
+      "beforeSha256": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
+      "afterSha256": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/engine.ts",
+      "beforeSha256": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
+      "afterSha256": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/store.ts",
+      "beforeSha256": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
+      "afterSha256": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/runner.ts",
+      "beforeSha256": "c6fb4e04da43e021634db60108ae33ebbe36c5f304efe953a0384b34ce622e69",
+      "afterSha256": "c6fb4e04da43e021634db60108ae33ebbe36c5f304efe953a0384b34ce622e69",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/types.ts",
+      "beforeSha256": "f8a70d5b344164eaff896ae11e40b84f7e0aff88f528724243847c906f1bc85d",
+      "afterSha256": "cefccc84532d9c55b36a8f3278988347e72a417f634066e020703a13c24497fa",
+      "classification": "no effect in the declared finite slice",
+      "reason": "Adds optional ModelService.maxResponseBytes and positive safe-integer validation. Existing replay configurations omit this field; intent/event shapes, guards, transaction boundaries and projected state are unchanged."
+    },
+    {
+      "path": "src/model-config.ts",
+      "beforeSha256": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
+      "afterSha256": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/assistance-retry.ts",
+      "beforeSha256": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
+      "afterSha256": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/presentation.ts",
+      "beforeSha256": "44b39afe5955d6d95cc127f1d4a8e90a8961bdb9daa9c547e7d2d0f25b84a1b5",
+      "afterSha256": "44b39afe5955d6d95cc127f1d4a8e90a8961bdb9daa9c547e7d2d0f25b84a1b5",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/conversation.ts",
+      "beforeSha256": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
+      "afterSha256": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/model-env.ts",
+      "beforeSha256": "99dfbe11350e7c3c446fc13a1a61414ebbf4e73a999439f22e85441c3b26f530",
+      "afterSha256": "7f8bb277dab42d749c82dab229d66cbb508e1af83b78986895da41956a9e6cf0",
+      "classification": "no effect in the declared finite slice",
+      "reason": "Adds MAX_RESPONSE_BYTES to explicit environment configuration and inherits it per service. Formal prefixes use createTeamConfig({}) or the explicit intent-analysis-only environment, never process model credentials/settings; these deterministic configurations stay byte-equivalent."
+    },
+    {
+      "path": "src/index.ts",
+      "beforeSha256": "79ef24ede132e36388df54ccbb8e6e48efc472adff3c13d57f68ce745b98e331",
+      "afterSha256": "79ef24ede132e36388df54ccbb8e6e48efc472adff3c13d57f68ce745b98e331",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "team.config.ts",
+      "beforeSha256": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb",
+      "afterSha256": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "package.json",
+      "beforeSha256": "4d64527e75fc3a19c94e0e25ee490918a62d7a96681d212dce97c7f66e2bef93",
+      "afterSha256": "3116143dffa7c27a4fc9a8892e08603d754bc5e2f506752b500d874befb0ab3c",
+      "classification": "no effect in the declared finite slice",
+      "reason": "Only npm build now invokes scripts/build.mjs. The script runs the same core tsc, web tsc and Vite production build with bounded subprocesses, then records source/asset hashes. Dependency declarations, lockfile, module type, production imports, engine events, transaction and model commands are unchanged. Formal check.py invokes its own Node/Python/Java commands and never npm build."
+    },
+    {
+      "path": "package-lock.json",
+      "beforeSha256": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
+      "afterSha256": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/discussion.ts",
+      "beforeSha256": "0bdf97c5438d24d381a194d6fc6406282044d41c5b5d5ba5c9f73cf1234bfa7b",
+      "afterSha256": "0bdf97c5438d24d381a194d6fc6406282044d41c5b5d5ba5c9f73cf1234bfa7b",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/input.ts",
+      "beforeSha256": "284080d64d88149851e0f058fd4aaa8c56a2d1c141c84b26acc453e2b6fe9efe",
+      "afterSha256": "284080d64d88149851e0f058fd4aaa8c56a2d1c141c84b26acc453e2b6fe9efe",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/lifecycle.ts",
+      "beforeSha256": "b4209d5324adb8fdfd8041902c9d1eb488036c6f21a02967850fb0e5579bbe26",
+      "afterSha256": "b4209d5324adb8fdfd8041902c9d1eb488036c6f21a02967850fb0e5579bbe26",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/context.ts",
+      "beforeSha256": "e5efe2a6ca63f8c4835a18fb93737cb1c3d94ff96e972fc3f0b537fc821fba08",
+      "afterSha256": "e5efe2a6ca63f8c4835a18fb93737cb1c3d94ff96e972fc3f0b537fc821fba08",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/operations.ts",
+      "beforeSha256": "6f4cf5f12b046da9115f5d9f5d6af3be1c3f168fbbf259e551d2c8efba104804",
+      "afterSha256": "6f4cf5f12b046da9115f5d9f5d6af3be1c3f168fbbf259e551d2c8efba104804",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/reducer.ts",
+      "beforeSha256": "ada7f850f0c774c48ade21b50604b9e40e64a84fc49ec0d77a00ce3e6a962455",
+      "afterSha256": "ada7f850f0c774c48ade21b50604b9e40e64a84fc49ec0d77a00ce3e6a962455",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/assistance.ts",
+      "beforeSha256": "d472d9c7422118a217d23ef0019831ad1598e3d9137da794830f39ac286ee6df",
+      "afterSha256": "d472d9c7422118a217d23ef0019831ad1598e3d9137da794830f39ac286ee6df",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/policy.ts",
+      "beforeSha256": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
+      "afterSha256": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/actions.ts",
+      "beforeSha256": "78db542e7ad636342220336c2e21a7f15ec313a4bf559c6816771f0713cffda3",
+      "afterSha256": "78db542e7ad636342220336c2e21a7f15ec313a4bf559c6816771f0713cffda3",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/budget.ts",
+      "beforeSha256": "0d8454f4dbf0d62ffc7a8d5c615f9ec1ebbd688a6e3136e9832af893ff32e62c",
+      "afterSha256": "0d8454f4dbf0d62ffc7a8d5c615f9ec1ebbd688a6e3136e9832af893ff32e62c",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/guards.ts",
+      "beforeSha256": "34e5c8c4849d555b4f44b94cc51c129a4c31d1469c3bccc382eb99a0132d93d3",
+      "afterSha256": "34e5c8c4849d555b4f44b94cc51c129a4c31d1469c3bccc382eb99a0132d93d3",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/facts.ts",
+      "beforeSha256": "7d29345b1e74ed3ffcb70cd592161d2d1728f7c57d3c3b7b4eb91f84cc9cd273",
+      "afterSha256": "7d29345b1e74ed3ffcb70cd592161d2d1728f7c57d3c3b7b4eb91f84cc9cd273",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/input-intent.ts",
+      "beforeSha256": "8c2886e4b9054655203f5b72fc357aaab0d3502927320b722f9fa196a951d266",
+      "afterSha256": "8c2886e4b9054655203f5b72fc357aaab0d3502927320b722f9fa196a951d266",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/local-operation.ts",
+      "beforeSha256": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
+      "afterSha256": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/room.machine.ts",
+      "beforeSha256": "1f2acd3d217731acd39b4258e0148b65b600f2b8cd7ae8cdcee8f047d8b696ab",
+      "afterSha256": "1f2acd3d217731acd39b4258e0148b65b600f2b8cd7ae8cdcee8f047d8b696ab",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task-debug.ts",
+      "beforeSha256": "38dd3bf387bd69f1caf7f7aeb0f539a8b9d2361ee63ca56dc5c555714fbcaa89",
+      "afterSha256": "38dd3bf387bd69f1caf7f7aeb0f539a8b9d2361ee63ca56dc5c555714fbcaa89",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task-inspection.ts",
+      "beforeSha256": "a66a44d5b85f487b60ee33985fd9af54064bbacc6951dd47e7aaf3127a2fabd5",
+      "afterSha256": "a66a44d5b85f487b60ee33985fd9af54064bbacc6951dd47e7aaf3127a2fabd5",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task-structure.ts",
+      "beforeSha256": "03f4fdd3056848007d83d8381fb5f21df12fdd4dd3ea65a7dbfe87fdcde9a87a",
+      "afterSha256": "03f4fdd3056848007d83d8381fb5f21df12fdd4dd3ea65a7dbfe87fdcde9a87a",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/skills.ts",
+      "beforeSha256": "81bf7ae230a719f046a0caced6c0293807f259c4d500349c7a78ecdfbbf1e111",
+      "afterSha256": "81bf7ae230a719f046a0caced6c0293807f259c4d500349c7a78ecdfbbf1e111",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/web-tools.ts",
+      "beforeSha256": "aefd3b4625fada48ef66e821bd6252c6b0dae9e454a8799f4c0c321efc531840",
+      "afterSha256": "aefd3b4625fada48ef66e821bd6252c6b0dae9e454a8799f4c0c321efc531840",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/execution.machine.ts",
+      "beforeSha256": "7ed6793adbd8413de0c53161ea8adbe6bdcb29eae910864ccd01e29baf68fcff",
+      "afterSha256": "7ed6793adbd8413de0c53161ea8adbe6bdcb29eae910864ccd01e29baf68fcff",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/delivery.ts",
+      "beforeSha256": "a56bfe48f77575dc110b08a598d32462994420a9e40e89ac7cb498f4ee98c101",
+      "afterSha256": "a56bfe48f77575dc110b08a598d32462994420a9e40e89ac7cb498f4ee98c101",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/protocol.ts",
+      "beforeSha256": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
+      "afterSha256": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/evidence.ts",
+      "beforeSha256": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
+      "afterSha256": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/verification.ts",
+      "beforeSha256": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24",
+      "afterSha256": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/map-reduce.ts",
+      "beforeSha256": "601bd32e42920fb7696294c1a0e550b3717be095ce02ab1be3502848100c3dc7",
+      "afterSha256": "601bd32e42920fb7696294c1a0e550b3717be095ce02ab1be3502848100c3dc7",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/host-retry.ts",
+      "beforeSha256": "e68e16d090b7c76d5bc8ec18f2cb01c9c33730090d98a001bd7f3fd49ba1ba31",
+      "afterSha256": "e68e16d090b7c76d5bc8ec18f2cb01c9c33730090d98a001bd7f3fd49ba1ba31",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/host-session.ts",
+      "beforeSha256": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab",
+      "afterSha256": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/delivery-acceptance.ts",
+      "beforeSha256": "6d4a70291b12a3ed376e8e3658b428b7351e260e1d39043ee986a97fc2568396",
+      "afterSha256": "6d4a70291b12a3ed376e8e3658b428b7351e260e1d39043ee986a97fc2568396",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/evidence-reader.ts",
+      "beforeSha256": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
+      "afterSha256": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/measurement.ts",
+      "beforeSha256": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
+      "afterSha256": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/local-skills.ts",
+      "beforeSha256": "4d83827020c75e7888de71fb5c9b263048a80339fc318c0217e50a31fa566ae2",
+      "afterSha256": "4d83827020c75e7888de71fb5c9b263048a80339fc318c0217e50a31fa566ae2",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/artifact-request.ts",
+      "beforeSha256": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
+      "afterSha256": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/source-artifact.ts",
+      "beforeSha256": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4",
+      "afterSha256": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    },
+    {
+      "path": "src/task/map-reduce-capacity.ts",
+      "beforeSha256": "6397480888beae4db09321f45453a7d315bce56d8bcd4fe7b646f438ac171b6f",
+      "afterSha256": "6397480888beae4db09321f45453a7d315bce56d8bcd4fe7b646f438ac171b6f",
+      "classification": "unchanged",
+      "reason": "Exact source/dependency bytes equal the recorded coverage pin and the available squash baseline."
+    }
+  ],
+  "initialRun": {
+    "evidence": "reports/verify-squad-handoff/kej-102-105-initial",
+    "exitCode": 1,
+    "status": "blocked",
+    "error": "BLOCKED: covered code changed; perform the documented code-to-model audit before updating coverage.json: src/types.ts, src/model-env.ts",
+    "runJsonSha256": "dab5ff4ef73b1ab4fbb32eeecb69b8090912451a1cecc2e87af3aff2cee62041"
+  },
+  "correspondenceDecision": {
+    "modelChangeRequired": false,
+    "reason": "Saved result R1 consumption/unique A continuation/stop and bounded progress. RunnerProgress consumes R1 before an adapter can run; models are absent in the prefix. No HTTP response is executed.",
+    "propertiesBoundsFairnessAndAtomicSteps": "unchanged; do not claim HTTP/body-resource, process-kill or SQLite-power-loss proof"
+  },
+  "modelInputReview": {
+    "base": "8a2f82b",
+    "files": [
+      {
+        "path": "scripts/Handoff.cfg",
+        "sha256": "1b15f8915dc0d3d917af49def1eca3bd5a06f78fb681782d36a51ac5ada7cc1c"
+      },
+      {
+        "path": "scripts/Handoff.tla",
+        "sha256": "0580167dd6a33e0555e2b20b18ad3af8506ab7649604cf6cbe06e7f84f860478"
+      }
+    ],
+    "byteChanges": 0
+  },
+  "additionalIntegrationEvidence": "KEJ-103 and KEJ-104 add real process/SQLite acceptance with fixture-only instrumentation; no production src changes. KEJ-102 changes only build orchestration in the covered package manifest; its browser/CI fixtures do not add a guarded state write entry. These are independent acceptance layers, not expanded formal domains.",
+  "pending": [],
+  "nonCoveredBuildEntryReviewed": [
+    "scripts/build.mjs",
+    ".agents/skills/verify-squad/scripts/build-proof.mjs"
+  ],
+  "checkerChanges": {
+    "purpose": "Retain the exact new drift review beside existing checker inputs; no change to model, replay, properties or mutation semantics.",
+    "files": []
+  },
+  "failedAttempts": [
+    {
+      "evidence": "reports/verify-squad-handoff/kej-102-105-final",
+      "status": "failed",
+      "exitCode": 1,
+      "classification": "execution environment configuration; not a behavioral property counterexample",
+      "reason": "team.config.ts module-level default export reads process.env. The managed host supplied MODEL_API_KEY without MODEL_BASE_URL/MODEL_NAME, so import threw before the replay wrote a report. Original model completed normally.",
+      "runJsonSha256": "e5f0ce880280eb6245850bed30381dc92e1063937a7ea6dbc9341fd2e1097a99"
+    }
+  ],
+  "controlledExecutionEnvironment": {
+    "unset": [
+      "MODEL_API_KEY"
+    ],
+    "set": {
+      "MODEL_BASE_URL": "http://127.0.0.1:1/v1",
+      "MODEL_NAME": "formal-fixture",
+      "MODEL_NO_AUTH": "true"
+    },
+    "purpose": "Satisfy only the module-level unused default export. All real replay configurations remain explicitly constructed; the verification never calls this endpoint or a supplier. No user .env or credentials changed."
+  },
+  "outcome": "updated",
+  "verification": {
+    "status": "verified",
+    "fullCheckExitCode": 0,
+    "independentEvidenceReadbackExitCode": 0,
+    "evidence": "reports/verify-squad-handoff/kej-102-105-controlled-env",
+    "retainedArtifacts": 108,
+    "runJsonSha256": "30b88803db1f45e14c25c502a420fb94af9f37c6dba1da2ffc014c6b90a9f215",
+    "source": "32c26b376b46ae1a03718a6820683b59b802b413",
+    "syncCommitDuringRun": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "evidenceRetained": true
+    },
+    "seconds": 72.383,
+    "models": {
+      "baseline": [
+        425,
+        146,
+        0
+      ],
+      "restored": [
+        425,
+        146,
+        0
+      ]
+    },
+    "realCodeNegativeControls": {
+      "drop-marker": {
+        "property": "AtomicHandoff",
+        "stores": {
+          "memory": {
+            "exitCode": 1,
+            "error": "AssertionError [ERR_ASSERTION]: AtomicHandoff: durable result marker missing\n    at properties (/workspace/squad/.agents/skills/verify-squad-handoff/scripts/compare.mjs:128:3)\n    at <anonymous> (/workspace/squad/.agents/skills/verify-squad-handoff/scripts/compare.mjs:151:7)"
+          },
+          "sqlite": {
+            "exitCode": 1,
+            "error": "AssertionError [ERR_ASSERTION]: AtomicHandoff: durable result marker missing\n    at properties (/workspace/squad/.agents/skills/verify-squad-handoff/scripts/compare.mjs:128:3)\n    at <anonymous> (/workspace/squad/.agents/skills/verify-squad-handoff/scripts/compare.mjs:151:7)"
+          }
+        }
+      },
+      "double-resume": {
+        "property": "AtMostOnce",
+        "stores": {
+          "memory": {
+            "exitCode": 1,
+            "error": "AssertionError [ERR_ASSERTION]: AtMostOnce: one saved result scheduled or published twice\n    at properties (/workspace/squad/.agents/skills/verify-squad-handoff/scripts/compare.mjs:126:3)\n    at <anonymous> (/workspace/squad/.agents/skills/verify-squad-handoff/scripts/compare.mjs:142:7)"
+          },
+          "sqlite": {
+            "exitCode": 1,
+            "error": "AssertionError [ERR_ASSERTION]: AtMostOnce: one saved result scheduled or published twice\n    at properties (/workspace/squad/.agents/skills/verify-squad-handoff/scripts/compare.mjs:126:3)\n    at <anonymous> (/workspace/squad/.agents/skills/verify-squad-handoff/scripts/compare.mjs:142:7)"
+          }
+        }
+      },
+      "skip-cancel": {
+        "property": "StopCancelsResume",
+        "stores": {
+          "memory": {
+            "exitCode": 1,
+            "error": "AssertionError [ERR_ASSERTION]: StopCancelsResume: stopped task retains live successor\n    at properties (/workspace/squad/.agents/skills/verify-squad-handoff/scripts/compare.mjs:129:3)\n    at <anonymous> (/workspace/squad/.agents/skills/verify-squad-handoff/scripts/compare.mjs:178:11)"
+          },
+          "sqlite": {
+            "exitCode": 1,
+            "error": "AssertionError [ERR_ASSERTION]: StopCancelsResume: stopped task retains live successor\n    at properties (/workspace/squad/.agents/skills/verify-squad-handoff/scripts/compare.mjs:129:3)\n    at <anonymous> (/workspace/squad/.agents/skills/verify-squad-handoff/scripts/compare.mjs:178:11)"
+          }
+        }
+      },
+      "starve-flush": {
+        "property": "RunnerProgress",
+        "stores": {
+          "memory": {
+            "exitCode": 1,
+            "error": "AssertionError [ERR_ASSERTION]: RunnerProgress: repeated runOne left an eligible saved result without an owner successor\n    at <anonymous> (/workspace/squad/.agents/skills/verify-squad-handoff/scripts/compare.mjs:166:7)"
+          },
+          "sqlite": {
+            "exitCode": 1,
+            "error": "AssertionError [ERR_ASSERTION]: RunnerProgress: repeated runOne left an eligible saved result without an owner successor\n    at <anonymous> (/workspace/squad/.agents/skills/verify-squad-handoff/scripts/compare.mjs:166:7)"
+          }
+        }
+      }
+    },
+    "restored": "Original TLC and both-store all-edge correspondence passed after removing all isolated mutations."
+  },
+  "bugs": [],
+  "metadataPromotion": {
+    "syncCommit": "32c26b376b46ae1a03718a6820683b59b802b413",
+    "currentHeadAtPinEqualityCheck": "41d29a89c9c4027dbef223f87901e1c252eba79a",
+    "coveredFilesEqualVerifiedProduct": true,
+    "reason": "After the full run and independent evidence readback, only sync/review/skill documentation metadata advances. Do not claim a second full run for this metadata-only promotion; recheck pins and independently read retained evidence again.",
+    "postPromotionEvidenceReadbackExitCode": 0,
+    "postPromotionPinEqualityHead": "41d29a89c9c4027dbef223f87901e1c252eba79a"
+  },
+  "acceptanceIdentityCorrection": {
+    "mapping": {
+      "BT_M38": "BT_M46",
+      "BT_M39": "BT_M47",
+      "BT_M40": "BT_M48",
+      "BT_M41": "BT_M49"
+    },
+    "reason": "The final combined coverage gate detected collisions with pre-existing configuration scenarios. Only the four new KEJ-105 scenario identities and references were renumbered; their behavior, physical acceptance fixtures and all covered source/dependency bytes are unchanged. Original configuration BT_M40/BT_M41 identities remain untouched.",
+    "formalEvidence": "The formal model does not execute these Gherkin identities; its retained original evidence is unchanged and does not need relabeling or a full rerun."
+  }
+}

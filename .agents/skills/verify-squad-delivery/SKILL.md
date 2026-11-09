@@ -61,7 +61,9 @@ python3 .agents/skills/verify-squad-delivery/scripts/check.py --verify-evidence 
 
 ## 维护
 
-当前 KEJ-106 对应审查基线为 `3d81b0792d9c00c16bbc59fa4f2914bcccc0189b`。原样检查因 facts/reducer 指纹漂移而 blocked；逐项审查后，新增无 discussion 及无 discussionId 的可执行切片断言，候选完整检查和独立读回通过后才推进同步基线。模型、性质、边界及事务假设不变；最终运行、真实代码负对照与读回状态见 [KEJ-106 审查](references/drift-review-kej-106.json)。随后 engine 的 ended 恢复入口也经逐项审查，并在新产品源上完整运行及独立读回；成功后只推进同步元数据并复核指纹，不为元数据更新重复完整运行。前轮 b6ea 的候选/最终证据仅作历史，当前最终证据为 `kej-106-final-engine`。本切片不证明 BT_Q19–Q24 的取消分片恢复、成员占用或已结束任务续办；以下保留历史审查记录。
+本轮 KEJ-102–105 对应审查及完整检查已通过，当前同步产品/包基线为 `32c26b376b46ae1a03718a6820683b59b802b413`。逐文件分类、原样漂移、受控环境、真实负对照、恢复后复验及独立读回见 [本轮审查](references/drift-review-kej-102-105.json)。原模型、性质、公平性和边界保持；成功响应字节限制与真实进程/SQLite 崩溃验收不扩大本技能的有限保证。成功后仅推进同步元数据并复核指纹、读回原证据，不冒称又完整运行一次。
+
+KEJ-106 历史对应审查基线为 `3d81b0792d9c00c16bbc59fa4f2914bcccc0189b`。原样检查因 facts/reducer 指纹漂移而 blocked；逐项审查后，新增无 discussion 及无 discussionId 的可执行切片断言，候选完整检查和独立读回通过后才推进同步基线。模型、性质、边界及事务假设不变；最终运行、真实代码负对照与读回状态见 [KEJ-106 审查](references/drift-review-kej-106.json)。随后 engine 的 ended 恢复入口也经逐项审查，并在新产品源上完整运行及独立读回；成功后只推进同步元数据并复核指纹，不为元数据更新重复完整运行。前轮 b6ea 的候选/最终证据仅作历史，该轮最终证据为 `kej-106-final-engine`。本切片不证明 BT_Q19–Q24 的取消分片恢复、成员占用或已结束任务续办；以下保留历史审查记录。
 
 BT_F31 历史审查基线为 `3ee6c875bbde0f802eae954d9017ffe5663a3cfc`（BT_M37 检查协议说明、BT_F31 冻结输入引用）。完整检查及独立读回已通过，逐文件对应、额外真实代码负对照与保证边界见[引用链审查](references/drift-review-raw-input-citation.json)和[协议说明审查](references/drift-review-check-envelope.json)；当前指纹见 coverage.json。
 
@@ -72,3 +74,6 @@ PR40 产品源码对应审查基线为 `21ee46039f594d9b93d400bf703e14d42fab2b0e
 请用 `$create-formal-verification-skill 维护 kejun/squad 的 verify-squad-delivery` 请求维护，并遵循[维护流程](references/maintenance.md)。覆盖文件变化时逐项审查原子边界、守卫、新写入口和投影遗漏；先更新模型/回放，完整运行真实负对照和恢复检查后再推进 sync commit。blocked 时不推进。规则/验证变更不改变产品行为，不另造产品 Gherkin；若发现产品缺陷需要修复，遵守 AGENTS.md 的场景与状态模型先行流程。
 
 工具来源：https://github.com/tlaplus/tlaplus/releases/tag/v1.7.4 。技能结构与维护流程采用现有 handoff 技能约定，保留其 MIT LICENSE。
+
+
+托管宿主若仅注入 `MODEL_API_KEY` 而没有模型端点，`team.config.ts` 的模块默认导出会在回放前报配置错误。验证命令可加前缀 `env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true`，仅给当前进程提供导入前提；实际回放仍使用显式固定配置，不调用该地址，也不修改用户 `.env`。本轮原配置失败及受控重跑证据均保留。

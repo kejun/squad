@@ -1,5 +1,5 @@
 {
-  "syncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+  "syncCommit": "32c26b376b46ae1a03718a6820683b59b802b413",
   "bounds": {
     "tasks": 1,
     "candidates": 1,
@@ -21,7 +21,7 @@
     "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
     "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
     "src/local-operation.ts": "0ee62344d869deb738816a342272456fda6a725665297050697f06ff54f89a5a",
-    "src/model-adapter.ts": "a3babb84683d174ae10f932f47fa59bdf1e4d39044e7deed219f1a0592b700b2",
+    "src/model-adapter.ts": "1f219a6b770dfc97a54ff2762be0cb1862fda35eb48aee9c03e3e960fb23a060",
     "src/local-cli.ts": "db577455e9fb60f5d12e0cc6af6980c52eec7f8fbec0cbc3ff3a34223092e69e",
     "src/task.machine.ts": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
     "src/darwin-process.ts": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b",
@@ -30,7 +30,7 @@
     "src/local-runtime.ts": "1efe59d4595fbe2058f0daa13c3869e8713ff9df174d94f698703c93652d3c77",
     "src/index.ts": "79ef24ede132e36388df54ccbb8e6e48efc472adff3c13d57f68ce745b98e331",
     "src/task-inspection.ts": "a66a44d5b85f487b60ee33985fd9af54064bbacc6951dd47e7aaf3127a2fabd5",
-    "src/types.ts": "f8a70d5b344164eaff896ae11e40b84f7e0aff88f528724243847c906f1bc85d",
+    "src/types.ts": "cefccc84532d9c55b36a8f3278988347e72a417f634066e020703a13c24497fa",
     "src/measurement-report.ts": "62a9010d7a112c52f7e93b6e21d5fcb6a6e6a8011c4852784dd44b811a196183",
     "src/task-debug.ts": "38dd3bf387bd69f1caf7f7aeb0f539a8b9d2361ee63ca56dc5c555714fbcaa89",
     "src/store.ts": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
@@ -48,7 +48,7 @@
     "src/runner.ts": "c6fb4e04da43e021634db60108ae33ebbe36c5f304efe953a0384b34ce622e69",
     "src/skills.ts": "81bf7ae230a719f046a0caced6c0293807f259c4d500349c7a78ecdfbbf1e111",
     "src/engine.ts": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
-    "src/model-env.ts": "99dfbe11350e7c3c446fc13a1a61414ebbf4e73a999439f22e85441c3b26f530",
+    "src/model-env.ts": "7f8bb277dab42d749c82dab229d66cbb508e1af83b78986895da41956a9e6cf0",
     "src/host-session.ts": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab",
     "src/web/debug-journal.ts": "5473cefd6b2f382f6a2d6a5928803569a19e09ceef4efd4a47d60a4b636a65c7",
     "src/web/contracts.ts": "41d69f61d23bbd57913a2ba382dc12b12f3d795eb4a69ed0e8ddfaa4d2de8d69",
@@ -73,7 +73,7 @@
     "src/task/guards.ts": "34e5c8c4849d555b4f44b94cc51c129a4c31d1469c3bccc382eb99a0132d93d3",
     "src/task/lifecycle.ts": "b4209d5324adb8fdfd8041902c9d1eb488036c6f21a02967850fb0e5579bbe26",
     "team.config.ts": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb",
-    "package.json": "4d64527e75fc3a19c94e0e25ee490918a62d7a96681d212dce97c7f66e2bef93",
+    "package.json": "3116143dffa7c27a4fc9a8892e08603d754bc5e2f506752b500d874befb0ab3c",
     "package-lock.json": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
     "src/artifact-request.ts": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
     "src/source-artifact.ts": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4",
@@ -111,6 +111,26 @@
       "validation": "reports/verify-squad-delivery/kej-106-final-engine",
       "outcome": "updated",
       "checkInputSyncCommit": "b6ea8ac5d67b5acf331df0030d6157e582f016fa"
+    },
+    {
+      "issues": [
+        "KEJ-102",
+        "KEJ-103",
+        "KEJ-104",
+        "KEJ-105"
+      ],
+      "review": "references/drift-review-kej-102-105.json",
+      "reviewedCommit": "32c26b376b46ae1a03718a6820683b59b802b413",
+      "previousSyncCommit": "3d81b0792d9c00c16bbc59fa4f2914bcccc0189b",
+      "changedCoveredFiles": [
+        "src/model-adapter.ts",
+        "src/types.ts",
+        "src/model-env.ts",
+        "package.json"
+      ],
+      "validation": "reports/verify-squad-delivery/kej-102-105-controlled-env",
+      "outcome": "updated",
+      "scope": "Same original finite slices; HTTP resource caps and actual process/SQLite crash acceptance remain independent."
     }
   ]
 }

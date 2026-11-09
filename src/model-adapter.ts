@@ -175,6 +175,40 @@ async function providerDiagnostic(response: Response): Promise<{ code: string; c
   finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 
+/** Bound the actual (fetch-decoded) body; a provider's Content-Length is not authoritative. */
+async function readSuccessBody(response: Response, limit: number, signal: AbortSignal): Promise<unknown> {
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('Missing model response body');
+  const cancel = () => { void reader.cancel(signal.reason).catch(() => {}); };
+  signal.addEventListener('abort', cancel, { once: true });
+  try {
+    signal.throwIfAborted();
+    let body = Buffer.allocUnsafe(Math.min(limit, 64 * 1024));
+    let bytes = 0;
+    while (true) {
+      const { value, done } = await reader.read();
+      signal.throwIfAborted();
+      if (done) break;
+      if (value.byteLength > limit - bytes) {
+        throw new WorkFailure(`MODEL_RESPONSE_TOO_LARGE: 模型成功响应超过 ${limit} 字节上限，请调整模型输出或响应上限后重试`);
+      }
+      const required = bytes + value.byteLength;
+      if (required > body.length) {
+        const expanded = Buffer.allocUnsafe(Math.min(limit, Math.max(required, body.length * 2)));
+        body.copy(expanded, 0, 0, bytes);
+        body = expanded;
+      }
+      body.set(value, bytes);
+      bytes = required;
+    }
+    return JSON.parse(body.toString('utf8', 0, bytes));
+  } finally {
+    signal.removeEventListener('abort', cancel);
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
+
 /** OpenAI-compatible Chat Completions transport. All calls run under WorkRunner's persisted budget. */
 export class OpenAICompatibleAdapter implements WorkAdapter {
   private readonly config: TeamConfig;
@@ -341,7 +375,10 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
         throw new WorkFailure(`Model HTTP ${response.status} (${serviceId})${code ? `: ${code}${hint}` : ''}`, response.status === 408 || response.status === 429 || response.status >= 500);
       }
       let data: unknown;
-      try { data = await response.json(); } catch {
+      try { data = await readSuccessBody(response, service.maxResponseBytes ?? 8 * 1024 * 1024, requestSignal); } catch (error) {
+        if (signal.aborted) signal.throwIfAborted();
+        if (deadline.aborted) throw new WorkFailure('Model request deadline exceeded');
+        if (error instanceof WorkFailure) { protocol(false, 'response_byte_limit'); throw error; }
         protocol(false, 'invalid_response_body');
         throw new WorkFailure(`Invalid model response (${serviceId})`, !!materials);
       } finally { responseBody(); }

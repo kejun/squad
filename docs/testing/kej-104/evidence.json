@@ -1,0 +1,566 @@
+{
+  "scope": "Linux real-process SQLite transaction acceptance; not Pi Durable or hardware power-loss proof",
+  "run": {
+    "status": "verified",
+    "node": "v24.22.1",
+    "sha": "74275976add93d459d253c18dfae1f71b3ec1e80",
+    "diff": "",
+    "sourceHashes": {
+      "src/store.ts": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
+      "src/engine.ts": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
+      "tests/fixtures/crash.ts": "fbf409a6cc2f3eb327d03c75dbc433779a6b35b1c373a54e1a92902ee25a41e1",
+      "tests/fixtures/sqlite-transaction-child.ts": "280d8686194a0cf9fd89bc12c9758ebb4416827f5e522a174291d5bca2942553",
+      "tests/fixtures/typescript-loader.mjs": "85a7985e4ae754637fc530b86b0989d29936e15c8cfa93de9150e42e9e1a9e77",
+      "tests/sqlite-transaction-crash.ts": "333a0f000204a5e8da5760f082bb01b4f82731e783f5561133c1a557c54a7904"
+    },
+    "positiveCases": [
+      "report-beforeCommit",
+      "report-afterCommit",
+      "report-restored",
+      "lease-beforeCommit",
+      "lease-afterCommit",
+      "lease-restored"
+    ],
+    "negativeControls": [
+      "report: ATOMICITY_RECEIPT",
+      "lease: ATOMICITY_RECEIPT"
+    ]
+  },
+  "evidenceDirectory": "reports/verify-sqlite-crash/2026-11-09T02-27-19.852Z-8391/suite",
+  "cases": [
+    {
+      "name": "lease-afterCommit",
+      "operation": "lease",
+      "boundary": "afterCommit",
+      "writerPid": 8477,
+      "writes": [
+        "workspaceLease",
+        "receipt",
+        "snapshot"
+      ],
+      "sqlite": {
+        "version": {
+          "version": "3.53.4"
+        },
+        "journalMode": {
+          "journal_mode": "wal"
+        },
+        "synchronous": {
+          "synchronous": 2
+        }
+      },
+      "writerExit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "cleanup": {
+        "writerGone": true,
+        "processGroupGone": true,
+        "temporaryDatabaseRemoved": true
+      },
+      "baseline": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "claim:task:M1:E1:owner:1:1",
+          "local-request:task:M1:E1:owner:1:local:0"
+        ],
+        "leaseKeys": []
+      },
+      "insideBarrier": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "atomic-local-claim",
+          "claim:task:M1:E1:owner:1:1",
+          "local-request:task:M1:E1:owner:1:local:0"
+        ],
+        "leaseKeys": [
+          "atomicity-workspace"
+        ]
+      },
+      "reopened": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "atomic-local-claim",
+          "claim:task:M1:E1:owner:1:1",
+          "local-request:task:M1:E1:owner:1:local:0"
+        ],
+        "leaseKeys": [
+          "atomicity-workspace"
+        ]
+      }
+    },
+    {
+      "name": "lease-beforeCommit",
+      "operation": "lease",
+      "boundary": "beforeCommit",
+      "writerPid": 8468,
+      "writes": [
+        "workspaceLease",
+        "receipt",
+        "snapshot"
+      ],
+      "sqlite": {
+        "version": {
+          "version": "3.53.4"
+        },
+        "journalMode": {
+          "journal_mode": "wal"
+        },
+        "synchronous": {
+          "synchronous": 2
+        }
+      },
+      "writerExit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "cleanup": {
+        "writerGone": true,
+        "processGroupGone": true,
+        "temporaryDatabaseRemoved": true
+      },
+      "baseline": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "claim:task:M1:E1:owner:1:1",
+          "local-request:task:M1:E1:owner:1:local:0"
+        ],
+        "leaseKeys": []
+      },
+      "insideBarrier": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "atomic-local-claim",
+          "claim:task:M1:E1:owner:1:1",
+          "local-request:task:M1:E1:owner:1:local:0"
+        ],
+        "leaseKeys": [
+          "atomicity-workspace"
+        ]
+      },
+      "reopened": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "claim:task:M1:E1:owner:1:1",
+          "local-request:task:M1:E1:owner:1:local:0"
+        ],
+        "leaseKeys": []
+      }
+    },
+    {
+      "name": "lease-restored",
+      "operation": "lease",
+      "boundary": "beforeCommit",
+      "writerPid": 8495,
+      "writes": [
+        "workspaceLease",
+        "receipt",
+        "snapshot"
+      ],
+      "sqlite": {
+        "version": {
+          "version": "3.53.4"
+        },
+        "journalMode": {
+          "journal_mode": "wal"
+        },
+        "synchronous": {
+          "synchronous": 2
+        }
+      },
+      "writerExit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "cleanup": {
+        "writerGone": true,
+        "processGroupGone": true,
+        "temporaryDatabaseRemoved": true
+      },
+      "baseline": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "claim:task:M1:E1:owner:1:1",
+          "local-request:task:M1:E1:owner:1:local:0"
+        ],
+        "leaseKeys": []
+      },
+      "insideBarrier": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "atomic-local-claim",
+          "claim:task:M1:E1:owner:1:1",
+          "local-request:task:M1:E1:owner:1:local:0"
+        ],
+        "leaseKeys": [
+          "atomicity-workspace"
+        ]
+      },
+      "reopened": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "claim:task:M1:E1:owner:1:1",
+          "local-request:task:M1:E1:owner:1:local:0"
+        ],
+        "leaseKeys": []
+      }
+    },
+    {
+      "name": "lease-split-receipt",
+      "operation": "lease",
+      "boundary": "beforeCommit",
+      "writerPid": 8486,
+      "writes": [
+        "workspaceLease",
+        "receipt",
+        "snapshot"
+      ],
+      "sqlite": {
+        "version": {
+          "version": "3.53.4"
+        },
+        "journalMode": {
+          "journal_mode": "wal"
+        },
+        "synchronous": {
+          "synchronous": 2
+        }
+      },
+      "writerExit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "cleanup": {
+        "writerGone": true,
+        "processGroupGone": true,
+        "temporaryDatabaseRemoved": true
+      },
+      "baseline": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "claim:task:M1:E1:owner:1:1",
+          "local-request:task:M1:E1:owner:1:local:0"
+        ],
+        "leaseKeys": []
+      },
+      "insideBarrier": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "atomic-local-claim",
+          "claim:task:M1:E1:owner:1:1",
+          "local-request:task:M1:E1:owner:1:local:0"
+        ],
+        "leaseKeys": [
+          "atomicity-workspace"
+        ]
+      },
+      "reopened": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "atomic-local-claim",
+          "claim:task:M1:E1:owner:1:1",
+          "local-request:task:M1:E1:owner:1:local:0"
+        ],
+        "leaseKeys": [
+          "atomicity-workspace"
+        ]
+      },
+      "negativeControl": {
+        "status": "detected",
+        "mutation": "receipt independently committed before snapshot",
+        "assertion": "ATOMICITY_RECEIPT",
+        "errorCode": "ERR_ASSERTION",
+        "errorMessageFirstLine": "ATOMICITY_RECEIPT: no partially committed request receipt"
+      }
+    },
+    {
+      "name": "report-afterCommit",
+      "operation": "report",
+      "boundary": "afterCommit",
+      "writerPid": 8428,
+      "writes": [
+        "receipt",
+        "snapshot"
+      ],
+      "sqlite": {
+        "version": {
+          "version": "3.53.4"
+        },
+        "journalMode": {
+          "journal_mode": "wal"
+        },
+        "synchronous": {
+          "synchronous": 2
+        }
+      },
+      "writerExit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "cleanup": {
+        "writerGone": true,
+        "processGroupGone": true,
+        "temporaryDatabaseRemoved": true
+      },
+      "baseline": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "claim:task:M1:E1:owner:1:1"
+        ],
+        "leaseKeys": []
+      },
+      "insideBarrier": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "atomic-result",
+          "claim:task:M1:E1:owner:1:1"
+        ],
+        "leaseKeys": []
+      },
+      "reopened": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "atomic-result",
+          "claim:task:M1:E1:owner:1:1"
+        ],
+        "leaseKeys": []
+      }
+    },
+    {
+      "name": "report-beforeCommit",
+      "operation": "report",
+      "boundary": "beforeCommit",
+      "writerPid": 8419,
+      "writes": [
+        "receipt",
+        "snapshot"
+      ],
+      "sqlite": {
+        "version": {
+          "version": "3.53.4"
+        },
+        "journalMode": {
+          "journal_mode": "wal"
+        },
+        "synchronous": {
+          "synchronous": 2
+        }
+      },
+      "writerExit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "cleanup": {
+        "writerGone": true,
+        "processGroupGone": true,
+        "temporaryDatabaseRemoved": true
+      },
+      "baseline": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "claim:task:M1:E1:owner:1:1"
+        ],
+        "leaseKeys": []
+      },
+      "insideBarrier": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "atomic-result",
+          "claim:task:M1:E1:owner:1:1"
+        ],
+        "leaseKeys": []
+      },
+      "reopened": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "claim:task:M1:E1:owner:1:1"
+        ],
+        "leaseKeys": []
+      }
+    },
+    {
+      "name": "report-restored",
+      "operation": "report",
+      "boundary": "beforeCommit",
+      "writerPid": 8446,
+      "writes": [
+        "receipt",
+        "snapshot"
+      ],
+      "sqlite": {
+        "version": {
+          "version": "3.53.4"
+        },
+        "journalMode": {
+          "journal_mode": "wal"
+        },
+        "synchronous": {
+          "synchronous": 2
+        }
+      },
+      "writerExit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "cleanup": {
+        "writerGone": true,
+        "processGroupGone": true,
+        "temporaryDatabaseRemoved": true
+      },
+      "baseline": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "claim:task:M1:E1:owner:1:1"
+        ],
+        "leaseKeys": []
+      },
+      "insideBarrier": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "atomic-result",
+          "claim:task:M1:E1:owner:1:1"
+        ],
+        "leaseKeys": []
+      },
+      "reopened": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "claim:task:M1:E1:owner:1:1"
+        ],
+        "leaseKeys": []
+      }
+    },
+    {
+      "name": "report-split-receipt",
+      "operation": "report",
+      "boundary": "beforeCommit",
+      "writerPid": 8437,
+      "writes": [
+        "receipt",
+        "snapshot"
+      ],
+      "sqlite": {
+        "version": {
+          "version": "3.53.4"
+        },
+        "journalMode": {
+          "journal_mode": "wal"
+        },
+        "synchronous": {
+          "synchronous": 2
+        }
+      },
+      "writerExit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "cleanup": {
+        "writerGone": true,
+        "processGroupGone": true,
+        "temporaryDatabaseRemoved": true
+      },
+      "baseline": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "claim:task:M1:E1:owner:1:1"
+        ],
+        "leaseKeys": []
+      },
+      "insideBarrier": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "atomic-result",
+          "claim:task:M1:E1:owner:1:1"
+        ],
+        "leaseKeys": []
+      },
+      "reopened": {
+        "roomIds": [
+          "room1"
+        ],
+        "receiptIds": [
+          "M1",
+          "atomic-result",
+          "claim:task:M1:E1:owner:1:1"
+        ],
+        "leaseKeys": []
+      },
+      "negativeControl": {
+        "status": "detected",
+        "mutation": "receipt independently committed before snapshot",
+        "assertion": "ATOMICITY_RECEIPT",
+        "errorCode": "ERR_ASSERTION",
+        "errorMessageFirstLine": "ATOMICITY_RECEIPT: no partially committed request receipt"
+      }
+    }
+  ]
+}

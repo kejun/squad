@@ -64,7 +64,7 @@ const scenarios = [...rows.values()];
 for (const row of scenarios) if (!row.deferred && row.passedGherkinCases !== row.cases) throw new Error(`Automatable Gherkin case was skipped: ${row.id}`);
 const report = {
   baseline: 'v0.4 plus current implemented features',
-  scope: 'XState domain, SQLite group-review recovery, controlled model HTTP and Markdown SSR; deferred integration/browser/cost acceptance is explicit',
+  scope: 'XState domain, SQLite recovery, controlled model HTTP, Markdown SSR and original Chromium browser contracts BT_U01/U02/U03/U09; Pi Durable and cost acceptance remain deferred',
   totals: { features: files.length, definitions: scenarios.length, cases: scenarios.reduce((sum, row) => sum + row.cases, 0),
     regressionTestsPassed: unit.numPassedTests, directlyExecutedGherkinCasesPassed: passedBdd,
     fullyExecutedGherkinDefinitions: scenarios.filter(row => row.cases === row.passedGherkinCases).length,
@@ -77,5 +77,5 @@ const report = {
 mkdirSync('reports', { recursive: true });
 writeFileSync('reports/spec-coverage.json', JSON.stringify(report, null, 2) + '\n');
 const table = scenarios.map(row => `| ${row.id} | ${row.name} | ${row.passedGherkinCases}/${row.cases} | ${row.regressionTests.length} | ${row.deferred ? `待验收：${row.deferred.reason}` : '直接执行通过'} |`).join('\n');
-writeFileSync('reports/spec-coverage.md', `# Gherkin 与实现覆盖报告\n\n共有 ${scenarios.length} 个场景定义、${report.totals.cases} 个展开用例。直接执行通过 ${passedBdd} 个，明确待验收 ${report.totals.deferredCases} 个；其余遗漏会令检查失败。另有 ${unit.numPassedTests} 项回归测试通过。\n\n范围：任务内核、群历史与评审、SQLite 评审恢复、受控模型 HTTP 和 Markdown 服务端渲染。完整浏览器交互、费用展示和 Pi Durable 的缺口逐项保留在表中。回归关联不代表场景步骤已执行。\n\n| 编号 | 场景 | Gherkin 通过/用例 | 回归关联数 | 状态与原因 |\n| --- | --- | --- | --- | --- |\n${table}\n`);
+writeFileSync('reports/spec-coverage.md', `# Gherkin 与实现覆盖报告\n\n共有 ${scenarios.length} 个场景定义、${report.totals.cases} 个展开用例。直接执行通过 ${passedBdd} 个，明确待验收 ${report.totals.deferredCases} 个；其余遗漏会令检查失败。另有 ${unit.numPassedTests} 项回归测试通过。\n\n范围：任务内核、群历史与评审、SQLite 恢复、受控模型 HTTP、Markdown 服务端渲染，以及真实 Chromium 直接执行的 BT_U01/U02/U03/U09 原网页契约。费用展示和 Pi Durable 的缺口逐项保留在表中。其他浏览器功能以其实际执行入口为准。回归关联不代表场景步骤已执行。\n\n| 编号 | 场景 | Gherkin 通过/用例 | 回归关联数 | 状态与原因 |\n| --- | --- | --- | --- | --- |\n${table}\n`);
 console.log(JSON.stringify(report.totals, null, 2));

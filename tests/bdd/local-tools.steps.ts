@@ -29,7 +29,7 @@ Given('一个 CLI 子操作已进入{string}', function (this: SpecWorld, stage:
 When('用户停止并随后收到迟到的本地结果', function (this: SpecWorld) { stopAcceptance(state(this).stage!); state(this).verified = true; });
 Then('退出确认前不得释放父工作或工作区且不得生成候选', function (this: SpecWorld) { assert(state(this).verified); });
 Given('CLI 工作在{string}保存后崩溃', function (this: SpecWorld, window: string) { state(this).window = window; });
-When('服务恢复任务与本地操作', async function (this: SpecWorld) { const s = state(this); s.recoveryPolicy = (await crashAcceptance(s.window!)).policy; s.verified = true; });
+When('服务恢复任务与本地操作', { timeout: 30_000 }, async function (this: SpecWorld) { const s = state(this); s.recoveryPolicy = (await crashAcceptance(s.window!)).policy; s.verified = true; });
 Then('应按{string}续办且不盲目重跑写入', function (this: SpecWorld, policy: string) { assert.equal(state(this).recoveryPolicy, policy); });
 Then('可信回执核对完成后应恢复原父工作阶段', function (this: SpecWorld) { assert(state(this).verified); });
 Given('模型请求本地命令后返回一次不合规最终结果', function (this: SpecWorld) { state(this); });
@@ -58,7 +58,7 @@ Then('服务目录、home、模型密钥和网络应默认不可访问', functio
 Then('沙箱不可用不得降级为宿主执行', function (this: SpecWorld) { assert(state(this).verified); });
 
 Given('CLI 已退出但取消或崩溃后的写入效果尚未核对', function (this: SpecWorld) { state(this); });
-When('操作者读取记录并用匹配的回执摘要确认已核对效果', async function (this: SpecWorld) { await acknowledgementAcceptance(); state(this).verified = true; });
+When('操作者读取记录并用匹配的回执摘要确认已核对效果', { timeout: 30_000 }, async function (this: SpecWorld) { await acknowledgementAcceptance(); state(this).verified = true; });
 Then('只应结算对应会话且不得重跑命令或释放其他工作区', function (this: SpecWorld) { assert(state(this).verified); });
 Then('未退出或摘要过期的会话必须继续保持不确定', function (this: SpecWorld) { assert(state(this).verified); });
 

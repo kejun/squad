@@ -6,7 +6,7 @@ import { runBdd } from './run-bdd.mjs';
 export async function runTests() {
   mkdirSync('test-results', { recursive: true });
   const result = await runNode([
-    'node_modules/vitest/vitest.mjs', 'run', '--maxWorkers=1',
+    'node_modules/vitest/vitest.mjs', 'run', '--dir', 'tests', '--maxWorkers=1',
     '--reporter=default', '--reporter=json', '--outputFile=test-results/vitest.json',
   ]);
   if (result.status !== 0) return result.status;

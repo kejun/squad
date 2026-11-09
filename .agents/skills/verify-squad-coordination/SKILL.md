@@ -80,7 +80,9 @@ python3 .agents/skills/verify-squad-coordination/scripts/check.py --verify-evide
 
 ## 实现同步与维护
 
-KEJ-106 最终受审产品为 `3d81b0792d9c00c16bbc59fa4f2914bcccc0189b`，当前同步与验证状态以 [coverage.json](references/coverage.json) 和[审查记录](references/drift-review-kej-106.json)为准。维护读取 facts/reducer 的首轮修复及 Engine 的终局恢复选择增量；代码到模型和新增有限实例的边界见[对应说明](references/correspondence.md#kej-106-旧讨论工作的安全退休)。原TLA/CFG、性质、公平性和边界保持不变。下列基线均为历史记录。
+本轮 KEJ-102–105 对应审查及完整检查已通过，当前同步产品/包基线为 `32c26b376b46ae1a03718a6820683b59b802b413`。逐文件分类、原样漂移、受控环境、22 项真实代码负对照、三套模型恢复后复验及独立读回见 [本轮审查](references/drift-review-kej-102-105.json)。原模型、性质、公平性和边界保持；成功响应字节限制与真实进程/SQLite 崩溃验收不扩大本技能的有限保证。成功后仅推进同步元数据并复核指纹、读回原证据，不冒称又完整运行一次。
+
+KEJ-106 历史最终受审产品为 `3d81b0792d9c00c16bbc59fa4f2914bcccc0189b`，该轮同步与验证状态见 [KEJ-106 审查记录](references/drift-review-kej-106.json)。维护读取 facts/reducer 的首轮修复及 Engine 的终局恢复选择增量；代码到模型和新增有限实例的边界见[对应说明](references/correspondence.md#kej-106-旧讨论工作的安全退休)。原TLA/CFG、性质、公平性和边界保持不变。下列基线均为历史记录。
 
 历史审查基线为 `3ee6c875bbde0f802eae954d9017ffe5663a3cfc`（BT_M37 检查协议说明、BT_F31 冻结输入引用）。完整检查及独立读回已通过，逐文件对应、额外真实代码负对照与保证边界见[引用链审查](references/drift-review-raw-input-citation.json)和[协议说明审查](references/drift-review-check-envelope.json)；当前指纹见 coverage.json。
 
@@ -95,3 +97,6 @@ PR40 产品源码对应审查基线：`21ee46039f594d9b93d400bf703e14d42fab2b0e`
 ## 来源
 
 TLA+ 版本、下载器与证据组织沿用项目 `verify-squad-handoff`。形式化技能维护结构源自 [pstack](https://github.com/cursor/plugins/tree/99b609a72323b70204eab407c622f436e858e112/pstack/skills/create-formal-verification-skill)，保留同目录 MIT LICENSE。
+
+
+托管宿主若仅注入 `MODEL_API_KEY` 而没有模型端点，`team.config.ts` 的模块默认导出会在回放前报配置错误。验证命令可加前缀 `env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true`，仅给当前进程提供导入前提；实际回放仍使用显式固定配置，不调用该地址，也不修改用户 `.env`。本轮原配置失败及受控重跑证据均保留。

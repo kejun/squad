@@ -1,0 +1,174 @@
+{
+  "issue": "KEJ-103",
+  "baseline": "8a2f82bf26d467e8974ecbf8cc4ac3861fcf96da",
+  "testedCodeSha": "57d92860f01e01c09e2068edd13da57948e31d2d",
+  "modelBlob": "c6a79625d5e5bc527fbcca414400af3e8d4a682f",
+  "modelGate": {
+    "scenarios": 14,
+    "steps": 574,
+    "status": "passed",
+    "tags": [
+      "BT_L73",
+      "BT_L74"
+    ]
+  },
+  "targetedGherkin": {
+    "scenarios": 25,
+    "steps": 1033,
+    "status": "passed",
+    "tags": [
+      "BT_L05",
+      "BT_L06",
+      "BT_L11",
+      "BT_L14",
+      "BT_L73",
+      "BT_L74"
+    ]
+  },
+  "typeChecks": [
+    "tsconfig.json: passed",
+    "tests/tsconfig.json: passed"
+  ],
+  "existingStartupRegression": {
+    "tests": 2,
+    "status": "passed"
+  },
+  "realHostRuns": [
+    {
+      "mode": "beforeReceipt",
+      "status": "verified",
+      "sourceSha": "57d92860f01e01c09e2068edd13da57948e31d2d",
+      "node": "v24.22.1",
+      "evidence": "reports/kej-103/1794191226437-8053-dc036a8c-6ceb-40d6-b98c-b3791099ca11/run.json",
+      "evidenceSha256": "abd09f88e4cccc7276b5eac2f6faacb13b1493024d614aa2dc0f7480036e2a94",
+      "hostPid": 8117,
+      "cliPid": 8146,
+      "exit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "window": "beforeReceipt",
+      "journalAfterKill": "spawned",
+      "databaseBeforeKill": {
+        "parentStatus": "inflight",
+        "operationStatus": "running",
+        "result": null,
+        "leaseCount": 1
+      },
+      "final": {
+        "outcome": "complete",
+        "effectLedger": "x",
+        "ownerRequests": 1,
+        "checkRequests": 1,
+        "backendExecutionsAfterCrash": 0,
+        "leaseCount": 0,
+        "settledProjectionPreserved": true
+      },
+      "cleanup": {
+        "hostExited": true,
+        "processGroupGone": true,
+        "temporaryDirectoryRemoved": true,
+        "runtimeClosed": true,
+        "serviceClosed": true
+      }
+    },
+    {
+      "mode": "afterJournal",
+      "status": "verified",
+      "sourceSha": "57d92860f01e01c09e2068edd13da57948e31d2d",
+      "node": "v24.22.1",
+      "evidence": "reports/kej-103/1794191227495-8053-f2ecff2c-91bf-46be-808f-4efae457b4a8/run.json",
+      "evidenceSha256": "59676eb547cce7b1a181833024dc01cb6bcc23ecd7e1936e2411d58fef484eb7",
+      "hostPid": 8155,
+      "cliPid": 8190,
+      "exit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "window": "afterJournal",
+      "journalAfterKill": "settled",
+      "databaseBeforeKill": {
+        "parentStatus": "inflight",
+        "operationStatus": "running",
+        "result": null,
+        "leaseCount": 1
+      },
+      "final": {
+        "outcome": "complete",
+        "effectLedger": "x",
+        "ownerRequests": 1,
+        "checkRequests": 1,
+        "backendExecutionsAfterCrash": 0,
+        "leaseCount": 0,
+        "settledProjectionPreserved": true
+      },
+      "cleanup": {
+        "hostExited": true,
+        "processGroupGone": true,
+        "temporaryDirectoryRemoved": true,
+        "runtimeClosed": true,
+        "serviceClosed": true
+      }
+    },
+    {
+      "mode": "stopped",
+      "status": "verified",
+      "sourceSha": "57d92860f01e01c09e2068edd13da57948e31d2d",
+      "node": "v24.22.1",
+      "evidence": "reports/kej-103/1794191228943-8053-b7801b2e-0b68-4202-8406-a994ef8bdc6a/run.json",
+      "evidenceSha256": "cc8dee9beeb48106a34c7f017b539dcd43acc8fe8fac3f0d1285259717b0cf31",
+      "hostPid": 8216,
+      "cliPid": 8232,
+      "exit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "window": "beforeReceipt",
+      "journalAfterKill": "spawned",
+      "databaseBeforeKill": {
+        "parentStatus": "inflight",
+        "operationStatus": "running",
+        "result": null,
+        "leaseCount": 1
+      },
+      "final": {
+        "outcome": "stopped",
+        "effectLedger": "x",
+        "ownerRequests": 0,
+        "checkRequests": 0,
+        "backendExecutionsAfterCrash": 0,
+        "leaseCount": 0,
+        "settledProjectionPreserved": true
+      },
+      "cleanup": {
+        "hostExited": true,
+        "processGroupGone": true,
+        "temporaryDirectoryRemoved": true,
+        "runtimeClosed": true,
+        "serviceClosed": true
+      }
+    }
+  ],
+  "negativeControls": [
+    {
+      "name": "blind-replay",
+      "expectedFailure": "Unknown CLI effects must remain uncertain",
+      "log": "reports/kej-103/negative-controls-1794191230259-8250/blind-replay.log",
+      "logSha256": "a78681ae7a931e8ade1dc9bbad8cfb9f1d3bb722ed1ef15e5ab5308a470e6402",
+      "detected": true
+    },
+    {
+      "name": "invented-receipt",
+      "expectedFailure": "Unknown CLI effects must remain uncertain",
+      "log": "reports/kej-103/negative-controls-1794191230259-8250/invented-receipt.log",
+      "logSha256": "4486bf890d6e5bb8cb57b39fe0e28ed59af0781adc2bfc1910f716016049a9c2",
+      "detected": true
+    }
+  ],
+  "negativeCopiesRemoved": true,
+  "boundaries": [
+    "Real SIGKILL of the owned host; real fsynced CLI effect; actual SQLite and startup recovery.",
+    "Controlled process backend proves process lifecycle, not native OS sandbox isolation.",
+    "No Pi Durable, hardware power-loss, disk-corruption, arbitrary network-effect rollback or provider exactly-once claim."
+  ]
+}

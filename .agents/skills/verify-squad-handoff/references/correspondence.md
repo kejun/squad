@@ -170,3 +170,14 @@ TLA+ 模型、配置、安全/活性性质、故障预算和界限均未改变�
 handoff每次观察显式排除所有带discussionId的意图，该谓词在此切片恒false，因此普通ended任务仍保持原跳过行为；未拆分或合并send/flush事务。图中Reopen刻意直接发送RECOVER并单独建模flush，不调用engine.recover的任务选择循环：此处的同域无影响结论包含源码对应审查，不能把图回放说成动态覆盖新增ended讨论入口。新增入口由coordination公共恢复实例提供独立证据，原handoff模型、性质、范围和驱动未再改变。
 
 旧 `kej-106-candidate-clean-env` 与 `kej-106-final` 仅验证b6ea产品，不能代替最终engine源码验证。最终新源完整检查 `reports/verify-squad-handoff/kej-106-final-engine` 36.308秒通过；原模型及恢复模型均425生成/146不同状态/0剩余队列，Memory/SQLite各回放424条边，六见证与四类真实代码双存储负对照全部完成，清理项全true。独立读回108件证据成功后才推进同步到3d81。该运行准确记录旧sync=b6ea、实际source=`0503c956a7c9af3d6ddaee7c7b54224e7f0f85ce`；后者与3d81在src/配置/依赖上无差异。推进后只复核pin匹配和证据读回，不冒称又运行一次完整检查。
+
+
+## KEJ-102–105：验收接线与成功响应资源边界
+
+受审产品及构建编排为 `32c26b376b46ae1a03718a6820683b59b802b413`；旧名义同步 `3d81b0792d9c00c16bbc59fa4f2914bcccc0189b` 在此 clone 不可用，先逐项证明可用 squash 基线 `8a2f82bf26d467e8974ecbf8cc4ac3861fcf96da` 与旧覆盖清单所有源字节完全一致，再审阅其后提交消息和逐文件差异。旧新指纹、分类、原样 blocked 及完整检查状态见 [本轮对应审查](drift-review-kej-102-105.json)。
+
+handoff 的 createTeamConfig({}) 无模型服务；RunnerProgress 在 adapter 调用前完成 R1 消费。types 的可选配置及 model-env 的新参数在此切片没有值，原消费标记、唯一续办、停止与恢复投影不变。 `package.json` 仅将 build 改为同样的两套 tsc 和 Vite 加构建证据记录，不改变依赖锁或本技能执行入口。没有新的领域写入口、事务拆分或投影字段；TLA/CFG、性质、公平性、界限及原真实代码负对照保持。
+
+成功响应的实际解压字节上限、取消读取、UTF-8 边界与非瞬时失败由 BT_M46–M49 的真实 HTTP/SQLite/Runner 验收及撤销读取上限的负对照承接；本有限检查不证明供应方 I/O 读取、资源上界、真实进程终止、SQLite 底层抗断电或这几种领域的组合。KEJ-103/104 的真实 SIGKILL/SQLite 依赖验收是额外证据，不替换原模型的事务假设。审查后先更新已确认的覆盖指纹，保留旧 sync；只有完整正负/恢复检查与独立读回成功后才推进同步元数据。
+
+完整检查与独立读回已通过：`reports/verify-squad-handoff/kej-102-105-controlled-env`，保留 108 项原始证据；具体原图/恢复图规模、真实源码负对照和清理结果见审查 JSON 的 verification。同步推进到受测产品 `32c26b376b46ae1a03718a6820683b59b802b413`，后续集成 HEAD 的全部覆盖源/依赖逐项保持相同字节；不把元数据推进说成第二次完整验证。
