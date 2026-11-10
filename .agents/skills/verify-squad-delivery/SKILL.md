@@ -102,3 +102,5 @@ PR40 产品源码对应审查基线为 `21ee46039f594d9b93d400bf703e14d42fab2b0e
 KEJ-110 当前受审产品为 `615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9`；本轮逐文件审查、明确改变的预算承诺（如适用）、完整正向/真实负对照/原版复验与独立读回见[KEJ-110审查](references/drift-review-kej-110.json)。仅在全部九个CI形式化入口成功后推进同步元数据；此同步操作不是额外完整复跑，新功能的语义与真实模型供应商行为仍由独立验收负责。
 
 KEJ-111 受审产品为 `c239dd39d86f143a2f435f48590c648b20745b8b`。原 Delivery、Verification、Cycles、SourceLineage 模型及其性质、边界、公平性和回放保持；这些公开前缀没有map轮次或恢复声明，不发送新增工具失败事件，也不运行模型Web调用。新增map恢复会有意改变该域之外的发布资格，不能把原Delivery通过扩展为恢复语义证明。逐项对应、新纯依赖、精确源码完整运行与独立读回状态见[KEJ-111审查](references/drift-review-kej-111.json)；新ToolRecovery、MapRecovery有限切片由coordination扩展入口执行。pending/blocked不表示通过，所有九个入口成功后才推进同步。
+
+KEJ-112 受审产品为 `7e5b3426d0909e133fd6329a06e08288ea4c5c62`。原 Delivery、Verification、Cycles、SourceLineage 的有限域中不触发非 check 的两次可诊断 CLI 失败守卫，也不执行新的只读模型建议；公开事务和冻结/发布不变量保持。七项已有源变化及三项纯依赖、原样 drift 阻断与完整正负/复验/读回见 [KEJ-112 审查](references/drift-review-kej-112.json)。原模型、性质、边界和回放保持，推荐/纠正语义不纳入原形式化保证；九个 CI 入口全部成功前不推进 sync。

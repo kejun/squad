@@ -175,3 +175,11 @@ DELIVER仍在一次事务中固定候选与验收要求；CHECK_RESULT仍由当�
 新增 `RECORD_TOOL_FAILURE` 只在显式事件分支记录有界历史；这些图的动作全集不含该事件。模型适配器和runner的Web反馈/声明传输是新接线，不在直接engine回放中运行。`map-recovery.ts`、`tool-recovery.ts`加入保守指纹门禁，表示将来变化必须审查，不代表本技能已证明其外部调用或语义。
 
 故原四模型、性质、公平性、界限、原有真实负控与逐边回放保持。当前map恢复发布资格有意改变，独立coordination MapRecovery切片检查声明绑定、冻结来源、逐片独立引用、保留失败历史与原子解决；ToolRecovery切片检查有界反馈身份和额度。真实替代工具是否成功、正文是否对应分片目标及八片集成仍须BT_M52–M59、BT_Q36–Q48和实际接线验收，不能从四个原模型的通过推出。完整运行/读回状态以审查JSON的validation为准，未完成前不推进sync。
+
+## KEJ-112：工具建议与重复失败守卫的切片审查
+
+受审产品 `7e5b3426d0909e133fd6329a06e08288ea4c5c62`。旧覆盖指纹逐项与可用主线 `6134a0c` 字节相同；七项已有源变化与三项新增纯传递依赖的旧/新指纹及对应理由见 [本轮审查](drift-review-kej-112.json)。原样检查以 covered-source drift 阻断，是描述过期而不是性质反例；候选指纹在逐项审查后更新，完整检查和独立读回通过前不推进 sync。
+
+Delivery 的真实前缀只申请 `readSkillResource`，新 guard 仅处理非 check 的重复 runCli，故不改变该前缀。Verification 的工程验证 runCli 为 check 工作，明确豁免新重复限制；其申请、领取、开始、回执与发布仍分别是原事务。Cycles、SourceLineage 没有两次先前可诊断 CLI 失败的请求路径。requestLocal 回执 id 现在绑定完整 messages/parentAttempt/action 身份，操作幂等仍由 operationId/requestHash 保持；这些 id 是投影外的标识，公开步骤和持久化原子边界不变。
+
+Runner/Adapter 的候选/诊断仅为当前工作的只读模型输入，不修改 publication、candidate、final 或已冻结来源；四个模型均不执行真实模型 HTTP 和工具推荐，也不把推荐当作成功采集证据。新增 cli-failure、task/tool-guidance 与 tool-recommendation 纳入保守漂移清单不扩大形式化保证。原四个模型、性质、公平条件、界限、逐边回放及真实代码负对照保持；新工具建议与纠正由 BT_L117–BT_L124 和真实 XState/持久化门槛、受控模型/CLI 接线单独验收。
