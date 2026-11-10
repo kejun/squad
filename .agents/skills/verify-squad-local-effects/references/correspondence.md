@@ -66,3 +66,8 @@ SettledProgress 仅在最多一次 crash/提交失败、Reopen/Commit 弱公平�
 本轮 `LOCAL_*` 效果守卫及 `finishOperation`、`recoverLocalOperations`、`CliJournal`、Store 未改变。命令目录只扩展发现动作，模型前缀仍为 owner/runCli，真实进程桥仍使用空目录及原命令。新 `saveCheckDiagnostic` 仅针对 bounded check，本切片没有 check 或 candidate，所以 WORK_FAILED 中该调用不写状态。共享方法是确定成功回执的纯投影，运行器只追加模型上下文，没有新增命令意图、journal 写入、检查点消费或租约释放入口。
 
 维持原 LocalEffects 图、全部安全/活性性质、界限与恢复/提交事务映射，保留六个见证、四类模型/真实源码负对照、双存储逐边回放及七条实际进程接线。命令目录搜索、共享方法和检查诊断的产品语义由各自 BDD 验收承担，本有限效果模型不扩大为这些新领域的任意组合证明。
+
+
+## 显式生命周期实施对应审查
+
+源码基线 97b7349 至本次候选的全部变更及迁移写入口逐项记录于仓库 `docs/testing/explicit-lifecycles-review.json`。原覆盖指纹与 97b7349 的文件逐项相同。批次同步和分片补位属于原任务事务内自动微步；交付阶段绑定原固定材料，未拆分保存/领取/执行许可事务。迁移的计费、修订、容量刷新、归并和证据重置负对照已定位新写入口。原 TLA/CFG 边界、性质与公平性保持；八片四并发、宿主服务生命周期由新增场景和纯模型路径承接，不冒称原两片切片已穷举新队列。完整结果以本轮运行/独立读回记录为准，pending 或 blocked 不推进 syncCommit。

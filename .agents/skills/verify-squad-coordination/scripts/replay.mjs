@@ -88,8 +88,9 @@ function shards(backend, directory, kind = 'map') {
   const interpretation = s.context().intents.find(w => w.kind === 'interpretation');
   assert(interpretation, 'Interpretation prefix must be reached');
   const claimed = s.engine().claim(s.room, s.task, interpretation.id); assert(claimed);
-  assert.equal(interpretation.payload.maxPartitions, 4, 'CapacitySnapshot: two-shard graph prefix must have sufficient prepared capacity');
-  assert.equal(claimed.payload.maxPartitions, 4, 'CapacitySnapshot: charged interpretation must preserve the sufficient host ceiling');
+  assert.equal(interpretation.payload.maxPartitions, 8, 'CapacitySnapshot: two-shard graph prefix must have sufficient prepared capacity');
+  assert.equal(claimed.payload.maxPartitions, 8, 'CapacitySnapshot: charged interpretation must preserve the sufficient host ceiling');
+  assert.equal(claimed.payload.maxConcurrentPartitions, 4, 'CapacitySnapshot: concurrency remains distinct from total partitions');
   const spec = { action: 'request', objective: '比较甲乙来源', constraints: ['仅使用公开资料'],
       expectedOutputs: ['比较报告'], acceptanceCriteria: ['保留出处'], references: [], confidence: .95, clarification: null,
       decomposition: { kind: 'mapReduce', partitions: [{ id: 'alpha', objective: '研究甲', expectedOutput: '甲证据' },

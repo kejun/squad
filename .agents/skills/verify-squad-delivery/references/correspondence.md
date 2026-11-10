@@ -139,3 +139,8 @@ SourceLineage 的 corrupt-freeze 反例现在保持真实 revision=1，用独立
 原Delivery根域也执行必需baseline/restored原件、三类真实负控原JSON/log/diff与实际退出/AssertionError/摘要一致检查，五项原见证不能缺失。十一项自洽副本反控包含删除根negative-controls整目录及其JSON/log/diff。该原域补强是完整运行后的只读reader refinement，生产源码、模型、回放与数据未变；维护记录保留captured producer函数AST与当前相等的核对，不冒称又执行一次TLC。
 
 原Delivery baseline/restored的JSONL现按Memory/SQLite分别与原graph.dot全部标记边做Counter核对，并逐行匹配目标投影。独立删掉根JSONL一行并重签manifest曾揭示只信摘要的虚绿，红证据保留；只读reader修复后四种独立自洽反控全部拒绝且正本290件通过，见`reports/formal-readback-controls/delivery-all-four-reviewed`。模型、driver、producer与原始证明数据未变。
+
+
+## 显式生命周期实施对应审查
+
+源码基线 97b7349 至本次候选的全部变更及迁移写入口逐项记录于仓库 `docs/testing/explicit-lifecycles-review.json`。原覆盖指纹与 97b7349 的文件逐项相同。批次同步和分片补位属于原任务事务内自动微步；交付阶段绑定原固定材料，未拆分保存/领取/执行许可事务。迁移的计费、修订、容量刷新、归并和证据重置负对照已定位新写入口。原 TLA/CFG 边界、性质与公平性保持；八片四并发、宿主服务生命周期由新增场景和纯模型路径承接，不冒称原两片切片已穷举新队列。完整结果以本轮运行/独立读回记录为准，pending 或 blocked 不推进 syncCommit。

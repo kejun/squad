@@ -3,15 +3,15 @@
   "review": "references/drift-review-kej-109.json",
   "files": {
     "src/task/assistance.ts": "d472d9c7422118a217d23ef0019831ad1598e3d9137da794830f39ac286ee6df",
-    "src/task/reducer.ts": "c577bc15b1dad75b81142f2b4e60faada12d18fcd48e6c2d4e54096217152c02",
-    "src/task/operations.ts": "6f4cf5f12b046da9115f5d9f5d6af3be1c3f168fbbf259e551d2c8efba104804",
+    "src/task/reducer.ts": "82ac7afdc5db4974dd6ca9afaa5d8bd8d40b3d9379c0707f409035389f206d01",
+    "src/task/operations.ts": "c067a6797e9fd6e0576a1cfb3775087a831e402298c1632bf76d4ca7cb5647fe",
     "src/task/policy.ts": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
-    "src/task/guards.ts": "34e5c8c4849d555b4f44b94cc51c129a4c31d1469c3bccc382eb99a0132d93d3",
-    "src/task/lifecycle.ts": "b4209d5324adb8fdfd8041902c9d1eb488036c6f21a02967850fb0e5579bbe26",
-    "src/task.machine.ts": "24e1a16651b085a7ba677b366a51a9c29d901860ee707a054d7f4a434390c80e",
+    "src/task/guards.ts": "8b26dc562f769117962e72c9d68804bc0ca10db4274fa944750e6a8a774e7553",
+    "src/task/lifecycle.ts": "c64e0a48ab7e08e1b35eed75c1e9c137486018372ad4e0a19645676827f25c7b",
+    "src/task.machine.ts": "a147ecce5aa608c858150da78ccdb3d84a6a39737cf69f33f33b62744b3aec6c",
     "src/engine.ts": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
     "src/store.ts": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
-    "src/types.ts": "d5d8ddc218e598521f1351700b1ef82c0739bdefdb21b983a40719c564e3ecb8",
+    "src/types.ts": "4d808de1dbc2793c9222ab5b73339625e11c7f3bcb72e26c8affbe77c4ddefce",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
     "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
     "team.config.ts": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb",
@@ -20,6 +20,15 @@
     "tests/handoff-composition-fixture.ts": "ea3c811adc84d179a112b9a1b076245a41e773a505ab3bee0cddb53e905d6fbc",
     "src/catalog-search.ts": "94f713cda0ee9f6e817b0e2682d91ee6efa555d18e677421d3f241eab37eda3f",
     "src/cli-catalog.ts": "dc8cb8346a3e5c33ff69deff7ffea77d8f0761993db055a73a913f45ced0e29e",
-    "src/task/tool-knowledge.ts": "8274057c9c426ecab15036257911d4ffa7e254a085255a7a50d1a75bf71736de"
+    "src/task/tool-knowledge.ts": "8274057c9c426ecab15036257911d4ffa7e254a085255a7a50d1a75bf71736de",
+    "src/task/map-queue.ts": "8aa95a725bf9d43f3340f519d0e0ffa928893371100ad24d4f49ea3174150e54",
+    "src/web/service-lifecycle.ts": "265e659384eaae1770fbefa71c632e060cded863b47768f7292cd8151fd561db",
+    "src/task/delivery-cycle.ts": "9e65af16bfc034c1bd0245bd7d3ea6e2bfba745ac58e3487ee5ec24a46e11a34"
+  },
+  "explicitLifecycleReview": {
+    "status": "reviewed-pending-execution",
+    "candidateCommit": "87873e53785a8d7f44556ead20913fb9e4c0a42f",
+    "review": "docs/testing/explicit-lifecycles-review.json",
+    "originalSyncCommit": "8f4a1acb31f1aa9d73996e60dbb9aa3becce0596"
   }
 }
