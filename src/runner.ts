@@ -3,6 +3,7 @@ import { deliveryObservations, initialModelRequestId, publishObservation, type E
 import { readSavedArtifact, readSavedEvidence } from './evidence-reader.js';
 import { deliveryEvidence, evidenceIndex } from './task/evidence.js';
 import { sharedToolKnowledge } from './task/tool-knowledge.js';
+import { cliFailureGuidance, toolGuidanceAllowed, toolGuidanceObjective } from './task/tool-guidance.js';
 import { deliveryCheckMaterials } from './delivery-check-delta.js';
 import { validPartitionRecoveries } from './task/map-recovery.js';
 import { acceptanceCriteria, checkCitationSources, judgmentsDiagnostic, validCriterionJudgments, type CheckDiagnostic, type CheckMaterials, type CriterionJudgment } from './delivery-acceptance.js';
@@ -35,6 +36,7 @@ export interface WorkAdapter {
 export interface LocalWorkTools {
   readonly catalog: SkillPage;
   readonly sharedToolKnowledge?: ReturnType<typeof sharedToolKnowledge>;
+  readonly toolGuidance?: { recommendations: ReturnType<LocalRuntime['recommendTools']>; failures: ReturnType<typeof cliFailureGuidance> } | undefined;
   readonly checkpoint: LocalCheckpoint | undefined;
   invoke(action: LocalAction, messages: LocalMessage[], signal: AbortSignal, requested?: (operationId: string) => void): Promise<LocalToolResult>;
   resume(operationId: string, signal: AbortSignal): Promise<LocalToolResult>;
@@ -267,6 +269,11 @@ export class WorkRunner {
     };
     if (this.localRuntime) {
       const runtime = this.localRuntime;
+      const toolGuidance = () => {
+        const current = this.engine.view(roomId, taskId)!.context, member = currentWork();
+        if (!localEnabled(this.engine.config, member.target) || !toolGuidanceAllowed(current, member, this.clock())) return undefined;
+        return runtime.clean({ recommendations: runtime.recommendTools(toolGuidanceObjective(member)), failures: cliFailureGuidance(member) });
+      };
       const executeLocal = async (operationId: string, externalSignal: AbortSignal): Promise<LocalToolResult> => {
         const retryDeadline = currentWork().localOperations?.find(op => op.id === operationId)?.deadline;
         const remaining = Math.min(work.deadline ?? Infinity, retryDeadline ?? Infinity) - this.clock();
@@ -386,10 +393,19 @@ export class WorkRunner {
       Object.defineProperty(scope, 'localTools', { value: {
         catalog: runtime.catalog(), get checkpoint() { return currentWork().localCheckpoint; },
         get sharedToolKnowledge() { return toolKnowledge(); },
+        get toolGuidance() { return toolGuidance(); },
         invoke: async (action: LocalAction, messages: LocalMessage[], signal: AbortSignal, requested?: (operationId: string) => void) => {
           signal.throwIfAborted(); controller.signal.throwIfAborted();
           if (!localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_TOOLS_DISABLED');
-          const op = this.engine.requestLocal(roomId, taskId, work.id, work.attempt, action, messages, ['runCli', 'verifyWorkspace'].includes(action.type) ? runtime.workspaceId(work, this.engine.localNamespace(roomId, taskId)) : undefined);
+          let op: LocalOperation;
+          try {
+            op = this.engine.requestLocal(roomId, taskId, work.id, work.attempt, action, messages, ['runCli', 'verifyWorkspace'].includes(action.type) ? runtime.workspaceId(work, this.engine.localNamespace(roomId, taskId)) : undefined);
+          } catch (error) {
+            // The model may choose a different evidenced action, but cannot execute the rejected one.
+            if (error instanceof Error && error.message === 'CLI_REPEAT_FAILURE_LIMIT')
+              return { ok: false, code: 'CLI_REPEAT_FAILURE_LIMIT', data: { acquired: false } };
+            throw error;
+          }
           report({ phase: 'local.saved', operationId: op.id, action: action.type });
           publishObservation(requested, op.id);
           return executeLocal(op.id, signal);

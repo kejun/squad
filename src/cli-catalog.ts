@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { catalogWindow, matchesCatalogQuery, normalizeCatalogQuery } from './catalog-search.js';
+import { recommendMetadata } from './tool-recommendation.js';
 
 export interface CliCatalogEntry {
   command: string;
@@ -47,6 +48,10 @@ export class CliCatalog {
   constructor(value: unknown = []) {
     this.entries = parseCliCatalog(value);
     this.catalogVersion = createHash('sha256').update(JSON.stringify(this.entries)).digest('hex');
+  }
+  recommend(objective: string) {
+    return { catalogVersion: this.catalogVersion, ...recommendMetadata(this.entries, objective,
+      entry => [entry.command, entry.description, ...(entry.domains ?? []), ...(entry.requirements ?? [])].join(' '), entry => entry.command) };
   }
   list({ query, cursor }: { query?: string; cursor?: string } = {}): CliCatalogPage {
     const q = normalizeCatalogQuery(query);
