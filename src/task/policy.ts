@@ -1,3 +1,4 @@
+import { validPartitionRecoveries } from './map-recovery.js';
 import { modelOutputIssues, type InputReference, type TaskContext, type TaskEvent } from '../types.js';
 import { localAwaitingApproval, localEventProblem, localPhysicalPending, localUnsettled } from '../local-operation.js';
 import { boundCheckProblem, hasDeliveryRetryPermit, isBoundedCheck } from './delivery.js';
@@ -9,6 +10,7 @@ import { assistanceRetryProblem, helpProblem } from './assistance.js';
 import { hostRetryProblem } from '../host-retry.js';
 import { legacyTerminalConfig, taskProtocolChanged } from './protocol.js';
 import { deliveryVerificationProblem } from './verification.js';
+import { toolFailureProblem } from './tool-recovery.js';
 
 export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
   if (e.type.startsWith('LOCAL_')) return localEventProblem(c, e, work => requestBudgetProblem(c, work));
@@ -35,8 +37,10 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     if (op.discussionId && !['DISCUSSION_PLAN', 'DISCUSSION_RESULT', 'WORK_FAILED'].includes(e.type)) return 'DISCUSSION_EVENT_REQUIRED';
   }
   if (c.stopped && !['STOP', 'SETTLE', 'HELP_RESULT', 'CONTINUE', 'RETRY_ASSISTANCE', 'RECOVER', 'CLAIM', 'WORK_FAILED', 'HUMAN_DECISION'].includes(e.type)) return 'STOPPED';
+  if (e.type === 'DELIVER' && !validPartitionRecoveries(e.partitionRecoveries)) return 'INVALID_REPORT';
   if ((e.type === 'DELIVER' || e.type === 'RECORD_RESULT') && (!validArtifactDrafts(e.artifacts) || !validSummary(e.summary))) return 'INVALID_REPORT';
   switch (e.type) {
+    case 'RECORD_TOOL_FAILURE': return toolFailureProblem(c, e);
     case 'DISCUSSION_PLAN': case 'DISCUSSION_RESULT': {
       const work = c.intents.find(item => item.id === e.workId);
       if (!e.workId || !e.fence || !work?.discussionId) return 'DISCUSSION_WORK_REQUIRED';

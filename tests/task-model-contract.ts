@@ -16,7 +16,12 @@ export const legacyTaskContract = JSON.parse(readFileSync(new URL('./fixtures/ta
 assert.equal(legacyTaskContract.sourceSha, 'dd5ec71b41a82a13c831938e5401783214db76aa07d9e0ab80487b03b7dd42f9');
 // Approval and host retry extensions add rules without changing the original frozen business traces.
 // BT_M23–M29 add one explanation action to the existing current-coordination rejection.
-const extendedDefinition = 'e6007620';
+// KEJ-111 adds one explicit host-only failure-record event; frozen business traces remain intact.
+const extendedDefinition = '5a6c24ef';
+const toolFailureRules = [
+  { id: '*:RECORD_TOOL_FAILURE:0', order: 0, source: '*', event: 'RECORD_TOOL_FAILURE', target: null, guards: ['valid'], actions: ['apply'] },
+  { id: '*:RECORD_TOOL_FAILURE:1', order: 1, source: '*', event: 'RECORD_TOOL_FAILURE', target: null, guards: [], actions: ['reject'] },
+];
 const lifecycleRules = [
   { id: '*:@always:0', order: 0, source: '*', event: '@always', target: null, guards: ['hostRetryBatchNeedsSync'], actions: ['syncHostRetryBatch'] },
   { id: '*:@always:1', order: 1, source: '*', event: '@always', target: null, guards: ['mapQueueNeedsProgress'], actions: ['advanceMapQueue'] },
@@ -370,7 +375,8 @@ export function verifyLegacyDiagnostics() {
       }
       return rule.id === '*:@always:1' ? [rule, ...hostRetryAlwaysRules] : [rule];
     }).flatMap(rule => rule.source === '*' && rule.event === '@always'
-      ? [...(rule.order === 0 ? lifecycleRules : []), { ...rule, id: shiftedGlobal(rule.id), order: rule.order + 2 }] : [rule]);
+      ? [...(rule.order === 0 ? lifecycleRules : []), { ...rule, id: shiftedGlobal(rule.id), order: rule.order + 2 }] : [rule])
+    .flatMap(rule => rule.id === '*:REGENERATE_MODEL_OUTPUT:0' ? [rule, ...toolFailureRules] : [rule]);
   assert.deepEqual(taskGraph(), { ...graph, definition: extendedDefinition, transitions });
   const comparisons: DiagnosticComparison[] = [];
   for (const trace of legacyTaskContract.traces) replayLegacyTrace(trace.name, true, comparisons);

@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import { isLongResult } from './presentation.js';
+import { mapRecoveryCriteria } from './task/map-recovery.js';
 import type { DeliveryEvidenceSource } from './task/evidence.js';
 import type { ArtifactSourceMetadata, Candidate, InputAnalysis, InputReference, TaskContext, TaskEvent } from './types.js';
 
 export type CriterionSource = { kind: 'goal' | 'input'; id: string };
-export type AcceptanceCriterion = { id: string; text: string; goalVersion: number; sources: CriterionSource[] };
+export type AcceptanceCriterion = { id: string; text: string; goalVersion: number; sources: CriterionSource[]; requiredSourceIds?: string[] };
 export type CriterionJudgment = { criterionId: string; source?: { id: string; quote: string } } & (
   | { status: 'passed'; reason?: string }
   | { status: 'failed' | 'unverified'; reason: string }
@@ -170,6 +171,10 @@ export function judgmentsDiagnostic(criteria: readonly AcceptanceCriterion[], re
   const remaining = new Set(criteria.map(item => item.id));
   for (const item of results) {
     if (!remaining.delete(item.criterionId)) return { code: 'CHECK_UNKNOWN_OR_DUPLICATE_CRITERION' };
+    const criterion = criteria.find(criterion => criterion.id === item.criterionId)!;
+    if (item.status === 'passed' && criterion.requiredSourceIds?.length
+      && (!item.source || !criterion.requiredSourceIds.includes(item.source.id)))
+      return { code: 'CHECK_RECOVERY_SOURCE_REQUIRED', criterionId: item.criterionId };
     if (item.source) {
       const { id, quote } = item.source;
       const source = sources.find(entry => entry.id === id);
@@ -202,7 +207,7 @@ export function deliveryPreflight(c: TaskContext, e: Delivery) {
     ...drafts,
     ...c.artifacts.filter(artifact => available.includes(artifact.id) && artifact.id !== c.sourceArtifact!.artifactId),
   ].some(isMarkdownRevision)) gaps.push(gap(revision, 'missing_requirement', 'MISSING_MARKDOWN_REVISION'));
-  return { gaps, acceptance: { revision, criteria: acceptanceCriteria(c) } satisfies DeliveryAcceptance };
+  return { gaps, acceptance: { revision, criteria: [...acceptanceCriteria(c), ...mapRecoveryCriteria(c, e.partitionRecoveries)] } satisfies DeliveryAcceptance };
 }
 
 export function isMarkdownRevision(artifact: { name: string; content: string }): boolean {

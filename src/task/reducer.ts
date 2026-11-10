@@ -18,6 +18,8 @@ import { applyHostRetry, cancelHostRetries, claimHostRetryOwner, expireHostRetry
 import { deliveryEvidence } from './evidence.js';
 import { deliveryVerificationPlan } from './verification.js';
 import { preserveSourceReference } from '../input-intent.js';
+import { resolveMapRecoveries } from './map-recovery.js';
+import { recordToolFailure } from './tool-recovery.js';
 
 function finishDelivery(c: TaskContext, e: TaskEvent, detail: string, code?: string) {
   if (c.candidate && code) c.candidate.deliveryIssue = { code, detail };
@@ -208,6 +210,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const references = checkReferenceSources(c);
       cancelWork(c, e);
       c.candidate = { text: e.text, artifactIds: [...new Set([...e.artifactIds, ...artifactIds])], goalVersion: c.goalVersion,
+        ...(e.partitionRecoveries?.length ? { partitionRecoveries: structuredClone(e.partitionRecoveries) } : {}),
         revision: acceptance.revision, ...(e.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(e.backgroundArtifactIds)] } : {}),
         ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}), acceptance };
       deliveryCandidate(c);
@@ -250,7 +253,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       release(c, work.id);
       if (outcome.kind === 'handoff') { deliveryCandidate(c); break; }
       if (outcome.checked) work.criteriaResults = e.criteriaResults!;
-      if (outcome.kind === 'complete') finish(c, e, 'complete', '');
+      if (outcome.kind === 'complete') { resolveMapRecoveries(c, work, e.at); finish(c, e, 'complete', ''); }
       if (outcome.kind === 'revise') reviseDelivery(c, e, outcome.detail!);
       if (outcome.kind === 'finish') finishDelivery(c, e, outcome.detail ?? `检查未完成（${outcome.code}）`, outcome.code);
       break;
@@ -348,6 +351,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       c.trace.push({ event: 'MODEL_OUTPUT_REPAIR', at: e.at, detail: JSON.stringify({ intentId: work.id, issue: e.issue, count: work.outputRepair.count }) });
       break;
     }
+    case 'RECORD_TOOL_FAILURE': recordToolFailure(c, e); break;
     case 'WORK_FAILED': {
       const work = c.intents.find(i => i.id === e.intentId);
       if (!work) { reject(c, 'UNKNOWN_WORK'); break; }

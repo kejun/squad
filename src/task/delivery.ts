@@ -8,6 +8,7 @@ import { completeProblem, deliveryHandoffPending, discussionIncomplete } from '.
 import { deliveryVerificationEvidence, deliveryVerificationPlan, deliveryVerificationProblem } from './verification.js';
 import { deliveryRevisionBudget } from './delivery-cycle.js';
 import { sourceItemsProblem } from '../source-claims.js';
+import { mapRecoveryCheckProblem, mapRecoveryProblem, uncoveredMapRecoveries } from './map-recovery.js';
 
 type Delivery = Extract<TaskEvent, { type: 'DELIVER' }>;
 type CheckResult = Extract<TaskEvent, { type: 'CHECK_RESULT' }>;
@@ -80,7 +81,7 @@ export function checkReferenceSources(c: TaskContext): CheckReferenceSource[] | 
 }
 
 export function deliverySubmissionProblem(c: TaskContext, e: Delivery): { code: string; mechanical: boolean } | null {
-  const problem = deliveryVersionProblem(c, e) ?? sourceItemsProblem(c, e) ?? deliveryPreflight(c, e).gaps[0]?.reason;
+  const problem = deliveryVersionProblem(c, e) ?? sourceItemsProblem(c, e) ?? mapRecoveryProblem(c, e) ?? deliveryPreflight(c, e).gaps[0]?.reason;
   if (problem) return { code: problem, mechanical: true };
   const budget = deliveryCheckBudgetProblem(c);
   if (budget) return { code: budget, mechanical: false };
@@ -121,8 +122,13 @@ export function saveCheckDiagnostic(c: TaskContext, work: Intent, diagnostic: Ch
 
 function beforeCheckResult(c: TaskContext, e: CheckResult, work: Intent): CheckDisposition | null {
   if (deliveryInterruptionPending(c)) return { kind: 'handoff' };
-  const incomplete = discussionIncomplete(c) ?? c.review?.incomplete;
-  if (incomplete) return { kind: 'finish', code: 'INCOMPLETE_REVIEW', detail: incomplete };
+  if (c.review?.incomplete) return { kind: 'finish', code: 'INCOMPLETE_REVIEW', detail: c.review.incomplete };
+  const recovery = mapRecoveryCheckProblem(c, work);
+  if (recovery) return { kind: 'finish', code: recovery };
+  const incomplete = discussionIncomplete(c);
+  if (incomplete) {
+    if (!c.candidate?.partitionRecoveries?.length) return { kind: 'finish', code: 'INCOMPLETE_REVIEW', detail: incomplete };
+  }
   if (work.deadline !== null && e.at >= work.deadline) return { kind: 'finish', code: 'WORK_EXPIRED' };
   return null;
 }
@@ -132,6 +138,9 @@ function checkedDelivery(c: TaskContext, e: CheckResult, work: Intent): CheckDis
   if (mechanical) return { kind: 'finish', code: mechanical, checked: true };
   const findings = e.criteriaResults!.filter(item => item.status !== 'passed');
   if (!findings.length) {
+    const unresolved = uncoveredMapRecoveries(c);
+    if (c.candidate?.partitionRecoveries?.length && unresolved.length)
+      return { kind: 'finish', code: 'INCOMPLETE_REVIEW', detail: `仍有分片未补齐：${unresolved.join('、')}`, checked: true };
     const verification = deliveryVerificationProblem(work, true);
     return verification ? { kind: 'finish', code: verification, checked: true } : { kind: 'complete', checked: true };
   }

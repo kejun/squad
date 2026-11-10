@@ -86,6 +86,7 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 export function deliveryCheckMaterials(c: TaskContext, work: Intent): CheckMaterials | undefined {
   const full = completeMaterials(c, work);
   if (!full) return undefined;
+  if ((work.payload.candidate as Candidate).partitionRecoveries?.length) return full;
   const base = c.intents.find(item => item.id === work.payload.baselineCheckId && item.kind === 'check'
     && item.epoch === work.epoch && item.goalVersion === work.goalVersion && item.status === 'done');
   const results = base?.criteriaResults;

@@ -73,6 +73,11 @@ export interface Assistance extends Fence {
 export type WorkKind = 'interpretation' | 'owner' | 'assistance' | 'facilitator' | 'discussionSummary' | 'check' | 'cancel' | 'tool';
 export const modelOutputIssues = ['invalid_json', 'invalid_object', 'invalid_type', 'check_passed_boolean', 'check_gaps_strings', 'invalid_work_output', 'invalid_decision', 'invalid_tool_request', 'invalid_input_intent'] as const;
 export type ModelOutputIssue = typeof modelOutputIssues[number];
+export const toolFailureCodes = ['WEB_TOOL_UNSUPPORTED_RESOURCE', 'WEB_TOOL_CONFIGURATION_UNAVAILABLE', 'WEB_TOOL_UNAVAILABLE',
+  'WEB_TOOL_TIMEOUT', 'WEB_TOOL_CONVERSION_FAILED', 'WEB_TOOL_HTTP_ERROR', 'WEB_TOOL_RATE_LIMITED'] as const;
+export type ToolFailureCode = typeof toolFailureCodes[number];
+export type WebToolKind = 'web_search' | 'web_fetch';
+export interface ToolFailureFeedback { tool: WebToolKind; code: ToolFailureCode }
 export interface Intent extends Fence {
   id: string; kind: WorkKind; target: string; payload: Record<string, unknown>;
   status: 'pending' | 'inflight' | 'done' | 'cancelled' | 'uncertain';
@@ -93,6 +98,8 @@ export interface Intent extends Fence {
   criteriaResults?: CriterionJudgment[];
   /** Bounded check failures, retained across recovery without rejected model text. */
   checkDiagnostics?: CheckDiagnosticRecord[];
+  /** Known Web failures already returned for an alternative decision; never stores provider text. */
+  toolRecovery?: { failures: (ToolFailureFeedback & { requestId: string; attempt: number })[] };
 }
 export interface Reply { ok: boolean; code: string; detail: string }
 export interface InputNote { id: string; text: string; applied: boolean }
@@ -104,10 +111,15 @@ export interface InputAnalysis extends Fence {
   spec?: InputIntentSpec; workId?: string; error?: string; decompositionApplied?: boolean;
 }
 export interface RecordedResult extends Fence { requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; consumed: boolean; summary?: string; artifactIds?: string[]; workId?: string }
+export interface PartitionRecovery { discussionId: string; partitionId: string; sourceOperationIds: string[] }
+export interface PartitionResolution extends PartitionRecovery, Fence {
+  candidateRevision: string; checkWorkId: string; criterionId: string; owner: string; at: number;
+}
 export interface Candidate {
   text: string; artifactIds: string[]; goalVersion: number; summary?: string; workId?: string;
   revision?: string; requiresBoundCheck?: boolean; backgroundArtifactIds?: string[]; acceptance?: DeliveryAcceptance;
   deliveryIssue?: { code: string; detail?: string };
+  partitionRecoveries?: PartitionRecovery[];
 }
 export interface DeliveryCycle {
   stage: DeliveryStage;
@@ -152,6 +164,8 @@ export interface MapPartitionRun {
   partitionId: string; attempt: number; deadline: number;
   status: 'queued' | 'running' | 'uncertain' | 'succeeded' | 'partial' | 'failed' | 'timeout' | 'cancelled';
   workId?: string; target?: string; resultRef?: string; reason?: string;
+  /** A later, independently checked recovery; the original attempt status stays unchanged. */
+  resolution?: PartitionResolution;
 }
 export interface TaskContext extends Fence {
   schemaVersion: 1; taskId: string; owner: string; config: TeamConfig; goal: Goal;
@@ -198,6 +212,7 @@ export type TaskEvent = Envelope & (
   | { type: 'DISCUSSION_HANDOFF' }
   | { type: 'INTERPRETATION_RESULT'; inputId: string; spec: InputIntentSpec }
   | { type: 'REGENERATE_MODEL_OUTPUT'; intentId: string; issue: ModelOutputIssue }
+  | { type: 'RECORD_TOOL_FAILURE'; intentId: string; requestId: string; tool: WebToolKind; code: ToolFailureCode }
   | { type: 'HELP'; requestId: string; caller: string; target: string; question: string; expected: string; refs?: string[]; requiredTools?: string[] }
   | { type: 'HELP_RESULT'; requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; summary?: string; artifactIds?: string[] }
   | { type: 'RECORD_RESULT'; requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; summary?: string; artifacts?: ArtifactDraft[] }
@@ -209,7 +224,7 @@ export type TaskEvent = Envelope & (
   | { type: 'BOUNDARY' }
   | { type: 'HANDOFF'; owner: string }
   | { type: 'WAIT_USER'; question: string }
-  | { type: 'DELIVER'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[] }
+  | { type: 'DELIVER'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[]; partitionRecoveries?: PartitionRecovery[] }
   | { type: 'CHECK_RESULT'; resultId: string; candidateRevision?: string; criteriaResults?: CriterionJudgment[]; passed?: boolean; gaps?: string[] }
   | { type: 'STOP'; text?: string }
   | { type: 'SETTLE'; intentId: string }
