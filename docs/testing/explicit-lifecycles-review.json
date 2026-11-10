@@ -1,5 +1,5 @@
 {
-  "status": "verified-eight-slices-coordination-original-pending",
+  "status": "verified",
   "baseCommit": "97b7349db41e86a6b3a626f3db3662240c82df2f",
   "candidateCommit": "1f5b80702d1383bcfa0492a373a98ed9968dd767",
   "baselineCoverageMatches": true,
@@ -132,13 +132,16 @@
   "validation": {
     "mapAndLegacyScenarios": "116/116 passed",
     "boundaryMutations": "7/7 killed; selected sites only",
-    "formal": "8 of 9 slices complete with independent evidence readback; original coordination normal domain passed in CI, migrated negative controls corrected; final complete rerun pending",
-    "ci": "https://github.com/kejun/squad/actions/runs/42775348487",
-    "sourceFaults": "7 relocated controls independently failed their named property on both MemoryStore and SQLite"
+    "formal": "9 of 9 slices complete; all baselines, reachable witnesses, named source faults, restored-original full replays and independent evidence readbacks passed in CI.",
+    "ci": "https://github.com/kejun/squad/actions/runs/42777367788",
+    "sourceFaults": "7 relocated controls independently failed their named property on both MemoryStore and SQLite",
+    "gherkin": "1303/1303 directly executed and passed in CI; existing 14 registered gaps unchanged",
+    "vitest": "437/437 passed in CI",
+    "finalCommitCI": "The metadata-only synchronization commit is checked again by the unchanged complete CI workflow."
   },
   "localCandidateCommit": "1e1b8c95a195fb75318e39ff282accfe0eef2f67",
   "candidateTree": "9d27ad4d14c3dc85e3d666e1c82ddd680db5203a",
-  "testedRemoteCommit": "675c5a3fab444850e59cf6728225c5115c532b8a",
+  "testedRemoteCommit": "a59789f34378cc1555b4036e350fc602764e619e",
   "coveredFilesEqualCandidate": 88,
   "synchronizedCoverage": [
     ".agents/skills/verify-squad-authority/references/composition-coverage.json",
@@ -148,7 +151,8 @@
     ".agents/skills/verify-squad-coordination/references/extensions-coverage.json",
     ".agents/skills/verify-squad-delivery/references/coverage.json",
     ".agents/skills/verify-squad-handoff/references/composition-coverage.json",
-    ".agents/skills/verify-squad-handoff/references/coverage.json"
+    ".agents/skills/verify-squad-handoff/references/coverage.json",
+    ".agents/skills/verify-squad-coordination/references/coverage.json"
   ],
   "proofs": [
     {
@@ -197,6 +201,29 @@
       "ciJob": 129692439233,
       "artifacts": 142,
       "readback": "passed"
+    },
+    {
+      "slice": "coordination",
+      "ciJob": 129699041022,
+      "evidence": "reports/verify-squad-coordination/20261110T074826Z-4545",
+      "seconds": 355.335,
+      "artifacts": 331,
+      "readback": "passed",
+      "domains": {
+        "Budget": {
+          "states": 151,
+          "edges": 345
+        },
+        "Shards": {
+          "states": 456,
+          "edges": 1379
+        },
+        "CheckBudget": {
+          "states": 117,
+          "edges": 237
+        }
+      },
+      "realFaultControls": 22
     }
   ],
   "negativeControlMaintenance": {
@@ -205,6 +232,6 @@
     "erase-partial-evidence": "Remove immediate terminal-failure marker; the same Claim1 → Failure1 counterexample that caught the real regression must fail PreserveIncomplete."
   },
   "blockedRuns": [
-    "Local original coordination replay exceeded the unchanged 180s child-process limit; CI normal-domain replay completed. Local blocked evidence retained; not counted as pass."
+    "Local original coordination replay, including a temporary-file run on tmpfs, exceeded the unchanged 180s child-process limit; no local blocked run is counted as pass. CI completed the normal and restored-original domains and all controls in 355.335s with the same limits and independent readback."
   ]
 }
