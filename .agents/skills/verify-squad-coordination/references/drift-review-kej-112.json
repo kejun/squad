@@ -141,5 +141,15 @@
     "Completed all core/extension finite proofs, every-edge MemoryStore/SQLite replay, all genuine source negative controls and restored-original replays.",
     "Independently read both evidence directories; all retained manifests, checks, controls and cleanup assertions verified.",
     "Recorded candidate validation separately; no product source, model, property, bound, timeout or checker script changed."
-  ]
+  ],
+  "syncAdvance": {
+    "issue": "KEJ-112",
+    "productCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+    "allNineEntrypointsVerified": true,
+    "centralIndependentReadbacks": "passed",
+    "retainedArtifacts": 2728,
+    "outcome": "updated",
+    "metadataOnly": true,
+    "note": "All complete proofs, genuine controls, restored-original checks and independent readers passed before synchronization. Original proof inputs and old sync values remain historical evidence. Metadata synchronization is not another complete run and does not expand the finite guarantee."
+  }
 }

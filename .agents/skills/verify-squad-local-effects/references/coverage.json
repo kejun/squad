@@ -1,5 +1,5 @@
 {
-  "syncCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+  "syncCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
   "bounds": {
     "tasks": 2,
     "workspaces": 1,
@@ -267,6 +267,17 @@
       "status": "verified",
       "cases": 6
     },
-    "scope": "Exact frozen product 7e5b342; unchanged declared finite model, every labeled edge via actual public Memory/SQLite interfaces, genuine code/model fault controls, restored full rerun and independent evidence readback. New tool guidance and repeat semantics are separately accepted, not claimed as arbitrary combinations in these old graphs."
+    "scope": "Exact frozen product 7e5b342; unchanged declared finite model, every labeled edge via actual public Memory/SQLite interfaces, genuine code/model fault controls, restored full rerun and independent evidence readback. New tool guidance and repeat semantics are separately accepted, not claimed as arbitrary combinations in these old graphs.",
+    "syncStatus": "synchronized-after-nine-entrypoints"
+  },
+  "globalSynchronization": {
+    "issue": "KEJ-112",
+    "productCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+    "allNineEntrypointsVerified": true,
+    "centralIndependentReadbacks": "passed",
+    "retainedArtifacts": 2728,
+    "outcome": "updated",
+    "metadataOnly": true,
+    "note": "All complete proofs, genuine controls, restored-original checks and independent readers passed before synchronization. Original proof inputs and old sync values remain historical evidence. Metadata synchronization is not another complete run and does not expand the finite guarantee."
   }
 }

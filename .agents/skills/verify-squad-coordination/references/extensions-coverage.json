@@ -1,5 +1,5 @@
 {
-  "syncCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+  "syncCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
   "bounds": {
     "budget": "2 discussion participants, one original owner, one synthesis, one extra request, protected owner continuation; 4 bounded reserve-frontier slices",
     "input": "one supplemental input, original help or check, one recovery, two epochs, clarification/success/stop",
@@ -88,26 +88,26 @@
     "src/tool-recommendation.ts": "8f3ec269c241a6eeeab9f9727b9fbd34208f262feb8bc8a73127540cc89f80e3"
   },
   "verification": {
-    "entry": "coordination-extensions",
-    "sourceCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
-    "evidence": "reports/kej-111-final-coordination-extensions",
+    "issue": "KEJ-112",
+    "review": "references/drift-review-kej-112.json",
+    "evidence": "reports/kej-112-coordination-extensions",
     "status": "verified",
+    "source": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+    "seconds": 556.334,
+    "domains": 23,
+    "witnesses": 70,
+    "realCodeControls": 29,
+    "edgesPerStorePerStage": 3554,
+    "retainedArtifacts": 1076,
     "cleanup": {
       "scratchRemoved": true,
       "coveredFilesUnchanged": true,
       "checkerInputsUnchanged": true
     },
-    "retainedArtifacts": 1073,
-    "seconds": 504.853,
-    "domains": 23,
-    "witnesses": 70,
-    "realCodeControls": 29,
-    "edgesPerStorePerStage": 3554,
-    "evidenceReaderControls": 6,
-    "issue": "KEJ-111",
-    "outcome": "updated",
     "independentReadback": "verified",
-    "scope": "Exact frozen c239 product, complete declared finite domains, genuine code fault controls, restored original replay and retained-evidence readback. Metadata sync only after all nine entrypoints completed; this is not an additional full rerun."
+    "evidenceReaderControls": 6,
+    "sourceCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+    "syncStatus": "synchronized-after-nine-entrypoints"
   },
   "verificationHistory": [
     {
@@ -136,6 +136,28 @@
       "readback": "verified",
       "evidenceReadbackNegativeControls": 5,
       "scope": "Existing finite models and per-edge representative prefixes unchanged. Catalog/shared methods and citation body quality remain independent BDD/implementation concerns. Captured2cd9bad dirty adapter bytes verified identical to final8f4a1ac committed source."
+    },
+    {
+      "entry": "coordination-extensions",
+      "sourceCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+      "evidence": "reports/kej-111-final-coordination-extensions",
+      "status": "verified",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "checkerInputsUnchanged": true
+      },
+      "retainedArtifacts": 1073,
+      "seconds": 504.853,
+      "domains": 23,
+      "witnesses": 70,
+      "realCodeControls": 29,
+      "edgesPerStorePerStage": 3554,
+      "evidenceReaderControls": 6,
+      "issue": "KEJ-111",
+      "outcome": "updated",
+      "independentReadback": "verified",
+      "scope": "Exact frozen c239 product, complete declared finite domains, genuine code fault controls, restored original replay and retained-evidence readback. Metadata sync only after all nine entrypoints completed; this is not an additional full rerun."
     }
   ],
   "maintenanceReviews": [
@@ -209,8 +231,9 @@
     "issue": "KEJ-112",
     "review": "references/drift-review-kej-112.json",
     "reviewedCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
-    "status": "candidate-verified-pending-all-nine-project-sync",
-    "syncCommitUnchanged": true
+    "status": "verified-and-synchronized",
+    "syncCommitUnchanged": true,
+    "syncedCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62"
   },
   "candidateVerification": {
     "issue": "KEJ-112",
@@ -231,5 +254,15 @@
     },
     "independentReadback": "verified",
     "evidenceReaderControls": 6
+  },
+  "globalSynchronization": {
+    "issue": "KEJ-112",
+    "productCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+    "allNineEntrypointsVerified": true,
+    "centralIndependentReadbacks": "passed",
+    "retainedArtifacts": 2728,
+    "outcome": "updated",
+    "metadataOnly": true,
+    "note": "All complete proofs, genuine controls, restored-original checks and independent readers passed before synchronization. Original proof inputs and old sync values remain historical evidence. Metadata synchronization is not another complete run and does not expand the finite guarantee."
   }
 }

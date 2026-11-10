@@ -623,6 +623,17 @@
     "The changed LOCAL_REQUEST receipt id format and repeated-failure guard branch",
     "Credential, network or OS sandbox behavior; existing external-effect model remains independent"
   ],
-  "syncStatus": "pending-all-nine-entrypoints",
-  "synchronizationNote": "Covered fingerprints are audited candidates and both entrypoints verified. Recorded syncCommit intentionally remains c239 until the root confirms all nine formal entrypoints. Post-run additions only record observed results and do not claim another complete rerun."
+  "syncStatus": "verified-and-synchronized",
+  "synchronizationNote": "All nine complete entries and central independent readers passed; current syncCommit is the frozen product7e5b342. The proofInputSynchronizationNote records the old value when the original proof was generated. Metadata updates are not another complete proof run.",
+  "syncAdvance": {
+    "issue": "KEJ-112",
+    "productCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+    "allNineEntrypointsVerified": true,
+    "centralIndependentReadbacks": "passed",
+    "retainedArtifacts": 2728,
+    "outcome": "updated",
+    "metadataOnly": true,
+    "note": "All complete proofs, genuine controls, restored-original checks and independent readers passed before synchronization. Original proof inputs and old sync values remain historical evidence. Metadata synchronization is not another complete run and does not expand the finite guarantee."
+  },
+  "proofInputSynchronizationNote": "Covered fingerprints are audited candidates and both entrypoints verified. Recorded syncCommit intentionally remains c239 until the root confirms all nine formal entrypoints. Post-run additions only record observed results and do not claim another complete rerun."
 }

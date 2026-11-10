@@ -1,5 +1,5 @@
 {
-  "syncCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+  "syncCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
   "bounds": {
     "tasks": 1,
     "owner": "A",
@@ -246,7 +246,7 @@
       "coveredFilesUnchanged": true,
       "evidenceRetained": true
     },
-    "syncStatus": "pending-all-nine-entrypoints",
+    "syncStatus": "synchronized-after-nine-entrypoints",
     "scope": "Complete original finite domain, real Memory/SQLite correspondence, genuine code controls, restored originals and independent retained evidence readback. No extension of CLI recommendation/diagnostic guarantee.",
     "states": 146,
     "edgesPerStorePerStage": 424,
@@ -255,9 +255,20 @@
     "seconds": 100.529
   },
   "candidateReview": {
-    "status": "verified-pending-global-sync",
+    "status": "verified-and-synchronized",
     "candidateCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
     "review": "references/drift-review-kej-112.json",
-    "syncCommitPreserved": "c239dd39d86f143a2f435f48590c648b20745b8b"
+    "syncCommitPreserved": "c239dd39d86f143a2f435f48590c648b20745b8b",
+    "syncedCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62"
+  },
+  "globalSynchronization": {
+    "issue": "KEJ-112",
+    "productCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+    "allNineEntrypointsVerified": true,
+    "centralIndependentReadbacks": "passed",
+    "retainedArtifacts": 2728,
+    "outcome": "updated",
+    "metadataOnly": true,
+    "note": "All complete proofs, genuine controls, restored-original checks and independent readers passed before synchronization. Original proof inputs and old sync values remain historical evidence. Metadata synchronization is not another complete run and does not expand the finite guarantee."
   }
 }

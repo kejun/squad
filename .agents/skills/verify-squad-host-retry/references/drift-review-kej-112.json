@@ -1,6 +1,6 @@
 {
   "issue": "KEJ-112",
-  "status": "verified",
+  "status": "verified-and-synchronized",
   "oldSyncCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
   "availableEquivalentBaseline": "6134a0c7ffa37739d6ee23992705462022b324fb",
   "reviewedCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
@@ -140,5 +140,15 @@
   },
   "verificationChanges": "Per-file correspondence review and conservative fingerprints for three new transitive helper dependencies. No model, property, bounds, fairness, replay driver or fault control changed or weakened.",
   "bugFindings": [],
-  "syncNote": "Assigned complete entrypoints and readers pass. Parent must retain old syncCommit until all nine complete entries pass; subsequent metadata synchronization is not another full execution and does not relabel proof identity."
+  "syncNote": "Assigned complete entrypoints and readers pass. Parent must retain old syncCommit until all nine complete entries pass; subsequent metadata synchronization is not another full execution and does not relabel proof identity.",
+  "syncAdvance": {
+    "issue": "KEJ-112",
+    "productCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+    "allNineEntrypointsVerified": true,
+    "centralIndependentReadbacks": "passed",
+    "retainedArtifacts": 2728,
+    "outcome": "updated",
+    "metadataOnly": true,
+    "note": "All complete proofs, genuine controls, restored-original checks and independent readers passed before synchronization. Original proof inputs and old sync values remain historical evidence. Metadata synchronization is not another complete run and does not expand the finite guarantee."
+  }
 }
