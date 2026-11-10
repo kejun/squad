@@ -202,6 +202,9 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const { acceptance } = deliveryPreflight(c, e);
       const artifactIds = saveReports(c, e, c.sourceArtifact && !e.artifacts?.length ? '' : e.text, c.owner, e.artifacts);
       const priorFindings = deliveryJudgments(c, c.candidate?.revision).filter(item => item.status !== 'passed');
+      const baselineCheckId = [...c.intents].reverse().find(work => work.kind === 'check' && work.criteriaResults
+        && work.epoch === c.epoch && work.goalVersion === c.goalVersion
+        && (work.payload.candidate as TaskContext['candidate'])?.revision === c.candidate?.revision)?.id;
       const references = checkReferenceSources(c);
       cancelWork(c, e);
       c.candidate = { text: e.text, artifactIds: [...new Set([...e.artifactIds, ...artifactIds])], goalVersion: c.goalVersion,
@@ -225,6 +228,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       for (const item of c.messages) if (item.author === 'user' && inputIds.has(item.id) && !rawInputs.has(item.id)) rawInputs.set(item.id, item.text);
       const verification = deliveryVerificationPlan(c);
       const work = intent(c, e.at, 'check', 'facilitator', { deliveryProtocol: 'bounded', candidate: c.candidate, artifacts,
+        ...(baselineCheckId ? { baselineCheckId } : {}),
         ...(c.sourceArtifact ? { sourceArtifact: artifactSourceMetadata(c.sourceArtifact) } : {}),
         rawInputs: [...rawInputs].map(([id, text]) => ({ id, text })), priorFindings, reviewRecords: checkReviewSources(c),
         ...(references?.length ? { references } : {}),

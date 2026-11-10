@@ -2,6 +2,7 @@ import { cancelHostRetries } from '../host-retry.js';
 import { settleDeliveryCycle } from './delivery-cycle.js';
 import { type ArtifactDraft, type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { compactMessage, isLongResult } from '../presentation.js';
+import { renderSourceItems } from '../source-items.js';
 import { capabilities, discussionActive, fence, unresolvedInput } from './facts.js';
 import { documentIdentity } from './delivery.js';
 import { resolveModel } from '../model-config.js';
@@ -22,7 +23,8 @@ export function saveReports(c: TaskContext, e: TaskEvent, text: string, author: 
   return reports.map((draft, index) => {
     const id = `${c.taskId}:artifact:${e.id}:${index + 1}`;
     const previous = e.type === 'DELIVER' && draft.replacesArtifactId ? c.artifacts.find(artifact => artifact.id === draft.replacesArtifactId) : undefined;
-    c.artifacts.push({ id, name: draft.name, content: draft.content, author, goalVersion: c.goalVersion,
+    c.artifacts.push({ id, name: draft.name, content: renderSourceItems(draft.content, draft.sourceItems), author, goalVersion: c.goalVersion,
+      ...(draft.sourceItems ? { sourceItems: structuredClone(draft.sourceItems) } : {}),
       documentId: previous ? documentIdentity(previous) : id, revision: (previous?.revision ?? (previous ? 1 : 0)) + 1,
       ...(previous ? { replacesArtifactId: previous.id } : {}), ...(e.workId ? { workId: e.workId } : {}) });
     c.progressRefs.push(id);

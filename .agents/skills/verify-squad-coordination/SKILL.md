@@ -10,7 +10,7 @@ description: "验证 Squad 的计费与共享预留、输入安全应用、评�
 ## 承诺与损害
 
 1. 请求领取和后续请求消耗持久普通额度，自动重试不超过上限，恢复与用户继续不清零历史计费。破坏会导致未计费或超过用户额度的调用。
-2. 一个交付周期最多两次普通检查、一次技术重试、一次自动修订；实际 CONSUME 才记检查请求，领取不收费。破坏会把一次自动检查放大成反复付费/修订。
+2. 一个交付周期首次缺口少于3项时至多两次自动修订、三次普通检查，首次缺口至少3项时至多三次自动修订、四次普通检查；全周期至多一次技术重试；实际 CONSUME 才记检查请求，领取不收费。破坏会把一次自动检查放大成反复付费/修订。
 3. 两个分片全部结算后只生成一个归并，再将完整原始结果交回负责人；partial/failed 不能被成功归并文字抹除，停止和旧目标不能恢复此轮。破坏会遗漏证据、重复调用或在取消后继续工作。
 
 ## 运行
@@ -35,7 +35,7 @@ python3 .agents/skills/verify-squad-coordination/scripts/check.py --verify-evide
 ## 检查内容与边界
 
 - `Budget.tla`：一项普通 owner 工作，最多两个明确用户 epoch；额度初始3、用户明确追加2后5；自动重试上限1；一次安全 inflight 恢复。CLAIM 收费，首次 CONSUME 使用已收费用，后续 CONSUME 另收费；已耗额度恢复后不返还。CONTINUE 仅在结算后发生，保留全局 usage/retries，增加 epoch。模型不将 RECOVER 当作一次自动失败重试，它可能重新领取并另付普通额度。
-- `CheckBudget.tla`：一个交付周期、最多两个候选、一项自动修订、两次普通检查加至多一次技术重试；两次恢复；全局 retry 额度1。覆盖首次请求前失败、请求后失败、结果协议错误、unknown、成功/失败判定、reserved→used、重复恢复、禁止复用已消费许可及修订后新候选。CLAIM 检查不计费，CONSUME 才增加 cycle.requests 与 usage.checks；请求后的第二次不能绕过一次性技术许可。
+- `CheckBudget.tla`：一个交付周期、最多四个候选、首次确定失败项1或3时分别分配2或3次自动修订、普通检查上限为固定修订上限加1，另至多一次技术重试；两次恢复；全局 retry 额度1。覆盖首次请求前失败、请求后失败、结果协议错误、unknown、成功/失败判定、reserved→used、重复恢复、禁止复用已消费许可及修订后新候选。CLAIM 检查不计费，CONSUME 才增加 cycle.requests 与 usage.checks；请求后的第二次不能绕过一次性技术许可。
 - `Shards.tla`：一个当前目标，恰好两个分片（success/partial/failed），一个 reducer、一个 owner handoff；允许乱序、重复结果、停止或一次目标替换，以及一次 reopen（包括当前轮安全 inflight 的恢复）。取消后的在途工作只在迟到结果时结算，不做取消后的 inflight RECOVER；不包含新轮次重新分片、分片外部副作用或不安全 replay。
 
 每个模型穷举其完整有限状态图，不使用随机模拟。每条图边从其一个最短可达前缀重新构建真实 `TeamEngine`，分别在 `MemoryStore`、`SqliteStore` 执行公共入口并逐步比较所有模型字段。每条边均检查业务性质。另在每个后端公开入口执行 Claim→保留旧 ticket→Reopen→再 Claim→旧 attempt 迟到的探针，确认拒绝且不结算新 attempt。解析节点和边数必须与 TLC 原始统计匹配，不能遗漏边或用仅执行日志冒充比较。
@@ -49,7 +49,7 @@ python3 .agents/skills/verify-squad-coordination/scripts/check.py --verify-evide
 ## 安全、进度与可达性
 
 - Budget：`PaidBudget` 与 `RetryBound`。它验证授权额度而非业务一定完成，终态包括明确等待人、unknown 和额度用尽；没有假定外部请求一定成功。
-- CheckBudget：`CheckAccounting`、`BoundedChecks`、`OneTechnicalRetry`、`OneRevision`。达到请求上限后不许再免费检查，失败可以结束为 partial；不把安全上界说成业务成功保证。
+- CheckBudget：`CheckAccounting`、`BoundedChecks`、`OneTechnicalRetry`、`BoundedRevisions`。达到请求上限后不许再免费检查，失败可以结束为 partial；不把安全上界说成业务成功保证。
 - Shards：`AllSettledBeforeReduce`、`UniqueHandoff`、`PreserveIncomplete`、`NoStaleHandoff`。`Progress` 在用户不终止/换目标时依赖对可执行的领取/返回/归并动作 `ProgressStep` 的弱公平。在此有限有向推进结构中，公平的有效推进最终交回 owner。它假定执行器最终返回结果、调度最终领取工作，不证明生产调度器公平或模型供应商可用。
 - 每条声明的 reachability 用独立、故意为假的 `Never...` 不变量运行 TLC，只有明确违反对应不变量才成立。包括重试、额度用尽、用户继续、恢复后再次收费、unknown、三次检查、重复恢复时已预留许可、修订、第二分片先到、partial/failed 后完成归并、停止/旧目标在途和中断恢复。
 
@@ -69,7 +69,7 @@ python3 .agents/skills/verify-squad-coordination/scripts/check.py --verify-evide
 | CONSUME 不记 usage.checks | CheckAccounting |
 | 复用已消费的检查请求许可 | BoundedChecks |
 | 技术 retry 预留不记次数 | OneTechnicalRetry |
-| 自动修订不记录 revisionUsed | OneRevision |
+| 自动修订不记录 revisionUsed / 已用计数，或把上限扩为4 | BoundedRevisions |
 | 准备理解时不预留本次未收费请求 | CapacitySnapshot（有限实例） |
 | 恢复重领不刷新容量 | CapacityRefresh（有限实例） |
 | 对缺少提示的历史工作补写容量 | LegacyCapacity（有限实例） |
@@ -121,10 +121,20 @@ python3 .agents/skills/verify-squad-coordination/scripts/check-extensions.py --v
 
 扩展由场景 BT_J01–J06 的18个直接实例提供独立产品行为验收；不把TLC回放冒称运行Gherkin，也不把这18例称为穷举。安全与进度分开：ReservedRequests仅保护授权/计费；其他模型的公平推进、有限恢复及可信效果最终结算假设见对应说明。未知效果永久不返回时只保证保留占用，不保证最终释放。SQLite事务是模型原子性假设，不证明数据库抗断电、真实CLI或供应商可用。
 
-扩展覆盖源变化时，按本文维护流程逐文件审阅，更新模型/回放和真实负对照后完整运行；不要仅刷新扩展覆盖哈希。单个已保存R1的原子消费和检查2+1上限仍由既有handoff/CheckBudget承接，未在本域重复申报新保证。
+扩展覆盖源变化时，按本文维护流程逐文件审阅，更新模型/回放和真实负对照后完整运行；不要仅刷新扩展覆盖哈希。单个已保存R1的原子消费和自适应检查上限仍由既有handoff/CheckBudget承接，未在本域重复申报新保证。
 
 KEJ-107/108 原三图已在产品e77f052源码上完整复验（339.6秒）并独立读回330份证据，记录见coverage.json末项。runtime/skills缓存准备与WebService关闭守卫已逐项审阅，原保证不扩大。新增21域仍以本轮扩展入口最终run.json及独立读回为完成依据，不用原三图通过代替新增验证。
 
 扩展读回固定校验每模型必需INVARIANTS及Progress/RetirementProgress，实际TLC日志/图/配置/结果，保存的逐边JSONL完整性、双存储真实投影与正常子进程退出码。全部covered源码与未提交fixture正文归档；真实负控须保留原始JSON/log/diff且正常exit=1、AssertionError和目标性质。还必须拒绝5种外层SHA已自洽更新的删除：负控JSON、负控日志、真实diff、必需进度性质及fixture正文。它保证证据协议完整，不是数字签名或远端证明。
 
 本次新增域已完整执行通过：`reports/verify-squad-coordination/kej-107-108-extensions-complete`，389.684秒；21配置、58见证、18项双存储真实代码负对照、全域原版复验、5项自洽删除读回负控，889份原始证据独立读回通过。两阶段各自每个存储均比较2998条边。源码基线为e77f052acacd208fd8eb8587ac6901ba19003220；具体fingerprint和成功记录在extensions-coverage.json。后续变更仍须重做对应审查与执行，不能直接照抄本次统计。
+
+## KEJ-110 自适应交付预算维护
+
+原承诺“一次自动修订、两次普通检查与一次技术重试”按需求 KEJ-110 和直接验收 BT_F77–BT_F81 明确改变为“首次确定失败项少于3项固定2次修订，至少3项固定3次；普通检查至多修订上限加1，全周期技术重试仍至多一次”。任务 checks/ordinary/retries 总上限不变。
+
+`CheckBudget` 增加持久修订上限和已用计数；一个或三个失败项分别通过真实 CHECK_RESULT 驱动，在第一次分配后不随后续结果扩张。全部435状态图（以实际TLC结果为准）及每边双存储对应另需完整运行，不沿用旧117状态统计。`BoundedRevisions` 验证已用计数等于独立 owner 意图计数、marker 与是否已修订一致，以及从未超过固定上限。真实负对照保留漏marker并增加漏已用计数和超三次上限；不能把模型允许更多付费请求当作取消计费或技术重试保护。
+
+旧快照已耗唯一修订、不足普通或checks额度、unverified及停止/迟到回执仍由直接产品模型场景承接；本TLC切片不假装穷举这些新增组合。完整执行和sync状态以本轮审查记录为准，原样 blocked 证据在 `reports/verify-squad-coordination/kej-110-original-drift`。
+
+KEJ-110 当前受审产品为 `615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9`；本轮逐文件审查、明确改变的预算承诺（如适用）、完整正向/真实负对照/原版复验与独立读回见[KEJ-110审查](references/drift-review-kej-110.json)。仅在全部九个CI形式化入口成功后推进同步元数据；此同步操作不是额外完整复跑，新功能的语义与真实模型供应商行为仍由独立验收负责。

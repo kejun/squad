@@ -52,7 +52,7 @@ function session(backend, directory, kind) {
   };
   const send = body => engine.send(room, task, { id: `event:${++seq}`, at: 0, ...body });
   const submit = engine.submit(room, { id: 'start', text: kind !== 'Shards' ? '形成可核查方案' : '分别研究甲乙两个来源，必须仅使用公开资料并汇总',
-    ...(kind !== 'Shards' ? { goal: { text: '形成可核查方案', constraints: [], criteria: ['完整'], requiredArtifacts: 0 } } : {}) });
+    ...(kind !== 'Shards' ? { goal: { text: '形成可核查方案', constraints: [], criteria: kind === 'CheckBudget' ? ['检查一', '检查二', '检查三'] : ['完整'], requiredArtifacts: 0 } } : {}) });
   assert(submit.ok, 'Public submission must initialize task');
   const reopen = () => { if (backend === 'sqlite') { store.close(); store = new SqliteStore(path); }
     engine = new TeamEngine(store, config, () => 0); engine.recover(room); };
@@ -175,11 +175,12 @@ function checkBudget(backend, directory) {
     else stage = rw?.status === 'pending' ? 2 : rw?.status === 'inflight' ? 3 : -1;
     return { stage, requests: d.requests, currentRequests: w.requestCount, retry: d.retry ? (d.retry.status === 'reserved' ? 1 : 2) : 0,
       revision: d.revisionUsed, revisions: c.intents.filter(i => i.kind === 'owner' && i.payload.deliveryRevision).length,
-      recoveries, checks: c.usage.checks, retries: c.usage.retries };
+      recoveries, checks: c.usage.checks, retries: c.usage.retries,
+      revisionLimit: d.revisions?.limit ?? 2, recordedRevisions: d.revisions?.used ?? 0 };
   };
-  const judgment = (w, status) => ({ type: 'CHECK_RESULT', workId: w.id, attempt: w.attempt, fence: w,
+  const judgment = (w, status, gaps = 1) => ({ type: 'CHECK_RESULT', workId: w.id, attempt: w.attempt, fence: w,
     candidateRevision: w.payload.candidate.revision, resultId: `check-result:${w.id}:${w.attempt}:${status}`,
-    criteriaResults: status === 'bad' ? [] : w.payload.candidate.acceptance.criteria.map(c => ({ criterionId: c.id, status, reason: 'synthetic criterion judgment' })) });
+    criteriaResults: status === 'bad' ? [] : w.payload.candidate.acceptance.criteria.map((c, index) => ({ criterionId: c.id, status: status === 'failed' && index >= gaps ? 'passed' : status, reason: 'synthetic criterion judgment' })) });
   function apply(action) {
     const w = structuredClone(check());
     switch (action) {
@@ -190,6 +191,7 @@ function checkBudget(backend, directory) {
       case 'Uncertain': assert(s.send({ type: 'WORK_FAILED', intentId: w.id, attempt: w.attempt, fence: w, transient: true, resultUncertain: true, reason: 'unknown request outcome' }).ok); break;
       case 'BadProtocol': assert(s.send(judgment(w, 'bad')).ok); break;
       case 'FailedJudgment': assert(s.send(judgment(w, 'failed')).ok); break;
+      case 'FailedManyJudgment': assert(s.send(judgment(w, 'failed', 3)).ok); break;
       case 'PassedJudgment': assert(s.send(judgment(w, 'passed')).ok); break;
       case 'ClaimRevision': assert(s.engine().claim(s.room, s.task, revisionWork().id)); break;
       case 'DeliverRevision': { const rw = revisionWork(); assert(s.send({ type: 'DELIVER', workId: rw.id, attempt: rw.attempt, fence: rw, text: '修订后的完整可检查方案', artifactIds: [] }).ok); break; }
@@ -209,9 +211,9 @@ function properties(s) {
     assert(s.retries <= 1, 'RetryBound: automatic retry limit exceeded');
   } else if (model === 'CheckBudget') {
     assert.equal(s.checks, s.requests, 'CheckAccounting: cycle requests and persistent charges diverge');
-    assert(s.requests <= 3 && s.requests - Number(s.retry === 2) <= 2, 'BoundedChecks: more than two ordinary or three total checks');
+    assert(s.requests <= s.revisionLimit + 2 && s.requests - Number(s.retry === 2) <= s.revisionLimit + 1, 'BoundedChecks: adaptive ordinary or total request allowance exceeded');
     assert.equal(s.retries, Number(s.retry > 0), 'OneTechnicalRetry: repeated reservation spends retry more than once');
-    assert(s.revisions <= 1 && s.revision === (s.revisions === 1), 'OneRevision: automatic revision repeated or marker lost');
+    assert(s.revisionLimit >= 2 && s.revisionLimit <= 3 && s.revisions <= s.revisionLimit && s.revision === (s.revisions > 0) && s.recordedRevisions === s.revisions, 'BoundedRevisions: adaptive revision count, limit or marker lost');
   } else {
     assert(!s.summary || s.r1 > 0 && s.r2 > 0, 'AllSettledBeforeReduce: reducer scheduled before all shards settled');
     assert(s.handoffs <= 1, 'UniqueHandoff: multiple owner resumptions');

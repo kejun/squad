@@ -42,7 +42,10 @@ export class InputIntentFixture {
     this.adapter = new OpenAICompatibleAdapter(config, { clock: () => this.now, transport: async (_url, init) => {
       const body = JSON.parse(String(init?.body)) as { model: string; messages: IntentRequest['messages'] };
       const kind = /executing (\w+) work/.exec(body.messages[0]!.content)?.[1] as Intent['kind'];
-      const context = (JSON.parse(body.messages[1]!.content) as { context: Record<string, unknown> }).context;
+      const context = body.messages.filter(message => message.role === 'user')
+        .map(message => JSON.parse(message.content) as { context?: Record<string, unknown> })
+        .find(message => message.context)?.context;
+      assert(context, 'Model request must contain the host work context');
       const request = { ...body, kind, context };
       this.requests.push(request); this.beforeResponse?.(request);
       if (this.response) return this.response(request);

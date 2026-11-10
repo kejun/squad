@@ -20,7 +20,7 @@ JAR_SHA = '936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88'
 WITNESSES = {
     'Budget': ['NeverRetry', 'NeverRecoveryCharge', 'NeverContinuation', 'NeverBudgetExhausted', 'NeverUncertain'],
     'Shards': ['NeverSecondFirst', 'NeverPartial', 'NeverFailure', 'NeverHandoff', 'NeverStoppedInflight', 'NeverStaleInflight', 'NeverReopenedSaved', 'NeverInterruptedRecovery'],
-    'CheckBudget': ['NeverThreeRequests', 'NeverTechnicalRetry', 'NeverRevised', 'NeverRepeatedRecovery', 'NeverBeforeRequestFailure', 'NeverUncertain'],
+    'CheckBudget': ['NeverThreeRequests', 'NeverFiveRequests', 'NeverSecondRevision', 'NeverThirdRevision', 'NeverExpandedLimit', 'NeverTechnicalRetry', 'NeverRevised', 'NeverRepeatedRecovery', 'NeverBeforeRequestFailure', 'NeverUncertain'],
 }
 CONTROLS = {
     'skip-ended-discussion-recovery': ('Shards', 'EndedDiscussionRecovery', 'src/engine.ts',
@@ -82,7 +82,12 @@ CONTROLS = {
         '/* faulty reuse of one request permit */'),
     'omit-technical-retry-charge': ('CheckBudget', 'OneTechnicalRetry', 'src/task/budget.ts',
         'c.usage.retries++;', '/* faulty uncharged retry reservation */'),
-    'omit-revision-marker': ('CheckBudget', 'OneRevision', 'src/task/delivery-cycle.ts',
+    'omit-revision-counter': ('CheckBudget', 'BoundedRevisions', 'src/task/delivery-cycle.ts',
+        'used: budget.used + 1,', 'used: budget.used, /* faulty missing revision charge */'),
+    'expand-revision-limit': ('CheckBudget', 'BoundedRevisions', 'src/task/delivery-cycle.ts',
+        'limit: cycle.revisions?.limit ?? (cycle.revisionUsed ? 1 : Math.min(3, Math.max(2, gaps)))',
+        'limit: 4 /* faulty adaptive ceiling */'),
+    'omit-revision-marker': ('CheckBudget', 'BoundedRevisions', 'src/task/delivery-cycle.ts',
         'cycle.revisionUsed = true;',
         '/* faulty revision marker omission */'),
 }

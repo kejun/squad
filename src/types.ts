@@ -3,6 +3,7 @@ import type { CheckDiagnostic, CheckDiagnosticRecord, CriterionJudgment, Deliver
 import type { DeliveryEvidenceRef } from './task/evidence.js';
 import type { HostSessionGrant } from './host-session.js';
 import type { LocalCheckpoint, LocalEvent, LocalOperation, SkillBinding } from './local-operation.js';
+import type { SourceItem } from './source-items.js';
 import type { InputIntentSpec, MapReducePlan } from './input-intent.js';
 export type { InputIntentSpec, InputReference } from './input-intent.js';
 
@@ -45,10 +46,10 @@ export interface BoardEntry {
   kind: 'evidence' | 'hypothesis' | 'opinion' | 'decision' | 'deadEnd';
   sources: string[]; verified: boolean; goalVersion: number;
 }
-export interface ArtifactDraft { name: string; content: string; replacesArtifactId?: string }
+export interface ArtifactDraft { name: string; content: string; replacesArtifactId?: string; sourceItems?: SourceItem[] }
 export interface Artifact {
   id: string; name: string; content: string; goalVersion: number; author?: string; workId?: string;
-  documentId?: string; revision?: number; replacesArtifactId?: string;
+  documentId?: string; revision?: number; replacesArtifactId?: string; sourceItems?: SourceItem[];
 }
 export interface ArtifactReference { sourceTaskId: string; artifactId: string }
 /** Trusted immutable input, separate from current-task artifacts and bounded room history. */
@@ -113,6 +114,8 @@ export interface DeliveryCycle {
   requests: number;
   retry?: { workId: string; status: 'reserved' | 'used' };
   revisionUsed: boolean;
+  /** Missing on legacy snapshots, whose spent single revision stays spent. */
+  revisions?: { used: number; limit: number };
   evidence?: DeliveryEvidenceRef[];
 }
 export type DeliveryStage =

@@ -1,6 +1,11 @@
 import type { DeliveryCycle, DeliveryStage, Intent, TaskContext } from '../types.js';
+import { deliveryJudgments } from '../delivery-acceptance.js';
 
 export const newDeliveryCycle = (): DeliveryCycle => ({ stage: { kind: 'drafting' }, requests: 0, revisionUsed: false });
+
+export function deliveryRevisionBudget(cycle: DeliveryCycle): { used: number; limit: number } {
+  return cycle.revisions ?? { used: Number(cycle.revisionUsed), limit: cycle.revisionUsed ? 1 : 2 };
+}
 
 export function deliveryCandidate(c: TaskContext): void {
   if (c.deliveryCycle) c.deliveryCycle.stage = c.candidate?.revision
@@ -14,6 +19,10 @@ export function bindDeliveryCheck(c: TaskContext, work: Intent): void {
 
 export function beginDeliveryRevision(c: TaskContext, work: Intent): void {
   const cycle = c.deliveryCycle!;
+  const budget = deliveryRevisionBudget(cycle);
+  const gaps = deliveryJudgments(c, c.candidate?.revision).filter(item => item.status === 'failed').length;
+  cycle.revisions = { used: budget.used + 1,
+    limit: cycle.revisions?.limit ?? (cycle.revisionUsed ? 1 : Math.min(3, Math.max(2, gaps))) };
   cycle.revisionUsed = true;
   cycle.stage = { kind: 'revising', baseRevision: c.candidate?.revision ?? null, ownerWorkId: work.id };
 }

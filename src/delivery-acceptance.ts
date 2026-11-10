@@ -59,6 +59,7 @@ export function checkReviewSources(c: TaskContext): CheckReviewSource[] {
 }
 
 export interface CheckMaterials {
+  delta?: import('./delivery-check-delta.js').DeliveryCheckDelta;
   sourceArtifact?: ArtifactSourceMetadata;
   requirements: AcceptanceCriterion[];
   candidate: { revision: string; text: string };

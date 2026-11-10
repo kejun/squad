@@ -71,3 +71,15 @@ SettledProgress 仅在最多一次 crash/提交失败、Reopen/Commit 弱公平�
 ## 显式生命周期实施对应审查
 
 源码基线 97b7349 至本次候选的全部变更及迁移写入口逐项记录于仓库 `docs/testing/explicit-lifecycles-review.json`。原覆盖指纹与 97b7349 的文件逐项相同。批次同步和分片补位属于原任务事务内自动微步；交付阶段绑定原固定材料，未拆分保存/领取/执行许可事务。迁移的计费、修订、容量刷新、归并和证据重置负对照已定位新写入口。原 TLA/CFG 边界、性质与公平性保持；八片四并发、宿主服务生命周期由新增场景和纯模型路径承接，不冒称原两片切片已穷举新队列。完整结果以本轮运行/独立读回记录为准，pending 或 blocked 不推进 syncCommit。
+
+## KEJ-110 交付优化的效果切片审查
+
+受审产品 `661e438e8705d08a36b9dc0d07b296616737eee4`。旧同步对象不可读时，先逐文件证明可用主线 `942dfe4` 与全部旧coverage指纹一致，再审查13项变更/新增依赖，详见 [KEJ-110审查](drift-review-kej-110.json)。新增sourceItems是纯预检和渲染，增量检查是纯投影，自适应修订的承诺由coordination单独更新；本切片保持既有动作原子性、模型、性质、公平性和界限。共享能力事实来自已结算回执，不写原回执、不发命令、不批准也不释放租约。不能把纳入传递依赖SHA解释为已形式化证明新增文本语义或任意新旧领域组合。
+
+本切片没有交付或检查工作；LOCAL_RESULT/LOCAL_RECONCILE、CliJournal、检查点消费、Store和恢复守卫未变。完整108状态/282标记边，双存储每边对应、6个独立见证、4类模型/真实源码负对照、原版恢复复验及7条真实CLI/SIGKILL/SQLite进程接线均通过，证据 `reports/kej-110-661-local-effects`；228件原始证据独立读回及自洽缺件/截断/篡改读回负控通过，后者在 `reports/kej-110-661-local-effects-reader-controls`。
+
+### KEJ-110 最终提示布局修复后的严格源绑定复验
+
+产品 `615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9` 仅把sourceItems说明从deliver的JSON示例末尾移入owner系统提示；这些有限驱动不执行模型HTTP，因此授权、效果及批次的对应不受影响。仍按严格源绑定要求对最终源码完整重跑，未把661证据改称615运行。旧661目录保留历史；新运行、真实负对照、恢复后复验、独立读回和源未变检查均成功，详见本轮审查中的 strictSourceRerun 与 verification。
+
+最终证据 `reports/kej-110-final-local-effects` 保留108状态/282标记边、4类模型与真实源码负对照、6见证、原版复验及7条真实进程接线；228件原始件独立读回成功。`reports/kej-110-final-local-effects-reader-controls` 的自洽篡改/缺件/截断负控重新全部通过。
