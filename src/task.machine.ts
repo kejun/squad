@@ -6,6 +6,7 @@ import { taskGuards } from './task/guards.js';
 import { incompatibleExecution } from './task/facts.js';
 import { taskLifecycle } from './task/lifecycle.js';
 import { restoreDeliveryStage } from './task/delivery-cycle.js';
+import { restoreMapQueue } from './task/map-queue.js';
 import { executionId, executionMachine, executionTicket, type ExecutionEvent } from './task/execution.machine.js';
 
 export { workLaneAvailable } from './task/facts.js';
@@ -66,6 +67,7 @@ export function persistTask(snapshot: TaskSnapshot): unknown { return taskMachin
 export function restoreTask(value: unknown): TaskSnapshot {
   const snapshot = createActor(taskMachine, { snapshot: value as never, input: undefined as never }).getSnapshot();
   restoreDeliveryStage(snapshot.context);
+  restoreMapQueue(snapshot.context);
   return snapshot;
 }
 export function taskPhase(snapshot: TaskSnapshot): Phase { return snapshot.value as Phase; }

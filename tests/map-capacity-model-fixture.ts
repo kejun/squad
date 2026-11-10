@@ -46,6 +46,11 @@ export class CapacityModel {
     this.context.intents.push({ id: 'busy-member', kind: 'assistance', target: 'B', payload: {}, status: 'uncertain',
       replay: 'safe', attempt: 1, deadline: null, bucket: 'ordinary', requestCount: 1, epoch: 1, goalVersion: 1 });
   }
+  busyAllMembers() {
+    for (const bot of this.context.config.bots.filter(bot => bot.id !== this.context.owner)) {
+      this.busyMember(); const work = this.context.intents.at(-1)!; work.id = `busy-${bot.id}`; work.target = bot.id;
+    }
+  }
   settleGroups() {
     for (const pending of this.pending('assistance')) {
       assert(this.send({ type: 'CLAIM', intentId: pending.id }).ok);
@@ -58,8 +63,8 @@ export class CapacityModel {
 
 /** Scenario-specific pure gates run before the corresponding integration fixture. */
 export function completeCapacityModelGate() {
-  const model = new CapacityModel(); assert.equal(model.work.payload.maxPartitions, 4);
-  model.claim(); model.consume(); assert.equal(model.work.payload.maxPartitions, 4); assert.equal(model.context.usage.ordinary, 1);
+  const model = new CapacityModel(); assert.equal(model.work.payload.maxPartitions, 8);
+  model.claim(); model.consume(); assert.equal(model.work.payload.maxPartitions, 8); assert.equal(model.context.usage.ordinary, 1);
   assert(model.interpret().ok);
   assert.deepEqual(model.pending('assistance').map(work => work.payload.partition), capacityModelIntent().decomposition!.partitions);
   assert.equal(model.context.discussion!.mapReduce!.synthesis, capacityModelIntent().decomposition!.synthesis);
@@ -102,9 +107,9 @@ export function ordinaryCapacityModelGate(maximum: number) {
   assert.deepEqual((model.pending('owner')[0]!.payload.conversation as { artifacts: unknown }).artifacts, model.context.history!.artifacts);
 }
 export function decreasedCapacityModelGate(change: string) {
-  const model = new CapacityModel(); model.claim(); model.consume(); assert.equal(model.work.payload.maxPartitions, 4);
-  const reasons: Record<string, string> = { 成员忙碌: '可用成员不足', 协助余额降低: '协助额度不足', 普通余额降低: '普通额度不足' };
-  if (change === '成员忙碌') model.busyMember();
+  const model = new CapacityModel(); model.claim(); model.consume(); assert.equal(model.work.payload.maxPartitions, 8);
+  const reasons: Record<string, string> = { 所有成员忙碌: '可用成员不足', 协助余额降低: '协助额度不足', 普通余额降低: '普通额度不足' };
+  if (change === '所有成员忙碌') model.busyAllMembers();
   else if (change === '协助余额降低') model.context.usage.assists = 17;
   else if (change === '普通余额降低') model.context.usage.ordinary = 25;
   else assert.fail(`Unknown capacity change ${change}`);

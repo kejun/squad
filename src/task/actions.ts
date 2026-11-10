@@ -7,6 +7,7 @@ import { permissionProblem } from './policy.js';
 import { discussionFailed } from './discussion.js';
 import { cancelWork, coordinate, message, release } from './operations.js';
 import { prepareInterpretation } from './input.js';
+import { advanceMapQueue } from './map-queue.js';
 
 // The root machine remains the sole owner of the context returned by each pure action.
 const taskAssign = assign<TaskContext, TaskEvent, undefined, TaskEvent, never>;
@@ -26,6 +27,9 @@ const coordinationProblems: Record<string, string> = {
 };
 
 export const taskActions = {
+    advanceMapQueue: taskAssign(({ context, event }) => {
+      const c = structuredClone(context); advanceMapQueue(c, { ...event, at: event.at ?? c.lastActivityAt }); return c;
+    }),
     syncHostRetryBatch: taskAssign(({ context }) => {
       const c = structuredClone(context); synchronizeHostRetryBatch(c); return c;
     }),

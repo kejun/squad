@@ -1,6 +1,6 @@
 import { startMapReduce } from './map-reduce.js';
 import { beginDeliveryRevision, bindDeliveryCheck, deliveryCandidate, resetDeliveryMaterials, settleDeliveryCycle } from './delivery-cycle.js';
-import { mapReduceCapacity } from './map-reduce-capacity.js';
+import { mapReduceCapacity, mapReduceConcurrency } from './map-reduce-capacity.js';
 import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { artifactSourceMetadata, type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
@@ -320,7 +320,9 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (!claimHostRetryOwner(c, work, previousRequests) && work.bucket !== 'none' && !isBoundedCheck(work)) c.usage[work.bucket]++;
       if (work.kind === 'interpretation') {
         c.inputAnalyses!.find(input => input.workId === work.id)!.status = 'inflight';
-        if (typeof work.payload.maxPartitions === 'number') work.payload.maxPartitions = mapReduceCapacity(c);
+        if (typeof work.payload.maxPartitions === 'number') {
+          work.payload.maxPartitions = mapReduceCapacity(c); work.payload.maxConcurrentPartitions = mapReduceConcurrency(c);
+        }
       }
       if (work.kind === 'assistance' && !work.discussionId) c.assists.find(h => h.id === work.payload.requestId)!.status = 'running';
       break;

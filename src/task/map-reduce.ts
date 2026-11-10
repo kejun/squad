@@ -1,6 +1,6 @@
 import type { TaskContext, TaskEvent } from '../types.js';
 import { discussionActive, fence, unresolvedInput } from './facts.js';
-import { discussionIntent } from './discussion.js';
+import { advanceMapQueue } from './map-queue.js';
 import { message } from './operations.js';
 import { availableMapReduceMembers, mapReduceCapacity } from './map-reduce-capacity.js';
 
@@ -16,7 +16,7 @@ export function startMapReduce(c: TaskContext, e: TaskEvent): boolean {
     || c.review && !['complete', 'cancelled'].includes(c.review.status)) return false;
   const members = availableMapReduceMembers(c);
   if (plan.partitions.length > mapReduceCapacity(c)) {
-    const reason = members.length < plan.partitions.length ? '可用成员不足'
+    const reason = !members.length ? '可用成员不足'
       : c.config.limits.assists - c.usage.assists < plan.partitions.length ? '协助额度不足' : '普通额度不足';
     message(c, e, 'facilitator', `未启动并行分片：${reason}。全部分片和归并要求交由原负责人处理。`, 'notice');
     return false;
@@ -24,16 +24,9 @@ export function startMapReduce(c: TaskContext, e: TaskEvent): boolean {
   const targets = members.slice(0, plan.partitions.length);
   c.discussion = { id: `map-reduce:${input.id}`, request: input.rawText, targets: targets.map(bot => bot.id),
     status: 'collecting', results: [], skipped: [], mapReduce: { ...structuredClone(plan), inputId: input.id,
-      assignments: plan.partitions.map((part, index) => ({ partitionId: part.id, target: targets[index]!.id })) }, ...fence(c) };
-  for (const [index, part] of plan.partitions.entries()) {
-    const member = targets[index]!;
-    c.usage.assists++;
-    const work = discussionIntent(c, e, 'assistance', member.id);
-    work.payload.question = part.objective;
-    work.payload.expected = part.expectedOutput;
-    work.payload.partition = structuredClone(part);
-    work.payload.instructions = member.instructions;
-  }
-  message(c, e, 'facilitator', `已安排 ${plan.partitions.length} 个独立分片并行执行；全部结算后归并，再交回 ${c.owner}。`, 'notice');
+      assignments: [], concurrency: targets.length,
+      queue: plan.partitions.map(part => ({ partitionId: part.id, attempt: 0, status: 'queued', deadline: e.at + c.config.limits.workTimeoutMs })) }, ...fence(c) };
+  advanceMapQueue(c, e);
+  message(c, e, 'facilitator', `已安排 ${plan.partitions.length} 个独立分片，最多 ${targets.length} 名成员同时执行；全部结算后归并，再交回 ${c.owner}。`, 'notice');
   return true;
 }

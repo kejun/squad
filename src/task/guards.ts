@@ -14,6 +14,7 @@ const settlingCheck = ({ context, event }: TaskGuardArgs) => event.type === 'SET
   && settlingDeliveryCheck(context, context.intents.find(work => work.id === event.intentId));
 
 export const taskGuards = {
+    mapQueueNeedsProgress: ({ context, event }: { context: TaskContext; event: TaskEvent }) => mapQueueNeedsProgress(context, event.at ?? context.lastActivityAt),
     hostRetryBatchNeedsSync: ({ context }: { context: TaskContext }) => hostRetryBatchNeedsSync(context),
     valid,
     reactivateHostRetry: args => valid(args) && args.event.type === 'REQUEST_HOST_RETRY' && args.context.outcome !== null
@@ -108,3 +109,4 @@ export const taskGuards = {
     recoveredSafe: ({ context, event }) => event.type === 'RECOVER' && !recoveryIssue(context, event.config) && !context.intents.some(i => localPhysicalPending(i) || i.status === 'uncertain' || i.status === 'inflight' && i.replay === 'unsafe'),
     recoveredCheckExhausted: ({ context, event }) => event.type === 'RECOVER' && !recoveryIssue(context, event.config) && !!recoveryCheckExhausted(context, event.at),
   } satisfies Record<string, (args: TaskGuardArgs) => boolean>;
+import { mapQueueNeedsProgress } from './map-queue.js';

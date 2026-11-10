@@ -18,3 +18,7 @@
 交付周期：新增 BT_F63/F64，使用阶段联合载荷，checking 固定 candidateRevision/checkWorkId 并复用原 intent 的冻结材料；技术重试不换材料，业务修订生成新候选。旧快照只补阶段，不生成工作或收费。
 
 门禁：新周期真实 XState 路径通过；`tests/delivery-contract-gate.ts --pure` 91 项通过；TypeScript 通过。交付相关三个 feature 101 个可执行场景通过；既有 BT_F06 费用功能缺口沿用 acceptance-gaps.json 的 requires_cost 排除，不把请求额度冒充金额。
+
+独立分片队列：BT_Q27–Q31 将最多八片与并发人数分开；队列、尝试、分片结果与补位在 taskMachine 原事务中完成。瞬时确定失败最多重试一次且消费共享额度；未知效果保持占用；结果与交付证据按 partitionId/attempt 关联。已有四分组计划仍合法。
+
+模型门禁：`node --import tsx -e "import('./tests/map-queue-fixture.ts').then(m=>m.verifyMapQueueModel())"` 通过五类轨迹；原并行、部分完成、恢复、容量回退模型亦通过。随后接入容量提示与调试投影，`features/26_map_reduce.feature` 52/52 直接通过；新增五例使用真实 SQLite 与公开引擎入口，八片场景由真实 WorkRunner、受控 HTTP 与 web_fetch 分两批执行，每批四个请求在任一返回前均已开始，并在批间重开两次。

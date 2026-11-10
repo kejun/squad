@@ -42,7 +42,7 @@ export function parallelMapModelGate() {
   assert.deepEqual(model.context.intents.filter(work => work.status === 'inflight').map(work => work.target), ['B', 'builder-1']);
   assert.equal(executionState(model.snapshot, first.id, first.attempt), 'authorized');
   assert.equal(executionState(model.snapshot, second.id, second.attempt), 'authorized');
-  assert.deepEqual(model.context.discussion!.mapReduce!.assignments, [{ partitionId: 'alpha', target: 'B' }, { partitionId: 'beta', target: 'builder-1' }]);
+  assert.deepEqual(model.context.discussion!.mapReduce!.assignments.map(({ partitionId, target }) => ({ partitionId, target })), [{ partitionId: 'alpha', target: 'B' }, { partitionId: 'beta', target: 'builder-1' }]);
   assert.deepEqual(first.payload.partition, modelMapIntent().decomposition!.partitions[0]);
   assert.deepEqual(second.payload.partition, modelMapIntent().decomposition!.partitions[1]);
   assert.deepEqual((first.payload.goal as TaskInput['goal']).constraints, ['仅使用公开资料']);
@@ -58,7 +58,7 @@ export function limitedMapModelGate(limit: string) {
   const model = new MapModel(input => {
     if (limit === '普通额度不足') input.config.limits.ordinary = 4;
     else if (limit === '协助额度不足') input.config.limits.assists = 1;
-    else if (limit === '可用成员不足') input.config.bots = input.config.bots.slice(0, 2);
+    else if (limit === '可用成员不足') input.config.bots = input.config.bots.slice(0, 1);
     else assert.fail(`Unknown limit ${limit}`);
   }); model.interpret();
   assert.equal(model.pending('assistance').length, 0); assert.equal(model.pending('owner').length, 1);

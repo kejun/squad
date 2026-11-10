@@ -1,6 +1,8 @@
 import { type Decision, type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { conversationInput, intent, message, release, saveReports } from './operations.js';
 import { capabilities, discussionActive, fence } from './facts.js';
+import { recordMapResult } from './map-queue.js';
+import { localPhysicalPending } from '../local-operation.js';
 
 export function discussionIntent(c: TaskContext, e: TaskEvent, kind: Intent['kind'], target: string) {
   const work = intent(c, e.at, kind, target, { goal: c.goal, board: c.board, artifacts: c.artifacts,
@@ -23,7 +25,7 @@ function discussionReady(c: TaskContext, e: TaskEvent, text: string) {
   message(c, e, 'facilitator', `讨论已汇总，等待 ${c.owner} 当前工作结算后继续完善方案。`, 'notice', { recipient: c.owner });
 }
 
-function summarizeDiscussion(c: TaskContext, e: TaskEvent) {
+export function summarizeDiscussion(c: TaskContext, e: TaskEvent) {
   c.discussion!.status = 'summarizing';
   discussionIntent(c, e, 'discussionSummary', 'facilitator');
 }
@@ -73,6 +75,17 @@ export function planDiscussion(c: TaskContext, e: Extract<TaskEvent, { type: 'DI
 }
 
 export function discussionFailed(c: TaskContext, e: TaskEvent, work: Intent, reason: string) {
+  if (work.kind === 'assistance' && c.discussion?.mapReduce?.queue) {
+    if (localPhysicalPending(work) || e.type === 'WORK_FAILED' && e.resultUncertain) {
+      work.status = 'uncertain'; c.reason = `分片结果待核对：${reason}`; return;
+    }
+    release(c, work.id);
+    const status = /deadline|超时/i.test(reason) ? 'timeout' as const : 'failed' as const;
+    recordMapResult(c, e, work, { target: work.target, status, answer: reason, artifactIds: [] },
+      e.type === 'WORK_FAILED' && e.transient && work.replay !== 'unsafe');
+    message(c, e, work.target, `分片${status === 'timeout' ? '超时' : '失败'}：${reason}`, 'answer');
+    return;
+  }
   release(c, work.id);
   const round = c.discussion!;
   round.incomplete = `讨论未全部完成：${reason}`;
@@ -91,6 +104,9 @@ export function acceptDiscussion(c: TaskContext, e: Extract<TaskEvent, { type: '
   if (e.status !== 'success') c.discussion!.incomplete = '部分讨论工作未完整完成，详见原始意见。';
   message(c, e, work.target, e.text, work.kind === 'discussionSummary' ? 'notice' : 'answer', { artifactIds: ids }, e.summary);
   if (work.kind === 'discussionSummary') discussionReady(c, e, e.text);
+  else if (c.discussion!.mapReduce?.queue) {
+    recordMapResult(c, e, work, { target: work.target, status: e.status, answer: e.text, artifactIds: ids });
+  }
   else {
     c.discussion!.results.push({ target: work.target, status: e.status, answer: e.text, artifactIds: ids });
     if (!c.intents.some(item => item.discussionId === c.discussion!.id && item.kind === 'assistance' && ['pending', 'inflight'].includes(item.status))) summarizeDiscussion(c, e);

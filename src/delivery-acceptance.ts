@@ -29,11 +29,11 @@ function mapReviewSources(c: TaskContext): CheckReviewSource[] {
   const plan = round.mapReduce;
   return round.results.flatMap(result => {
     const assignment = plan.assignments.find(item => item.target === result.target);
-    const partition = plan.partitions.find(item => item.id === assignment?.partitionId);
+    const partition = plan.partitions.find(item => item.id === (result.partitionId ?? assignment?.partitionId));
     if (!partition) return [];
     const artifacts = c.artifacts.filter(item => result.artifactIds.includes(item.id) && item.goalVersion === round.goalVersion)
       .map(({ id, name, content }) => ({ id, name, content }));
-    return [{ id: `${round.id}:member:${result.target}`,
+    return [{ id: result.id ?? `${round.id}:member:${result.target}`,
       stdout: ['Question:', partition.objective, 'Expected:', partition.expectedOutput, 'Answer:', result.answer,
         ...artifacts.flatMap(item => ['Artifact:', item.name, item.content])].join('\n'),
       content: JSON.stringify({ discussionId: round.id, member: result.target, status: result.status,

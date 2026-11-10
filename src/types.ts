@@ -136,12 +136,19 @@ export interface ReviewRound extends Fence {
   question?: string; expected?: string; incomplete?: string;
 }
 export interface DiscussionRound extends Fence {
-  mapReduce?: MapReducePlan & { inputId: string; assignments: { partitionId: string; target: string }[] };
+  mapReduce?: MapReducePlan & { inputId: string; assignments: { partitionId: string; target: string; workId?: string; attempt?: number }[];
+    concurrency?: number; queue?: MapPartitionRun[] };
   id: string; request: string; targets: string[];
   status: 'planning' | 'collecting' | 'summarizing' | 'ready' | 'delivered' | 'cancelled';
   skipped: { target: string; reason: string }[];
-  results: { target: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; artifactIds: string[] }[];
+  results: { target: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; artifactIds: string[];
+    id?: string; partitionId?: string; attempt?: number; workId?: string }[];
   question?: string; expected?: string; summary?: string; incomplete?: string;
+}
+export interface MapPartitionRun {
+  partitionId: string; attempt: number; deadline: number;
+  status: 'queued' | 'running' | 'uncertain' | 'succeeded' | 'partial' | 'failed' | 'timeout' | 'cancelled';
+  workId?: string; target?: string; resultRef?: string; reason?: string;
 }
 export interface TaskContext extends Fence {
   schemaVersion: 1; taskId: string; owner: string; config: TeamConfig; goal: Goal;

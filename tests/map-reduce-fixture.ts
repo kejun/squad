@@ -18,7 +18,7 @@ export class MapReduceFixture extends InputIntentFixture {
     const config = intentConfig({ retries: 0 });
     if (limit === '普通额度不足') config.limits.ordinary = 4;
     if (limit === '协助额度不足') config.limits.assists = 1;
-    if (limit === '可用成员不足') config.bots = config.bots.slice(0, 2);
+    if (limit === '可用成员不足') config.bots = config.bots.slice(0, 1);
     super(config, sqlite);
     this.response = request => this.reply(request);
   }
