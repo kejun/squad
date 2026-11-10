@@ -1,4 +1,42 @@
 import { localEnabled, type Intent, type TaskContext } from '../types.js';
+import type { LocalOperation } from '../local-operation.js';
+
+const record = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value)
+  ? value as Record<string, unknown> : {};
+const pick = (value: unknown, keys: string[]) => Object.fromEntries(keys.filter(key => Object.hasOwn(record(value), key))
+  .map(key => [key, structuredClone(record(value)[key])]));
+const entries = (value: unknown, keys: string[]) => Array.isArray(value) ? value.map(item => pick(item, keys)) : [];
+function skillMetadata(value: unknown) {
+  const data = record(value);
+  return { ...pick(data, ['catalogVersion', 'complete', 'nextCursor']),
+    skills: entries(data.skills, ['skillId', 'skillVersion', 'name', 'description', 'source', 'compatibility']),
+    diagnostics: entries(data.diagnostics, ['source', 'code']) };
+}
+function capabilityMetadata(data: Record<string, unknown>) {
+  const cli = record(data.cli), catalog = record(cli.catalog);
+  return { ...pick(data, ['platform', 'arch']), runtime: pick(data.runtime, ['name', 'version']),
+    skills: skillMetadata(data.skills), cli: { ...pick(cli, ['queriedOnly', 'hostApprovalRequired', 'presenceIsNotExecution', 'network']),
+      sandbox: pick(cli.sandbox, ['available', 'reason']), commands: entries(cli.commands, ['command', 'sandbox', 'host']),
+      catalog: { ...pick(catalog, ['catalogVersion', 'nextCursor']),
+        entries: entries(catalog.entries, ['command', 'description', 'domains', 'helpArgs', 'examples', 'execution', 'requirements']) } },
+    mcp: pick(data.mcp, ['status', 'scope', 'reason']) };
+}
+function observation(operation: LocalOperation): { observation?: Record<string, unknown>; metadataComplete?: boolean } | null {
+  const action = operation.action, result = operation.result;
+  if (!result) return null;
+  if (action.type === 'runCli') {
+    if (operation.status === 'succeeded' && result.ok && result.data.exitCode === 0) return {};
+    return operation.status === 'failed' && !result.ok && result.code === 'CLI_SANDBOX_UNAVAILABLE' && action.execution !== 'host'
+      ? { observation: { sandbox: { available: false }, code: result.code } } : null;
+  }
+  if (!['discoverHost', 'listSkills'].includes(action.type) || operation.status !== 'succeeded' || !result.ok) return null;
+  const metadata = action.type === 'listSkills' ? { skills: skillMetadata(result.data) } : capabilityMetadata(result.data);
+  if (JSON.stringify(metadata).length <= 16_000) return { observation: metadata, metadataComplete: true };
+  // Keep only the verified environment fact; omitted catalog entries and commands remain unknown.
+  const sandbox = record(record(result.data.cli).sandbox);
+  return { observation: action.type === 'discoverHost' && typeof sandbox.available === 'boolean'
+    ? { cli: { sandbox: { available: sandbox.available } } } : {}, metadataComplete: false };
+}
 
 /** Read methods are observations, never evidence for another resource or execution authority. */
 export function sharedToolKnowledge(c: TaskContext, work: Intent) {
@@ -9,10 +47,10 @@ export function sharedToolKnowledge(c: TaskContext, work: Intent) {
   return c.intents.filter(source => source.id !== work.id && source.epoch === c.epoch && source.goalVersion === c.goalVersion)
     .flatMap(source => (source.localOperations ?? []).flatMap(operation => {
       const action = operation.action;
-      if (action.type !== 'runCli' || operation.status !== 'succeeded' || !operation.result?.ok
-        || operation.result.data.exitCode !== 0 || JSON.stringify(action).length > 4000) return [];
+      const fact = observation(operation);
+      if (!fact || JSON.stringify(action).length > 4000) return [];
       return [{ sourceOperationId: operation.id, sourceMember: source.target, finishedAt: operation.finishedAt ?? null,
-        action: structuredClone(action),
+        action: structuredClone(action), ...fact,
         observationOnly: true, requiresIndependentExecution: true }];
     })).slice(-10);
 }

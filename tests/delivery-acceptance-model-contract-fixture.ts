@@ -137,6 +137,7 @@ assert.equal(submit(model).ok, true);
 const repair = claim(model, 'owner');
 yield 'prepared';
 assert.equal(submit(model, repair, 'unrepaired').ok, true);
+assert.equal(submit(model, claim(model, 'owner'), 'still-unrepaired').ok, true);
 yield 'observed';
 assert.equal(model.c.outcome, 'partial');
 assert.equal(model.c.candidate?.deliveryIssue?.code, 'MISSING_ARTIFACTS');
@@ -196,7 +197,7 @@ assert.deepEqual(pendingOwner(model), []);
 }
 
 export async function* rechecksEarlierPassingRequirementsAndSettlesANewRegressionAfterTheOnlyCorrection() {
-const model = new LocalModel();
+const model = new LocalModel(input => { input.config.limits.checks = 2; });
 assert.equal(submit(model).ok, true);
 const first = requestCheck(model);
 const [a, b] = accept(model);
@@ -286,10 +287,14 @@ assert.equal(model.send({ type: 'USER_INPUT', text: '补充第二项要求' }).o
 assert.equal(report(model, second, accept(model)).ok, true);
 yield 'prepared';
 assert.equal(submit(model, claim(model, 'owner'), 'third').ok, true);
+const third = requestCheck(model);
+assert.equal(model.send({ type: 'USER_INPUT', text: '补充第三项要求' }).ok, true);
+assert.equal(report(model, third, accept(model)).ok, true);
+assert.equal(submit(model, claim(model, 'owner'), 'fourth').ok, true);
 yield 'observed';
 assert.equal(model.c.outcome, 'partial');
 assert.equal(model.c.candidate?.deliveryIssue?.code, 'CHECK_BUDGET_EXHAUSTED');
-assert.equal(model.c.usage.checks, 2);
+assert.equal(model.c.usage.checks, 3);
 }
 
 export async function* rejectsARepeatedInvalidCheckResultWithoutSettlingTheRetryPermit() {

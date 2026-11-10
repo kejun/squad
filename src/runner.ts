@@ -3,6 +3,7 @@ import { deliveryObservations, initialModelRequestId, publishObservation, type E
 import { readSavedArtifact, readSavedEvidence } from './evidence-reader.js';
 import { deliveryEvidence, evidenceIndex } from './task/evidence.js';
 import { sharedToolKnowledge } from './task/tool-knowledge.js';
+import { deliveryCheckMaterials } from './delivery-check-delta.js';
 import { acceptanceCriteria, checkCitationSources, judgmentsDiagnostic, validCriterionJudgments, type CheckDiagnostic, type CheckMaterials, type CriterionJudgment } from './delivery-acceptance.js';
 import { deliveryValidationOperation, deliveryVerificationEvidence, deliveryVerificationProblem, type DeliveryVerificationPlan } from './task/verification.js';
 import { hostRetrySourceAllowed, isSavedRead, localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
@@ -78,22 +79,9 @@ function fixedCheckMaterials(c: TaskContext, work: Intent): CheckMaterials {
   const candidate = work.payload.candidate as Candidate | undefined;
   if (!candidate?.revision || !candidate.acceptance || candidate.revision !== c.candidate?.revision
     || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion || c.stopped) throw new WorkFailure('STALE_CANDIDATE_CHECK');
-  const refs = c.deliveryCycle?.evidence;
-  const evidence = refs && deliveryEvidence(c, work, refs);
-  if (!evidence) throw new WorkFailure('CHECK_EVIDENCE_CHANGED');
-  const artifacts = (work.payload.artifacts as Artifact[]).map(({ id, name, content }) => ({ id, name, content,
-    ...(!candidate.artifactIds.includes(id) ? { background: true } : {}) }));
-  const previousResults = work.payload.priorFindings as CriterionJudgment[];
-  const references = work.payload.references as CheckMaterials['references'];
-  const reviewRecords = work.payload.reviewRecords as CheckMaterials['reviewRecords'];
-  const verification = deliveryVerificationEvidence(work);
-  const retryDiagnostic = work.checkDiagnostics?.filter(record => record.candidateRevision === candidate.revision && record.attempt < work.attempt).at(-1)?.diagnostic;
-  return { requirements: candidate.acceptance.criteria, candidate: { revision: candidate.revision, text: candidate.text }, artifacts,
-    ...(work.payload.sourceArtifact ? { sourceArtifact: work.payload.sourceArtifact as NonNullable<CheckMaterials['sourceArtifact']> } : {}),
-    evidence: evidence.sources, rawInputs: work.payload.rawInputs as CheckMaterials['rawInputs'], previousResults,
-    ...(references?.length ? { references } : {}), ...(reviewRecords?.length ? { reviewRecords } : {}),
-    ...(previousResults.length && candidate.summary ? { revisionNotes: candidate.summary } : {}), ...(verification ? { verification } : {}),
-    ...(retryDiagnostic ? { retryDiagnostic } : {}) };
+  const materials = deliveryCheckMaterials(c, work);
+  if (!materials) throw new WorkFailure('CHECK_EVIDENCE_CHANGED');
+  return materials;
 }
 
 function readOnlyCheckScope(scope: WorkScope): WorkScope {

@@ -106,7 +106,7 @@ Then('用户应能看到尚未验收的要求和关联候选版本', function (t
 });
 
 Given('已检查的候选发现一项内容错误且其他必需验收项曾通过', function (this: SpecWorld) {
-  this.h = new Harness();
+  this.h = new Harness(configuration({ checks: 2 }));
   submit(this, { text: '第一项工作已完成，其他要求均已提供' });
   const results = finding(this, 'failed', '第一段把计划写成已完成');
   report(this, results);
@@ -130,7 +130,7 @@ Then('不得再自动安排修订或发布新候选', function (this: SpecWorld)
 });
 
 Given('负责人已补齐机械门禁指出的缺失产物', function (this: SpecWorld) {
-  this.h = new Harness();
+  this.h = new Harness(configuration({ checks: 1 }));
   submit(this, { artifactIds: ['missing-file'] });
   submit(this, { artifacts: [{ name: '已补交.md', content: '可查看的文件' }] });
 });
@@ -250,3 +250,6 @@ Then('不得发布候选或安排作者重复改稿', function (this: SpecWorld)
   assertUnpublished(this);
   assert.deepEqual(pending(this), []);
 });
+
+Given('本周期总检查额度只有两次', function (this: SpecWorld) { assert.equal(this.h.context().config.limits.checks, 2); });
+Given('本周期总检查额度只有一次', function (this: SpecWorld) { assert.equal(this.h.context().config.limits.checks, 1); });

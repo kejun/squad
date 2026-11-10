@@ -1,4 +1,5 @@
 import type { ArtifactDraft } from './types.js';
+import { validSourceItems } from './source-items.js';
 
 export function isLongResult(text: string): boolean {
   return text.length > 600 || text.split('\n').length >= 12;
@@ -16,7 +17,8 @@ export function compactMessage(text: string, summary?: string): string {
 export function validArtifactDrafts(value: unknown): value is ArtifactDraft[] | undefined {
   return value === undefined || Array.isArray(value) && value.every(item => item && typeof item === 'object'
     && typeof item.name === 'string' && !!item.name.trim() && !/[\r\n\0]/.test(item.name)
-    && typeof item.content === 'string' && !!item.content.trim()
+    && typeof item.content === 'string' && !!item.content.trim() && validSourceItems(item.sourceItems)
+    && (item.sourceItems === undefined || !/\bD\d+\b/i.test(item.content))
     && (item.replacesArtifactId === undefined || typeof item.replacesArtifactId === 'string' && !!item.replacesArtifactId.trim()));
 }
 

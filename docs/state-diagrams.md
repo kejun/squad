@@ -316,16 +316,16 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
     state "候选机械门禁" as Candidate
-    state "一次补交或修订" as Revision
+    state "有界补交或修订" as Revision
     state "独立检查或复核" as Check
     state "当前发布" as Published
     state "未完成结算" as Incomplete
     [*] --> Candidate: DELIVER [当前负责人及目标有效] / 保存候选
-    Candidate --> Revision: 预检 [机械缺口可补且有修订及复核额度] / 保存唯一修订意图
+    Candidate --> Revision: 预检 [机械缺口可补且有修订及复核额度] / 保存有界修订意图
     Candidate --> Incomplete: 预检 [材料无法核实或无修订和复核余量] / 保留成果及未完成范围
     Candidate --> Check: 预检 [门禁通过且交接已结算] / 保存绑定候选和固定材料的检查意图
     Check --> Check: 技术故障 [全周期补试可用且守卫通过] / 持久化一次补试
-    Check --> Revision: CHECK_RESULT [当前候选且有实质错误且无无法核实项且可修订] / 保存结果和唯一修订意图
+    Check --> Revision: CHECK_RESULT [当前候选且有实质错误且无无法核实项且可修订] / 保存结果和有界修订意图
     Check --> Published: CHECK_RESULT [当前候选每个必需项通过且门禁仍满足] / 发布
     Check --> Incomplete: CHECK_RESULT、WORK_FAILED 或 SETTLE [无法核实或不能继续] / 按可用成果结算
     Revision --> Candidate: DELIVER [当前目标及版本有效] / 预检修订候选或带出处的反证
@@ -338,7 +338,7 @@ stateDiagram-v2
 
 BT_I04：检查意图只固定当前有效输入中已校验、可从本群历史按任务和记录 ID 定位的引用。历史材料可供核对引文，不能成为本轮产物或证明当前状态；无法取得已获准的材料则结束验收。复核沿用首次检查固定的原文。
 
-首检与复核正常共授权 1–2 次检查模型请求，整个周期最多另一次技术补试，受既有 checks、retries 和截止时间约束。机械补交和语义修订共用一次机会；排修订前同时确认普通额度、最终检查和适用的工程复核额度。记录跟随事务持久化，服务重启、重复事件、同周期候选更新或 epoch 变化均不重置。可信用户明确继续可开始有限新周期并保留历史用量。
+首检与复核共授权至多 3 次普通检查；首次缺口达到 3 项时扩为至多 4 次，整个周期最多另一次技术补试，受既有 checks、retries 和截止时间约束。机械补交和语义修订共用按首次缺口分配的 2–3 次机会；排修订前同时确认普通额度、最终检查和适用的工程复核额度。记录跟随事务持久化，服务重启、重复事件、同周期候选更新或 epoch 变化均不重置。可信用户明确继续可开始有限新周期并保留历史用量。
 
 `WorkRunner` 领取检查意图后从允许的持久化记录构造输入；检查不发工具请求。材料超限或不完整导致无法核实时保存具体缺口。旧目标的来源不进入检查材料，失败回执不得证明资料采集成功。当前有效版本的检查结果只有机械门禁仍成立才可发布；停止、目标变化或迟到结果只按原取消和结算边界处理。无法继续时有可用成果结算 partial，无可用成果结算 failed，用户停止仍按 stopped 结算。
 
@@ -1754,7 +1754,7 @@ stateDiagram-v2
 stateDiagram-v2
     drafting --> candidate: DELIVER [身份有效] / 保存候选版本
     candidate --> checking: 预检通过 / 绑定候选版本与检查工作
-    candidate --> revising: 预检失败 [可修订] / 一次负责人修订
+    candidate --> revising: 预检失败 [可修订] / 有界负责人修订
     checking --> checking: 技术失败 [还有重试许可] / 原材料原工作重试
     checking --> revising: 确定失败 [可修订] / 保存缺口
     revising --> candidate: DELIVER / 新候选版本
@@ -1766,7 +1766,7 @@ stateDiagram-v2
 | 边界 | 规则 |
 | --- | --- |
 | 阶段身份 | checking 固定 candidateRevision 和 checkWorkId；旧工作、旧版本、旧 attempt 仍由既有守卫拒绝 |
-| 预算 | 最多两次普通检查、一次技术重试、一次负责人修订；不重置已用预算 |
+| 预算 | 首次缺口少于3项时至多2次负责人修订及3次普通检查，3项及以上至多3次修订及4次普通检查；技术补试全周期仍至多一次，任务总预算不变 |
 | 来源 | 技术重试沿用同一 intent.payload；修订按原冻结证据规则重新绑定新候选，不任意刷新来源 |
 | 新输入与停止 | 安全边界回到 drafting；STOP 进入 incomplete，迟到结果不得发布 |
 | 兼容 | 没有阶段的旧快照只根据原候选、原工作和原终态补齐阶段；不生成检查、不自动发布 |
@@ -1789,3 +1789,79 @@ stateDiagram-v2
 成功、部分完成、失败、超时和取消分别保留。确定终止的失败立即标记本轮不完整，尚可技术重试的失败仅保留尝试记录；后续归并不得抹掉未完成标记。只对确定无未知效果的瞬时技术失败自动重试一次；语义失败和部分完成不自动重跑。旧尝试按工作 ID、attempt 和 fence 拒绝。归并等待全部分片结算，收到各分片及各尝试原始结果；一位成员执行多片时，证据必须用 partitionId 关联，不能再只用成员查找。目标变更、停止与不兼容恢复不得继续派发旧轮次；物理效果未核清仍保留占用。
 
 旧 map 快照由原 assignments、intent 和已保存 results 推导队列，不新增工作或付费。原合并分组计划仍合法；总数与并发数不再相等。工作请求的额外工具调用和重试必须让出尚未派发分片、归并与负责人额度。
+
+## 任务能力事实与充分分片（KEJ-110）
+
+类型：上下文只读投影与既有输入理解／分片队列生命周期；所有者：`src/task/tool-knowledge.ts`、真实 `taskMachine` 的 `Intent.localOperations` 及 `discussion.mapReduce.queue`。验收 BT_L113–L116、BT_Q34–Q35。能力事实不增加 XState 状态，也不新增 I/O 调度；输入理解仍只提出计划。
+
+```mermaid
+stateDiagram-v2
+    [*] --> 已保存操作: LOCAL_REQUEST [当前权限有效] / 固定操作与工作身份
+    已保存操作 --> 已领取: LOCAL_CLAIM [领取守卫通过] / 固定会话
+    已领取 --> 已核实能力: LOCAL_RESULT [成功发现且效果已知] / 保存能力元数据
+    已领取 --> 沙箱不可用: LOCAL_RESULT [明确CLI_SANDBOX_UNAVAILABLE且效果已知] / 保存确定失败
+    已核实能力 --> 有界事实: 模型请求 [当前任务epoch和goalVersion且有工具权限] / 投影元数据与回执标识
+    沙箱不可用 --> 有界事实: 模型请求 [当前任务epoch和goalVersion且有工具权限] / 仅投影不可用事实
+    有界事实 --> 已保存操作: LOCAL_REQUEST [成员独立选择且原守卫通过] / 保存独立读取或审批请求
+    有界事实 --> 不可见: 停止或目标版本改变或撤权 / 不提供旧事实
+```
+
+成功 `discoverHost`、`listSkills` 只投影已保存的有界元数据；不复制任意 CLI stdout/stderr，不授予技能激活、宿主批准或网络权限。成功 CLI 继续共享调用参数；明确已结算的沙箱不可用可供选择环境，失败和效果不明不能冒充成功方法。事实带原操作、成员和结束时间；动态投影与运行器脱敏保留既有机制。最多十份事实，每份有大小上限；过大元数据只保留已知的最小能力摘要并标明未完整共享，缺失信息保持未知。首轮同时进行的发现不合并为共享操作，独立操作回执与取消隔离保持原行为。
+
+分片总容量与并发人数继续分开。输入理解默认使用 `min(独立来源数,maxPartitions)` 份分片；只有明确语义合并理由才少于该值。八份来源、上限四时形成四份完整分组；上限八时保留八片，由四名成员分批执行。宿主仍以已有预算、截止时间、版本和成员守卫决定派发，提示不扩大调度权限。已有 BT_Q27–Q33 覆盖停止、未知效果、重试、恢复和额度边界；本变更复验真实模型路径后才修改适配器指引。
+
+### 自适应交付修订（KEJ-110）
+
+类型：真实 taskMachine 的交付上下文生命周期；所有者 `src/task/delivery-cycle.ts`、`src/task/delivery.ts`。验收 BT_F77–BT_F81。复用 running、checking、ended，不新增 I/O 调度器。
+
+```mermaid
+stateDiagram-v2
+    checking --> running: CHECK_RESULT [确定失败且修订及普通与复核额度可用] / 首次按缺口数固定2至3次上限并递增已用数，保存负责人意图
+    running --> checking: DELIVER [当前候选通过机械门禁] / 保存新候选及复核意图
+    running --> running: DELIVER [机械失败且可修订] / 消耗同一修订额度
+    checking --> ended: CHECK_RESULT [全部通过] / 只发布当前候选
+    checking --> ended: CHECK_RESULT [无法核实或额度耗尽] / 保留成果和缺口
+    running --> ended: STOP或不可恢复失败 / 结算且不增加修订
+```
+
+首次修订按确定失败项数量固定上限 `min(3,max(2,gapCount))`；后续新缺口不扩大上限。每个负责人意图只递增一次，重复回执、恢复和技术补试不重置。先确认剩余普通请求（含适用工程验证预留）及一次检查，再安排修订。技术补试只占原有全周期一次许可，不增加修订机会。新实现继续写 `revisionUsed` 供旧读者使用，实际计数在 `revisions`；旧快照若已消耗唯一机会且没有计数，沿用一次旧上限。状态机保存意图，TeamEngine 提交，WorkRunner 领取后才调用适配器，停止与旧 fence 的迟到结果不得推进。
+
+### 文档工作项来源预检（KEJ-110）
+
+类型：真实 taskMachine `DELIVER` 的处理流程与守卫；所有者 `src/source-claims.ts`、`src/task/delivery.ts`、`src/task/operations.ts`。验收 BT_F71–BT_F76、BT_F82。沿用 drafting/candidate/revising/checking，不新增业务阶段。
+
+```mermaid
+flowchart TD
+  A[DELIVER] --> B{结构化工作项协议有效}
+  B -->|否| R[INVALID_REPORT 拒绝且不建立候选]
+  B -->|是| C{本目标本轮完整成功的保存回执}
+  C -->|否| G[保存来源缺口并按有界修订处理]
+  C -->|是| D{唯一精确文档ID或slug且状态在该文档正文}
+  D -->|否| G
+  D -->|是| E[保存工作项来源并由宿主渲染D编号]
+  E --> F[绑定当前候选的独立检查意图]
+```
+
+工作项结构为 `sourceItems: [{text,status,sourceDocId,sourceEvidenceId}]`；每项必须显式给出原文档ID与保存回执ID，不能引用展示用D编号。来源只接受当前目标和epoch、成功且完整的捕获JSON stdout；按原始文档对象的 `id` 或 `slug` 精确匹配，状态只在该对象直接的 `body`、`body_markdown`、`body_html`、`content`、`description` 字符串内匹配。批量回执的邻居文档、缺失或重复身份不得补作依据。普通报告继续支持原协议。工作项文本不允许自填D编号，文档编号按来源首次出现顺序生成。
+
+预检还检查提交引用的已有报告；工作项结构随报告持久化，重启不改变绑定。状态词逐字出现只是机械前置条件，不证明语义、时间有效性或整份交付通过，之后仍须独立检查。来源缺口进入既有修订/不足额结束路径；没有检查额度不安排改稿。停止、旧fence、迟到结果和恢复沿用真实任务守卫。此投影不发外部I/O，实际检查仅由保存且领取的意图发起。
+
+### 增量交付复核（BT_F65–BT_F70）
+
+类型：taskMachine 交付周期的固定材料投影；所有者 `src/delivery-check-delta.ts` 与 `src/task/reducer.ts`。沿用 candidate → checking → revising → candidate，不另造业务状态。`DELIVER` 在同一事务绑定前次已完成 check 工作；投影不生成 I/O 或发布许可。
+
+```mermaid
+stateDiagram-v2
+    revising --> candidate: DELIVER [有效候选] / 保存上一检查身份
+    candidate --> checking: 预检通过 [同目标同轮次且来源要求不变且修改可定位] / 固定完整差异与原文片段
+    candidate --> checking: 预检通过 [无可靠增量基线] / 保留完整材料
+    checking --> checking: 技术补试 [既有许可] / 同一基线与差异
+    checking --> published: CHECK_RESULT [当前身份且全部要求通过] / 原子发布
+    checking --> incomplete: 来源变化或额度耗尽 / 保留候选与原因
+```
+
+首次检查始终完整。增量只适用于所有失败项均有可定位逐字引文、原始要求/输入/评审/固定来源一致、文档身份完全对齐的修订；新增行必须逐字来自旧候选或缺口所引原文片段，新增未知事实、来源修订任务和工作区工程验证均回退全文。差异包含删除和新增正文，全部前轮判断与当前要求继续发送；只省略可复用基线中未变正文，所有省略来源均列出索引与片段位置。复核必须重新返回每一个要求，不能由宿主继承旧通过项。停止、旧轮次与旧检查拒绝沿用既有模型守卫；捕获哈希变化仍阻止请求。恢复保留原检查身份，技术补试只增加诊断，不重算或刷新证据。
+
+来源工作项的后继修订（BT_F82）也属于同一预检：`DELIVER [replacesArtifactId指向来源工作项报告且sourceItems缺失] / SOURCE_ITEMS_REQUIRED`，保存缺口并走既有有界修订。不能通过删除结构绕过来源校验；新的普通报告继续兼容旧协议。
+
+BT_F83 复验 checking → revising 的已有路径：增量差异必须保留原通过内容的删除；新检查对该要求返回失败时，旧通过结论不能覆盖它。新缺口留存在新检查回执，仍由当前修订额度与复核预算决定修订或不完整结束，不增加状态或调度入口。

@@ -6,6 +6,8 @@ import { canRetryDeliveryCheck } from './budget.js';
 import { deliveryEvidence } from './evidence.js';
 import { completeProblem, deliveryHandoffPending, discussionIncomplete } from './facts.js';
 import { deliveryVerificationEvidence, deliveryVerificationPlan, deliveryVerificationProblem } from './verification.js';
+import { deliveryRevisionBudget } from './delivery-cycle.js';
+import { sourceItemsProblem } from '../source-claims.js';
 
 type Delivery = Extract<TaskEvent, { type: 'DELIVER' }>;
 type CheckResult = Extract<TaskEvent, { type: 'CHECK_RESULT' }>;
@@ -27,9 +29,10 @@ export function hasDeliveryRetryPermit(c: TaskContext, work: Intent): boolean {
 export function deliveryCheckBudgetProblem(c: TaskContext, technical = false): string | null {
   const cycle = c.deliveryCycle;
   if (!cycle) return 'CHECK_PROTOCOL_CHANGED';
-  if (cycle.requests >= 3 || c.usage.checks >= c.config.limits.checks) return 'CHECK_BUDGET_EXHAUSTED';
+  const ordinaryLimit = deliveryRevisionBudget(cycle).limit + 1;
+  if (cycle.requests >= ordinaryLimit + 1 || c.usage.checks >= c.config.limits.checks) return 'CHECK_BUDGET_EXHAUSTED';
   const ordinary = cycle.requests - Number(cycle.retry?.status === 'used');
-  if (!technical && ordinary >= 2) return 'CHECK_BUDGET_EXHAUSTED';
+  if (!technical && ordinary >= ordinaryLimit) return 'CHECK_BUDGET_EXHAUSTED';
   return null;
 }
 
@@ -77,7 +80,7 @@ export function checkReferenceSources(c: TaskContext): CheckReferenceSource[] | 
 }
 
 export function deliverySubmissionProblem(c: TaskContext, e: Delivery): { code: string; mechanical: boolean } | null {
-  const problem = deliveryVersionProblem(c, e) ?? deliveryPreflight(c, e).gaps[0]?.reason;
+  const problem = deliveryVersionProblem(c, e) ?? sourceItemsProblem(c, e) ?? deliveryPreflight(c, e).gaps[0]?.reason;
   if (problem) return { code: problem, mechanical: true };
   const budget = deliveryCheckBudgetProblem(c);
   if (budget) return { code: budget, mechanical: false };
@@ -89,7 +92,9 @@ export function deliverySubmissionProblem(c: TaskContext, e: Delivery): { code: 
 }
 
 export function canReviseDelivery(c: TaskContext): boolean {
-  if (!c.deliveryCycle || c.deliveryCycle.revisionUsed || deliveryCheckBudgetProblem(c)) return false;
+  if (!c.deliveryCycle || deliveryCheckBudgetProblem(c)) return false;
+  const budget = deliveryRevisionBudget(c.deliveryCycle);
+  if (budget.used >= budget.limit) return false;
   const verification = deliveryVerificationPlan(c);
   return verification?.status !== 'unavailable' && deliveryOrdinaryAvailable(c, verification?.status === 'required' ? 3 : 1);
 }

@@ -96,10 +96,10 @@ describe('parallel map partitions retain independent host discovery receipts', (
       expect(betaResult.data.cli).toMatchObject({ commands: [{ command: commands.beta, sandbox: 'not_found', host: 'not_found' }] });
       const continuations = f.maps.requests.filter(request => request.kind === 'assistance' && receipt(request));
       expect(continuations).toHaveLength(2);
-      expect(JSON.parse(continuations[0]!.messages[1]!.content).workId).toBe(beta!.id);
+      expect(continuations[0]!.messages.filter(message => message.role === 'user').map(message => JSON.parse(message.content)).find(value => value.context)?.workId).toBe(beta!.id);
       expect(receipt(continuations[0]!)!.data.cli).toEqual(betaResult.data.cli);
       expect(receipt(continuations[0]!)!.operationId).toBe(f.maps.context().intents.find(work => work.id === beta!.id)!.localOperations![0]!.id);
-      expect(JSON.parse(continuations[1]!.messages[1]!.content).workId).toBe(alpha!.id);
+      expect(continuations[1]!.messages.filter(message => message.role === 'user').map(message => JSON.parse(message.content)).find(value => value.context)?.workId).toBe(alpha!.id);
       expect(receipt(continuations[1]!)!.data.cli).toEqual(alphaResult.data.cli);
       expect(receipt(continuations[1]!)!.operationId).toBe(f.maps.context().intents.find(work => work.id === alpha!.id)!.localOperations![0]!.id);
       expect(f.maps.context().discussion!.results.map(result => result.answer)).toEqual(['beta: 已收到本分片的能力回执', 'alpha: 已收到本分片的能力回执']);
