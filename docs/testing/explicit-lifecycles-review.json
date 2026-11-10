@@ -1,7 +1,7 @@
 {
-  "status": "reviewed-pending-execution",
+  "status": "verified-eight-slices-coordination-original-pending",
   "baseCommit": "97b7349db41e86a6b3a626f3db3662240c82df2f",
-  "candidateCommit": "1e1b8c95a195fb75318e39ff282accfe0eef2f67",
+  "candidateCommit": "1f5b80702d1383bcfa0492a373a98ed9968dd767",
   "baselineCoverageMatches": true,
   "transactionBoundary": "TeamEngine transaction still persists after all pure XState microsteps and internal mailbox drain. Execution remains separately claimed and permitted.",
   "files": [
@@ -116,7 +116,7 @@
     "delivery revision helper",
     "capacity refresh block",
     "map queue all-settled/summary",
-    "erase incomplete at summary publication",
+    "omit immediate terminal map failure marker",
     "input evidence reset helper"
   ],
   "bounds": "All original TLA/CFG properties, bounds and fairness unchanged. New 8/4 queue is covered by BT_Q27-Q33 and pure model paths, not by the original two-shard exhaustive graph.",
@@ -132,6 +132,79 @@
   "validation": {
     "mapAndLegacyScenarios": "116/116 passed",
     "boundaryMutations": "7/7 killed; selected sites only",
-    "formal": "pending final immutable run"
-  }
+    "formal": "8 of 9 slices complete with independent evidence readback; original coordination normal domain passed in CI, migrated negative controls corrected; final complete rerun pending",
+    "ci": "https://github.com/kejun/squad/actions/runs/42775348487",
+    "sourceFaults": "7 relocated controls independently failed their named property on both MemoryStore and SQLite"
+  },
+  "localCandidateCommit": "1e1b8c95a195fb75318e39ff282accfe0eef2f67",
+  "candidateTree": "9d27ad4d14c3dc85e3d666e1c82ddd680db5203a",
+  "testedRemoteCommit": "675c5a3fab444850e59cf6728225c5115c532b8a",
+  "coveredFilesEqualCandidate": 88,
+  "synchronizedCoverage": [
+    ".agents/skills/verify-squad-authority/references/composition-coverage.json",
+    ".agents/skills/verify-squad-authority/references/coverage.json",
+    ".agents/skills/verify-squad-host-retry/references/coverage.json",
+    ".agents/skills/verify-squad-local-effects/references/coverage.json",
+    ".agents/skills/verify-squad-coordination/references/extensions-coverage.json",
+    ".agents/skills/verify-squad-delivery/references/coverage.json",
+    ".agents/skills/verify-squad-handoff/references/composition-coverage.json",
+    ".agents/skills/verify-squad-handoff/references/coverage.json"
+  ],
+  "proofs": [
+    {
+      "slice": "handoff",
+      "evidence": "reports/verify-squad-handoff/lifecycles-final",
+      "artifacts": 108,
+      "readback": "passed"
+    },
+    {
+      "slice": "delivery",
+      "evidence": "reports/verify-squad-delivery/lifecycles-final",
+      "artifacts": 290,
+      "readback": "passed"
+    },
+    {
+      "slice": "authority",
+      "evidence": "reports/verify-squad-authority/lifecycles-final",
+      "readback": "passed"
+    },
+    {
+      "slice": "handoff-composition",
+      "ciJob": 129692439459,
+      "artifacts": 149,
+      "readback": "passed"
+    },
+    {
+      "slice": "authority-composition",
+      "ciJob": 129692438973,
+      "artifacts": 184,
+      "readback": "passed"
+    },
+    {
+      "slice": "coordination-composition",
+      "ciJob": 129692439361,
+      "artifacts": 895,
+      "readback": "passed"
+    },
+    {
+      "slice": "local-effects",
+      "ciJob": 129692439314,
+      "artifacts": 224,
+      "readback": "passed"
+    },
+    {
+      "slice": "host-retry",
+      "ciJob": 129692439233,
+      "artifacts": 142,
+      "readback": "passed"
+    }
+  ],
+  "negativeControlMaintenance": {
+    "premature-reduce": "Inject summary at first result; changing the action-only guard was unreachable under the new scheduling guard.",
+    "omit-summary-progress": "Disable the terminal-queue scheduling guard, avoiding an action-only no-op that creates a livelock instead of the intended named assertion.",
+    "erase-partial-evidence": "Remove immediate terminal-failure marker; the same Claim1 → Failure1 counterexample that caught the real regression must fail PreserveIncomplete."
+  },
+  "blockedRuns": [
+    "Local original coordination replay exceeded the unchanged 180s child-process limit; CI normal-domain replay completed. Local blocked evidence retained; not counted as pass."
+  ]
 }

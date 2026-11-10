@@ -1,5 +1,5 @@
 {
-  "syncCommit": "8f4a1acb31f1aa9d73996e60dbb9aa3becce0596",
+  "syncCommit": "1f5b80702d1383bcfa0492a373a98ed9968dd767",
   "review": "references/drift-review-kej-109.json",
   "files": {
     "src/task/assistance.ts": "d472d9c7422118a217d23ef0019831ad1598e3d9137da794830f39ac286ee6df",
