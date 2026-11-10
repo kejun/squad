@@ -28,6 +28,8 @@ SPECS = {
     'InputBoundary-check': ('InputBoundary', 'check', ['NeverResolved', 'NeverClarified', 'NeverStoppedSaved', 'NeverRecoveredParsing']),
     'ReviewQueue': ('ReviewQueue', '', ['NeverSynthesis', 'NeverRecoveredSaved', 'NeverRepairedReview', 'NeverNewRound']),
     'DeferredCoordination': ('DeferredCoordination', '', ['NeverDeferred', 'NeverCoordinated', 'NeverReset', 'NeverRecoveredDeferred']),
+    'ToolRecovery': ('ToolRecovery', '', ['NeverFeedback', 'NeverSecondFeedback', 'NeverRecoveredFeedback', 'NeverBudgetFrontier', 'NeverExpiredFeedback']),
+    'MapRecovery': ('MapRecovery', '', ['NeverFullClaim', 'NeverRecoveredPublication', 'NeverPartialClaimSettled', 'NeverCitationRetry', 'NeverReopenedProof', 'NeverStoppedCheck', 'NeverStaleCheck']),
 }
 for origin in ['map', 'discussion']:
     for mode in ['goal', 'stop', 'end']:
@@ -36,6 +38,17 @@ for origin in ['map', 'discussion']:
             SPECS[key] = ('CancelledDiscussion', f'{origin}-{mode}-{effects}', ['NeverRetired', 'NeverReinvited'] + (['NeverRecoveredUnknown'] if effects == 'physical' else []))
 
 CONTROLS = {
+    'tool-recovery-no-bound': ('ToolRecovery', 'BoundedToolRecovery', 'src/task/tool-recovery.ts', "  if (failures.length >= 2) return 'TOOL_RECOVERY_EXHAUSTED';", '  /* faulty missing feedback ceiling */'),
+    'tool-recovery-no-duplicate': ('ToolRecovery', 'ToolFailureIdentity', 'src/task/tool-recovery.ts', "  if (failures.some(item => item.requestId === e.requestId)) return 'DUPLICATE_TOOL_FAILURE';", '  /* faulty missing duplicate guard */'),
+    'tool-recovery-no-request': ('ToolRecovery', 'ToolFailureIdentity', 'src/task/tool-recovery.ts', "|| !c.trace.some(entry => entry.event === 'CONSUME' && entry.detail === e.requestId)", ''),
+    'tool-recovery-no-budget': ('ToolRecovery', 'ToolRecoveryAccounting', 'src/task/tool-recovery.ts', '  return requestBudgetProblem(c, work);', '  return null; /* faulty missing follow-up reservation */'),
+    'tool-recovery-feedback-fee': ('ToolRecovery', 'ToolRecoveryAccounting', 'src/task/tool-recovery.ts', '  (work.toolRecovery ??= { failures: [] }).failures.push({ requestId: e.requestId, tool: e.tool, code: e.code, attempt: work.attempt });', '  (work.toolRecovery ??= { failures: [] }).failures.push({ requestId: e.requestId, tool: e.tool, code: e.code, attempt: work.attempt });\n  c.usage.ordinary++; /* faulty double charge for feedback */'),
+    'tool-recovery-no-deadline': ('ToolRecovery', 'StoppedToolRecovery', 'src/task/tool-recovery.ts', "  if (work.deadline !== null && e.at >= work.deadline) return 'WORK_EXPIRED';", '  /* faulty expired feedback accepted */'),
+    'unresolved-map-publication': ('MapRecovery', 'NoUnresolvedPublication', 'src/task/delivery.ts', '    if (c.candidate?.partitionRecoveries?.length && unresolved.length)', '    if (false && c.candidate?.partitionRecoveries?.length && unresolved.length)'),
+    'rewrite-map-failure-history': ('MapRecovery', 'RecoveryHistoryImmutable', 'src/task/map-recovery.ts', '    part.resolution = { ...structuredClone(claim),', "    part.status = 'succeeded'; /* faulty erasure of original failure */\n    part.resolution = { ...structuredClone(claim),"),
+    'omit-map-required-citation': ('MapRecovery', 'VerifiedRecoveryEvidence', 'src/delivery-acceptance.ts', "    if (item.status === 'passed' && criterion.requiredSourceIds?.length", "    if (false && item.status === 'passed' && criterion.requiredSourceIds?.length"),
+    'accept-invalid-map-source': ('MapRecovery', 'RecoveryEvidenceEligibility', 'src/task/map-recovery.ts', "return 'MAP_RECOVERY_EVIDENCE_UNAVAILABLE';", 'return null /* faulty invalid source acceptance */;'),
+    'resolve-map-before-check': ('MapRecovery', 'NoUnverifiedRecovery', 'src/task/reducer.ts', '      const outcome = checkDisposition(c, e, work);', '      resolveMapRecoveries(c, work, e.at); /* faulty resolution before independent verification */\n      const outcome = checkDisposition(c, e, work);'),
     'spend-discussion-reserve': ('DiscussionBudget', 'ProtectedDiscussionBudget', 'src/task/budget.ts',
         "if (c.usage.ordinary + 1 + reserve + hostReserve > c.config.limits.ordinary) return 'DISCUSSION_BUDGET_RESERVED';", '/* faulty loss of promised discussion capacity */'),
     'spend-review-synthesis': ('ReservedRequests-review', 'ProtectedContinuation', 'src/task/budget.ts',

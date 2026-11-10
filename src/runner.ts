@@ -4,13 +4,14 @@ import { readSavedArtifact, readSavedEvidence } from './evidence-reader.js';
 import { deliveryEvidence, evidenceIndex } from './task/evidence.js';
 import { sharedToolKnowledge } from './task/tool-knowledge.js';
 import { deliveryCheckMaterials } from './delivery-check-delta.js';
+import { validPartitionRecoveries } from './task/map-recovery.js';
 import { acceptanceCriteria, checkCitationSources, judgmentsDiagnostic, validCriterionJudgments, type CheckDiagnostic, type CheckMaterials, type CriterionJudgment } from './delivery-acceptance.js';
 import { deliveryValidationOperation, deliveryVerificationEvidence, deliveryVerificationProblem, type DeliveryVerificationPlan } from './task/verification.js';
 import { hostRetrySourceAllowed, isSavedRead, localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
 import type { LocalRuntime } from './local-runtime.js';
 import { LocalToolError, type SkillPage } from './local-skills.js';
 import type { TeamEngine } from './engine.js';
-import type { Artifact, ArtifactDraft, Candidate, Decision, InputIntentSpec, InputReference, Intent, ModelOutputIssue, TaskContext, TaskEvent } from './types.js';
+import type { Artifact, ArtifactDraft, Candidate, Decision, InputIntentSpec, InputReference, Intent, ModelOutputIssue, PartitionRecovery, TaskContext, TaskEvent, ToolFailureFeedback, WebToolKind } from './types.js';
 import { inputIntentSchema, validInputIntent } from './input-intent.js';
 import { validArtifactDrafts, validSummary } from './presentation.js';
 import { findSkills, type FoundSkill, type SkillSearchTransport } from './skills.js';
@@ -20,7 +21,7 @@ export type WorkOutput =
   | { type: 'interpretation'; spec: InputIntentSpec }
   | { type: 'help'; requestId: string; target: string; question: string; expected: string; refs?: string[] }
   | { type: 'answer'; text: string; status?: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[] }
-  | { type: 'deliver'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[] }
+  | { type: 'deliver'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[]; partitionRecoveries?: PartitionRecovery[] }
   | { type: 'decision'; decision: Decision }
   | { type: 'check'; criteriaResults: CriterionJudgment[] }
   | { type: 'blocked'; reason: string }
@@ -46,6 +47,8 @@ export interface WorkScope {
   authorizeAdditionalRequest(requestId: string): void;
   /** Authorize and persist a format repair before another request; absent hosts fail closed. */
   regenerateModelOutput?(issue: ModelOutputIssue): void;
+  /** Persist a known settled Web failure before the adapter asks for an alternative decision. */
+  recordToolFailure?(failure: ToolFailureFeedback): void;
   observeModel?(observation: ModelObservation): void;
   /** Available to every member by default; each search reserves one execution unit. */
   findSkills(query: string, signal?: AbortSignal): Promise<FoundSkill[]>;
@@ -60,12 +63,13 @@ class ApprovalSuspended extends Error {}
 export function validWorkOutput(value: unknown): value is WorkOutput {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
+  if (v.type !== 'deliver' && v.partitionRecoveries !== undefined) return false;
   const strings = (a: unknown): a is string[] => Array.isArray(a) && a.every(x => typeof x === 'string');
   switch (v.type) {
     case 'interpretation': return Object.keys(v).every(key => ['type', 'spec'].includes(key)) && inputIntentSchema.safeParse(v.spec).success;
     case 'help': return ['requestId', 'target', 'question', 'expected'].every(k => typeof v[k] === 'string' && (v[k] as string).trim().length > 0) && (v.refs === undefined || strings(v.refs));
     case 'answer': return typeof v.text === 'string' && validSummary(v.summary) && validArtifactDrafts(v.artifacts) && (v.status === undefined || ['success', 'partial', 'failed'].includes(String(v.status)));
-    case 'deliver': return typeof v.text === 'string' && strings(v.artifactIds) && (v.backgroundArtifactIds === undefined || strings(v.backgroundArtifactIds)) && validSummary(v.summary) && validArtifactDrafts(v.artifacts);
+    case 'deliver': return typeof v.text === 'string' && strings(v.artifactIds) && (v.backgroundArtifactIds === undefined || strings(v.backgroundArtifactIds)) && validSummary(v.summary) && validArtifactDrafts(v.artifacts) && validPartitionRecoveries(v.partitionRecoveries);
     case 'decision': return !!v.decision && typeof v.decision === 'object';
     case 'check': return Object.keys(v).every(key => key === 'type' || key === 'criteriaResults') && validCriterionJudgments(v.criteriaResults);
     case 'blocked': return typeof v.reason === 'string';
@@ -186,6 +190,7 @@ export class WorkRunner {
     let skillSearchSequence = 0;
     let webSequence = 0;
     let repairSequence = 0;
+    let lastWebRequest: { id: string; tool: WebToolKind } | undefined;
     const authorizeWeb = (capability: 'web_search' | 'web_fetch', signal: AbortSignal) => {
       signal.throwIfAborted();
       if (this.engine.config.webTools?.enabled === false) throw new WorkFailure('WEB_TOOLS_DISABLED');
@@ -194,6 +199,7 @@ export class WorkRunner {
         id: `request:${work.id}:${work.attempt}:${requestId}`, at: this.clock(),
         fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       if (!response.ok) throw new WorkFailure(response.code);
+      lastWebRequest = { id: `request:${work.id}:${work.attempt}:${requestId}`, tool: capability };
       report({ phase: 'budget.authorized', requestId, category: capability });
     };
     const scope: WorkScope = { sessionId: taskId, observeModel: observation => {
@@ -210,6 +216,14 @@ export class WorkRunner {
         id: `repair:${work.id}:${work.attempt}:${++repairSequence}`, at: this.clock(),
         fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       if (!response.ok) throw new WorkFailure(`模型输出不符合协议，无法继续自动修正 (${response.code})`);
+    }, recordToolFailure: failure => {
+      controller.signal.throwIfAborted();
+      if (this.engine.config.webTools?.enabled === false) throw new WorkFailure('WEB_TOOLS_DISABLED');
+      if (!lastWebRequest || lastWebRequest.tool !== failure.tool) throw new WorkFailure('TOOL_FAILURE_REQUEST_REQUIRED');
+      const response = send({ type: 'RECORD_TOOL_FAILURE', intentId: work.id, requestId: lastWebRequest.id,
+        tool: failure.tool, code: failure.code, id: `tool-failure:${lastWebRequest.id}`, at: this.clock(),
+        fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
+      if (!response.ok) throw new WorkFailure(response.code);
     }, findSkills: async (query, signal) => {
       const current = this.engine.view(roomId, taskId)!.context;
       if (this.engine.config.skillSearch?.enabled === false || current.config.skillSearch?.enabled === false) throw new WorkFailure('SKILL_SEARCH_DISABLED');
@@ -475,6 +489,7 @@ export class WorkRunner {
           : { ...base, ...presentation, type: 'DELIVER', text: output.text, artifactIds: [] };
         break;
       case 'deliver': event = { ...base, ...presentation, type: 'DELIVER', text: output.text, artifactIds: output.artifactIds,
+        ...(output.partitionRecoveries?.length ? { partitionRecoveries: output.partitionRecoveries } : {}),
         ...(output.backgroundArtifactIds?.length ? { backgroundArtifactIds: output.backgroundArtifactIds } : {}) }; break;
       case 'decision': event = { ...base, type: 'COORDINATE', decision: output.decision }; break;
       case 'check': {

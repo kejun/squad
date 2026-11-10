@@ -1,0 +1,414 @@
+{
+  "issue": "KEJ-111",
+  "status": "verified",
+  "oldSyncCommit": "615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9",
+  "availableEquivalentBaseline": "49d2bc0ec61df94581cc52aef48725b040ea8603",
+  "reviewedCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+  "commitMessages": [
+    "c239dd3 修复工具失败恢复与负责人补齐分片后的交付结算（KEJ-111）"
+  ],
+  "baselineProof": "Every old covered source/fixture/dependency was independently git-show compared against its stored SHA256 at 49d2bc0; all match. This establishes an exact available old-source baseline, without relabeling prior runs.",
+  "baselineChecks": [
+    {
+      "coverage": "coverage.json",
+      "previousCoveredFiles": 71,
+      "baselineMismatches": []
+    },
+    {
+      "coverage": "composition-coverage.json",
+      "previousCoveredFiles": 73,
+      "baselineMismatches": []
+    }
+  ],
+  "reviewedChanges": [
+    {
+      "file": "src/delivery-acceptance.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Adds requiredSourceIds checking and synthetic per-partition recovery criteria. Authority and LocalEffects finite graph drivers never submit checks. HostRetry submits its original short candidate without partitionRecoveries or any discussion. LocalEffects concrete process bridges do complete an answer/check pair, and SQLite report bridges submit a candidate; all lack discussion/claims. Thus mapRecoveryCriteria returns [] and existing requirements retain their original diagnostic rules.",
+      "previousSha256": "113afdb4cfd2c81c5657b1b26da7ed521f8a85b659b37919d22d11f554a50183",
+      "currentSha256": "dfbf0e5330e6da8c8822186eeccc080da7253818b614e88aaabde38f9d916253",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/delivery-check-delta.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Recovery-bearing candidates now force full check materials. The four finite graph drivers do not execute the independent-check runner. LocalEffects actual process bridges do execute one deterministic check, without a recovery claim or previous check; this new conditional is false. No permit, local effect or retry-batch transition is changed.",
+      "previousSha256": "3d7312d7e63df5bccf24876665a9b62491177f1f67aeedd146bc9c623e3f2e82",
+      "currentSha256": "676f1a53878cf893a1073b6e599a038b099fc26bffc5d7a6e9cc8ee00602c4d1",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/measurement.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Extends a TypeScript union of model output fields with partitionRecoveries; no runtime transition, identity or measurement/accounting statement changes.",
+      "previousSha256": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
+      "currentSha256": "0ceeba39fe20ece308c1a0ed1df3b1438e40052af651f9a0037592f2af1cc773",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/model-adapter.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Adds known-settled Web failure feedback, saved recovery context, validated recovery output and owner/check prompt instructions. The four finite graph drivers invoke TeamEngine/LocalRuntime/CliJournal directly and never OpenAICompatibleAdapter or model HTTP. LocalEffects additionally runs three concrete process bridges through WebService/WorkRunner/real Adapter with an injected deterministic transport returning only answer/check; those cases have no Web output, no discussion and no partitionRecoveries. Thus the new Web loop is outside these graph action alphabets and dormant in the retained bridge requests. Its safety is separately checked by ToolRecovery plus concrete BDD, not inferred from these old graphs.",
+      "previousSha256": "edd9c5251e5e04f823743add1f17f08d7b35928b62c51b7d75fad3358e054c0f",
+      "currentSha256": "5ac886765af4427e8499beb4d08b550eead15d4a5d516b5091336519b76d1a7f",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/runner.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Adds recordToolFailure callback bound to the last authorized Web request, plus validation/projection of optional partitionRecoveries. The finite graph drivers do not instantiate WorkRunner; LocalRuntime binding calls the runtime directly and stops at the launch callback. LocalEffects process bridges run WorkRunner but their deterministic transport emits only answer/check without recovery claims and never authorizes Web requests, so the callback is not invoked. Existing beginExecution/LOCAL_* paths are unchanged.",
+      "previousSha256": "3a184148df3d8f87082e5c4a437fafbd357ad1832aeadb8548d3647622ea8f01",
+      "currentSha256": "e0e6491339ae88926baffc8ec597be99aa1adcb59e09929cf414dd723334939b",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/task/delivery.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "The submission gate calls mapRecoveryProblem, which immediately returns null when claims are absent. Check-result recovery is conditional on a recovery-bearing candidate and a delivered current map round; no such state is reachable in these drivers. HostRetry retains its original candidate and never checks it; authority late-DELIVER probes remain stale and rejected.",
+      "previousSha256": "4894e7492cce51db203d717c3ee6e26c68581180cb68a7ed3ce4ac75d100eecb",
+      "currentSha256": "b38e539124b74974dae3e487f352c113704631fddb9f9ed40c8d72b5d07f7b0b",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/task/lifecycle.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Adds a root RECORD_TOOL_FAILURE valid/apply-or-reject handler. None of these four models/drivers emits that event. Existing ordered always retirement/start, RECOVER, STOP and LOCAL_* handlers are unchanged, so old action-to-transaction correspondence is retained.",
+      "previousSha256": "c64e0a48ab7e08e1b35eed75c1e9c137486018372ad4e0a19645676827f25c7b",
+      "currentSha256": "94963a5125285181fa0c325d3379abb400514289918f75ad0b77f01be792518f",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/task/map-recovery.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "New transitive dependency: pure validation and criteria projection plus resolution writes only after a successful bound recovery check. These drivers have no map discussion; no claim is submitted. Thus new validation/criteria return their empty legacy result and resolveMapRecoveries cannot write a partition resolution or clear incomplete in this finite domain. Hash capture is a drift gate, not proof of recovery semantics.",
+      "previousSha256": null,
+      "currentSha256": "302ffcab7a03cedd8881200692fbbbbc58dc64a491a1ada238ffb40df4b1a6f3",
+      "newTransitiveDependency": true
+    },
+    {
+      "file": "src/task/policy.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Existing LOCAL_* dispatch still returns localEventProblem first. Added DELIVER structural validation accepts omitted claims and the new switch case runs only for RECORD_TOOL_FAILURE; all prior permit, fence, session, approval and request guards for these driver events are unchanged.",
+      "previousSha256": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
+      "currentSha256": "f34c53e815fed60a564f4b4ad454d107ec115b19a1987938241cc23a281b0905",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/task/reducer.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Optional recovery claims are copied on DELIVER only when present; resolveMapRecoveries executes only on successful CHECK_RESULT and returns before writes when no current delivered map round/claims exist; recordToolFailure executes only for the new event. These four finite graph alphabets never reach new writes. LocalEffects process bridge answer/check and report DELIVER omit claims/discussion, so the new calls preserve legacy behavior. HostRetry DELIVER omits claims and asserts complete candidate equality throughout replay.",
+      "previousSha256": "14ec8005c0716a4d66c8ddc3d2f5e51b76ed79bb8a1a3dade95d59164331add1",
+      "currentSha256": "3fb30e8295897c4af5d12a34aae7f0640d858024d89a8139cdd400a1256c5b1e",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/task/tool-recovery.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "New transitive dependency: guards and bounded append of intent.toolRecovery.failures for RECORD_TOOL_FAILURE. It neither modifies local operations/checkpoints/leases nor grants approval or permits. The event is absent from these four graphs; budget and stale-failure combinations are independently modeled by ToolRecovery, not folded into these older domains.",
+      "previousSha256": null,
+      "currentSha256": "d8f30b4b646edd31f625ecd8a46929e025a7232a6ea6d7d3dc5794b4da8193ec",
+      "newTransitiveDependency": true
+    },
+    {
+      "file": "src/types.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Adds optional recovery facts and event/output contracts without changing existing execution tickets, local session/approval identity, local operation status or Store semantics. No default recovery data is inserted into existing intents/candidates.",
+      "previousSha256": "74888f1bf83be204b9dc4184a8e89a8ac61b387cf90947987dbd1f1b6c82e957",
+      "currentSha256": "8e8d85e75b8f5ea7b0ce39d308d88d606fb9a0f02e8491d3741e418d921503f5",
+      "newTransitiveDependency": false
+    }
+  ],
+  "sliceEvidence": [
+    {
+      "entry": "authority",
+      "harness": [
+        ".agents/skills/verify-squad-authority/scripts/replay.mjs:27-40 (public prefix and no-discussion/no-interpretation/source assertions)",
+        ".agents/skills/verify-squad-authority/scripts/replay.mjs:62-73 (all graph edges plus every-node Start/Claim/Approve/WrongApproval probes)",
+        ".agents/skills/verify-squad-authority/scripts/scenarios.mjs:15 (no discussion on every context observation)",
+        ".agents/skills/verify-squad-authority/scripts/runtime-binding.mjs:13-24 (same slice and launch-boundary digest probes)"
+      ],
+      "retained": [
+        "Execution owner attempt=1, one recovery",
+        "Host one old approval and parent attempt, four stages, one expiry, lease competitor",
+        "SessionScope 256 inputs plus revoked projection=512 states",
+        "20 lifecycle instances, 10 runtime input/file variants, 6 real-source control classes"
+      ]
+    },
+    {
+      "entry": "authority-composition",
+      "harness": [
+        "tests/authority-composition-fixture.ts:14-23 (submit/claim/beginExecution/requestLocal/approval public prefix)",
+        "tests/authority-composition-fixture.ts:33-37 (no discussion/hostRetry/sourceArtifact/check/interpretation assertions)",
+        "tests/authority-composition-fixture.ts:28-31 and 55-60 (unchanged complete work/grant/permit/usage/candidate projection for old-command probes)"
+      ],
+      "retained": [
+        "one owner, two parent attempts, one host operation, at most three approval identities",
+        "one queued revocation and one pre-execution recovery",
+        "all marked edges on both stores, 4 witnesses, 4 real-source controls, conditional Progress weak fairness"
+      ]
+    }
+  ],
+  "promise": "No change to these existing finite authority, effect, or retry-batch promises. New bounded ToolRecovery and MapRecovery slices in coordination extensions verify the new state transitions separately.",
+  "modelReview": {
+    "modelsChanged": false,
+    "propertiesChanged": false,
+    "fairnessChanged": false,
+    "boundsReduced": false,
+    "driversChanged": false,
+    "existingRealCodeControlsRetained": true,
+    "unchangedOwners": [
+      "src/task/execution.machine.ts",
+      "src/local-operation.ts",
+      "src/host-session.ts",
+      "src/host-retry.ts",
+      "src/local-cli.ts",
+      "src/local-runtime.ts",
+      "src/engine.ts",
+      "src/store.ts"
+    ],
+    "atomicity": "No covered send/claim/beginExecution transaction was split or combined; journal publication remains separate from task receipt commit. New helpers cannot enter old driver action alphabets."
+  },
+  "originalAsIs": [
+    {
+      "entry": "authority",
+      "evidence": "reports/kej-111-original-authority",
+      "exitCode": 1,
+      "status": "blocked",
+      "error": "Covered source drift: review correspondence before updating hashes"
+    },
+    {
+      "entry": "authority-composition",
+      "evidence": "reports/kej-111-original-authority-composition",
+      "exitCode": 1,
+      "status": "blocked",
+      "error": "BLOCKED: review implementation drift before advancing coverage"
+    }
+  ],
+  "finalRuns": {
+    "authority": {
+      "name": "authority",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-authority/scripts/check.py",
+        "--jar",
+        "/workspace/squad/work/kej-110-deps/tla2tools.jar",
+        "--evidence",
+        "reports/kej-111-final-authority"
+      ],
+      "exitCode": 0,
+      "seconds": 52.068,
+      "log": "work/kej-111-formal/final-authority.log",
+      "evidence": "reports/kej-111-final-authority",
+      "status": "verified",
+      "cleanup": true,
+      "readbackExitCode": 0,
+      "independentReadback": {
+        "name": "authority-readback",
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-authority/scripts/check.py",
+          "--verify-evidence",
+          "reports/kej-111-final-authority"
+        ],
+        "exitCode": 0,
+        "seconds": 0.064,
+        "log": "work/kej-111-formal/final-authority-readback.log"
+      },
+      "rawArtifactCount": 139,
+      "manifestSha256": "b16c9c7e1fbfc8aca7b5724571e75f33c000af3f01dc2e219f5fce748c887729",
+      "sourceCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+      "coveredFilesUnchanged": true,
+      "steps": 34,
+      "models": {
+        "execution": {
+          "counts": [
+            20,
+            8,
+            0
+          ],
+          "states": 8,
+          "edges": 19
+        },
+        "host": {
+          "counts": [
+            175,
+            48,
+            0
+          ],
+          "states": 48,
+          "edges": 174
+        }
+      },
+      "scopeStates": 512,
+      "lifecycleInstances": 20,
+      "runtimeBindingVariants": 10,
+      "realSourceControls": [
+        "one-use",
+        "approval-identity",
+        "lease-exclusion",
+        "approval-expiry",
+        "session-namespace",
+        "command-digest"
+      ]
+    },
+    "authority-composition": {
+      "name": "authority-composition",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+        "--jar",
+        "/workspace/squad/work/kej-110-deps/tla2tools.jar",
+        "--evidence",
+        "reports/kej-111-final-authority-composition"
+      ],
+      "exitCode": 0,
+      "seconds": 31.927,
+      "log": "work/kej-111-formal/final-authority-composition.log",
+      "evidence": "reports/kej-111-final-authority-composition",
+      "status": "verified",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true
+      },
+      "readbackExitCode": 0,
+      "independentReadback": {
+        "name": "authority-composition-readback",
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+          "--verify-evidence",
+          "reports/kej-111-final-authority-composition"
+        ],
+        "exitCode": 0,
+        "seconds": 0.058,
+        "log": "work/kej-111-formal/final-authority-composition-readback.log"
+      },
+      "rawArtifactCount": 191,
+      "manifestSha256": "f4df2ed0d25532b44b11bc026793b1875aceb255879fe1bccabdc63856ffc062",
+      "sourceCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+      "coveredFilesUnchanged": true,
+      "baseline": [
+        {
+          "domain": "approval",
+          "model": {
+            "exitCode": 0,
+            "command": [
+              "java",
+              "-Djava.io.tmpdir=/workspace/squad/reports/kej-111-final-authority-composition/baseline/approval/java-tmp",
+              "-XX:+UseParallelGC",
+              "-Xmx512m",
+              "-jar",
+              "/workspace/squad/work/kej-110-deps/tla2tools.jar",
+              "-workers",
+              "1",
+              "-seed",
+              "1",
+              "-metadir",
+              "/workspace/squad/reports/kej-111-final-authority-composition/baseline/approval/states",
+              "-dump",
+              "dot,actionlabels",
+              "/workspace/squad/reports/kej-111-final-authority-composition/baseline/approval/graph.dot",
+              "-config",
+              "ApprovalComposition.cfg",
+              "ApprovalComposition.tla"
+            ],
+            "witness": null,
+            "counts": [
+              183,
+              36,
+              0
+            ]
+          },
+          "replay": {
+            "status": "verified",
+            "graphStates": 36,
+            "graphEdges": 182,
+            "backends": [
+              {
+                "name": "memory",
+                "replayedEdges": 182,
+                "status": "verified"
+              },
+              {
+                "name": "sqlite",
+                "replayedEdges": 182,
+                "status": "verified"
+              }
+            ],
+            "exitCode": 0
+          }
+        }
+      ],
+      "restored": [
+        {
+          "domain": "approval",
+          "model": {
+            "exitCode": 0,
+            "command": [
+              "java",
+              "-Djava.io.tmpdir=/workspace/squad/reports/kej-111-final-authority-composition/restored/approval/java-tmp",
+              "-XX:+UseParallelGC",
+              "-Xmx512m",
+              "-jar",
+              "/workspace/squad/work/kej-110-deps/tla2tools.jar",
+              "-workers",
+              "1",
+              "-seed",
+              "1",
+              "-metadir",
+              "/workspace/squad/reports/kej-111-final-authority-composition/restored/approval/states",
+              "-dump",
+              "dot,actionlabels",
+              "/workspace/squad/reports/kej-111-final-authority-composition/restored/approval/graph.dot",
+              "-config",
+              "ApprovalComposition.cfg",
+              "ApprovalComposition.tla"
+            ],
+            "witness": null,
+            "counts": [
+              183,
+              36,
+              0
+            ]
+          },
+          "replay": {
+            "status": "verified",
+            "graphStates": 36,
+            "graphEdges": 182,
+            "backends": [
+              {
+                "name": "memory",
+                "replayedEdges": 182,
+                "status": "verified"
+              },
+              {
+                "name": "sqlite",
+                "replayedEdges": 182,
+                "status": "verified"
+              }
+            ],
+            "exitCode": 0
+          }
+        }
+      ],
+      "witnesses": [
+        "NeverReapproved",
+        "NeverFreshAttempt",
+        "NeverFreshStart",
+        "NeverRevokedRecovered"
+      ],
+      "realSourceControls": [
+        "approval-identity",
+        "parent-attempt",
+        "one-use-new-permit",
+        "revoked-session"
+      ]
+    }
+  },
+  "verification": "Every assigned full entrypoint passed on frozen c239 product bytes, including existing model/source negative controls, restored model/code replay, fresh independent reader and applicable reader fault controls. Covered sources stayed unchanged. No real product bug found by these old finite slices.",
+  "limitations": "No proof of model decision quality, external HTTP/provider liveness, arbitrary Web feedback combined with host operations, arbitrary map recovery combined with host effects, infinite failures or OS/hardware correctness. New dependency hashes alone do not extend old model guarantees.",
+  "syncPolicy": "Parent centrally reviews and updates candidate pins. syncCommit stays old until all nine complete frozen-source CI entrypoints and independent evidence readers pass. No prior-source proof is transplanted.",
+  "outcome": "in sync",
+  "verificationChanges": "Correspondence review and conservative transitive dependency fingerprints only; no model, property, domain, fairness, driver or control weakened or changed.",
+  "syncNote": "These entries are verified. Parent retains old syncCommit until all nine entrypoints and readers pass; subsequent metadata synchronization is not another complete run and does not relabel older source evidence."
+}

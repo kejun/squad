@@ -100,3 +100,5 @@ PR40 产品源码对应审查基线为 `21ee46039f594d9b93d400bf703e14d42fab2b0e
 独立审查补强：新负控的原始JSON/log/diff与回放fixture正文均为读回必需输入；不能只保留run摘要并重签manifest。运行 `python3 .agents/skills/verify-squad-delivery/scripts/composition-evidence-controls.py "$SQUAD_DELIVERY_EVIDENCE" --output /absolute/path/evidence-controls.json` 可检验新增与原Delivery域十一种自洽缺件/性质移除/摘要冲突均被拒绝。该检验只复制/修改临时证据副本，不触碰产品或正本。
 
 KEJ-110 当前受审产品为 `615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9`；本轮逐文件审查、明确改变的预算承诺（如适用）、完整正向/真实负对照/原版复验与独立读回见[KEJ-110审查](references/drift-review-kej-110.json)。仅在全部九个CI形式化入口成功后推进同步元数据；此同步操作不是额外完整复跑，新功能的语义与真实模型供应商行为仍由独立验收负责。
+
+KEJ-111 受审产品为 `c239dd39d86f143a2f435f48590c648b20745b8b`。原 Delivery、Verification、Cycles、SourceLineage 模型及其性质、边界、公平性和回放保持；这些公开前缀没有map轮次或恢复声明，不发送新增工具失败事件，也不运行模型Web调用。新增map恢复会有意改变该域之外的发布资格，不能把原Delivery通过扩展为恢复语义证明。逐项对应、新纯依赖、精确源码完整运行与独立读回状态见[KEJ-111审查](references/drift-review-kej-111.json)；新ToolRecovery、MapRecovery有限切片由coordination扩展入口执行。pending/blocked不表示通过，所有九个入口成功后才推进同步。

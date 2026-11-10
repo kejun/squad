@@ -1,0 +1,1212 @@
+{
+  "issue": "KEJ-111",
+  "outcome": "updated",
+  "previousSyncCommit": "615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9",
+  "verifiedEquivalentAvailableBaseline": "49d2bc0ec61df94581cc52aef48725b040ea8603",
+  "reviewedProductCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+  "reviewedCommits": [
+    {
+      "commit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+      "subject": "修复工具失败恢复与负责人补齐分片后的交付结算（KEJ-111）",
+      "intentEvidence": [
+        "features/51_tool_recovery.feature @BT_M52-@BT_M59",
+        "features/52_map_recovery.feature @BT_Q36-@BT_Q48"
+      ]
+    }
+  ],
+  "scope": "Maintain the original finite Handoff/A2 and Delivery/Verification/Cycles/SourceLineage correspondence; no expansion to Web adapter I/O or recovered map publication. Two separate coordination extension slices model the new bounded lifecycles.",
+  "coverageReviews": {
+    "delivery": {
+      "coveragePath": ".agents/skills/verify-squad-delivery/references/coverage.json",
+      "oldFileCount": 71,
+      "oldPinsAllEqualAvailableBaseline": true,
+      "changedExistingFiles": [
+        "src/delivery-acceptance.ts",
+        "src/delivery-check-delta.ts",
+        "src/measurement.ts",
+        "src/model-adapter.ts",
+        "src/runner.ts",
+        "src/task/delivery.ts",
+        "src/task/lifecycle.ts",
+        "src/task/policy.ts",
+        "src/task/reducer.ts",
+        "src/types.ts"
+      ],
+      "unchangedFiles": [
+        {
+          "file": "package-lock.json",
+          "sha256": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9"
+        },
+        {
+          "file": "package.json",
+          "sha256": "3116143dffa7c27a4fc9a8892e08603d754bc5e2f506752b500d874befb0ab3c"
+        },
+        {
+          "file": "src/artifact-request.ts",
+          "sha256": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd"
+        },
+        {
+          "file": "src/assistance-retry.ts",
+          "sha256": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2"
+        },
+        {
+          "file": "src/catalog-search.ts",
+          "sha256": "94f713cda0ee9f6e817b0e2682d91ee6efa555d18e677421d3f241eab37eda3f"
+        },
+        {
+          "file": "src/cli-catalog.ts",
+          "sha256": "dc8cb8346a3e5c33ff69deff7ffea77d8f0761993db055a73a913f45ced0e29e"
+        },
+        {
+          "file": "src/conversation.ts",
+          "sha256": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853"
+        },
+        {
+          "file": "src/darwin-process.ts",
+          "sha256": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b"
+        },
+        {
+          "file": "src/engine.ts",
+          "sha256": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1"
+        },
+        {
+          "file": "src/evidence-reader.ts",
+          "sha256": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e"
+        },
+        {
+          "file": "src/host-capabilities.ts",
+          "sha256": "887050d6c668a648c8e61f21503aa4322870e6139c10b9b05b8be2a804625414"
+        },
+        {
+          "file": "src/host-retry.ts",
+          "sha256": "912367bbab70879c8a67e60e324a31aa46aa1dda76de27f694fc4249ae743f4a"
+        },
+        {
+          "file": "src/host-session.ts",
+          "sha256": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab"
+        },
+        {
+          "file": "src/index.ts",
+          "sha256": "79ef24ede132e36388df54ccbb8e6e48efc472adff3c13d57f68ce745b98e331"
+        },
+        {
+          "file": "src/input-intent.ts",
+          "sha256": "8c2886e4b9054655203f5b72fc357aaab0d3502927320b722f9fa196a951d266"
+        },
+        {
+          "file": "src/inspector.machine.ts",
+          "sha256": "0c9ba840dd017b3149dfae33186ea850376c35048eb43da52a57a8618cc000f5"
+        },
+        {
+          "file": "src/local-cli.ts",
+          "sha256": "db577455e9fb60f5d12e0cc6af6980c52eec7f8fbec0cbc3ff3a34223092e69e"
+        },
+        {
+          "file": "src/local-operation.ts",
+          "sha256": "7f635776d9c0ceabb69074af06f03c0ea05a24270720cbfea16ee29a980f8f2c"
+        },
+        {
+          "file": "src/local-runtime.ts",
+          "sha256": "09c7050c7214d6b4a1c7da87bb1859c1323c036c666d66bc80970e06b2cf3a32"
+        },
+        {
+          "file": "src/local-skills.ts",
+          "sha256": "8f1548221fab864d3c33c397b814d6d883ed7e0783da41de48e748f92df4701f"
+        },
+        {
+          "file": "src/measurement-report.ts",
+          "sha256": "62a9010d7a112c52f7e93b6e21d5fcb6a6e6a8011c4852784dd44b811a196183"
+        },
+        {
+          "file": "src/model-config.ts",
+          "sha256": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e"
+        },
+        {
+          "file": "src/model-env.ts",
+          "sha256": "7f8bb277dab42d749c82dab229d66cbb508e1af83b78986895da41956a9e6cf0"
+        },
+        {
+          "file": "src/presentation.ts",
+          "sha256": "1ffa66657884dffe98cceb1166485df99541aee762a53cfaa3a57de69af896d8"
+        },
+        {
+          "file": "src/room.machine.ts",
+          "sha256": "1f2acd3d217731acd39b4258e0148b65b600f2b8cd7ae8cdcee8f047d8b696ab"
+        },
+        {
+          "file": "src/skills.ts",
+          "sha256": "81bf7ae230a719f046a0caced6c0293807f259c4d500349c7a78ecdfbbf1e111"
+        },
+        {
+          "file": "src/source-artifact.ts",
+          "sha256": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4"
+        },
+        {
+          "file": "src/source-claims.ts",
+          "sha256": "9e4dbb2f07d5d0315dc0be5a66ca5042602121651e6be4225dee6982727e289c"
+        },
+        {
+          "file": "src/source-items.ts",
+          "sha256": "8a9f1e122ce69c05b3f41a776c7bf75fcf7253f6dc022115ad8097da37343f28"
+        },
+        {
+          "file": "src/store.ts",
+          "sha256": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239"
+        },
+        {
+          "file": "src/task-chart.ts",
+          "sha256": "98c932c3b32c93d5993faae1e1b7e2b6f02d626a30bec67ce64cb3aa6c554799"
+        },
+        {
+          "file": "src/task-debug-view.ts",
+          "sha256": "07d9f35a00ddb51307d58a70e2a75fba31d60ebc5e151f1fb1fb26d7a80720a3"
+        },
+        {
+          "file": "src/task-debug.ts",
+          "sha256": "38dd3bf387bd69f1caf7f7aeb0f539a8b9d2361ee63ca56dc5c555714fbcaa89"
+        },
+        {
+          "file": "src/task-inspection.ts",
+          "sha256": "a66a44d5b85f487b60ee33985fd9af54064bbacc6951dd47e7aaf3127a2fabd5"
+        },
+        {
+          "file": "src/task-structure.ts",
+          "sha256": "03f4fdd3056848007d83d8381fb5f21df12fdd4dd3ea65a7dbfe87fdcde9a87a"
+        },
+        {
+          "file": "src/task.machine.ts",
+          "sha256": "a147ecce5aa608c858150da78ccdb3d84a6a39737cf69f33f33b62744b3aec6c"
+        },
+        {
+          "file": "src/task/actions.ts",
+          "sha256": "ea83801f566c9a457aafd351b6f23639bb836da9f2efcb789e3740b1776671bd"
+        },
+        {
+          "file": "src/task/assistance.ts",
+          "sha256": "d472d9c7422118a217d23ef0019831ad1598e3d9137da794830f39ac286ee6df"
+        },
+        {
+          "file": "src/task/budget.ts",
+          "sha256": "8bc89ad5e0b4af104fc8d3c82d5c8f6fa9c16a83e34039e577c48ee05379f6e4"
+        },
+        {
+          "file": "src/task/context.ts",
+          "sha256": "e5efe2a6ca63f8c4835a18fb93737cb1c3d94ff96e972fc3f0b537fc821fba08"
+        },
+        {
+          "file": "src/task/delivery-cycle.ts",
+          "sha256": "b2e027c05c8a5b4762dbfb05b3f159f11e0c8f37356b381542d5657d6d9e0994"
+        },
+        {
+          "file": "src/task/discussion.ts",
+          "sha256": "91545a2d721deaaec705c3590fc985f68c1a83c32cb20aa1d182bcc460b58ca2"
+        },
+        {
+          "file": "src/task/evidence.ts",
+          "sha256": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e"
+        },
+        {
+          "file": "src/task/execution.machine.ts",
+          "sha256": "7ed6793adbd8413de0c53161ea8adbe6bdcb29eae910864ccd01e29baf68fcff"
+        },
+        {
+          "file": "src/task/facts.ts",
+          "sha256": "7d29345b1e74ed3ffcb70cd592161d2d1728f7c57d3c3b7b4eb91f84cc9cd273"
+        },
+        {
+          "file": "src/task/guards.ts",
+          "sha256": "8b26dc562f769117962e72c9d68804bc0ca10db4274fa944750e6a8a774e7553"
+        },
+        {
+          "file": "src/task/input.ts",
+          "sha256": "369fd09eab97fbec1d5ed8c801f11f30a72c675b45e89c57349ebbe0f770e608"
+        },
+        {
+          "file": "src/task/map-queue.ts",
+          "sha256": "8aa95a725bf9d43f3340f519d0e0ffa928893371100ad24d4f49ea3174150e54"
+        },
+        {
+          "file": "src/task/map-reduce-capacity.ts",
+          "sha256": "565fee8a9b59523339f0548e41002560a83a48a85ec4b0aedfa121cf39e3239a"
+        },
+        {
+          "file": "src/task/map-reduce.ts",
+          "sha256": "8409db33692155fbf5b18383a54991087ecbb334bc26a4cfbe2f99cfb7c6c74b"
+        },
+        {
+          "file": "src/task/operations.ts",
+          "sha256": "67713454a5f4be40770f185ffa864ae6084b82bfc71075406234ec0fdcf1d386"
+        },
+        {
+          "file": "src/task/protocol.ts",
+          "sha256": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936"
+        },
+        {
+          "file": "src/task/tool-knowledge.ts",
+          "sha256": "75027f3c4001d3ad42d459953f1909800b2b29e8d657ddbeb13e71a398fd2987"
+        },
+        {
+          "file": "src/task/verification.ts",
+          "sha256": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24"
+        },
+        {
+          "file": "src/web-tools.ts",
+          "sha256": "aefd3b4625fada48ef66e821bd6252c6b0dae9e454a8799f4c0c321efc531840"
+        },
+        {
+          "file": "src/web/contracts.ts",
+          "sha256": "41d69f61d23bbd57913a2ba382dc12b12f3d795eb4a69ed0e8ddfaa4d2de8d69"
+        },
+        {
+          "file": "src/web/debug-journal.ts",
+          "sha256": "5473cefd6b2f382f6a2d6a5928803569a19e09ceef4efd4a47d60a4b636a65c7"
+        },
+        {
+          "file": "src/web/http.ts",
+          "sha256": "0353bf851274b11b4c31d6adf0cc60c62e49883541e6d1e2c67a6904e50bd3ad"
+        },
+        {
+          "file": "src/web/service-lifecycle.ts",
+          "sha256": "265e659384eaae1770fbefa71c632e060cded863b47768f7292cd8151fd561db"
+        },
+        {
+          "file": "src/web/service.ts",
+          "sha256": "615cbde81c144c593435b24e454dd5871e255952d8c44d6ff78917118185655e"
+        },
+        {
+          "file": "team.config.ts",
+          "sha256": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb"
+        }
+      ],
+      "newPureDependenciesToGate": [
+        "src/task/map-recovery.ts",
+        "src/task/tool-recovery.ts"
+      ]
+    }
+  },
+  "changes": [
+    {
+      "file": "src/delivery-acceptance.ts",
+      "classification": "no-effect-within-reviewed-finite-domains",
+      "reason": "deliveryPreflight appends recovery criteria only from claims in a current delivered map round. Existing DELIVER fixtures omit partitionRecoveries, so mapRecoveryCriteria returns []; requiredSourceIds is absent and judgmentsDiagnostic preserves the original optional citation checks. Handoff has no candidate/check at all.",
+      "oldSha256": "113afdb4cfd2c81c5657b1b26da7ed521f8a85b659b37919d22d11f554a50183",
+      "reviewedSha256": "dfbf0e5330e6da8c8822186eeccc080da7253818b614e88aaabde38f9d916253",
+      "newDependency": false,
+      "coveredByExistingEntries": [
+        "delivery"
+      ]
+    },
+    {
+      "file": "src/delivery-check-delta.ts",
+      "classification": "no-effect-within-reviewed-finite-domains",
+      "reason": "Recovery claims force complete materials. No assigned fixture creates claims; original publication graphs inject CHECK_RESULT through engine and do not call the model material projection. The handoff RunnerProgress probe consumes before adapter execution.",
+      "oldSha256": "3d7312d7e63df5bccf24876665a9b62491177f1f67aeedd146bc9c623e3f2e82",
+      "reviewedSha256": "676f1a53878cf893a1073b6e599a038b099fc26bffc5d7a6e9cc8ee00602c4d1",
+      "newDependency": false,
+      "coveredByExistingEntries": [
+        "delivery"
+      ]
+    },
+    {
+      "file": "src/measurement.ts",
+      "classification": "no-effect-within-reviewed-finite-domains",
+      "reason": "Only extends the ModelOutputField union with partitionRecoveries; no runtime calculation or publication/consumption write changes.",
+      "oldSha256": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
+      "reviewedSha256": "0ceeba39fe20ece308c1a0ed1df3b1438e40052af651f9a0037592f2af1cc773",
+      "newDependency": false,
+      "coveredByExistingEntries": [
+        "delivery"
+      ]
+    },
+    {
+      "file": "src/model-adapter.ts",
+      "classification": "intentional-new-behavior-outside-original-domains",
+      "reason": "Adds output validation/guidance and the known settled Web failure catch-and-feedback loop. Assigned graph replays never invoke OpenAICompatibleAdapter or Web transport; the handoff runner probe uses a throwing adapter and succeeds before any execute call. These new runtime behaviors are explicitly outside the old graphs, with separate ToolRecovery/MapRecovery and BT_M52-M59/BT_Q36-Q48 evidence.",
+      "oldSha256": "edd9c5251e5e04f823743add1f17f08d7b35928b62c51b7d75fad3358e054c0f",
+      "reviewedSha256": "5ac886765af4427e8499beb4d08b550eead15d4a5d516b5091336519b76d1a7f",
+      "newDependency": false,
+      "coveredByExistingEntries": [
+        "delivery"
+      ]
+    },
+    {
+      "file": "src/runner.ts",
+      "classification": "no-effect-within-reviewed-finite-domains",
+      "reason": "New callback binds a paid Web request to RECORD_TOOL_FAILURE and carries optional claims into DELIVER; no change to runOne initial flushResults. The sole concrete runner probe exits after saved-result consumption and forbids adapter execute. Delivery and A2 replays use direct public engine events, so no callback or output conversion executes.",
+      "oldSha256": "3a184148df3d8f87082e5c4a437fafbd357ad1832aeadb8548d3647622ea8f01",
+      "reviewedSha256": "e0e6491339ae88926baffc8ec597be99aa1adcb59e09929cf414dd723334939b",
+      "newDependency": false,
+      "coveredByExistingEntries": [
+        "delivery"
+      ]
+    },
+    {
+      "file": "src/task/delivery.ts",
+      "classification": "no-effect-within-reviewed-finite-domains",
+      "reason": "Adds mapRecoveryProblem at submission, mapRecoveryCheckProblem before inspection and uncoveredMapRecoveries before complete, plus ordinary-review-first handling. For no claims/no map round all three helpers return null or []; original source snapshot, candidateRevision, verification, budget and publication checks remain. All assigned delivery fixtures have no map round and omit claims. This conclusion does not generalize the original publication proof to recovered maps.",
+      "oldSha256": "4894e7492cce51db203d717c3ee6e26c68581180cb68a7ed3ce4ac75d100eecb",
+      "reviewedSha256": "b38e539124b74974dae3e487f352c113704631fddb9f9ed40c8d72b5d07f7b0b",
+      "newDependency": false,
+      "coveredByExistingEntries": [
+        "delivery"
+      ]
+    },
+    {
+      "file": "src/task/lifecycle.ts",
+      "classification": "no-effect-within-reviewed-finite-domains",
+      "reason": "Registers RECORD_TOOL_FAILURE as a guarded event. Original Handoff, A2 and four delivery graph action alphabets never send it, and the new pure action does not run on existing events. No existing transition target or guard order changed.",
+      "oldSha256": "c64e0a48ab7e08e1b35eed75c1e9c137486018372ad4e0a19645676827f25c7b",
+      "reviewedSha256": "94963a5125285181fa0c325d3379abb400514289918f75ad0b77f01be792518f",
+      "newDependency": false,
+      "coveredByExistingEntries": [
+        "delivery"
+      ]
+    },
+    {
+      "file": "src/task/map-recovery.ts",
+      "classification": "intentional-new-behavior-outside-original-domains",
+      "reason": "New pure dependency imported by already-covered policy, reducer, delivery and acceptance. It validates current owner claims and complete frozen CLI sources, creates mandatory citation criteria, and writes resolution/clears incomplete only after bound complete. Existing fixtures have neither claims nor map rounds, so invoked helpers return early with no state writes. New map behavior intentionally changes publication eligibility for recovered maps outside assigned old domains; coordination MapRecovery is its finite proof slice.",
+      "oldSha256": null,
+      "reviewedSha256": "302ffcab7a03cedd8881200692fbbbbc58dc64a491a1ada238ffb40df4b1a6f3",
+      "newDependency": true,
+      "coveredByExistingEntries": []
+    },
+    {
+      "file": "src/task/policy.ts",
+      "classification": "no-effect-within-reviewed-finite-domains",
+      "reason": "Adds claim-shape validation only for DELIVER, where undefined remains valid, and one RECORD_TOOL_FAILURE branch. Assigned fixtures omit claims and that event. Existing freshness, attempt, stopped, help/retry and bound-check guards are unchanged.",
+      "oldSha256": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
+      "reviewedSha256": "f34c53e815fed60a564f4b4ad454d107ec115b19a1987938241cc23a281b0905",
+      "newDependency": false,
+      "coveredByExistingEntries": [
+        "delivery"
+      ]
+    },
+    {
+      "file": "src/task/reducer.ts",
+      "classification": "no-effect-within-reviewed-finite-domains",
+      "reason": "Copies optional claims in the same DELIVER transaction, records feedback only on the new event, and calls resolveMapRecoveries immediately before finish in the same accepted complete transaction. With no map/claims the resolver returns without writes; RECORD_RESULT/HELP_RESULT consumption, owner continuation, STOP/CONTINUE/RECOVER and Store.transact boundaries remain unchanged.",
+      "oldSha256": "14ec8005c0716a4d66c8ddc3d2f5e51b76ed79bb8a1a3dade95d59164331add1",
+      "reviewedSha256": "3fb30e8295897c4af5d12a34aae7f0640d858024d89a8139cdd400a1256c5b1e",
+      "newDependency": false,
+      "coveredByExistingEntries": [
+        "delivery"
+      ]
+    },
+    {
+      "file": "src/task/tool-recovery.ts",
+      "classification": "intentional-new-behavior-outside-original-domains",
+      "reason": "New pure dependency imported by already-covered policy/reducer and runner/adapter. It accepts only canonical known failures with exact consumed request, current attempt/fence, remaining budget and replay/effect/capability/deadline guards; feedback history has max two. The old assigned event alphabets never send RECORD_TOOL_FAILURE, so this helper is not a new path inside their domain. Coordination ToolRecovery and direct product acceptance cover the added path separately.",
+      "oldSha256": null,
+      "reviewedSha256": "d8f30b4b646edd31f625ecd8a46929e025a7232a6ea6d7d3dc5794b4da8193ec",
+      "newDependency": true,
+      "coveredByExistingEntries": []
+    },
+    {
+      "file": "src/types.ts",
+      "classification": "no-effect-within-reviewed-finite-domains",
+      "reason": "Adds canonical failure enums plus optional toolRecovery, candidate.partitionRecoveries, partition.resolution and new event/claim type contracts. Existing fixture objects omit new optional fields; no runtime transition is created by these declarations.",
+      "oldSha256": "74888f1bf83be204b9dc4184a8e89a8ac61b387cf90947987dbd1f1b6c82e957",
+      "reviewedSha256": "8e8d85e75b8f5ea7b0ce39d308d88d606fb9a0f02e8491d3741e418d921503f5",
+      "newDependency": false,
+      "coveredByExistingEntries": [
+        "delivery"
+      ]
+    }
+  ],
+  "initialAsIsChecks": [
+    {
+      "name": "delivery",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-delivery/scripts/check.py",
+        "--jar",
+        "/workspace/squad/work/kej-110-deps/tla2tools.jar",
+        "--evidence",
+        "reports/kej-111-original-delivery"
+      ],
+      "exitCode": 1,
+      "evidence": "reports/kej-111-original-delivery",
+      "status": "blocked",
+      "error": "BLOCKED: code correspondence review required: src/types.ts, src/task/policy.ts, src/task/reducer.ts, src/task/lifecycle.ts"
+    }
+  ],
+  "verificationChanges": {
+    "modelsPropertiesBoundsAndFairness": "unchanged",
+    "harnesses": "unchanged; source review checks public prefixes and complete action alphabets against helper entry conditions",
+    "metadata": "record reviewed no-effect paths and add two pure dependency pins centrally; sync remains old until all nine final entrypoints succeed"
+  },
+  "validation": {
+    "status": "verified",
+    "exactProductSource": "c239dd39d86f143a2f435f48590c648b20745b8b",
+    "runs": {
+      "delivery": {
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-delivery/scripts/check.py",
+          "--jar",
+          "/workspace/squad/work/kej-110-deps/tla2tools.jar",
+          "--evidence",
+          "reports/kej-111-final-delivery"
+        ],
+        "exitCode": 0,
+        "seconds": 131.937,
+        "evidence": "reports/kej-111-final-delivery",
+        "source": "c239dd39d86f143a2f435f48590c648b20745b8b",
+        "capturedSyncCommit": "615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9",
+        "status": "verified",
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "evidenceRetained": true,
+          "checkerInputsUnchanged": true
+        },
+        "readback": {
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-delivery/scripts/check.py",
+            "--verify-evidence",
+            "reports/kej-111-final-delivery"
+          ],
+          "exitCode": 0,
+          "rawArtifactCount": 290,
+          "output": "Evidence verified: 290 artifacts"
+        },
+        "evidenceManifestSha256": "503465cf301427c11fa5470a6187f8e303a94678a35916835caade7e0ab7b92d",
+        "baselineCounts": [
+          80,
+          31,
+          0
+        ],
+        "restoredCounts": [
+          80,
+          31,
+          0
+        ],
+        "implementation": {
+          "status": "verified",
+          "graphStates": 31,
+          "graphEdges": 79,
+          "backends": [
+            {
+              "backend": "memory",
+              "edgesReplayed": 79,
+              "snapshotCases": 9
+            },
+            {
+              "backend": "sqlite",
+              "edgesReplayed": 79,
+              "snapshotCases": 9
+            }
+          ],
+          "scratchRemoved": true,
+          "exitCode": 0,
+          "seconds": 3.2555599749994144,
+          "command": [
+            "node",
+            "--import",
+            "/workspace/squad/node_modules/tsx/dist/loader.mjs",
+            "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/compare.mjs",
+            "/workspace/squad",
+            "/workspace/squad/reports/kej-111-final-delivery/baseline/graph.dot",
+            "/workspace/squad/reports/kej-111-final-delivery/baseline-code.json",
+            "both"
+          ]
+        },
+        "restoredImplementation": {
+          "status": "verified",
+          "graphStates": 31,
+          "graphEdges": 79,
+          "backends": [
+            {
+              "backend": "memory",
+              "edgesReplayed": 79,
+              "snapshotCases": 9
+            },
+            {
+              "backend": "sqlite",
+              "edgesReplayed": 79,
+              "snapshotCases": 9
+            }
+          ],
+          "scratchRemoved": true,
+          "exitCode": 0,
+          "seconds": 2.656055011000717,
+          "command": [
+            "node",
+            "--import",
+            "/workspace/squad/node_modules/tsx/dist/loader.mjs",
+            "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/compare.mjs",
+            "/workspace/squad",
+            "/workspace/squad/reports/kej-111-final-delivery/restored/graph.dot",
+            "/workspace/squad/reports/kej-111-final-delivery/restored-code.json",
+            "both"
+          ]
+        },
+        "negativeControls": {
+          "drop-final": {
+            "property": "AtomicPublication",
+            "stores": {
+              "memory": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: AtomicPublication: published delivery lacks exactly one final message"
+              },
+              "sqlite": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: AtomicPublication: published delivery lacks exactly one final message"
+              }
+            },
+            "modelViolation": null
+          },
+          "accept-stale": {
+            "property": "CurrentCandidate",
+            "stores": {
+              "memory": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: CurrentCandidate: stale candidate judgment published"
+              },
+              "sqlite": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: CurrentCandidate: stale candidate judgment published"
+              }
+            },
+            "modelViolation": null
+          },
+          "skip-snapshot": {
+            "property": "SnapshotBinding",
+            "stores": {
+              "memory": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: SnapshotBinding: content changed without invalidating frozen evidence"
+              },
+              "sqlite": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: SnapshotBinding: content changed without invalidating frozen evidence"
+              }
+            },
+            "modelViolation": null
+          }
+        },
+        "composition": {
+          "Verification": {
+            "baselineCounts": [
+              92,
+              47,
+              0
+            ],
+            "restoredCounts": [
+              92,
+              47,
+              0
+            ],
+            "implementation": {
+              "status": "verified",
+              "model": "Verification",
+              "graphStates": 47,
+              "graphEdges": 91,
+              "actions": [
+                "ChangeWorkspace",
+                "ClaimValidation",
+                "ClaimVersion",
+                "Consume",
+                "ConsumeEarly",
+                "FailVersionWork",
+                "FailWork",
+                "Late",
+                "ModelResult",
+                "Publish",
+                "PublishWithoutVersion",
+                "Reopen",
+                "RequestValidation",
+                "RequestVersion",
+                "Rollback",
+                "StartValidation",
+                "StartVersion",
+                "Stop",
+                "ValidationFailed",
+                "ValidationPassed",
+                "VersionFailure",
+                "VersionResult"
+              ],
+              "backends": [
+                {
+                  "backend": "memory",
+                  "edgesReplayed": 91
+                },
+                {
+                  "backend": "sqlite",
+                  "edgesReplayed": 91
+                }
+              ],
+              "scratchRemoved": true,
+              "command": [
+                "node",
+                "--import",
+                "/workspace/squad/node_modules/tsx/dist/loader.mjs",
+                "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/composition-replay.mjs",
+                "/workspace/squad",
+                "/workspace/squad/reports/kej-111-final-delivery/composition/Verification/baseline/graph.dot",
+                "/workspace/squad/reports/kej-111-final-delivery/composition/Verification/baseline-code.json",
+                "both",
+                "Verification"
+              ],
+              "exitCode": 0,
+              "seconds": 3.6896547300002567
+            },
+            "restoredImplementation": {
+              "status": "verified",
+              "model": "Verification",
+              "graphStates": 47,
+              "graphEdges": 91,
+              "actions": [
+                "ChangeWorkspace",
+                "ClaimValidation",
+                "ClaimVersion",
+                "Consume",
+                "ConsumeEarly",
+                "FailVersionWork",
+                "FailWork",
+                "Late",
+                "ModelResult",
+                "Publish",
+                "PublishWithoutVersion",
+                "Reopen",
+                "RequestValidation",
+                "RequestVersion",
+                "Rollback",
+                "StartValidation",
+                "StartVersion",
+                "Stop",
+                "ValidationFailed",
+                "ValidationPassed",
+                "VersionFailure",
+                "VersionResult"
+              ],
+              "backends": [
+                {
+                  "backend": "memory",
+                  "edgesReplayed": 91
+                },
+                {
+                  "backend": "sqlite",
+                  "edgesReplayed": 91
+                }
+              ],
+              "scratchRemoved": true,
+              "command": [
+                "node",
+                "--import",
+                "/workspace/squad/node_modules/tsx/dist/loader.mjs",
+                "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/composition-replay.mjs",
+                "/workspace/squad",
+                "/workspace/squad/reports/kej-111-final-delivery/composition/Verification/restored/graph.dot",
+                "/workspace/squad/reports/kej-111-final-delivery/composition/Verification/restored-code.json",
+                "both",
+                "Verification"
+              ],
+              "exitCode": 0,
+              "seconds": 3.953636293999807
+            },
+            "witnessCount": 4
+          },
+          "Cycles": {
+            "baselineCounts": [
+              204,
+              79,
+              0
+            ],
+            "restoredCounts": [
+              204,
+              79,
+              0
+            ],
+            "implementation": {
+              "status": "verified",
+              "model": "Cycles",
+              "graphStates": 79,
+              "graphEdges": 203,
+              "actions": [
+                "ClaimCheck",
+                "ClaimOwner",
+                "Consume",
+                "Continue",
+                "Draft",
+                "Duplicate",
+                "Fail",
+                "LateReceipt",
+                "OldReceipt",
+                "Pass",
+                "Reopen",
+                "Rollback",
+                "Stop"
+              ],
+              "backends": [
+                {
+                  "backend": "memory",
+                  "edgesReplayed": 203
+                },
+                {
+                  "backend": "sqlite",
+                  "edgesReplayed": 203
+                }
+              ],
+              "scratchRemoved": true,
+              "command": [
+                "node",
+                "--import",
+                "/workspace/squad/node_modules/tsx/dist/loader.mjs",
+                "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/composition-replay.mjs",
+                "/workspace/squad",
+                "/workspace/squad/reports/kej-111-final-delivery/composition/Cycles/baseline/graph.dot",
+                "/workspace/squad/reports/kej-111-final-delivery/composition/Cycles/baseline-code.json",
+                "both",
+                "Cycles"
+              ],
+              "exitCode": 0,
+              "seconds": 15.1137916639982
+            },
+            "restoredImplementation": {
+              "status": "verified",
+              "model": "Cycles",
+              "graphStates": 79,
+              "graphEdges": 203,
+              "actions": [
+                "ClaimCheck",
+                "ClaimOwner",
+                "Consume",
+                "Continue",
+                "Draft",
+                "Duplicate",
+                "Fail",
+                "LateReceipt",
+                "OldReceipt",
+                "Pass",
+                "Reopen",
+                "Rollback",
+                "Stop"
+              ],
+              "backends": [
+                {
+                  "backend": "memory",
+                  "edgesReplayed": 203
+                },
+                {
+                  "backend": "sqlite",
+                  "edgesReplayed": 203
+                }
+              ],
+              "scratchRemoved": true,
+              "command": [
+                "node",
+                "--import",
+                "/workspace/squad/node_modules/tsx/dist/loader.mjs",
+                "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/composition-replay.mjs",
+                "/workspace/squad",
+                "/workspace/squad/reports/kej-111-final-delivery/composition/Cycles/restored/graph.dot",
+                "/workspace/squad/reports/kej-111-final-delivery/composition/Cycles/restored-code.json",
+                "both",
+                "Cycles"
+              ],
+              "exitCode": 0,
+              "seconds": 14.409663707001528
+            },
+            "witnessCount": 3
+          },
+          "SourceLineage": {
+            "baselineCounts": [
+              227,
+              71,
+              0
+            ],
+            "restoredCounts": [
+              227,
+              71,
+              0
+            ],
+            "implementation": {
+              "status": "verified",
+              "model": "SourceLineage",
+              "graphStates": 71,
+              "graphEdges": 226,
+              "actions": [
+                "ClaimA",
+                "ClaimB",
+                "ClaimCheckA",
+                "ClaimCheckB",
+                "ConflictReplay",
+                "ConsumeA",
+                "ConsumeB",
+                "ContinueA",
+                "DeliverA",
+                "DeliverB",
+                "FreezeB",
+                "FreezeC",
+                "PublishB",
+                "RecoverFrozen",
+                "RejectStale",
+                "Reopen",
+                "ReplayFreeze",
+                "RepublishA",
+                "ResumeB",
+                "StopB"
+              ],
+              "backends": [
+                {
+                  "backend": "memory",
+                  "edgesReplayed": 226
+                },
+                {
+                  "backend": "sqlite",
+                  "edgesReplayed": 226
+                }
+              ],
+              "scratchRemoved": true,
+              "command": [
+                "node",
+                "--import",
+                "/workspace/squad/node_modules/tsx/dist/loader.mjs",
+                "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/composition-replay.mjs",
+                "/workspace/squad",
+                "/workspace/squad/reports/kej-111-final-delivery/composition/SourceLineage/baseline/graph.dot",
+                "/workspace/squad/reports/kej-111-final-delivery/composition/SourceLineage/baseline-code.json",
+                "both",
+                "SourceLineage"
+              ],
+              "exitCode": 0,
+              "seconds": 17.29905740200047
+            },
+            "restoredImplementation": {
+              "status": "verified",
+              "model": "SourceLineage",
+              "graphStates": 71,
+              "graphEdges": 226,
+              "actions": [
+                "ClaimA",
+                "ClaimB",
+                "ClaimCheckA",
+                "ClaimCheckB",
+                "ConflictReplay",
+                "ConsumeA",
+                "ConsumeB",
+                "ContinueA",
+                "DeliverA",
+                "DeliverB",
+                "FreezeB",
+                "FreezeC",
+                "PublishB",
+                "RecoverFrozen",
+                "RejectStale",
+                "Reopen",
+                "ReplayFreeze",
+                "RepublishA",
+                "ResumeB",
+                "StopB"
+              ],
+              "backends": [
+                {
+                  "backend": "memory",
+                  "edgesReplayed": 226
+                },
+                {
+                  "backend": "sqlite",
+                  "edgesReplayed": 226
+                }
+              ],
+              "scratchRemoved": true,
+              "command": [
+                "node",
+                "--import",
+                "/workspace/squad/node_modules/tsx/dist/loader.mjs",
+                "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/composition-replay.mjs",
+                "/workspace/squad",
+                "/workspace/squad/reports/kej-111-final-delivery/composition/SourceLineage/restored/graph.dot",
+                "/workspace/squad/reports/kej-111-final-delivery/composition/SourceLineage/restored-code.json",
+                "both",
+                "SourceLineage"
+              ],
+              "exitCode": 0,
+              "seconds": 16.012419393000528
+            },
+            "witnessCount": 4
+          }
+        },
+        "compositionNegativeControls": {
+          "skip-validation": {
+            "property": "ModelNeedsValidation",
+            "stores": {
+              "memory": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: ModelNeedsValidation: model request before saved engineering receipt"
+              },
+              "sqlite": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: ModelNeedsValidation: model request before saved engineering receipt"
+              }
+            },
+            "modelViolation": "ModelNeedsValidation"
+          },
+          "skip-version": {
+            "property": "OrderedPublication",
+            "stores": {
+              "memory": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: OrderedPublication: missing/changed version published"
+              },
+              "sqlite": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: OrderedPublication: missing/changed version published"
+              }
+            },
+            "modelViolation": "OrderedPublication"
+          },
+          "accept-changed": {
+            "property": "OrderedPublication",
+            "stores": {
+              "memory": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: OrderedPublication: missing/changed version published"
+              },
+              "sqlite": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: OrderedPublication: missing/changed version published"
+              }
+            },
+            "modelViolation": "OrderedPublication"
+          },
+          "drop-publication": {
+            "property": "RetainedPublication",
+            "stores": {
+              "memory": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: RetainedPublication: continuing or failed check erased the previous publication"
+              },
+              "sqlite": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: RetainedPublication: continuing or failed check erased the previous publication"
+              }
+            },
+            "modelViolation": "RetainedPublication"
+          },
+          "accept-old-cycle": {
+            "property": "CurrentCandidate",
+            "stores": {
+              "memory": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: CurrentCandidate: a previous candidate judgment authorized the new check"
+              },
+              "sqlite": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: CurrentCandidate: a previous candidate judgment authorized the new check"
+              }
+            },
+            "modelViolation": "CurrentCandidate"
+          },
+          "corrupt-freeze": {
+            "property": "FrozenSource",
+            "stores": {
+              "memory": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: FrozenSource: initial source bytes differ from selected publication"
+              },
+              "sqlite": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: FrozenSource: initial source bytes differ from selected publication"
+              }
+            },
+            "modelViolation": "FrozenSource"
+          },
+          "transitive-source": {
+            "property": "DirectLineage",
+            "stores": {
+              "memory": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: DirectLineage: third task must freeze the second task publication, not its ancestor"
+              },
+              "sqlite": {
+                "exitCode": 1,
+                "targetAssertion": "AssertionError [ERR_ASSERTION]: DirectLineage: third task must freeze the second task publication, not its ancestor"
+              }
+            },
+            "modelViolation": "DirectLineage"
+          }
+        }
+      }
+    },
+    "commandsRecord": "work/kej-111-formal/handoff-delivery-runs.json",
+    "scope": "These are complete exact-source checks with unchanged original model domains, all real-code controls and restored-original reruns; candidate coverage pins were reviewed/updated before these runs, old sync retained during proof production.",
+    "readerControls": {
+      "generic": {
+        "evidence": "reports/kej-111-reader-controls-delivery",
+        "status": "verified",
+        "invalidCasesDetected": 4,
+        "cases": [
+          {
+            "case": "intact-before",
+            "command": [
+              "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+              "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+              "--verify-evidence",
+              "/workspace/squad/reports/kej-111-final-delivery"
+            ],
+            "exitCode": 0,
+            "reason": null
+          },
+          {
+            "case": "raw-log-tamper",
+            "command": [
+              "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+              "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+              "--verify-evidence",
+              "/tmp/formal-readback-controls-arc1m9mm/raw-log-tamper"
+            ],
+            "exitCode": 1,
+            "reason": "AssertionError: Evidence missing or changed: baseline/tlc.log"
+          },
+          {
+            "case": "truncated-edges",
+            "command": [
+              "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+              "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+              "--verify-evidence",
+              "/tmp/formal-readback-controls-arc1m9mm/truncated-edges"
+            ],
+            "exitCode": 1,
+            "reason": "AssertionError: Legacy missing or duplicate raw edge observations: sqlite"
+          },
+          {
+            "case": "missing-negative-controls",
+            "command": [
+              "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+              "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+              "--verify-evidence",
+              "/tmp/formal-readback-controls-arc1m9mm/missing-negative-controls"
+            ],
+            "exitCode": 1,
+            "reason": "AssertionError: Missing required raw artifact: negative-controls/drop-final/real-code.diff"
+          },
+          {
+            "case": "missing-code-control-details",
+            "command": [
+              "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+              "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+              "--verify-evidence",
+              "/tmp/formal-readback-controls-arc1m9mm/missing-code-control-details"
+            ],
+            "exitCode": 1,
+            "reason": "AssertionError: Missing required raw artifact: negative-controls/drop-final/real-code.diff"
+          },
+          {
+            "case": "intact-after",
+            "command": [
+              "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+              "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+              "--verify-evidence",
+              "/workspace/squad/reports/kej-111-final-delivery"
+            ],
+            "exitCode": 0,
+            "reason": null
+          }
+        ],
+        "cleanup": {
+          "scratchRemoved": true,
+          "sourceEvidenceUnchanged": true
+        }
+      },
+      "domain": {
+        "status": "verified",
+        "sourceEvidence": "/workspace/squad/reports/kej-111-final-delivery",
+        "artifacts": 290,
+        "controls": [
+          {
+            "case": "missing-json",
+            "detected": true,
+            "guard": "Missing required raw artifact: composition/negative-controls/skip-validation/memory-code.json",
+            "selfConsistentManifest": true
+          },
+          {
+            "case": "missing-log",
+            "detected": true,
+            "guard": "Missing required raw artifact: composition/negative-controls/skip-validation/memory-code.log",
+            "selfConsistentManifest": true
+          },
+          {
+            "case": "missing-diff",
+            "detected": true,
+            "guard": "Missing required raw artifact: composition/negative-controls/skip-validation/real-code.diff",
+            "selfConsistentManifest": true
+          },
+          {
+            "case": "missing-fixture",
+            "detected": true,
+            "guard": "Missing required raw artifact: checker-inputs/composition/tests/source-lineage-formal-fixture.ts",
+            "selfConsistentManifest": true
+          },
+          {
+            "case": "missing-progress",
+            "detected": true,
+            "guard": "Verification: required Progress temporal check changed or missing",
+            "selfConsistentManifest": true
+          },
+          {
+            "case": "missing-invariant",
+            "detected": true,
+            "guard": "Verification: required safety checks changed or missing",
+            "selfConsistentManifest": true
+          },
+          {
+            "case": "summary-differs",
+            "detected": true,
+            "guard": "Raw negative result differs from run summary",
+            "selfConsistentManifest": true
+          },
+          {
+            "case": "missing-legacy-json",
+            "detected": true,
+            "guard": "Missing required raw artifact: negative-controls/drop-final/memory-code.json",
+            "selfConsistentManifest": true
+          },
+          {
+            "case": "missing-legacy-log",
+            "detected": true,
+            "guard": "Missing required raw artifact: negative-controls/drop-final/memory-code.log",
+            "selfConsistentManifest": true
+          },
+          {
+            "case": "missing-legacy-diff",
+            "detected": true,
+            "guard": "Missing required raw artifact: negative-controls/drop-final/real-code.diff",
+            "selfConsistentManifest": true
+          },
+          {
+            "case": "missing-legacy-controls",
+            "detected": true,
+            "guard": "Missing required raw artifact: negative-controls/drop-final/real-code.diff",
+            "selfConsistentManifest": true
+          }
+        ],
+        "originalEvidenceUnchanged": true,
+        "scratchRemoved": true
+      }
+    }
+  },
+  "syncAdvance": {
+    "status": "advanced-centrally-after-all-nine-passed",
+    "syncCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+    "reviewedCurrentCoverage": [
+      {
+        "coveragePath": ".agents/skills/verify-squad-delivery/references/coverage.json",
+        "syncCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+        "coveredFileCount": 73,
+        "allCurrentPinsMatch": true
+      }
+    ],
+    "note": "Parent advanced all nine coverage records together after complete checks and independent readbacks; the parent also reports all nine post-sync readbacks passed. Metadata advance is not an extra complete run."
+  },
+  "guaranteeBoundary": [
+    "Finite abstract graph exhaustive checks and one shortest reachable concrete prefix per labeled edge on MemoryStore and SQLite; no arbitrary TypeScript refinement theorem.",
+    "No real model/Web/CLI execution in the assigned graph domains; fixed complete source receipts and checker judgments are controlled external inputs.",
+    "Original Handoff excludes owner execution/delivery; A2 concerns retry identity/authorization and saved-result reuse.",
+    "Existing delivery slices have no map rounds or recovery claims and do not establish recovery-source semantic relevance, success of alternative tool choice or arbitrary combined-domain interleavings.",
+    "SQLite transaction atomicity, bounded crash/rollback budget and documented weak fairness assumptions remain."
+  ]
+}

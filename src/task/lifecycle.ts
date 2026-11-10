@@ -49,6 +49,7 @@ export const taskLifecycle = {
     WORK_FAILED: { guard: 'failedDiscussion', actions: 'apply' },
     CONSUME: { guard: 'valid', actions: 'apply' },
     REGENERATE_MODEL_OUTPUT: { guard: 'valid', actions: 'apply' },
+    RECORD_TOOL_FAILURE: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     SETTLE: { guard: 'valid', actions: 'apply' },
     RECOVER: [{ guard: 'recoveredCheckExhausted', target: '.ended', actions: 'apply' }, { guard: 'recoveredSafe', actions: 'apply' }, { target: '.waitingHuman', actions: 'apply' }],
     EXHAUSTED: { guard: 'valid', target: '.ended', actions: 'apply' },

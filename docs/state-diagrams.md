@@ -1868,3 +1868,46 @@ stateDiagram-v2
 来源工作项的后继修订（BT_F82）也属于同一预检：`DELIVER [replacesArtifactId指向来源工作项报告且sourceItems缺失] / SOURCE_ITEMS_REQUIRED`，保存缺口并走既有有界修订。不能通过删除结构绕过来源校验；新的普通报告继续兼容旧协议。
 
 BT_F83 复验 checking → revising 的已有路径：增量差异必须保留原通过内容的删除；新检查对该要求返回失败时，旧通过结论不能覆盖它。新缺口留存在新检查回执，仍由当前修订额度与复核预算决定修订或不完整结束，不增加状态或调度入口。
+
+### 网页失败的有界工具重选（KEJ-111）
+
+类型：真实 taskMachine 的工作上下文生命周期；所有者 `src/task/tool-recovery.ts`、`src/task/policy.ts`、`src/task/reducer.ts`。验收 BT_M52–BT_M59。复用原 running、waitingAssistance、coordinating 状态和现有工作身份，不创建新的业务父状态。
+
+```mermaid
+stateDiagram-v2
+    inflight --> inflight: RECORD_TOOL_FAILURE [已知错误、当前身份与预算允许、已用少于2] / 保存受限错误反馈
+    inflight --> inflight: CONSUME [保留后继预算且未停止过期] / 计费并允许下一次模型请求
+    inflight --> done: DISCUSSION_RESULT或DELIVER [合法结果] / 原工作正常结算
+    inflight --> done: WORK_FAILED [次数耗尽或确定无法继续] / 保存缺口并沿原结算路径
+    inflight --> cancelling: STOP / 保存取消意图，禁止新请求
+    inflight --> pending: RECOVER [安全可重领] / 保留失败次数与原截止时间
+```
+
+最多2条失败记录属于原工作，包含模型请求身份、网页工具类型、稳定错误分类及原尝试身份，不保存URL、提供方正文或凭据；重复同一请求不增计数，重启、工作重领和工具切换不清零。模型、网页和CLI的实际请求仍由既有 CONSUME/领取入口计费；保存反馈不收费，也不增加 ordinary/check/retries 总额度。接受反馈前必须能保留下一次模型请求，分片仍受后继分片、归并及负责人预留约束。
+
+模型和工具I/O仍由已持久化且领取成功的工作发起。Web工具已知、效果确定的失败返回后，运行器先保存 RECORD_TOOL_FAILURE，适配器再将结构化失败反馈交回模型；只有模型选择并通过原权限与预算守卫后才调用替代工具。无合法替代时允许如实结束。停止、过期、旧fence、旧attempt、权限撤销、审批拒绝、预算拒绝及效果不明不能转换为恢复许可；没有宿主记录回调时保持失败关闭。CLI现有已结算失败回执路径不改变。
+
+### Map-Reduce 分片恢复（KEJ-111）
+
+类型：真实 taskMachine 的交付上下文生命周期；所有者 `src/task/map-recovery.ts`、`src/task/delivery.ts`、`src/delivery-acceptance.ts`。验收 BT_Q36–BT_Q47。只读分片的原尝试与当前待补齐义务分开保存，不新增顶层任务状态；普通独立成员评审仍由原评审生命周期管理。
+
+```mermaid
+stateDiagram-v2
+    unresolved --> claimed: DELIVER [当前负责人和轮次，分片及完整成功来源有效] / 绑定当前候选与逐片恢复验收项
+    unresolved --> unresolved: DELIVER [身份或来源无效] / 保留缺口并走既有有界修订
+    claimed --> checking: CLAIM及CONSUME [原检查身份与预算有效] / 领取冻结材料
+    checking --> claimed: 技术失败 [原周期补试可用] / 原候选原材料补试
+    checking --> unresolved: CHECK_RESULT [有失败或无法核实或仍有未声明分片] / 保存结论且不登记恢复
+    checking --> resolved: CHECK_RESULT [原要求及所有分片恢复项通过且引文有效] / 原子登记恢复证明并发布当前候选
+    claimed --> unresolved: 新输入或停止或旧候选回执 / 不移用旧恢复结论
+```
+
+`partitionRecoveries` 只声明当前 delivered 的 map-reduce 轮次中 failed/partial/timeout 分片及其来源回执。机械门禁核对同任务、目标、epoch、负责人、分片唯一性、来源可见且完整成功，以及原冻结证据边界；未知效果、失败/截断/旧目标/旧轮次/未冻结来源不能证明恢复。每个恢复项形成带原分片 objective、expectedOutput 和原 synthesis 要求的必需验收项，其通过结果必须逐字引用该项指定的冻结来源。一个聚合来源可服务多片，但逐片独立判断。
+
+部分声明允许保存本次检查结论，剩余缺口仍导致 partial；原失败记录不改为 success。只有当前候选的全部原要求、全部恢复要求及最终发布门禁通过时，才在同一事务将 candidateRevision、checkWorkId、criterionId、来源、负责人及版本保存为恢复证明。无声明的旧路径继续保留 partial；已存在的独立评审 incomplete 不被恢复声明覆盖。新输入、停止、重复、迟到回执、重启和技术补试沿用原身份、预算及结算边界，不生成新工具权限或批准。
+
+实现前门槛以真实 XState 和逐事件 persist/restore 验证7失败+1成功、完整/部分补齐、非法来源、引用协议、停止、重启、重复与新输入；通过后才接 Runner、模型协议和真实 CLI/SQLite/受控 HTTP。首检材料不使用增量压缩，避免遗漏恢复要求与来源。
+
+本期恢复来源限定为宿主已捕获并保存完整输出的成功 `runCli` 回执（同目标同 epoch，exitCode=0）。Web 成功响应、历史 artifact 或仅技能读取目前不具备本协议的同等持久化证据形态，不能作为恢复声明来源；这不限制它们在普通工作中的原有用途。
+
+BT_Q48 为同一恢复声明的模型协议边界：`answer` 等非 `deliver` 输出附带恢复字段时，适配器按现有 `invalid_work_output → REGENERATE_MODEL_OUTPUT` 回路反馈，不能静默丢弃后结算。沿用已有格式修复状态、预算与检查点，不新增模型事件；实现前复验真实任务的格式修复授权及上述恢复模型，再接实际模型协议验证。格式修正不能重跑已成功的 CLI。
