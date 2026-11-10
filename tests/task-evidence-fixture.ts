@@ -102,8 +102,12 @@ export async function readTruncatedEvidence(fixture: LocalFixture, sourceOperati
   resumeExecution(fixture);
   const adapter = new OpenAICompatibleAdapter(fixture.h.config, { clock: () => fixture.h.now, transport: async (_url, init) => {
     const request = JSON.parse(String(init?.body)) as LocalFixture['requests'][number];
-    if (request.messages.length === 2) return modelResponse(readAction(sourceOperationId));
-    const data = (JSON.parse(request.messages.at(-1)!.content) as LocalToolResult).data;
+    const receipt = request.messages.filter(message => message.role === 'user').map(message => {
+      try { return JSON.parse(message.content) as LocalToolResult & { type?: string }; }
+      catch { return undefined; }
+    }).reverse().find(message => message?.type === 'local_tool_result');
+    if (!receipt) return modelResponse(readAction(sourceOperationId));
+    const data = receipt.data;
     return modelResponse(typeof data.nextCursor === 'string' ? readAction(sourceOperationId, data.nextCursor) : delivery);
   } });
   const runner = new WorkRunner(fixture.h.engine, adapter, () => fixture.h.now, globalThis.fetch, undefined, fixture.runtime);

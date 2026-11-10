@@ -115,3 +115,13 @@ authority 的 Execution/Host/SessionScope 与 LocalRuntime 启动前中止探针
 因此旧图、全部性质、公平性、有限界限、双存储逐边比较及真实源码负对照保持。新Web恢复/MapRecovery有自己的有限扩展与具体BDD，不以保守传递依赖指纹声称这些旧图已验证任意新旧领域组合。最终完整执行、恢复后复验、负对照与独立读回状态见本轮审查，pending不算通过，不推进syncCommit。
 
 最终冻结源完整复验已通过：`reports/kej-111-final-authority`（34步骤，Execution 8状态/19边，Host 48状态/174边，SessionScope 512输入投影，6类真实源码负对照）与`reports/kej-111-final-authority-composition`（36状态/182标记边，双存储、4见证及4类真实源码负对照）。独立读回分别核验139/191件原始证据。各运行与恢复后复验成功，清理及覆盖源未变为真；不将稍后同步元数据声称为额外完整执行。
+
+## KEJ-112：任务工具引导与 CLI 重复失败守卫的切片审查
+
+受审冻结产品为 `7e5b3426d0909e133fd6329a06e08288ea4c5c62`。原样两入口先被覆盖漂移门禁阻塞；可用基线 `6134a0c` 的全部旧 73/75 个指纹逐项与旧清单相同。7 个变化文件和 3 个新增纯传递依赖的旧新 SHA、分域理由及真实运行状态见 [KEJ-112 审查](drift-review-kej-112.json)。
+
+`LOCAL_REQUEST` 的新守卫只在同一工作已经发生两次相同可诊断 CLI 失败时拒绝。Execution 和 SessionScope 不申请 CLI；Host、ApprovalComposition 的公共前缀只创建一个宿主操作，没有两次先前已结算失败，因此新守卫在本域恒不触发。请求 receipt ID 增加完整不可变请求身份，仍保留 operationId/requestHash 的操作幂等检查；它不改变审批摘要、旧审批/旧 attempt/旧 session/旧 permit 的资格，也不拆分事务。原 claim/start/stop/recover、会话和租约规则保持。
+
+这些驱动直接调用 TeamEngine 和 LocalRuntime，不实例化 WorkRunner 或 OpenAICompatibleAdapter；runtime-binding 使用无技能和空 catalog，不调用推荐方法，且在启动回调主动阻止实际 spawn。新增候选、诊断、重复失败模型门槛和受控模型 HTTP 由 BT_L117–L123 单独验收，不冒称这两张旧有限图证明新旧行为的任意组合。
+
+原 TLA/CFG、性质、公平性、边界、双存储所有标记边、6 类原授权及 4 类组合真实代码负对照保持。完整正向、负对照、未改坏原版恢复复验和独立读回均已通过；证据为 `reports/kej-112-final-authority` 与 `reports/kej-112-final-authority-composition`，精确统计和结果见本轮审查。两入口通过不代替其余七入口；全部九入口通过前保留旧同步提交。

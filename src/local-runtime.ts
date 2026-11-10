@@ -36,6 +36,10 @@ const secretName = (name: string) => name === '.git' || name === '.home' || name
 export class LocalRuntime {
   private registryValue: SkillRegistry | undefined;
   get registry(): SkillRegistry { if (!this.registryValue) throw new LocalToolError('LOCAL_RUNTIME_NOT_READY'); return this.registryValue; }
+  /** Synchronous metadata only; no filesystem, executable probes, credential reads or process launches. */
+  recommendTools(objective: string) {
+    return { metadataOnly: true as const, cli: this.cliCatalog.recommend(objective), skills: this.registry.recommend(objective) };
+  }
   readonly backend: CliBackend;
   readonly journal: CliJournal;
   private workspaces = new Map<string, Promise<Workspace>>();

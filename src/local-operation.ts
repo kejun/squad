@@ -2,6 +2,7 @@ import { artifactForWork } from './task/delivery.js';
 import { hostSessionMatches } from './host-session.js';
 import { evidenceSource, type EvidenceStream } from './task/evidence.js';
 import { verificationActionProblem } from './task/verification.js';
+import { repeatedCliFailures } from './cli-failure.js';
 /** Persisted child-operation contract. This module has no filesystem, process or network I/O. */
 import { localEnabled, type Intent, type TaskContext, type TaskEvent, type TeamConfig } from './types.js';
 export { localEnabled } from './types.js';
@@ -128,6 +129,7 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
         || JSON.stringify(event.messages).length > 1_900_000) return 'INVALID_LOCAL_REQUEST';
       if (op) return op.requestHash === event.requestHash ? 'LOCAL_ALREADY_REQUESTED' : 'LOCAL_REQUEST_CONFLICT';
       if (localUnsettled(work)) return 'LOCAL_OPERATION_PENDING';
+      if (work.kind !== 'check' && event.action.type === 'runCli' && repeatedCliFailures(work, event.action) >= 2) return 'CLI_REPEAT_FAILURE_LIMIT';
       if (isSavedRead(event.action) && event.workspaceId !== undefined) return 'INVALID_LOCAL_REQUEST';
       if (event.action.type === 'verifyWorkspace' && work.kind !== 'check') return 'WORKSPACE_VALIDATION_NOT_ALLOWED';
       if (['runCli', 'verifyWorkspace'].includes(event.action.type) && !event.workspaceId) return 'WORKSPACE_REQUIRED';

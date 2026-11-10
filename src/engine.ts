@@ -300,8 +300,11 @@ export class TeamEngine {
     const work = this.view(roomId, taskId)?.context.intents.find(i => i.id === intentId);
     if (!work) throw new Error('UNKNOWN_WORK');
     const operationId = `${intentId}:local:${work.localCheckpoint?.nextOperation ?? 0}`;
-    const response = this.send(roomId, taskId, { type: 'LOCAL_REQUEST', id: `local-request:${operationId}`, at: this.clock(),
-      intentId, operationId, parentAttempt, namespace: this.localNamespace(roomId, taskId), requestHash: fingerprint({ action, workspaceId: workspaceId ?? null, namespace: this.localNamespace(roomId, taskId) }), action, messages,
+    const requestHash = fingerprint({ action, workspaceId: workspaceId ?? null, namespace: this.localNamespace(roomId, taskId) });
+    // A rejected action creates no operation. A different action at that slot needs its own receipt.
+    const receiptHash = fingerprint({ requestHash, parentAttempt, messages });
+    const response = this.send(roomId, taskId, { type: 'LOCAL_REQUEST', id: `local-request:${operationId}:${receiptHash}`, at: this.clock(),
+      intentId, operationId, parentAttempt, namespace: this.localNamespace(roomId, taskId), requestHash, action, messages,
       ...(workspaceId ? { workspaceId } : {}), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
     if (!response.ok) throw new Error(response.code);
     return this.view(roomId, taskId)!.context.intents.find(i => i.id === intentId)!.localOperations!.find(o => o.id === operationId)!;

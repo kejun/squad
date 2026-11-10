@@ -1,0 +1,451 @@
+{
+  "issue": "KEJ-112",
+  "status": "verified-and-synchronized",
+  "oldSyncCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+  "availableEquivalentBaseline": "6134a0c",
+  "reviewedProductCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+  "commitMessages": [
+    "7e5b3426d0909e133fd6329a06e08288ea4c5c62 按当前任务推荐宿主工具并引导有界 CLI 纠正（KEJ-112）",
+    "9f9a2c12760dcd49b4f2350b9417497b55bb652d 要求输入需求先转写并核查 EARS"
+  ],
+  "originalAsIs": [
+    {
+      "entry": "authority",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-authority/scripts/check.py",
+        "--jar",
+        "/workspace/squad/work/tla2tools-1.7.4.jar",
+        "--evidence",
+        "reports/kej-112-original-authority"
+      ],
+      "exitCode": 1,
+      "seconds": 0.064,
+      "log": "work/kej-112-formal/original-authority.log"
+    },
+    {
+      "entry": "authority-composition",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+        "--jar",
+        "/workspace/squad/work/tla2tools-1.7.4.jar",
+        "--evidence",
+        "reports/kej-112-original-authority-composition"
+      ],
+      "exitCode": 1,
+      "seconds": 0.06,
+      "log": "work/kej-112-formal/original-authority-composition.log"
+    }
+  ],
+  "coverageReviews": [
+    {
+      "coverage": "coverage.json",
+      "previousSyncCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+      "baselineProof": {
+        "availableCommit": "6134a0c",
+        "allOldPinsMatch": true,
+        "verifiedFileCount": 73
+      },
+      "changes": [
+        {
+          "file": "src/engine.ts",
+          "oldSha256": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
+          "newSha256": "a2c2583aa9fb4ab14e403816c528f0799a9c2cdce297658fabafeb32bc17196a",
+          "classification": "no-effect-in-declared-finite-domain",
+          "reason": "LOCAL_REQUEST receipt identity now binds the complete immutable request (action/workspace namespace fingerprint, parentAttempt and checkpoint messages). The persisted operation requestHash and all approval/session/lease/permit identities are unchanged. Each finite Host prefix creates one initial operation; no rejection loop is in its action alphabet."
+        },
+        {
+          "file": "src/local-operation.ts",
+          "oldSha256": "7f635776d9c0ceabb69074af06f03c0ea05a24270720cbfea16ee29a980f8f2c",
+          "newSha256": "754c1e5e49f62c4e266fda3eb7511c54112a866f9cc35fc94f63e7da77568876",
+          "classification": "no-effect-in-declared-finite-domain",
+          "reason": "New pure request guard rejects a third identical diagnosable settled CLI failure. Execution and SessionScope do not request CLI operations; Host and ApprovalComposition create exactly one operation with no prior settled CLI failures, so the new guard is false throughout these domains. All claim/start/approval/recovery checks and atomic transactions are unchanged."
+        },
+        {
+          "file": "src/local-runtime.ts",
+          "oldSha256": "09c7050c7214d6b4a1c7da87bb1859c1323c036c666d66bc80970e06b2cf3a32",
+          "newSha256": "b6f2d674c90b794567dd2e2f77669a6225d6cd37a66c5de0863151e415aa8084",
+          "classification": "no-effect-in-declared-finite-domain",
+          "reason": "Adds synchronous metadata recommendation only; existing runtime binding probes do not call it. Command preparation, digest, approval and launch boundaries remain unchanged."
+        },
+        {
+          "file": "src/local-skills.ts",
+          "oldSha256": "8f1548221fab864d3c33c397b814d6d883ed7e0783da41de48e748f92df4701f",
+          "newSha256": "dc5d7e4e8ebb5e5a82e9b608a377b4fa4d454ab54e276ffcd75ee5f2c8794917",
+          "classification": "no-effect-in-declared-finite-domain",
+          "reason": "Adds metadata-only recommendation without changing startup discovery, snapshots or resource execution; the formal runtime binding fixture has no skill and never calls this new method."
+        },
+        {
+          "file": "src/model-adapter.ts",
+          "oldSha256": "5ac886765af4427e8499beb4d08b550eead15d4a5d516b5091336519b76d1a7f",
+          "newSha256": "4f51a62861c7c0e825d5750d263312e4a05ca8e832d5f19edc90cdce6a73e9cd",
+          "classification": "no-effect-in-declared-finite-domain",
+          "reason": "Adds current-assignment guidance observations before model requests. The authority graph/runtime-binding drivers do not instantiate OpenAICompatibleAdapter or call model HTTP."
+        },
+        {
+          "file": "src/runner.ts",
+          "oldSha256": "e0e6491339ae88926baffc8ec597be99aa1adcb59e09929cf414dd723334939b",
+          "newSha256": "19ebc1b09cbfb6eaf6d05b5906be2b590b1c77e2768974d668194ea1fb4c069d",
+          "classification": "no-effect-in-declared-finite-domain",
+          "reason": "Adds metadata getter and treats CLI_REPEAT_FAILURE_LIMIT as feedback without creating an operation or executing. The authority graph/runtime-binding drivers call TeamEngine/LocalRuntime directly and do not instantiate WorkRunner."
+        },
+        {
+          "file": "src/cli-catalog.ts",
+          "oldSha256": "dc8cb8346a3e5c33ff69deff7ffea77d8f0761993db055a73a913f45ced0e29e",
+          "newSha256": "bf961fb4e4d6d9f1bb396ca0ee6fc282df16be89224c1ccd742ec5a6ff220ebc",
+          "classification": "no-effect-in-declared-finite-domain",
+          "reason": "Adds deterministic metadata recommendation; the formal runtime binding fixture retains the empty catalog. Existing parse/list/constructor behavior is unchanged."
+        },
+        {
+          "file": "src/cli-failure.ts",
+          "oldSha256": null,
+          "newSha256": "717211b0c07092641dce7467c1649832c1d7d0bd654d2b0191341ec29077beb8",
+          "classification": "new-transitive-pure-dependency",
+          "reason": "New pure dependency of the request guard. Classifies only persisted settled failed CLI receipts and compares semantic invocation fields; it cannot launch, approve, write or refund. New repeated-failure histories remain outside these finite authority models."
+        },
+        {
+          "file": "src/task/tool-guidance.ts",
+          "oldSha256": null,
+          "newSha256": "6c1487d82bdf94d5aca7c659a56f7342dc13bde2169619abbe5dcd49fbc0f6e4",
+          "classification": "new-transitive-pure-dependency",
+          "reason": "New read-only current-work projection, imported by WorkRunner. Not invoked by authority drivers; it cannot create actions or approvals. New recommendation/diagnostic semantics remain independently covered by BT_L117-L123."
+        },
+        {
+          "file": "src/tool-recommendation.ts",
+          "oldSha256": null,
+          "newSha256": "8f3ec269c241a6eeeab9f9727b9fbd34208f262feb8bc8a73127540cc89f80e3",
+          "classification": "new-transitive-pure-dependency",
+          "reason": "New pure deterministic metadata ranking helper imported by CLI/skill catalogs. Its methods are not invoked by authority drivers; no I/O or capability grant is added."
+        }
+      ]
+    },
+    {
+      "coverage": "composition-coverage.json",
+      "previousSyncCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+      "baselineProof": {
+        "availableCommit": "6134a0c",
+        "allOldPinsMatch": true,
+        "verifiedFileCount": 75
+      },
+      "changes": [
+        {
+          "file": "src/engine.ts",
+          "oldSha256": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
+          "newSha256": "a2c2583aa9fb4ab14e403816c528f0799a9c2cdce297658fabafeb32bc17196a",
+          "classification": "no-effect-in-declared-finite-domain",
+          "reason": "LOCAL_REQUEST receipt identity now binds the complete immutable request (action/workspace namespace fingerprint, parentAttempt and checkpoint messages). The persisted operation requestHash and all approval/session/lease/permit identities are unchanged. Each finite Host prefix creates one initial operation; no rejection loop is in its action alphabet."
+        },
+        {
+          "file": "src/local-operation.ts",
+          "oldSha256": "7f635776d9c0ceabb69074af06f03c0ea05a24270720cbfea16ee29a980f8f2c",
+          "newSha256": "754c1e5e49f62c4e266fda3eb7511c54112a866f9cc35fc94f63e7da77568876",
+          "classification": "no-effect-in-declared-finite-domain",
+          "reason": "New pure request guard rejects a third identical diagnosable settled CLI failure. Execution and SessionScope do not request CLI operations; Host and ApprovalComposition create exactly one operation with no prior settled CLI failures, so the new guard is false throughout these domains. All claim/start/approval/recovery checks and atomic transactions are unchanged."
+        },
+        {
+          "file": "src/local-runtime.ts",
+          "oldSha256": "09c7050c7214d6b4a1c7da87bb1859c1323c036c666d66bc80970e06b2cf3a32",
+          "newSha256": "b6f2d674c90b794567dd2e2f77669a6225d6cd37a66c5de0863151e415aa8084",
+          "classification": "no-effect-in-declared-finite-domain",
+          "reason": "Adds synchronous metadata recommendation only; existing runtime binding probes do not call it. Command preparation, digest, approval and launch boundaries remain unchanged."
+        },
+        {
+          "file": "src/local-skills.ts",
+          "oldSha256": "8f1548221fab864d3c33c397b814d6d883ed7e0783da41de48e748f92df4701f",
+          "newSha256": "dc5d7e4e8ebb5e5a82e9b608a377b4fa4d454ab54e276ffcd75ee5f2c8794917",
+          "classification": "no-effect-in-declared-finite-domain",
+          "reason": "Adds metadata-only recommendation without changing startup discovery, snapshots or resource execution; the formal runtime binding fixture has no skill and never calls this new method."
+        },
+        {
+          "file": "src/model-adapter.ts",
+          "oldSha256": "5ac886765af4427e8499beb4d08b550eead15d4a5d516b5091336519b76d1a7f",
+          "newSha256": "4f51a62861c7c0e825d5750d263312e4a05ca8e832d5f19edc90cdce6a73e9cd",
+          "classification": "no-effect-in-declared-finite-domain",
+          "reason": "Adds current-assignment guidance observations before model requests. The authority graph/runtime-binding drivers do not instantiate OpenAICompatibleAdapter or call model HTTP."
+        },
+        {
+          "file": "src/runner.ts",
+          "oldSha256": "e0e6491339ae88926baffc8ec597be99aa1adcb59e09929cf414dd723334939b",
+          "newSha256": "19ebc1b09cbfb6eaf6d05b5906be2b590b1c77e2768974d668194ea1fb4c069d",
+          "classification": "no-effect-in-declared-finite-domain",
+          "reason": "Adds metadata getter and treats CLI_REPEAT_FAILURE_LIMIT as feedback without creating an operation or executing. The authority graph/runtime-binding drivers call TeamEngine/LocalRuntime directly and do not instantiate WorkRunner."
+        },
+        {
+          "file": "src/cli-catalog.ts",
+          "oldSha256": "dc8cb8346a3e5c33ff69deff7ffea77d8f0761993db055a73a913f45ced0e29e",
+          "newSha256": "bf961fb4e4d6d9f1bb396ca0ee6fc282df16be89224c1ccd742ec5a6ff220ebc",
+          "classification": "no-effect-in-declared-finite-domain",
+          "reason": "Adds deterministic metadata recommendation; the formal runtime binding fixture retains the empty catalog. Existing parse/list/constructor behavior is unchanged."
+        },
+        {
+          "file": "src/cli-failure.ts",
+          "oldSha256": null,
+          "newSha256": "717211b0c07092641dce7467c1649832c1d7d0bd654d2b0191341ec29077beb8",
+          "classification": "new-transitive-pure-dependency",
+          "reason": "New pure dependency of the request guard. Classifies only persisted settled failed CLI receipts and compares semantic invocation fields; it cannot launch, approve, write or refund. New repeated-failure histories remain outside these finite authority models."
+        },
+        {
+          "file": "src/task/tool-guidance.ts",
+          "oldSha256": null,
+          "newSha256": "6c1487d82bdf94d5aca7c659a56f7342dc13bde2169619abbe5dcd49fbc0f6e4",
+          "classification": "new-transitive-pure-dependency",
+          "reason": "New read-only current-work projection, imported by WorkRunner. Not invoked by authority drivers; it cannot create actions or approvals. New recommendation/diagnostic semantics remain independently covered by BT_L117-L123."
+        },
+        {
+          "file": "src/tool-recommendation.ts",
+          "oldSha256": null,
+          "newSha256": "8f3ec269c241a6eeeab9f9727b9fbd34208f262feb8bc8a73127540cc89f80e3",
+          "classification": "new-transitive-pure-dependency",
+          "reason": "New pure deterministic metadata ranking helper imported by CLI/skill catalogs. Its methods are not invoked by authority drivers; no I/O or capability grant is added."
+        }
+      ]
+    }
+  ],
+  "promise": "Existing one-use execution authority, exact host approval/session/lease binding, stop/recover stale denial, and conditional ApprovalComposition progress are unchanged. New CLI recommendation/repeat-limit histories do not enter the old finite slices.",
+  "sliceEvidence": [
+    "scripts/replay.mjs creates one initial host operation only and directly exercises TeamEngine; Execution has no LocalOperation.",
+    "scripts/composition-replay.mjs delegates to tests/authority-composition-fixture.ts, which creates one host operation and checks no check/discussion/sourceArtifact/hostRetry.",
+    "scripts/scenarios.mjs tests session scope and fixed lifecycle probes without two previously settled identical CLI failures.",
+    "scripts/runtime-binding.mjs calls LocalRuntime.execute directly with empty catalog, no skill, and stops at the launch callback; it starts no command."
+  ],
+  "modelReview": {
+    "tlaCfgPropertiesBoundsFairness": "unchanged",
+    "graphDrivers": "unchanged",
+    "realCodeControls": "all existing six core and four composition controls retained",
+    "newBehaviorEvidence": "BT_L117-L123 and the real taskMachine tool-guidance gate are separate product evidence; no added authority theorem is claimed."
+  },
+  "verification": {
+    "status": "verified",
+    "sourceCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+    "runs": {
+      "authority": {
+        "entry": "authority",
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-authority/scripts/check.py",
+          "--jar",
+          "/workspace/squad/work/tla2tools-1.7.4.jar",
+          "--evidence",
+          "reports/kej-112-final-authority"
+        ],
+        "exitCode": 0,
+        "seconds": 128.396,
+        "log": "work/kej-112-formal/final-authority.log",
+        "evidence": "reports/kej-112-final-authority",
+        "status": "verified",
+        "cleanup": true,
+        "independentReadback": {
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-authority/scripts/check.py",
+            "--verify-evidence",
+            "reports/kej-112-final-authority"
+          ],
+          "exitCode": 0,
+          "seconds": 0.12,
+          "output": "Evidence verified: /workspace/squad/work/kej-112-authority/reports/kej-112-final-authority",
+          "log": "work/kej-112-formal/authority-independent-readback.log"
+        },
+        "retainedArtifacts": 140,
+        "manifestSha256": "0234075682864022bcd262a03216eccbcfaeb1e16189b36fcfa36416cb794204",
+        "steps": 34,
+        "coveredFilesUnchanged": true,
+        "realCodeControls": [
+          "approval-expiry",
+          "approval-identity",
+          "command-digest",
+          "lease-exclusion",
+          "one-use",
+          "session-namespace"
+        ],
+        "finiteDomainResults": {
+          "execution": [
+            [
+              20,
+              8,
+              0
+            ]
+          ],
+          "host": [
+            [
+              175,
+              48,
+              0
+            ]
+          ]
+        },
+        "sessionScope": {
+          "status": "passed",
+          "scopeStates": 512,
+          "recordCount": 1044
+        }
+      },
+      "authority-composition": {
+        "entry": "authority-composition",
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+          "--jar",
+          "/workspace/squad/work/tla2tools-1.7.4.jar",
+          "--evidence",
+          "reports/kej-112-final-authority-composition"
+        ],
+        "exitCode": 0,
+        "seconds": 81.331,
+        "log": "work/kej-112-formal/final-authority-composition.log",
+        "evidence": "reports/kej-112-final-authority-composition",
+        "status": "verified",
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true
+        },
+        "independentReadback": {
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+            "--verify-evidence",
+            "reports/kej-112-final-authority-composition"
+          ],
+          "exitCode": 0,
+          "seconds": 0.095,
+          "output": "Evidence verified: 195 artifacts\nAuthority composition: both negative backends, all witnesses and liveness independently verified",
+          "log": "work/kej-112-formal/authority-composition-independent-readback.log"
+        },
+        "retainedArtifacts": 195,
+        "manifestSha256": "6f1a30cf92881fff7ac24388d9a06339fa493cc732dda1b147774313e64bfab3",
+        "syncCommitCaptured": "c239dd39d86f143a2f435f48590c648b20745b8b",
+        "realCodeControls": [
+          "approval-identity",
+          "one-use-new-permit",
+          "parent-attempt",
+          "revoked-session"
+        ],
+        "witnesses": 4,
+        "baseline": [
+          {
+            "domain": "approval",
+            "model": {
+              "exitCode": 0,
+              "command": [
+                "java",
+                "-Djava.io.tmpdir=/workspace/squad/work/kej-112-authority/reports/kej-112-final-authority-composition/baseline/approval/java-tmp",
+                "-XX:+UseParallelGC",
+                "-Xmx512m",
+                "-jar",
+                "/workspace/squad/work/tla2tools-1.7.4.jar",
+                "-workers",
+                "1",
+                "-seed",
+                "1",
+                "-metadir",
+                "/workspace/squad/work/kej-112-authority/reports/kej-112-final-authority-composition/baseline/approval/states",
+                "-dump",
+                "dot,actionlabels",
+                "/workspace/squad/work/kej-112-authority/reports/kej-112-final-authority-composition/baseline/approval/graph.dot",
+                "-config",
+                "ApprovalComposition.cfg",
+                "ApprovalComposition.tla"
+              ],
+              "witness": null,
+              "counts": [
+                183,
+                36,
+                0
+              ]
+            },
+            "replay": {
+              "status": "verified",
+              "graphStates": 36,
+              "graphEdges": 182,
+              "backends": [
+                {
+                  "name": "memory",
+                  "replayedEdges": 182,
+                  "status": "verified"
+                },
+                {
+                  "name": "sqlite",
+                  "replayedEdges": 182,
+                  "status": "verified"
+                }
+              ],
+              "exitCode": 0
+            }
+          }
+        ],
+        "restored": [
+          {
+            "domain": "approval",
+            "model": {
+              "exitCode": 0,
+              "command": [
+                "java",
+                "-Djava.io.tmpdir=/workspace/squad/work/kej-112-authority/reports/kej-112-final-authority-composition/restored/approval/java-tmp",
+                "-XX:+UseParallelGC",
+                "-Xmx512m",
+                "-jar",
+                "/workspace/squad/work/tla2tools-1.7.4.jar",
+                "-workers",
+                "1",
+                "-seed",
+                "1",
+                "-metadir",
+                "/workspace/squad/work/kej-112-authority/reports/kej-112-final-authority-composition/restored/approval/states",
+                "-dump",
+                "dot,actionlabels",
+                "/workspace/squad/work/kej-112-authority/reports/kej-112-final-authority-composition/restored/approval/graph.dot",
+                "-config",
+                "ApprovalComposition.cfg",
+                "ApprovalComposition.tla"
+              ],
+              "witness": null,
+              "counts": [
+                183,
+                36,
+                0
+              ]
+            },
+            "replay": {
+              "status": "verified",
+              "graphStates": 36,
+              "graphEdges": 182,
+              "backends": [
+                {
+                  "name": "memory",
+                  "replayedEdges": 182,
+                  "status": "verified"
+                },
+                {
+                  "name": "sqlite",
+                  "replayedEdges": 182,
+                  "status": "verified"
+                }
+              ],
+              "exitCode": 0
+            }
+          }
+        ]
+      }
+    },
+    "oldSyncCommitRetained": true,
+    "allReviewedSourcePinsStillMatch": true,
+    "scope": "Both full entrypoints include all declared finite exploration, original genuine real-code controls and restored-original stages. Independent readback is an additional read-only validation, not a second TLC execution."
+  },
+  "syncPolicy": "Keep previous syncCommit until all nine CI entrypoints complete, genuine controls and restored-original stages pass, and independent evidence readbacks succeed; the root agent advances metadata centrally.",
+  "limitations": [
+    "Finite abstract graphs and one shortest reachable concrete prefix per labeled edge, with MemoryStore and SQLite correspondence; not an arbitrary TypeScript refinement theorem.",
+    "No proof of provider selection quality, lexical recommendation semantic relevance, arbitrary repeat-limit/authority interleavings, OS sandbox isolation or external command side-effect rollback."
+  ],
+  "outcome": "updated",
+  "syncAdvance": {
+    "issue": "KEJ-112",
+    "productCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+    "allNineEntrypointsVerified": true,
+    "centralIndependentReadbacks": "passed",
+    "retainedArtifacts": 2728,
+    "outcome": "updated",
+    "metadataOnly": true,
+    "note": "All complete proofs, genuine controls, restored-original checks and independent readers passed before synchronization. Original proof inputs and old sync values remain historical evidence. Metadata synchronization is not another complete run and does not expand the finite guarantee."
+  }
+}

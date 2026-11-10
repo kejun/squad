@@ -100,6 +100,8 @@ PR40 产品源码对应审查：`21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR4
 
 ## Sources
 
+KEJ-112 冻结产品 `7e5b3426d0909e133fd6329a06e08288ea4c5c62` 的原 Handoff 与 A2 完整检查及独立读回已通过，见[本轮审查](references/drift-review-kej-112.json)。候选覆盖指纹包含三个新增纯 helper；本地请求和推荐不在原图动作域，原交接/重试性质、边界和真实故障对照保持。同步提交在九个形式化入口全部通过前保留旧值；本轮补写结果摘要不声称额外完整复跑。
+
 - [TLA+ Tools CLI](https://github.com/tlaplus/tlaplus/blob/master/USE.md)：工具运行方式。
 - [固定 v1.7.4 发行说明](https://github.com/tlaplus/tlaplus/releases/tag/v1.7.4)：发行版本和原始校验值。
 - 结构与维护流程改编自 [pstack](https://github.com/cursor/plugins/tree/99b609a72323b70204eab407c622f436e858e112/pstack/skills/create-formal-verification-skill)，保留 [MIT LICENSE](LICENSE)。
@@ -124,3 +126,5 @@ PR40 产品源码对应审查：`21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR4
 KEJ-110 当前受审产品为 `615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9`；本轮逐文件审查、明确改变的预算承诺（如适用）、完整正向/真实负对照/原版复验与独立读回见[KEJ-110审查](references/drift-review-kej-110.json)。仅在全部九个CI形式化入口成功后推进同步元数据；此同步操作不是额外完整复跑，新功能的语义与真实模型供应商行为仍由独立验收负责。
 
 KEJ-111 受审产品为 `c239dd39d86f143a2f435f48590c648b20745b8b`。原 Handoff 与 A2 的有限域、模型、性质、公平性和回放保持；两者不发送新增 `RECORD_TOOL_FAILURE`，且不执行带分片恢复声明的负责人交付。新增纯依赖与每项变化的入口条件见[KEJ-111审查](references/drift-review-kej-111.json)。有界 Web 反馈及负责人证据补齐分别由 coordination 扩展的 ToolRecovery、MapRecovery 切片和直接产品场景承接，不能由原交接通过推导。精确源码完整运行、独立读回与同步状态以该审查的 validation 为准；pending/blocked 不表示通过。
+
+KEJ-112 最终同步：全部九个 CI 形式化入口在冻结产品 `7e5b3426d0909e133fd6329a06e08288ea4c5c62` 完整通过，真实源码负对照、原版复验及中央独立读回完成后，统一推进覆盖元数据。原始证明中捕获的旧同步值保留；本次同步不表示额外完整复跑，也不扩大原有限保证。见本轮审查的 `syncAdvance`。

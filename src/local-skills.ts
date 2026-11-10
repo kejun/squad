@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { parseDocument } from 'yaml';
 import { catalogWindow, matchesCatalogQuery, normalizeCatalogQuery } from './catalog-search.js';
+import { recommendMetadata } from './tool-recommendation.js';
 import type { SkillBinding } from './local-operation.js';
 
 export class LocalToolError extends Error { constructor(readonly code: string) { super(code); } }
@@ -86,6 +87,11 @@ export class SkillRegistry {
     const skills = page.entries.map(({ root: _root, files: _files, ...metadata }) => metadata);
     return { catalogVersion: this.catalogVersion, skills, nextCursor: page.nextCursor,
       diagnostics: this.diagnostics.slice(0, 50), complete: this.complete };
+  }
+  recommend(objective: string) {
+    const metadata = this.entries.map(({ root: _root, files: _files, ...entry }) => entry);
+    return { catalogVersion: this.catalogVersion, sourceComplete: this.complete,
+      ...recommendMetadata(metadata, objective, entry => `${entry.name} ${entry.description} ${entry.compatibility ?? ''}`, entry => entry.skillId) };
   }
   private entry(id: string, version?: string): SkillEntry {
     const matches = this.entries.filter(e => e.skillId === id || e.name === id);

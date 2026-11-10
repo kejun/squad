@@ -1685,6 +1685,33 @@ stateDiagram-v2
 
 模型层先以真实 taskMachine 合成事件验证成功/失败/效果不明/版本和权限过滤，再接入运行器的动态读取与适配器上下文。不对未知命令做只读推断，不跨任务共享数据。
 
+### 工具推荐与失败纠正（KEJ-112）
+
+对应 BT_L117–BT_L124。类型：上下文读取投影及真实 taskMachine 的本地请求守卫；所有者：`task/tool-guidance.ts`、`local-operation.ts`、`LocalRuntime`、`WorkRunner` 与模型适配器。沿用 `LOCAL_REQUEST → LOCAL_CLAIM → LOCAL_STARTED → LOCAL_RESULT`，不增加顶层状态、自动帮助执行或纠错调度器。
+
+```mermaid
+stateDiagram-v2
+    [*] --> observation: 模型请求 [当前工作有效且有本地权限] / 投影最多5个CLI及5个技能和最近失败诊断
+    observation --> queued: LOCAL_REQUEST [动作合法且相同可诊断失败少于2次] / 保存操作意图
+    observation --> rejected: LOCAL_REQUEST [相同可诊断失败达到2次] / CLI_REPEAT_FAILURE_LIMIT且不创建操作
+    queued --> claimed: LOCAL_CLAIM [权限期限预算与租约有效] / 按原规则计费
+    claimed --> awaitingApproval: LOCAL_APPROVAL_REQUIRED [请求宿主执行] / 等待用户决定
+    awaitingApproval --> queued: LOCAL_APPROVAL_DECISION [批准] / 保存批准
+    awaitingApproval --> failed: LOCAL_APPROVAL_DECISION或EXPIRED [拒绝或过期] / 不提供纠错诊断
+    claimed --> failed: LOCAL_RESULT [准备或沙箱失败且效果已知] / 保存未启动回执
+    claimed --> running: LOCAL_STARTED [执行许可有效] / 记录启动
+    running --> failed: LOCAL_RESULT [已结算且效果已知且失败] / 保留真实回执
+    running --> succeeded: LOCAL_RESULT [已结算且效果已知且成功] / 保留真实回执
+    running --> uncertain: LOCAL_RESULT [未结算或效果不明] / 阻止继续模型
+    failed --> observation: 后续模型请求 [当前工作仍有效] / 引用操作标识提供诊断
+```
+
+投影仅读取已加载元数据与当前工作已保存回执，免费且不产生操作意图。按当前分片目标、协作问题或工作目标匹配全部目录元数据，返回匹配词、版本、候选省略及技能源扫描不完整标记；无匹配返回空。BT_L124 仅观察既有注册表扫描边界：源扫描不完整时仍独立报告候选是否超过展示上限，不新增状态转移或补扫操作。推荐不能证明安装、登录、联网、执行成功或授权。帮助和修正动作必须由模型显式申请并经过原状态机；没有自动切换 host。
+
+重复守卫仅用于 owner/assistance/facilitator 的 runCli：命令、argv、cwd（缺省 .）、技能（缺省 null）和环境（缺省 sandbox）相同且已有两次明确可诊断失败时拒绝。reason/timeout 不参与键；不同参数仍受原额度约束。unknown 业务失败不计数，批准拒绝/过期、取消及 uncertain 不提供重试诊断。诊断不证明失败命令没有产生文件或远端影响；必须核对原回执再决定修正。
+
+停止、旧目标/轮次、过期、撤权、未授权、最终检查及物理效果不明不投影推荐；已有 STOP/恢复/迟到结果/额度和审批守卫保持。重启从 localOperations 重新推导计数，不补回次数，不修改 KEJ-111 的 Web 恢复状态。实现前门槛使用真实 XState 逐事件持久化往返，验证重复限制、不同帮助参数、恢复及各拒绝边界；之后验证实际模型输入、目录及真实 CLI 接线。
+
 ### 命令目录与技能检索（KEJ-109）
 
 对应 BT_L100–BT_L108。图型：上下文生命周期及读取处理流程；所有者：真实 `taskMachine` 的 `Intent.localOperations`、`src/local-operation.ts`、`src/host-capabilities.ts` 与 `src/local-skills.ts`。沿用现有 `LOCAL_REQUEST → LOCAL_CLAIM → LOCAL_RESULT`，不新增 XState 状态或业务调度。宿主预先登记命令用途、域名、帮助 argv、示例和环境要求，发现只返回元数据并核实命令存在性；帮助调用仍须由后续 `runCli` 操作领取执行。

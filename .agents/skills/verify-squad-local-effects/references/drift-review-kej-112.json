@@ -1,0 +1,153 @@
+{
+  "issue": "KEJ-112",
+  "status": "verified-and-synchronized",
+  "oldSyncCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+  "availableEquivalentBaseline": "6134a0c7ffa37739d6ee23992705462022b324fb",
+  "reviewedCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+  "baselineProof": "The old sync object is not available locally. Every previously covered file was independently git-show compared at available baseline 6134a0c and matched the stored SHA256 exactly; this identifies old bytes without relabeling a previous run.",
+  "baselineChecks": {
+    "previousCoveredFiles": 88,
+    "baselineMismatches": []
+  },
+  "originalDriftRun": {
+    "evidence": "reports/kej-112-drift-local-effects",
+    "outcome": "blocked",
+    "reason": "Source fingerprint drift, not a behavioral counterexample"
+  },
+  "reviewedChanges": [
+    {
+      "file": "src/engine.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "requestLocal now binds its receipt event ID to requestHash, parentAttempt and messages, so successive rejected actions at the same uncreated operation slot have distinct request receipts. The public operationId/requestHash/session and workspace lease ownership remain unchanged. The finite LocalEffects initial prefix submits one original and one competitor action in separate works, and HostRetry submits two distinct first/second argv actions; neither graph generates a rejected repeat-limit request. Existing Duplicate actions replay their saved exact event bodies or host retry request identity, so their at-most-once semantics remain in the retained driver.",
+      "previousSha256": "36a3c892c82248423ed37809fa142944a6cacce98f7bdbe15111c5c02c377bc1",
+      "currentSha256": "a2c2583aa9fb4ab14e403816c528f0799a9c2cdce297658fabafeb32bc17196a",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/local-operation.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "LOCAL_REQUEST adds a guard rejecting a third identical diagnosable CLI failure for ordinary members, before any operation is created. LocalEffects has one original operation and a contender in another work, with no further CLI request in its graph. HostRetry source receipts have distinct argv and no diagnosable stderr; successors are host batch operations. No third same-key diagnosable request is reachable in these slices. LOCAL_RESULT/RECONCILE, finishOperation/checkpoint consumption, uncertain effects, session matching, recovery and leases are unchanged. New repeat-limiting semantics are covered by BT_L121 and the real XState gate, not inferred from these old graphs.",
+      "previousSha256": "7f635776d9c0ceabb69074af06f03c0ea05a24270720cbfea16ee29a980f8f2c",
+      "currentSha256": "754c1e5e49f62c4e266fda3eb7511c54112a866f9cc35fc94f63e7da77568876",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/local-runtime.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Adds synchronous recommendTools over loaded catalog/skill metadata only. The finite protocol drivers do not call it. LocalEffects concrete WebService/Runner/Adapter bridges can call this getter before deterministic answer/check requests, but no new CLI, journal write, approval or local operation is launched by recommendation. Original execute, process launch and recovery paths are unchanged.",
+      "previousSha256": "09c7050c7214d6b4a1c7da87bb1859c1323c036c666d66bc80970e06b2cf3a32",
+      "currentSha256": "b6f2d674c90b794567dd2e2f77669a6225d6cd37a66c5de0863151e415aa8084",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/local-skills.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Adds pure recommend metadata projection and a helper import; no skill scan, snapshot, activation, manifest identity or resource permission rule changes. Candidate metadata is not execution authority and does not alter either finite protocol projection.",
+      "previousSha256": "8f1548221fab864d3c33c397b814d6d883ed7e0783da41de48e748f92df4701f",
+      "currentSha256": "dc5d7e4e8ebb5e5a82e9b608a377b4fa4d454ab54e276ffcd75ee5f2c8794917",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/model-adapter.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Adds an ephemeral tool_guidance user observation before each authorized member model request plus instructions distinguishing recommendations from execution evidence. Finite graph drivers never invoke the Adapter. LocalEffects real process bridges use deterministic injected transport returning answer/check, so the new metadata cannot create another command. The preserved raw tool receipts, budget and I/O execution interface are unchanged.",
+      "previousSha256": "5ac886765af4427e8499beb4d08b550eead15d4a5d516b5091336519b76d1a7f",
+      "currentSha256": "4f51a62861c7c0e825d5750d263312e4a05ca8e832d5f19edc90cdce6a73e9cd",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/runner.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Adds a read-only current-work guidance getter and catches only CLI_REPEAT_FAILURE_LIMIT as non-acquisition tool feedback. It neither creates commands nor upgrades sandbox requests to host. The finite graph drivers do not instantiate the Runner; LocalEffects concrete bridges do, but their deterministic answer/check transports never emit a repeat-limited CLI request, so the new catch is dormant. Existing persistence, claim, launch, uncertain-settlement and session/lease paths are unchanged.",
+      "previousSha256": "e0e6491339ae88926baffc8ec597be99aa1adcb59e09929cf414dd723334939b",
+      "currentSha256": "19ebc1b09cbfb6eaf6d05b5906be2b590b1c77e2768974d668194ea1fb4c069d",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/cli-catalog.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Adds pure candidate recommendation over the already validated immutable catalog and a helper import. This does not change discovery cursors, validation, process execution, operation identity, authorization or the graph projections.",
+      "previousSha256": "dc8cb8346a3e5c33ff69deff7ffea77d8f0761993db055a73a913f45ced0e29e",
+      "currentSha256": "bf961fb4e4d6d9f1bb396ca0ee6fc282df16be89224c1ccd742ec5a6ff220ebc",
+      "newTransitiveDependency": false
+    },
+    {
+      "file": "src/cli-failure.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "New transitive dependency for pure conservative settled-failure classification and normalized invocation repeat counting. It reads localOperations only and writes no state; its request-rejection result is dormant in these finite graphs as explained for local-operation. Does not turn uncertain/denied/cancelled receipts into retry permission.",
+      "previousSha256": null,
+      "currentSha256": "717211b0c07092641dce7467c1649832c1d7d0bd654d2b0191341ec29077beb8",
+      "newTransitiveDependency": true
+    },
+    {
+      "file": "src/task/tool-guidance.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "New transitive dependency for bounded current-assignment text extraction, eligibility checks and up to five diagnostics referencing saved operation IDs. No event, state write, tool invocation or approval is created. The old protocol graphs do not execute it; concrete deterministic bridge observations remain data.",
+      "previousSha256": null,
+      "currentSha256": "6c1487d82bdf94d5aca7c659a56f7342dc13bde2169619abbe5dcd49fbc0f6e4",
+      "newTransitiveDependency": true
+    },
+    {
+      "file": "src/tool-recommendation.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "New transitive dependency for bounded deterministic lexical ranking of loaded metadata with Intl.Segmenter. It has no filesystem/network/process I/O and never changes guarded operation, batch, checkpoint or lease fields. Hash coverage does not claim semantic model-selection correctness.",
+      "previousSha256": null,
+      "currentSha256": "8f3ec269c241a6eeeab9f9727b9fbd34208f262feb8bc8a73127540cc89f80e3",
+      "newTransitiveDependency": true
+    }
+  ],
+  "modelReview": {
+    "modelsChanged": false,
+    "propertiesChanged": false,
+    "fairnessChanged": false,
+    "boundsReduced": false,
+    "driversChanged": false,
+    "existingRealCodeControlsRetained": true
+  },
+  "promise": "Existing unknown-effects, receipt/checkpoint/lease atomicity and host-batch retirement promises are unchanged. New tool recommendation and repeat-limiting semantics are accepted by separate BDD/XState tests, not added to the old finite domains.",
+  "limitations": "No proof of natural-language tool choice, arbitrary CLI histories, arbitrary metadata/repeat failures combined with host effects, infinite failures, OS isolation or external service exactly-once effects.",
+  "syncPolicy": "Keep old syncCommit until all nine complete frozen-product entrypoints and independent evidence readbacks pass. Updating pending fingerprints follows this per-file audit, not a claim that hashes prove correctness.",
+  "outcome": "updated",
+  "commitMessages": [
+    "7e5b3426d0909e133fd6329a06e08288ea4c5c62 按当前任务推荐宿主工具并引导有界 CLI 纠正（KEJ-112）",
+    "9f9a2c12760dcd49b4f2350b9417497b55bb652d 要求输入需求先转写并核查 EARS"
+  ],
+  "verification": {
+    "entry": "local-effects",
+    "sourceCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+    "evidence": "reports/kej-112-final-local-effects",
+    "status": "verified",
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true
+    },
+    "retainedArtifacts": 235,
+    "seconds": 141.748,
+    "graphStates": 108,
+    "edgesPerStorePerStage": 282,
+    "witnesses": 6,
+    "realCodeControls": 4,
+    "issue": "KEJ-112",
+    "outcome": "updated",
+    "independentReadback": "verified",
+    "readerControls": {
+      "evidence": "reports/kej-112-local-effects-reader-controls/run.json",
+      "status": "verified",
+      "cases": 6
+    },
+    "scope": "Exact frozen product 7e5b342; unchanged declared finite model, every labeled edge via actual public Memory/SQLite interfaces, genuine code/model fault controls, restored full rerun and independent evidence readback. New tool guidance and repeat semantics are separately accepted, not claimed as arbitrary combinations in these old graphs."
+  },
+  "verificationChanges": "Per-file correspondence review and conservative fingerprints for three new transitive helper dependencies. No model, property, bounds, fairness, replay driver or fault control changed or weakened.",
+  "bugFindings": [],
+  "syncNote": "Assigned complete entrypoints and readers pass. Parent must retain old syncCommit until all nine complete entries pass; subsequent metadata synchronization is not another full execution and does not relabel proof identity.",
+  "syncAdvance": {
+    "issue": "KEJ-112",
+    "productCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+    "allNineEntrypointsVerified": true,
+    "centralIndependentReadbacks": "passed",
+    "retainedArtifacts": 2728,
+    "outcome": "updated",
+    "metadataOnly": true,
+    "note": "All complete proofs, genuine controls, restored-original checks and independent readers passed before synchronization. Original proof inputs and old sync values remain historical evidence. Metadata synchronization is not another complete run and does not expand the finite guarantee."
+  }
+}
