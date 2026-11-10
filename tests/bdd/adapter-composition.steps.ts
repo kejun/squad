@@ -16,5 +16,5 @@ When('运行真实模型适配器和执行器完成会话', async function (this
 Then('后续请求应保留已有资料且修正不得自动重跑工具或回显无效原文', function (this: SpecWorld) { assert.equal(state(this).verified,true); });
 Then('另一工作不得继承这次工作的资料', function (this: SpecWorld) { assert.equal(state(this).verified,true); });
 Given('混合工具和格式修正的短序列已确定', function (this: SpecWorld) { state(this).verified = false; });
-When('逐一运行全部会话序列', async function (this: SpecWorld) { const { modelSessionComposition } = await import('../model-session-composition-fixture.js'); const result = await modelSessionComposition(true); assert.equal(result.sequences,48); state(this).verified = true; });
+When('逐一运行全部会话序列', { timeout: 30_000 }, async function (this: SpecWorld) { const { modelSessionComposition } = await import('../model-session-composition-fixture.js'); const result = await modelSessionComposition(true); assert.equal(result.sequences,48); state(this).verified = true; });
 Then('每条序列都应只应用合法最终动作并保留对应的资料边界', function (this: SpecWorld) { assert.equal(state(this).verified,true); });

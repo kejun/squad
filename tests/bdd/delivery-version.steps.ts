@@ -130,6 +130,12 @@ When('基于原报告的另一份修订和第一份候选的检查结论分别�
     criteriaResults: test.priorCheck.criteriaResults.map(item => ({ criterionId: item.criterionId, status: 'passed' })) });
   test.lateCheck = { result, context: structuredClone(context(test)), phase: test.service.engine.view(test.room, test.task)!.phase };
   review(test, false);
+});
+When('当前周期剩余的自动修订仍不能通过检查', function (this: SpecWorld) {
+  const test = tests.get(this)!;
+  assert(event(test, { type: 'DELIVER', workId: claim(test, 'owner').id, text: 'Retain the revision', artifactIds: [test.second!] }).ok);
+  test.replacementCandidate = structuredClone(context(test));
+  review(test, false);
   test.failedCheck = structuredClone(context(test));
   assert(event(test, { type: 'CONTINUE' }).ok);
   test.beforeStale = structuredClone(context(test));
