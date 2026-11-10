@@ -8,6 +8,8 @@ const [rootArg, model, variant, graphFile, output, selected = 'both'] = process.
 const root = resolve(rootArg);
 const sourceRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const { createCompositionDriver } = await import(pathToFileURL(join(sourceRoot, 'tests/coordination-composition-fixture.ts')).href);
+const { createToolRecoveryDriver } = await import('./tool-recovery-driver.mjs');
+const { createMapRecoveryDriver, mapRecoveryProbes } = await import('./map-recovery-driver.mjs');
 const nodes = new Map(), edges = []; let initial;
 for (const line of readFileSync(graphFile, 'utf8').split('\n')) {
   const node = /^(-?\d+) \[label="((?:\\.|[^"\\])*)"(.*)/.exec(line);
@@ -29,14 +31,25 @@ for (let index = 0; index < queue.length; index++) for (const edge of outgoing.g
 }
 assert.equal(paths.size, nodes.size, 'All parsed states must be reachable');
 const scratch = mkdtempSync(join(tmpdir(), 'squad-composition-replay-'));
-const report = { status: 'running', model, variant, graphStates: nodes.size, graphEdges: edges.length, backends: [] };
+const report = { status: 'running', model, variant, graphStates: nodes.size, graphEdges: edges.length, backends: [], probes: [] };
 mkdirSync(dirname(output), { recursive: true });
 try {
   for (const backend of selected === 'both' ? ['memory', 'sqlite'] : [selected]) {
+    if (model === 'MapRecovery') {
+      const directory = join(scratch, `${backend}-map-recovery-probes`); mkdirSync(directory);
+      try { report.probes.push(...await mapRecoveryProbes(root, backend, directory)); }
+      catch (error) {
+        report.failedBackend = backend;
+        report.counterexample = { backend, actions: ['MapRecoveryEvidenceProbe'], actual: {}, expected: {} };
+        throw error;
+      } finally { rmSync(directory, { recursive: true, force: true }); }
+    }
     let count = 0;
     for (const edge of edges) {
       const directory = join(scratch, `${backend}-${count}`); mkdirSync(directory);
-      const driver = await createCompositionDriver(root, model, variant, backend, directory);
+      const driver = model === 'ToolRecovery' ? await createToolRecoveryDriver(root, variant, backend, directory)
+        : model === 'MapRecovery' ? await createMapRecoveryDriver(root, variant, backend, directory)
+        : await createCompositionDriver(root, model, variant, backend, directory);
       const path = [...paths.get(edge.from), edge];
       const executed = []; let expected = nodes.get(initial);
       try {

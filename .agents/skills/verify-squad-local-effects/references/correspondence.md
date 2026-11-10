@@ -83,3 +83,14 @@ SettledProgress 仅在最多一次 crash/提交失败、Reopen/Commit 弱公平�
 产品 `615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9` 仅把sourceItems说明从deliver的JSON示例末尾移入owner系统提示；这些有限驱动不执行模型HTTP，因此授权、效果及批次的对应不受影响。仍按严格源绑定要求对最终源码完整重跑，未把661证据改称615运行。旧661目录保留历史；新运行、真实负对照、恢复后复验、独立读回和源未变检查均成功，详见本轮审查中的 strictSourceRerun 与 verification。
 
 最终证据 `reports/kej-110-final-local-effects` 保留108状态/282标记边、4类模型与真实源码负对照、6见证、原版复验及7条真实进程接线；228件原始件独立读回成功。`reports/kej-110-final-local-effects-reader-controls` 的自洽篡改/缺件/截断负控重新全部通过。
+
+
+## KEJ-111：工具失败反馈与补齐分片的旧切片审查
+
+受审冻结产品 `c239dd39d86f143a2f435f48590c648b20745b8b`；可用旧基线 `49d2bc0ec61df94581cc52aef48725b040ea8603` 的所有旧coverage文件与旧同步清单逐项同SHA，原样运行先被漂移门禁阻塞。12项改变/新增实现依赖的分类及原始阻塞证据见 [KEJ-111审查](drift-review-kej-111.json)。
+
+LocalEffectsFixture.open从两个公开房间创建已领取runCli工作及prepared日志；apply仅处理既有LOCAL_*、STOP、journal发布、重开和提交失败动作。reopen显式断言无discussion、assistance或retry batch；主图从不交付或检查候选，停止后还断言candidate为空。新增RECORD_TOOL_FAILURE与成功CHECK_RESULT恢复写入口均不在图内；CliJournal、LOCAL_RESULT/RECONCILE、检查点和租约所有者实现未变。七条实际进程接线仍是独立受控故障证据：其中三条CLI/SIGKILL案例通过真实WebService/WorkRunner/Adapter和注入的确定性transport恢复，只返回普通answer/check，无Web输出、discussion或恢复声明；四条SQLite边界使用公开事件，其中report交付同样无恢复声明。因此新增分支在接线中也不触发，不能将图驱动未调用Adapter的限制误写成整项检查完全不运行Adapter。
+
+因此旧图、全部性质、公平性、有限界限、双存储逐边比较及真实源码负对照保持。新Web恢复/MapRecovery有自己的有限扩展与具体BDD，不以保守传递依赖指纹声称这些旧图已验证任意新旧领域组合。最终完整执行、恢复后复验、负对照与独立读回状态见本轮审查，pending不算通过，不推进syncCommit。
+
+最终冻结源完整复验已通过：`reports/kej-111-final-local-effects`，108状态/282标记边、双存储完整对应、6见证、4类模型与真实源码负对照及7条实际进程接线；231件原始证据独立读回通过。`reports/kej-111-final-local-effects-reader-controls`的4类缺件/截断/篡改反控被正确拒绝，反控前后原证据保持有效。各运行与恢复后复验成功，清理及覆盖源未变为真；不将稍后同步元数据声称为额外完整执行。

@@ -122,3 +122,5 @@ PR40 产品源码对应审查：`21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR4
 这仍是有限模型穷举与代表前缀对应；不证明无限重试、任意成员数、dispatch后的owner/工具变化、外部效果恰好一次或所有未投影历史。原Handoff切片的排除项保留于其范围，不把新切片合并成全系统证明。
 
 KEJ-110 当前受审产品为 `615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9`；本轮逐文件审查、明确改变的预算承诺（如适用）、完整正向/真实负对照/原版复验与独立读回见[KEJ-110审查](references/drift-review-kej-110.json)。仅在全部九个CI形式化入口成功后推进同步元数据；此同步操作不是额外完整复跑，新功能的语义与真实模型供应商行为仍由独立验收负责。
+
+KEJ-111 受审产品为 `c239dd39d86f143a2f435f48590c648b20745b8b`。原 Handoff 与 A2 的有限域、模型、性质、公平性和回放保持；两者不发送新增 `RECORD_TOOL_FAILURE`，且不执行带分片恢复声明的负责人交付。新增纯依赖与每项变化的入口条件见[KEJ-111审查](references/drift-review-kej-111.json)。有界 Web 反馈及负责人证据补齐分别由 coordination 扩展的 ToolRecovery、MapRecovery 切片和直接产品场景承接，不能由原交接通过推导。精确源码完整运行、独立读回与同步状态以该审查的 validation 为准；pending/blocked 不表示通过。

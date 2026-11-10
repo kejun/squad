@@ -66,3 +66,14 @@ CLI catalog/分页及共享调用经验是纯投影或适配器路径，不新�
 产品 `615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9` 仅把sourceItems说明从deliver的JSON示例末尾移入owner系统提示；这些有限驱动不执行模型HTTP，因此授权、效果及批次的对应不受影响。仍按严格源绑定要求对最终源码完整重跑，未把661证据改称615运行。旧661目录保留历史；新运行、真实负对照、恢复后复验、独立读回和源未变检查均成功，详见本轮审查中的 strictSourceRerun 与 verification。
 
 最终证据 `reports/kej-110-final-host-retry` 保留41状态/111标记边、双存储正向与恢复复验、4类真实源码负对照及4见证，独立读回成功。新读回负控输出 `reports/kej-110-final-host-retry-reader-controls.json`，7项自洽证据篡改分别因预期完整性错误被拒绝。
+
+
+## KEJ-111：工具失败反馈与补齐分片的旧切片审查
+
+受审冻结产品 `c239dd39d86f143a2f435f48590c648b20745b8b`；可用旧基线 `49d2bc0ec61df94581cc52aef48725b040ea8603` 的所有旧coverage文件与旧同步清单逐项同SHA，原样运行先被漂移门禁阻塞。12项改变/新增实现依赖的分类及原始阻塞证据见 [KEJ-111审查](drift-review-kej-111.json)。
+
+hostRetryDriver公开前缀的DELIVER省略partitionRecoveries；observe每次断言无discussion/review，完整比较savedCandidate与原已决回执。因无声明，mapRecoveryProblem返回null、mapRecoveryCriteria返回空，保存候选与批次建立保持原行为；图中无CHECK_RESULT或RECORD_TOOL_FAILURE。批次退休/后继创建、效果未知阻挡及同来源去重所有者实现未变；恢复仍按recoverySlice断言单任务、无待消费结果及无到期副作用。
+
+因此旧图、全部性质、公平性、有限界限、双存储逐边比较及真实源码负对照保持。新Web恢复/MapRecovery有自己的有限扩展与具体BDD，不以保守传递依赖指纹声称这些旧图已验证任意新旧领域组合。最终完整执行、恢复后复验、负对照与独立读回状态见本轮审查，pending不算通过，不推进syncCommit。
+
+最终冻结源完整复验已通过：`reports/kej-111-final-host-retry`，41状态/111标记边、双存储完整对应、4见证及4类真实源码负对照；147件原始证据独立读回通过。`reports/kej-111-final-host-retry-reader-controls.json`的7类自洽缺件/轨迹篡改反控被正确拒绝。各运行与恢复后复验成功，清理及覆盖源未变为真；不将稍后同步元数据声称为额外完整执行。

@@ -154,3 +154,23 @@ CheckBudget 从“最大一修订，两候选，2普通+1技术”扩为“最�
 `BoundedRevisions` 替代旧 `OneRevision`；等式 recordedRevisions=revisions、marker iff revisions>0 和上限2..3均由每边真实投影复验。`BoundedChecks` 仍保护普通与技术请求分开计费，按固定上限动态扩域，不改变 OneTechnicalRetry。新增独立可达性见证 NeverFiveRequests、NeverSecondRevision、NeverThirdRevision、NeverExpandedLimit，旧三请求/重试/unknown/恢复见证保留。新增真实代码负对照遗漏used递增与把limit设4，并保留遗漏revisionUsed marker；每个都必须在Memory/SQLite因BoundedRevisions失败而非因导入或源码hash。
 
 旧快照 `revisionUsed=true` 且无revisions沿用旧一次额度、预算不足不安排修订、机械补交同额度、unverified不改写和停止/迟到结果，由 BT_F77–81 与既有直接场景单独验收；没有把这些加入本次TLC切片。传递源变化需要独立审查及完整运行，不能因只改提示而自动略过hash门禁。原始门禁已运行并因预期源码漂移blocked，证据 `reports/verify-squad-coordination/kej-110-original-drift`；最终成功结果和同步提交在完成后记录。
+
+## KEJ-111 工具失败反馈与分片补齐
+
+受审产品固定为 `c239dd39d86f143a2f435f48590c648b20745b8b`。旧同步清单与可用基线49d2bc0的覆盖字节逐项一致；原样九入口因已确认源码漂移 blocked，具体差异和各路径影响见[逐文件审查](drift-review-kej-111.json)。保留原 Budget/CheckBudget/Shards 及21扩展配置。Shards 只到负责人收到原始结果，尚无补齐声明或发布，所以失败仍未解决，原 `PreserveIncomplete` 继续成立。
+
+### ToolRecovery
+
+Init 经公开 CLAIM 和初始模型 CONSUME 建立一个当前 owner；普通额度5，最多3个Web请求、2条失败反馈，一次安全 RECOVER、分别领取及首请求使用，一次截止/停止边界。新反馈是单个 `engine.send(RECORD_TOOL_FAILURE)` 事务，不收费；后续模型/工具请求仍分别经过原 CONSUME。模型枚举错误请求ID、工具、attempt、fence、重复、无余额、截止后的拒绝。`failures` 投影真实 `Intent.toolRecovery.failures`，`used` 与请求计数独立投影持久usage和CONSUME trace；恢复不重置历史。
+
+`BoundedToolRecovery`、`ToolRecoveryAccounting`、`ToolFailureIdentity`、`StoppedToolRecovery` 分别检查上限、收费/下一请求预留、已消费请求绑定及失效边界。五项独立见证证明首/次反馈、恢复后反馈、预算前沿及截止探针可达。六项真实源码负对照移除上限、重复、请求trace、预留、截止守卫或额外收费，必须在两存储因相应性质失败。公开CONSUME事件没有强制真实适配器的模型回合顺序；本图只验证事件协议和预算，真实HTTP失败转反馈、再选择CLI及SQLite继续由产品场景验收。
+
+### MapRecovery
+
+Init 经公开输入解释、两个成员 CLAIM/CONSUME/结果（一个failed、一个partial）、归并partial和owner领取到达。owner通过 LOCAL_REQUEST/LOCAL_CLAIM/LOCAL_STARTED/LOCAL_RESULT 保存一份合成完整成功CLI来源；不运行实际CLI。图枚举不声明/声明一片/声明两片、独立check领取和CONSUME、全部通过/failed/unverified、缺引文/错引文的一次技术补试、错误revision/attempt、重复/未消费结果、STOP/改目标及一次constructor重开。重开只重连Store，不冒充RECOVER或flush事务。每边从公开前缀重建真实TeamEngine并在Memory/SQLite比较全部变量；选一条最短代表前缀，不证明隐藏历史任意等价。
+
+`NoUnresolvedPublication` 要求两片均声明且独立检查通过才发布；`NoUnverifiedRecovery` 阻止提前resolution；`RecoveryHistoryImmutable` 对原queue失败字段及round.results作完整固定字符串比较；`VerifiedRecoveryEvidence` 独立核对proof中的候选revision、check、轮次、epoch、goal、owner、指定来源及实际exact quote；`RecoveryIsolation` 和 `OutstandingRecoveryDebt` 约束停止/旧目标及未补齐标记。所有原验收条件同时在真实CHECK_RESULT中判断，新增criterion不能替代它们。`RecoveryProgress` 只在可领取check、付费请求及合成通过结果弱公平下到达结算，STOP/换目标可明确终止；不保证模型会作出正确判断。
+
+七项独立可达见证覆盖完整声明/成功发布、部分声明结算、引用补试、重开保存proof、停止及旧目标。五项真实源码负对照分别绕过剩余分片门禁、改写原状态、取消指定来源引用、放过无效来源及检查前写resolution；必须在双存储以目标断言正常失败。另有六项公开前缀探针拒绝failed/truncated/unknown来源、重复声明、错轮次及真正上一epoch的来源。第七项独立评审缺口探针将明确记录的有限review快照输入Store，随后只走公开DELIVER/CHECK_RESULT，检查map补齐不能绕过review.incomplete；其origin明确为 `bounded-snapshot-input`。ReviewQueue单独验证评审生命周期，本轮未声称枚举两者完整组合。
+
+两新增图均枚举完有限域，原版与故障代码使用相同捕获图。读回器强制新模型性质、图/日志/配置、逐边JSONL、新驱动正文及probe来源分类；新增自洽删除驱动正文控制，保留原五项读回控制。完整结果记录在覆盖清单中，只有冻结产品九入口及独立读回成功后推进sync；适配器选择正确替代工具、CLI真实执行与任意正文语义仍属独立产品验收。

@@ -163,3 +163,15 @@ SourceLineage 的 corrupt-freeze 反例现在保持真实 revision=1，用独立
 ### 615b18f 精确源码最终复验
 
 产品615完整Delivery入口125.614秒通过，原31状态79边与三组合47/91、79/203、71/226全部完整探索、双存储逐边回放、三类原始和七类组合真实负控及原版完整复验通过。独立读回290件原始证据，十一项自洽证据缺件/性质移除/摘要冲突负控与通用缺件/截断负控均通过，cleanup四项全true。证据 `reports/kej-110-final-delivery` 与 `reports/kej-110-615-reader-controls-delivery`；661结果仅保存在historicalValidation，不作为615最终证明。
+
+## KEJ-111：恢复声明与原发布切片的对应审查
+
+产品冻结于 `c239dd39d86f143a2f435f48590c648b20745b8b`。旧同步615的71项源码/依赖指纹与可用主线 `49d2bc0ec61df94581cc52aef48725b040ea8603` 全部同字节。读取该基线至产品的全部12项源码变化、提交说明与新增纯依赖，记录于[逐项审查](drift-review-kej-111.json)；原样blocked发生在开发中，保留其实际源码/工作树，不称为冻结提交的完整运行。
+
+原Delivery每步显式排除discussion与discussionId；Verification、Cycles、SourceLineage由固定公开submit/DELIVER前缀建立，不启动讨论、分解或map轮次，所有交付均省略partitionRecoveries。新 `mapRecoveryProblem` 和 `mapRecoveryCheckProblem` 因没有声明返回null，`mapRecoveryCriteria`、`uncoveredMapRecoveries`因没有map轮次返回空数组，`resolveMapRecoveries`没有写入。检查要求没有requiredSourceIds，故新的强制来源分支不改变原合成结果。普通独立评审先于map恢复处理的规则在这些无评审前缀亦无行为变化。
+
+DELIVER仍在一次事务中固定候选与验收要求；CHECK_RESULT仍由当前candidateRevision、attempt/fence、固定证据及工作区复核门禁约束，完整发布、final与完成状态在同一事务提交。新resolver在该事务内、finish之前运行，没有拆分原发布边界；它只会处理本技能未建模的恢复声明。原SnapshotBinding、版本隔离、多周期历史与直接来源固定的关键实现保持。
+
+新增 `RECORD_TOOL_FAILURE` 只在显式事件分支记录有界历史；这些图的动作全集不含该事件。模型适配器和runner的Web反馈/声明传输是新接线，不在直接engine回放中运行。`map-recovery.ts`、`tool-recovery.ts`加入保守指纹门禁，表示将来变化必须审查，不代表本技能已证明其外部调用或语义。
+
+故原四模型、性质、公平性、界限、原有真实负控与逐边回放保持。当前map恢复发布资格有意改变，独立coordination MapRecovery切片检查声明绑定、冻结来源、逐片独立引用、保留失败历史与原子解决；ToolRecovery切片检查有界反馈身份和额度。真实替代工具是否成功、正文是否对应分片目标及八片集成仍须BT_M52–M59、BT_Q36–Q48和实际接线验收，不能从四个原模型的通过推出。完整运行/读回状态以审查JSON的validation为准，未完成前不推进sync。

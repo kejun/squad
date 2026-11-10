@@ -232,3 +232,15 @@ handoff 的 createTeamConfig({}) 无模型服务；RunnerProgress 在 adapter �
 ### 615b18f 精确源码最终复验
 
 产品615的原Handoff完整入口38.141秒通过；146状态424边，Memory/SQLite各424边、六项见证、四类真实负控及原版完整复验通过。两域重试组合仍为53状态225边与26状态103边，四类真实负控和原版复验通过。独立读回分别108/153件证据，组合证据缺件/截断负控通过。新证据位于 `reports/kej-110-final-handoff`、`reports/kej-110-final-handoff-composition`；615命令日志在 `work/kej110-615-handoff-delivery-commands.json`，661结果仅保存在historicalValidation。
+
+## KEJ-111：有界工具反馈与分片补齐的交接切片审查
+
+产品冻结于 `c239dd39d86f143a2f435f48590c648b20745b8b`。旧同步615的58项原交接指纹、25项A2指纹与可用主线 `49d2bc0ec61df94581cc52aef48725b040ea8603` 逐项同字节；该基线至产品提交的全部12项源码变化及新增依赖已阅读，逐文件原因与原样blocked保存在[审查记录](drift-review-kej-111.json)。原样检查发生在开发中，只证明当时漂移门禁阻止运行，不能冒充冻结提交的完整检查。
+
+原 `compare.mjs.observe` 每步断言没有candidate、check、discussion、discussionId或本地操作；原图只保存/消费协助结果，不执行负责人续办。`RunnerProgress` 探针仍在 `runOne` 首次flush后结束，adapter.execute若被调用会抛错。新增runner回调和Web失败反馈不会进入这些路径，消费标记、唯一owner续办、停止取消与原存储事务没有改变。
+
+A2的 `RetryComposition` 从公开HELP、RECORD_RESULT或WORK_FAILED形成起点，动作全集只含重试、领取/保存/消费、旧结果、权限/owner变化和RECOVER；没有DELIVER或RECORD_TOOL_FAILURE。新增policy分支按事件类型进入，新的可选字段在该前缀与动作中没有值。retryOf唯一后继、保存结果复用与当前权限/owner守卫保持，恢复和flush仍是分开的事务。
+
+`map-recovery.ts` 与 `tool-recovery.ts` 是已覆盖policy/reducer等的新增纯依赖，应加入保守漂移清单。前者只在当前map轮次且候选有恢复声明时生成验收/解决记录；后者只由新事件记录至多两次反馈。它们在本技能原有限域内无新增写入，不能据此宣称整个产品多了一条已穷举的stuttering路径。独立coordination ToolRecovery/MapRecovery切片与BT_M52–M59、BT_Q36–Q48分别检查新协议/行为；本技能原模型、性质、故障预算、界限、见证与真实源码负控均不变。
+
+冻结源码的完整正负/恢复检查及独立读回以审查JSON的validation为准，未完成前不推进同步元数据；同步更新本身不算额外完整复跑。

@@ -9,6 +9,8 @@ import shutil
 import tempfile
 
 REQUIRED = {
+    'ToolRecovery': (['TypeOK', 'BoundedToolRecovery', 'ToolRecoveryAccounting', 'ToolFailureIdentity', 'StoppedToolRecovery'], []),
+    'MapRecovery': (['TypeOK', 'NoUnresolvedPublication', 'NoUnverifiedRecovery', 'RecoveryHistoryImmutable', 'VerifiedRecoveryEvidence', 'RecoveryIsolation', 'OutstandingRecoveryDebt'], ['RecoveryProgress']),
     'DiscussionBudget': (['TypeOK', 'ProtectedDiscussionBudget', 'AllSettledBudget', 'OwnerBudgetHandoff'], ['Progress']),
     'ReservedRequests': (['TypeOK', 'ProtectedContinuation', 'SharedRequestAccounting'], []),
     'InputBoundary': (['TypeOK', 'NoPrematureInterpretation', 'AppliedInputBoundary', 'NoUnresolvedPublication', 'NoUnresolvedOwner', 'StopCancelsInputSuccessor'], ['Progress']),
@@ -20,6 +22,7 @@ READER_REASONS = {
     'remove-negative-json': 'memory.json', 'remove-negative-log': 'memory.log',
     'remove-negative-diff': 'real-code.diff', 'remove-required-property': 'required liveness properties differ',
     'remove-fixture-body': 'coordination-composition-fixture.ts',
+    'remove-recovery-driver': 'map-recovery-driver.mjs',
 }
 COUNTS = r'([\d,]+) states generated, ([\d,]+) distinct states found, ([\d,]+) states left on queue'
 
@@ -115,6 +118,10 @@ def readback(area, specs, controls, check_reader_controls=True):
     assert coverage['files'] == report['coveredFileHashes'], 'Captured source fingerprint map differs'
     for name, expected in coverage['files'].items():
         assert sha(required(area, manifest, Path('implementation') / name)) == expected, f'Captured implementation differs: {name}'
+    for name in ['map-recovery-driver.mjs', 'tool-recovery-driver.mjs']:
+        key = '.agents/skills/verify-squad-coordination/scripts/' + name
+        assert key in report['checkerInputHashes'], 'Missing required recovery driver fingerprint: ' + name
+        assert sha(required(area, manifest, Path('checker-inputs') / key)) == report['checkerInputHashes'][key], 'Missing or changed recovery driver: ' + name
     assert set(report['baseline']) == set(specs) == set(report['restored']) == set(report['witnesses']), 'Omitted model domain'
     for stage in ['baseline', 'restored']:
         for key, (model, variant, witnesses) in specs.items():
@@ -139,6 +146,15 @@ def readback(area, specs, controls, check_reader_controls=True):
             graph = required(area, manifest, prefix / 'graph.dot')
             assert raw['graphStates'] == result['counts'][1] and raw['graphEdges'] + 1 == result['counts'][0], 'Omitted graph structure'
             replay_rows(area, manifest, replay_path, raw, graph)
+            if model == 'MapRecovery':
+                probes = raw.get('probes', [])
+                for backend in ['memory', 'sqlite']:
+                    selected = [probe for probe in probes if probe.get('backend') == backend and probe.get('verified') is True]
+                    assert {probe.get('name') for probe in selected} == {'failed', 'truncated', 'unknown', 'duplicate', 'wrong-round', 'stale-epoch', 'independent-review'}, 'Missing MapRecovery evidence eligibility probes'
+                    assert len(selected) == 7 and all(probe.get('family') == 'map-recovery-evidence' for probe in selected), 'Duplicated or unrelated recovery evidence probe'
+                    assert all(probe.get('origin') == ('bounded-snapshot-input' if probe['name'] == 'independent-review' else 'public-prefix') for probe in selected), 'Unstated recovery probe input origin'
+                    assert next(probe for probe in selected if probe['name'] == 'independent-review').get('input', {}).get('incomplete') == '原独立审查仍有缺口', 'Missing independent-review bounded input'
+
     for key, (model, variant, names) in specs.items():
         assert set(report['witnesses'][key]) == set(names), 'Omitted required reachability witness'
         for name in names:
@@ -174,7 +190,7 @@ def readback(area, specs, controls, check_reader_controls=True):
             assert (raw['graphStates'], raw['graphEdges']) == (baseline['graphStates'], baseline['graphEdges']), 'Real fault uses another model graph'
     if check_reader_controls:
         values = json.loads(required(area, manifest, 'readback-controls.json').read_text())
-        assert values == report['readbackControls'] and set(values) == {'remove-negative-json', 'remove-negative-log', 'remove-negative-diff', 'remove-required-property', 'remove-fixture-body'}
+        assert values == report['readbackControls'] and set(values) == set(READER_REASONS)
         assert all(value['rejected'] is True and READER_REASONS[name] in value['reason'] for name, value in values.items()), 'Reader controls did not reject the intended deletion'
     return len(manifest)
 
@@ -187,6 +203,7 @@ def reader_controls(area, specs, controls):
         'remove-negative-diff': Path('negative-controls') / first / 'real-code.diff',
         'remove-required-property': Path('baseline') / key / f'{model}.cfg',
         'remove-fixture-body': Path('checker-inputs/tests/coordination-composition-fixture.ts'),
+        'remove-recovery-driver': Path('checker-inputs/.agents/skills/verify-squad-coordination/scripts/map-recovery-driver.mjs'),
     }
     scratch = Path(tempfile.mkdtemp(prefix='squad-coordination-reader-'))
     results = {}

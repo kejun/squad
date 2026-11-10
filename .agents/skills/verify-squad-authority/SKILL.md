@@ -93,3 +93,5 @@ e77 最终维护：当前受测产品提交 `e77f052acacd208fd8eb8587ac6901ba190
 KEJ-109 元数据与引用诊断维护：当前同步产品为 `8f4a1acb31f1aa9d73996e60dbb9aa3becce0596`。十个变化文件及三个新增传递依赖逐项审查后，原授权与授权组合均完整运行并独立读回通过；模型、性质、公平性和事务边界保持。受测运行始于较早 HEAD 加已审查工作区差异，随后逐文件证明与该同步提交字节一致；详情见 [原授权审查](references/drift-review-kej-109.json) 与 [组合审查](references/drift-review-kej-109-composition.json)。CLI 检索、共享方法和检查诊断仍由独立 BDD 承担，不扩大本有限证明。
 
 KEJ-110 当前受审产品为 `615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9`；本轮逐文件审查、明确改变的预算承诺（如适用）、完整正向/真实负对照/原版复验与独立读回见[KEJ-110审查](references/drift-review-kej-110.json)。仅在全部九个CI形式化入口成功后推进同步元数据；此同步操作不是额外完整复跑，新功能的语义与真实模型供应商行为仍由独立验收负责。
+
+KEJ-111 维护：受审冻结产品 `c239dd39d86f143a2f435f48590c648b20745b8b`。保留原有限图、性质、界限和负对照；逐文件分类、驱动与实际进程接线边界、最终完整运行和独立读回状态见 [KEJ-111审查](references/drift-review-kej-111.json)。全部九入口完成前保持旧syncCommit；新增ToolRecovery/MapRecovery由coordination扩展单独承接。

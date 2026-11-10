@@ -1,0 +1,174 @@
+{
+  "issue": "KEJ-111",
+  "outcome": "updated",
+  "previousSyncCommit": "615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9",
+  "availableEquivalentBaseline": "49d2bc0ec61df94581cc52aef48725b040ea8603",
+  "reviewedCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+  "baselineVerification": "All nine original coverage maps match available49d2bc0 covered bytes exactly; original entrypoints blocked on actual source drift before pins changed.",
+  "evidenceForIntent": [
+    "https://linear.app/kejunz/issue/KEJ-111",
+    "features/51_tool_recovery.feature",
+    "features/52_map_recovery.feature"
+  ],
+  "transactionReview": "No original submit/claim/CONSUME/DELIVER/CHECK_RESULT/RECOVER split. Feedback is one new event transaction; resolution and final outcome share original verified CHECK_RESULT transaction. CLI receipt remains separately requested/claimed/started/settled.",
+  "files": [
+    {
+      "file": "src/delivery-acceptance.ts",
+      "classification": "reviewed-legacy-no-effect-and-new-domain",
+      "reason": "Existing criteria have no requiredSourceIds and legacy no-claim DELIVER adds no recovery criteria. New MapRecovery projects the appended per-partition requirements and independently requires specified-source exact quotes.",
+      "oldSha256": "113afdb4cfd2c81c5657b1b26da7ed521f8a85b659b37919d22d11f554a50183",
+      "newSha256": "dfbf0e5330e6da8c8822186eeccc080da7253818b614e88aaabde38f9d916253"
+    },
+    {
+      "file": "src/delivery-check-delta.ts",
+      "classification": "reviewed-legacy-no-effect-and-new-domain",
+      "reason": "Pure adapter projection now chooses full frozen materials for recovery candidates. Direct event replays do not call this view; no source is refreshed. Actual full check projection is accepted separately by BDD.",
+      "oldSha256": "3d7312d7e63df5bccf24876665a9b62491177f1f67aeedd146bc9c623e3f2e82",
+      "newSha256": "676f1a53878cf893a1073b6e599a038b099fc26bffc5d7a6e9cc8ee00602c4d1"
+    },
+    {
+      "file": "src/measurement.ts",
+      "classification": "reviewed-legacy-no-effect-and-new-domain",
+      "reason": "ModelOutputField union only; no runtime transition, accounting or formal projection changes.",
+      "oldSha256": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
+      "newSha256": "0ceeba39fe20ece308c1a0ed1df3b1438e40052af651f9a0037592f2af1cc773"
+    },
+    {
+      "file": "src/model-adapter.ts",
+      "classification": "reviewed-legacy-no-effect-and-new-domain",
+      "reason": "Adapter validates the optional output and returns known settled Web exceptions as canonical feedback after host acceptance. Formal drivers never invoke supplier HTTP; they verify the underlying public event protocol, not alternate-tool selection.",
+      "oldSha256": "edd9c5251e5e04f823743add1f17f08d7b35928b62c51b7d75fad3358e054c0f",
+      "newSha256": "5ac886765af4427e8499beb4d08b550eead15d4a5d516b5091336519b76d1a7f"
+    },
+    {
+      "file": "src/runner.ts",
+      "classification": "reviewed-legacy-no-effect-and-new-domain",
+      "reason": "Optional typed fields carried into same DELIVER transaction and RECORD_TOOL_FAILURE bound to actual last consumed Web request. Main and old extensions inject events directly; adapter/runner wire behavior remains separately tested. New ToolRecovery models the exact generated request identity contract.",
+      "oldSha256": "3a184148df3d8f87082e5c4a437fafbd357ad1832aeadb8548d3647622ea8f01",
+      "newSha256": "e0e6491339ae88926baffc8ec597be99aa1adcb59e09929cf414dd723334939b"
+    },
+    {
+      "file": "src/task/delivery.ts",
+      "classification": "reviewed-legacy-no-effect-and-new-domain",
+      "reason": "Old no-claim prefixes retain incomplete handoff and old budget/retry behavior. New MapRecovery intentionally permits only current evidence-bound all-partition recovery to retire debt after all independent criteria; review.incomplete remains a separate gate.",
+      "oldSha256": "4894e7492cce51db203d717c3ee6e26c68581180cb68a7ed3ce4ac75d100eecb",
+      "newSha256": "b38e539124b74974dae3e487f352c113704631fddb9f9ed40c8d72b5d07f7b0b"
+    },
+    {
+      "file": "src/task/lifecycle.ts",
+      "classification": "reviewed-legacy-no-effect-and-new-domain",
+      "reason": "Adds one RECORD_TOOL_FAILURE branch using existing valid/apply/reject; old alphabets do not emit it. New ToolRecovery explicitly exercises the event through actual taskMachine; no old transitions or compound transaction boundaries changed.",
+      "oldSha256": "c64e0a48ab7e08e1b35eed75c1e9c137486018372ad4e0a19645676827f25c7b",
+      "newSha256": "94963a5125285181fa0c325d3379abb400514289918f75ad0b77f01be792518f"
+    },
+    {
+      "file": "src/task/map-recovery.ts",
+      "classification": "new-bounded-domain",
+      "reason": "New pure guards and same-CHECK_RESULT resolution writer. Eligibility binds current delivered map, current owner, settled complete successful hashed CLI evidence. New graph covers proof identity/history; finite probes cover invalid input classes. No helper path affects no-claim legacy prefixes.",
+      "oldSha256": null,
+      "newSha256": "302ffcab7a03cedd8881200692fbbbbc58dc64a491a1ada238ffb40df4b1a6f3"
+    },
+    {
+      "file": "src/task/policy.ts",
+      "classification": "reviewed-legacy-no-effect-and-new-domain",
+      "reason": "Optional claims validated before DELIVER and new feedback delegated to toolFailureProblem. Legacy absent claims pass unchanged; original attempt/fence/stop guards remain. Both new graphs use public engine send through this policy.",
+      "oldSha256": "c88e519d12db0cef6a31d0b3d471199b77f176143f68c0cc10ebc88ad67aa315",
+      "newSha256": "f34c53e815fed60a564f4b4ad454d107ec115b19a1987938241cc23a281b0905"
+    },
+    {
+      "file": "src/task/reducer.ts",
+      "classification": "reviewed-legacy-no-effect-and-new-domain",
+      "reason": "Claims deep-copied in existing DELIVER and resolution written only on complete bound CHECK_RESULT, atomically with finish; feedback appends in its own event. Original histories/status are untouched. Old graph alphabets have no claims/feedback and keep prior projection.",
+      "oldSha256": "14ec8005c0716a4d66c8ddc3d2f5e51b76ed79bb8a1a3dade95d59164331add1",
+      "newSha256": "3fb30e8295897c4af5d12a34aae7f0640d858024d89a8139cdd400a1256c5b1e"
+    },
+    {
+      "file": "src/task/tool-recovery.ts",
+      "classification": "new-bounded-domain",
+      "reason": "New canonical category classifier and bounded same-intent feedback protocol. New ToolRecovery models max2, request trace/identity, attempt/fence, recovery, shared budget reservation, duplicate, stop and deadline. Does not grant new execution authority or supplier success.",
+      "oldSha256": null,
+      "newSha256": "d8f30b4b646edd31f625ecd8a46929e025a7232a6ea6d7d3dc5794b4da8193ec"
+    },
+    {
+      "file": "src/types.ts",
+      "classification": "reviewed-legacy-no-effect-and-new-domain",
+      "reason": "Optional persisted feedback, recovery declarations/proofs and new event shape. Existing fields and event variants retain behavior; new state fields explicitly projected by their respective new finite graphs.",
+      "oldSha256": "74888f1bf83be204b9dc4184a8e89a8ac61b387cf90947987dbd1f1b6c82e957",
+      "newSha256": "8e8d85e75b8f5ea7b0ce39d308d88d606fb9a0f02e8491d3741e418d921503f5"
+    }
+  ],
+  "legacyScope": "Budget/CheckBudget/Shards and21 extension domains unchanged. Shards ends at owner handoff before any repair declaration, so PreserveIncomplete retained. Old no-claims DELIVER/check/input/review behavior retained; no new global composition claim.",
+  "newScope": {
+    "ToolRecovery": {
+      "states": 89,
+      "edges": 235,
+      "witnesses": 5,
+      "controls": 6,
+      "bounds": "one paid owner; ordinary5; <=3Webrequests; <=2feedbacks; one safe recovery; one stop/deadline boundary",
+      "liveness": "none: supplier and alternative-tool progress remains external"
+    },
+    "MapRecovery": {
+      "states": 130,
+      "edges": 321,
+      "witnesses": 7,
+      "controls": 5,
+      "bounds": "two original failed/partial map members; one aggregate settled CLI source; 0/1/2claims; one candidate; one citation retry; one store reopen; stop/goal boundary",
+      "probes": "six public-prefix invalid source/claim classes; one separately labelled finite independent-review snapshot input",
+      "liveness": "finite check phase under weak fair Claim/Consume/synthetic Pass or explicit invalidation"
+    }
+  },
+  "verification": [
+    {
+      "entry": "coordination",
+      "sourceCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+      "evidence": "reports/kej-111-final-coordination",
+      "status": "verified",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "checkerInputsUnchanged": true
+      },
+      "retainedArtifacts": 371,
+      "seconds": 514.061,
+      "domains": 3,
+      "witnesses": 23,
+      "realCodeControls": 24,
+      "edgesPerStorePerStage": 2657
+    },
+    {
+      "entry": "coordination-extensions",
+      "sourceCommit": "c239dd39d86f143a2f435f48590c648b20745b8b",
+      "evidence": "reports/kej-111-final-coordination-extensions",
+      "status": "verified",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "checkerInputsUnchanged": true
+      },
+      "retainedArtifacts": 1073,
+      "seconds": 504.853,
+      "domains": 23,
+      "witnesses": 70,
+      "realCodeControls": 29,
+      "edgesPerStorePerStage": 3554,
+      "evidenceReaderControls": 6
+    }
+  ],
+  "independentReview": {
+    "reviewer": "root agent",
+    "result": "no blocker",
+    "reviewed": "MapRecovery.tla, both recovery drivers, strict raw reader and controls",
+    "boundary": "Finite valid-source prefixes and explicitly labelled review snapshot input; neither arbitrary malformed state nor semantic truth oracle proof."
+  },
+  "targetedEvidence": {
+    "path": "work/kej-111-formal/map-controls-v2/summary.json",
+    "result": "seven witnesses, five dual-store genuine source mutations, restored original321-edge replay allpassed",
+    "harnessDiagnostic": "First omit-citation control diverged at generic projection before named property on partial claims. Driver strengthened with immediate named VerifiedRecoveryEvidence rejection; unchanged product passed restored replay."
+  },
+  "postMetadataReadback": {
+    "evidence": "work/kej-111-formal/post-sync-readback.json",
+    "entrypoints": 9,
+    "allExitCodes": 0,
+    "additionalFullRerun": false
+  }
+}
