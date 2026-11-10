@@ -100,6 +100,8 @@ PR40 产品源码对应审查：`21ee46039f594d9b93d400bf703e14d42fab2b0e`（PR4
 
 ## Sources
 
+KEJ-112 冻结产品 `7e5b3426d0909e133fd6329a06e08288ea4c5c62` 的原 Handoff 与 A2 完整检查及独立读回已通过，见[本轮审查](references/drift-review-kej-112.json)。候选覆盖指纹包含三个新增纯 helper；本地请求和推荐不在原图动作域，原交接/重试性质、边界和真实故障对照保持。同步提交在九个形式化入口全部通过前保留旧值；本轮补写结果摘要不声称额外完整复跑。
+
 - [TLA+ Tools CLI](https://github.com/tlaplus/tlaplus/blob/master/USE.md)：工具运行方式。
 - [固定 v1.7.4 发行说明](https://github.com/tlaplus/tlaplus/releases/tag/v1.7.4)：发行版本和原始校验值。
 - 结构与维护流程改编自 [pstack](https://github.com/cursor/plugins/tree/99b609a72323b70204eab407c622f436e858e112/pstack/skills/create-formal-verification-skill)，保留 [MIT LICENSE](LICENSE)。

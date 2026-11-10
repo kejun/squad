@@ -244,3 +244,13 @@ A2的 `RetryComposition` 从公开HELP、RECORD_RESULT或WORK_FAILED形成起点
 `map-recovery.ts` 与 `tool-recovery.ts` 是已覆盖policy/reducer等的新增纯依赖，应加入保守漂移清单。前者只在当前map轮次且候选有恢复声明时生成验收/解决记录；后者只由新事件记录至多两次反馈。它们在本技能原有限域内无新增写入，不能据此宣称整个产品多了一条已穷举的stuttering路径。独立coordination ToolRecovery/MapRecovery切片与BT_M52–M59、BT_Q36–Q48分别检查新协议/行为；本技能原模型、性质、故障预算、界限、见证与真实源码负控均不变。
 
 冻结源码的完整正负/恢复检查及独立读回以审查JSON的validation为准，未完成前不推进同步元数据；同步更新本身不算额外完整复跑。
+
+## KEJ-112：工具推荐和 CLI 重复限制的交接切片审查
+
+冻结产品为 `7e5b3426d0909e133fd6329a06e08288ea4c5c62`。旧同步提交 c239 在本地对象库不可用，全部旧覆盖指纹与可用合并基线 `6134a0c7ffa37739d6ee23992705462022b324fb` 逐项同字节；先保存两个原样检查的 blocked 漂移证据，再逐文件阅读变化。审查分类、旧新摘要、初始漂移与完整验证结果见[KEJ-112 记录](drift-review-kej-112.json)。同步提交在全部验证入口完成前保持旧值。
+
+`engine.requestLocal` 只改变本地请求 receipt 身份，使未创建操作的拒绝之后可以提交不同参数或更长模型历史；它仍调用一次 `engine.send` 事务，操作 requestHash 与已有操作幂等语义保持。两个有限切片从未调用该入口。`local-operation` 只在 LOCAL_REQUEST 中新增重复失败守卫；原 Handoff 的逐步投影断言不存在 localOperations，A2 的公开前缀和动作枚举只含协助重试、结果、权限/owner、恢复与消费，不产生本地操作。
+
+Runner 新增推荐 getter 仅在注入 LocalRuntime 时可读取，重复限制反馈也仅在本地 invoke 内处理。原 RunnerProgress 探针没有 LocalRuntime，且必须在调用会抛错的 adapter 前完成 R1 flush，因此不会进入模型或推荐路径。CLI/技能目录的新推荐方法及三个纯 helper（cli-failure、task/tool-guidance、tool-recommendation）已加入保守漂移清单；它们只读已加载元数据或本地回执，不写协助、消费标记、续办意图或事务边界。
+
+原 Handoff 与 A2 的模型、性质、公平性、有限边界、见证及真实源码负对照保持。本技能不把新增工具推荐、CLI 纠正或新 receipt 格式宣称为已穷举行为；这些由 BT_L117–BT_L124 和真实 taskMachine 的 CLI 模型门槛承接。完整运行仍必须包含全部 TLC 图、双存储逐边回放、真实源码故障、原版复验及独立证据读回。
