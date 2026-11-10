@@ -1,4 +1,4 @@
-import { canStartHostRetry, findHostRetry, hostRetryBatchRetirable, hostRetryBoundary, pendingHostRetry } from '../host-retry.js';
+import { canStartHostRetry, findHostRetry, hostRetryBatchNeedsSync, hostRetryBatchRetirable, hostRetryBoundary, pendingHostRetry } from '../host-retry.js';
 import { type TaskContext, type TaskEvent } from '../types.js';
 import { localResumeKind, permissionProblem, valid } from './policy.js';
 import { activeHelp, allInflight, d, discussionActive, fresh, incompatibleExecution, inflight, isBot, pendingInput, recoveryIssue, remainingInflight, unresolvedInput } from './facts.js';
@@ -14,6 +14,7 @@ const settlingCheck = ({ context, event }: TaskGuardArgs) => event.type === 'SET
   && settlingDeliveryCheck(context, context.intents.find(work => work.id === event.intentId));
 
 export const taskGuards = {
+    hostRetryBatchNeedsSync: ({ context }: { context: TaskContext }) => hostRetryBatchNeedsSync(context),
     valid,
     reactivateHostRetry: args => valid(args) && args.event.type === 'REQUEST_HOST_RETRY' && args.context.outcome !== null
       && !findHostRetry(args.context, args.event.sourceWorkId, args.event.sourceOperationId),

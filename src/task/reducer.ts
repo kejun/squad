@@ -13,7 +13,7 @@ import { automaticRevisionActive, canReviseDelivery, checkDisposition, checkRefe
 import { canRetryDeliveryCheck, canRetryWork, reserveDeliveryRetry } from './budget.js';
 import { checkReviewSources, deliveryJudgments, deliveryPreflight } from '../delivery-acceptance.js';
 import { adoptLegacyTerminalConfig } from './protocol.js';
-import { applyHostRetry, cancelHostRetries, expireHostRetry, pendingHostRetry, settleHostRetryOperation } from '../host-retry.js';
+import { applyHostRetry, cancelHostRetries, claimHostRetryOwner, expireHostRetry, pendingHostRetry, settleHostRetryOperation } from '../host-retry.js';
 import { deliveryEvidence } from './evidence.js';
 import { deliveryVerificationPlan } from './verification.js';
 import { preserveSourceReference } from '../input-intent.js';
@@ -312,10 +312,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const previousRequests = work.requestCount;
       work.status = 'inflight'; work.attempt++;
       if (!isBoundedCheck(work)) work.requestCount = 0;
-      if (c.hostRetryBatch?.workId === work.id) {
-        if (!c.hostRetryBatch.ownerClaimed || previousRequests > 0) c.usage.ordinary++;
-        c.hostRetryBatch.ownerClaimed = true;
-      } else if (work.bucket !== 'none' && !isBoundedCheck(work)) c.usage[work.bucket]++;
+      if (!claimHostRetryOwner(c, work, previousRequests) && work.bucket !== 'none' && !isBoundedCheck(work)) c.usage[work.bucket]++;
       if (work.kind === 'interpretation') {
         c.inputAnalyses!.find(input => input.workId === work.id)!.status = 'inflight';
         if (typeof work.payload.maxPartitions === 'number') work.payload.maxPartitions = mapReduceCapacity(c);

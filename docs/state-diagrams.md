@@ -1727,3 +1727,21 @@ stateDiagram-v2
 | 并发或再次关闭 | 返回保存的同一个 close Promise；每项资源只清理一次 |
 | 任务停止、等待授权、未知副作用 | 沿用既有 STOP、suspendApprovals、取消和回执结算，不撤销已经发生的物理效果 |
 | 关闭之后 | 不接受提交；不再触发定时器和 runner；重新运行需创建新服务实例 |
+
+### 显式宿主批次生命周期（BT_L111、BT_L112）
+
+类型：taskMachine 同一事务内的上下文生命周期，所有者 `src/host-retry.ts`；不是异步子 actor。排队请求尚未绑定批次，取批后 `hostRetryBatch.phase` 显式区分 active、uncertain、draining。退休清除字段并保存唯一审计事件；剩余预留由批次与未收费命令事实统一派生，不能回退已用额度。
+
+```mermaid
+stateDiagram-v2
+    queued --> active: 安全边界 [预算足够] / 固定批次与首条意图
+    queued --> retired: 超时或取消 / 标记请求终态
+    active --> uncertain: 回执或恢复 [效果未知] / 保留屏障
+    uncertain --> active: 可信核对 [未停止且可继续] / 原批继续
+    active --> draining: 停止或取消 / 只等待物理结算
+    uncertain --> draining: 停止或取消 / 保留未知效果
+    draining --> retired: 结算 [工作终止且效果已知] / 释放批次与预留
+    active --> retired: 工作结束 [无未决效果] / 统一退休
+```
+
+恢复旧快照时依据已有工作、停止标记和操作事实补齐阶段，不生成新许可、不收费。`LocalOperation` 仍是审批、执行许可及物理效果的唯一权威。迟到回执仅结算原操作；重复核对不重复退休；缺失操作记录不能被推断为已执行或未执行。

@@ -1,4 +1,4 @@
-import { failHostRetryBoundary, retireHostRetryBatch, startHostRetryBatch } from '../host-retry.js';
+import { failHostRetryBoundary, retireHostRetryBatch, startHostRetryBatch, synchronizeHostRetryBatch } from '../host-retry.js';
 import { type TaskContext, type TaskEvent } from '../types.js';
 import { assign } from 'xstate';
 import { reduce } from './reducer.js';
@@ -26,6 +26,9 @@ const coordinationProblems: Record<string, string> = {
 };
 
 export const taskActions = {
+    syncHostRetryBatch: taskAssign(({ context }) => {
+      const c = structuredClone(context); synchronizeHostRetryBatch(c); return c;
+    }),
     apply: taskAssign(({ context, event }) => reduce(context, event)),
     failCheckClaim: taskAssign(({ context, event }) => {
       if (event.type !== 'CLAIM') return {};
