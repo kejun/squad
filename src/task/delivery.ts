@@ -10,7 +10,7 @@ import { deliveryVerificationEvidence, deliveryVerificationPlan, deliveryVerific
 type Delivery = Extract<TaskEvent, { type: 'DELIVER' }>;
 type CheckResult = Extract<TaskEvent, { type: 'CHECK_RESULT' }>;
 
-export const newDeliveryCycle = (): NonNullable<TaskContext['deliveryCycle']> => ({ requests: 0, revisionUsed: false });
+export { newDeliveryCycle } from './delivery-cycle.js';
 
 type BoundedCheck = Intent & { kind: 'check' };
 export const isBoundedCheck = (work: Intent | undefined): work is BoundedCheck => work?.kind === 'check' && work.payload.deliveryProtocol === 'bounded';
@@ -211,6 +211,8 @@ export function boundCheckProblem(c: TaskContext, e: CheckResult): string | null
   const work = e.workId ? c.intents.find(intent => intent.id === e.workId) : undefined;
   if (!isBoundedCheck(work) || !e.fence || e.attempt !== work.attempt) return 'CHECK_WORK_REQUIRED';
   if (!candidate?.revision || e.candidateRevision !== candidate.revision || (work.payload.candidate as Candidate | undefined)?.revision !== candidate.revision) return 'STALE_CANDIDATE_CHECK';
+  const stage = c.deliveryCycle?.stage;
+  if (stage?.kind !== 'checking' || stage.checkWorkId !== work.id || stage.candidateRevision !== candidate.revision) return 'STALE_CANDIDATE_CHECK';
   if (work.requestCount === 0 || hasDeliveryRetryPermit(c, work)) return 'CHECK_REQUEST_REQUIRED';
   return null;
 }

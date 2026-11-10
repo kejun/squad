@@ -1,4 +1,5 @@
 import { startMapReduce } from './map-reduce.js';
+import { beginDeliveryRevision, bindDeliveryCheck, deliveryCandidate, resetDeliveryMaterials, settleDeliveryCycle } from './delivery-cycle.js';
 import { mapReduceCapacity } from './map-reduce-capacity.js';
 import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { artifactSourceMetadata, type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
@@ -25,10 +26,10 @@ function finishDelivery(c: TaskContext, e: TaskEvent, detail: string, code?: str
 }
 
 function reviseDelivery(c: TaskContext, e: TaskEvent, reason: string) {
-  c.deliveryCycle!.revisionUsed = true;
   c.reason = reason;
   const priorFindings = deliveryJudgments(c, c.candidate?.revision).filter(item => item.status !== 'passed');
   owner(c, e, { deliveryRevision: true, reason, priorFindings });
+  beginDeliveryRevision(c, c.intents.at(-1)!);
 }
 
 export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
@@ -100,6 +101,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (saved) { acceptHelpResult(c, { ...e, ...saved, type: 'HELP_RESULT' }); break; }
       if (c.stopped || c.outcome !== null) c.epoch++;
       c.stopped = false; c.outcome = null; c.candidate = null; c.reason = ''; c.usage.retries++;
+      resetDeliveryMaterials(c);
       c.deferredCoordination = false;
       for (const note of c.inputs) note.applied = true;
       if (h.reviewId && c.review) {
@@ -147,7 +149,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         c.inputs.push({ id: e.id, text: e.text, applied: false });
         if (e.goal) {
           c.goal = e.goal; c.goalVersion++; c.localSkillVersions = []; c.candidate = null; delete c.deliveryGaps;
-          if (c.deliveryCycle) delete c.deliveryCycle.evidence;
+          resetDeliveryMaterials(c);
           cancelWork(c, e, true); cancelHostRetries(c, 'STALE_WORK');
           for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight', 'clarification', 'failed'].includes(input.status)) input.status = 'cancelled';
           for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
@@ -163,7 +165,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       c.board.push({ id: e.id, kind: 'decision', text: e.text, author: 'user', sources: [e.id], verified: false, revision: 1, goalVersion: c.goalVersion });
       if (c.outcome === null) {
         c.goal.constraints.push(`用户决定：${e.text}`); c.goalVersion++; c.localSkillVersions = []; c.candidate = null; delete c.deliveryGaps;
-        if (c.deliveryCycle) delete c.deliveryCycle.evidence;
+        resetDeliveryMaterials(c);
         for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight'].includes(input.status)) input.status = 'cancelled';
         c.inputs.push({ id: e.id, text: e.text, applied: false }); cancelWork(c, e, true); cancelHostRetries(c, 'STALE_WORK');
         for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
@@ -173,7 +175,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     }
     case 'BOUNDARY':
-      if (c.deliveryCycle && c.inputs.some(note => !note.applied)) delete c.deliveryCycle.evidence;
+      if (c.inputs.some(note => !note.applied)) resetDeliveryMaterials(c);
       for (const note of c.inputs) note.applied = true;
       if (c.review && !['cancelled', 'complete'].includes(c.review.status)) resetReviewAtBoundary(c, e);
       else if (!startMapReduce(c, e)) owner(c, e, { reason: 'Apply latest user input' });
@@ -205,6 +207,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       c.candidate = { text: e.text, artifactIds: [...new Set([...e.artifactIds, ...artifactIds])], goalVersion: c.goalVersion,
         revision: acceptance.revision, ...(e.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(e.backgroundArtifactIds)] } : {}),
         ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}), acceptance };
+      deliveryCandidate(c);
       if (deliveryInterruptionPending(c)) break;
       if (problem) {
         c.candidate.deliveryIssue = { code: problem.code };
@@ -227,6 +230,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         ...(references?.length ? { references } : {}),
         ...(verification ? { verification } : {}) });
       c.deliveryCycle!.evidence ??= deliveryEvidence(c, work)?.refs ?? [];
+      bindDeliveryCheck(c, work);
       break;
     }
     case 'CHECK_RESULT': {
@@ -240,7 +244,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         break;
       }
       release(c, work.id);
-      if (outcome.kind === 'handoff') break;
+      if (outcome.kind === 'handoff') { deliveryCandidate(c); break; }
       if (outcome.checked) work.criteriaResults = e.criteriaResults!;
       if (outcome.kind === 'complete') finish(c, e, 'complete', '');
       if (outcome.kind === 'revise') reviseDelivery(c, e, outcome.detail!);
@@ -250,6 +254,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'STOP':
       if (e.text) message(c, e, 'user', e.text, 'user');
       c.stopped = true; c.reason = 'User requested stop'; cancelWork(c, e, true); cancelHostRetries(c, 'STOPPED');
+      settleDeliveryCycle(c, 'stopped', c.reason);
       for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight', 'clarification', 'failed'].includes(input.status)) input.status = 'cancelled';
       if (c.review) c.review.status = 'cancelled';
       for (const h of c.assists) if (['pending', 'running', 'answered'].includes(h.status)) h.status = 'cancelled';

@@ -14,3 +14,7 @@
 宿主批次：新增 BT_L111/L112，taskMachine 自动微步统一同步 active/uncertain/draining；只有统一退休清除批次。STOP/目标切换保留未知效果屏障，owner 领取收费收敛到 host-retry。旧快照在恢复事件补齐阶段，不新增收费或许可。
 
 门禁：`node --import tsx -e "import('./tests/host-retry-lifecycle-fixture.ts').then(m=>m.verifyHostRetryLifecycleModel())"` 和 TypeScript 通过。使用仓库规定 `TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json` 后，`features/27_host_cli_approval.feature` 100/100 直接执行通过；第一次缺该环境变量的 3 个 React 错误属于执行命令配置，未改产品绕过。
+
+交付周期：新增 BT_F63/F64，使用阶段联合载荷，checking 固定 candidateRevision/checkWorkId 并复用原 intent 的冻结材料；技术重试不换材料，业务修订生成新候选。旧快照只补阶段，不生成工作或收费。
+
+门禁：新周期真实 XState 路径通过；`tests/delivery-contract-gate.ts --pure` 91 项通过；TypeScript 通过。交付相关三个 feature 101 个可执行场景通过；既有 BT_F06 费用功能缺口沿用 acceptance-gaps.json 的 requires_cost 排除，不把请求额度冒充金额。

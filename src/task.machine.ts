@@ -5,6 +5,7 @@ import { createTaskContext } from './task/context.js';
 import { taskGuards } from './task/guards.js';
 import { incompatibleExecution } from './task/facts.js';
 import { taskLifecycle } from './task/lifecycle.js';
+import { restoreDeliveryStage } from './task/delivery-cycle.js';
 import { executionId, executionMachine, executionTicket, type ExecutionEvent } from './task/execution.machine.js';
 
 export { workLaneAvailable } from './task/facts.js';
@@ -62,7 +63,11 @@ export const taskMachine = actorSetup.extend({
 export type TaskSnapshot = SnapshotFrom<typeof taskMachine>;
 export function persistTask(snapshot: TaskSnapshot): unknown { return taskMachine.getPersistedSnapshot(snapshot); }
 /** Dormant restore constructs native child refs but cannot start work or external I/O. */
-export function restoreTask(value: unknown): TaskSnapshot { return createActor(taskMachine, { snapshot: value as never, input: undefined as never }).getSnapshot(); }
+export function restoreTask(value: unknown): TaskSnapshot {
+  const snapshot = createActor(taskMachine, { snapshot: value as never, input: undefined as never }).getSnapshot();
+  restoreDeliveryStage(snapshot.context);
+  return snapshot;
+}
 export function taskPhase(snapshot: TaskSnapshot): Phase { return snapshot.value as Phase; }
 
 /** Transaction-local actor system: no promises/timers/I/O actors; persist only after its mailbox drains. */

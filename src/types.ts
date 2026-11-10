@@ -109,11 +109,19 @@ export interface Candidate {
   deliveryIssue?: { code: string; detail?: string };
 }
 export interface DeliveryCycle {
+  stage: DeliveryStage;
   requests: number;
   retry?: { workId: string; status: 'reserved' | 'used' };
   revisionUsed: boolean;
   evidence?: DeliveryEvidenceRef[];
 }
+export type DeliveryStage =
+  | { kind: 'drafting' }
+  | { kind: 'candidate'; candidateRevision: string }
+  | { kind: 'checking'; candidateRevision: string; checkWorkId: string }
+  | { kind: 'revising'; baseRevision: string | null; ownerWorkId: string }
+  | { kind: 'published'; candidateRevision: string }
+  | { kind: 'incomplete'; candidateRevision: string | null; reason: string };
 export interface PublishedDelivery { revision?: string; goalVersion: number; artifactIds: string[]; at: number }
 export interface ConversationHistory {
   messages: Message[];

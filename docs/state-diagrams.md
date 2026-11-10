@@ -1745,3 +1745,28 @@ stateDiagram-v2
 ```
 
 恢复旧快照时依据已有工作、停止标记和操作事实补齐阶段，不生成新许可、不收费。`LocalOperation` 仍是审批、执行许可及物理效果的唯一权威。迟到回执仅结算原操作；重复核对不重复退休；缺失操作记录不能被推断为已执行或未执行。
+
+### 显式交付周期（BT_F63、BT_F64）
+
+类型：taskMachine 同事务上下文生命周期；所有者 `src/task/delivery-cycle.ts`。`deliveryCycle.stage` 是带阶段载荷的联合类型；checking 只引用原 check intent 的固定材料，不复制另一份可漂移材料。预算计数和冻结证据仍属于同一个周期。
+
+```mermaid
+stateDiagram-v2
+    drafting --> candidate: DELIVER [身份有效] / 保存候选版本
+    candidate --> checking: 预检通过 / 绑定候选版本与检查工作
+    candidate --> revising: 预检失败 [可修订] / 一次负责人修订
+    checking --> checking: 技术失败 [还有重试许可] / 原材料原工作重试
+    checking --> revising: 确定失败 [可修订] / 保存缺口
+    revising --> candidate: DELIVER / 新候选版本
+    checking --> published: CHECK_RESULT [身份与所有要求通过] / 发布
+    candidate --> incomplete: 无法继续 / 保留结果与原因
+    checking --> incomplete: 无法继续 / 保留结果与原因
+```
+
+| 边界 | 规则 |
+| --- | --- |
+| 阶段身份 | checking 固定 candidateRevision 和 checkWorkId；旧工作、旧版本、旧 attempt 仍由既有守卫拒绝 |
+| 预算 | 最多两次普通检查、一次技术重试、一次负责人修订；不重置已用预算 |
+| 来源 | 技术重试沿用同一 intent.payload；修订按原冻结证据规则重新绑定新候选，不任意刷新来源 |
+| 新输入与停止 | 安全边界回到 drafting；STOP 进入 incomplete，迟到结果不得发布 |
+| 兼容 | 没有阶段的旧快照只根据原候选、原工作和原终态补齐阶段；不生成检查、不自动发布 |
