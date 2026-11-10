@@ -2,6 +2,14 @@ BT_F31冻结原始输入引用的来源链修复见[对应审查](drift-review-r
 
 # Code/model correspondence
 
+## KEJ-112 工具推荐与 CLI 纠正的范围审查
+
+冻结产品 `7e5b3426d0909e133fd6329a06e08288ea4c5c62` 的逐文件审查见 [drift-review-kej-112.json](drift-review-kej-112.json)。可用基线 `6134a0c` 与此前同步映射的全部覆盖文件逐字节相符。新推荐与诊断是当前工作上下文的纯只读投影；原 Budget/CheckBudget/Shards 以及23个扩展图不调用模型 HTTP，不证明自然语言工具选择的正确性。
+
+新 `LOCAL_REQUEST` 守卫仅在同一工作已有两次相同可诊断 CLI 失败时拒绝，不创建操作、不扣执行费用。现有图中的物理操作前缀至多一项相关 CLI，MapRecovery 来源为成功完整回执；因此这些图中新增条件恒false。Engine 的事件标识增加请求/尝试/消息哈希，避免被拒绝动作占用下一操作槽位；仍为一次 send 事务且不改变操作身份和授权。原图/性质/公平性/边界保持，不将既有 Web ToolRecovery 的两次失败反馈证明冒充 CLI 重复上限证明。新的重复/帮助/恢复和推荐语义由 BT_L117–BT_L123 的真实 XState 模型及接线验收独立承接。
+
+覆盖图保守纳入新 `cli-failure.ts`、`task/tool-guidance.ts` 与 `tool-recommendation.ts` 传递依赖。原样漂移、完整证明、双存储逐边回放、真实代码负对照、原版复验和读回结果见审查记录；仅在全部入口完成后推进正式同步记录。
+
 ## KEJ-106 旧讨论工作的安全退休
 
 首轮受审产品提交 `b6ea8ac5d67b5acf331df0030d6157e582f016fa`，最终Engine增量提交 `3d81b0792d9c00c16bbc59fa4f2914bcccc0189b`；逐文件指纹、审查与执行结果见 [drift-review-kej-106.json](drift-review-kej-106.json)。`facts.canRetireDiscussionWork`仅接受带discussionId、pending/inflight、安全且无本地物理未决的旧轮次/旧版本工作。`recoveryIssue`不再让这类已可退休的历史成员阻塞当前配置；reducer在RECOVER的同一事务内以及可信LOCAL_RESULT/LOCAL_RECONCILE后复用release退休。unsafe、uncertain、物理未决和当前有效轮次不满足守卫，release仍有物理占用保护，未拆分事务或改变费用。最终Engine增量只改变ended任务是否选入原RECOVER事务，不将RECOVER与flush合并成一个原子动作。原Shards被排除的取消inflight→RECOVER、Budget/CheckBudget无discussion前缀及各自普通ended重开路径均未扩域。

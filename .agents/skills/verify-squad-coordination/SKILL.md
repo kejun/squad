@@ -141,6 +141,8 @@ KEJ-110 当前受审产品为 `615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9`；本�
 
 ## KEJ-111 工具失败反馈与分片补齐
 
+KEJ-112 冻结产品 `7e5b3426d0909e133fd6329a06e08288ea4c5c62` 的两入口完整验证与独立读回已通过，见[逐文件审查与证据](references/drift-review-kej-112.json)。新推荐/诊断投影及 CLI 重复失败守卫没有扩大原有限图；CLI 重复上限由独立产品模型/BDD承接，不将 Web ToolRecovery 证明用于 CLI。保留首次并发负载下的180秒回放超时，使用相同边界和超时在新目录完整重跑通过。正式 syncCommit 仍等待项目全部九入口汇总通过后统一推进。
+
 修改 `RECORD_TOOL_FAILURE`、`partitionRecoveries`、检查指定来源或分片 resolution 时，运行原入口与扩展入口。扩展当前包含23配置、70项可达见证、29项双存储真实源码负对照及6项自洽证据删除负对照。原21域和原三图的性质、边界及超时保持；新增域的精确前缀、投影和保证范围见[KEJ-111对应说明](references/correspondence.md#kej-111-工具失败反馈与分片补齐)。
 
 ToolRecovery 验证两次持久失败反馈上限、已收费请求身份、重复拒绝、恢复后累计、普通预算和截止边界。MapRecovery 验证当前候选的独立检查、指定完整来源逐字引用、全部分片债务关闭后才发布，以及原失败状态与结果保持。原 Shards 的终点仍是负责人交接；`PreserveIncomplete` 在该域保持，后续补齐由新图承接。
