@@ -3,6 +3,7 @@ import { type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { discussionActive, hasOrdinary } from './facts.js';
 import { deliveryCheckBudgetProblem, hasDeliveryRetryPermit, isBoundedCheck } from './delivery.js';
 import { deliveryVerificationPlan } from './verification.js';
+import { queuedMapPartitions } from './map-queue.js';
 
 export function requestBudgetProblem(c: TaskContext, work: Intent): string | null {
   if (work.bucket === 'none') return null;
@@ -16,7 +17,7 @@ export function requestBudgetProblem(c: TaskContext, work: Intent): string | nul
     const round = c.discussion!;
     const pending = c.intents.filter(i => i.discussionId === round.id && i.status === 'pending' && i.id !== work.id).length;
     // Reserve every already-promised participant, coordinator synthesis and one owner continuation.
-    const reserve = 1 + pending + (round.status === 'planning' ? 2
+    const reserve = 1 + pending + queuedMapPartitions(c) + (round.status === 'planning' ? 2
       : round.status === 'collecting' ? 1 : 0);
     if (c.usage.ordinary + 1 + reserve + hostReserve > c.config.limits.ordinary) return 'DISCUSSION_BUDGET_RESERVED';
   }

@@ -4,6 +4,8 @@ export const taskLifecycle = {
   id: 'botTeamTask',
   initial: 'running',
   always: [
+    { guard: 'hostRetryBatchNeedsSync', actions: 'syncHostRetryBatch' },
+    { guard: 'mapQueueNeedsProgress', actions: 'advanceMapQueue' },
     { guard: 'analysisReady', target: '.interpreting', actions: 'beginInterpretation' },
     { guard: 'inputsReady', target: '.running', actions: 'boundary' },
     { guard: 'hostRetryReady', target: '.running', actions: 'startHostRetry' },

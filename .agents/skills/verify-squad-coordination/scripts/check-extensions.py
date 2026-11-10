@@ -52,7 +52,7 @@ CONTROLS = {
     'publish-over-pending-input': ('InputBoundary-check', 'NoUnresolvedPublication', 'src/task/delivery.ts',
         "if (deliveryInterruptionPending(c)) return { kind: 'handoff' };", "if (deliveryInterruptionPending(c)) return { kind: 'complete' };"),
     'retain-input-check-evidence': ('InputBoundary-check', 'AppliedInputBoundary', 'src/task/reducer.ts',
-        "if (c.deliveryCycle && c.inputs.some(note => !note.applied)) delete c.deliveryCycle.evidence;", '/* faulty stale check-evidence snapshot after input boundary */'),
+        "if (c.inputs.some(note => !note.applied)) resetDeliveryMaterials(c);", '/* faulty stale check-evidence snapshot after input boundary */'),
     'lose-review-membership': ('ReviewQueue', 'ReviewMembership', 'src/task/assistance.ts',
         "if (!review.completed.includes(completed.target)) review.completed.push(completed.target);", '/* faulty consumed reviewer never recorded in completed */'),
     'premature-review-synthesis': ('ReviewQueue', 'AllReviewersSettled', 'src/task/assistance.ts',

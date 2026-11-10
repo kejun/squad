@@ -17,8 +17,8 @@ function interpret(value: CapacityModel, spec = capacityModelIntent()) { value.c
 After(async function (this: SpecWorld) { const value = states.get(this)?.fixture; if (value) { value.releaseMaps(); await value.parallel; value.close(); } states.delete(this); });
 Given('用户要求汇总八份独立文档且有四名可用非负责人成员', function (this: SpecWorld) { state(this).model = new CapacityModel(); state(this).preparedModelCap = model(this).work.payload.maxPartitions; state(this).fixture = new MapCapacityFixture(); });
 When('输入理解按已扣本次请求额度的容量规划分片', async function (this: SpecWorld) { interpret(model(this)); assert(fixture(this).submit(documentRequest).ok); state(this).preparedEngineCap = fixture(this).work.payload.maxPartitions; assert(await fixture(this).run()); });
-Then('理解请求应看到最大分片数四且首次计划在二至四片内覆盖八份文档各一次', function (this: SpecWorld) {
-  const value = model(this); assert.equal(state(this).preparedModelCap, 4); assert.equal(state(this).preparedEngineCap, 4); assert.equal(value.work.payload.maxPartitions, 4); assert.equal(value.context.usage.ordinary, 1);
+Then('理解请求应看到最大分片数八且首次计划完整覆盖八份文档各一次', function (this: SpecWorld) {
+  const value = model(this); assert.equal(state(this).preparedModelCap, 8); assert.equal(state(this).preparedEngineCap, 8); assert.equal(value.work.payload.maxPartitions, 8); assert.equal(value.context.usage.ordinary, 1);
   assert.deepEqual(value.pending('assistance').map(work => work.payload.partition), capacityModelIntent().decomposition!.partitions);
   assert.equal(value.context.discussion!.mapReduce!.synthesis, capacityModelIntent().decomposition!.synthesis);
   assert.deepEqual((value.pending('assistance')[0]!.payload.inputIntents as { spec: unknown }[])[0]!.spec, capacityModelIntent()); assert.equal(value.pending('owner').length, 0);
@@ -63,8 +63,8 @@ When('模型首次返回八个分片并在有界修复后返回四个完整分�
 Then('八片计划应未被应用且四片计划完整执行', function (this: SpecWorld) { const value = fixture(this); assert.equal(value.context().discussion?.mapReduce?.partitions.length, 4); assert.equal(value.context().outcome, 'complete'); });
 Then('修复应只追加一次请求授权并消耗现有额度', function (this: SpecWorld) { const value = fixture(this); assert.equal(value.requests.filter(request => request.kind === 'interpretation').length, 2); assert.equal(value.context().usage.retries, 1); assert.deepEqual(value.beforeProviderOrdinary, [1, 2]); assert.equal(value.work.payload.maxPartitions, 4); assert.equal(value.work.outputRepair?.issue, 'invalid_input_intent'); });
 Given('理解时四片计划合法但派发前发生{string}', function (this: SpecWorld, change: string) {
-  const s = state(this), m = new CapacityModel(); m.claim(); m.consume(); assert.equal(m.work.payload.maxPartitions, 4);
-  if (change === '成员忙碌') m.busyMember(); else if (change === '协助余额降低') m.context.usage.assists = 17; else { assert.equal(change, '普通余额降低'); m.context.usage.ordinary = 25; }
+  const s = state(this), m = new CapacityModel(); m.claim(); m.consume(); assert.equal(m.work.payload.maxPartitions, 8);
+  if (change === '所有成员忙碌') m.busyAllMembers(); else if (change === '协助余额降低') m.context.usage.assists = 17; else { assert.equal(change, '普通余额降低'); m.context.usage.ordinary = 25; }
   s.model = m; s.fixture = prepareDispatchDecrease(change); s.variant = change; s.beforeUsage = structuredClone(s.fixture.context().usage); s.beforeModelUsage = structuredClone(m.context.usage);
 });
 When('状态机重新核对当前分片容量', function (this: SpecWorld) { const m = model(this), f = fixture(this); assert(m.interpret().ok); assert(f.result(f.work, groupedIntent(4)).ok); });

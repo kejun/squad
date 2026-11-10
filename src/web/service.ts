@@ -1,4 +1,6 @@
 import { publicationIds } from '../task/delivery.js';
+import { initialTransition, transition } from 'xstate';
+import { serviceLifecycleMachine } from './service-lifecycle.js';
 import { currentDeliveryIssues } from '../delivery-acceptance.js';
 import { hostSessionActive } from '../host-session.js';
 import type { LocalRuntime } from "../local-runtime.js";
@@ -55,9 +57,11 @@ export class WebService {
   private readonly running = new Map<string, { roomId: string; job: Promise<void> }>();
   private readonly failedRooms = new Set<string>();
   private readonly timer: ReturnType<typeof setInterval>;
-  private closing = false;
+  private lifecycle = initialTransition(serviceLifecycleMachine)[0];
+  private closePromise?: Promise<void>;
   private startup: Promise<void> = Promise.resolve();
-  private initialized = true;
+  private get closing() { return this.lifecycle.matches('closing') || this.lifecycle.matches('closed'); }
+  private get initialized() { return this.lifecycle.matches('ready'); }
   private readonly debugJournal: DebugJournal | null;
   private readonly measurement: MeasurementRun;
 
@@ -96,12 +100,19 @@ export class WebService {
             },
           });
     if (localRuntime) {
-      this.initialized = false;
       this.startup = this.recoverLocal().then(() => {
-        this.initialized = true;
-        for (const room of this.rooms()) this.kick(room.id);
+        this.advanceLifecycle('RECOVERED');
+        if (this.initialized) for (const room of this.rooms()) this.kick(room.id);
+      }).catch(error => {
+        this.advanceLifecycle('RECOVERY_FAILED');
+        throw error;
       });
-    } else for (const room of this.rooms()) { this.engine.recover(room.id); this.kick(room.id); }
+      // Startup errors remain observable via ready, even if close is called first.
+      void this.startup.catch(() => {});
+    } else {
+      this.advanceLifecycle('RECOVERED');
+      for (const room of this.rooms()) { this.engine.recover(room.id); this.kick(room.id); }
+    }
     this.timer = setInterval(() => {
       if (this.closing || !this.initialized) return;
       for (const room of this.rooms()) {
@@ -113,7 +124,13 @@ export class WebService {
     this.timer.unref();
   }
 
-  async ready(): Promise<void> { await this.startup; }
+  private advanceLifecycle(type: 'RECOVERED' | 'RECOVERY_FAILED' | 'CLOSE' | 'CLOSED') {
+    this.lifecycle = transition(serviceLifecycleMachine, this.lifecycle, { type })[0];
+  }
+  async ready(): Promise<void> {
+    await this.startup;
+    if (!this.initialized) throw new WebError(503, '执行服务未就绪或已经关闭。');
+  }
   private async recoverLocal(): Promise<void> {
     const rooms = this.rooms();
     for (const room of rooms) this.engine.recover(room.id);
@@ -371,8 +388,8 @@ export class WebService {
       current: id && stored ? { taskId: id, snapshot: structuredClone(stored.snapshot) } : null };
   }
   submit(roomId: string, input: Submission) {
-    this.room(roomId);
     if (!this.initialized) throw new WebError(503, "本地执行会话正在恢复，请稍后重试。");
+    this.room(roomId);
     if (
       !input.id ||
       input.id.length > 120 ||
@@ -624,10 +641,27 @@ export class WebService {
       this.running.set(key, { roomId, job });
     }
   }
-  async close() {
-    this.closing = true;
-    await this.startup;
+  close(): Promise<void> {
+    if (this.closePromise) return this.closePromise;
+    this.advanceLifecycle('CLOSE');
     clearInterval(this.timer);
+    this.closePromise = this.shutdown();
+    return this.closePromise;
+  }
+  private async shutdown(): Promise<void> {
+    // ready owns startup failure; it cannot bypass resource cleanup.
+    await this.startup.catch(() => {});
+    try {
+      await this.stopRunning();
+    } finally {
+      try { this.db.close(); }
+      finally {
+        try { this.store.close(); }
+        finally { this.advanceLifecycle('CLOSED'); }
+      }
+    }
+  }
+  private async stopRunning(): Promise<void> {
     for (const roomId of new Set([...this.running.values()].map(work => work.roomId))) {
       const taskId = this.store.read(roomId).activeTaskId;
       if (taskId) {
@@ -645,7 +679,5 @@ export class WebService {
       }
     }
     await Promise.all([...this.running.values()].map(work => work.job));
-    this.db.close();
-    this.store.close();
   }
 }

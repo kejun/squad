@@ -34,7 +34,8 @@ describe('statechart interactions', () => {
     const fixture = await openGraph();
 
     await fixture.click('查看全局进入 interpreting');
-    await fixture.click('查看规则 *:@always:0');
+    const rule = [...document.querySelectorAll('[aria-label="连线分支"] button')].find(button => button.textContent?.includes('analysisReady'));
+    expect(rule).toBeDefined(); await fixture.click(rule!.getAttribute('aria-label')!);
 
     expect(document.querySelector('[aria-label="规则详情"]')!.textContent).toContain('analysisReady');
     await fixture.click('关闭规则详情');

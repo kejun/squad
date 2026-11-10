@@ -57,6 +57,8 @@ export const guardDescriptions: Record<string, string> = {
   failedAssistance: '有效协助失败结果已确定',
   recoveredSafe: '恢复配置兼容且没有仍可能执行、结果不明或不可重放的在途工作',
   hostRetryBatchRetirable: '续办负责人工作已终止或缺失，且没有待核对的执行效果',
+  hostRetryBatchNeedsSync: '宿主批次阶段需要同步到当前执行事实',
+  mapQueueNeedsProgress: '分片队列需要结算、补位、取消或归并',
 };
 const rejectionDescriptions: Record<string, string> = {
   SELF_DEPENDENCY: '不能向当前负责人本人求助', STALE_FENCE: '结果的轮次或目标版本已过期',
@@ -78,7 +80,9 @@ export function waitingItems(context: TaskContext): { id: string; text: string; 
   const items: { id: string; text: string; detail: string }[] = [];
   const round = context.discussion;
   if (round && !['delivered', 'cancelled'].includes(round.status)) {
-    const labels = { planning: '协调员正在安排讨论', collecting: `讨论收集 ${round.results.length}/${round.targets.length}`,
+    const queue = round.mapReduce?.queue;
+    const collecting = queue ? `分片结算 ${queue.filter(part => !['queued', 'running', 'uncertain'].includes(part.status)).length}/${queue.length}` : `讨论收集 ${round.results.length}/${round.targets.length}`;
+    const labels = { planning: '协调员正在安排讨论', collecting,
       summarizing: '等待协调员汇总讨论', ready: `讨论汇总已就绪，等待${name(context.owner)}当前工作结算` };
     items.push({ id: round.id, text: labels[round.status as keyof typeof labels], detail: `discussion · ${round.id}` });
   }

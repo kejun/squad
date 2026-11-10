@@ -1,0 +1,237 @@
+{
+  "status": "verified",
+  "baseCommit": "97b7349db41e86a6b3a626f3db3662240c82df2f",
+  "candidateCommit": "1f5b80702d1383bcfa0492a373a98ed9968dd767",
+  "baselineCoverageMatches": true,
+  "transactionBoundary": "TeamEngine transaction still persists after all pure XState microsteps and internal mailbox drain. Execution remains separately claimed and permitted.",
+  "files": [
+    {
+      "path": "src/delivery-acceptance.ts",
+      "sha256": "8a051077136159767fdff4f88ad3b47b8b57818ef79e83bef9e75c99f6cb5b8f",
+      "review": "分片证据按持久 partitionId/result ID 关联，旧记录保留成员映射回退；原无分片交付模型不扩域。"
+    },
+    {
+      "path": "src/host-retry.ts",
+      "sha256": "912367bbab70879c8a67e60e324a31aa46aa1dda76de27f694fc4249ae743f4a",
+      "review": "批次阶段在原事务派生；取消保留 draining 屏障，统一退休重查原物理守卫；领取计费移至同事务 helper。原 HostRetry 两批投影不变。"
+    },
+    {
+      "path": "src/model-adapter.ts",
+      "sha256": "30b7841581dbb569a9f2f0fe2ee80db25bb3ca14109cf8c53a270bb26cdc9894",
+      "review": "只修改容量提示，总分片与并发分开；模型调用权限、解析及收费入口不变。"
+    },
+    {
+      "path": "src/task-debug-view.ts",
+      "sha256": "07d9f35a00ddb51307d58a70e2a75fba31d60ebc5e151f1fb1fb26d7a80720a3",
+      "review": "只读标签增加批次/队列规则说明与分片结算计数；不影响形式化投影。"
+    },
+    {
+      "path": "src/task.machine.ts",
+      "sha256": "a147ecce5aa608c858150da78ccdb3d84a6a39737cf69f33f33b62744b3aec6c",
+      "review": "restore 补齐旧交付/分片上下文，无新工作或收费；后续事件仍由同一 transaction-local actor 完整排空后持久化。"
+    },
+    {
+      "path": "src/task/actions.ts",
+      "sha256": "ea83801f566c9a457aafd351b6f23639bb836da9f2efcb789e3740b1776671bd",
+      "review": "新增纯 assign，复制完整 context；批次同步/队列补位不越过父任务事务或生成执行许可。"
+    },
+    {
+      "path": "src/task/budget.ts",
+      "sha256": "8bc89ad5e0b4af104fc8d3c82d5c8f6fa9c16a83e34039e577c48ee05379f6e4",
+      "review": "请求预留增加未派发分片数；原 DiscussionBudget 非 map、原两片 Shards 全部初始派发，额外数均零。"
+    },
+    {
+      "path": "src/task/delivery-cycle.ts",
+      "sha256": "9e65af16bfc034c1bd0245bd7d3ea6e2bfba745ac58e3487ee5ec24a46e11a34",
+      "review": "候选、检查、修订、发布及不完整阶段的唯一纯更新入口；revisionUsed 写入从 reducer 移来，次数和收费不变。"
+    },
+    {
+      "path": "src/task/delivery.ts",
+      "sha256": "416eeaca45c0267674f3c0085dd32ab5c2d8f565692bedeffe2cd253c6c7f55d",
+      "review": "新阶段重查固定 checkWorkId/candidateRevision；原公开 DELIVER 前缀会建立同一绑定。旧输入/fence/attempt 守卫均保留。"
+    },
+    {
+      "path": "src/task/discussion.ts",
+      "sha256": "91545a2d721deaaec705c3590fc985f68c1a83c32cb20aa1d182bcc460b58ca2",
+      "review": "map 完成/失败改由队列收集；普通讨论原行为保留。两片语义结果与原 Shards 相同；新增瞬时重试/未知效果属于独立 BDD 范围。"
+    },
+    {
+      "path": "src/task/guards.ts",
+      "sha256": "8b26dc562f769117962e72c9d68804bc0ca10db4274fa944750e6a8a774e7553",
+      "review": "新增批次与队列自动守卫，原有守卫相对顺序保留；无 host/map 切片中新增守卫恒 false。"
+    },
+    {
+      "path": "src/task/input.ts",
+      "sha256": "369fd09eab97fbec1d5ed8c801f11f30a72c675b45e89c57349ebbe0f770e608",
+      "review": "保留已付/预付理解请求计算，增加只读并发提示；不授权执行。"
+    },
+    {
+      "path": "src/task/lifecycle.ts",
+      "sha256": "c64e0a48ab7e08e1b35eed75c1e9c137486018372ad4e0a19645676827f25c7b",
+      "review": "新增两个事务内微步，在持久提交前完成；原纯投影原子动作不拆分。"
+    },
+    {
+      "path": "src/task/map-queue.ts",
+      "sha256": "8aa95a725bf9d43f3340f519d0e0ffa928893371100ad24d4f49ea3174150e54",
+      "review": "新增队列生命周期、稳定尝试、已知技术失败有界重试、未知占用和预算取消。原 Shards 两片无技术重试域保持；八片/四并发仅声明模型轨迹和真实接线 BDD，不声明 TLC 全探索。 原 Shards Claim1→Failure1 真正检出失败状态延后；现终止失败立即设置 incomplete，保留原性质。"
+    },
+    {
+      "path": "src/task/map-reduce-capacity.ts",
+      "sha256": "565fee8a9b59523339f0548e41002560a83a48a85ec4b0aedfa121cf39e3239a",
+      "review": "有成员时总分片上限改为八，另算并发；原容量0/1/2/4有限实例受预算约束，仍保持原界限。"
+    },
+    {
+      "path": "src/task/map-reduce.ts",
+      "sha256": "8409db33692155fbf5b18383a54991087ecbb334bc26a4cfbe2f99cfb7c6c74b",
+      "review": "保存全队列后派发并发窗口；原两片/四片且成员足够的前缀仍全部派发。无空闲成员/基础预算不足整份回退。"
+    },
+    {
+      "path": "src/task/operations.ts",
+      "sha256": "c067a6797e9fd6e0576a1cfb3775087a831e402298c1632bf76d4ca7cb5647fe",
+      "review": "原 finish 同一事务补充交付终态；消息/发布/取消原操作保留。"
+    },
+    {
+      "path": "src/task/reducer.ts",
+      "sha256": "82ac7afdc5db4974dd6ca9afaa5d8bd8d40b3d9379c0707f409035389f206d01",
+      "review": "既有候选/检查/修订与 host owner 计费写入转 helper，新增阶段和容量提示；自动修订次数、原事务/事件/执行许可边界不变。"
+    },
+    {
+      "path": "src/types.ts",
+      "sha256": "4d808de1dbc2793c9222ab5b73339625e11c7f3bcb72e26c8affbe77c4ddefce",
+      "review": "新增阶段载荷、队列和可选旧记录兼容元数据；无新外部权限。"
+    },
+    {
+      "path": "src/web/service-lifecycle.ts",
+      "sha256": "265e659384eaae1770fbefa71c632e060cded863b47768f7292cd8151fd561db",
+      "review": "宿主内存生命周期，不持久化任务、不发出执行许可；纯模型及实际关闭交错场景承接。"
+    },
+    {
+      "path": "src/web/service.ts",
+      "sha256": "615cbde81c144c593435b24e454dd5871e255952d8c44d6ff78917118185655e",
+      "review": "服务恢复/关闭以 XState 五态和共享 closePromise 控制；停止/未知效果仍通过原执行通道。宿主资源释放不在任务 TLC 模型，K03-K09 实际接线承接。"
+    }
+  ],
+  "controlsChanged": [
+    "coordinator charge helper",
+    "delivery revision helper",
+    "capacity refresh block",
+    "map queue all-settled/summary",
+    "omit immediate terminal map failure marker",
+    "input evidence reset helper"
+  ],
+  "bounds": "All original TLA/CFG properties, bounds and fairness unchanged. New 8/4 queue is covered by BT_Q27-Q33 and pure model paths, not by the original two-shard exhaustive graph.",
+  "replayChange": "原 Shards 公共前缀的容量提示由总量4改为8，并单独断言并发4；实际模型仍只创建两片，TLA范围与性质不变。初次真实回放以8 != 4检出旧夹具预期，保留 lifecycles-reviewed 红证据。",
+  "recoveredRegression": {
+    "trace": "Shards: Claim1 → Failure1",
+    "invariant": "PreserveIncomplete",
+    "before": "terminal failure was marked only after all maps settled",
+    "after": "terminal failed/partial/timeout results mark incomplete in the same transaction; retryable attempts remain historical evidence",
+    "red": "reports/verify-squad-coordination/lifecycles-replay-reviewed",
+    "scenarios": "BT_Q28; pure queueRetryGate"
+  },
+  "validation": {
+    "mapAndLegacyScenarios": "116/116 passed",
+    "boundaryMutations": "7/7 killed; selected sites only",
+    "formal": "9 of 9 slices complete; all baselines, reachable witnesses, named source faults, restored-original full replays and independent evidence readbacks passed in CI.",
+    "ci": "https://github.com/kejun/squad/actions/runs/42777367788",
+    "sourceFaults": "7 relocated controls independently failed their named property on both MemoryStore and SQLite",
+    "gherkin": "1303/1303 directly executed and passed in CI; existing 14 registered gaps unchanged",
+    "vitest": "437/437 passed in CI",
+    "finalCommitCI": "The metadata-only synchronization commit is checked again by the unchanged complete CI workflow."
+  },
+  "localCandidateCommit": "1e1b8c95a195fb75318e39ff282accfe0eef2f67",
+  "candidateTree": "9d27ad4d14c3dc85e3d666e1c82ddd680db5203a",
+  "testedRemoteCommit": "a59789f34378cc1555b4036e350fc602764e619e",
+  "coveredFilesEqualCandidate": 88,
+  "synchronizedCoverage": [
+    ".agents/skills/verify-squad-authority/references/composition-coverage.json",
+    ".agents/skills/verify-squad-authority/references/coverage.json",
+    ".agents/skills/verify-squad-host-retry/references/coverage.json",
+    ".agents/skills/verify-squad-local-effects/references/coverage.json",
+    ".agents/skills/verify-squad-coordination/references/extensions-coverage.json",
+    ".agents/skills/verify-squad-delivery/references/coverage.json",
+    ".agents/skills/verify-squad-handoff/references/composition-coverage.json",
+    ".agents/skills/verify-squad-handoff/references/coverage.json",
+    ".agents/skills/verify-squad-coordination/references/coverage.json"
+  ],
+  "proofs": [
+    {
+      "slice": "handoff",
+      "evidence": "reports/verify-squad-handoff/lifecycles-final",
+      "artifacts": 108,
+      "readback": "passed"
+    },
+    {
+      "slice": "delivery",
+      "evidence": "reports/verify-squad-delivery/lifecycles-final",
+      "artifacts": 290,
+      "readback": "passed"
+    },
+    {
+      "slice": "authority",
+      "evidence": "reports/verify-squad-authority/lifecycles-final",
+      "readback": "passed"
+    },
+    {
+      "slice": "handoff-composition",
+      "ciJob": 129692439459,
+      "artifacts": 149,
+      "readback": "passed"
+    },
+    {
+      "slice": "authority-composition",
+      "ciJob": 129692438973,
+      "artifacts": 184,
+      "readback": "passed"
+    },
+    {
+      "slice": "coordination-composition",
+      "ciJob": 129692439361,
+      "artifacts": 895,
+      "readback": "passed"
+    },
+    {
+      "slice": "local-effects",
+      "ciJob": 129692439314,
+      "artifacts": 224,
+      "readback": "passed"
+    },
+    {
+      "slice": "host-retry",
+      "ciJob": 129692439233,
+      "artifacts": 142,
+      "readback": "passed"
+    },
+    {
+      "slice": "coordination",
+      "ciJob": 129699041022,
+      "evidence": "reports/verify-squad-coordination/20261110T074826Z-4545",
+      "seconds": 355.335,
+      "artifacts": 331,
+      "readback": "passed",
+      "domains": {
+        "Budget": {
+          "states": 151,
+          "edges": 345
+        },
+        "Shards": {
+          "states": 456,
+          "edges": 1379
+        },
+        "CheckBudget": {
+          "states": 117,
+          "edges": 237
+        }
+      },
+      "realFaultControls": 22
+    }
+  ],
+  "negativeControlMaintenance": {
+    "premature-reduce": "Inject summary at first result; changing the action-only guard was unreachable under the new scheduling guard.",
+    "omit-summary-progress": "Disable the terminal-queue scheduling guard, avoiding an action-only no-op that creates a livelock instead of the intended named assertion.",
+    "erase-partial-evidence": "Remove immediate terminal-failure marker; the same Claim1 → Failure1 counterexample that caught the real regression must fail PreserveIncomplete."
+  },
+  "blockedRuns": [
+    "Local original coordination replay, including a temporary-file run on tmpfs, exceeded the unchanged 180s child-process limit; no local blocked run is counted as pass. CI completed the normal and restored-original domains and all controls in 355.335s with the same limits and independent readback."
+  ]
+}

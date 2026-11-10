@@ -9,7 +9,10 @@ export function availableMapReduceMembers(c: TaskContext) {
 
 /** Reserve synthesis and owner continuation, plus any not-yet-charged interpretation request. */
 export function mapReduceCapacity(c: TaskContext, reservedOrdinary = 0): number {
-  return Math.max(0, Math.min(8, availableMapReduceMembers(c).length,
+  return Math.max(0, Math.min(availableMapReduceMembers(c).length ? 8 : 0,
     c.config.limits.assists - c.usage.assists,
     c.config.limits.ordinary - c.usage.ordinary - reservedOrdinary - 2));
 }
+
+export const mapReduceConcurrency = (c: TaskContext, reservedOrdinary = 0) =>
+  Math.min(availableMapReduceMembers(c).length, mapReduceCapacity(c, reservedOrdinary));

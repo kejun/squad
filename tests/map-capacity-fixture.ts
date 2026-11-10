@@ -33,10 +33,10 @@ export class MapCapacityFixture extends InputIntentFixture {
   firstCapacityOverride = false;
   readonly beforeProviderOrdinary: number[] = [];
   readonly beforeProviderUsage: { ordinary: number; assists: number }[] = [];
-  constructor(maxPartitions?: 0 | 1) {
+  constructor(maxPartitions?: 0 | 1, sqlite = false) {
     const config = intentConfig({ retries: 1 });
     if (maxPartitions !== undefined) config.limits.ordinary = maxPartitions + 3;
-    super(config);
+    super(config, sqlite);
     this.beforeResponse = request => { if (request.kind === 'interpretation') { this.beforeProviderOrdinary.push(this.context().usage.ordinary); this.beforeProviderUsage.push(structuredClone(this.context().usage)); } };
     this.response = request => this.reply(request);
   }
@@ -70,10 +70,10 @@ export class MapCapacityFixture extends InputIntentFixture {
     return new WorkRunner(this.engine, this.adapter, () => this.now, undefined, this.sourceTools).runOne(this.room, this.task);
   }
   pending(kind: Intent['kind']) { return this.engine.pending(this.room, this.task).filter(work => work.kind === kind); }
-  async recognize() { assert.equal(this.submit(documentRequest).ok, true); assert.equal(await this.run(), true); }
+  async recognize() { if (this.firstOverCapacity || this.firstCapacityOverride) this.config.limits.assists = 4; assert.equal(this.submit(documentRequest).ok, true); assert.equal(await this.run(), true); }
   assertPlan(expected = 4) {
     const interpretations = this.requests.filter(request => request.kind === 'interpretation');
-    assert.equal(interpretations[0]?.context.maxPartitions, expected);
+    assert.equal(interpretations[0]?.context.maxPartitions, this.firstOverCapacity || this.firstCapacityOverride ? 4 : 8);
     assert.equal(this.beforeProviderOrdinary[0], 1);
     const plan = this.context().inputAnalyses?.[0]?.spec?.decomposition;
     assert(plan); assert.equal(plan.partitions.length, expected);
@@ -151,12 +151,18 @@ function occupyMember(context: TaskContext) {
   context.intents.push({ ...structuredClone(base), id: 'busy-member-operation', kind: 'tool', target: 'B', status: 'uncertain', payload: {} });
 }
 
+function occupyAllMembers(context: TaskContext) {
+  for (const bot of context.config.bots.filter(bot => bot.id !== context.owner)) {
+    occupyMember(context); const work = context.intents.at(-1)!; work.id = `busy-${bot.id}`; work.target = bot.id;
+  }
+}
+
 export function prepareDispatchDecrease(change: string) {
   const fixture = new MapCapacityFixture();
   try {
     assert(fixture.submit(documentRequest).ok); fixture.claim();
     updateMapContext(fixture, context => {
-      if (change === '成员忙碌') occupyMember(context);
+      if (change === '所有成员忙碌') occupyAllMembers(context);
       else if (change === '协助余额降低') context.usage.assists = context.config.limits.assists - 3;
       else if (change === '普通余额降低') context.usage.ordinary = context.config.limits.ordinary - 5;
       else assert.fail(`Unknown change ${change}`);
@@ -202,9 +208,9 @@ export function verifyCapacityDispatchFallback(change: string) {
   const fixture = new MapCapacityFixture();
   try {
     assert.equal(fixture.submit(documentRequest).ok, true);
-    const work = fixture.claim(); assert.equal(work.payload.maxPartitions, 4);
+    const work = fixture.claim(); assert.equal(work.payload.maxPartitions, 8);
     updateMapContext(fixture, context => {
-      if (change === '成员忙碌') occupyMember(context);
+      if (change === '所有成员忙碌') occupyAllMembers(context);
       else if (change === '协助余额降低') context.usage.assists = context.config.limits.assists - 3;
       else if (change === '普通余额降低') context.usage.ordinary = context.config.limits.ordinary - 5;
       else throw new Error(`Unknown dispatch change ${change}`);

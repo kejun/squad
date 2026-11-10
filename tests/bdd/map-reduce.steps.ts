@@ -17,7 +17,7 @@ Then('两个成员应在任一返回前均已开始且收到不同分片和完�
   const { fixture, model, maps } = s(this); fixture.assertParallel();
   assert.deepEqual(model.context.intents.filter(work => work.status === 'inflight').map(work => work.target), ['B', 'builder-1']);
   for (const work of maps!) assert.equal(executionState(model.snapshot, work.id, work.attempt), 'authorized');
-  assert.deepEqual(model.context.discussion!.mapReduce!.assignments, [{ partitionId: 'alpha', target: 'B' }, { partitionId: 'beta', target: 'builder-1' }]);
+  assert.deepEqual(model.context.discussion!.mapReduce!.assignments.map(({ partitionId, target }) => ({ partitionId, target })), [{ partitionId: 'alpha', target: 'B' }, { partitionId: 'beta', target: 'builder-1' }]);
   assert.deepEqual(maps!.map(work => work.payload.partition), modelMapIntent().decomposition!.partitions);
   assert.deepEqual((maps![0]!.payload.goal as TaskInput['goal']).constraints, ['仅使用公开资料']); assert.equal(model.pending('owner').length, 0);
 });
@@ -36,7 +36,7 @@ Given('分片计划受到{string}', function (this: SpecWorld, limit: string) {
   create(this, new MapReduceFixture(limit), new MapModel(input => {
     if (limit === '普通额度不足') input.config.limits.ordinary = 4;
     else if (limit === '协助额度不足') input.config.limits.assists = 1;
-    else { assert.equal(limit, '可用成员不足'); input.config.bots = input.config.bots.slice(0, 2); }
+    else { assert.equal(limit, '可用成员不足'); input.config.bots = input.config.bots.slice(0, 1); }
   }));
 });
 When('状态机接受该任务的输入解释', function (this: SpecWorld) { const { model, fixture } = s(this); model.interpret(); assert(fixture.submit('分别研究甲乙两个来源；必须仅使用公开资料并保留出处；最后汇总差异').ok); const work = fixture.claim(); assert(fixture.result(work, mapIntent()).ok); });

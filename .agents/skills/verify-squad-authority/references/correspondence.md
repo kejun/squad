@@ -87,3 +87,8 @@ authority 的 Execution/Host/SessionScope 与 LocalRuntime 启动前中止探针
 `validLocalAction` 只扩展 `discoverHost` 的查询/游标；上述有限前缀仍请求 `runCli`。原 `LOCAL_CLAIM`、审批身份/摘要/期限、session、一次性许可、租约、停止与恢复守卫没有变化。目录类只读取/克隆受信元数据，空目录构造没有 I/O；原运行时绑定夹具保留默认空目录、无技能的 owner 输入。共享方法是已有确定成功回执的纯投影，不能产生新操作或批准。检查诊断只写当前候选的 bounded check；本技能的 owner/runCli 前缀没有 check/candidate，新增保存调用在此返回而不改变状态。
 
 原 Authority/SessionScope 和 ApprovalComposition 的模型、性质、公平性、有限界限、逐边回放与真实代码负对照保持原样。目录与分页正确性、共享方法语义、引用诊断和任意新旧操作组合继续由各自场景验收承担；本审查不把源指纹扩展当作新领域的证明。
+
+
+## 显式生命周期实施对应审查
+
+源码基线 97b7349 至本次候选的全部变更及迁移写入口逐项记录于仓库 `docs/testing/explicit-lifecycles-review.json`。原覆盖指纹与 97b7349 的文件逐项相同。批次同步和分片补位属于原任务事务内自动微步；交付阶段绑定原固定材料，未拆分保存/领取/执行许可事务。迁移的计费、修订、容量刷新、归并和证据重置负对照已定位新写入口。原 TLA/CFG 边界、性质与公平性保持；八片四并发、宿主服务生命周期由新增场景和纯模型路径承接，不冒称原两片切片已穷举新队列。完整结果以本轮运行/独立读回记录为准，pending 或 blocked 不推进 syncCommit。

@@ -1196,7 +1196,7 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
   [*] --> recognized: INTERPRETATION_RESULT [契约与当前版本合法] / 保存分片描述
-  recognized --> collecting: 安全输入边界 [成员、锁和基础请求额度足够] / 保存不同成员的分片意图
+  recognized --> collecting: 安全输入边界 [至少一名空闲成员且基础额度足够] / 保存全部分片队列并按并发上限派发
   recognized --> fallback: 安全输入边界 [成员或额度不足] / 说明原因并保留全部任务给负责人
   collecting --> collecting: DISCUSSION_RESULT [当前已领取分片] / 保存原始结果且不重派已完成项
   collecting --> summarizing: 最后分片结算 / 保存归并意图
@@ -1207,7 +1207,7 @@ stateDiagram-v2
   summarizing --> cancelled: STOP 或目标变更 / 取消全部工作并隔离迟到结果
 ```
 
-解释只提出相互独立的只读分片和归并要求，不能选择成员、调用工具或改写原始条件。分片身份与宿主分配成员的对应表随轮次持久化，归并不靠猜测数组顺序。既有成员各有独立 intent、领取回执与 execution actor，执行器可以同时领取不同成员；同一成员仍互斥。分配前检查剩余普通额度至少可覆盖每个分片、一次归并和一次负责人续办的基础请求，并核对协助额度；不足时全部回退，不漏掉尾部分片。这是启动时检查，不是额度预留，分片工具续办、重试和格式修复仍共享普通额度，耗尽时沿用既有失败与不完整交付路径。
+解释只提出相互独立的只读分片和归并要求，不能选择成员、调用工具或改写原始条件。分片身份与宿主分配成员的对应表随轮次持久化，归并不靠猜测数组顺序。既有成员各有独立 intent、领取回执与 execution actor，执行器可以同时领取不同成员；同一成员仍互斥。分配前检查剩余普通额度至少可覆盖每个分片、一次归并和一次负责人续办的基础请求，并核对协助额度；不足时全部回退，不漏掉尾部分片。启动时检查全部首轮分片的基础额度；后续请求守卫继续为未派发分片、归并和负责人续办保留额度。工具调用、重试和格式修复共享剩余额度，耗尽时保留明确未完成结果。
 
 普通输入与旧快照缺少分片字段时行为不变。每条输入记录一次分片应用，重复事件及恢复不会重派。存在新待解析输入、评审或已有并行轮次时不另开并行计划。共享原始用户要求与目标版本，分片答案只是证据而非新指令。成员失败、超时或 partial 保留未完成标志，即使归并文本声称成功，交付守卫仍不能将其标为完整完成。停止、目标更新、进程恢复、预算耗尽和物理操作未结算沿用既有 discussion/执行生命周期，外部 I/O 只能由持久化且领取成功的操作意图发起。
 
@@ -1387,13 +1387,13 @@ flowchart TD
   R --> M
   V -->|合法结果| B[安全派发边界 按当前资源重算容量]
   B -->|不能容纳全部片| O[记录原因 全部交给负责人]
-  B -->|完整容纳| D[宿主分配成员并持久化全部分片意图]
+  B -->|完整容纳| D[宿主持久化全部分片队列并按并发上限分配成员]
   N --> O
   D --> A[CLAIM及执行许可后执行 / 原始结果回传]
   A -->|全部结算| S[一次归并 再一次负责人续办]
 ```
 
-共享纯容量为 `max(0,min(8,可用非负责人成员数,剩余协助额度,剩余普通额度-2))`。可用成员排除本任务pending/inflight/uncertain的非cancel工作。预留2次普通额度对应归并与负责人续办；不承诺覆盖后续工具或修复额外请求。理解初次费用在CLAIM扣除，prepare阶段预扣1，CLAIM后用实际余额刷新；重试/修复仍走既有扣费入口。快照只读，模型不能写回容量或挑选成员。校验使用调用固定容量，派发另按当前资源重算，容量下降时保留完整计划并给出可观察原因，不slice输入或部分启动。
+有空闲成员时，总容量为 `max(0,min(8,剩余协助额度,剩余普通额度-2))`，没有空闲成员则为零。`maxConcurrentPartitions` 单独限制同时占用成员数，见[独立分片队列](#独立分片队列bt_q27bt_q33)。可用成员排除本任务pending/inflight/uncertain的非cancel工作。预留2次普通额度对应归并与负责人续办；不承诺覆盖后续工具或修复额外请求。理解初次费用在CLAIM扣除，prepare阶段预扣1，CLAIM后用实际余额刷新；重试/修复仍走既有扣费入口。快照只读，模型不能写回容量或挑选成员。校验使用调用固定容量，派发另按当前资源重算，容量下降时保留完整计划并给出可观察原因，不slice输入或部分启动。
 
 旧意图缺maxPartitions时维持原协议范围与恢复兼容，派发必须通过当前共享守卫。普通输入无分解仍走负责人；0/1容量不发明分片。停止、目标版本、评审、讨论、迟到结果与重启边界沿用原真实XState路径。新增材料、成员派发与归并仍是事务持久化意图后领取和回传，输入理解没有执行或工具权限。模型提示要求完整分配全部文档；语义覆盖由独立检查及逐文集成断言验证，不以容量数值本身证明内容完整。
 
@@ -1591,7 +1591,7 @@ flowchart LR
 
 ### KEJ-108 B2：服务启动、关闭与泵调度隔离
 
-类型：宿主控制器生命周期，不是新业务XState；所有者：`WebService.startup/initialized/closing/running/failedRooms`。验收BT_K03–K07。实际意图、领取、预算、停止与恢复继续由真实taskMachine及其executionMachine子actor和TeamEngine事务拥有。
+类型：宿主控制器生命周期；所有者：`WebService` 与 `serviceLifecycleMachine`。服务阶段以文末显式五态模型为准，`running/failedRooms` 仍保存工作与房间事实。验收BT_K03–K09。实际意图、领取、预算、停止与恢复继续由真实taskMachine及其executionMachine子actor和TeamEngine事务拥有。
 
 ```mermaid
 stateDiagram-v2
@@ -1704,3 +1704,88 @@ stateDiagram-v2
 CLI 目录按命令、用途、域名与要求进行多词检索；技能按名称、用途、来源及兼容要求检索，全部词均须命中。每页最多 20 条，游标绑定原归一化查询和目录版本，错误、伪造或跨版本游标明确拒绝，不静默返回空页。每页 CLI 目录最多核实 20 个命令，显式命令查询另按既有 20 个上限，重复命令合并探测。不执行 `--help`、安装或读取账号凭据；未登记命令仍可显式查询，未查询能力未知。目录所写执行环境是使用要求，存在性不能证明已授权、认证或可联网。
 
 模型层门槛复验查询在真实 taskMachine 的持久化往返、免费领取、停止、旧目标、撤权和非法参数路径；目录过滤和分页属于无业务转移的有界读取，随后通过真实注册表、运行时和模型接线验收。恢复与迟到结果沿用现有本地操作规则；没有新外部效果需要另建恢复状态。
+
+### 显式服务生命周期（BT_K08、BT_K09）
+
+类型：真实 XState 宿主生命周期；所有者：`src/web/service-lifecycle.ts`。不持久化、不生成业务操作；旧任务快照无需迁移。`WebService` 在纯模型允许的阶段接入恢复、泵调度和资源清理。
+
+```mermaid
+stateDiagram-v2
+    [*] --> recovering
+    recovering --> ready: RECOVERED / 允许调度
+    recovering --> startupFailed: RECOVERY_FAILED / 保留启动错误
+    recovering --> closing: CLOSE / 禁止新调度并清除定时器
+    ready --> closing: CLOSE / 等待已领取工作结算
+    startupFailed --> closing: CLOSE / 仍释放资源
+    closing --> closed: CLOSED / 两个数据库清理完成
+```
+
+| 边界 | 契约 |
+| --- | --- |
+| 恢复中关闭 | 当前核对可返回；不开始下一条，迟到 RECOVERED 不能重开调度 |
+| 启动失败 | ready 报告原错误；close 仍清理两个数据库，不把启动失败当成清理失败 |
+| 并发或再次关闭 | 返回保存的同一个 close Promise；每项资源只清理一次 |
+| 任务停止、等待授权、未知副作用 | 沿用既有 STOP、suspendApprovals、取消和回执结算，不撤销已经发生的物理效果 |
+| 关闭之后 | 不接受提交；不再触发定时器和 runner；重新运行需创建新服务实例 |
+
+### 显式宿主批次生命周期（BT_L111、BT_L112）
+
+类型：taskMachine 同一事务内的上下文生命周期，所有者 `src/host-retry.ts`；不是异步子 actor。排队请求尚未绑定批次，取批后 `hostRetryBatch.phase` 显式区分 active、uncertain、draining。退休清除字段并保存唯一审计事件；剩余预留由批次与未收费命令事实统一派生，不能回退已用额度。
+
+```mermaid
+stateDiagram-v2
+    queued --> active: 安全边界 [预算足够] / 固定批次与首条意图
+    queued --> retired: 超时或取消 / 标记请求终态
+    active --> uncertain: 回执或恢复 [效果未知] / 保留屏障
+    uncertain --> active: 可信核对 [未停止且可继续] / 原批继续
+    active --> draining: 停止或取消 / 只等待物理结算
+    uncertain --> draining: 停止或取消 / 保留未知效果
+    draining --> retired: 结算 [工作终止且效果已知] / 释放批次与预留
+    active --> retired: 工作结束 [无未决效果] / 统一退休
+```
+
+恢复旧快照时依据已有工作、停止标记和操作事实补齐阶段，不生成新许可、不收费。`LocalOperation` 仍是审批、执行许可及物理效果的唯一权威。迟到回执仅结算原操作；重复核对不重复退休；缺失操作记录不能被推断为已执行或未执行。
+
+### 显式交付周期（BT_F63、BT_F64）
+
+类型：taskMachine 同事务上下文生命周期；所有者 `src/task/delivery-cycle.ts`。`deliveryCycle.stage` 是带阶段载荷的联合类型；checking 只引用原 check intent 的固定材料，不复制另一份可漂移材料。预算计数和冻结证据仍属于同一个周期。
+
+```mermaid
+stateDiagram-v2
+    drafting --> candidate: DELIVER [身份有效] / 保存候选版本
+    candidate --> checking: 预检通过 / 绑定候选版本与检查工作
+    candidate --> revising: 预检失败 [可修订] / 一次负责人修订
+    checking --> checking: 技术失败 [还有重试许可] / 原材料原工作重试
+    checking --> revising: 确定失败 [可修订] / 保存缺口
+    revising --> candidate: DELIVER / 新候选版本
+    checking --> published: CHECK_RESULT [身份与所有要求通过] / 发布
+    candidate --> incomplete: 无法继续 / 保留结果与原因
+    checking --> incomplete: 无法继续 / 保留结果与原因
+```
+
+| 边界 | 规则 |
+| --- | --- |
+| 阶段身份 | checking 固定 candidateRevision 和 checkWorkId；旧工作、旧版本、旧 attempt 仍由既有守卫拒绝 |
+| 预算 | 最多两次普通检查、一次技术重试、一次负责人修订；不重置已用预算 |
+| 来源 | 技术重试沿用同一 intent.payload；修订按原冻结证据规则重新绑定新候选，不任意刷新来源 |
+| 新输入与停止 | 安全边界回到 drafting；STOP 进入 incomplete，迟到结果不得发布 |
+| 兼容 | 没有阶段的旧快照只根据原候选、原工作和原终态补齐阶段；不生成检查、不自动发布 |
+
+### 独立分片队列（BT_Q27–BT_Q33）
+
+类型：taskMachine 同事务上下文生命周期，所有者 `src/task/map-queue.ts`。总分片上限仍为八且须预留全部首轮分片、归并和负责人额度；并发上限单独固定为启动时可用非负责人成员数。先持久化意图，再由原 runner 领取和取得执行许可。
+
+```mermaid
+stateDiagram-v2
+    queued --> running: 空位 [当前权限与额度足够] / 分配成员与新工作
+    running --> succeeded: 成功结果 [当前工作身份] / 保存原始结果引用
+    running --> failed: 确定失败或超时 / 保存原始失败
+    failed --> queued: 瞬时技术失败 [每片首次且共享重试和预留允许] / 新尝试
+    running --> uncertain: 未知效果 / 保留占用与屏障
+    uncertain --> running: 可信核对 [原执行器允许恢复] / 重新领取原工作
+    queued --> cancelled: 停止、目标变化、期限或额度耗尽 / 保存未执行原因
+```
+
+成功、部分完成、失败、超时和取消分别保留。确定终止的失败立即标记本轮不完整，尚可技术重试的失败仅保留尝试记录；后续归并不得抹掉未完成标记。只对确定无未知效果的瞬时技术失败自动重试一次；语义失败和部分完成不自动重跑。旧尝试按工作 ID、attempt 和 fence 拒绝。归并等待全部分片结算，收到各分片及各尝试原始结果；一位成员执行多片时，证据必须用 partitionId 关联，不能再只用成员查找。目标变更、停止与不兼容恢复不得继续派发旧轮次；物理效果未核清仍保留占用。
+
+旧 map 快照由原 assignments、intent 和已保存 results 推导队列，不新增工作或付费。原合并分组计划仍合法；总数与并发数不再相等。工作请求的额外工具调用和重试必须让出尚未派发分片、归并与负责人额度。

@@ -39,9 +39,9 @@ describe('capacity-aware map planning across production HTTP boundaries', () => 
     expect(fixture.context().messages.some(message => message.text.includes('普通额度不足'))).toBe(true);
   });
   it.each([
-    ['四名可用成员', 4], ['仅三名空闲成员', 3], ['剩余两次协助', 2], ['普通额度只够三片及归并续办', 3],
+    ['四名可用成员', 8], ['仅三名空闲成员', 8], ['剩余两次协助', 2], ['普通额度只够三片及归并续办', 3],
     ['本次理解后只够一片', 1], ['本次理解后不足一片', 0], ['资源充足仍受协议上限约束', 8],
   ] as const)('[BT_Q08] supplies charged capacity for %s', verifyCapacitySnapshot);
-  it.each(['成员忙碌', '协助余额降低', '普通余额降低'])('[BT_Q11] falls back with the complete plan after %s', verifyCapacityDispatchFallback);
+  it.each(['所有成员忙碌', '协助余额降低', '普通余额降低'])('[BT_Q11] falls back with the complete plan after %s', verifyCapacityDispatchFallback);
   it.each([false, true])('[BT_Q12] restores legacy capacity snapshots with limited resources %s', verifyLegacyCapacityDispatch);
 });

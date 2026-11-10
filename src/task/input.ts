@@ -2,7 +2,7 @@ import { type InputAction, type TaskContext, type TaskEvent } from '../types.js'
 import { createInputAnalysis, inputReferences } from '../input-intent.js';
 import { pendingInput } from './facts.js';
 import { cancelWork, conversationInput, intent } from './operations.js';
-import { mapReduceCapacity } from './map-reduce-capacity.js';
+import { mapReduceCapacity, mapReduceConcurrency } from './map-reduce-capacity.js';
 
 export function recordInput(c: TaskContext, id: string, text: string, action: InputAction) {
   const analyses = c.inputAnalyses ??= [];
@@ -19,6 +19,7 @@ export function prepareInterpretation(c: TaskContext, e: TaskEvent) {
   cancelWork(c, e);
   const work = intent(c, e.at, 'interpretation', 'facilitator', {
     maxPartitions: mapReduceCapacity(c, 1),
+    maxConcurrentPartitions: mapReduceConcurrency(c, 1),
     input: { id: input.id, rawText: input.rawText, action: input.action }, goal: c.goal, artifacts: c.artifacts, board: c.board,
     references: inputReferences(c), ...conversationInput(c),
   });
