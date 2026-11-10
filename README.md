@@ -172,6 +172,7 @@ stateDiagram-v2
 
 | 关心的问题 | 详细模型与验收范围 |
 | --- | --- |
+| 服务恢复、启动失败与幂等关闭 | [服务生命周期](docs/state-diagrams.md#显式服务生命周期bt_k08bt_k09)：独立宿主 XState，BT_K03–K09 |
 | 输入、协助、评审、后台讨论、交付 | [任务上下文](docs/state-diagrams.md#任务拥有的上下文生命周期)：BT_I、BT_H、BT_G01–G14、BT_T、BT_A01–A11 |
 | 当前交付、文档修订与历史报告 | [候选版本与当前交付](docs/state-diagrams.md#候选版本与当前交付)，BT_A22–BT_A26 |
 | 候选预检、固定材料独立验收与一次修订 | [交付验收](docs/state-diagrams.md#候选预检与独立验收)，BT_F03–F04、BT_F07–F08、BT_F10–F11、BT_F14–F21 |

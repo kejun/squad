@@ -1591,7 +1591,7 @@ flowchart LR
 
 ### KEJ-108 B2：服务启动、关闭与泵调度隔离
 
-类型：宿主控制器生命周期，不是新业务XState；所有者：`WebService.startup/initialized/closing/running/failedRooms`。验收BT_K03–K07。实际意图、领取、预算、停止与恢复继续由真实taskMachine及其executionMachine子actor和TeamEngine事务拥有。
+类型：宿主控制器生命周期；所有者：`WebService` 与 `serviceLifecycleMachine`。服务阶段以文末显式五态模型为准，`running/failedRooms` 仍保存工作与房间事实。验收BT_K03–K09。实际意图、领取、预算、停止与恢复继续由真实taskMachine及其executionMachine子actor和TeamEngine事务拥有。
 
 ```mermaid
 stateDiagram-v2
@@ -1704,3 +1704,26 @@ stateDiagram-v2
 CLI 目录按命令、用途、域名与要求进行多词检索；技能按名称、用途、来源及兼容要求检索，全部词均须命中。每页最多 20 条，游标绑定原归一化查询和目录版本，错误、伪造或跨版本游标明确拒绝，不静默返回空页。每页 CLI 目录最多核实 20 个命令，显式命令查询另按既有 20 个上限，重复命令合并探测。不执行 `--help`、安装或读取账号凭据；未登记命令仍可显式查询，未查询能力未知。目录所写执行环境是使用要求，存在性不能证明已授权、认证或可联网。
 
 模型层门槛复验查询在真实 taskMachine 的持久化往返、免费领取、停止、旧目标、撤权和非法参数路径；目录过滤和分页属于无业务转移的有界读取，随后通过真实注册表、运行时和模型接线验收。恢复与迟到结果沿用现有本地操作规则；没有新外部效果需要另建恢复状态。
+
+### 显式服务生命周期（BT_K08、BT_K09）
+
+类型：真实 XState 宿主生命周期；所有者：`src/web/service-lifecycle.ts`。不持久化、不生成业务操作；旧任务快照无需迁移。`WebService` 在纯模型允许的阶段接入恢复、泵调度和资源清理。
+
+```mermaid
+stateDiagram-v2
+    [*] --> recovering
+    recovering --> ready: RECOVERED / 允许调度
+    recovering --> startupFailed: RECOVERY_FAILED / 保留启动错误
+    recovering --> closing: CLOSE / 禁止新调度并清除定时器
+    ready --> closing: CLOSE / 等待已领取工作结算
+    startupFailed --> closing: CLOSE / 仍释放资源
+    closing --> closed: CLOSED / 两个数据库清理完成
+```
+
+| 边界 | 契约 |
+| --- | --- |
+| 恢复中关闭 | 当前核对可返回；不开始下一条，迟到 RECOVERED 不能重开调度 |
+| 启动失败 | ready 报告原错误；close 仍清理两个数据库，不把启动失败当成清理失败 |
+| 并发或再次关闭 | 返回保存的同一个 close Promise；每项资源只清理一次 |
+| 任务停止、等待授权、未知副作用 | 沿用既有 STOP、suspendApprovals、取消和回执结算，不撤销已经发生的物理效果 |
+| 关闭之后 | 不接受提交；不再触发定时器和 runner；重新运行需创建新服务实例 |
