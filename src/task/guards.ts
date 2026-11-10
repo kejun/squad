@@ -1,3 +1,4 @@
+import { mapQueueNeedsProgress } from './map-queue.js';
 import { canStartHostRetry, findHostRetry, hostRetryBatchNeedsSync, hostRetryBatchRetirable, hostRetryBoundary, pendingHostRetry } from '../host-retry.js';
 import { type TaskContext, type TaskEvent } from '../types.js';
 import { localResumeKind, permissionProblem, valid } from './policy.js';
@@ -109,4 +110,3 @@ export const taskGuards = {
     recoveredSafe: ({ context, event }) => event.type === 'RECOVER' && !recoveryIssue(context, event.config) && !context.intents.some(i => localPhysicalPending(i) || i.status === 'uncertain' || i.status === 'inflight' && i.replay === 'unsafe'),
     recoveredCheckExhausted: ({ context, event }) => event.type === 'RECOVER' && !recoveryIssue(context, event.config) && !!recoveryCheckExhausted(context, event.at),
   } satisfies Record<string, (args: TaskGuardArgs) => boolean>;
-import { mapQueueNeedsProgress } from './map-queue.js';

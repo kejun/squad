@@ -279,8 +279,8 @@ Then('应说明全局转移和内部处理的省略范围并提供对应规则�
 Then('输入解析的全局进入条件与结束后继续规则应可查看', async function (this: SpecWorld) {
   const ui = state(this).ui!;
   await ui.click('查看全局进入 interpreting');
-  assert(chartBranches().querySelector('[aria-label="查看规则 *:@always:0"]'));
-  await ui.click('查看规则 *:@always:0');
+  const rule = [...chartBranches().querySelectorAll('button')].find(button => button.textContent?.includes('analysisReady'));
+  assert(rule); await ui.click(rule.getAttribute('aria-label')!);
   assert(document.querySelector('[aria-label="规则详情"]')!.textContent!.includes('analysisReady'));
   await ui.click('关闭规则详情'); await ui.click('聚焦所选状态');
   await activateChart(ui, '本轮已结束 到 执行中 的1条规则');
