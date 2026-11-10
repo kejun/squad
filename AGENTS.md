@@ -1,5 +1,9 @@
 # 项目协作规则
 
+## 验证审计技能路由
+
+当用户在代码项目语境提到「审计验证怎么做的」「验证层成熟度」「代码验证审计」「哪些验证做了、还缺什么」「测试是否充分」，或显式使用 `$audit-verification-maturity` 时，先读取并使用 [.agents/skills/audit-verification-maturity/SKILL.md](.agents/skills/audit-verification-maturity/SKILL.md)。按实际仓库、CI和执行证据检查缺口，给出适用性、执行状态、成熟度画像和风险优先建议；不要把测试总数、规格覆盖或旧模型通过扩大成完整验证。单纯解释概念、运行指定测试，以及验证码/身份验证问题不自动扩展成全面审计。此路由作用于本仓库，不表示技能已全局注册或Squad服务已自动扫描该目录。
+
 ## 开始代码变更前
 
 任何代码变更开始前，必须先完整阅读并遵循 [Uncle Bob Mode](https://github.com/unclebob/ub-mode/blob/master/SKILL.md)。同时遵守下文规定的场景、状态模型与验证顺序。
