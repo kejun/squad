@@ -1812,7 +1812,7 @@ stateDiagram-v2
 
 ### 自适应交付修订（KEJ-110）
 
-类型：真实 taskMachine 的交付上下文生命周期；所有者 `src/task/delivery-cycle.ts`、`src/task/delivery.ts`。验收 BT_F77–BT_F81。复用 running、checking、ended，不新增 I/O 调度器。
+类型：真实 taskMachine 的选定任务转移及交付上下文计数；所有者 `src/task/delivery-cycle.ts`、`src/task/delivery.ts`。验收 BT_F77–BT_F81。复用 running、checking、stopping、ended，不新增 I/O 调度器。
 
 ```mermaid
 stateDiagram-v2
@@ -1821,7 +1821,10 @@ stateDiagram-v2
     running --> running: DELIVER [机械失败且可修订] / 消耗同一修订额度
     checking --> ended: CHECK_RESULT [全部通过] / 只发布当前候选
     checking --> ended: CHECK_RESULT [无法核实或额度耗尽] / 保留成果和缺口
-    running --> ended: STOP或不可恢复失败 / 结算且不增加修订
+    running --> stopping: STOP [valid] / 保存取消意图，不增加修订
+    checking --> stopping: STOP [valid] / 保存取消意图，不增加修订
+    stopping --> ended: always [stoppedSettled] / 停止结算
+    running --> ended: WORK_FAILED [修订工作确定不可恢复失败] / 保留成果和缺口
 ```
 
 首次修订按确定失败项数量固定上限 `min(3,max(2,gapCount))`；后续新缺口不扩大上限。每个负责人意图只递增一次，重复回执、恢复和技术补试不重置。先确认剩余普通请求（含适用工程验证预留）及一次检查，再安排修订。技术补试只占原有全周期一次许可，不增加修订机会。新实现继续写 `revisionUsed` 供旧读者使用，实际计数在 `revisions`；旧快照若已消耗唯一机会且没有计数，沿用一次旧上限。状态机保存意图，TeamEngine 提交，WorkRunner 领取后才调用适配器，停止与旧 fence 的迟到结果不得推进。

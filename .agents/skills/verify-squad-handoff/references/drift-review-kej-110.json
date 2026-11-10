@@ -1,0 +1,474 @@
+{
+  "issue": "KEJ-110",
+  "outcome": "updated",
+  "previousSyncCommit": "1f5b80702d1383bcfa0492a373a98ed9968dd767",
+  "verifiedEquivalentAvailableBaseline": "942dfe4a9876dc9dcb8db94b221148822edf07a2",
+  "oldCoverageFilesAllEqualBaseline": true,
+  "oldCoverageFileCount": 55,
+  "reviewedProductCommit": "615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9",
+  "scope": "Finite graph correspondence only. New source status semantics/incremental review content and broader adaptive budgets are not proved by these slices.",
+  "changes": [
+    {
+      "file": "src/delivery-acceptance.ts",
+      "classification": "no-effect-within-explicit-slice",
+      "reason": "Only CheckMaterials.delta optional type contract; criterion identity/citation validation and publication judgments unchanged.",
+      "oldSha256": "8a051077136159767fdff4f88ad3b47b8b57818ef79e83bef9e75c99f6cb5b8f",
+      "reviewedSha256": "113afdb4cfd2c81c5657b1b26da7ed521f8a85b659b37919d22d11f554a50183",
+      "newDependency": false
+    },
+    {
+      "file": "src/presentation.ts",
+      "classification": "no-effect-within-explicit-slice",
+      "reason": "Validates optional sourceItems and disallows model D labels when structured. Existing synthetic plain artifact drafts omit sourceItems and pass unchanged.",
+      "oldSha256": "44b39afe5955d6d95cc127f1d4a8e90a8961bdb9daa9c547e7d2d0f25b84a1b5",
+      "reviewedSha256": "1ffa66657884dffe98cceb1166485df99541aee762a53cfaa3a57de69af896d8",
+      "newDependency": false
+    },
+    {
+      "file": "src/runner.ts",
+      "classification": "no-effect-within-explicit-slice",
+      "reason": "Extracts fixed check projection to delivery-check-delta; runOne still calls flushResults first. Handoff RunnerProgress stops before adapter; publication graphs submit synthetic check events directly.",
+      "oldSha256": "8f3ad25d1b179db71165d28d1cc2493c89f12e69e5f8236ea15b4c7d132ee2b2",
+      "reviewedSha256": "3a184148df3d8f87082e5c4a437fafbd357ad1832aeadb8548d3647622ea8f01",
+      "newDependency": false
+    },
+    {
+      "file": "src/task/delivery-cycle.ts",
+      "classification": "intentional-adaptive-budget-change-outside-slice",
+      "reason": "Adaptive used/limit intentionally changes budget promise. Handoff has no check; original Delivery checks once; Cycles permits only one failed judgment in its environment. Expanded budget is separately maintained in coordination.",
+      "oldSha256": "9e65af16bfc034c1bd0245bd7d3ea6e2bfba745ac58e3487ee5ec24a46e11a34",
+      "reviewedSha256": "b2e027c05c8a5b4762dbfb05b3f159f11e0c8f37356b381542d5657d6d9e0994",
+      "newDependency": false
+    },
+    {
+      "file": "src/task/delivery.ts",
+      "classification": "intentional-adaptive-budget-change-outside-slice",
+      "reason": "Adds pure sourceItems mechanical gate and adaptive budget. Handoff has no DELIVER; delivery fixtures have no sourceItems. Current candidate/fence/snapshot/publication guards unchanged.",
+      "oldSha256": "416eeaca45c0267674f3c0085dd32ab5c2d8f565692bedeffe2cd253c6c7f55d",
+      "reviewedSha256": "4894e7492cce51db203d717c3ee6e26c68581180cb68a7ed3ce4ac75d100eecb",
+      "newDependency": false
+    },
+    {
+      "file": "src/task/operations.ts",
+      "classification": "no-effect-within-explicit-slice",
+      "reason": "saveReports renders and stores structured sourceItems only when provided; existing synthetic reports have no sourceItems. owner/finish/cancel and publication transaction are unchanged.",
+      "oldSha256": "c067a6797e9fd6e0576a1cfb3775087a831e402298c1632bf76d4ca7cb5647fe",
+      "reviewedSha256": "67713454a5f4be40770f185ffa864ae6084b82bfc71075406234ec0fdcf1d386",
+      "newDependency": false
+    },
+    {
+      "file": "src/task/reducer.ts",
+      "classification": "no-effect-within-explicit-slice",
+      "reason": "DELIVER captures previous check id in same transaction; no changes to CHECK_RESULT publication, result consumption, STOP, CONTINUE or store boundary. Delta projection never used in direct engine replays.",
+      "oldSha256": "82ac7afdc5db4974dd6ca9afaa5d8bd8d40b3d9379c0707f409035389f206d01",
+      "reviewedSha256": "14ec8005c0716a4d66c8ddc3d2f5e51b76ed79bb8a1a3dade95d59164331add1",
+      "newDependency": false
+    },
+    {
+      "file": "src/task/tool-knowledge.ts",
+      "classification": "no-effect-within-explicit-slice",
+      "reason": "Pure bounded permission-scoped discovery metadata projection used by runner model loop. No owner intent, result marker, publication or evidence writes.",
+      "oldSha256": "8274057c9c426ecab15036257911d4ffa7e254a085255a7a50d1a75bf71736de",
+      "reviewedSha256": "75027f3c4001d3ad42d459953f1909800b2b29e8d657ddbeb13e71a398fd2987",
+      "newDependency": false
+    },
+    {
+      "file": "src/types.ts",
+      "classification": "no-effect-within-explicit-slice",
+      "reason": "Optional SourceItem report fields and adaptive cycle count contract. No runtime transition; existing fixture shapes remain valid.",
+      "oldSha256": "4d808de1dbc2793c9222ab5b73339625e11c7f3bcb72e26c8affbe77c4ddefce",
+      "reviewedSha256": "74888f1bf83be204b9dc4184a8e89a8ac61b387cf90947987dbd1f1b6c82e957",
+      "newDependency": false
+    },
+    {
+      "file": "src/delivery-check-delta.ts",
+      "classification": "no-effect-within-explicit-slice",
+      "reason": "New pure fixed-material projection. Requires settled same-fence baseline and frozen evidence; not invoked by publication-event replays; handoff runner probe exits via flush first. Semantic compression excluded from these formal guarantees.",
+      "oldSha256": null,
+      "reviewedSha256": "3d7312d7e63df5bccf24876665a9b62491177f1f67aeedd146bc9c623e3f2e82",
+      "newDependency": true
+    },
+    {
+      "file": "src/source-claims.ts",
+      "classification": "no-effect-within-explicit-slice",
+      "reason": "New pure mechanical validation of optional document-bound items against complete current receipt document body. Fixtures omit sourceItems; no extra state writes or IO. Source truth/status semantics excluded.",
+      "oldSha256": null,
+      "reviewedSha256": "9e4dbb2f07d5d0315dc0be5a66ca5042602121651e6be4225dee6982727e289c",
+      "newDependency": true
+    },
+    {
+      "file": "src/source-items.ts",
+      "classification": "no-effect-within-explicit-slice",
+      "reason": "New schema and pure D-label renderer. Optional structured reports only; fixtures omit fields. UI/Markdown semantics not proved by these slices.",
+      "oldSha256": null,
+      "reviewedSha256": "8a9f1e122ce69c05b3f41a776c7bf75fcf7253f6dc022115ad8097da37343f28",
+      "newDependency": true
+    }
+  ],
+  "initialAsIsChecks": [
+    "reports/kej-110-original-handoff",
+    "reports/kej-110-original-handoff-composition"
+  ],
+  "validation": {
+    "handoff": {
+      "evidence": "reports/kej-110-final-handoff",
+      "source": "615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9",
+      "status": "verified",
+      "seconds": 38.141,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true
+      },
+      "negativeControlCount": 4,
+      "graphStates": 146,
+      "graphEdges": 424,
+      "backends": [
+        {
+          "name": "memory",
+          "edgesReplayed": 424
+        },
+        {
+          "name": "sqlite",
+          "edgesReplayed": 424
+        }
+      ],
+      "independentReadbackArtifacts": 108
+    },
+    "handoff-composition": {
+      "evidence": "reports/kej-110-final-handoff-composition",
+      "source": "615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9",
+      "status": "verified",
+      "seconds": null,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true
+      },
+      "negativeControlCount": 4,
+      "domains": [
+        {
+          "name": "failed",
+          "counts": [
+            226,
+            53,
+            0
+          ],
+          "replay": {
+            "status": "verified",
+            "graphStates": 53,
+            "graphEdges": 225,
+            "backends": [
+              {
+                "name": "memory",
+                "replayedEdges": 225
+              },
+              {
+                "name": "sqlite",
+                "replayedEdges": 225
+              }
+            ],
+            "exitCode": 0
+          }
+        },
+        {
+          "name": "saved",
+          "counts": [
+            104,
+            26,
+            0
+          ],
+          "replay": {
+            "status": "verified",
+            "graphStates": 26,
+            "graphEdges": 103,
+            "backends": [
+              {
+                "name": "memory",
+                "replayedEdges": 103
+              },
+              {
+                "name": "sqlite",
+                "replayedEdges": 103
+              }
+            ],
+            "exitCode": 0
+          }
+        }
+      ],
+      "independentReadbackArtifacts": 153
+    }
+  },
+  "syncAdvance": "All scoped exact615complete checkers, real-code controls, restored rechecks and independent evidence readback passed; parent advances coverage sync after all nineCI entrypoints finish.",
+  "independentCommands": [
+    {
+      "name": "final-handoff",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-handoff/scripts/check.py",
+        "--jar",
+        "/workspace/squad/work/kej-110-deps/tla2tools.jar",
+        "--evidence",
+        "reports/kej-110-final-handoff"
+      ],
+      "exitCode": 0,
+      "log": "work/kej-110-615-final-handoff.log"
+    },
+    {
+      "name": "final-handoff-readback",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-handoff/scripts/check.py",
+        "--verify-evidence",
+        "reports/kej-110-final-handoff"
+      ],
+      "exitCode": 0,
+      "log": "work/kej-110-615-final-handoff-readback.log"
+    },
+    {
+      "name": "final-handoff-composition",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-handoff/scripts/check-composition.py",
+        "--jar",
+        "/workspace/squad/work/kej-110-deps/tla2tools.jar",
+        "--evidence",
+        "reports/kej-110-final-handoff-composition"
+      ],
+      "exitCode": 0,
+      "log": "work/kej-110-615-final-handoff-composition.log"
+    },
+    {
+      "name": "final-handoff-composition-readback",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-handoff/scripts/check-composition.py",
+        "--verify-evidence",
+        "reports/kej-110-final-handoff-composition"
+      ],
+      "exitCode": 0,
+      "log": "work/kej-110-615-final-handoff-composition-readback.log"
+    },
+    {
+      "name": "reader-controls-handoff",
+      "command": [
+        "python3",
+        "tests/local-effects-formal-readback-controls.py",
+        "--checker",
+        ".agents/skills/verify-squad-handoff/scripts/check-composition.py",
+        "--proof",
+        "reports/kej-110-final-handoff-composition",
+        "--evidence",
+        "reports/kej-110-615-reader-controls-handoff"
+      ],
+      "exitCode": 0,
+      "log": "work/kej-110-615-reader-controls-handoff.log"
+    }
+  ],
+  "interruptedRuns": [
+    "reports/kej-110-interrupted-handoff-composition"
+  ],
+  "interruptedReason": "Two simultaneous starts were interrupted with exit130 to honor the four-core concurrency limit; incomplete runs are not counted as verification.",
+  "guaranteeBoundary": "No product bug observed in these finite slices. Original state/edge domains and properties preserved. Semantic source/status correctness and delta review quality are not proved by these checks.",
+  "oldCompositionCoverageFileCount": 22,
+  "oldCompositionCoverageFilesAllEqualBaseline": true,
+  "earlierReviewedCommit": null,
+  "reviewedCommit": "615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9",
+  "finalPromptLayoutReview": {
+    "file": "src/model-adapter.ts",
+    "classification": "no-effect-on-declared-formal-slices",
+    "diff": "661e438..615b18f: same sourceItems guidance moved from schemas.deliver string into owner system instruction; allowed output schema JSON restored; no parser, event, guard, I/O or permission modification. Every formal prefix uses direct engine/runtime synthetic receipts, not model HTTP.",
+    "validationPolicy": "Despite unaffected scopes, all9complete checkers rerun on exact615b18f; previous661proof not counted as final pass."
+  },
+  "historicalValidation": {
+    "reviewedCommit": "661e438e8705d08a36b9dc0d07b296616737eee4",
+    "validation": {
+      "handoff": {
+        "command": "env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true python3 .agents/skills/verify-squad-handoff/scripts/check.py --jar /workspace/squad/work/kej-110-deps/tla2tools.jar --evidence reports/kej-110-final-handoff",
+        "evidence": "reports/kej-110-final-handoff",
+        "status": "verified",
+        "seconds": 108.556,
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "evidenceRetained": true
+        },
+        "negativeControlCount": 4,
+        "negativeProperties": [
+          "AtomicHandoff",
+          "AtMostOnce",
+          "StopCancelsResume",
+          "RunnerProgress"
+        ],
+        "graphStates": 146,
+        "graphEdges": 424,
+        "backends": [
+          {
+            "name": "memory",
+            "edgesReplayed": 424
+          },
+          {
+            "name": "sqlite",
+            "edgesReplayed": 424
+          }
+        ],
+        "independentReadbackArtifacts": 108
+      },
+      "handoff-composition": {
+        "command": "env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true python3 .agents/skills/verify-squad-handoff/scripts/check-composition.py --jar /workspace/squad/work/kej-110-deps/tla2tools.jar --evidence reports/kej-110-final-handoff-composition",
+        "evidence": "reports/kej-110-final-handoff-composition",
+        "status": "verified",
+        "seconds": null,
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true
+        },
+        "negativeControlCount": 4,
+        "negativeProperties": [
+          "RetryUniqueness",
+          "ExclusiveResultChoice",
+          "RetryAuthority",
+          "RetryOwner"
+        ],
+        "domains": [
+          {
+            "name": "failed",
+            "counts": [
+              226,
+              53,
+              0
+            ],
+            "replay": {
+              "status": "verified",
+              "graphStates": 53,
+              "graphEdges": 225,
+              "backends": [
+                {
+                  "name": "memory",
+                  "replayedEdges": 225
+                },
+                {
+                  "name": "sqlite",
+                  "replayedEdges": 225
+                }
+              ],
+              "exitCode": 0
+            }
+          },
+          {
+            "name": "saved",
+            "counts": [
+              104,
+              26,
+              0
+            ],
+            "replay": {
+              "status": "verified",
+              "graphStates": 26,
+              "graphEdges": 103,
+              "backends": [
+                {
+                  "name": "memory",
+                  "replayedEdges": 103
+                },
+                {
+                  "name": "sqlite",
+                  "replayedEdges": 103
+                }
+              ],
+              "exitCode": 0
+            }
+          }
+        ],
+        "independentReadbackArtifacts": 153
+      }
+    },
+    "independentCommands": [
+      {
+        "name": "final-handoff-readback",
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-handoff/scripts/check.py",
+          "--verify-evidence",
+          "reports/kej-110-final-handoff"
+        ],
+        "exitCode": 0,
+        "log": "work/kej-110-final-handoff-readback.log"
+      },
+      {
+        "name": "final-handoff-composition",
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-handoff/scripts/check-composition.py",
+          "--jar",
+          "/workspace/squad/work/kej-110-deps/tla2tools.jar",
+          "--evidence",
+          "reports/kej-110-final-handoff-composition"
+        ],
+        "exitCode": 0,
+        "log": "work/kej-110-final-handoff-composition.log"
+      },
+      {
+        "name": "final-handoff-composition-readback",
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-handoff/scripts/check-composition.py",
+          "--verify-evidence",
+          "reports/kej-110-final-handoff-composition"
+        ],
+        "exitCode": 0,
+        "log": "work/kej-110-final-handoff-composition-readback.log"
+      },
+      {
+        "name": "reader-controls-handoff",
+        "command": [
+          "python3",
+          "tests/local-effects-formal-readback-controls.py",
+          "--checker",
+          ".agents/skills/verify-squad-handoff/scripts/check-composition.py",
+          "--proof",
+          "reports/kej-110-final-handoff-composition",
+          "--evidence",
+          "reports/kej-110-reader-controls-handoff"
+        ],
+        "exitCode": 0,
+        "log": "work/kej-110-reader-controls-handoff.log"
+      }
+    ],
+    "retainedDirectories": {
+      "reports/kej-110-final-handoff": "reports/kej-110-661-handoff",
+      "reports/kej-110-final-handoff-composition": "reports/kej-110-661-handoff-composition"
+    },
+    "note": "Original commands used final directory names; successful661evidence was subsequently moved to661-prefixed directories and is not counted as exact615final validation."
+  },
+  "finalReaderControls": [
+    "reports/kej-110-615-reader-controls-handoff"
+  ],
+  "finalRuns": {
+    "handoff": {
+      "evidence": "reports/kej-110-final-handoff",
+      "status": "verified",
+      "seconds": 38.141,
+      "manifest": {
+        "evidenceManifestSha256": "fba3a9a7aac4649ee0ee8f668e78205d4188ffb41921f5d7aefa0b1f43f8678e"
+      },
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true
+      }
+    },
+    "handoff-composition": {
+      "evidence": "reports/kej-110-final-handoff-composition",
+      "status": "verified",
+      "seconds": null,
+      "manifest": {
+        "manifestSha256": "9d799ef2b706dab6be30c9893c454db549550ffe3d985a1bd50aa2ba69ce2391"
+      },
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true
+      }
+    }
+  },
+  "syncNote": "All nine declared CI entrypoints verified before syncCommit advancement. Updating metadata is not another complete run. Independent readback uses unchanged captured evidence, and final pins rechecked against exact product commit."
+}

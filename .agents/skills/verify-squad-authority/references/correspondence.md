@@ -92,3 +92,15 @@ authority 的 Execution/Host/SessionScope 与 LocalRuntime 启动前中止探针
 ## 显式生命周期实施对应审查
 
 源码基线 97b7349 至本次候选的全部变更及迁移写入口逐项记录于仓库 `docs/testing/explicit-lifecycles-review.json`。原覆盖指纹与 97b7349 的文件逐项相同。批次同步和分片补位属于原任务事务内自动微步；交付阶段绑定原固定材料，未拆分保存/领取/执行许可事务。迁移的计费、修订、容量刷新、归并和证据重置负对照已定位新写入口。原 TLA/CFG 边界、性质与公平性保持；八片四并发、宿主服务生命周期由新增场景和纯模型路径承接，不冒称原两片切片已穷举新队列。完整结果以本轮运行/独立读回记录为准，pending 或 blocked 不推进 syncCommit。
+
+## KEJ-110 交付与纯投影变更的授权切片审查
+
+受审产品 `661e438e8705d08a36b9dc0d07b296616737eee4`。旧同步对象不可读时，先逐文件证明可用主线 `942dfe4` 与全部旧coverage指纹一致，再审查13项变更/新增依赖，记录于 [KEJ-110审查](drift-review-kej-110.json)。授权与审批组合前缀没有candidate/check/sourceItems；新增来源门禁、增量检查及自适应修订不进入这些前缀，共享能力事实只是带来源的纯观察，不能授予一次性许可或审批。LOCAL_*、approval/session/digest/lease、恢复及事务提交边界未改变。
+
+原authority完整34步骤、全部6类真实代码负对照、原版恢复复验及独立读回通过，证据 `reports/kej-110-661-authority`；授权组合36状态/182边，两存储逐边回放、四类真实负控、完整恢复复验及独立读回通过，证据 `reports/kej-110-661-authority-composition`。不把源hash扩展或这些有限授权检查说成已证明sourceItems语义、增量审核质量或预算与授权任意组合；预算承诺变化由coordination模型独立维护。
+
+### KEJ-110 最终提示布局修复后的严格源绑定复验
+
+产品 `615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9` 仅把sourceItems说明从deliver的JSON示例末尾移入owner系统提示；这些有限驱动不执行模型HTTP，因此授权、效果及批次的对应不受影响。仍按严格源绑定要求对最终源码完整重跑，未把661证据改称615运行。旧661目录保留历史；新运行、真实负对照、恢复后复验、独立读回和源未变检查均成功，详见本轮审查中的 strictSourceRerun 与 verification。
+
+最终入口证据为 `reports/kej-110-final-authority`（34步骤）及 `reports/kej-110-final-authority-composition`（36状态、182标记边，两存储各完整回放）；6类原授权与4类组合真实代码负对照全部检出。独立读回均退出0。

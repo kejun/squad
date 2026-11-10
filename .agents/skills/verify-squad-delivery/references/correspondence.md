@@ -144,3 +144,22 @@ SourceLineage 的 corrupt-freeze 反例现在保持真实 revision=1，用独立
 ## 显式生命周期实施对应审查
 
 源码基线 97b7349 至本次候选的全部变更及迁移写入口逐项记录于仓库 `docs/testing/explicit-lifecycles-review.json`。原覆盖指纹与 97b7349 的文件逐项相同。批次同步和分片补位属于原任务事务内自动微步；交付阶段绑定原固定材料，未拆分保存/领取/执行许可事务。迁移的计费、修订、容量刷新、归并和证据重置负对照已定位新写入口。原 TLA/CFG 边界、性质与公平性保持；八片四并发、宿主服务生命周期由新增场景和纯模型路径承接，不冒称原两片切片已穷举新队列。完整结果以本轮运行/独立读回记录为准，pending 或 blocked 不推进 syncCommit。
+
+
+## KEJ-110 检查效率与来源结构的切片审查
+
+原覆盖清单逐项与可用主线 `942dfe4a9876dc9dcb8db94b221148822edf07a2` 字节相同。逐文件旧/新hash、分类、初始原样blocked和最终执行在 [本轮审查](drift-review-kej-110.json)。新增 `delivery-check-delta.ts`、`source-claims.ts`、`source-items.ts` 是传递依赖，加入保守漂移清单不表示已证明其内容语义。
+
+本次仍由原公开入口、原事务边界驱动；候选与操作身份、存储提交、消费标记、发布记录和final原子性不变。结构化来源校验只处理带sourceItems的报告；既有回放的普通报告不触发。增量材料由runner模型请求使用，直接engine事件回放不执行该投影；handoff进度探针仍先flush且不调用adapter。共享能力事实只读，不生成调用权限或调度。
+
+修订额度按 KEJ-110 与 BT_F77–BT_F81 有意改变，独立 coordination CheckBudget 承接扩大域；本技能原交接切片没有候选/检查，原Delivery只检查一个候选，Cycles的环境只允许跨三个发布周期一次失败修订。后者保留该明确有限域，不声称覆盖多次失败或整个新预算。Verification的工程门禁、SourceLineage的固定来源与直接谱系均未改变；sourceArtifact模式回退完整材料。
+
+原模型、性质、边界、公平条件和真实代码负对照保持。新来源原文状态、D标签渲染、增量复核语义、任意报告和模型供应商质量仍由直接产品场景与集成承接。本轮在产品 `661e438` 上完整运行与独立读回已通过，逐项执行记录见审查JSON；同步元数据由整体验证结束后推进，不把元数据更新称为一次额外完整运行。
+
+完整 Delivery 入口134.801秒通过，原Delivery与Verification/Cycles/SourceLineage三组合域全部完整探索、双存储逐边回放、三类原始与七类组合真实负控、原版完整复验及独立读回通过，cleanup四项全true。十一项自洽缺件/性质移除/摘要冲突和通用缺件/截断读回负控均通过。证据 `reports/kej-110-final-delivery` 与 `reports/kej-110-reader-controls-delivery`；限并发中断partial目录不计通过。
+
+最终产品 `615b18f` 仅将同一sourceItems说明从交付JSON示例后缀移到owner系统指令，使示例保持JSON。上述形式化入口不调用模型HTTP，声明的事务与投影无影响；仍按精确源码策略重跑全部入口。661成功证据已移至 `reports/kej-110-661-*`，仅作历史；615最终结果在审查JSON的validation单独记录，未完成前保持pending。
+
+### 615b18f 精确源码最终复验
+
+产品615完整Delivery入口125.614秒通过，原31状态79边与三组合47/91、79/203、71/226全部完整探索、双存储逐边回放、三类原始和七类组合真实负控及原版完整复验通过。独立读回290件原始证据，十一项自洽证据缺件/性质移除/摘要冲突负控与通用缺件/截断负控均通过，cleanup四项全true。证据 `reports/kej-110-final-delivery` 与 `reports/kej-110-615-reader-controls-delivery`；661结果仅保存在historicalValidation，不作为615最终证明。

@@ -43,7 +43,7 @@ KEJ-100 依赖审查：`c1f380da1527b8c22a8aaaaf7aef10cd2695146e`，仅空单测
 - `Consume` → policy 检查当前 candidate 的一用许可与 deliveryCheckBudgetProblem → reducer 增加 cycle.requests、usage.checks/currentRequests，reserved技术许可变used。
 - `Failure` → transient WORK_FAILED，只有 work.requestCount>0、无 cycle.retry、未耗完请求/全局retry才 reserveDeliveryRetry；在首次请求前失败不构成免费技术重试。
 - `BadProtocol` → CHECK_RESULT 空 criteriaResults，经 checkDisposition 协议校验走技术 retry 或停止；不通过格式错误虚构业务检查失败。
-- `FailedJudgment` → 完整 criteriaResults 全failed，经 checkedDelivery/canReviseDelivery 仅一次生成 deliveryRevision owner；后续再失败终止。
+- `FailedJudgment` → 完整 criteriaResults 全failed，经 checkedDelivery/canReviseDelivery 与 beginDeliveryRevision 在同一事务内按首次失败项数固定2至3次额度，额度未用尽且可复核时生成 deliveryRevision owner；达到上限后再失败终止。
 - `PassedJudgment` → 同一候选完整判断全passed，结束周期。实际证据内容校验由 verify-squad-delivery 覆盖。
 - `ClaimRevision`/`DeliverRevision` → 真实 claim owner / DELIVER 两次独立提交，不合并为一原子动作。新 check requestCount 为0，但 cycle.requests/retry/revisionUsed 保留。
 - `Recover` → 支持两个恢复事件，pending重复恢复保留reserved；已发请求的inflight先预留一次technical permit；used后再恢复无法另预留则结束。工作额度高于所需普通步骤，不把这个模型当作普通预算组合证明。
@@ -144,3 +144,13 @@ CLI catalog/分页及共享调用经验是纯投影或适配器路径，不新�
 ## 显式生命周期实施对应审查
 
 源码基线 97b7349 至本次候选的全部变更及迁移写入口逐项记录于仓库 `docs/testing/explicit-lifecycles-review.json`。原覆盖指纹与 97b7349 的文件逐项相同。批次同步和分片补位属于原任务事务内自动微步；交付阶段绑定原固定材料，未拆分保存/领取/执行许可事务。迁移的计费、修订、容量刷新、归并和证据重置负对照已定位新写入口。原 TLA/CFG 边界、性质与公平性保持；八片四并发、宿主服务生命周期由新增场景和纯模型路径承接，不冒称原两片切片已穷举新队列。完整结果以本轮运行/独立读回记录为准，pending 或 blocked 不推进 syncCommit。
+
+## KEJ-110 自适应交付预算对应
+
+需求 [KEJ-110](https://linear.app/kejunz/issue/KEJ-110) 第3项与 `features/50_adaptive_delivery_revision.feature` BT_F77–BT_F81 是改变旧单次承诺的依据。产品 `src/task/delivery-cycle.ts` 的 deliveryRevisionBudget/read兼容与 beginDeliveryRevision 是唯一额度解释和递增所有者，`src/task/delivery.ts` 的 canReviseDelivery 和 deliveryCheckBudgetProblem 控制生成修订及每次检查；不拆分原 CHECK_RESULT、DELIVER、CONSUME 事务，不新增外部动作。
+
+CheckBudget 从“最大一修订，两候选，2普通+1技术”扩为“最多3修订，4候选，4普通+1技术”。`revisionLimit` 投影 `cycle.revisions.limit ?? 2`；`recordedRevisions` 投影 `cycle.revisions.used ?? 0`；`revisions` 从真实持久 deliveryRevision owner 意图独立计数。`FailedJudgment` 对四项要求只令一项failed；`FailedManyJudgment` 令三项failed；二者都经同一真实 CHECK_RESULT。第一次失败若允许修订，按实际failed数分配2/3；之后固定，不因后续三项失败扩大。当前要求总数四项、普通额度20、checks30、retries1，所以模型关注自身上限，非全系统额度组合。
+
+`BoundedRevisions` 替代旧 `OneRevision`；等式 recordedRevisions=revisions、marker iff revisions>0 和上限2..3均由每边真实投影复验。`BoundedChecks` 仍保护普通与技术请求分开计费，按固定上限动态扩域，不改变 OneTechnicalRetry。新增独立可达性见证 NeverFiveRequests、NeverSecondRevision、NeverThirdRevision、NeverExpandedLimit，旧三请求/重试/unknown/恢复见证保留。新增真实代码负对照遗漏used递增与把limit设4，并保留遗漏revisionUsed marker；每个都必须在Memory/SQLite因BoundedRevisions失败而非因导入或源码hash。
+
+旧快照 `revisionUsed=true` 且无revisions沿用旧一次额度、预算不足不安排修订、机械补交同额度、unverified不改写和停止/迟到结果，由 BT_F77–81 与既有直接场景单独验收；没有把这些加入本次TLC切片。传递源变化需要独立审查及完整运行，不能因只改提示而自动略过hash门禁。原始门禁已运行并因预期源码漂移blocked，证据 `reports/verify-squad-coordination/kej-110-original-drift`；最终成功结果和同步提交在完成后记录。

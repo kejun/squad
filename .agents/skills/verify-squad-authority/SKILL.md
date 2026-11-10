@@ -91,3 +91,5 @@ python3 .agents/skills/verify-squad-authority/scripts/composition-check.py --ver
 e77 最终维护：当前受测产品提交 `e77f052acacd208fd8eb8587ac6901ba19003220`。服务启动仅增加 closing 检查的无影响对应审查见 `references/drift-review-kej-108-service.json`；随后仍完整重跑原检查到 `reports/verify-squad-authority/e77-final-current`，34步骤和单独读回通过。最终新增组合完整运行位于 `reports/verify-squad-authority-composition/e77-final-inputs-complete`，冻结后的工具强制必需invariants/Progress、捕获全部covered实现和fixture正文、保存实际退出码并要求每个负控正常exit1且绑定AssertionError与目标性质，175件独立读回通过。较早的110/111件证明只作各自工具版本的历史，不能补拷新inputs冒充最新完整运行。
 
 KEJ-109 元数据与引用诊断维护：当前同步产品为 `8f4a1acb31f1aa9d73996e60dbb9aa3becce0596`。十个变化文件及三个新增传递依赖逐项审查后，原授权与授权组合均完整运行并独立读回通过；模型、性质、公平性和事务边界保持。受测运行始于较早 HEAD 加已审查工作区差异，随后逐文件证明与该同步提交字节一致；详情见 [原授权审查](references/drift-review-kej-109.json) 与 [组合审查](references/drift-review-kej-109-composition.json)。CLI 检索、共享方法和检查诊断仍由独立 BDD 承担，不扩大本有限证明。
+
+KEJ-110 当前受审产品为 `615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9`；本轮逐文件审查、明确改变的预算承诺（如适用）、完整正向/真实负对照/原版复验与独立读回见[KEJ-110审查](references/drift-review-kej-110.json)。仅在全部九个CI形式化入口成功后推进同步元数据；此同步操作不是额外完整复跑，新功能的语义与真实模型供应商行为仍由独立验收负责。

@@ -47,3 +47,5 @@ python3 tests/host-retry-formal-evidence-controls.py "$SQUAD_FORMAL_EVIDENCE"
 ## 维护
 
 覆盖文件变化时默认 blocked。先按 [维护流程](references/maintenance.md) 审查所有改变及迁移的写入口，明确模型动作、边界或承诺是否变化，再更新模型/回放/真实负对照。不得只刷新文件哈希；不得削弱性质来接受产品缺陷；未通过不推进syncCommit。首次建立记录的基线commit与当前工作树受测指纹共同标识产品版本，不能将未提交修复说成已经属于该commit。
+
+KEJ-110 当前受审产品为 `615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9`；本轮逐文件审查、明确改变的预算承诺（如适用）、完整正向/真实负对照/原版复验与独立读回见[KEJ-110审查](references/drift-review-kej-110.json)。仅在全部九个CI形式化入口成功后推进同步元数据；此同步操作不是额外完整复跑，新功能的语义与真实模型供应商行为仍由独立验收负责。

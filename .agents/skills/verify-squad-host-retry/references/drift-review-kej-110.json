@@ -1,0 +1,231 @@
+{
+  "issue": "KEJ-110",
+  "status": "updated",
+  "oldSyncCommit": "1f5b80702d1383bcfa0492a373a98ed9968dd767",
+  "availableEquivalentBaseline": "942dfe4",
+  "baselineProof": "Every previously covered file was compared via git show 942dfe4:path against the recorded coverage SHA256 and matched exactly; old sync object is unavailable in shallow checkout.",
+  "reviewedChanges": [
+    {
+      "file": "src/delivery-acceptance.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "CheckMaterials.delta is an optional type field only; no runtime acceptance or sourceItems gate change in this module.",
+      "currentSha256": "113afdb4cfd2c81c5657b1b26da7ed521f8a85b659b37919d22d11f554a50183",
+      "previousSha256": "8a051077136159767fdff4f88ad3b47b8b57818ef79e83bef9e75c99f6cb5b8f"
+    },
+    {
+      "file": "src/delivery-check-delta.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "New pure projection of bounded check input; these slices do not invoke independent check runner, so no approval/effect/batch state is changed.",
+      "currentSha256": "3d7312d7e63df5bccf24876665a9b62491177f1f67aeedd146bc9c623e3f2e82",
+      "previousSha256": null
+    },
+    {
+      "file": "src/model-adapter.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Prompt/protocol text for structured source reports, incremental checks, shared observations and maxPartitions. 615b18f moves sourceItems prose from the JSON example tail to owner system instructions. These four formal drivers do not execute model HTTP.",
+      "currentSha256": "edd9c5251e5e04f823743add1f17f08d7b35928b62c51b7d75fad3358e054c0f",
+      "previousSha256": "30b7841581dbb569a9f2f0fe2ee80db25bb3ca14109cf8c53a270bb26cdc9894"
+    },
+    {
+      "file": "src/presentation.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Validates optional sourceItems and model-written D labels only when structured items supplied; all four verifier prefixes omit sourceItems.",
+      "currentSha256": "1ffa66657884dffe98cceb1166485df99541aee762a53cfaa3a57de69af896d8",
+      "previousSha256": "44b39afe5955d6d95cc127f1d4a8e90a8961bdb9daa9c547e7d2d0f25b84a1b5"
+    },
+    {
+      "file": "src/runner.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Delegates bounded check input construction to pure projection; actual execution permit/beginExecution and local operation paths unchanged. Formal runtime-binding calls non-check LocalRuntime directly.",
+      "currentSha256": "3a184148df3d8f87082e5c4a437fafbd357ad1832aeadb8548d3647622ea8f01",
+      "previousSha256": "8f3ad25d1b179db71165d28d1cc2493c89f12e69e5f8236ea15b4c7d132ee2b2"
+    },
+    {
+      "file": "src/source-claims.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "New pure gate over complete saved receipt JSON, no external I/O, approval or lease writes. No items in these slices, so returns null.",
+      "currentSha256": "9e4dbb2f07d5d0315dc0be5a66ca5042602121651e6be4225dee6982727e289c",
+      "previousSha256": null
+    },
+    {
+      "file": "src/source-items.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "New pure validation/render module; absent items preserve original report text. No execution authorization or I/O.",
+      "currentSha256": "8a9f1e122ce69c05b3f41a776c7bf75fcf7253f6dc022115ad8097da37343f28",
+      "previousSha256": null
+    },
+    {
+      "file": "src/task/delivery-cycle.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Intentional adaptive revision budget change belongs to coordination CheckBudget. These slices do not authorize author revisions or exhaust checks. Delivery stage/settlement remains same transaction.",
+      "currentSha256": "b2e027c05c8a5b4762dbfb05b3f159f11e0c8f37356b381542d5657d6d9e0994",
+      "previousSha256": "9e65af16bfc034c1bd0245bd7d3ea6e2bfba745ac58e3487ee5ec24a46e11a34"
+    },
+    {
+      "file": "src/task/delivery.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Adds pure sourceItemsProblem call to deliverySubmissionProblem and adaptive check/author-revision budgets. No structured items in these verifier prefixes, so the new provenance gate returns null. Authority/effects omit delivery; host-retry DELIVER is held by pending retry and does not request independent checking or consume revision allowance.",
+      "currentSha256": "4894e7492cce51db203d717c3ee6e26c68581180cb68a7ed3ce4ac75d100eecb",
+      "previousSha256": "416eeaca45c0267674f3c0085dd32ab5c2d8f565692bedeffe2cd253c6c7f55d"
+    },
+    {
+      "file": "src/task/operations.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Optional render/persist sourceItems in saveReports. Existing report drafts without items produce original content; no new physical operation, lease release or approval.",
+      "currentSha256": "67713454a5f4be40770f185ffa864ae6084b82bfc71075406234ec0fdcf1d386",
+      "previousSha256": "c067a6797e9fd6e0576a1cfb3775087a831e402298c1632bf76d4ca7cb5647fe"
+    },
+    {
+      "file": "src/task/reducer.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "DELIVER records same-epoch/goal previous completed check id for projection. These slices have no prior completed check, so no baseline field or new scheduling.",
+      "currentSha256": "14ec8005c0716a4d66c8ddc3d2f5e51b76ed79bb8a1a3dade95d59164331add1",
+      "previousSha256": "82ac7afdc5db4974dd6ca9afaa5d8bd8d40b3d9379c0707f409035389f206d01"
+    },
+    {
+      "file": "src/task/tool-knowledge.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Pure task-scoped bounded projection of settled discovery/skill/sandbox failure observations; runner model context only, cannot grant execution authority or change original receipts.",
+      "currentSha256": "75027f3c4001d3ad42d459953f1909800b2b29e8d657ddbeb13e71a398fd2987",
+      "previousSha256": "8274057c9c426ecab15036257911d4ffa7e254a085255a7a50d1a75bf71736de"
+    },
+    {
+      "file": "src/types.ts",
+      "classification": "no effect on the declared finite slice",
+      "reason": "Optional sourceItems and delivery revision counters only; execution ticket, approval/session, local effects and lease contracts are unchanged.",
+      "currentSha256": "74888f1bf83be204b9dc4184a8e89a8ac61b387cf90947987dbd1f1b6c82e957",
+      "previousSha256": "4d808de1dbc2793c9222ab5b73339625e11c7f3bcb72e26c8affbe77c4ddefce"
+    }
+  ],
+  "promise": "Existing authority/local-effects/host-retry promises unchanged; adaptive delivery budget changes separately updated in coordination CheckBudget.",
+  "models": "Unchanged finite domains, properties, fairness, drivers and real-code negative controls. No claim that source claim semantics, delta projection or arbitrary new budget combinations are proven here.",
+  "originalDriftEvidence": "reports/kej-110-original-host-retry",
+  "finalEvidence": "reports/kej-110-final-host-retry",
+  "reviewedCommit": "615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9",
+  "earlierReviewedCommit": "661e438e8705d08a36b9dc0d07b296616737eee4",
+  "outcome": "updated",
+  "finalPromptLayoutReview": {
+    "file": "src/model-adapter.ts",
+    "classification": "no-effect-on-declared-formal-slices",
+    "diff": "661e438..615b18f: same sourceItems guidance moved from schemas.deliver string into owner system instruction; allowed output schema JSON restored; no parser, event, guard, I/O or permission modification. Every formal prefix uses direct engine/runtime synthetic receipts, not model HTTP.",
+    "validationPolicy": "Despite unaffected scopes, all9complete checkers rerun on exact615b18f; previous661proof not counted as final pass."
+  },
+  "finalPromptFollowup": {
+    "commit": "615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9",
+    "previousCommit": "661e438e8705d08a36b9dc0d07b296616737eee4",
+    "changedSource": "src/model-adapter.ts",
+    "sha256": "edd9c5251e5e04f823743add1f17f08d7b35928b62c51b7d75fad3358e054c0f",
+    "classification": "no effect on these finite slices",
+    "reason": "Moves sourceItems prose from the deliver JSON schema example tail to owner system instructions. These formal drivers do not invoke model HTTP; execution permits, LOCAL_* approval/session/effect/lease guards and host-retry batch transitions are byte-identical.",
+    "policy": "Nevertheless rerun the complete entrypoints on this exact product commit; preserve prior 661 evidence as historical, do not relabel it as 615 execution.",
+    "status": "verified by complete fresh execution on exact source"
+  },
+  "historical661Evidence": "reports/kej-110-661-host-retry",
+  "historical661Verification": {
+    "status": "verified",
+    "seconds": 60.279,
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "evidenceRetained": true
+    },
+    "graphStates": 41,
+    "graphEdges": 111,
+    "backends": [
+      {
+        "name": "memory",
+        "edgesReplayed": 111
+      },
+      {
+        "name": "sqlite",
+        "edgesReplayed": 111
+      }
+    ],
+    "realCodeControls": [
+      "retire-unknown",
+      "erase-known-receipt",
+      "omit-retirement",
+      "duplicate-source-request"
+    ],
+    "restoredStatus": "verified",
+    "independentReadbackExitCode": 0,
+    "readerControls": {
+      "evidence": "reports/verify-squad-host-retry/evidence-controls.json",
+      "rejections": 7,
+      "status": "verified"
+    }
+  },
+  "strictSourceRerun": {
+    "sourceCommit": "615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9",
+    "policy": "All complete entrypoints rerun on 615 source; no 661 result relabeled. Global concurrency controlled by parent; these four entrypoints executed strictly sequentially.",
+    "commands": [
+      {
+        "name": "host-retry",
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-host-retry/scripts/check.py",
+          "--jar",
+          "/workspace/squad/work/kej-110-deps/tla2tools.jar",
+          "--evidence",
+          "reports/kej-110-final-host-retry"
+        ],
+        "exitCode": 0,
+        "seconds": 27.039,
+        "log": "work/kej-110-final-615-host-retry.log",
+        "evidence": "reports/kej-110-final-host-retry",
+        "readbackExitCode": 0
+      }
+    ],
+    "noSourceChangeDuringRuns": true
+  },
+  "verification": {
+    "status": "verified",
+    "seconds": 26.937,
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "evidenceRetained": true
+    },
+    "graphStates": 41,
+    "graphEdges": 111,
+    "backends": [
+      {
+        "name": "memory",
+        "edgesReplayed": 111
+      },
+      {
+        "name": "sqlite",
+        "edgesReplayed": 111
+      }
+    ],
+    "realCodeControls": [
+      "retire-unknown",
+      "erase-known-receipt",
+      "omit-retirement",
+      "duplicate-source-request"
+    ],
+    "restoredStatus": "verified",
+    "independentReadbackExitCode": 0,
+    "readerControls": {
+      "evidence": "reports/kej-110-final-host-retry-reader-controls.json",
+      "rejections": 7,
+      "status": "verified"
+    }
+  },
+  "finalRuns": {
+    "host-retry": {
+      "evidence": "reports/kej-110-final-host-retry",
+      "status": "verified",
+      "seconds": 26.937,
+      "manifest": {
+        "manifestSha256": "86473aed66ff74aefe95d00405924b55a4cbda6d6a593a0a7132c5d816c42617"
+      },
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true
+      }
+    }
+  },
+  "syncNote": "All nine declared CI entrypoints verified before syncCommit advancement. Updating metadata is not another complete run. Independent readback uses unchanged captured evidence, and final pins rechecked against exact product commit."
+}
