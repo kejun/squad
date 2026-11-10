@@ -65,8 +65,8 @@ Then('成功分片不得重跑且旧尝试的迟到结果应被拒绝', function
   assert.equal(value.event({ type: 'DISCUSSION_RESULT', workId: work.id, attempt: work.attempt, fence: work, discussionId: work.discussionId!, status: 'success', text: 'late' }).ok, false);
   assert.equal(value.queue[0]!.attempt, 1); assert.equal(value.queue[0]!.status, 'succeeded');
 });
-Then('再次失败应保留失败结果并结束自动重试', async function (this: SpecWorld) {
-  const value = fixture(this); await value.drainMaps(); value.reopen();
+Then('再次失败应立即标记不完整并保留失败结果且结束自动重试', async function (this: SpecWorld) {
+  const value = fixture(this); assert(value.context().discussion!.incomplete?.includes('未完整完成')); await value.drainMaps(); value.reopen();
   assert.equal(value.context().usage.retries, 1); assert.equal(value.queue.filter(part => part.status === 'failed').length, 1);
   assert.equal(value.context().discussion!.results.filter(result => result.status === 'failed').length, 2);
   assert(value.context().discussion!.incomplete?.includes('failed'));
@@ -103,4 +103,42 @@ When('状态机核对下一批分片的额度', function (this: SpecWorld) { fix
 Then('应保留明确未执行状态且不得把部分结果发布为完整交付', function (this: SpecWorld) {
   const value = fixture(this); assert.equal(value.queue.filter(part => part.status === 'cancelled' && part.reason === 'MAP_BUDGET_EXHAUSTED').length, 4);
   assert.notEqual(value.context().outcome, 'complete'); assert.equal(value.pending('discussionSummary').length, 0);
+});
+
+Given('分片队列仍有未派发分片且已到截止时间', async function (this: SpecWorld) {
+  const value = await prepare(this); value.old = value.claimMap(); value.now = value.queue[0]!.deadline;
+});
+When('服务恢复并核对队列期限', function (this: SpecWorld) { const value = fixture(this); value.fail(value.old!); value.reopen(); });
+Then('截止时的失败不得再消耗重试额度', function (this: SpecWorld) { assert.equal(fixture(this).context().usage.retries, 0); });
+Then('过期待办应明确取消且不得增加成员执行或宣告完成', function (this: SpecWorld) {
+  const value = fixture(this); assert.equal(value.queue.filter(part => part.status === 'cancelled' && part.reason === 'WORK_EXPIRED').length, 4);
+  assert.equal(value.context().discussion!.mapReduce!.assignments.length, 4); assert.notEqual(value.context().outcome, 'complete');
+});
+
+interface LegacyQueueState { fixture: MapCapacityFixture; ordinary: number; assists: number; reads: string[] }
+const legacy = new WeakMap<SpecWorld, LegacyQueueState>();
+After(function (this: SpecWorld) { legacy.get(this)?.fixture.close(); legacy.delete(this); });
+Given('历史四片快照已有一片完成但尚无队列字段', async function (this: SpecWorld) {
+  const value = new MapCapacityFixture(undefined, true);
+  legacy.set(this, { fixture: value, ordinary: 0, assists: 0, reads: [] });
+  await value.recognize(); assert(await value.run());
+  const state = legacy.get(this)!; state.ordinary = value.context().usage.ordinary; state.assists = value.context().usage.assists; state.reads = [...value.documentReads];
+  updateMapContext(value, c => {
+    const round = c.discussion!; delete round.mapReduce!.queue; delete round.mapReduce!.concurrency;
+    round.mapReduce!.assignments = round.mapReduce!.assignments.map(({ partitionId, target }) => ({ partitionId, target }));
+    round.results = round.results.map(({ target, status, answer, artifactIds }) => ({ target, status, answer, artifactIds }));
+  });
+});
+When('服务重复恢复后执行剩余分片并归并', async function (this: SpecWorld) {
+  const state = legacy.get(this)!, value = state.fixture; value.reopen(); value.reopen();
+  assert.equal(value.context().usage.ordinary, state.ordinary); assert.equal(value.context().usage.assists, state.assists);
+  assert.equal(value.pending('assistance').length, 3);
+  while (value.pending('assistance').length) assert(await value.run());
+  assert.equal(value.pending('discussionSummary').length, 1); assert(await value.run());
+});
+Then('已完成片不得重跑且原始结果和计费应保留', function (this: SpecWorld) {
+  const state = legacy.get(this)!, value = state.fixture;
+  for (const url of state.reads) assert.equal(value.documentReads.filter(item => item === url).length, 1);
+  assert.equal(value.context().discussion!.results.length, 4); assert.equal(value.pending('owner').length, 1);
+  assert(value.context().usage.ordinary > state.ordinary); assert.equal(value.context().usage.assists, state.assists);
 });

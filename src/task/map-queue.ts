@@ -112,5 +112,8 @@ export function recordMapResult(c: TaskContext, e: TaskEvent, work: Intent, resu
     part.status = 'queued'; delete part.workId; delete part.target; delete part.resultRef;
     c.usage.retries++;
   }
+  if (['failed', 'partial', 'timeout'].includes(part.status)) {
+    round.incomplete = `部分分片未完整完成：${part.partitionId}（${part.status}）`;
+  }
   return true;
 }

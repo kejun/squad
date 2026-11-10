@@ -62,6 +62,7 @@ export function queueRetryGate() {
   assert.equal(model.context.discussion!.results.filter(result => result.workId === success.id).length, 1);
   const second = model.start(retry);
   assert(model.send({ type: 'WORK_FAILED', intentId: second.id, transient: true, reason: 'temporary transport failure again' }).ok);
+  assert(model.context.discussion!.incomplete?.includes('未完整完成'));
   model.drain();
   assert.equal(model.context.usage.retries, 1); assert.equal(model.queue.filter(part => part.status === 'failed').length, 1);
   assert.equal(model.context.discussion!.results.filter(result => result.status === 'failed').length, 2);
@@ -99,5 +100,34 @@ export function queueBudgetGate() {
 }
 
 export function verifyMapQueueModel() {
-  queueWaveGate(); queueRetryGate(); queueStopGate(); queueUnknownGate(); queueBudgetGate();
+  queueWaveGate(); queueRetryGate(); queueStopGate(); queueUnknownGate(); queueBudgetGate(); queueDeadlineGate(); queueLegacyGate();
+}
+
+export function queueDeadlineGate() {
+  const model = new MapQueueModel();
+  const work = model.start(); model.sequence = model.queue[0]!.deadline - 1;
+  assert(model.send({ type: 'WORK_FAILED', intentId: work.id, transient: true, reason: 'deadline transport failure' }).ok);
+  assert.equal(model.context.usage.retries, 0);
+  model.recover();
+  assert.equal(model.queue.filter(part => part.status === 'cancelled' && part.reason === 'WORK_EXPIRED').length, 4);
+  assert.equal(model.context.discussion!.mapReduce!.assignments.length, 4);
+  assert.notEqual(model.context.outcome, 'complete');
+}
+
+export function queueLegacyGate() {
+  const model = new CapacityModel(); model.claim(); model.consume(); assert(model.interpret().ok);
+  const pending = model.pending('assistance')[0]!;
+  assert(model.send({ type: 'CLAIM', intentId: pending.id }).ok);
+  const work = model.context.intents.find(item => item.id === pending.id)!;
+  assert(model.send({ type: 'DISCUSSION_RESULT', workId: work.id, fence: work, discussionId: work.discussionId!, status: 'success', text: '旧片结果' }).ok);
+  const round = model.context.discussion!, usage = structuredClone(model.context.usage);
+  delete round.mapReduce!.queue; delete round.mapReduce!.concurrency;
+  round.mapReduce!.assignments = round.mapReduce!.assignments.map(({ partitionId, target }) => ({ partitionId, target }));
+  round.results = round.results.map(({ target, status, answer, artifactIds }) => ({ target, status, answer, artifactIds }));
+  model.snapshot = restoreTask(persistTask(model.snapshot));
+  assert(model.send({ type: 'RECOVER', config: model.context.config }).ok);
+  assert(model.send({ type: 'RECOVER', config: model.context.config }).ok);
+  assert.equal(model.context.discussion!.mapReduce!.queue![0]!.status, 'succeeded');
+  assert.equal(model.pending('assistance').length, 3); assert.deepEqual(model.context.usage, usage);
+  model.settleGroups(); assert.equal(model.pending('discussionSummary').length, 1);
 }

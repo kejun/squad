@@ -109,7 +109,7 @@ CLI 外部效果后的真实宿主终止沿用已领取操作 → uncertain → 
 
 讨论取消后的恢复沿用父任务的事务上下文，区分可退休的旧安全模型工作与必须核对的物理效果；恢复及可信效果结算不能重新排队已废弃轮次，结束任务清理后须由用户继续，见[讨论取消与恢复](docs/state-diagrams.md#讨论取消与恢复kej-106)。
 
-[MapReduce 分片容量](docs/state-diagrams.md#mapreduce-分片容量kej-99)让输入理解与派发共用总分片与额度上限；[独立分片队列](docs/state-diagrams.md#独立分片队列bt_q27bt_q31)将总数和并发人数分开，支持八片由四名成员轮转处理，每片保留身份、尝试和结果。
+[MapReduce 分片容量](docs/state-diagrams.md#mapreduce-分片容量kej-99)让输入理解与派发共用总分片与额度上限；[独立分片队列](docs/state-diagrams.md#独立分片队列bt_q27bt_q33)将总数和并发人数分开，支持八片由四名成员轮转处理，每片保留身份、尝试和结果。
 
 [跨任务产物引用](docs/state-diagrams.md#跨任务产物引用kej-98)固定成功交付的单份 Markdown 原文，在独立任务中生成新文档；来源不依赖有界群历史，沿用原任务阶段与交付检查。
 

@@ -16,7 +16,12 @@ export const legacyTaskContract = JSON.parse(readFileSync(new URL('./fixtures/ta
 assert.equal(legacyTaskContract.sourceSha, 'dd5ec71b41a82a13c831938e5401783214db76aa07d9e0ab80487b03b7dd42f9');
 // Approval and host retry extensions add rules without changing the original frozen business traces.
 // BT_M23–M29 add one explanation action to the existing current-coordination rejection.
-const extendedDefinition = '58b04973';
+const extendedDefinition = 'e6007620';
+const lifecycleRules = [
+  { id: '*:@always:0', order: 0, source: '*', event: '@always', target: null, guards: ['hostRetryBatchNeedsSync'], actions: ['syncHostRetryBatch'] },
+  { id: '*:@always:1', order: 1, source: '*', event: '@always', target: null, guards: ['mapQueueNeedsProgress'], actions: ['advanceMapQueue'] },
+];
+const shiftedGlobal = (id: string) => id.startsWith('*:@always:') ? `*:@always:${Number(id.split(':').at(-1)) + 2}` : id;
 const coordinationRejectionId = 'coordinating:COORDINATE:6';
 const sessionRules = [
   { id: '*:REVOKE_HOST_SESSION:0', order: 0, source: '*', event: 'REVOKE_HOST_SESSION', target: null, guards: ['valid'], actions: ['apply'] },
@@ -94,11 +99,15 @@ function assertLegacyEvidence(actual: DebugEvidence, expected: DebugEvidence, la
     return evaluation.ruleId === '*:@always:1' && evaluation.passed === false ? [evaluation,
       ...hostRetryAlwaysRules.map(rule => ({ ...evaluation, ruleId: rule.id, guard: rule.guards[0], passed: false }))] : [evaluation];
   });
+  const lifecycleEvaluations = evaluations.flatMap(evaluation => [
+    ...(evaluation.ruleId === '*:@always:0' ? lifecycleRules.map(rule => ({ ...evaluation, ruleId: rule.id, guard: rule.guards[0]!, passed: false })) : []),
+    { ...evaluation, ruleId: shiftedGlobal(evaluation.ruleId) },
+  ]);
   const comparable = (keys: string[]) => keys.filter(key => key !== 'deliveryCycle');
   const expectedKeys = (keys: string[]) => checkClaim ? keys.filter(key => key !== 'usage')
     : published && keys.includes('outcome') ? [...keys, 'publishedDelivery'] : keys;
   assert.deepEqual({ ...actual, changed: comparable(actual.changed), microsteps: actual.microsteps.map(step => ({ ...step, changed: comparable(step.changed) })) },
-    { ...expected, definition: extendedDefinition, evaluations, changed: expectedKeys(expected.changed),
+    { ...expected, definition: extendedDefinition, evaluations: lifecycleEvaluations, changed: expectedKeys(expected.changed),
       microsteps: expected.microsteps.map(step => ({ ...step, changed: expectedKeys(step.changed) })) }, label);
 }
 
@@ -244,6 +253,10 @@ function assertFrame(snapshot: TaskSnapshot, expected: Frame, label: string, own
       const capacity = work.payload.maxPartitions;
       assert(typeof capacity === 'number' && Number.isSafeInteger(capacity) && capacity >= 0 && capacity <= 8,
         `${label}: interpretation ${work.id} must have a bounded host capacity`);
+      const concurrent = work.payload.maxConcurrentPartitions;
+      assert(typeof concurrent === 'number' && Number.isInteger(concurrent) && concurrent >= 0 && concurrent <= capacity
+        && concurrent <= context.config.bots.length - 1, `${label}: concurrency must be a separate bounded host hint`);
+      delete work.payload.maxConcurrentPartitions;
       delete work.payload.maxPartitions;
     } else assert(!Object.hasOwn(work.payload, 'maxPartitions'), `${label}: only interpretation work can carry a planning capacity`);
   }
@@ -320,7 +333,8 @@ function verifyInterpretationCapacityFaultDetection() {
   const trace = legacyTaskContract.traces.find(item => item.name === '输入解析');
   assert(trace);
   const snapshot = initialTask(structuredClone(trace.input));
-  assert.equal(snapshot.context.intents[0]?.payload.maxPartitions, 1);
+  assert.equal(snapshot.context.intents[0]?.payload.maxPartitions, 5);
+  assert.equal(snapshot.context.intents[0]?.payload.maxConcurrentPartitions, 1);
   const mustReject = (mutate: (work: Intent) => void) => {
     const saved = structuredClone(persistTask(snapshot)) as { context: TaskContext };
     const work = saved.context.intents.find(item => item.kind === 'interpretation');
@@ -332,6 +346,8 @@ function verifyInterpretationCapacityFaultDetection() {
   mustReject(work => { work.payload.maxPartitions = 9; });
   mustReject(work => { work.payload.maxPartitions = 1.5; });
   mustReject(work => { work.payload.maxPartitions = '1'; });
+  mustReject(work => { delete work.payload.maxConcurrentPartitions; });
+  mustReject(work => { work.payload.maxConcurrentPartitions = 9; });
   mustReject(work => { work.payload.unexpectedMetadata = true; });
   mustReject(work => { work.kind = 'owner'; });
 }
@@ -353,7 +369,8 @@ export function verifyLegacyDiagnostics() {
         return rule.order === heldFinish.order ? [heldFinish, shifted] : [shifted];
       }
       return rule.id === '*:@always:1' ? [rule, ...hostRetryAlwaysRules] : [rule];
-    });
+    }).flatMap(rule => rule.source === '*' && rule.event === '@always'
+      ? [...(rule.order === 0 ? lifecycleRules : []), { ...rule, id: shiftedGlobal(rule.id), order: rule.order + 2 }] : [rule]);
   assert.deepEqual(taskGraph(), { ...graph, definition: extendedDefinition, transitions });
   const comparisons: DiagnosticComparison[] = [];
   for (const trace of legacyTaskContract.traces) replayLegacyTrace(trace.name, true, comparisons);
