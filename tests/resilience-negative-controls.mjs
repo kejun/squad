@@ -24,7 +24,7 @@ const controls = [
     mutate: text => { const old = 'else assertBarrier(deletion, roomId);'; assert.equal(text.split(old).length - 1, 2); return text.replaceAll(old, 'else { /* mutation: bypass tombstone */ }'); } },
   { id: 'conflicting-resource-concurrency', file: 'src/local-resource-policy.ts',
     args: ['--input-type=module', '-e', "import('./tests/local-resource-policy-acceptance.ts').then(m=>m.resourceLeaseStoreAcceptance(true))"],
-    mutate: text => { const start = text.indexOf('export function canAcquireResourceLeases('); assert(start >= 0); return text.slice(0, start) + 'export function canAcquireResourceLeases() { return true; }\n'; } },
+    mutate: text => replaceOnce(text, 'return resourceLeaseBlockerOwners(rows, requests, owner, legacyRows).length === 0;', 'return true;') },
   { id: 'guardian-does-not-restart', file: 'src/process-supervisor.machine.ts', args: ['tests/process-supervisor-model-gate.ts'],
     mutate: text => { const old = "EXIT: { guard: 'current', target: 'restarting', actions: 'retry' }"; assert(text.includes(old)); return text.replaceAll(old, "EXIT: { guard: 'current', target: 'stopped', actions: 'retry' }"); } },
   { id: 'delete-while-physical-preparation-is-running', file: 'src/runtime-ownership.ts',
