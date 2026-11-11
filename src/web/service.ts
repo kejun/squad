@@ -4,7 +4,7 @@ import { serviceLifecycleMachine } from './service-lifecycle.js';
 import { currentDeliveryIssues } from '../delivery-acceptance.js';
 import { hostSessionActive } from '../host-session.js';
 import type { LocalRuntime } from "../local-runtime.js";
-import { isSavedRead, localAwaitingApproval } from '../local-operation.js';
+import { heldLocalResourceLeases, isSavedRead, localAwaitingApproval, localWorkspaceWaiting, taskResourceWaiting } from '../local-operation.js';
 import { findHostRetry, hostRetryProblem } from '../host-retry.js';
 import { createHash, randomUUID } from "node:crypto";
 import { setTimeout as hostTimeout, clearTimeout as clearHostTimeout } from 'node:timers';
@@ -22,13 +22,14 @@ import {
   type WorkAdapter,
   type WorkScope,
 } from "../runner.js";
-import { SqliteStore } from "../store.js";
+import { operationLeaseOwner, SqliteStore } from "../store.js";
 import { RoomDeletionCoordinator } from '../room-deletion-coordinator.js';
 import type { RuntimeCleanupInventory, SavedRoomDeletion } from '../room-deletion.machine.js';
 import { DebugJournal } from "./debug-journal.js";
 import type { DebugFeed } from "../task-debug.js";
-import type { Intent, TeamConfig } from "../types.js";
-import { processingWindow } from '../task/resilience.js';
+import type { Intent, TaskContext, TeamConfig } from "../types.js";
+import { effectiveWork, processingWindow } from '../task/resilience.js';
+import { coordinationView, type CoordinationView } from '../coordination-view.js';
 import type { WebTools } from "../web-tools.js";
 import type {
   ExecutionEvent,
@@ -124,8 +125,11 @@ export class WebService {
           for (const work of c.intents) for (const op of work.localOperations ?? []) if (op.status === 'uncertain' && op.sessionId) {
             const reconciliation = await this.localRuntime.reconcile(op);
             if (this.closing) return;
-            if (reconciliation) this.engine.send(roomId, taskId, { type: 'LOCAL_RECONCILE', id: randomUUID(), at: Date.now(),
-              intentId: work.id, operationId: op.id, sessionId: op.sessionId, ...reconciliation });
+            if (reconciliation) {
+              const reply = this.engine.send(roomId, taskId, { type: 'LOCAL_RECONCILE', id: randomUUID(), at: Date.now(),
+                intentId: work.id, operationId: op.id, sessionId: op.sessionId, ...reconciliation });
+              if (reply.ok) this.localRuntime.notifyResourceRelease(op);
+            }
           }
         }
       },
@@ -346,6 +350,17 @@ export class WebService {
     }
     this.kick(roomId); return reply;
   }
+  coordinationSnapshot(): CoordinationView {
+    const rooms = this.rooms().map(room => {
+      const stored = this.store.read(room.id);
+      return { id: room.id, title: room.title, archived: room.archived ?? false, activeTaskId: stored.activeTaskId,
+        ...(room.deletion ? { deletion: { status: room.deletion.status, reason: room.deletion.reason } } : {}),
+        tasks: Object.keys(stored.tasks).map(taskId => this.engine.view(room.id, taskId)!) };
+    });
+    const view = coordinationView(rooms, this.store.leaseInventory(), Date.now(),
+      (workspaceId, owner, requests) => this.store.resourceBlockers(workspaceId, owner, requests));
+    return this.localRuntime ? this.localRuntime.clean(view) : view;
+  }
   snapshot(roomId: string): RoomSnapshot {
     const room = this.room(roomId);
     const stored = this.store.read(roomId);
@@ -380,9 +395,13 @@ export class WebService {
       }
       const frozen = c.resilience?.frozen;
       const cleanup = c.resilience?.cleanup.some(item => item.state === 'pending');
+      const resourceWaiting = taskResourceWaiting(c);
+      const resourceOnly = resourceWaiting && effectiveWork(c, phase, Date.now()).length === 0;
       tasks.push({
         supervision: { status: this.failedRooms.has(roomId) ? 'faulted' : cleanup ? 'cleaning' : c.resilience?.gates.some(g => g.scope === 'task' && g.status === 'open') ? 'waitingHuman'
-          : c.outcome !== null ? 'settled' : c.resilience?.window.repairUsed ? 'repairing' : 'running', reason: this.failedRooms.has(roomId) ? '执行服务发生错误，正在自动核查与恢复。' : c.reason,
+          : c.outcome !== null ? 'settled' : resourceOnly ? 'waitingResources' : c.resilience?.window.repairUsed ? 'repairing' : 'running',
+          reason: this.failedRooms.has(roomId) ? '执行服务发生错误，正在自动核查与恢复。'
+            : resourceWaiting ? resourceOnly ? '命令正在等待其他执行释放资源。' : '部分命令正在等待执行资源，其他工作仍可推进。' : c.reason,
           nextWakeAt: c.resilience?.nextSupervisionAt ?? null, hardDeadlineAt: processingWindow(c).hardDeadline },
         ...(frozen ? { delivery: { epoch: frozen.epoch, goalVersion: frozen.goalVersion, revision: frozen.id, status: frozen.verification,
           currentArtifactIds: [...frozen.artifactIds], reportArtifactId: frozen.reportArtifactId } } : {}),
@@ -450,6 +469,7 @@ export class WebService {
             hostApprovals.push(this.localRuntime ? this.localRuntime.clean(visible) : visible);
           }
         works.push({
+          ...(localWorkspaceWaiting(i) ? { waitingResources: true } : {}),
           id: i.id,
           agentId: i.target,
           taskId,
@@ -480,6 +500,7 @@ export class WebService {
         "SELECT id, taskId, workId, agentId, at, kind, title, detail FROM web_events WHERE roomId = ? AND kind != 'measurement' ORDER BY id",
       )
       .all(roomId) as unknown as ExecutionEvent[];
+    for (const blocker of this.workspaceBlockers(roomId)) if (!blockers.some(existing => existing.id === blocker.id)) blockers.push(blocker);
     return {
       room,
       agents,
@@ -496,6 +517,54 @@ export class WebService {
       modelConfigured: !!this.config.models,
       serverTime: Date.now(),
     };
+  }
+  /** Explain only actual lease conflicts; this observation never grants a claim. */
+  private workspaceBlockers(roomId: string): WebBlocker[] {
+    const stored = this.store.read(roomId), taskId = stored.activeTaskId ?? Object.keys(stored.tasks).at(-1);
+    if (!taskId) return [];
+    const c = this.engine.view(roomId, taskId)!.context;
+    const owners = new Set<string>();
+    for (const work of c.intents) for (const op of work.localOperations ?? []) {
+      // Preserve the recovery route when the original bounded wait has ended.
+      if (!op.workspaceWait || !op.workspaceId || !['queued', 'cancelled'].includes(op.status)) continue;
+      if (!c.stopped && c.outcome === null && (op.status !== 'queued' || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion
+        || !['pending', 'inflight'].includes(work.status))) continue;
+      for (const owner of this.store.resourceBlockers(op.workspaceId, operationLeaseOwner(roomId, taskId, op.id),
+        op.resourceLeases?.length ? heldLocalResourceLeases(op) : undefined)) owners.add(owner);
+    }
+    if (!owners.size) return [];
+    const blockers: WebBlocker[] = [];
+    for (const source of this.rooms()) for (const sourceTaskId of Object.keys(this.store.read(source.id).tasks)) {
+      const sourceContext = this.engine.view(source.id, sourceTaskId)!.context;
+      for (const work of sourceContext.intents) {
+        for (const op of work.localOperations ?? []) {
+          if (op.status !== 'uncertain' || !owners.has(operationLeaseOwner(source.id, sourceTaskId, op.id))) continue;
+          const gate = sourceContext.resilience?.gates.find(g => g.scope === 'cleanup' && g.status === 'open'
+            && g.workId === work.id && g.operationId === op.id);
+          const executable = op.action.type === 'runCli' ? op.action.executable : op.action.type;
+          const blocker: WebBlocker = { id: gate?.id ?? `resource-wait:${source.id}:${sourceTaskId}:${op.id}`,
+            version: gate?.createdAt ?? op.createdAt, taskId: sourceTaskId, epoch: sourceContext.epoch, goalVersion: sourceContext.goalVersion,
+            scope: 'cleanup', source: { roomId: source.id, roomTitle: source.title },
+            operation: { workId: work.id, operationId: op.id }, title: '执行资源等待核对',
+            question: `当前命令尚未启动。会话「${source.title}」中 ${executable} 的执行效果尚未结算，正在占用所需资源。请先核对原执行；核对不会批准当前新命令。`,
+            requiredHuman: true, status: 'open', actions: [] };
+          blockers.push(this.localRuntime ? this.localRuntime.clean(blocker) : blocker);
+        }
+        if (work.replay === 'unsafe' && ['inflight', 'uncertain'].includes(work.status)
+          && owners.has(operationLeaseOwner(source.id, sourceTaskId, work.id))) {
+          blockers.push(this.legacyWorkspaceBlocker(source, sourceTaskId, sourceContext, work));
+        }
+      }
+    }
+    return blockers;
+  }
+  private legacyWorkspaceBlocker(source: WebRoom, taskId: string, c: TaskContext, work: Intent): WebBlocker {
+    const gate = c.resilience?.gates.find(g => g.scope === 'cleanup' && g.status === 'open' && g.workId === work.id && !g.operationId);
+    return { id: gate?.id ?? `resource-wait:${source.id}:${taskId}:${work.id}`,
+      version: gate?.createdAt ?? c.resilience?.window.openedAt ?? c.messages[0]?.at ?? 0,
+      taskId, epoch: c.epoch, goalVersion: c.goalVersion, scope: 'cleanup', source: { roomId: source.id, roomTitle: source.title },
+      title: '执行资源等待核对', question: `当前命令尚未启动。会话「${source.title}」的旧工具执行效果未知，需要由提供方可信核对；普通回复不能释放资源。`,
+      requiredHuman: true, status: 'open', actions: [] };
   }
   debugSnapshot(roomId: string, after = 0, sessionId?: string, taskId?: string): DebugFeed {
     if (!this.debugJournal) throw new WebError(404, "调试未开启。");
@@ -589,7 +658,7 @@ export class WebService {
     const result = this.engine.send(roomId, data.taskId, { type: 'LOCAL_RECONCILE', id: data.id, at: Date.now(), intentId: work.id,
       operationId: op.id, sessionId: op.sessionId!, ...receipt });
     if (!result.ok) throw new WebError(409, result.detail, result);
-    this.localRuntime!.notifyWorkspace(op.workspaceId ?? ''); this.kick(roomId); return result;
+    this.localRuntime!.notifyResourceRelease(op); this.kick(roomId); return result;
   }
   private async drainCancellation(roomId: string, taskId: string) {
     const runner = this.runner(roomId);
@@ -612,8 +681,9 @@ export class WebService {
         if (!work || !op?.sessionId || op.status !== 'uncertain') continue;
         const job = this.localRuntime.reconcile(op).then(receipt => {
           if (!receipt || this.closing || this.retiredRooms.has(roomId)) return;
-          this.engine.send(roomId, taskId, { type: 'LOCAL_RECONCILE', id: randomUUID(), at: Date.now(), intentId: work.id,
+          const result = this.engine.send(roomId, taskId, { type: 'LOCAL_RECONCILE', id: randomUUID(), at: Date.now(), intentId: work.id,
             operationId: op.id, sessionId: op.sessionId!, ...receipt });
+          if (result.ok) this.localRuntime!.notifyResourceRelease(op);
           this.kick(roomId);
         }).catch(error => this.hostError(roomId, error)).finally(() => { this.cleanupJobs.delete(key); });
         this.cleanupJobs.set(key, job);
@@ -680,6 +750,7 @@ export class WebService {
         );
         const tracedScope: WorkScope = {
           sessionId: roomId,
+          get coordinationView() { return scope.coordinationView; },
           ...(scope.observeModel ? { observeModel: scope.observeModel } : {}),
           ...(scope.recordToolFailure ? { recordToolFailure: scope.recordToolFailure } : {}),
           ...(scope.localTools ? { localTools: {
@@ -782,7 +853,7 @@ export class WebService {
       },
     };
     runner = new WorkRunner(this.engine, observed, Date.now, globalThis.fetch, this.webTools, this.localRuntime,
-      (context, observation) => this.recordMeasurement(context, observation));
+      (context, observation) => this.recordMeasurement(context, observation), () => this.coordinationSnapshot());
     this.runners.set(roomId, runner);
     return runner;
   }

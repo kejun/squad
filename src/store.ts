@@ -1,7 +1,8 @@
 import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
-import { canAcquireResourceLeases, unconfinedEffectsKey, type ResourceLease, type ResourceLeaseRow } from './local-resource-policy.js';
+import { canAcquireResourceLeases, resourceLeaseBlockerOwners, unconfinedEffectsKey, type ResourceLease, type ResourceLeaseRow } from './local-resource-policy.js';
 import { restoreRoomArchive, type RoomArchive } from './room.machine.js';
+import type { ExecutionLease } from './coordination-view.js';
 import { initialRoomDeletion, persistRoomDeletion, restoreRoomDeletion, stepRoomDeletion,
   type RoomDeletionEvent, type SavedRoomDeletion } from './room-deletion.machine.js';
 
@@ -23,6 +24,9 @@ export interface Transaction {
 export interface Store {
   transact<T>(roomId: string, fn: (tx: Transaction) => T): T;
   read(roomId: string): RoomData;
+  /** Read-only observation. Only a transactional acquisition grants execution. */
+  resourceBlockers?(workspaceId: string, owner: string, requests?: ResourceLease[]): string[];
+  leaseInventory?(): ExecutionLease[];
   close(): void;
 }
 export class RoomDeletionError extends Error {
@@ -46,7 +50,7 @@ export function deletionStore(store: Store): DeletionStore {
   return store as DeletionStore;
 }
 export const roomTaskNamespace = (roomId: string, taskId: string) => createHash('sha256').update(JSON.stringify({ roomId, taskId })).digest('hex');
-function operationLeaseOwner(roomId: string, taskId: string, operationId: string) {
+export function operationLeaseOwner(roomId: string, taskId: string, operationId: string) {
   return createHash('sha256').update(JSON.stringify({ operationId, roomId, taskId })).digest('hex');
 }
 /** Pre-resource snapshots still quarantine unknown adapter effects across rooms. */
@@ -107,6 +111,17 @@ function transitionDeletion(roomId: string, room: RoomData, saved: SavedRoomDele
   return persistRoomDeletion(stepRoomDeletion(current, event));
 }
 const empty = (): RoomData => ({ schemaVersion: 1, activeTaskId: null, tasks: {}, notices: [] });
+
+function resourceBlockers(rows: ResourceLeaseRow[], legacy: { key: string; owner: string }[], barriers: { key: string; owner: string }[],
+  workspaceId: string, owner: string, requests?: ResourceLease[]): string[] {
+  if (requests?.length) return resourceLeaseBlockerOwners(rows, requests, owner, [...legacy, ...barriers]);
+  // Legacy workspace claims predate typed read/write leases and remain exclusive.
+  return [...new Set([
+    ...barriers.filter(row => row.owner !== owner),
+    ...legacy.filter(row => row.key === workspaceId && row.owner !== owner),
+    ...rows.filter(row => (row.key === workspaceId || row.key === unconfinedEffectsKey) && row.owner !== owner),
+  ].map(row => row.owner))];
+}
 
 /** One SQLite transaction commits snapshot, outbox, public messages and receipt together. */
 export class SqliteStore implements DeletionStore {
@@ -180,6 +195,19 @@ export class SqliteStore implements DeletionStore {
   private unsafeWorkBarriers(owner: string) {
     return unsafeWorkBarriers((this.db.prepare('SELECT id,data FROM rooms').all() as { id: string; data: string }[]).map(row => [row.id, JSON.parse(row.data) as RoomData]), owner);
   }
+  resourceBlockers(workspaceId: string, owner: string, requests?: ResourceLease[]): string[] {
+    const rows = this.db.prepare('SELECT key,owner,mode,phase FROM resource_leases').all() as unknown as ResourceLeaseRow[];
+    const legacy = this.db.prepare('SELECT key,owner FROM workspace_leases').all() as { key: string; owner: string }[];
+    return resourceBlockers(rows, legacy, this.unsafeWorkBarriers(owner), workspaceId, owner, requests);
+  }
+  leaseInventory(): ExecutionLease[] {
+    return [
+      ...(this.db.prepare('SELECT key,owner,mode,phase FROM resource_leases').all() as unknown as ResourceLeaseRow[]).map(row => ({ ...row, kind: 'typed' as const })),
+      ...(this.db.prepare('SELECT key,owner FROM workspace_leases').all() as { key: string; owner: string }[])
+        .map(row => ({ ...row, mode: 'write' as const, phase: 'execute' as const, kind: 'workspace' as const })),
+      ...this.unsafeWorkBarriers('').map(row => ({ ...row, mode: 'write' as const, phase: 'execute' as const, kind: 'legacyWork' as const })),
+    ];
+  }
   readDeletion(roomId: string): SavedRoomDeletion | undefined {
     const row = this.db.prepare('SELECT data FROM room_deletions WHERE room_id=?').get(roomId) as { data: string } | undefined;
     return row ? persistRoomDeletion(restoreRoomDeletion(JSON.parse(row.data) as SavedRoomDeletion)) : undefined;
@@ -252,6 +280,17 @@ export class MemoryStore implements DeletionStore {
   private deletions = new Map<string, SavedRoomDeletion>();
   failNextCommit = false;
   read(roomId: string): RoomData { return structuredClone(this.rooms.get(roomId) ?? empty()); }
+  resourceBlockers(workspaceId: string, owner: string, requests?: ResourceLease[]): string[] {
+    return resourceBlockers([...this.resources.values()], [...this.leases].map(([key, owner]) => ({ key, owner })),
+      unsafeWorkBarriers([...this.rooms], owner), workspaceId, owner, requests);
+  }
+  leaseInventory(): ExecutionLease[] {
+    return [
+      ...[...this.resources.values()].map(row => ({ ...row, kind: 'typed' as const })),
+      ...[...this.leases].map(([key, owner]) => ({ key, owner, mode: 'write' as const, phase: 'execute' as const, kind: 'workspace' as const })),
+      ...unsafeWorkBarriers([...this.rooms], '').map(row => ({ ...row, mode: 'write' as const, phase: 'execute' as const, kind: 'legacyWork' as const })),
+    ];
+  }
   transact<T>(roomId: string, fn: (tx: Transaction) => T): T {
     return this.transactRoom(roomId, fn);
   }

@@ -1,5 +1,32 @@
 # 分层状态图
 
+## 跨会话资源等待
+
+BT_Y120 为协调者的全局只读执行投影：WebService 按持久状态读取所有会话/任务/成员、真实操作启动、租约持有与等待依赖、待授权与未决核对、原窗口；WorkRunner 提供实时观察 getter，模型适配器在每次实际协调请求前重新读取。沿用已有协调意图的领取和协议，观察不产生新事件、授权或 I/O 调度；复验 BT_Y114 既有模型路径作为接线前门槛，不新增虚构 XState 状态。
+
+BT_Y119 的归档删除反馈使用既有 `roomDeletionMachine` 的 preparing / waiting / paused / deleted 状态，不改变业务转移。界面确认提交后，HTTP 返回 WebRoom [尚未 deleted] / 保持确认弹窗并展示真实进度；返回 DeletedRoom [已持久确认] / 关闭弹窗并移除精确目标；主动关闭 [仍未完成] / 列表保留可重新打开的删除状态。刷新按持久状态恢复，切群不能使另一会话被目标响应覆盖。
+
+BT_Y118 组合验收八份登录资料、四成员读取失败后的四条 CLI 等待；只有实际正文回执可满足资料获取。所有成员都资源等待时，监督仍识别资源阻塞，UI 在当前会话显示原操作核对；原窗口有界且不能把后续 partial 当作已满足及时提示。
+
+BT_Y117 的释放还覆盖归档删除准备中的 `LOCAL_RECONCILE`；与人类确认、后台核对共用通知。跨会话投影只观察当前目标的实际等待依赖；旧依赖被目标修改取消后不继续弹到新目标，停止/到期的最近任务保留原未决效果核对入口。
+
+类型：真实 taskMachine 的本地操作上下文生命周期与 UI 投影；所有者为 `src/local-operation.ts`、`src/task/actions.ts`、`src/task/resilience.ts`，跨会话租约观察由 Store/Engine/WebService 负责。验收 BT_Y114–BT_Y117，不增加顶层状态。
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued
+    queued --> resourceWaiting: LOCAL_CLAIM [真实租约冲突] / 保存尚未启动的等待事实并返回 WORKSPACE_BUSY
+    resourceWaiting --> resourceWaiting: SUPERVISE [原窗口内] / 显示资源等待，不计有效执行，不消耗修复
+    resourceWaiting --> claimed: LOCAL_CLAIM [全部租约可用且身份仍有效] / 清除等待事实并领取
+    queued --> claimed: LOCAL_CLAIM [租约可用且身份有效] / 领取
+    claimed --> awaitingApproval: LOCAL_APPROVAL_REQUIRED [host 且需明确批准] / 保存精确计划并释放准备锁
+    awaitingApproval --> queued: LOCAL_APPROVAL_DECISION [精确批准] / 原流程重新领取
+    resourceWaiting --> cancelled: STOP / 取消尚未启动操作，旧未知效果与其锁保留
+    resourceWaiting --> cancelled: SUPERVISE [原窗口耗尽] / 不完整交付，禁止偷偷续期
+```
+
+`resourceWaiting` 为 queued 操作的持久等待事实，不是新 XState 节点。当前会话按真实冲突租约显示旧操作的来源会话/任务/工作/操作及核对入口；兼容读和无关资源不展示。界面只读租约，不能授权或解锁。原操作经精确摘要核对或可信后台回执结算后才释放其租约，并通知 workspace 及 typed resources 等待者。多个阻塞者须全部结算，新 host 命令随后提出自己的授权，批准前不启动。普通资源竞争只显示等待，不能伪造待核对事项；重启按持久操作及现存租约重建。
+
 设计依据见 [XState 八条原则](xstate-design.md)，真实任务主阶段见 [README](../README.md#状态模型)。任务阶段与执行子 actor 的组合见[多 actor 设计](task-actors.md)，外部执行继续遵守持久意图、领取和启动许可边界。
 
 任务阶段、预算和结果交接由根 actor 拥有；每次执行尝试的启动、取消和结算由子 actor 拥有。BT_N06–BT_N15 对应[真实 actor 树与执行状态图](task-actors.md)，在一个存储事务内保存父子快照。此前 BT_N01–BT_N05 的[模块拆分](task-machine-refactor.md#模型组合图)保留为历史记录，既有业务约束继续有效。

@@ -15,6 +15,17 @@ export function assistDecision(target: string): Decision {
 }
 export const decisionOutput = (decision: Decision) => ({ type: 'decision', decision });
 
+function requestContext(request: CapturedModelRequest): Record<string, unknown> {
+  for (const message of request.messages) {
+    if (message.role !== 'user') continue;
+    try {
+      const input = JSON.parse(message.content) as { workId?: unknown; context?: Record<string, unknown> };
+      if (typeof input.workId === 'string' && input.context) return input.context;
+    } catch { /* Other user messages can be history or format-repair feedback. */ }
+  }
+  assert.fail('The provider request must include its original work context');
+}
+
 /** Real engine, claim transaction, runner and adapter; only provider completions are scripted. */
 export class CoordinationFixture {
   readonly repair: RegenerationFixture;
@@ -33,7 +44,7 @@ export class CoordinationFixture {
     assert(work, '当前任务应保存协调意图'); return work;
   }
   get requestContexts(): Record<string, unknown>[] {
-    return this.requests.map(request => JSON.parse(request.messages.find(message => message.role === 'user')!.content).context);
+    return this.requests.map(requestContext);
   }
   invalidThenCorrected(invalidTarget: string, action: string, target: string) {
     const corrected = action === 'continue' ? { action: 'continue' as const, reason: '继续当前目标' } : assistDecision(target);
@@ -89,7 +100,7 @@ export class CoordinationWebFixture {
       try {
         let body = ''; for await (const chunk of request) body += chunk;
         const captured = JSON.parse(body) as CapturedModelRequest; this.requests.push(captured);
-        const context = JSON.parse(captured.messages.find(message => message.role === 'user')!.content).context as { owner?: string };
+        const context = requestContext(captured) as { owner?: string };
         const isFacilitator = captured.messages[0]!.content.includes('executing facilitator work');
         const output = isFacilitator ? decisionOutput(assistDecision(context.owner ?? 'A')) : { type: 'blocked', reason: '请协调独立核对' };
         response.writeHead(200, { 'content-type': 'application/json' });

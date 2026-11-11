@@ -13,6 +13,7 @@
     "src/cli-failure.ts": "717211b0c07092641dce7467c1649832c1d7d0bd654d2b0191341ec29077beb8",
     "src/cli-readiness.ts": "cb973987c1b91f5a0d684e7dd6f762cdc2ae2822723230a523025ca0b3dfcb6e",
     "src/conversation.ts": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
+    "src/coordination-view.ts": "eee53b627a8031726ef9dc37947b218aaecaeccbbd369a09b7eb1fdc1ffd557f",
     "src/darwin-process.ts": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b",
     "src/delivery-acceptance.ts": "4cc0389a027e13631058b52ba911e0b99e487160a898510168e47e44fe117dc4",
     "src/delivery-check-delta.ts": "676f1a53878cf893a1073b6e599a038b099fc26bffc5d7a6e9cc8ee00602c4d1",
@@ -24,30 +25,30 @@
     "src/index.ts": "79ef24ede132e36388df54ccbb8e6e48efc472adff3c13d57f68ce745b98e331",
     "src/input-intent.ts": "8c2886e4b9054655203f5b72fc357aaab0d3502927320b722f9fa196a951d266",
     "src/local-cli.ts": "5a11e027e082424df77d9f5dcfb92c35f51507440e836465d2609b59cf26fc40",
-    "src/local-operation.ts": "ba9a546b17402b7f585d7c81fc8c53beb1786651384d0a4822ae56a456622482",
-    "src/local-resource-policy.ts": "8bfe9c1095ab34cafad7a6a6d97fdc4d398d9d8afeb4435a8ed70ad5652e3673",
-    "src/local-runtime.ts": "ece2447adc368f94ea549bfb9a1b4dbb0127b3a2cd1da62bcdb89d7d0383cf60",
+    "src/local-operation.ts": "0dfc11164909e070f69147cad6d31c56c72d7a1d67b68bfd2a25432410612f9d",
+    "src/local-resource-policy.ts": "08061b38c1876835ee0255484e855eb7f9c01bf7009c2f9106c8aa559e6c72de",
+    "src/local-runtime.ts": "2329ae21453eadc86b4be05cda6821578ca3b7aaab5a36f260c1039ac9bca552",
     "src/local-skills.ts": "dc5d7e4e8ebb5e5a82e9b608a377b4fa4d454ab54e276ffcd75ee5f2c8794917",
     "src/measurement.ts": "0ceeba39fe20ece308c1a0ed1df3b1438e40052af651f9a0037592f2af1cc773",
-    "src/model-adapter.ts": "343bc56fe91240cf19df74af5dd51f2c965f1d6622186674165a10c6d339b84f",
+    "src/model-adapter.ts": "c48f6ca41c2d6cffd7562f49e89f94630c899bf9953b593b9fb223df8329c7a3",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
     "src/model-env.ts": "7f8bb277dab42d749c82dab229d66cbb508e1af83b78986895da41956a9e6cf0",
     "src/presentation.ts": "1ffa66657884dffe98cceb1166485df99541aee762a53cfaa3a57de69af896d8",
     "src/resource-acquisition.ts": "adc62f7be3cca22ded73bb7e42cebb893da98b5b1a7c68097ca12bc5f39cca02",
     "src/room-deletion.machine.ts": "61320dc8213a9d546cb706349a8fa786c9acd244461608e6e3422487a8b7d4f4",
     "src/room.machine.ts": "1f2acd3d217731acd39b4258e0148b65b600f2b8cd7ae8cdcee8f047d8b696ab",
-    "src/runner.ts": "c367c12a5c1da32b4cac4b8d2871e8dac6348219ccb0da5e340beae7337716eb",
+    "src/runner.ts": "1d390f47b8ad29d3cea4b0a8c4b27d820ac2267ea1a22a267d1a5b37b3ea3972",
     "src/runtime-ownership.ts": "210e8d0108df16149d9a3fc3c5e1d3e417f9ccdb1c54040042dec89494aafc60",
     "src/skills.ts": "616a30fed055e935a09fef66cded225626220c5a1e9211dac44ec543d37a6bb2",
     "src/source-artifact.ts": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4",
     "src/source-claims.ts": "ed1d86ae9c38e8c850da5b0c9d695f5fd4ab1091f9212759fa573d7981dc52c3",
     "src/source-items.ts": "8a9f1e122ce69c05b3f41a776c7bf75fcf7253f6dc022115ad8097da37343f28",
-    "src/store.ts": "3eb36535afb71bad478495506f0dea78a0fef3d69fa56b85d5a4e2756d7da432",
+    "src/store.ts": "2e4ba48a4ab3da7b6098c9dd7e4d89763663da17430bc1ff5aa44036c2a36a11",
     "src/task-debug.ts": "38dd3bf387bd69f1caf7f7aeb0f539a8b9d2361ee63ca56dc5c555714fbcaa89",
     "src/task-inspection.ts": "a66a44d5b85f487b60ee33985fd9af54064bbacc6951dd47e7aaf3127a2fabd5",
     "src/task-structure.ts": "03f4fdd3056848007d83d8381fb5f21df12fdd4dd3ea65a7dbfe87fdcde9a87a",
     "src/task.machine.ts": "a147ecce5aa608c858150da78ccdb3d84a6a39737cf69f33f33b62744b3aec6c",
-    "src/task/actions.ts": "4b25c51842badc38daa3d3201f02a660df227d105141521dd334b928bda34333",
+    "src/task/actions.ts": "b9f45a8804e3dce1b08a4049737786632a465a358f2b152f79eec88b1f832c48",
     "src/task/assistance.ts": "a8628937aad37ca19bfa210b288e537f406b4323c1b191ab86e6333438cd1950",
     "src/task/budget.ts": "8bc89ad5e0b4af104fc8d3c82d5c8f6fa9c16a83e34039e577c48ee05379f6e4",
     "src/task/context.ts": "ae96dd7dd487b3776758fe5f0c452c64c52ca0e454f766818b7f5bc268f16092",
@@ -69,7 +70,7 @@
     "src/task/policy.ts": "ded18a03e7b5485e608a3d15cbb0927e787f928d9c969c505375336e92ba5078",
     "src/task/protocol.ts": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
     "src/task/reducer.ts": "c2e15627db07645398c20f4fdbf16aa876a9529f8a7532961f608f98393277d3",
-    "src/task/resilience.ts": "51d02fdcd222637df8626e7ef2d94310f387a312b43269eabc90c0be3535612f",
+    "src/task/resilience.ts": "8eb1cb65d9b064af6004d59963ebfd0735f3bdaf7a32e4d6cffdb11c1a202c99",
     "src/task/tool-guidance.ts": "6c1487d82bdf94d5aca7c659a56f7342dc13bde2169619abbe5dcd49fbc0f6e4",
     "src/task/tool-knowledge.ts": "7739654b94e4ccf6628bd8c55095c066f52691a074a190b0b8d39b299b0299b9",
     "src/task/tool-recovery.ts": "225859aa5e025691ec323b8399579aed9d46168ea0002ce4d8cdf6500eb4ef8c",
@@ -573,5 +574,88 @@
       "domains": 2,
       "edgesPerStorePerStage": 328
     }
+  },
+  "workspaceWaitReview": {
+    "review": "references/drift-review-workspace-wait.json",
+    "sha256": "e8341399736b6890f855522fbb08c3cb9d746c7597b71f29688ecac5aea0ccd4",
+    "sourceCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
+    "sourceWorkingTree": "dirty; covered file bytes pin the reviewed implementation",
+    "status": "complete-verification-and-independent-readback-passed; synchronization-pending-all-nine",
+    "summary": "Workspace waiting is a non-authorizing rejection observation; resource predicate extraction is equivalent; read-only global metadata does not grant scheduling authority. Original finite models/properties/bounds/fairness/fault controls remain unchanged. New BT_Y114-120 behavior needs its own actual model/service/browser checks. syncCommit remains the previous completed baseline."
+  },
+  "workspaceWaitVerification": {
+    "status": "verified",
+    "review": "references/drift-review-workspace-wait.json",
+    "entries": [
+      {
+        "entry": "handoff",
+        "status": "verified",
+        "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/handoff/complete",
+        "sourceCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
+        "syncCommitCaptured": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+        "sourceWorkingTree": "dirty; each source byte captured by coveredFileHashes and implementation artifacts",
+        "manifestSha256": "0e154f4076693ff29b417723bb354418a472dd148e78e6076b5802a951258689",
+        "retainedArtifacts": 186,
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "evidenceRetained": true
+        },
+        "realSourceControls": [
+          "drop-marker",
+          "double-resume",
+          "skip-cancel",
+          "starve-flush"
+        ],
+        "independentReadback": {
+          "status": "verified",
+          "exitCode": 0,
+          "log": "/workspace/work/squad-e2e/workspace-fix/formal/handoff-readback.log"
+        },
+        "model": {
+          "states": 146,
+          "edgesPerStore": 424,
+          "stores": [
+            "memory",
+            "sqlite"
+          ],
+          "witnesses": 6
+        }
+      },
+      {
+        "entry": "handoff-composition",
+        "status": "verified",
+        "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/handoff-composition/complete",
+        "sourceCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
+        "syncCommitCaptured": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+        "sourceWorkingTree": "dirty; each source byte captured by coveredFileHashes and implementation artifacts",
+        "manifestSha256": "c77ddd21314fe3d1d5c928b440383b4ab7e843dda00ec01a8338feff2c258dfa",
+        "retainedArtifacts": 212,
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true
+        },
+        "realSourceControls": [
+          "duplicate-retry",
+          "repeat-saved-work",
+          "ignore-retry-permission",
+          "ignore-retry-owner"
+        ],
+        "independentReadback": {
+          "status": "verified",
+          "exitCode": 0,
+          "log": "/workspace/work/squad-e2e/workspace-fix/formal/handoff-composition-readback.log"
+        },
+        "readerControls": {
+          "generic": {
+            "status": "verified",
+            "rejections": 4,
+            "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/handoff-composition/reader-controls"
+          }
+        }
+      }
+    ],
+    "syncCommitAdvanced": false,
+    "scope": "Original finite model domains and genuine controls only; BT_Y114-120 resource waiting, UI and coordinator semantics retain their separate actual model/service/browser evidence."
   }
 }

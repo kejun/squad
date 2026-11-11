@@ -146,6 +146,12 @@ export class LocalRuntime {
       sandboxConfinesWorkspace: this.backend.available && this.backend.isolation === 'workspace' });
   }
   workspaceGeneration(key: string): number { return this.workspaceWaiters.get(key)?.generation ?? 0; }
+  /** Call only after the durable settlement has released its leases. */
+  notifyResourceRelease(operation: Pick<LocalOperation, 'workspaceId' | 'resourceLeases'>): void {
+    this.notifyWorkspace('resources');
+    if (operation.workspaceId) this.notifyWorkspace(operation.workspaceId);
+    for (const lease of operation.resourceLeases ?? []) this.notifyWorkspace(lease.key);
+  }
   waitForWorkspace(key: string, generation: number, signal: AbortSignal): Promise<void> {
     signal.throwIfAborted();
     let entry = this.workspaceWaiters.get(key);

@@ -37,6 +37,8 @@ export interface WebBlockerAction {
   allowsExtraOrdinary?: boolean; allowsNewWindowMs?: boolean;
 }
 export interface WebBlocker {
+  /** Original execution owner when its resource blocks the selected room. */
+  source?: { roomId: string; roomTitle: string };
   scope?: 'task' | 'cleanup';
   operation?: { workId: string; operationId: string; approvalId?: string };
   id: string; version: number; taskId: string; epoch: number; goalVersion: number;
@@ -64,6 +66,7 @@ export interface ExecutionEvent {
   detail: string;
 }
 export interface WebWork {
+  waitingResources?: boolean;
   id: string;
   agentId: string;
   taskId: string;
@@ -76,7 +79,7 @@ export interface WebWork {
   epoch: number;
 }
 export interface WebTask {
-  supervision?: { status: 'running' | 'repairing' | 'waitingHuman' | 'cleaning' | 'faulted' | 'settled'; reason: string; nextWakeAt: number | null; hardDeadlineAt: number | null };
+  supervision?: { status: 'running' | 'repairing' | 'waitingHuman' | 'waitingResources' | 'cleaning' | 'faulted' | 'settled'; reason: string; nextWakeAt: number | null; hardDeadlineAt: number | null };
   delivery?: { epoch: number; goalVersion: number; revision: string; status: 'complete' | 'incomplete'; currentArtifactIds: string[]; reportArtifactId?: string };
   id: string;
   goal: string;

@@ -1,0 +1,73 @@
+{
+  "change": "workspace-wait-and-global-coordination-observation",
+  "outcome": "updated",
+  "status": "verified",
+  "entries": [
+    {
+      "status": "verified",
+      "completeProducerReexecutedThisRound": true,
+      "review": "references/drift-review-workspace-wait.json",
+      "reviewedBaseCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
+      "reviewedWorkingTree": true,
+      "sourceIdentity": "Base commit plus exact files hashes; no claim that uncommitted source belongs to base commit",
+      "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/coordination-final",
+      "producerCommand": "env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true python3 .agents/skills/verify-squad-coordination/scripts/check.py --jar /workspace/work/squad-e2e/workspace-fix/formal/tla2tools-1.7.4.jar --evidence /workspace/work/squad-e2e/workspace-fix/formal/coordination-final",
+      "producerExitCode": 0,
+      "seconds": 548.539,
+      "independentReadback": {
+        "command": "python3 .agents/skills/verify-squad-coordination/scripts/check.py --verify-evidence /workspace/work/squad-e2e/workspace-fix/formal/coordination-final",
+        "exitCode": 0,
+        "log": "/workspace/work/squad-e2e/workspace-fix/formal/coordination-readback.log"
+      },
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "checkerInputsUnchanged": true
+      },
+      "metrics": {
+        "retainedArtifacts": 373,
+        "configurations": 3,
+        "edgesPerStorePerStage": 2657,
+        "witnesses": 23,
+        "realSourceControls": 24
+      },
+      "coveredSourceArchive": "/workspace/work/squad-e2e/workspace-fix/formal/coordination-final-reviewed-source",
+      "coveredSourceUnchanged": true,
+      "scope": "Original declared finite domains and real-source controls/restored replay. New queued-wait and global coordinator semantics are independently validated by BT_Y114-Y120, not proven by these old finite models."
+    },
+    {
+      "status": "verified",
+      "completeProducerReexecutedThisRound": true,
+      "review": "references/drift-review-workspace-wait.json",
+      "reviewedBaseCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
+      "reviewedWorkingTree": true,
+      "sourceIdentity": "Base commit plus exact files hashes; no claim that uncommitted source belongs to base commit",
+      "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/extensions-final",
+      "producerCommand": "env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true python3 .agents/skills/verify-squad-coordination/scripts/check-extensions.py --jar /workspace/work/squad-e2e/workspace-fix/formal/tla2tools-1.7.4.jar --evidence /workspace/work/squad-e2e/workspace-fix/formal/extensions-final",
+      "producerExitCode": 0,
+      "seconds": 632.199,
+      "independentReadback": {
+        "command": "python3 .agents/skills/verify-squad-coordination/scripts/check-extensions.py --verify-evidence /workspace/work/squad-e2e/workspace-fix/formal/extensions-final",
+        "exitCode": 0,
+        "log": "/workspace/work/squad-e2e/workspace-fix/formal/extensions-readback.log"
+      },
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "checkerInputsUnchanged": true
+      },
+      "metrics": {
+        "retainedArtifacts": 1124,
+        "configurations": 23,
+        "edgesPerStorePerStage": 3754,
+        "witnesses": 74,
+        "realSourceControls": 31,
+        "selfConsistentReaderControls": 7
+      },
+      "coveredSourceArchive": "/workspace/work/squad-e2e/workspace-fix/formal/extensions-final-reviewed-source",
+      "coveredSourceUnchanged": true,
+      "scope": "Original declared finite domains and real-source controls/restored replay. New queued-wait and global coordinator semantics are independently validated by BT_Y114-Y120, not proven by these old finite models."
+    }
+  ],
+  "synchronization": "No syncCommit advanced; awaiting root global nine-entry confirmation. Verification metadata updated after complete producers, not an additional producer run."
+}

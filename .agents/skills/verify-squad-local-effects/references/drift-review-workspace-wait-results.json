@@ -1,0 +1,46 @@
+{
+  "change": "workspace-wait-and-global-coordination-observation",
+  "outcome": "updated",
+  "status": "verified",
+  "entries": [
+    {
+      "status": "verified",
+      "completeProducerReexecutedThisRound": true,
+      "review": "references/drift-review-workspace-wait.json",
+      "reviewedBaseCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
+      "reviewedWorkingTree": true,
+      "sourceIdentity": "Base commit plus exact files hashes; no claim that uncommitted source belongs to base commit",
+      "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-final",
+      "producerCommand": "env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true python3 .agents/skills/verify-squad-local-effects/scripts/check.py --jar /workspace/work/squad-e2e/workspace-fix/formal/tla2tools-1.7.4.jar --evidence /workspace/work/squad-e2e/workspace-fix/formal/local-effects-final",
+      "producerExitCode": 0,
+      "seconds": 64.855,
+      "independentReadback": {
+        "command": "python3 .agents/skills/verify-squad-local-effects/scripts/check.py --verify-evidence /workspace/work/squad-e2e/workspace-fix/formal/local-effects-final",
+        "exitCode": 0,
+        "log": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-post-controls-readback.log"
+      },
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true
+      },
+      "metrics": {
+        "retainedArtifacts": 251,
+        "states": 108,
+        "edgesPerStorePerStage": 282,
+        "realSourceControlKinds": 4,
+        "witnesses": 6,
+        "realProcessBridges": 7
+      },
+      "coveredSourceArchive": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-final-reviewed-source",
+      "coveredSourceUnchanged": true,
+      "scope": "Original declared finite domains and real-source controls/restored replay. New queued-wait and global coordinator semantics are independently validated by BT_Y114-Y120, not proven by these old finite models.",
+      "readerControls": {
+        "status": "verified",
+        "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-reader-controls",
+        "sourceProofUnchanged": true,
+        "intactAfter": true
+      }
+    }
+  ],
+  "synchronization": "No syncCommit advanced; awaiting root global nine-entry confirmation. Verification metadata updated after complete producers, not an additional producer run."
+}
