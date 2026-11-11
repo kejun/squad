@@ -254,3 +254,37 @@ A2的 `RetryComposition` 从公开HELP、RECORD_RESULT或WORK_FAILED形成起点
 Runner 新增推荐 getter 仅在注入 LocalRuntime 时可读取，重复限制反馈也仅在本地 invoke 内处理。原 RunnerProgress 探针没有 LocalRuntime，且必须在调用会抛错的 adapter 前完成 R1 flush，因此不会进入模型或推荐路径。CLI/技能目录的新推荐方法及三个纯 helper（cli-failure、task/tool-guidance、tool-recommendation）已加入保守漂移清单；它们只读已加载元数据或本地回执，不写协助、消费标记、续办意图或事务边界。
 
 原 Handoff 与 A2 的模型、性质、公平性、有限边界、见证及真实源码负对照保持。本技能不把新增工具推荐、CLI 纠正或新 receipt 格式宣称为已穷举行为；这些由 BT_L117–BT_L124 和真实 taskMachine 的 CLI 模型门槛承接。完整运行仍必须包含全部 TLC 图、双存储逐边回放、真实源码故障、原版复验及独立证据读回。
+
+
+## KEJ-113 / KEJ-114 对应审查（完整复验及独立读回已完成）
+
+逐文件记录见 [drift-review-kej-113-114.json](drift-review-kej-113-114.json)。原 sync commit `7e5b3426…` 的 Git 对象在当前克隆不可读取，但 63 项旧覆盖指纹分别与可用提交 `15d2714`、`62fdb58` 全部字节一致；审查以该可验证等价产品基线进行，不声称读取了缺失对象。两个原入口先按旧指纹运行，均明确 blocked，原始结果保留。
+
+本轮没有改变两个 TLA 模型、原性质、公平性或有限边界。真实输入固定时钟 0/1，原固定窗口仍未到期、没有修复/显式新窗口；新增可执行断言要求不存在 human gate、skip、cleanup、acquisition、资源义务、删除屏障或被投影掉的 SUPERVISE/HUMAN_GATE_DECISION/EXECUTION_NOT_STARTED。Stop→Reopen 现在可能保存空业务材料的 stopped 宿主报告；夹具逐字段检验其 status=stopped、verification=incomplete、唯一宿主文件、原 window、epoch/goal 和正文，并要求没有材料/skip/source/cleanup。当前与历史 stopped 通知都受检验；业务 partial/failed salvage 仍排除。已有 no candidate/discussion/check/host/local 断言保留。只有这些已执行前提成立时，才能沿用原投影。新增全局期限、八阶段修复、部分交付、未知效果隔离与删除不属于旧有限结论。
+
+存储 `atomic()/transactRoom()` 重构仍以同一 SQLite BEGIN/COMMIT/ROLLBACK 或 Memory 克隆提交写入 marker、consumedResults 与唯一 owner；rollback 故障位点仍在提交前。`TeamEngine.flushResults` 仍只在 durable marker 已设置后保存。`WorkRunner.runOne` 经 executeOne 包装后，实际第一项仍是 flushResults；RunnerProgress 不进入适配器。保存结果重试新增逻辑终态元数据恢复，但原 saved/failed 有限起点没有 frozen/门/物理操作；原唯一后继、当前权限和当前负责人仍由生产守卫裁决。
+
+`repeat-saved-work` 的源码负对照锚点由原单行改为当前多行 `if (saved)` 分支，仍只改为 `if (false && saved)`，让原保存结果被错误重新执行；保持 `ExclusiveResultChoice`、基线图及双存储行为检出要求。没有用模型变体代替真实代码变体。转递依赖采用递归相对导入补充指纹，未扩大行为证明域。
+
+最终产品冻结为 `36916b5c6e974c11f8e51720189c64facef9269e`。原 Handoff 完整入口检查 146 状态、424 边/存储、6 个可达见证、4 个真实源码负对照及原版复验；RetryComposition 完整检查 failed/saved 两域 53/26 状态、225/103 边/存储、7 个见证和 4 个真实源码负对照。两入口均退出 0、status=verified、清理全部 true，独立读回分别校验 184/208 个保留文件。证据及命令见本轮 review JSON；sync 只推进到已检查的实际产品字节。全局九入口已全部完成并通过独立读回；authority 两入口保留相同产品字节下的完整 final-2 证明并在 final-3 新读回，coordination 两入口完整重跑 final-3，其余五入口由主交付再次独立读回。此处只同步完成元数据，不声称额外复跑或扩大保证范围。
+
+
+最终增量另行审查了旧 unsafe adapter 的全局未知效果屏障、宿主批准门与令牌恢复、多必需门、配置不兼容的 skip/stop 门、cleanup 独立唤醒、带资源凭证的分片报告及原负责人检查点续办。原两切片没有 unsafe work、LOCAL_*、协议配置变更或 map 事件；驱动新增 no-unsafe 意图断言，与原有 no local/资源义务/gate 检查共同阻止静默越域。它们不增加新的已穷举外部效果保证。76/77 个覆盖指纹与保留源码逐项一致；composition 的验证夹具维护故意不混入产品提交，证据捕获其实际字节，随后独立验证维护提交承接。
+
+宿主 Handoff 证据格式 v2 还要求覆盖清单中的全部源码确实被捕获，不能只核对现存 manifest 项。独立 reader 负对照删除一个覆盖源码及其 manifest 项并重算 manifest 校验值，真实读回仍拒绝缺少的 `src/task/resilience.ts`；临时副本已清理。这是证据读取器的敏感性检查，不能冒称生产代码故障对照或新的产品性质证明。
+
+
+## 共享 Agent 行为规范维护
+
+冻结产品 `4032d88341b75c3b419215b73a63c0830f6f137a` 只新增静态共享提示模块，并在默认适配器的固定检查和普通模型工作 system 消息中各注入一次，替换原 owner/facilitator 短段。逐文件来源、归档依赖和实际运行状态见[本轮审查](drift-review-shared-agent-behavior.json)。旧有限模型、性质、夹具、真实源码负对照和超时保持；九入口全部完整验证和独立读回成功前保留旧 sync。LocalEffects 的真实适配器桥仍使用受控 transport，其通过不代表真实模型服从自然语言规范；新增上下文占用和六角色请求由独立适配器场景验证。
+
+
+共享规范最终复验：冻结产品 `4032d88341b75c3b419215b73a63c0830f6f137a` 的九入口均完整通过正向、真实源码负对照、原版复验和独立读回，结果为 updated。本技能精确证据路径和保证边界见[本轮审查](drift-review-shared-agent-behavior.json)；仅同步元数据，不冒称额外完整运行。
+
+
+## LB07 固定核查引用提示的第二阶段审查
+
+冻结产品 `e1c29edbc080b4638b34b9406e4e81b057e20940` 只在 checkMessages 增加一条既有来源目录和可选引用省略规则说明；共享规范、宿主校验和旧有限性质均未改。`4032d883` 的完整证明仅保留为第一阶段历史；本阶段须以新源码重新完成九入口全部正向、真实源码负对照、原版复验和独立读回。逐项差分及阶段状态见[共享规范审查](drift-review-shared-agent-behavior.json)。
+
+
+LB07 第二阶段最终复验：冻结产品 `e1c29edbc080b4638b34b9406e4e81b057e20940` 的九入口均完整通过正向、真实源码负对照、原版复验和独立读回，结果为 updated。本技能精确证据路径和保证边界见[本轮审查](drift-review-shared-agent-behavior.json)；仅同步元数据，不冒称额外完整运行。

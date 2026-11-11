@@ -8,7 +8,11 @@ import type { AcceptanceCriterion } from '../src/delivery-acceptance.js';
 
 /** Real process, SQLite, engine, runner and protocol; only model HTTP is controlled. */
 export async function sourceClaimsAcceptance() {
-  const f = await LocalFixture.create('方案师', true);
+  const script = 'console.log(JSON.stringify({data:{id:"doc-4",body:"进行中，等待评审。"}}))';
+  const f = await LocalFixture.create('方案师', true, false, { runtimeOptions: { acquisitionReaders: [{
+    id: 'source-claims-json', version: '1', command: 'node', argsPrefix: ['-e', script], format: 'json-document',
+    resource: { kind: 'document', service: 'fixture-documents', namespace: 'source-claims', id: 'doc-4' },
+  }] } });
   try {
     const adapter = new OpenAICompatibleAdapter(f.h.config, { env: {}, clock: () => f.h.now, transport: async (_url, init) => {
       const body = JSON.parse(String(init?.body));
@@ -18,7 +22,7 @@ export async function sourceClaimsAcceptance() {
         return modelResponse(fixtureJudgments(context.requirements as AcceptanceCriterion[]));
       }
       if (f.backend.calls.length === 0) return modelResponse({ type: 'runCli', executable: 'node',
-        args: ['-e', 'console.log(JSON.stringify({data:{id:"doc-4",body:"进行中，等待评审。"}}))'] });
+        args: ['-e', script] });
       const source = f.h.context().intents.flatMap(work => work.localOperations ?? []).find(op => op.action.type === 'runCli')!;
       return modelResponse({ type: 'deliver', text: '文档工作清单', artifactIds: [], artifacts: [{ name: 'work.md', content: '当前工作项',
         sourceItems: [{ text: '安排评审', status: '进行中', sourceDocId: 'doc-4', sourceEvidenceId: source.id }] }] });

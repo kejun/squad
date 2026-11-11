@@ -5,8 +5,8 @@ import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { artifactSourceMetadata, type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
 import { canRetireDiscussionWork, capabilities, discussionActive, fence, fresh, inflight, ok, recoveryIssue, reject } from './facts.js';
-import { cancelWork, coordinate, finish, intent, message, owner, release, saveReports } from './operations.js';
-import { applyLocalEvent, localEnabled, localPhysicalPending, recoverLocalOperations, type LocalEvent } from '../local-operation.js';
+import { cancelWork, coordinate, continueOwner, finish, intent, message, owner, release, saveReports } from './operations.js';
+import { applyLocalEvent, cancelLocalOperations, localEnabled, localPhysicalPending, localAwaitingApproval, recoverLocalOperations, type LocalEvent } from '../local-operation.js';
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
 import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requestReview, resetReviewAtBoundary, savedHelpResult, startHelp } from './assistance.js';
 import { recordInput } from './input.js';
@@ -20,6 +20,9 @@ import { deliveryVerificationPlan } from './verification.js';
 import { preserveSourceReference } from '../input-intent.js';
 import { resolveMapRecoveries } from './map-recovery.js';
 import { recordToolFailure } from './tool-recovery.js';
+import { ensureResilience, openHumanGate, decideHumanGate, executionNotStarted, freezeIncomplete, taskHumanGate, answerTaskGate, syncLocalApprovalGate, recordApprovalExplanation, requiredHumanFailure, authorizationFailure,
+  windowExpired, archiveFrozen, replaceProcessingWindow, adoptCleanup, settleCleanup, resiliencePolicy, processingWindow, safeFailureRetry, requeueSafeWork } from './resilience.js';
+import { recordAcquisition, resourceAcquisitionProblem } from '../resource-acquisition.js';
 
 function finishDelivery(c: TaskContext, e: TaskEvent, detail: string, code?: string) {
   if (c.candidate && code) c.candidate.deliveryIssue = { code, detail };
@@ -36,18 +39,34 @@ function reviseDelivery(c: TaskContext, e: TaskEvent, reason: string) {
 
 export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
   const c = structuredClone(original);
+  const received = e;
+  const resultEvent = e.type === 'RECORD_RESULT' || e.type === 'HELP_RESULT' ? e : undefined;
+  if (resultEvent?.status === 'success' && !c.results.some(r => r.resultId === resultEvent.resultId)) {
+    const work = c.intents.find(w => w.payload.requestId === resultEvent.requestId && w.epoch === c.epoch && w.goalVersion === c.goalVersion);
+    if (work?.deadline !== null && work?.deadline !== undefined && e.at >= work.deadline)
+      e = { ...resultEvent, status: 'timeout', answer: '协助已超时；迟到原始结果保留在历史' };
+  }
   const problem = permissionProblem(c, e);
   if (problem) { reject(c, problem); return c; }
   if (['INTERPRETATION_RESULT', 'HELP', 'HELP_RESULT', 'RECORD_RESULT', 'COORDINATE', 'BLOCKED', 'WAIT_USER', 'DELIVER', 'TOOL'].includes(e.type)) release(c, e.workId);
   ok(c); c.lastActivityAt = e.at;
+  ensureResilience(c);
+  if (e !== received) c.lateResults.push(received);
   c.trace.push({ event: e.type, detail: e.id, at: e.at });
   if (e.type.startsWith('LOCAL_')) {
     const local = e as TaskEvent & LocalEvent;
     const work = c.intents.find(item => item.id === local.intentId);
     const resumeCheck = isBoundedCheck(work) && work.status === 'uncertain';
     applyLocalEvent(c, local);
+    syncLocalApprovalGate(c, local);
+    if (c.resilience?.frozen && work) {
+      cancelLocalOperations(work);
+      if (!localPhysicalPending(work)) work.status = 'done';
+    }
+    settleCleanup(c, e.at);
     settleHostRetryOperation(c, local.intentId, local.operationId, e.at);
     if ((e.type === 'LOCAL_RESULT' || e.type === 'LOCAL_RECONCILE') && work && canRetireDiscussionWork(c, work)) release(c, work.id);
+    if (resumeCheck && taskHumanGate(c)) return c;
     if (resumeCheck && work.status === 'pending' && work.requestCount > 0 && !hasDeliveryRetryPermit(c, work)) {
       if (deliveryInterruptionPending(c)) release(c, work.id);
       else if (canRetryDeliveryCheck(c, work, e.at)) reserveDeliveryRetry(c, work);
@@ -56,6 +75,9 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     return c;
   }
   switch (e.type) {
+    case 'HUMAN_GATE_DECISION': decideHumanGate(c, e); break;
+    case 'EXECUTION_NOT_STARTED': executionNotStarted(c, e); break;
+    case 'RECORD_ACQUISITION': recordAcquisition(c, e); break;
     case 'REVOKE_HOST_SESSION': revokeHostSession(c, e.id); break;
     case 'REQUEST_HOST_RETRY':
       adoptLegacyTerminalConfig(c, e.currentConfig);
@@ -66,7 +88,13 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'HOST_RETRY_EXPIRE': expireHostRetry(c, e.at); break;
     case 'HOST_RETRY_RECONCILE': break; // The automatic batch transition reads the saved work and operation states.
     case 'DISCUSSION_PLAN': planDiscussion(c, e); break;
-    case 'DISCUSSION_RESULT': acceptDiscussion(c, e); break;
+    case 'DISCUSSION_RESULT': {
+      const work = c.intents.find(w => w.id === e.workId)!;
+      const issue = e.status === 'success' && !(work.kind === 'assistance' && c.discussion?.mapReduce?.queue) ? resourceAcquisitionProblem(c, work) : null;
+      if (issue) { c.discussion!.incomplete = issue; acceptDiscussion(c, { ...e, status: 'partial' }); }
+      else acceptDiscussion(c, e);
+      break;
+    }
     case 'DISCUSSION_HANDOFF':
       c.discussion!.status = 'delivered';
       c.deferredCoordination = false;
@@ -80,6 +108,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       c.trace.push({ event: 'INPUT_INTERPRETED', at: e.at, detail: JSON.stringify({ inputId: input.id, workId: input.workId, status: input.status }) });
       if (e.spec.clarification) {
         c.reason = e.spec.clarification; message(c, e, 'facilitator', e.spec.clarification, 'notice');
+        openHumanGate(c, e, { kind: 'clarification', question: e.spec.clarification, ...(e.workId ? { workId: e.workId } : {}) });
       } else if (!c.inputs.some(note => !note.applied) && c.review?.status !== 'pending' && !startMapReduce(c, e)) {
         owner(c, e, { reason: 'Plan from the validated user intent and preserve the original goal' });
       }
@@ -96,12 +125,19 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     }
     case 'HELP_RESULT': acceptHelpResult(c, e); break;
     case 'RETRY_ASSISTANCE': {
+      const gate = answerTaskGate(c, e);
+      if (gate && windowExpired(c, e.at) && !taskHumanGate(c)) { message(c, e, 'user', e.text, 'user', { requestId: e.requestId }); freezeIncomplete(c, e, '人类已明确重试，原自动处理窗口已耗尽'); break; }
       const h = c.assists.find(h => h.id === e.requestId)!;
       if (e.config) c.config.bots = structuredClone(e.config.bots);
       message(c, e, 'user', e.text, 'user', { requestId: h.id });
       const saved = savedHelpResult(c, h.id);
-      if (saved) { acceptHelpResult(c, { ...e, ...saved, type: 'HELP_RESULT' }); break; }
+      if (saved) {
+        c.stopped = false; c.outcome = null; c.reason = ''; archiveFrozen(c);
+        c.deliveryCycle = newDeliveryCycle();
+        acceptHelpResult(c, { ...e, ...saved, type: 'HELP_RESULT' }); break;
+      }
       if (c.stopped || c.outcome !== null) c.epoch++;
+      archiveFrozen(c);
       c.stopped = false; c.outcome = null; c.candidate = null; c.reason = ''; c.usage.retries++;
       resetDeliveryMaterials(c);
       c.deferredCoordination = false;
@@ -128,19 +164,23 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         c.review!.status = 'reviewing'; c.review!.question = d.question; c.review!.expected = d.expected;
         advanceReview(c, e);
       }
-      if (d.action === 'continue') owner(c, e, { reason: d.reason });
+      if (d.action === 'continue') continueOwner(c, e, d.reason);
       if (d.action === 'assist') startHelp(c, e, `${c.taskId}:help:${c.nextSeq++}`, d.target, d.question, d.expected, [], true);
       if (d.action === 'replan') {
         c.usage.replans++; c.localSkillVersions = [];
         c.board.push({ id: `${c.taskId}:plan:${c.usage.replans}`, kind: 'opinion', author: 'facilitator', text: d.plan, sources: [], verified: false, revision: 1, goalVersion: c.goalVersion });
         owner(c, e, { plan: d.plan, retainedEvidence: c.board.map(b => b.id), reason: d.reason });
       }
-      if (d.action === 'askUser') { cancelWork(c, e); c.reason = d.question; message(c, e, 'facilitator', d.question, 'notice'); }
+      if (d.action === 'askUser') { cancelWork(c, e); c.reason = d.question; openHumanGate(c, e, { question: d.question }); message(c, e, 'facilitator', d.question, 'notice'); }
       if (d.action === 'finish' && !pendingHostRetry(c)) finish(c, e, c.artifacts.length || c.candidate ? 'partial' : 'failed', d.reason);
       break;
     }
-    case 'WAIT_USER': cancelWork(c, e); c.reason = e.question; message(c, e, c.owner, e.question, 'answer'); break;
+    case 'WAIT_USER': cancelWork(c, e); c.reason = e.question; openHumanGate(c, e, { question: e.question, ...(e.workId ? { workId: e.workId } : {}) }); message(c, e, c.owner, e.question, 'answer'); break;
     case 'USER_INPUT': {
+      if (recordApprovalExplanation(c, e)) break;
+      const approvalGate = taskHumanGate(c);
+      if (e.goal && approvalGate?.approvalId) { approvalGate.status = 'cancelled'; approvalGate.resolvedAt = e.at; }
+      const gate = answerTaskGate(c, e);
       if (e.history) c.history = e.history;
       message(c, e, 'user', e.text, 'user');
       if (!e.goal && e.reviewTargets?.length && (discussionActive(c) || ((!c.review || ['complete', 'cancelled'].includes(c.review.status)) && inflight(c).some(work => ['owner', 'tool', 'assistance'].includes(work.kind))))) {
@@ -159,9 +199,12 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       }
       recordInput(c, e.id, e.text, e.reviewTargets?.length ? 'review' : e.decision ? 'decision' : 'supplement');
       if (e.reviewTargets) requestReview(c, e.id, e.text, e.reviewTargets);
+      if (gate && windowExpired(c, e.at) && !taskHumanGate(c)) freezeIncomplete(c, e, '人类已回复，原自动处理窗口已耗尽');
       break;
     }
     case 'HUMAN_DECISION': {
+      if (recordApprovalExplanation(c, e)) break;
+      const gate = answerTaskGate(c, e);
       if (e.history) c.history = e.history;
       message(c, e, 'user', e.text, 'user');
       c.board.push({ id: e.id, kind: 'decision', text: e.text, author: 'user', sources: [e.id], verified: false, revision: 1, goalVersion: c.goalVersion });
@@ -174,6 +217,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         if (e.reviewTargets) requestReview(c, e.id, e.text, e.reviewTargets);
         recordInput(c, e.id, e.text, e.reviewTargets?.length ? 'review' : 'decision');
       }
+      if (gate && windowExpired(c, e.at) && !taskHumanGate(c)) freezeIncomplete(c, e, '人类已回复，原自动处理窗口已耗尽');
       break;
     }
     case 'BOUNDARY':
@@ -260,11 +304,14 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     }
     case 'STOP':
       if (e.text) message(c, e, 'user', e.text, 'user');
+      for (const gate of ensureResilience(c).gates.filter(g => g.scope === 'task' && g.status === 'open')) { gate.status = 'cancelled'; gate.resolvedAt = e.at; }
       c.stopped = true; c.reason = 'User requested stop'; cancelWork(c, e, true); cancelHostRetries(c, 'STOPPED');
       settleDeliveryCycle(c, 'stopped', c.reason);
       for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight', 'clarification', 'failed'].includes(input.status)) input.status = 'cancelled';
       if (c.review) c.review.status = 'cancelled';
       for (const h of c.assists) if (['pending', 'running', 'answered'].includes(h.status)) h.status = 'cancelled';
+      adoptCleanup(c, e.at);
+      if (c.resilience?.cleanup.some(item => item.state === 'pending')) freezeIncomplete(c, e, '用户停止；未决效果由独立清理接管', 'stopped');
       break;
     case 'SETTLE': {
       const work = c.intents.find(i => i.id === e.intentId);
@@ -275,6 +322,13 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     }
     case 'CONTINUE':
+      if (e.newWindowMs !== undefined) replaceProcessingWindow(c, e, e.newWindowMs); else archiveFrozen(c);
+      if (c.discussion && !['cancelled', 'delivered'].includes(c.discussion.status)) {
+        c.discussion.status = 'cancelled';
+        for (const work of c.intents) if (work.discussionId && work.status === 'pending') work.status = 'cancelled';
+      }
+      for (const gate of ensureResilience(c).gates.filter(g => g.scope === 'task' && g.status === 'open')) { gate.status = 'answered'; gate.responseId = e.id; gate.resolvedAt = e.at; }
+      ensureResilience(c).nextSupervisionAt = Math.min(ensureResilience(c).window.hardDeadline, e.at + resiliencePolicy(c).repairTimeoutMs);
       adoptLegacyTerminalConfig(c, e.currentConfig);
       if (e.text) message(c, e, 'user', e.text, 'user');
       if (e.extraOrdinary) c.config.limits.ordinary += e.extraOrdinary;
@@ -362,16 +416,24 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         break;
       }
       if (work.kind === 'cancel') { work.status = 'done'; c.reason = `Cancellation not confirmed: ${e.reason}`; break; }
+      const approvalGate = c.resilience?.gates.find(g => g.scope === 'task' && g.status === 'open' && g.approvalId && g.workId === work.id && g.epoch === c.epoch && g.goalVersion === c.goalVersion);
+      if (approvalGate) {
+        work.status = 'pending'; c.reason = approvalGate.question; break;
+      }
       if (e.resultUncertain || work.replay === 'unsafe') {
         work.status = 'uncertain'; c.reason = `Result uncertain; reconcile before retry: ${e.reason}`;
-      } else if (canRetryWork(c, e) && !(isBoundedCheck(work) && deliveryInterruptionPending(c))) {
+      } else if (!authorizationFailure(e.reason) && canRetryWork(c, e) && !(isBoundedCheck(work) && deliveryInterruptionPending(c))) {
         if (isBoundedCheck(work)) reserveDeliveryRetry(c, work);
-        else { c.usage.retries++; work.deadline = e.at + c.config.limits.workTimeoutMs; }
+        else { c.usage.retries++; work.deadline = Math.min(e.at + c.config.limits.workTimeoutMs, processingWindow(c).hardDeadline, processingWindow(c).repairDeadline ?? Number.MAX_SAFE_INTEGER); }
         work.status = 'pending';
         if (work.kind === 'interpretation') c.inputAnalyses!.find(input => input.workId === work.id)!.status = 'pending';
+      } else if (safeFailureRetry(c, e)) {
+        requeueSafeWork(c, work, e.at);
       } else {
         const failureReason = e.transient && c.usage.retries >= c.config.limits.retries ? `${e.reason}（重试额度已用尽）` : e.reason;
         release(c, work.id); c.reason = failureReason;
+        if (requiredHumanFailure(c, e))
+          openHumanGate(c, e, { kind: 'authorization', workId: work.id, question: `需要处理权限或配置：${failureReason}` });
         if (!c.stopped && !deliveryInterruptionPending(c)) {
           if (isBoundedCheck(work)) finishDelivery(c, e, `检查未完成（${failureReason}）`, 'DELIVERY_CHECK_FAILED');
           if (work.payload.deliveryRevision === true) finishDelivery(c, e, failureReason, 'DELIVERY_REVISION_FAILED');
@@ -400,11 +462,16 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     }
     case 'RECOVER': {
       c.hostSession = undefined;
+      for (const work of c.intents) recoverLocalOperations(work, e.id);
+      syncLocalApprovalGate(c, e);
+      for (const work of c.intents.filter(work => canRetireDiscussionWork(c, work))) release(c, work.id);
+      if (c.resilience?.frozen || c.stopped) for (const work of c.intents.filter(work => work.kind !== 'cancel' && work.replay === 'safe'
+        && ['pending', 'inflight'].includes(work.status) && !localPhysicalPending(work))) release(c, work.id);
+      if (c.resilience?.frozen) { adoptCleanup(c, e.at); settleCleanup(c, e.at); break; }
+      if (c.stopped) { freezeIncomplete(c, e, '恢复已保存的停止请求；物理核对由独立清理继续', 'stopped'); break; }
       const issue = recoveryIssue(c, e.config);
       c.config.bots = e.config.bots; // Current permissions always win.
       c.config.localTools = { enabled: e.config.localTools?.enabled !== false };
-      for (const work of c.intents) recoverLocalOperations(work, e.id);
-      for (const work of c.intents.filter(work => canRetireDiscussionWork(c, work))) release(c, work.id);
       c.config.skillSearch = { enabled: e.config.skillSearch?.enabled !== false };
       c.config.webTools = { enabled: e.config.webTools?.enabled !== false };
       for (const work of c.intents.filter(i => ['pending', 'inflight'].includes(i.status) && ['owner', 'assistance', 'facilitator', 'check'].includes(i.kind))) {
@@ -416,7 +483,13 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
           if (work.replay === 'unsafe') work.status = 'uncertain';
           else release(c, work.id);
         }
-        cancelWork(c, e, true); cancelHostRetries(c, 'INCOMPATIBLE_EXECUTION'); c.reason = issue; reject(c, 'INCOMPATIBLE_EXECUTION'); break;
+        cancelWork(c, e, true); cancelHostRetries(c, 'INCOMPATIBLE_EXECUTION'); c.reason = issue;
+        openHumanGate(c, e, { kind: 'recovery', cause: 'incompatibleExecution', decisions: ['skip', 'stop'], question: '当前宿主不支持原执行协议。请跳过剩余业务并交付缺口，或停止；需要继续请建立当前配置的新任务。' });
+        reject(c, 'INCOMPATIBLE_EXECUTION'); break;
+      }
+      if (taskHumanGate(c)) {
+        for (const work of c.intents.filter(w => w.status === 'inflight' && w.replay === 'safe' && localAwaitingApproval(w) && !localPhysicalPending(w))) work.status = 'pending';
+        c.reason = taskHumanGate(c)!.question; break;
       }
       if (recoveryCheckExhausted(c, e.at)) {
         finishDelivery(c, e, '检查未完成，无法重新授权中断的检查请求', 'CHECK_RECOVERY_EXHAUSTED');
@@ -435,12 +508,13 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     }
     case 'TOOL':
       cancelWork(c, e); intent(c, e.at, 'tool', c.owner, { tool: e.tool, ...e.payload }, e.replay); break;
-    case 'EXHAUSTED': finish(c, e, c.candidate || c.artifacts.length ? 'partial' : 'failed', e.reason); break;
+    case 'EXHAUSTED': if (!taskHumanGate(c)) freezeIncomplete(c, e, e.reason); else c.reason = e.reason; break;
     case 'RECONCILE': {
       const work = c.intents.find(i => i.id === e.intentId)!;
       work.status = 'done';
+      settleCleanup(c, e.at, work.id);
       c.trace.push({ event: 'RECONCILED', detail: `${work.id}:${e.resolution}:${e.detail}`, at: e.at });
-      c.reason = 'External result reconciled; waiting for explicit continuation';
+      if (c.outcome === null) c.reason = 'External result reconciled; waiting for explicit continuation';
       break;
     }
   }

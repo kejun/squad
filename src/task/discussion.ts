@@ -2,6 +2,7 @@ import { type Decision, type Intent, type TaskContext, type TaskEvent } from '..
 import { conversationInput, intent, message, release, saveReports } from './operations.js';
 import { capabilities, discussionActive, fence } from './facts.js';
 import { recordMapResult } from './map-queue.js';
+import { workInCleanup } from './resilience.js';
 import { localPhysicalPending } from '../local-operation.js';
 
 export function discussionIntent(c: TaskContext, e: TaskEvent, kind: Intent['kind'], target: string) {
@@ -36,7 +37,7 @@ export function startDiscussion(c: TaskContext, e: Extract<TaskEvent, { type: 'U
     return;
   }
   const requested = [...new Set(e.reviewTargets!)];
-  const busy = new Set(c.intents.filter(i => i.kind !== 'cancel' && ['pending', 'inflight', 'uncertain'].includes(i.status)).map(i => i.target));
+  const busy = new Set(c.intents.filter(i => i.kind !== 'cancel' && ['pending', 'inflight', 'uncertain'].includes(i.status) && !workInCleanup(c, i)).map(i => i.target));
   const skipped = requested.filter(target => busy.has(target)).map(target => ({ target, reason: '正在工作' }));
   c.discussion = { id: `discussion:${e.id}`, request: e.text, targets: requested.filter(target => !busy.has(target)),
     skipped, results: [], status: 'planning', ...fence(c) };
@@ -60,7 +61,7 @@ export function planDiscussion(c: TaskContext, e: Extract<TaskEvent, { type: 'DI
   round.question = decision.question; round.expected = decision.expected; round.status = 'collecting';
   let capacity = Math.max(0, Math.min(c.config.limits.ordinary - c.usage.ordinary - 2, c.config.limits.assists - c.usage.assists));
   for (const target of round.targets) {
-    const busy = c.intents.some(work => work.kind !== 'cancel' && work.target === target && ['pending', 'inflight', 'uncertain'].includes(work.status));
+    const busy = c.intents.some(work => work.kind !== 'cancel' && work.target === target && ['pending', 'inflight', 'uncertain'].includes(work.status) && !workInCleanup(c, work));
     if (busy || capacity <= 0) {
       round.skipped.push({ target, reason: busy ? '正在工作' : '讨论额度不足' });
       round.incomplete = '部分成员未参与讨论，详见未参与原因。';

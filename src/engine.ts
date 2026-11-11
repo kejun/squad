@@ -1,7 +1,7 @@
-import { localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalMessage, type LocalOperation } from './local-operation.js';
+import { heldLocalResourceLeases, localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalMessage, type LocalOperation } from './local-operation.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { initialTask, persistTask, restoreTask, stepTask, taskPhase, startTaskExecution, executionState, workLaneAvailable, type TaskSnapshot } from './task.machine.js';
-import type { Store, Transaction } from './store.js';
+import { deletionStore, RoomDeletionError, type Store, type Transaction, type DeletionSettlementProof } from './store.js';
 import { conversationHistory, requestedReviewTargets } from './conversation.js';
 import { requestedRetryTarget, retryableAssistance, retryProblemText } from './assistance-retry.js';
 import { inputControl, leadingInputMention } from './input-intent.js';
@@ -14,18 +14,24 @@ import { restoreRoomArchive, stepRoomArchive } from './room.machine.js';
 import { hostRetryAction, hostRetryBatchRetirable } from './host-retry.js';
 import { parseArtifactRequest, resolveArtifactSource } from './source-artifact.js';
 import type { ArtifactReference, ArtifactSource, ArtifactSourceMetadata } from './types.js';
+import type { HostAcquisition } from './resource-acquisition.js';
+import { processingWindow, taskHumanGate } from './task/resilience.js';
+import { permissionProblem } from './task/policy.js';
+import type { DeletionIntent, SavedRoomDeletion } from './room-deletion.machine.js';
+import { unconfinedEffectsKey, type LocalResourcePolicy } from './local-resource-policy.js';
 
 interface StoredTask { version: 1 | 2 | 3; snapshot: unknown }
 const protocolBoundEvents = new Set<TaskEvent['type']>([
   'CLAIM', 'CONSUME', 'REGENERATE_MODEL_OUTPUT', 'LOCAL_REQUEST', 'LOCAL_CLAIM', 'LOCAL_STARTED',
-  'LOCAL_APPROVAL_REQUIRED', 'LOCAL_APPROVAL_DECISION', 'DELIVER', 'CHECK_RESULT', 'HELP_RESULT', 'WORK_FAILED',
+  'LOCAL_APPROVAL_REQUIRED', 'LOCAL_APPROVAL_DECISION', 'LOCAL_PREPARED', 'DELIVER', 'CHECK_RESULT', 'HELP_RESULT', 'WORK_FAILED',
 ]);
-export interface CommandResult extends Reply { taskId?: string; duplicate?: boolean; sourceCandidates?: ArtifactSourceMetadata[] }
+export interface CommandResult extends Reply { taskId?: string; duplicate?: boolean; sourceCandidates?: ArtifactSourceMetadata[]; roomId?: string; deletionVersion?: number }
 export interface Submission {
   id: string; text: string; mentions?: string[]; goal?: Goal;
   intent?: 'new' | 'supplement' | 'decision' | 'continue' | 'retry'; replyToTaskId?: string;
   retryAssistanceId?: string;
   extraOrdinary?: number;
+  newWindowMs?: number;
   sourceArtifact?: ArtifactReference;
 }
 export interface TaskView { phase: ReturnType<typeof taskPhase>; context: TaskContext }
@@ -42,11 +48,11 @@ function decode(value: unknown): TaskSnapshot {
   if (result.context.schemaVersion !== 1) throw new Error('Incompatible task context');
   return result;
 }
-function storeTask(tx: Transaction, snapshot: TaskSnapshot) {
+function storeTask(tx: Transaction, snapshot: TaskSnapshot, activate = false) {
   const id = snapshot.context.taskId;
   tx.room.tasks[id] = { version: taskStorageVersion(snapshot.context.config), snapshot: persistTask(snapshot) } satisfies StoredTask;
   if (taskPhase(snapshot) === 'ended') { if (tx.room.activeTaskId === id) tx.room.activeTaskId = null; }
-  else tx.room.activeTaskId = id;
+  else if (activate && !tx.room.activeTaskId) tx.room.activeTaskId = id;
 }
 
 /** All public commands cross the same transaction seam; no effect is executed here. */
@@ -55,6 +61,7 @@ export class TeamEngine {
   private readonly instanceId = randomUUID();
   private pendingObservations: DebugFrame[] | null = null;
   private observationTransaction: string | null = null;
+  get healthy(): boolean { return !this.storageFault; }
   constructor(readonly store: Store, readonly config: TeamConfig, private readonly clock: () => number = Date.now,
     private readonly observe?: (roomId: string, frame: DebugFrame) => void) { validateConfig(config); }
 
@@ -73,16 +80,16 @@ export class TeamEngine {
     return next;
   }
 
-  private transact<T>(roomId: string, fn: (tx: Transaction) => T): T {
+  private transact<T>(roomId: string, fn: (tx: Transaction) => T, proof?: DeletionSettlementProof): T {
     if (this.storageFault) throw new Error('Storage fault: reopen engine before dispatching more work');
     const observations: DebugFrame[] = [];
     this.pendingObservations = this.observe ? observations : null;
     this.observationTransaction = this.observe ? randomUUID() : null;
     let result: T;
-    try { result = this.store.transact(roomId, fn); }
+    try { result = proof ? deletionStore(this.store).transactDeletionSettlement(roomId, proof, fn) : this.store.transact(roomId, fn); }
     catch (error) {
       // Domain rejections are values; thrown errors at this seam are storage/program faults.
-      this.storageFault = true;
+      if (!(error instanceof RoomDeletionError)) this.storageFault = true;
       throw error;
     }
     finally { this.pendingObservations = null; this.observationTransaction = null; }
@@ -92,7 +99,45 @@ export class TeamEngine {
     }
     return result;
   }
-  private receipt(tx: Transaction, id: string, payload: unknown, operation: () => CommandResult): CommandResult {
+  roomDeletion(roomId: string): SavedRoomDeletion | undefined {
+    return 'readDeletion' in this.store ? deletionStore(this.store).readDeletion(roomId) : undefined;
+  }
+  private deletionRejection(roomId: string): CommandResult | undefined {
+    const deletion = this.roomDeletion(roomId);
+    if (deletion && deletion.value !== 'idle') return { ok: false, code: deletion.value === 'deleted' ? 'ROOM_DELETED' : 'ROOM_DELETING', detail: '会话正在删除或已删除，不能再提交业务操作。' };
+    return undefined;
+  }
+  requestRoomDeletion(roomId: string, id: string, expectedArchiveVersion: number): SavedRoomDeletion {
+    const room = this.store.read(roomId), archive = this.roomArchive(roomId);
+    return deletionStore(this.store).stepDeletion(roomId, { type: 'REQUEST', id, at: this.clock(), roomId,
+      deletionId: `deletion:${fingerprint({ roomId, id })}`, requestDigest: fingerprint({ roomId, id, expectedArchiveVersion }),
+      confirmed: true, authorized: true, archived: archive.archived, archiveVersion: archive.archiveVersion, expectedArchiveVersion,
+      allTasks: Object.keys(room.tasks).map(taskId => ({ taskId, namespace: this.localNamespace(roomId, taskId) })) });
+  }
+  prepareRoomDeletion(roomId: string, deletionId: string, intent: DeletionIntent, afterQuiescence = false): void {
+    // Verification retries retain the deletion manifest after business data is erased.
+    // Preparing an empty room again would recreate the row that verification must find absent.
+    const deletion = this.roomDeletion(roomId);
+    if (deletion?.context.deletionId === deletionId && deletion.context.dataErased) return;
+    this.transact(roomId, tx => {
+      for (const [taskId, stored] of Object.entries(tx.room.tasks)) {
+        let next = decode(stored);
+        next = this.step(next, { type: 'STOP', id: `${deletionId}:stop:${taskId}`, at: this.clock() });
+        next = this.step(next, { type: 'RECOVER', id: `${deletionId}:recover:${taskId}:${intent.attempt}`, at: this.clock(), config: this.config });
+        next = this.step(next, { type: 'SUPERVISE', id: `${deletionId}:custody:${taskId}:${intent.attempt}`, at: this.clock(), trigger: 'recover' });
+        if (afterQuiescence) for (const work of next.context.intents) {
+          if (work.replay !== 'unsafe' && work.kind !== 'tool' && !localPhysicalPending(work) && ['pending', 'inflight', 'uncertain'].includes(work.status))
+            next = this.step(next, { type: 'SETTLE', id: `${deletionId}:retire:${work.id}:${intent.attempt}`, at: this.clock(), intentId: work.id });
+          for (const op of work.localOperations ?? []) if (['succeeded', 'failed', 'cancelled'].includes(op.status) && op.workspaceId)
+            { const owner = fingerprint({ roomId, taskId, operationId: op.id });
+              tx.releaseWorkspace(op.workspaceId, owner); tx.releaseResources?.(heldLocalResourceLeases(op).map(lease => lease.key), owner); }
+        }
+        storeTask(tx, next);
+      }
+    }, { deletionId, intentId: intent.id, attempt: intent.attempt });
+  }
+  private receipt(tx: Transaction, id: string, payload: unknown, operation: () => CommandResult,
+    remember: (result: CommandResult) => boolean = () => true): CommandResult {
     const hash = fingerprint(payload);
     const previous = tx.receipt(id);
     if (previous) {
@@ -100,7 +145,7 @@ export class TeamEngine {
       return { ...(previous.result as CommandResult), duplicate: true };
     }
     const result = operation();
-    tx.remember(id, hash, result);
+    if (remember(result)) tx.remember(id, hash, result);
     return result;
   }
   roomArchive(roomId: string) {
@@ -108,6 +153,7 @@ export class TeamEngine {
     return { archived: state.value === 'archived', archiveVersion: state.context.revision };
   }
   setRoomArchived(roomId: string, id: string, archived: boolean): CommandResult {
+    const blocked = this.deletionRejection(roomId); if (blocked) return blocked;
     if (!id || id.length > 120) return { ok: false, code: 'INVALID_REQUEST', detail: '缺少请求标识。' };
     return this.transact(roomId, tx => this.receipt(tx, id, { type: archived ? 'archiveRoom' : 'restoreRoom', id }, () => {
       tx.room.archive = stepRoomArchive(tx.room.archive, { type: archived ? 'ARCHIVE' : 'RESTORE', at: this.clock() });
@@ -115,7 +161,10 @@ export class TeamEngine {
     }));
   }
   submit(roomId: string, input: Submission): CommandResult {
+    const blocked = this.deletionRejection(roomId); if (blocked) return blocked;
     return this.transact(roomId, tx => this.receipt(tx, input.id, input, () => {
+      if (input.replyToTaskId !== undefined && !tx.room.tasks[input.replyToTaskId])
+        return { ok: false, code: 'TASK_NOT_FOUND', detail: '指定的任务不存在，请重新选择任务。' };
       if (input.sourceArtifact && (input.intent !== undefined && input.intent !== 'new'
         || input.replyToTaskId !== undefined || input.retryAssistanceId !== undefined || input.extraOrdinary !== undefined
         || inputControl(input.text) || requestedRetryTarget(input.text, this.config.bots))) {
@@ -158,6 +207,8 @@ export class TeamEngine {
       const existingId = sourceArtifact ? null : input.replyToTaskId ?? tx.room.activeTaskId ?? (['decision', 'continue'].includes(input.intent ?? '') || retryRequested ? Object.keys(tx.room.tasks).at(-1) : null);
       if (existingId && tx.room.tasks[existingId]) {
         const current = decode(tx.room.tasks[existingId]);
+        if (tx.room.activeTaskId && tx.room.activeTaskId !== existingId)
+          return { ok: false, code: 'ROOM_BUSY', detail: '另一任务正在执行，请等待结束后再继续原任务。' };
         if (retryRequested) {
           if (tx.room.activeTaskId && tx.room.activeTaskId !== existingId) return retryReject('ROOM_BUSY');
           const candidates = current.context.assists.filter(h => h.target === retryTarget && retryableAssistance(h)
@@ -166,7 +217,7 @@ export class TeamEngine {
           const requestId = input.intent === 'retry' ? input.retryAssistanceId : candidates.length === 1 ? candidates[0]!.id : undefined;
           if (!requestId) return retryReject(candidates.length > 1 ? 'AMBIGUOUS_ASSISTANCE' : 'ASSISTANCE_NOT_FOUND');
           const next = this.step(current, { type: 'RETRY_ASSISTANCE', id: input.id, at, text: input.text, requestId, config: this.config });
-          storeTask(tx, next);
+          storeTask(tx, next, next.context.reply.ok);
           return { ...next.context.reply, detail: next.context.reply.ok ? '协助重试已受理' : retryProblemText(next.context.reply.code), taskId: existingId };
         }
         const history = conversationHistory(Object.entries(tx.room.tasks).filter(([id]) => id !== existingId).map(([, task]) => decode(task).context), current.context.sourceArtifact);
@@ -179,8 +230,9 @@ export class TeamEngine {
         if (input.intent === 'continue') {
           if (tx.room.activeTaskId && tx.room.activeTaskId !== existingId) return { ok: false, code: 'ROOM_BUSY', detail: 'Another task is active' };
           const event: TaskEvent = { type: 'CONTINUE', id: input.id, text: input.text, at, currentConfig: this.config,
+            ...(input.newWindowMs === undefined ? {} : { newWindowMs: input.newWindowMs }),
             ...(input.extraOrdinary === undefined ? {} : { extraOrdinary: input.extraOrdinary }) };
-          const next = this.step(current, event); storeTask(tx, next);
+          const next = this.step(current, event); storeTask(tx, next, next.context.reply.ok);
           return { ...next.context.reply, taskId: existingId };
         }
         if (taskPhase(current) === 'ended') return { ok: false, code: 'EXPLICIT_CONTINUATION_REQUIRED', detail: 'Explicitly continue the referenced ended task' };
@@ -194,6 +246,9 @@ export class TeamEngine {
       }
       if (retryRequested) return retryReject('TASK_NOT_FOUND');
       if (input.intent === 'continue') return { ok: false, code: 'TASK_NOT_FOUND', detail: 'Provide an existing task to continue' };
+      if (input.intent === 'decision' || input.intent === 'supplement')
+        return { ok: false, code: 'TASK_NOT_FOUND', detail: '没有可接收本次输入的任务。' };
+      if (tx.room.activeTaskId) return { ok: false, code: 'ROOM_BUSY', detail: '当前任务仍在执行。' };
       const owner = input.mentions?.[0] ?? sourceArtifact?.owner ?? this.config.defaultBot;
       if (!this.config.bots.some(bot => bot.id === owner)) return sourceArtifact && !input.mentions?.length
         ? { ok: false, code: 'SOURCE_OWNER_UNAVAILABLE', detail: '原负责人已不在当前配置中，请直接 @ 一位现有成员后重新发送。' }
@@ -211,12 +266,41 @@ export class TeamEngine {
         catch { snapshot = initialTask(taskInput); }
       } else snapshot = initialTask(taskInput);
       this.record(snapshot, { type: '@init', id: input.id, at }, null, evidence);
-      storeTask(tx, snapshot);
+      storeTask(tx, snapshot, true);
       return { ok: true, code: 'OK', detail: 'created', taskId };
     }));
   }
   send(roomId: string, taskId: string, event: TaskEvent): CommandResult {
-    if (event.type.startsWith('EXECUTION_')) return { ok: false, code: 'HOST_ONLY_EVENT', detail: 'Execution protocol requires the trusted runner' };
+    if (event.type.startsWith('EXECUTION_') || event.type === 'RECORD_ACQUISITION') return { ok: false, code: 'HOST_ONLY_EVENT', detail: 'Execution protocol requires the trusted runner' };
+    return this.dispatch(roomId, taskId, event);
+  }
+  executionNotStarted(roomId: string, taskId: string, work: Intent, reason: string): CommandResult {
+    const blocked = this.deletionRejection(roomId); if (blocked) return blocked;
+    const event: TaskEvent = { type: 'EXECUTION_NOT_STARTED', id: `not-started:${work.id}:${work.attempt}`,
+      at: this.clock(), intentId: work.id, attempt: work.attempt, fence: { epoch: work.epoch, goalVersion: work.goalVersion }, reason };
+    return this.transact(roomId, tx => this.receipt(tx, event.id, { taskId, workId: work.id, attempt: work.attempt, reason }, () => {
+      const stored = tx.room.tasks[taskId]; if (!stored) return { ok: false, code: 'TASK_NOT_FOUND', detail: taskId };
+      const current = decode(stored), phase = executionState(current, work.id, work.attempt);
+      if (phase !== 'authorized' && phase !== 'cancelled') return { ok: false, code: 'EXECUTION_START_UNVERIFIED', detail: '执行许可已经使用或无法证明从未启动。', taskId };
+      const next = this.step(current, event); storeTask(tx, next); return { ...next.context.reply, taskId };
+    }));
+  }
+  recordAcquisition(roomId: string, taskId: string, receipt: HostAcquisition): CommandResult {
+    return this.dispatch(roomId, taskId, { type: 'RECORD_ACQUISITION', id: `acquisition:${receipt.id}`, at: this.clock(),
+      intentId: receipt.workId, attempt: receipt.attempt, fence: { epoch: receipt.epoch, goalVersion: receipt.goalVersion }, receipt });
+  }
+  private dispatch(roomId: string, taskId: string, event: TaskEvent): CommandResult {
+    const deletion = this.roomDeletion(roomId);
+    let proof: DeletionSettlementProof | undefined;
+    if (deletion && deletion.value !== 'idle') {
+      if (deletion.value === 'deleted' || !['LOCAL_RESULT', 'LOCAL_RECONCILE', 'LOCAL_STARTED', 'LOCAL_APPROVAL_REQUIRED', 'SETTLE', 'WORK_FAILED'].includes(event.type))
+        return this.deletionRejection(roomId)!;
+      const workId = 'intentId' in event ? event.intentId : event.workId;
+      if (!workId) return this.deletionRejection(roomId)!;
+      proof = { deletionId: deletion.context.deletionId!, taskId, workId,
+        ...('operationId' in event ? { operationId: event.operationId } : {}),
+        ...('sessionId' in event ? { sessionId: event.sessionId } : {}), ...(event.attempt === undefined ? {} : { attempt: event.attempt }) };
+    }
     const { at: _at, ...identity } = event;
     return this.transact(roomId, tx => {
       const value = tx.room.tasks[taskId];
@@ -231,23 +315,46 @@ export class TeamEngine {
       return this.receipt(tx, event.id, { taskId, event: identity }, () => {
         if (!value) return { ok: false, code: 'TASK_NOT_FOUND', detail: taskId };
         const current = checked ?? decode(value);
+        if (event.type === 'CLAIM') {
+          const work = current.context.intents.find(work => work.id === (event as Extract<TaskEvent, { type: 'CLAIM' }>).intentId);
+          if (work?.replay === 'unsafe' && work.kind !== 'cancel' && work.status === 'pending' && !permissionProblem(current.context, event)) {
+            const owner = fingerprint({ roomId, taskId, operationId: work.id });
+            if (!tx.acquireResources?.([{ key: unconfinedEffectsKey, mode: 'write', phase: 'execute' }], owner))
+              return { ok: false, code: 'WORK_BUSY', detail: '实际执行资源仍由其他未决效果占用。', taskId };
+            // On commit the unsafe inflight snapshot becomes the durable barrier, including legacy stores.
+            tx.releaseResources?.([unconfinedEffectsKey], owner);
+          }
+        }
         let leasedKey: string | undefined;
         let leasedOwner: string | undefined;
+        let leasedResources: string[] | undefined;
         if (event.type === 'LOCAL_CLAIM') {
           const local = event;
           const op = current.context.intents.find(i => i.id === local.intentId)?.localOperations?.find(o => o.id === local.operationId);
           if (op?.workspaceId && op.status === 'queued') {
             leasedKey = op.workspaceId; leasedOwner = fingerprint({ roomId, taskId, operationId: event.operationId });
-            event = { ...event, leaseAvailable: tx.acquireWorkspace(leasedKey, leasedOwner) };
+            if (op.resourceLeases?.length) {
+              const leases = heldLocalResourceLeases(op);
+              const available = tx.acquireResources?.(leases, leasedOwner) ?? false;
+              if (available) leasedResources = leases.map(lease => lease.key);
+              leasedKey = undefined;
+              event = { ...event, leaseAvailable: available };
+            } else event = { ...event, leaseAvailable: tx.acquireWorkspace(leasedKey, leasedOwner) };
           }
         }
         let next = this.step(current, event);
         if (event.type === 'LOCAL_CLAIM' && !next.context.reply.ok && leasedKey && leasedOwner) tx.releaseWorkspace(leasedKey, leasedOwner);
+        if (event.type === 'LOCAL_CLAIM' && !next.context.reply.ok && leasedResources && leasedOwner) tx.releaseResources?.(leasedResources, leasedOwner);
+        if (event.type === 'LOCAL_PREPARED' && next.context.reply.ok) {
+          const op = next.context.intents.find(w => w.id === (event as Extract<TaskEvent, { type: 'LOCAL_PREPARED' }>).intentId)?.localOperations?.find(op => op.id === (event as Extract<TaskEvent, { type: 'LOCAL_PREPARED' }>).operationId);
+          if (op) tx.releaseResources?.(op.resourceLeases?.filter(lease => lease.phase === 'prepare').map(lease => lease.key) ?? [], fingerprint({ roomId, taskId, operationId: op.id }), 'prepare');
+        }
         if (event.type === 'LOCAL_RESULT' || event.type === 'LOCAL_RECONCILE' || event.type === 'LOCAL_APPROVAL_REQUIRED') {
           const local = event;
           const op = next.context.intents.find(i => i.id === local.intentId)?.localOperations?.find(o => o.id === local.operationId);
           if (op?.workspaceId && ['succeeded', 'failed', 'cancelled', 'queued', 'awaitingApproval'].includes(op.status) && next.context.reply.ok) {
             tx.releaseWorkspace(op.workspaceId, fingerprint({ roomId, taskId, operationId: event.operationId }));
+            tx.releaseResources?.(op.resourceLeases?.map(lease => lease.key) ?? [], fingerprint({ roomId, taskId, operationId: event.operationId }));
           }
         }
         const reply = { ...next.context.reply, taskId };
@@ -263,11 +370,15 @@ export class TeamEngine {
         }
         storeTask(tx, next);
         return reply;
+      }, result => {
+        if (!result.ok && event.type === 'RECORD_ACQUISITION' && result.code === 'ACQUISITION_WORK_UNAVAILABLE') return false;
+        return event.type !== 'CLAIM' || result.ok || !['WORK_BUSY', 'WORK_NOT_PENDING', 'HOST_APPROVAL_REQUIRED', 'WAIT_FOR_BOUNDARY'].includes(result.code);
       });
-    });
+    }, proof);
   }
   localNamespace(roomId: string, taskId: string): string { return fingerprint({ roomId, taskId }); }
   requestHostRetry(roomId: string, taskId: string, sourceWorkId: string, sourceOperationId: string, sourceRequestHash: string, commandId: string): CommandResult {
+    const blocked = this.deletionRejection(roomId); if (blocked) return blocked;
     return this.transact(roomId, tx => this.receipt(tx, commandId, { taskId, sourceWorkId, sourceOperationId, sourceRequestHash }, () => {
       if (!tx.room.tasks[taskId]) return { ok: false, code: 'TASK_NOT_FOUND', detail: '找不到原任务' };
       if ((tx.room.activeTaskId ?? Object.keys(tx.room.tasks).at(-1)) !== taskId) return { ok: false, code: 'ROOM_BUSY', detail: '另一任务已成为当前任务' };
@@ -280,7 +391,7 @@ export class TeamEngine {
       if (!localEnabled(this.config, c.owner) || source && !localEnabled(this.config, source.target)) return { ok: false, code: 'LOCAL_TOOLS_DISABLED', detail: '本地工具权限已关闭' };
       const next = this.step(current, { type: 'REQUEST_HOST_RETRY', id: commandId, at: this.clock(), sourceWorkId, sourceOperationId, sourceRequestHash,
         requestHash: fingerprint({ action: hostRetryAction(op), workspaceId: op.workspaceId, namespace: op.namespace }), currentConfig: this.config, fence: { epoch: c.epoch, goalVersion: c.goalVersion } });
-      storeTask(tx, next); return { ...next.context.reply, taskId };
+      storeTask(tx, next, next.context.reply.ok); return { ...next.context.reply, taskId };
     }));
   }
   decideHostApproval(roomId: string, taskId: string, intentId: string, operationId: string, approvalId: string, decision: 'approve' | 'approveSession' | 'deny', commandId: string): CommandResult {
@@ -296,15 +407,16 @@ export class TeamEngine {
     return this.send(roomId, taskId, { type: 'REVOKE_HOST_SESSION', id: commandId, at: this.clock(), grantId,
       fence: { epoch: c.epoch, goalVersion: c.goalVersion } });
   }
-  requestLocal(roomId: string, taskId: string, intentId: string, parentAttempt: number, action: LocalAction, messages: LocalMessage[], workspaceId?: string): LocalOperation {
+  requestLocal(roomId: string, taskId: string, intentId: string, parentAttempt: number, action: LocalAction, messages: LocalMessage[], workspaceId?: string, resources?: LocalResourcePolicy): LocalOperation {
     const work = this.view(roomId, taskId)?.context.intents.find(i => i.id === intentId);
     if (!work) throw new Error('UNKNOWN_WORK');
     const operationId = `${intentId}:local:${work.localCheckpoint?.nextOperation ?? 0}`;
-    const requestHash = fingerprint({ action, workspaceId: workspaceId ?? null, namespace: this.localNamespace(roomId, taskId) });
+    const requestHash = fingerprint({ action, workspaceId: workspaceId ?? null, namespace: this.localNamespace(roomId, taskId), ...(resources ? { resources } : {}) });
     // A rejected action creates no operation. A different action at that slot needs its own receipt.
     const receiptHash = fingerprint({ requestHash, parentAttempt, messages });
     const response = this.send(roomId, taskId, { type: 'LOCAL_REQUEST', id: `local-request:${operationId}:${receiptHash}`, at: this.clock(),
       intentId, operationId, parentAttempt, namespace: this.localNamespace(roomId, taskId), requestHash, action, messages,
+      ...(resources ? { conflictKey: resources.conflictKey, resourceLeases: resources.resourceLeases } : {}),
       ...(workspaceId ? { workspaceId } : {}), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
     if (!response.ok) throw new Error(response.code);
     return this.view(roomId, taskId)!.context.intents.find(i => i.id === intentId)!.localOperations!.find(o => o.id === operationId)!;
@@ -328,6 +440,7 @@ export class TeamEngine {
     return Object.values(this.store.read(roomId).tasks).flatMap(value => decode(value).context.messages).sort((a, b) => a.at - b.at);
   }
   pending(roomId: string, taskId: string): Intent[] {
+    if (this.deletionRejection(roomId)) return [];
     const view = this.view(roomId, taskId);
     if (!view) return [];
     const kind: Partial<Record<TaskView['phase'], Intent['kind'][]>> = {
@@ -340,13 +453,14 @@ export class TeamEngine {
   claim(roomId: string, taskId: string, intentId: string): Intent | null {
     const view = this.view(roomId, taskId);
     const item = view?.context.intents.find(i => i.id === intentId);
-    if (!item) return null;
+    if (!item || item.status !== 'pending') return null;
     const result = this.send(roomId, taskId, { id: `claim:${intentId}:${item.attempt + 1}`, type: 'CLAIM', intentId, at: this.clock() });
-    if (!result.ok) return null;
+    if (!result.ok || result.duplicate) return null;
     return this.view(roomId, taskId)!.context.intents.find(i => i.id === intentId)!;
   }
   /** The claim and one-use execution permit must both commit before any external adapter call. */
   beginExecution(roomId: string, taskId: string, work: Intent): boolean {
+    if (this.deletionRejection(roomId)) return false;
     return this.transact(roomId, tx => {
       if (!tx.room.tasks[taskId]) return false;
       const current = decode(tx.room.tasks[taskId]);
@@ -363,6 +477,7 @@ export class TeamEngine {
     return value ? executionState(decode(value), work.id, work.attempt) : undefined;
   }
   flushResults(roomId: string, taskId: string): boolean {
+    if (this.deletionRejection(roomId)) return false;
     if (!this.view(roomId, taskId)?.context.results.some(r => !r.consumed)) return false;
     return this.transact(roomId, tx => {
       if (!tx.room.tasks[taskId]) return false;
@@ -389,18 +504,34 @@ export class TeamEngine {
     });
   }
   recover(roomId: string): void {
+    if (this.deletionRejection(roomId)) return;
     const room = this.store.read(roomId);
     for (const [id, value] of Object.entries(room.tasks)) {
       const snapshot = decode(value);
-      if (taskPhase(snapshot) === 'ended' && !snapshot.context.intents.some(work => canRetireDiscussionWork(snapshot.context, work))) continue;
+      if (taskPhase(snapshot) === 'ended' && !snapshot.context.resilience?.cleanup.some(item => item.state === 'pending')
+        && !snapshot.context.intents.some(work => canRetireDiscussionWork(snapshot.context, work) || localPhysicalPending(work)
+          || work.kind !== 'cancel' && work.replay !== 'unsafe' && ['pending', 'inflight'].includes(work.status))) continue;
       this.send(roomId, id, { type: 'RECOVER', id: `recover:${this.instanceId}:${id}`, at: this.clock(), config: this.config });
       while (this.flushResults(roomId, id)) { /* Each durable result is consumed at most once. */ }
     }
     this.tick(roomId);
   }
   tick(roomId: string): void {
-    const view = this.view(roomId);
-    if (!view || taskProtocolChanged(view.context.config, this.config)) return;
+    if (this.deletionRejection(roomId)) return;
+    for (const taskId of Object.keys(this.store.read(roomId).tasks)) {
+      const view = this.view(roomId, taskId);
+      if (view) this.tickTask(roomId, view);
+    }
+  }
+  private tickTask(roomId: string, view: TaskView): void {
+    if (view.phase === 'ended' && !view.context.resilience?.cleanup.some(item => item.state === 'pending')
+      && !view.context.intents.some(work => localPhysicalPending(work) || work.replay === 'unsafe' && ['inflight', 'uncertain'].includes(work.status))) return;
+    if (taskProtocolChanged(view.context.config, this.config)) {
+      if (!taskHumanGate(view.context)) this.send(roomId, view.context.taskId, { type: 'RECOVER', id: `incompatible:${this.instanceId}:${view.context.taskId}`, at: this.clock(), config: this.config });
+      if (view.context.resilience?.cleanup.some(item => item.state === 'pending' && item.nextCheckAt <= this.clock()))
+        this.send(roomId, view.context.taskId, { type: 'SUPERVISE', id: `incompatible-cleanup:${view.context.taskId}:${this.clock()}`, at: this.clock(), trigger: 'recover' });
+      return;
+    }
     const c = view.context; const at = this.clock();
     if (c.hostRetryRequests?.some(r => r.deadline <= at && (r.status === 'pending' || r.status === 'active' && !r.operationId)))
       this.send(roomId, c.taskId, { type: 'HOST_RETRY_EXPIRE', id: `host-retry-sweep:${at}`, at });
@@ -423,14 +554,32 @@ export class TeamEngine {
     const latest = this.view(roomId, c.taskId)!;
     if (latest.phase === 'running' && (!latest.context.discussion || ['delivered', 'cancelled'].includes(latest.context.discussion.status))
       && latest.context.nextCheckAt <= at) this.send(roomId, c.taskId, { type: 'TICK', id: `progress:${c.taskId}:${latest.context.epoch}:${latest.context.nextCheckAt}`, at });
+    const supervised = this.view(roomId, c.taskId)!.context;
+    const due = supervised.resilience?.nextSupervisionAt;
+    if (due !== null && (due === undefined || due <= at) || supervised.outcome === null && !taskHumanGate(supervised) && processingWindow(supervised).hardDeadline <= at)
+      this.send(roomId, c.taskId, { type: 'SUPERVISE', id: `supervise:${c.taskId}:${supervised.epoch}:${at}`, at, trigger: 'timer' });
   }
   nextWake(roomId: string): number | null {
-    const view = this.view(roomId);
-    if (!view || view.phase === 'ended' || taskProtocolChanged(view.context.config, this.config)) return null;
+    if (this.deletionRejection(roomId)) return null;
+    const wakes = Object.keys(this.store.read(roomId).tasks).map(id => this.view(roomId, id)).filter((v): v is TaskView => v !== null)
+      .map(view => this.nextTaskWake(roomId, view)).filter((value): value is number => value !== null);
+    return wakes.length ? Math.min(...wakes) : null;
+  }
+  private nextTaskWake(roomId: string, view: TaskView): number | null {
+    if (view.phase === 'ended' && !view.context.resilience?.cleanup.some(item => item.state === 'pending')
+      && !view.context.intents.some(work => localPhysicalPending(work) || work.replay === 'unsafe' && ['inflight', 'uncertain'].includes(work.status))) return null;
+    if (taskProtocolChanged(view.context.config, this.config) && !taskHumanGate(view.context)) return this.clock();
+    const r = view.context.resilience;
+    const supervision = [taskHumanGate(view.context) && !r?.cleanup.some(item => item.state === 'pending') ? null : r?.nextSupervisionAt,
+      ...(r?.cleanup.filter(item => item.state === 'pending').map(item => item.nextCheckAt) ?? []),
+      ...(view.context.outcome === null && !taskHumanGate(view.context) ? [processingWindow(view.context).hardDeadline] : [])]
+      .filter((n): n is number => typeof n === 'number');
+    const earliest = (values: number[]) => [...values, ...supervision].length ? Math.min(...values, ...supervision) : null;
+    if (view.phase === 'ended') return earliest([]);
     if (!view.context.stopped && hostRetryBatchRetirable(view.context)) return this.clock();
     const discussing = view.context.discussion && !['delivered', 'cancelled'].includes(view.context.discussion.status);
     const retryDeadlines = (view.context.hostRetryRequests ?? []).filter(r => r.status === 'pending' || r.status === 'active' && !r.operationId).map(r => r.deadline);
-    if (view.phase === 'waitingHuman' && !discussing) return retryDeadlines.length ? Math.min(...retryDeadlines) : null;
+    if (view.phase === 'waitingHuman' && !discussing) return earliest(retryDeadlines);
     if (view.context.results.some(r => !r.consumed)) return this.clock();
     const work = view.context.intents.filter(i => ['pending', 'inflight'].includes(i.status) && i.deadline !== null).map(i => i.deadline!);
     work.push(...retryDeadlines);
@@ -439,6 +588,6 @@ export class TeamEngine {
       if (op.deadline !== undefined && ['queued', 'awaitingApproval'].includes(op.status)) work.push(op.deadline);
     }
     if (view.phase === 'running' && !discussing && !view.context.intents.some(localAwaitingApproval)) work.push(view.context.nextCheckAt);
-    return work.length ? Math.min(...work) : null;
+    return earliest(work);
   }
 }

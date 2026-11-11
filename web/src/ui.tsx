@@ -98,6 +98,8 @@ export function Scroll({
 export const phaseLabel = (task: WebTask | undefined) =>
   !task
     ? "等待开始"
+    : task.supervision && ['repairing', 'waitingHuman', 'cleaning', 'faulted'].includes(task.supervision.status)
+      ? ({ repairing: '正在修复推进', waitingHuman: '等待你的回复', cleaning: '后台核对清理', faulted: '执行服务故障', running: '正在执行', settled: '已结算' })[task.supervision.status]
     : task.phase === "ended"
       ? {
           complete: "已完成",

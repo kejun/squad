@@ -19,6 +19,7 @@
 - [网页与观察](#网页与观察)：群聊、导出、面板、调试和 Inspector。
 - [验证模型与文档](#验证模型与文档)：模型回归、文档核对与验收报告边界。
 - [KEJ-107/108 组合验证](#kej-107108-组合验证补充)：17 项的所有者、现有模型、有限抽象与宿主接线。
+- [持续推进与安全删除](#持续推进与安全删除kej-113114)：KEJ-113/114 的处理窗口、人类门、取得凭证、失败重评与独立清理/删除责任。
 
 ## 事务与外部执行的共同边界
 
@@ -409,6 +410,10 @@ LOCAL_REQUEST 固定 operationId、请求摘要、父会话 attempt、技能版�
 技能注册表固定启动 manifest；激活原子发布同版本只读快照，资源按包内相对路径读取；正文和资源不是调度权限。执行阶段的 Bot 默认获得四个本地接口；解析、纯汇总和独立检查模型不执行这些工具。宿主工程验证与后台讨论命令用隔离副本并标记工程 revision；主工作区仍为权威来源。执行后端不可用返回真实失败，不退回无沙箱进程。文件、日志、环境、网络和进程 I/O 在执行器完成，状态机不访问文件或启动进程。
 
 可信 LOCAL_RECONCILE 或 uncertain 操作的 LOCAL_RESULT 回执全部结算后，若目标仍有效且未停止，返回原主工作的阶段（owner→running、assistance→waitingAssistance、facilitator→coordinating、check→checking），复用检查点继续。旧目标和停止任务只结算旧操作，不恢复执行。
+
+BT_Y113 补充监督协调与上述恢复的交叉：若协调请求已经派发，原 owner 的可信核对先返回，则后续 `COORDINATE.continue [当前目标、安全pending检查点、全部效果确定、原期限有效] / 接续原owner并仅收紧期限`，不取消唯一回执持有者。原操作身份和时间不变，后续模型领取仍走原 CLAIM 额度及权限；[恢复细图](implementation/kej-113-task-resilience.md)记录该上下文流程。
+
+BT_G02/BT_H17 的旧流程与新监督交叉见同一[恢复细图](implementation/kej-113-task-resilience.md)：空闲主流程中的直接评审请求回应普通材料询问；partial 后明确重试先归档旧冻结版本，再允许当前身份结果保存。不改原截止时间，也不以新评审请求回答仍在执行的后台讨论问题或命令授权。
 
 BT_L14 的宿主 `local:operations` 命令读取未决会话与当前工作区清单，只有进程已退出、会话身份和审阅摘要匹配时才把操作者确认转换为 LOCAL_RECONCILE(receipt)。未退出、身份不明或摘要过期时不发事件。停止任务完成结算，活动任务由既有恢复守卫回到原工作阶段；此入口不重新执行命令。
 
@@ -1344,13 +1349,15 @@ flowchart TD
   S -->|普通文件无匹配| N[既有新任务路由]
   S -->|歧义| Q[只返回候选元数据 不创建任务]
   Q -->|用户明确选择 新请求ID| U
-  S -->|缺失失效空正文超限非Markdown| E
+  S -->|缺失失效空正文超限非Markdown或显式发布目标不符| E
   S -->|唯一且负责人有效| F[固定身份发布信息原文及SHA256]
   F --> T[原子提交新任务 用户消息 首个意图和回执]
   T --> R[WorkRunner领取与执行许可后调用适配器]
 ```
 
 输入仅携带 sourceTaskId/artifactId，服务端复核当前发布资格，旧版本选择失效须重新选择；创建后 sourceArtifact 与 history 分离，后续发布或历史刷新不影响固定正文。直接目标允许反引号和引号名称；引用段、代码、闲聊及明确路径不触发。等待用户的引用请求也不追加 decision。相同 ID 和完整载荷返回原回执，变更载荷拒绝；事务回滚无任务、回执或外部执行。
+
+BT_A31 的显式发布权威约束：当已保存 `publishedDelivery` 时，只能使用该记录的当前目标文件选择；其目标与当前目标不符时来源不可用，不能回退到更早 final/candidate。只有没有显式发布记录的合法旧快照才能按原最终消息恢复发布选择。此为 R02/R31 原来源资格的细化，不新增执行状态；真实 taskMachine 的完整发布前缀及持久快照恢复先验证当前显式、失配显式、空显式和缺记录旧格式四种输入，再修纯选择函数。
 
 类型：沿用真实 XState 任务阶段的上下文与交付事实图；所有者 `src/task/context.ts`、`src/task/operations.ts`、`src/task/delivery.ts`。没有新增任务阶段或执行入口。
 
@@ -1600,9 +1607,11 @@ stateDiagram-v2
     recovering --> closing: close / 禁止新的核对与执行，等待已开始核对返回
     running --> closing: close / 禁止排队微任务启动，结算已开始工作
     closing --> closed: startup与登记工作结算 / 释放timer与SQLite
-    running --> roomFailed: 非存储hostError / 隔离本房间并保留错误
-    roomFailed --> roomFailed: 同实例定时、提交或finally / 不启动此房间外部操作
-    roomFailed --> running: 其他房间有效工作 / 继续独立调度
+    running --> roomFailed: 非存储hostError / 暂时隔离本房间并保存真实监督原因
+    roomFailed --> roomFailed: 下次监督前提交或finally / 保留输入但不启动本房间外部操作
+    roomFailed --> roomFailed: 其他房间有效工作 / 其他房间继续独立调度与结算
+    roomFailed --> running: 下一次监督 [engine健康且RECOVER成功] / 核对原事实后清隔离并按原窗口和预算kick
+    roomFailed --> storageFault: 存储故障 / 所有房间拒绝新事务许可
     running --> storageFault: 任一存储提交失败 / 同engine所有房间拒绝新的事务许可
     storageFault --> storageFault: 定时、提交、微任务 / 无新外部执行
     storageFault --> closed: close / 释放故障实例
@@ -1621,6 +1630,8 @@ stateDiagram-v2
 ```
 
 不新增XState业务状态：startup、close与微任务/定时器是宿主资源与调度控制，不能伪装成任务状态。实现前复验真实taskMachine的RECOVER将未决物理操作保留unknown、STOP拒绝旧工作领取、重复提交保持同一回执；保存模型版本和轨迹。接线测试使用真实SQLite、公开WebService与TeamEngine API建立前缀，不读取私有Map；用公开LocalRuntime.reconcile实例方法的受控Promise阻塞外部依赖，用Node受控setInterval驱动实际回调。ESM加载器仅在独立诊断进程观察公开WorkRunner.runOne或在该宿主边界抛出非存储错误，不把适配器WorkFailure当成hostError，不新增生产测试开关。存储故障使用真实SqliteStore.failNextCommit回滚。重开必须关闭旧连接并打开同一路径，不复制预期数据库状态。有限序列与接线证据不声称是TLC证明或真实OS进程恢复验收。
+
+KEJ-113修订BT_K07：非存储宿主故障是需要监督推进的暂时房间事实，不是本实例永久停办的权限。真实`SUPERVISE(hostFailure)`留下原因，下一次实际定时回调经`Engine.recover`重核，再沿原硬截止和既有预算调度；未知物理效果继续由原任务模型保留，不因此重放。K07直接检验错误发生在适配器之前、监督前隔离、其他房间完成、同实例恢复完成及同库重开不重复完成结果。K06的存储故障全实例fail-stop断言保持不变。
 
 ### KEJ-108 B1：跨群发送回执与快照隔离
 
@@ -1872,7 +1883,7 @@ flowchart TD
   E --> F[绑定当前候选的独立检查意图]
 ```
 
-工作项结构为 `sourceItems: [{text,status,sourceDocId,sourceEvidenceId}]`；每项必须显式给出原文档ID与保存回执ID，不能引用展示用D编号。来源只接受当前目标和epoch、成功且完整的捕获JSON stdout；按原始文档对象的 `id` 或 `slug` 精确匹配，状态只在该对象直接的 `body`、`body_markdown`、`body_html`、`content`、`description` 字符串内匹配。批量回执的邻居文档、缺失或重复身份不得补作依据。普通报告继续支持原协议。工作项文本不允许自填D编号，文档编号按来源首次出现顺序生成。
+工作项结构为 `sourceItems: [{text,status,sourceDocId,sourceEvidenceId}]`；每项必须显式给出原文档ID与保存回执ID，不能引用展示用D编号。来源只接受当前目标和epoch、成功且完整的捕获JSON stdout；按原始文档对象的 `id` 或 `slug` 精确匹配，状态只在该对象直接的 `body`、`body_markdown`、`body_html`、`content` 字符串内匹配。`description`、`title` 不作为默认正文；自定义字段依照[可信读取配置](implementation/kej-113-evidence.md)中的宿主提供方契约。批量回执的邻居文档、缺失或重复身份不得补作依据。普通报告继续支持原协议。工作项文本不允许自填D编号，文档编号按来源首次出现顺序生成。
 
 预检还检查提交引用的已有报告；工作项结构随报告持久化，重启不改变绑定。状态词逐字出现只是机械前置条件，不证明语义、时间有效性或整份交付通过，之后仍须独立检查。来源缺口进入既有修订/不足额结束路径；没有检查额度不安排改稿。停止、旧fence、迟到结果和恢复沿用真实任务守卫。此投影不发外部I/O，实际检查仅由保存且领取的意图发起。
 
@@ -1935,6 +1946,84 @@ stateDiagram-v2
 
 实现前门槛以真实 XState 和逐事件 persist/restore 验证7失败+1成功、完整/部分补齐、非法来源、引用协议、停止、重启、重复与新输入；通过后才接 Runner、模型协议和真实 CLI/SQLite/受控 HTTP。首检材料不使用增量压缩，避免遗漏恢复要求与来源。
 
-本期恢复来源限定为宿主已捕获并保存完整输出的成功 `runCli` 回执（同目标同 epoch，exitCode=0）。Web 成功响应、历史 artifact 或仅技能读取目前不具备本协议的同等持久化证据形态，不能作为恢复声明来源；这不限制它们在普通工作中的原有用途。
+KEJ-111 当时的恢复来源仅包含宿主已保存完整输出的成功 `runCli` 回执（同目标同 epoch，exitCode=0）。KEJ-113 现将完整可信 Web 取得凭证接入同一恢复入口：模型从实际工具返回的 `hostEvidence.evidenceId` 引用冻结来源，逐项绑定其原请求、work、目标、正文指纹和资源义务；HTTP200、邻片凭证、失败/截断正文、历史 artifact 或仅技能读取不能替代。旧有限形式化切片保持原 CLI 范围，新增 Web 路径由独立真实模型和 HTTP/SDK/SQLite 接线验收，不把原证明范围扩大。
 
 BT_Q48 为同一恢复声明的模型协议边界：`answer` 等非 `deliver` 输出附带恢复字段时，适配器按现有 `invalid_work_output → REGENERATE_MODEL_OUTPUT` 回路反馈，不能静默丢弃后结算。沿用已有格式修复状态、预算与检查点，不新增模型事件；实现前复验真实任务的格式修复授权及上述恢复模型，再接实际模型协议验证。格式修正不能重跑已成功的 CLI。
+
+## 持续推进与安全删除（KEJ-113/114）
+
+本节对应实现中的状态及责任边界。主任务仍是原八阶段；需求核查、完整细图和分层验证记录分别由以下文档承接，有限形式化切片的保证范围以各自对应关系文档为准：
+
+完整执行范围、失败保留、故障检出与 CI 来源见[验证记录](implementation/kej-113-114-verification.md)。
+
+| 层次与所有者 | 细图、契约及验收 |
+| --- | --- |
+| 真实 taskMachine 及任务 context：固定窗口、监督、人类门、冻结交付、清理接管及可信回执续办 | [核心监督](implementation/kej-113-task-resilience.md)，BT_Y01–Y20、BT_Y111、BT_Y113；覆盖 interpreting、running、waitingAssistance、coordinating、waitingHuman、checking、stopping、ended |
+| 取得事实与发布 context：宿主绑定资源、操作、尝试和内容语义及网页宿主引用传递 | [执行凭证](implementation/kej-113-evidence.md)，BT_E100–E127 |
+| 分片队列及共享方法 context：共同前提背压、可信新方法有界重评、实际冲突资源 | [调度恢复](implementation/kej-113-scheduling.md)，BT_Y41–Y60、BT_Y112 |
+| 执行器处理流程：领取、启动许可、取消、技能配置和服务关闭 | [适配器恢复](implementation/kej-113-adapter.md)，BT_Y61–Y71 |
+| 独立 roomDeletionMachine：删除屏障、全历史清单、逐项清理、核对与无正文墓碑；内存与文件模式的网页和任务记录同库 | [安全删除](implementation/kej-114-deletion.md)，BT_X01–X27 |
+| 网页投影：明确人类门、固定版本下载、确认删除/进度/重试/缓存退休 | [网页恢复](implementation/kej-113-114-ui.md)，BT_Y81–Y101、BT_Y107 |
+| 独立进程监督模型与可信路由：健康检测、终止宽限、退避重启、当前任务身份与授权传递 | [宿主守卫](implementation/kej-113-host.md)，BT_Z100–Z106、BT_Z108 |
+| taskMachine权限门context：宿主批准期限与固定任务窗口独立，沉默不代答 | [宿主授权门](implementation/host-approval-gates.md)，BT_Y102–Y106 |
+| 配置恢复门context：不兼容执行配置只接受可执行的跳过/停止，内容包与独立清理保留 | [配置恢复门](implementation/configuration-recovery-gate.md)，BT_Y108–Y110 |
+
+类型：任务拥有的上下文生命周期；所有者 `taskMachine` / `src/task/resilience.ts`。窗口由初次授权固定，普通恢复、重试、心跳不能续期。`SUPERVISE` 由可信宿主提交，模型不能自行生成授权。
+
+```mermaid
+stateDiagram-v2
+    [*] --> automatic
+    automatic --> repairing: SUPERVISE [失去可执行路径且预算与原窗口允许] / 保存有界修复意图
+    repairing --> automatic: 可信结果 [原身份且未过期限] / 保存唯一后继
+    automatic --> human: 阻塞事件 [必须直接回复] / 保存有版本人类门
+    repairing --> human: 阻塞事件 [必须直接回复] / 保存有版本人类门
+    human --> automatic: HUMAN_GATE_DECISION [当前门且reply或明确newWindow] / 记录回复及授权
+    human --> frozen: HUMAN_GATE_DECISION [明确skip或stop] / 记录缺失或停止
+    automatic --> frozen: SUPERVISE [原自动窗口耗尽且无必需任务门] / 无模型冻结partial或failed
+    repairing --> frozen: SUPERVISE [修复或原窗口耗尽且无必需任务门] / 冻结缺失清单
+    human --> human: SUPERVISE [必需任务门未回复] / 保留门与UI入口
+    frozen --> frozen: 迟到结果 [原操作身份有效] / 只结算历史及cleanup
+```
+
+类型：独立清理责任的 context 生命周期；所有者 `TaskResilience.cleanup`，与活动任务指针和归档展示独立。冻结交付与建立接管责任必须同事务保存。未知效果只保留实际受影响资源，不凭截止时间冒充已退出。
+
+```mermaid
+stateDiagram-v2
+    none --> pending: 冻结或停止或恢复 [仍有物理未决] / 保存operation和session及资源身份
+    pending --> pending: SUPERVISE [未知效果] / 保存下一核对时间或明确cleanup门
+    pending --> settled: LOCAL_RESULT或LOCAL_RECONCILE [可信且物理结算] / 原子结算并释放所属资源
+    settled --> settled: 重复或迟到事件 / 幂等且不改冻结交付
+```
+
+类型：拟建真实 XState 独立删除生命周期；所有者 `roomDeletionMachine`。归档仍由原 `roomMachine` 拥有。删除屏障和作业在独立表持久化，不能随待删房间数据一起丢失。所有事件检查删除身份、版本与领取；I/O 只能执行已保存意图。
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> preparing: REQUEST [确认且归档版本一致] / 持久屏障及清单意图
+    preparing --> waiting: INVENTORY [在途或归属不明] / 保存停止与核对责任
+    waiting --> preparing: SETTLED [可信结算] / 更新未决事实
+    preparing --> deleting: INVENTORY [完整且物理责任满足] / 保存逐项清理意图
+    preparing --> paused: FAILED / 保存原因与余项
+    deleting --> deleting: ITEM_SETTLED [当前领取] / 保存进度
+    deleting --> paused: FAILED / 不回滚已删文件
+    paused --> preparing: RETRY或RECOVER [原删除身份] / 续办
+    deleting --> deleted: VERIFIED [DB文件执行及投影全核对] / 同事务清业务表并压缩墓碑
+    deleted --> deleted: 迟到业务或轮询或重复删除 / 拒绝复活或幂等
+```
+
+删除的全历史所有权、共享目录保护、历史 session 与 pending 文件、崩溃检查点和客户端墓碑同步规则见删除细图。UI 仅投影持久状态，不能自行超时关门、把后台清理当成已删干净，或绕过版本屏障。上述门槛均须由真实模型、真实 SQLite/文件/HTTP 与浏览器按层验证。
+
+分片的可信成功守卫为“原始自报success，且该片明确资源义务已由合法宿主来源满足”。缺凭证时可信状态为partial，原始状态和文本另存，来源引用保留acquisition/operation/work/attempt/采集时间及复用标记；同goal合法saved来源可复用，不能改称新抓取。恢复声明还须在其指定的sourceOperationIds集合内逐项覆盖资源，其他全局来源不能替声明作证；无资源义务的推理不增加工具要求。见[分片事实与恢复](implementation/kej-113-scheduling.md)的BT_Y57–Y60及[统一资源校验](implementation/kej-113-evidence.md)。
+
+## 共享 Agent 行为规范
+
+类型：提示构建、输出协议和既有状态交接流程；所有者 `OpenAICompatibleAdapter`、`WorkRunner`及真实`taskMachine`。六种模型工作使用同一规范，固定材料check保留专用无工具边界。`tool/cancel`及自定义适配器不被假称为模型提示覆盖。
+
+验收范围：BT_S01–BT_S13。
+
+该变更不新增XState状态、事件、权限或调度：内容检查仍经 `DELIVER → checking → CHECK_RESULT`；需要人类的结果仍经 `WAIT_USER/COORDINATE askUser → waitingHuman`；成员问题通过原answer交回；未知外部效果仍由原operation/session与cleanup负责。普通文字、沉默和关闭提示不能替代人类决定，格式修复不能重放工具。先复验这些真实模型路径，再接入共享system段；模型是否按规范选择行动由独立行为回放验证。
+
+需求核查、六工作类型/协议映射、细图和验证范围见[共享行为规范](implementation/shared-agent-behavior.md)。本入口不把提示词文本存在、脚本化模型选择或旧状态机通过扩大成真实模型服从率。
+
+BT_S13细化固定check的现有来源目录：候选及当前产物可见不等于它们的ID可用于source；未知引用仍由原守卫拒绝。没有可选支持来源时可省略source并保留unverified原因，直接内容判定不额外要求工具凭证；带requiredSourceIds的条件沿用原必需引用守卫。该补充来自真实回放的协议失败，不修改原实验结果，也不引入新状态或权限。

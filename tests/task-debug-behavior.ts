@@ -35,8 +35,11 @@ export function verifyRetryAndEmpty() {
   sandbox.send(JSON.stringify(retryEvent));
   assert.deepEqual(persistTask(sandbox.snapshot), persistTask(stepTask(retryBefore, sandbox.history.at(-1)!.event as TaskEvent)));
   const frame = sandbox.history.at(-1)!, graph = taskGraph();
-  assert.deepEqual(frame.evidence!.evaluations.filter(e => e.event === 'RETRY_ASSISTANCE').map(e => [e.guard, e.passed]), [['retryReviewContinues', false], ['retryHasResult', true]]);
-  assert.equal(branchStatus(graph.transitions.find(t => t.id === '*:RETRY_ASSISTANCE:2')!, frame, graph), '前一分支已命中，未评估');
+  const branches = graph.transitions.filter(rule => rule.source === '*' && rule.event === 'RETRY_ASSISTANCE');
+  const matched = branches.findIndex(rule => rule.guards.includes('retryHasResult')); assert(matched > 0 && branches[matched + 1]);
+  assert.deepEqual(frame.evidence!.evaluations.filter(e => e.event === 'RETRY_ASSISTANCE').map(e => [e.ruleId, e.guard, e.passed]),
+    branches.slice(0, matched + 1).map((rule, index) => [rule.id, rule.guards[0] ?? null, index === matched]));
+  assert.equal(branchStatus(branches[matched + 1]!, frame, graph), '前一分支已命中，未评估');
   const initial = initialTask(debugInput()), ended = stepTask(initial, { type: 'STOP', id: 'stop', at: 1 });
   ended.context.reply = { ok: false, code: 'OLD_REJECTION', detail: 'old' };
   const emptyEvent: TaskEvent = { type: 'STOP', id: 'again', at: 2 };

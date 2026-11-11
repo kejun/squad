@@ -41,8 +41,9 @@ try {
   symlinkSync(join(root, 'node_modules'), join(checkout, 'node_modules'), 'dir');
   broken('clear-all-room-identities', 'web/src/App.tsx', body => replaceOnce(body, '      delete sendIdentities.current[targetRoom];', '      sendIdentities.current = {};'),
     () => driver('clear-all-room-identities', 'BT_U20', '普通'), 'CrossRoomRetryIdentity');
-  broken('drop-old-snapshot-isolation', 'web/src/api.ts', body => replaceOnce(replaceOnce(body,
+  broken('drop-old-snapshot-isolation', 'web/src/api.ts', body => replaceOnce(replaceOnce(replaceOnce(body,
     '        if (controller.signal.aborted || activeRoom.current !== roomId) return;', '        if (false) return;'),
+    '        if (!merged || activeRoom.current !== roomId) return;', '        if (!merged) return;'),
     '      controller.abort();\n      clearTimeout(timer);', '      clearTimeout(timer);'),
   () => driver('drop-old-snapshot-isolation', 'BT_U21', '成功'), 'CurrentRoomIsolation');
   broken('report-obsolete-loader-failure', 'web/src/inspector-window.ts', body => replaceOnce(body,

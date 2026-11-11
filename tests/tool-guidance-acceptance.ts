@@ -3,11 +3,12 @@ import { LocalRuntime } from '../src/local-runtime.js';
 import type { CliCatalogEntry } from '../src/cli-catalog.js';
 import type { LocalAction } from '../src/local-operation.js';
 import type { CliBackend } from '../src/local-cli.js';
+import type { withCliReadiness } from '../src/cli-readiness.js';
 import { LocalFixture, writeSkill } from './local-tools-fixture.js';
 
 const nodeEntry: CliCatalogEntry = { command: 'node', description: 'Read documents 查询仓库问题', domains: ['github.com'],
   helpArgs: ['--help'], execution: 'sandbox', requirements: ['The installed runtime must support the chosen arguments'] };
-type Recommendations = ReturnType<LocalRuntime['recommendTools']>;
+type Recommendations = ReturnType<typeof withCliReadiness>;
 interface Guidance { type: 'tool_guidance'; untrusted: boolean; recommendations: Recommendations;
   failures: { operationId: string; category: string; nextStep: string; failureCount: number }[] }
 
@@ -59,7 +60,10 @@ export async function initialGuidanceAcceptance(objective: string) {
     assert.match(recommendations.skills.catalogVersion, /^[a-f0-9]{64}$/);
     assert.equal(recommendations.cli.omitted, true); assert.equal(recommendations.skills.omitted, true);
     assert.equal(recommendations.skills.sourceComplete, true);
-    assert.deepEqual(f.runtime.recommendTools(objective), recommendations, 'Ranking should be deterministic');
+    const metadata = f.runtime.recommendTools(objective);
+    assert.deepEqual(recommendations.cli.candidates.map(({ readiness: _readiness, ...candidate }) => candidate), metadata.cli.candidates,
+      'Host readiness must preserve the deterministic metadata ranking');
+    assert.deepEqual(recommendations.skills, metadata.skills);
     assert.equal(f.backend.calls.length, 0);
     assert.equal(f.h.context().intents[0]!.localOperations, undefined);
     assert.equal(f.h.context().usage.ordinary - usage, 1, 'Only the first model request is charged');

@@ -1,3 +1,4 @@
+import { initialResilience } from './resilience.js';
 import { type TaskContext, type TaskInput } from '../types.js';
 import { recordInput } from './input.js';
 import { requestReview } from './assistance.js';
@@ -11,6 +12,7 @@ export function createTaskContext(input: TaskInput): TaskContext {
       usage: { ordinary: 0, checks: 0, assists: 0, replans: 0, retries: 0 }, candidate: null, outcome: null, reason: '', stopped: false, nextSeq: 1,
       deliveryCycle: newDeliveryCycle(),
       lastActivityAt: input.at, lastProgressAt: input.at, nextCheckAt: input.at + input.config.limits.progressIntervalMs, repeat: { fingerprint: '', count: 0 }, deferredCoordination: false, reply: { ok: true, code: 'OK', detail: 'created' } };
+    c.resilience = initialResilience(c);
     if (input.history) c.history = input.history;
     if (input.sourceArtifact) {
       c.sourceArtifact = structuredClone(input.sourceArtifact);

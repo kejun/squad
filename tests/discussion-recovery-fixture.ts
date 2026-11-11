@@ -163,10 +163,18 @@ export class DiscussionRecoveryFixture extends MapReduceFixture {
     const work = this.works[0]!, op = this.operation!;
     assert(['done', 'cancelled'].includes(this.context().intents.find(item => item.id === this.works[1]!.id)!.status),
       'Recovery must retire the safe member while preserving the other member’s unknown physical effect');
-    const blocked = this.engine.submit(this.room, { id: `continue-before-reconcile:${this.roundId}`,
+    const custody = this.context().resilience?.cleanup.find(item => item.workId === work.id && item.operationId === op.id);
+    const continuation = this.engine.submit(this.room, { id: `continue-before-reconcile:${this.roundId}`,
       text: '继续当前目标', intent: 'continue', replyToTaskId: this.task });
-    assert.equal(blocked.ok, false);
-    assert.equal(blocked.code, 'UNRESOLVED_WORK', 'Unknown physical effects must still block public continuation');
+    if (custody) {
+      assert.equal(custody.state, 'pending'); assert(custody.resourceKeys.includes(op.workspaceId!));
+      assert.equal(continuation.ok, true, 'Durable cleanup custody permits independent logical continuation');
+      assert.equal(this.context().intents.find(item => item.id === work.id)!.status, 'uncertain');
+      assert(this.context().resilience!.gates.some(gate => gate.id === custody.gateId && gate.status === 'open'));
+    } else {
+      assert.equal(continuation.ok, false);
+      assert.equal(continuation.code, 'UNRESOLVED_WORK', 'Unowned unknown physical effects must block public continuation');
+    }
     this.assertWorkspaceAvailable(false);
     const receipt = { ok: true, code: 'succeeded', data: { exitCode: 0, stdout: '宿主核对的原始结果' } };
     const reply = this.event({ type: 'LOCAL_RECONCILE', intentId: work.id, operationId: op.id, sessionId: op.sessionId!,
@@ -188,7 +196,8 @@ export class DiscussionRecoveryFixture extends MapReduceFixture {
   }
 
   async continueAfterReconcile() {
-    this.continueCurrentGoal();
+    if (this.view().phase !== 'running') this.continueCurrentGoal();
+    else assert.equal(this.pending('owner').length, 1, 'A previously accepted custody continuation must keep its unique owner');
     await this.consumeCancellations();
     assert.deepEqual(this.context().usage, this.usage);
     assert.equal(this.requests.length, this.requestCount);

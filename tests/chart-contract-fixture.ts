@@ -8,11 +8,11 @@ function send(box: TaskSandbox, type: string): DebugFrame {
 export function graphVocabularyContract() {
   const graph = taskGraph();
   const edge = chartEdges(graph).find(item => item.source === 'running' && item.target === 'coordinating');
-  assert.deepEqual(edge?.rules.map(rule => ({ event: rule.event, guard: rule.guards[0], order: rule.order })), [
-    { event: 'BLOCKED', guard: 'canCoordinate', order: 1 }, { event: 'TICK', guard: 'shouldTick', order: 0 },
-    { event: 'FAILURE_SIGNAL', guard: 'repeated', order: 0 }, { event: '@always', guard: 'reviewReady', order: 1 },
-    { event: '@always', guard: 'deferredReady', order: 2 },
-  ]);
+  assert(edge);
+  for (const [event, guard] of [['BLOCKED', 'canCoordinate'], ['TICK', 'shouldTick'], ['FAILURE_SIGNAL', 'repeated'],
+    ['@always', 'reviewReady'], ['@always', 'deferredReady'], ['SUPERVISE', 'supervisionRepairs']])
+    assert.equal(edge.rules.filter(rule => rule.event === event && rule.guards.includes(guard!)).length, 1);
+  assert.equal(new Set(edge.rules.map(rule => rule.id)).size, edge.rules.length);
   const rule = graph.transitions.find(item => item.id === 'running:HELP:0')!;
   assert.equal(phaseLabel('waitingAssistance'), '等待协助'); assert.equal(eventLabel('HELP'), '请求协助');
   assert.equal(ruleLabel(rule), '请求协助 · HELP [事件身份、版本、权限和额度有效 · valid] / 更新任务与操作意图 · apply');
@@ -21,11 +21,14 @@ export function graphVocabularyContract() {
 }
 export function focusedGraphContract() {
   const graph = taskGraph(), edges = chartEdges(graph, 'waitingHuman');
-  assert.deepEqual(edges.map(edge => [edge.source, edge.target]), [
-    ['interpreting', 'waitingHuman'], ['running', 'waitingHuman'], ['waitingAssistance', 'waitingHuman'],
-    ['coordinating', 'waitingHuman'], ['waitingHuman', 'running'], ['checking', 'waitingHuman'],
-  ]);
-  assert.deepEqual(edges.find(edge => edge.source === 'coordinating')?.rules.map(rule => rule.guards), [['decisionAsk'], ['isCurrent'], ['valid']]);
+  const sourceRules = graph.transitions.filter(rule => rule.source !== '*' && rule.target && rule.source !== rule.target
+    && (rule.source === 'waitingHuman' || rule.target === 'waitingHuman'));
+  assert.deepEqual(edges.flatMap(edge => edge.rules.map(rule => rule.id)).sort(), sourceRules.map(rule => rule.id).sort(),
+    'focused overview must preserve every real local branch touching the selected state');
+  for (const edge of edges) assert.deepEqual(edge.rules, sourceRules.filter(rule => rule.source === edge.source && rule.target === edge.target));
+  const coordination = edges.find(edge => edge.source === 'coordinating' && edge.target === 'waitingHuman'); assert(coordination);
+  for (const guard of ['decisionAsk', 'isCurrent', 'valid', 'businessBlockedByHuman', 'supervisionWaitsForHuman'])
+    assert(coordination.rules.some(rule => rule.guards.includes(guard)));
   assert(!chartEdges(graph).flatMap(edge => edge.rules).some(rule => rule.source === '*' || rule.target === null || rule.source === rule.target));
   assert(graph.transitions.some(rule => rule.source === '*' && rule.event === '@always' && rule.target === 'interpreting' && rule.guards.includes('analysisReady')));
   assert(graph.transitions.some(rule => rule.source === 'ended' && rule.event === 'CONTINUE' && rule.target === 'running' && rule.guards.includes('valid')));

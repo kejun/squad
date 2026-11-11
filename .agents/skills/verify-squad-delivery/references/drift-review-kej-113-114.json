@@ -1,0 +1,614 @@
+{
+  "issue": "KEJ-113 + KEJ-114",
+  "skill": "verify-squad-delivery",
+  "outcome": "updated",
+  "status": "synchronized-after-nine-entrypoints",
+  "reviewedHead": "36916b5c6e974c11f8e51720189c64facef9269e",
+  "workingTree": "frozen committed product with verification-only maintenance edits; captured implementation hashes below",
+  "previousSyncCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+  "baselineCorrespondence": {
+    "nominalSyncObjectAvailable": false,
+    "availableEquivalent": "e526f6f1f6dce276dfd0be14bd60d106aee139c5",
+    "allCoveredFilesMatched": true,
+    "count": 76,
+    "alsoMatched": [
+      "62fdb58",
+      "15d2714"
+    ],
+    "method": "git show BASE:FILE SHA256 compared independently for every existing coverage entry"
+  },
+  "originalRun": {
+    "evidence": "reports/kej-113-114-initial-delivery",
+    "status": "blocked",
+    "reason": "covered-source drift",
+    "propertyCounterexample": false
+  },
+  "bounds": {
+    "tasks": 1,
+    "candidates": 1,
+    "documents": 1,
+    "savedSkillResources": 1,
+    "goalVersions": 2,
+    "crashes": 1,
+    "rollbackFailures": 1,
+    "checkRequests": 1,
+    "candidateRevisionInputs": [
+      "current",
+      "stale"
+    ],
+    "resourceReceiptCorruptionCases": 9
+  },
+  "changes": [
+    {
+      "file": "src/local-operation.ts",
+      "oldSha256": "754c1e5e49f62c4e266fda3eb7511c54112a866f9cc35fc94f63e7da77568876",
+      "candidateSha256": "ba9a546b17402b7f585d7c81fc8c53beb1786651384d0a4822ae56a456622482",
+      "diffSha256": "89071c67a922fa89e0f966d30955f30293c5b3cd4eccd9273cf2135e39722347",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Optional conflictKey/resourceLeases/preparedAt and LOCAL_PREPARED support resource-specific leases. resourcePlanProblem returns null when fields absent; original graph requests omit policy. A newly required host approval gate persists human waiting independently of execution-token expiry; an exact denial may settle a never-started expired approval, while approval/start remain forbidden after expiry. The host-retry finite prefix does use pre-expiry approval-required/denial, so it must be replayed and cannot be dismissed as approval-free. Session identity, unknown-effect state, checkpoint consumption and original legacy workspace lease contract remain required; new preparation/RW combinations are outside old graph."
+    },
+    {
+      "file": "src/model-adapter.ts",
+      "oldSha256": "4f51a62861c7c0e825d5750d263312e4a05ca8e832d5f19edc90cdce6a73e9cd",
+      "candidateSha256": "7d2c7be8703ca71129fd7eb85a8b10f611b5c2ab563762115fb81a30a7759eef",
+      "diffSha256": "d7ceaec4830447e479335c6d315d21f847e47072e810689c9ade664e76dde5b6",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Instructions for tool configuration/readiness, source-verified shared methods and canonical Web evidence references change; Web result JSON now carries separately generated host provenance. Graph drivers send controlled public events and do not execute model HTTP. Actual process bridges use scripted model responses and still require exact effects/checkpoint assertions."
+    },
+    {
+      "file": "src/local-cli.ts",
+      "oldSha256": "db577455e9fb60f5d12e0cc6af6980c52eec7f8fbec0cbc3ff3a34223092e69e",
+      "candidateSha256": "5a11e027e082424df77d9f5dcfb92c35f51507440e836465d2609b59cf26fc40",
+      "diffSha256": "f87d6ca3524990354bdcf206c1c3224370d1db69efac36890b787668ae6cbb26",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Backend isolation is an explicit trusted capability. CliJournal launch/settled receipts and prepared=>unknown classification are unchanged. The legacy direct graph does not execute backend code; seven process bridges still exercise the retained journal barriers."
+    },
+    {
+      "file": "src/web-tools.ts",
+      "oldSha256": "aefd3b4625fada48ef66e821bd6252c6b0dae9e454a8799f4c0c321efc531840",
+      "candidateSha256": "c03bdca771c9af1e67bc35a9156a3da124f51cc1902254d6f091f69cef5d5545",
+      "diffSha256": "db156888470dfbd3d0dfc11277ffa5af920cfbb505eb2a9c8c1be0e7c7518157",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Trusted full-page capture accompanies model-visible bounded window. No old finite graph calls WebTools. The independent new E101/E104 web integration verifies full capture through SQLite, not arbitrary Web provider semantics."
+    },
+    {
+      "file": "src/local-runtime.ts",
+      "oldSha256": "b6f2d674c90b794567dd2e2f77669a6225d6cd37a66c5de0863151e415aa8084",
+      "candidateSha256": "ece2447adc368f94ea549bfb9a1b4dbb0127b3a2cd1da62bcdb89d7d0383cf60",
+      "diffSha256": "deebf67ac80e882475843b88cab7dd192b925d66b2bfcf3bc5ba85ced379531e",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Trusted pure reader delegation, owned-file inventory and physical-job tracking are new. Workspace policy/prepare callbacks apply only to explicitly resource-planned operations; legacy embedding remains supported. Process bridge Runner now uses policy, so the real integration must be rerun; original finite graph does not claim these new concurrency/deletion properties."
+    },
+    {
+      "file": "src/types.ts",
+      "oldSha256": "8e8d85e75b8f5ea7b0ce39d308d88d606fb9a0f02e8491d3741e418d921503f5",
+      "candidateSha256": "53b2dca9c74c55152c72aef123cf2cb38c3d714bb42284ef50fd488824eb9334",
+      "diffSha256": "1ec3c80d0a0827024547e9da1a34d49703363be6bc9c9bb3016ef03ca01fbf4c",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Optional resource obligations, acquisitions, supervision and new-window event contracts are added; config validation checks finite positive policy values. Existing fixed configurations remain valid. Types do not independently prove any new runtime domain."
+    },
+    {
+      "file": "src/store.ts",
+      "oldSha256": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
+      "candidateSha256": "3eb36535afb71bad478495506f0dea78a0fef3d69fa56b85d5a4e2756d7da432",
+      "diffSha256": "98f0681c691ce738646854b8335ddefab328abf56955ae8f98088696fd9b4dce",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Sqlite transaction body is factored through atomic without splitting commit/rollback; a WebService now borrows the same DatabaseSync connection for task and web rows (including :memory:) and closes the owning service connection only once, while a path-created standalone Store still owns/closes its own connection. assertSettlement rejects all business writes after dataErased; Memory clones resource maps along with rooms/receipts/legacy leases. New resource_leases interlocks conservatively with workspace_leases; deletion tombstones/barrier and erase transactions require owned proof. Old graphs have no resource leases/deletion, preserve failNextCommit rollback and exact legacy lease ownership; neither new lifecycle is proved by old graph."
+    },
+    {
+      "file": "src/delivery-acceptance.ts",
+      "oldSha256": "dfbf0e5330e6da8c8822186eeccc080da7253818b614e88aaabde38f9d916253",
+      "candidateSha256": "4cc0389a027e13631058b52ba911e0b99e487160a898510168e47e44fe117dc4",
+      "diffSha256": "a0e01e922c39e352929b3c0e214257c3b0179801da99d53d60438ab3a196eb85",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Missing explicitly required resource acquisitions add mechanical gaps. Original finite goal strings contain no acquisition URLs and no typed resourceRequirements, so their existing candidate/requirement prefixes retain the original qualification."
+    },
+    {
+      "file": "src/runner.ts",
+      "oldSha256": "19ebc1b09cbfb6eaf6d05b5906be2b590b1c77e2768974d668194ea1fb4c069d",
+      "candidateSha256": "c367c12a5c1da32b4cac4b8d2871e8dac6348219ccb0da5e340beae7337716eb",
+      "diffSha256": "12aea97325310baec44f26b7b09b8acb00d763f459fcdd4cbba0203391af975f",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Adds host acquisition after durable LOCAL_RESULT, full web capture and canonical hostEvidence after the receipt commit, live readiness, typed skill failures, resource planning/preparation, scoped async cancellation and detach fencing. Complete persisted successful CLI results may be reparsed before the next model request; original operation attempt/time/snapshot are preserved and no CLI or budget is replayed. Original finite graph drivers call Engine directly. Real crash bridges exercise the revised Runner separately; their success does not prove arbitrary provider, shutdown, acquisition or RW schedules."
+    },
+    {
+      "file": "src/skills.ts",
+      "oldSha256": "81bf7ae230a719f046a0caced6c0293807f259c4d500349c7a78ecdfbbf1e111",
+      "candidateSha256": "616a30fed055e935a09fef66cded225626220c5a1e9211dac44ec543d37a6bb2",
+      "diffSha256": "6265859aee82e2b37d636a2e7a09bcf9f211aa9fcd249430c3c9c920b6638928",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Read-only skill-search transport errors become typed transient/nontransient codes. No search is invoked by old finite graph or fixed process bridge commands, and this does not authorize installation/login."
+    },
+    {
+      "file": "src/engine.ts",
+      "oldSha256": "a2c2583aa9fb4ab14e403816c528f0799a9c2cdce297658fabafeb32bc17196a",
+      "candidateSha256": "ea4fc1ba23f93b9591a8201ad7e71ce2a438c1b3ba0214513b89808922264d0f",
+      "diffSha256": "008aa2d5adc337944acdb71fe2e511a481450cf54173b44a1a48fc4ee61407a7",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Trusted acquisition entrypoint, deletion barriers, active-task isolation, retryable CLAIM receipt exclusions and all-task supervision are added. Deletion preparation now returns before any room transaction after matching durable dataErased, so a verification retry cannot recreate an erased room. Existing store transaction still linearizes snapshot/receipts/legacy lease settlement. Direct graph prefixes use no deletion/resource policy/acquisition; clocks precede supervision/window deadlines and one task per room. Recovery macro assumptions require executable revalidation; new supervisor/deletion scheduling is excluded."
+    },
+    {
+      "file": "src/web/debug-journal.ts",
+      "oldSha256": "5473cefd6b2f382f6a2d6a5928803569a19e09ceef4efd4a47d60a4b636a65c7",
+      "candidateSha256": "5894a650d045569bdfe5e161a54ace71d2e2a89d30a50b2a4c84a6249106eebe",
+      "diffSha256": "630319045a1cd58e8f625121648fe814d7d6d299ddf6cf63e610ec48cf6b12ff",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Room deletion can discard only that room debug projection. No model transaction or CLI journal is changed; old direct graph does not invoke Web debug deletion."
+    },
+    {
+      "file": "src/web/contracts.ts",
+      "oldSha256": "41d69f61d23bbd57913a2ba382dc12b12f3d795eb4a69ed0e8ddfaa4d2de8d69",
+      "candidateSha256": "e43478d16ed855a960e5042e02c0524b28c6f2de79ab40a1608643d528a46f98",
+      "diffSha256": "3303815fecb664e92cfc7e67fc0ff6fc4e16e258138ca55d3c074eea9ad62ec5",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Adds blocker/deletion/current delivery projections. Engine graph drivers do not call HTTP/UI projections. Process bridge routes remain separately executed; no new old-model field is claimed."
+    },
+    {
+      "file": "src/web/service.ts",
+      "oldSha256": "615cbde81c144c593435b24e454dd5871e255952d8c44d6ff78917118185655e",
+      "candidateSha256": "9aa09280c67d4d9cd037d01aa40dc575acca3e46ebf39625ea36b04650cbfab3",
+      "diffSha256": "ac590f3d27dcc16c86f7e0974029b63067048b61daf79a81b5e4fd3c1e0482a9",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Persistent supervision timers, independent cleanup, traced live scope forwarding, all-task kick, bounded cancellation/drain and deletion coordinator integrate new lifecycles. Direct finite drivers construct Engine only. Seven local-effects actual process/SQLite bridges do use Service/Runner and must still independently pass; original graph fairness is not evidence for timer/watchdog/deletion fairness."
+    },
+    {
+      "file": "src/web/http.ts",
+      "oldSha256": "0353bf851274b11b4c31d6adf0cc60c62e49883541e6d1e2c67a6904e50bd3ad",
+      "candidateSha256": "b1d122e4a840ad722ee4ca6b43a73187b31ec8ed92be232f495c1716cdcccbfc",
+      "diffSha256": "bafe18a3056c6f2df37d0df8cea86dca61f6ac1bfc2eb17cfe31ebf02d1aa44f",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Adds same-origin reviewed blocker/reconciliation/deletion endpoints and health; typed continuation budget/window validation. Old finite graph uses Engine public calls and does not invoke these new routes. This check does not establish UI permissions or deletion safety."
+    },
+    {
+      "file": "src/task/delivery.ts",
+      "oldSha256": "b38e539124b74974dae3e487f352c113704631fddb9f9ed40c8d72b5d07f7b0b",
+      "candidateSha256": "e6879a729d525d3e699e0c2a5be63b318c66f90e60b10d6d67dfd186642560ed",
+      "diffSha256": "9a091023f4e2607ff2ae3755dabc2e31f40c412138bbf62fada4ccd7dbf8db2e",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Submission and all-pass check require actual source obligations; existing goals have none. publicationIds now prefers explicit current frozen/publication selection, without inventing a selection when no real candidate/final exists. An explicit successful publication is authoritative even when empty; a target mismatch returns no current selection and cannot fall back to an older final. The original graph publication records always match their current goal; restored inconsistent/legacy inputs are separately checked by A31. Only a real complete outcome can be retained as a legacy successful publication; partial continuation cannot promote its draft. CurrentCandidate/SnapshotBinding and complete publication guards are retained; partial freeze is intentionally new and not modeled as complete."
+    },
+    {
+      "file": "src/task/discussion.ts",
+      "oldSha256": "91545a2d721deaaec705c3590fc985f68c1a83c32cb20aa1d182bcc460b58ca2",
+      "candidateSha256": "6090f36fce08f19d19cff4dcd38344c20c249493b45b767a1993dd676d4cb39b",
+      "diffSha256": "594a0cac714498d46c72fe92109e9e95478252c48cfe975a2de77daf47ea0350",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "A work already adopted by independent cleanup no longer occupies a logical discussion member slot. Existing delivery/effects/host-retry graph prefixes have no discussion; old unknown physical op and lease stay guarded. No new discussion-after-cleanup liveness guarantee is inferred."
+    },
+    {
+      "file": "src/task/evidence.ts",
+      "oldSha256": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
+      "candidateSha256": "463a61866b5e849da7565972e5dd8167f0419e36e51c374bd1483fca4034ae6f",
+      "diffSha256": "6bbdf74acea7a1eebc286a252af5078b48e147ae6859902824bb49eacfc72ad1",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Saved host web observations are added to evidence alongside original CLI/skill captures, and acquisition summaries attach to metadata. Web evidenceId remains the canonical frozen receipt id while sourceOperationId preserves the original HTTP request id; no old CLI/skill id changes. Old graph only saves CLI/skill sources without host acquisitions, retaining hashes/content/resourceSnapshot comparison and visibility. New Web/CLI resource-acquisition combinations remain outside these old finite graphs."
+    },
+    {
+      "file": "src/task/assistance.ts",
+      "oldSha256": "d472d9c7422118a217d23ef0019831ad1598e3d9137da794830f39ac286ee6df",
+      "candidateSha256": "a8628937aad37ca19bfa210b288e537f406b4323c1b191ab86e6333438cd1950",
+      "diffSha256": "7d5eb170b4132af440a6221e3b2e195eaeeece401a41356e5d86e7da4c53f46d",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Saved cancelled assistance may be consumed after a terminal task when explicitly retried; existing graph slices have no assists/results, so this path is absent. Not a proof of new durable handoff/retry behavior."
+    },
+    {
+      "file": "src/task/actions.ts",
+      "oldSha256": "ea83801f566c9a457aafd351b6f23639bb836da9f2efcb789e3740b1776671bd",
+      "candidateSha256": "4b25c51842badc38daa3d3201f02a660df227d105141521dd334b928bda34333",
+      "diffSha256": "2947e22992a3e0f344792a01e87c163a63ddc98493e5a8263af942c7d0080e69",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Adds phase-specific pure SUPERVISE assignments; no new I/O or transaction boundary. Original action alphabets do not send SUPERVISE. Ordered original host-retry actions remain in the real machine."
+    },
+    {
+      "file": "src/task/context.ts",
+      "oldSha256": "e5efe2a6ca63f8c4835a18fb93737cb1c3d94ff96e972fc3f0b537fc821fba08",
+      "candidateSha256": "ae96dd7dd487b3776758fe5f0c452c64c52ca0e454f766818b7f5bc268f16092",
+      "diffSha256": "899cfdde918c64a7dbb6e93878c1896b6039d95f37be5724287a08f1ca76089e",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Initial processing window and empty gates/skips/cleanup are persisted. For original controlled clocks no supervision deadline is due. Existing task state remains same projection; persisted additional data is not discarded by storage."
+    },
+    {
+      "file": "src/task/policy.ts",
+      "oldSha256": "f34c53e815fed60a564f4b4ad454d107ec115b19a1987938241cc23a281b0905",
+      "candidateSha256": "ded18a03e7b5485e608a3d15cbb0927e787f928d9c969c505375336e92ba5078",
+      "diffSha256": "f6d500a1d016c43849a523bcb16165815b43097da18740444bc965f91f982e7e",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Adds host-only acquisition verification, immutable frozen delivery, deadline/window and required-human gates. Existing direct finite prefixes remain before deadlines and have no source requirements/new gate events; original candidateRevision/fence/session/workspace checks remain required. New guarded branches are separately accepted, not old finite-domain proof."
+    },
+    {
+      "file": "src/task/operations.ts",
+      "oldSha256": "67713454a5f4be40770f185ffa864ae6084b82bfc71075406234ec0fdcf1d386",
+      "candidateSha256": "b997ec9f15f59a4e8d3eacfc73ebf189e0d0d996dde42b3409331f45ffbd0621",
+      "diffSha256": "aa79b27017415b8d1515835ef021bce37da12e259293b43eefc980e5be67590a",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Intent deadlines cap to current window and owner dispatch respects durable gates/cleanup. COORDINATE continue may reuse only an existing same-goal/epoch pending safe owner with a settled original local checkpoint and before all fixed deadlines; it neither relabels the source nor creates a replacement tool attempt. Original graph action alphabets do not execute this model coordinator path; actual process bridges must check exactly one owner/check and effect ledger. Noncomplete finish now freezes a deterministic partial/failed/stopped host report; complete still publishes candidate/outcome/final in one transaction and refuses pending physical effects. Original complete publication/cycle/lineage properties remain unchanged; new partial text and deletion are not silently projected as proved."
+    },
+    {
+      "file": "src/task/facts.ts",
+      "oldSha256": "7d29345b1e74ed3ffcb70cd592161d2d1728f7c57d3c3b7b4eb91f84cc9cd273",
+      "candidateSha256": "ee7161ab136bb54191c5af11ce3bbdd508260f75c583a16bb6ff7a0b4f916d2b",
+      "diffSha256": "219ebb8a1ee2c55fa63e8d2a46b5fe321186c578afeca9ed778dbabbfc79cf90",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "A work in durable cleanup no longer blocks an unrelated member lane. Original direct graph does not schedule a new work after custody adoption; old unknown-operation lease is still held and must be checked through Commit/Reconcile."
+    },
+    {
+      "file": "src/task/reducer.ts",
+      "oldSha256": "3fb30e8295897c4af5d12a34aae7f0640d858024d89a8139cdd400a1256c5b1e",
+      "candidateSha256": "c2e15627db07645398c20f4fdbf16aa876a9529f8a7532961f608f98393277d3",
+      "diffSha256": "42b14a2abe6386e517737c1a3d1610097021642c76cc4439e384a2ea3416d0cd",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "New supervision/cleanup/gate/acquisition writes remain pure inside existing store transaction; late assistance classification retains raw history, stopped recovery freezes logical results, and safe retries preserve existing checkpoint. Explicit assistance retry archives an old frozen report without extending the original processing hard deadline; no old graph action retries assistance. Original LOCAL_RESULT/RECONCILE still commits receipt/checkpoint together; no unsafe physical replay permission is introduced. Original graph projection and actual-code controls must be revalidated, especially STOP and RECOVER."
+    },
+    {
+      "file": "src/task/map-reduce.ts",
+      "oldSha256": "8409db33692155fbf5b18383a54991087ecbb334bc26a4cfbe2f99cfb7c6c74b",
+      "candidateSha256": "694139c96425237e892f56bbe830f5bb460f298bdc3d708d2b8c31c2f32ab55a",
+      "diffSha256": "f338d4c7a46e069a5d3b2fbce577c2be0d47e7f7281fb4d0706d7323b80f79df",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Partition deadlines are capped to the persisted processing window. No decomposition/discussion exists in original graph prefixes; old task/owner/check deadlines remain before their hard window."
+    },
+    {
+      "file": "src/task/guards.ts",
+      "oldSha256": "8b26dc562f769117962e72c9d68804bc0ca10db4274fa944750e6a8a774e7553",
+      "candidateSha256": "94053221acc0f2f9b91005f4e17027c0a2c8b0a51c13c972afce750457704a29",
+      "diffSha256": "422dad71e6300e46fd8f0e0034847b9b4285d9dbbd6bd5dc923f9dfe3a12285e",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Adds human gates/window boundaries/safe repair and cleanup-aware business barriers. Old controlled prefixes have no required gate or due processing window, and existing work state guards remain ordered. STOP/RECOVER with physical unknown may now freeze logical output while preserving actual op and lease; old graph projection covers only physical facts, not new report/gate semantics."
+    },
+    {
+      "file": "src/task/lifecycle.ts",
+      "oldSha256": "94963a5125285181fa0c325d3379abb400514289918f75ad0b77f01be792518f",
+      "candidateSha256": "4de9ac0127f11dbe2980c73b1176e7b053a2720a7fb06b31e0cc03627759d9e1",
+      "diffSha256": "ec433d97a0ca66fc73f6d3da36b6013cab4bc770775b91ceff4296eb2ce17dde",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Adds supervised phase routing and trusted acquisition/preparation/human-decision events, plus stopped recovery guards. Original host retry synchronization/retirement order is retained. Old alphabet does not include new events; STOP/RECOVER effects must still match each represented physical/complete-publication projection."
+    },
+    {
+      "file": "package.json",
+      "oldSha256": "3116143dffa7c27a4fc9a8892e08603d754bc5e2f506752b500d874befb0ab3c",
+      "candidateSha256": "e809edfebb43fbfd77f200e6afec11e6109c7d7e8549efb8ee45536d6278df21",
+      "diffSha256": "c1b064a31241a69e766f38bc5b2cb5438b667a8599bfa1d5d4137ed868e06f58",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "start delegates to independent process supervisor; original check entrypoints and locked dependencies are unchanged. No startup script is run by these finite graph drivers."
+    },
+    {
+      "file": "src/task/map-reduce-capacity.ts",
+      "oldSha256": "565fee8a9b59523339f0548e41002560a83a48a85ec4b0aedfa121cf39e3239a",
+      "candidateSha256": "884164a24ac692c40dbf196fb0fd4b00f833e2cc0e5ddda6b8ee7e0c6472f0c7",
+      "diffSha256": "fd33b113ca115acc3aa6daa7275ae2bd8691c2158301830ad72048436607385a",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Logical member capacity excludes work already adopted by durable cleanup. These three legacy graph prefixes have no map decomposition or capacity scheduling; this does not relax the physical lease guard for the unknown operation."
+    },
+    {
+      "file": "src/cli-catalog.ts",
+      "oldSha256": "bf961fb4e4d6d9f1bb396ca0ee6fc282df16be89224c1ccd742ec5a6ff220ebc",
+      "candidateSha256": "08a49e8e7a8cb15da8cb4d8b4fa22f7bbd6aa5636edb59bcceae43c30f74734d",
+      "diffSha256": "2911c7a92d023a52eb99d0e7135eb6a177fcaab770869789aa01845d7909b125",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Configuration and lexical match metadata distinguish unconfigured/empty/configured. No execution permission or saved operation mutation. Formal direct drivers do not instantiate catalog; real local bridges still use fixed controlled metadata."
+    },
+    {
+      "file": "src/task/tool-knowledge.ts",
+      "oldSha256": "75027f3c4001d3ad42d459953f1909800b2b29e8d657ddbeb13e71a398fd2987",
+      "candidateSha256": "7739654b94e4ccf6628bd8c55095c066f52691a074a190b0b8d39b299b0299b9",
+      "diffSha256": "7edd6afd6b0f63ef0da36c91ea64d4be27a0e1bf644a987ffc63018c07fabc6d",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Successful process exit alone no longer shares a verified read method; shared methods derive from exact host acquisition/configuration scopes. This is read-only context projection, not authority or a lease mutation. Existing finite graphs never consume shared method guidance."
+    },
+    {
+      "file": "src/task/map-queue.ts",
+      "oldSha256": "8aa95a725bf9d43f3340f519d0e0ffa928893371100ad24d4f49ea3174150e54",
+      "candidateSha256": "79b0c55b825bd31e78c818064ea2ced205edb2724f0b254c31d9ae981199c5da",
+      "diffSha256": "9f02960481e1ae322066c9764a95d5137fa6f74812218ade251a918f9ed5afdc",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Shared prerequisite quarantine, verified method reevaluation and logical skip are new. These three skill graph prefixes have no discussion/mapReduce; no old queue edge is represented. This dependency is conservatively tracked, not newly proved."
+    },
+    {
+      "file": "src/source-claims.ts",
+      "oldSha256": "9e4dbb2f07d5d0315dc0be5a66ca5042602121651e6be4225dee6982727e289c",
+      "candidateSha256": "ed1d86ae9c38e8c850da5b0c9d695f5fd4ab1091f9212759fa573d7981dc52c3",
+      "diffSha256": "b1aaa80b6e55c066020910b60fc1023891242f179a3ba9bbe26a369ed3b9110f",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "JSON body extraction moves to trusted reader module and sourceItems additionally require matching saved host acquisition; Web sources use transport success rather than CLI exitCode. Existing old formal candidate artifacts omit sourceItems, so this pure gate returns null there. New content authenticity is separately covered by E scenarios."
+    },
+    {
+      "file": "src/task/map-recovery.ts",
+      "oldSha256": "302ffcab7a03cedd8881200692fbbbbc58dc64a491a1ada238ffb40df4b1a6f3",
+      "candidateSha256": "cf4e6ac76482d0765b6d7d523f77173ee70e160ce00ac4e4a257d2a3e84dc7b7",
+      "diffSha256": "a2e84b49377c511090e93b5713a269394ee0977ab4862b3a271cc3f3e7eb89a4",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Explicitly known partition resource obligations must be supported by HostAcq bound to the declared source operations and their real original source owners. A globally acquired document cannot license an unrelated successful echo receipt. Web restoration is now eligible only with a full trusted exact canonical receipt, original source owner/request/hash/body and per-partition obligations; login/unknown/incomplete/mismatched/request-id aliases remain ineligible. These three old finite domains have no map recovery claims; the existing independent recovery extension and new typed-source model/SQLite/Runner acceptance carry this new boundary."
+    },
+    {
+      "file": "src/task/tool-recovery.ts",
+      "oldSha256": "d8f30b4b646edd31f625ecd8a46929e025a7232a6ea6d7d3dc5794b4da8193ec",
+      "candidateSha256": "225859aa5e025691ec323b8399579aed9d46168ea0002ce4d8cdf6500eb4ef8c",
+      "diffSha256": "9f64616ca1d508662e121922e719974ed58f3e82c75271e84fec70893f928906",
+      "classification": "changed-product-path; original-finite-slice correspondence reviewed",
+      "reason": "Saved web-tool failure now retains the actual event time for shared-prerequisite cutoff/reassessment. The three original graph alphabets never emit RECORD_TOOL_FAILURE; request identity, one-feedback-per-request and usage rules are unchanged in that slice."
+    }
+  ],
+  "newDependencies": [
+    {
+      "file": "src/acquisition-readers.ts",
+      "candidateSha256": "011b165c1c4d8acfbf32c16c8655baf312148b9944dd518a61e4f528fdd48d47",
+      "classification": "new conservative transitive dependency; excluded new domain",
+      "reason": "Pure trusted command/parser registry; no execution authority; full document identity/body matching and unknown fallback. Not a new old-model acquisition guarantee."
+    },
+    {
+      "file": "src/cli-readiness.ts",
+      "candidateSha256": "cb973987c1b91f5a0d684e7dd6f762cdc2ae2822723230a523025ca0b3dfcb6e",
+      "classification": "new conservative transitive dependency; excluded new domain",
+      "reason": "Read-only saved configuration/installation/authentication/authorization diagnostics; no new authority or physical state."
+    },
+    {
+      "file": "src/local-resource-policy.ts",
+      "candidateSha256": "8bfe9c1095ab34cafad7a6a6d97fdc4d398d9d8afeb4435a8ed70ad5652e3673",
+      "classification": "new conservative transitive dependency; excluded new domain",
+      "reason": "Pure read/write resource-conflict policy. Legacy no-policy request retains workspace write lease; RW/preparation combinations excluded from these three graphs."
+    },
+    {
+      "file": "src/process-supervisor.machine.ts",
+      "candidateSha256": "29d41335694b5e75fdc93196fc193a40d52622d656249ef2574cac910a63a3fe",
+      "classification": "new conservative transitive dependency; excluded new domain",
+      "reason": "Independent watchdog model; original task graph fairness does not prove this watchdog implementation."
+    },
+    {
+      "file": "src/resource-acquisition.ts",
+      "candidateSha256": "adc62f7be3cca22ded73bb7e42cebb893da98b5b1a7c68097ca12bc5f39cca02",
+      "classification": "new conservative transitive dependency; excluded new domain",
+      "reason": "Pure host resource observation, source binding and delivery obligations; old prefixes contain no obligation/acquisition event. New resource authenticity, typed partition coverage, safe retry/backfill and canonical Web references have separate E100-E127 model/BDD/IO evidence."
+    },
+    {
+      "file": "src/room-deletion-coordinator.ts",
+      "candidateSha256": "62399fe89fe47ffce3ed690e65bd16064caff598c09654422e83eed553cb6c9a",
+      "classification": "new conservative transitive dependency; excluded new domain",
+      "reason": "Host driver for durable deletion intents and owned cleanup; not part of original graph alphabet."
+    },
+    {
+      "file": "src/room-deletion.machine.ts",
+      "candidateSha256": "61320dc8213a9d546cb706349a8fa786c9acd244461608e6e3422487a8b7d4f4",
+      "classification": "new conservative transitive dependency; excluded new domain",
+      "reason": "Independent persisted deletion lifecycle with scoped intents and tombstones; wholly outside old finite task/lease/publication graphs."
+    },
+    {
+      "file": "src/runtime-ownership.ts",
+      "candidateSha256": "210e8d0108df16149d9a3fc3c5e1d3e417f9ccdb1c54040042dec89494aafc60",
+      "classification": "new conservative transitive dependency; excluded new domain",
+      "reason": "Owned runtime file/session inventory and cleanup; invoked for production Runner/deletion. No deletion/RW proof is inferred from legacy graph results."
+    },
+    {
+      "file": "src/task/map-scheduling.ts",
+      "candidateSha256": "1cd8e33e0acf158fab9520bf9201811694b054bd5f256d8847e2d557cbf25913",
+      "classification": "new conservative transitive dependency; excluded new domain",
+      "reason": "Pure source-verified method scopes/prerequisite quarantine/reassessment; old three prefixes have no map queue."
+    },
+    {
+      "file": "src/task/resilience.ts",
+      "candidateSha256": "51d02fdcd222637df8626e7ef2d94310f387a312b43269eabc90c0be3535612f",
+      "classification": "new conservative transitive dependency; excluded new domain",
+      "reason": "Durable processing windows, human gates, deterministic partial and cleanup custody. Repeated partial drafts use immutable history-indexed IDs; clarification replies replace the original pending input through normal recordInput and cancel superseded help; not-started terminal facts preserve stop/frozen outcome. Controlled old prefixes remain within original time classes; generic non-authorization human answers may initiate an explicitly requested review only at the original safe boundary; saved clarification input and deadline checks remain required. New fields/operations do not broaden old guarantee."
+    }
+  ],
+  "unchangedCoveredFiles": [
+    "src/assistance-retry.ts",
+    "src/room.machine.ts",
+    "src/measurement.ts",
+    "src/evidence-reader.ts",
+    "src/task.machine.ts",
+    "src/darwin-process.ts",
+    "src/conversation.ts",
+    "src/index.ts",
+    "src/task-inspection.ts",
+    "src/measurement-report.ts",
+    "src/task-debug.ts",
+    "src/presentation.ts",
+    "src/task-structure.ts",
+    "src/host-retry.ts",
+    "src/host-capabilities.ts",
+    "src/task-debug-view.ts",
+    "src/input-intent.ts",
+    "src/task-chart.ts",
+    "src/inspector.machine.ts",
+    "src/model-config.ts",
+    "src/local-skills.ts",
+    "src/model-env.ts",
+    "src/host-session.ts",
+    "src/task/budget.ts",
+    "src/task/execution.machine.ts",
+    "src/task/protocol.ts",
+    "src/task/input.ts",
+    "src/task/verification.ts",
+    "team.config.ts",
+    "package-lock.json",
+    "src/artifact-request.ts",
+    "src/source-artifact.ts",
+    "src/catalog-search.ts",
+    "src/web/service-lifecycle.ts",
+    "src/task/delivery-cycle.ts",
+    "src/delivery-check-delta.ts",
+    "src/source-items.ts",
+    "src/cli-failure.ts",
+    "src/task/tool-guidance.ts",
+    "src/tool-recommendation.ts"
+  ],
+  "promiseChanges": [],
+  "modelAndPropertyChanges": "No weakening or bound reduction. Existing finite models retained; any represented behavior mismatch will retain counterexample before review.",
+  "sourceFreeze": {
+    "commit": "36916b5c6e974c11f8e51720189c64facef9269e",
+    "recordedAt": "2026-11-11T06:37:05.535382+00:00",
+    "implementationDirty": false
+  },
+  "verification": {
+    "status": "verified",
+    "jar": "/workspace/squad/work/tools/tla2tools.jar",
+    "jarSha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88",
+    "evidence": "reports/kej-113-114-final-delivery",
+    "issue": "KEJ-113 + KEJ-114",
+    "sourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+    "command": "env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true PYTHONDONTWRITEBYTECODE=1 python3 .agents/skills/verify-squad-delivery/scripts/check.py --jar /workspace/squad/work/tools/tla2tools.jar --evidence reports/kej-113-114-final-delivery",
+    "exitCode": 0,
+    "seconds": 153.21371404400088,
+    "retainedArtifacts": 290,
+    "models": {
+      "Delivery": {
+        "states": 31,
+        "edges": 79
+      },
+      "Verification": {
+        "states": 47,
+        "edges": 91
+      },
+      "Cycles": {
+        "states": 79,
+        "edges": 203
+      },
+      "SourceLineage": {
+        "states": 71,
+        "edges": 226
+      }
+    },
+    "realCodeNegativeControls": {
+      "original": [
+        "drop-final",
+        "accept-stale",
+        "skip-snapshot"
+      ],
+      "composition": [
+        "skip-validation",
+        "skip-version",
+        "accept-changed",
+        "drop-publication",
+        "accept-old-cycle",
+        "corrupt-freeze",
+        "transitive-source"
+      ]
+    },
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "evidenceRetained": true,
+      "checkerInputsUnchanged": true
+    },
+    "manifestSha256": "33c8eeaf06dbfb95b8514a8fdc1f3aefe2d58dae7ea05fad56c422a1ea7c7ba2",
+    "independentReadback": {
+      "status": "verified",
+      "exitCode": 0,
+      "artifacts": 290,
+      "log": "work/kej-113-114-delivery-readback.log"
+    },
+    "readerControls": {
+      "selfConsistent": {
+        "evidence": "reports/kej-113-114-final-delivery-reader-controls.json",
+        "status": "verified",
+        "rejections": 11
+      },
+      "raw": {
+        "evidence": "reports/kej-113-114-final-delivery-raw-reader-controls/run.json",
+        "status": "verified",
+        "rejections": 4
+      }
+    },
+    "syncStatus": "synchronized-after-nine-entrypoints",
+    "scope": "Exact frozen production bytes, captured verification-only maintenance, unchanged original finite domains/properties/bounds, all real-code fault controls and restored reruns. No new resource semantic, supervisor, RW or deletion proof is inferred.",
+    "postMetadataIndependentReadback": {
+      "status": "verified",
+      "exitCode": 0,
+      "log": "work/kej-113-114-delivery-post-sync-readback.log",
+      "logSha256": "34e5e8d1ffdd072702429bdd99c0055bc71d828b40b8e142ddf94641eddddc80",
+      "scope": "Independent retained-evidence readback after metadata synchronization; not another complete proof run"
+    }
+  },
+  "excludedNewGuarantees": [
+    "automatic supervision liveness/deadlines",
+    "human modal and explicit reply/skip authority",
+    "resource body semantic authenticity beyond old saved skill snapshot",
+    "per-resource reader/writer preparation leases",
+    "archived-room deletion/file cleanup/tombstones",
+    "independent process watchdog fairness",
+    "arbitrary provider failure/safe-retry/shutdown schedules"
+  ],
+  "syncAdvance": {
+    "status": "advanced",
+    "from": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+    "to": "36916b5c6e974c11f8e51720189c64facef9269e",
+    "at": "2026-11-11T07:21:57.132495+00:00",
+    "allNineEntrypointsVerified": true,
+    "metadataOnly": true,
+    "globalEvidence": [
+      {
+        "evidence": "reports/kej-113-114-final-delivery",
+        "status": "verified",
+        "runSha256": "239b1d8f6cf991b8472d34012e281e10deb21ecd8fe3863ae2bdc64eb60f3fe5",
+        "manifestSha256": "33c8eeaf06dbfb95b8514a8fdc1f3aefe2d58dae7ea05fad56c422a1ea7c7ba2"
+      },
+      {
+        "evidence": "reports/kej-113-114-final-local-effects",
+        "status": "verified",
+        "runSha256": "25c3f4a642b4e6609a057cab62992cdd41f97b594a8bf7cf7b1505bd7d29844d",
+        "manifestSha256": "5ccadefeda78255af386a9d9d30337e92e31c626031c907ec8ec03a7d1812f4f"
+      },
+      {
+        "evidence": "reports/kej-113-114-final-host-retry-2",
+        "status": "verified",
+        "runSha256": "3f5610984d9933da59636fc24b561f092dfbf6bb4e52db625595a5658f41b8d8",
+        "manifestSha256": "cf8c71cbe5571911304894431279d446a3f02f4033f69d2e1ca7b99b6d059603"
+      },
+      {
+        "evidence": "reports/kej-113-114-handoff-final",
+        "status": "verified",
+        "runSha256": "ad8cb5c70b0c809de11e2f844011859e7cb160482b341836a717714a38e4bba8",
+        "manifestSha256": "83562b5cdc1effc360dff1938c0ce19934e0322ed2057c758620a3800475409f"
+      },
+      {
+        "evidence": "reports/kej-113-114-handoff-composition-final",
+        "status": "verified",
+        "runSha256": "21e99f815fbd5a0b67371df672eb00ddb43a745fa9c721f68264edb1ae06db03",
+        "manifestSha256": "a55ea1eae682c958e41bc87b0a66060679a1ce5215afbc5f63bf0e385cd02cc0"
+      },
+      {
+        "evidence": "reports/kej-113-114-four-formal-36916b5-final-2/authority",
+        "status": "verified",
+        "runSha256": "6ef3e3c219c74f1bceb36f8fbf37ee51b0ca52360f7893e57236e95b77d16671",
+        "manifestSha256": "771cdfdb048966b24ba012f9e4ba7dc3e711c8308f9c48a39ff2523718d496db"
+      },
+      {
+        "evidence": "reports/kej-113-114-four-formal-36916b5-final-2/authority-composition",
+        "status": "verified",
+        "runSha256": "25c0b29b84125bf72d3eb5c59b0050ef64c2015ba12ad6cf888f9d8ea630456f",
+        "manifestSha256": "9a89cc1b537d59b8b38f7c0dae8b3a0f52965b4469863f9247f7f4419b085689"
+      },
+      {
+        "evidence": "reports/kej-113-114-four-formal-36916b5-final-3/coordination",
+        "status": "verified",
+        "runSha256": "9ddef4cd14e166db0c66b88605fa4e298dd5056c62474500438cec1e4af31aec",
+        "manifestSha256": "f178e62eb8812e9ea7903c1c05f5269d9287e80daef2b56e2f84b120acdc2917"
+      },
+      {
+        "evidence": "reports/kej-113-114-four-formal-36916b5-final-3/coordination-extensions",
+        "status": "verified",
+        "runSha256": "7a5b9d45bb7f1322519e70031537398d6b760d209f35d2c1b1d7f96d0cf08689",
+        "manifestSha256": "e96dd7646357296f1365779fa1c6732c8f100ed1f9634ab45fb9fe9a771df8f8"
+      }
+    ],
+    "postMetadataIndependentReadback": {
+      "status": "verified",
+      "exitCode": 0,
+      "log": "work/kej-113-114-delivery-post-sync-readback.log",
+      "logSha256": "34e5e8d1ffdd072702429bdd99c0055bc71d828b40b8e142ddf94641eddddc80",
+      "scope": "Independent retained-evidence readback after metadata synchronization; not another complete proof run"
+    },
+    "note": "All complete proofs, genuine real-code controls, restored-original checks and independent readers passed before this synchronization. Original proof inputs and prior failed/blocked runs remain immutable. Metadata synchronization is not another complete run and does not expand any finite guarantee."
+  },
+  "checkerChanges": [
+    {
+      "file": "scripts/check.py",
+      "control": "drop-final",
+      "oldAnchor": "if (outcome !== 'stopped') {",
+      "newAnchor": "    message(c, e, c.owner, full, 'final', {",
+      "reason": "finish now dispatches noncomplete outcomes to frozen host reports before the retained complete publication branch. The obsolete branch anchor no longer exists; mutate the actual complete final message call while leaving candidate/publication/outcome untouched, preserving AtomicPublication detection rather than accepting a load/anchor failure.",
+      "behavioralValidation": "Complete original entrypoint, genuine code/model negatives, restored rerun and independent evidence readback passed on the final frozen product; raw evidence referenced by verification."
+    }
+  ],
+  "comparisonBase": "e526f6f1f6dce276dfd0be14bd60d106aee139c5"
+}

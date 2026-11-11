@@ -19,8 +19,12 @@ export function messageArtifacts(snapshot: RoomSnapshot | null, message: Message
 export function taskArtifacts(task?: WebTask) {
   if (!task) return { current: [], history: [] };
   const reports = task.artifacts.map(artifact => ({ ...artifact, taskId: task.id }));
-  if (!task.currentArtifactIds) return { current: reports, history: [] };
-  const selected = new Set(task.currentArtifactIds);
+  const current = task.delivery?.currentArtifactIds ?? task.currentArtifactIds;
+  if (!current) {
+    const goalVersion = Math.max(...reports.map(item => item.goalVersion));
+    return { current: reports.filter(artifact => artifact.goalVersion === goalVersion), history: reports.filter(artifact => artifact.goalVersion !== goalVersion) };
+  }
+  const selected = new Set(current);
   return { current: reports.filter(artifact => selected.has(artifact.id)), history: reports.filter(artifact => !selected.has(artifact.id)) };
 }
 

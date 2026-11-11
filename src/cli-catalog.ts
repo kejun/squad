@@ -11,7 +11,8 @@ export interface CliCatalogEntry {
   execution?: 'sandbox' | 'host';
   requirements?: string[];
 }
-export interface CliCatalogPage { catalogVersion: string; entries: CliCatalogEntry[]; nextCursor: string | null }
+export interface CliCatalogConfiguration { state: 'unconfigured' | 'empty' | 'configured'; entryCount: number }
+export interface CliCatalogPage { catalogVersion: string; entries: CliCatalogEntry[]; nextCursor: string | null; configuration?: CliCatalogConfiguration }
 export class CliCatalogError extends Error { constructor(readonly code: string) { super(code); } }
 const text = (value: unknown, max: number) => typeof value === 'string' && !!value.trim() && value.length <= max && !value.includes('\0');
 const args = (value: unknown) => Array.isArray(value) && value.length <= 128
@@ -44,20 +45,24 @@ export function parseCliCatalog(value: unknown): CliCatalogEntry[] {
 
 export class CliCatalog {
   readonly catalogVersion: string;
+  readonly configuration: CliCatalogConfiguration;
   private readonly entries: CliCatalogEntry[];
-  constructor(value: unknown = []) {
-    this.entries = parseCliCatalog(value);
+  constructor(value?: unknown) {
+    this.entries = parseCliCatalog(value === undefined ? [] : value);
+    this.configuration = { state: value === undefined ? 'unconfigured' : this.entries.length ? 'configured' : 'empty', entryCount: this.entries.length };
     this.catalogVersion = createHash('sha256').update(JSON.stringify(this.entries)).digest('hex');
   }
   recommend(objective: string) {
-    return { catalogVersion: this.catalogVersion, ...recommendMetadata(this.entries, objective,
-      entry => [entry.command, entry.description, ...(entry.domains ?? []), ...(entry.requirements ?? [])].join(' '), entry => entry.command) };
+    const matches = recommendMetadata(this.entries, objective,
+      entry => [entry.command, entry.description, ...(entry.domains ?? []), ...(entry.requirements ?? [])].join(' '), entry => entry.command);
+    return { catalogVersion: this.catalogVersion, configuration: structuredClone(this.configuration),
+      matchState: matches.candidates.length ? 'matched' as const : 'no_match' as const, ...matches };
   }
   list({ query, cursor }: { query?: string; cursor?: string } = {}): CliCatalogPage {
     const q = normalizeCatalogQuery(query);
     const matches = this.entries.filter(entry => matchesCatalogQuery([entry.command, entry.description, ...(entry.domains ?? []),
       ...(entry.requirements ?? [])].join(' '), q));
     const page = catalogWindow(matches, this.catalogVersion, q, cursor, () => new CliCatalogError('CLI_CATALOG_CURSOR_INVALID'));
-    return { catalogVersion: this.catalogVersion, entries: structuredClone(page.entries), nextCursor: page.nextCursor };
+    return { catalogVersion: this.catalogVersion, configuration: structuredClone(this.configuration), entries: structuredClone(page.entries), nextCursor: page.nextCursor };
   }
 }

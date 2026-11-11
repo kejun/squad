@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { isDeepStrictEqual } from 'node:util';
-import { hasFields } from './delivery-contract-observations.js';
+import { hasFields, assertStoppedHostReportOnly } from './delivery-contract-observations.js';
 import { LocalModel, localModelInput } from './local-model-fixture.js';
 import { initialTask, persistTask, restoreTask, stepTask } from '../src/task.machine.js';
 import type { ArtifactSource, Intent, TaskEvent } from '../src/types.js';
@@ -217,7 +217,7 @@ const recovered = stepTask(restored, { type: 'RECOVER', id: 'recover', at: 10, c
 yield 'observed';
 assert.deepEqual(recovered.context.sourceArtifact, source());
 assert.equal(recovered.context.publishedDelivery, undefined);
-assert.deepEqual(recovered.context.artifacts, []);
+assertStoppedHostReportOnly(recovered.context);
 }
 
 export async function* retainsExistingBehaviorForSnapshotsWithNoSource() {

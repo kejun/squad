@@ -69,6 +69,16 @@ try {
       } finally { driver.close(); rmSync(directory, { recursive: true, force: true }); }
     }
     report.backends.push({ name: backend, edgesReplayed: count });
+    if (model === 'CancelledDiscussion' && variant.endsWith('-physical') && !variant.includes('-goal-')) {
+      const directory = join(scratch, `${backend}-custody-lease-probe`); mkdirSync(directory);
+      const driver = await createCompositionDriver(root, model, variant, backend, directory);
+      try { report.probes.push(driver.custodyLeaseProbe()); }
+      catch (error) {
+        report.failedBackend = backend;
+        report.counterexample = { backend, actions: ['CleanupContentResourceConflictProbe'], actual: driver.observe(), expected: {} };
+        throw error;
+      } finally { driver.close(); rmSync(directory, { recursive: true, force: true }); }
+    }
   }
   report.status = 'verified';
 } catch (error) { report.status = 'failed'; report.error = error.stack; process.exitCode = 1; }

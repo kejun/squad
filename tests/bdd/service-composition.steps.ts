@@ -28,6 +28,6 @@ When('服务处理该故障并再次接收定时唤醒和提交', timeout, async
 Then('本服务所有房间都不得启动新的模型或工具请求', timeout, async function (this: SpecWorld) { await fixture(this).step('scope'); });
 Then('关闭故障实例并重新打开同一数据库后应能恢复正常执行', timeout, async function (this: SpecWorld) { await fixture(this).step('reopen'); });
 Given('一个房间的执行器发生了不是模型WorkFailure的宿主故障', timeout, async function (this: SpecWorld) { await start(this, 'BT_K07'); });
-When('用户继续该房间并向另一房间提交正常工作', timeout, async function (this: SpecWorld) { await fixture(this).step('act'); });
-Then('故障房间在本实例中不得开始新执行而另一房间应正常运行', timeout, async function (this: SpecWorld) { await fixture(this).step('scope'); });
-Then('重新打开同一数据库应解除旧实例的房间故障隔离', timeout, async function (this: SpecWorld) { await fixture(this).step('reopen'); });
+When('监督检查前该房间收到补充且另一房间完成正常工作并随后到达监督时机', timeout, async function (this: SpecWorld) { await fixture(this).step('act'); });
+Then('故障房间应先隔离再由真实恢复沿原处理窗口和预算继续推进且不重复未决效果', timeout, async function (this: SpecWorld) { await fixture(this).step('scope'); });
+Then('重新打开同一数据库应保留已结算结果且不重复执行', timeout, async function (this: SpecWorld) { await fixture(this).step('reopen'); });

@@ -20,6 +20,8 @@ export interface CliInvocation {
 export interface CliCompletion { result: LocalToolResult; settled: boolean; effectsKnown: boolean }
 export interface CliBackend {
   readonly available: boolean; readonly unavailableReason?: string | undefined;
+  /** A trusted backend guarantee, independent of executable availability. */
+  readonly isolation?: 'workspace' | undefined;
   execute(input: CliInvocation, signal: AbortSignal, onSpawn: (identity: ProcessIdentity) => Promise<void>): Promise<CliCompletion>;
   close?(): Promise<void>;
 }
@@ -62,6 +64,7 @@ export function hostCliEnvironment(extra: Record<string, string> = {}, privateVa
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 /** Pinned native SRT; no unsandboxed fallback on either supported host. */
 export class SandboxCliBackend implements CliBackend {
+  readonly isolation = 'workspace' as const;
   private constructor(readonly available: boolean, readonly unavailableReason?: string) {}
   private initialized = false;
   static async create(): Promise<SandboxCliBackend> {

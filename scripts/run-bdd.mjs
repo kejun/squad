@@ -18,7 +18,12 @@ export async function runBdd() {
     '--import', 'tsx', 'node_modules/@cucumber/cucumber/bin/cucumber.js',
     'features', '--import', 'tests/bdd/*.ts', ...tagArgs,
     '--format', 'progress', '--format', 'json:test-results/cucumber.json',
-  ], { env: { ...process.env, TSX_TSCONFIG_PATH: 'tests/bdd/tsconfig.json' } });
+  ], {
+    // The complete suite includes real browsers and process crash recovery.
+    // Keep the idle/per-step stall guards; bound the entire growing suite separately.
+    maxDuration: 15 * 60_000,
+    env: { ...process.env, TSX_TSCONFIG_PATH: 'tests/bdd/tsconfig.json' },
+  });
   return run.status;
 }
 

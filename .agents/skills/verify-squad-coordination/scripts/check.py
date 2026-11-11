@@ -24,17 +24,17 @@ WITNESSES = {
 }
 CONTROLS = {
     'skip-ended-discussion-recovery': ('Shards', 'EndedDiscussionRecovery', 'src/engine.ts',
-        "if (taskPhase(snapshot) === 'ended' && !snapshot.context.intents.some(work => canRetireDiscussionWork(snapshot.context, work))) continue;",
+        "if (taskPhase(snapshot) === 'ended' && !snapshot.context.resilience?.cleanup.some(item => item.state === 'pending')\n        && !snapshot.context.intents.some(work => canRetireDiscussionWork(snapshot.context, work) || localPhysicalPending(work)\n          || work.kind !== 'cancel' && work.replay !== 'unsafe' && ['pending', 'inflight'].includes(work.status))) continue;",
         "if (taskPhase(snapshot) === 'ended') continue;"),
     'omit-discussion-recovery-retirement': ('Shards', 'CancelledRecovery', 'src/task/reducer.ts',
         'for (const work of c.intents.filter(work => canRetireDiscussionWork(c, work))) release(c, work.id);',
         '/* faulty omission of obsolete discussion retirement at recovery */'),
     'omit-obsolete-member-exclusion': ('Shards', 'ObsoleteMemberRecovery', 'src/task/facts.ts',
-        "['pending', 'inflight'].includes(i.status) && !canRetireDiscussionWork(c, i)",
-        "['pending', 'inflight'].includes(i.status)"),
+        "for (const i of c.intents.filter(i => ['pending', 'inflight'].includes(i.status) && !canRetireDiscussionWork(c, i))) {",
+        "for (const i of c.intents) { /* faulty retired members still constrain recovery configuration */"),
     'omit-known-local-retirement': ('Shards', 'SettledDiscussionRecovery', 'src/task/reducer.ts',
         "if ((e.type === 'LOCAL_RESULT' || e.type === 'LOCAL_RECONCILE') && work && canRetireDiscussionWork(c, work)) release(c, work.id);",
-        '/* faulty omission of obsolete discussion retirement after known local effects */'),
+        "if ((e.type === 'LOCAL_RESULT' || e.type === 'LOCAL_RECONCILE') && work?.discussionId && c.discussion?.status === 'cancelled') work.status = 'uncertain'; /* faulty known work reoccupied after receipt */"),
     'retire-unsafe-discussion': ('Shards', 'UnsafeRetention', 'src/task/facts.ts',
         "&& work.replay === 'safe' && !localPhysicalPending(work)",
         '&& !localPhysicalPending(work)'),
@@ -220,7 +220,7 @@ def main():
         assert sha(jar) == JAR_SHA, 'Wrong pinned TLC archive'
         report['tool'] = {'release': 'TLA+ Tools v1.7.4 / TLC 2.19', 'jarSha256': JAR_SHA}
         shutil.copytree(SKILL / 'scripts', area / 'checker-inputs', ignore=shutil.ignore_patterns('__pycache__'))
-        for name in ['SKILL.md', 'references/correspondence.md', 'references/drift-review-pr40.json', 'references/drift-review-kej-106.json', 'references/drift-review-kej-102-105.json']:
+        for name in ['SKILL.md', 'references/correspondence.md', 'references/drift-review-pr40.json', 'references/drift-review-kej-106.json', 'references/drift-review-kej-102-105.json', 'references/drift-review-kej-113-114.json', 'references/drift-review-shared-agent-behavior.json']:
             retained = area / 'checker-inputs' / name
             retained.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(SKILL / name, retained)

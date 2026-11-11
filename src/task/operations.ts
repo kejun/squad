@@ -1,3 +1,4 @@
+import { processingWindow, workInCleanup, freezeIncomplete, adoptCleanup, taskHumanGate } from './resilience.js';
 import { cancelHostRetries } from '../host-retry.js';
 import { settleDeliveryCycle } from './delivery-cycle.js';
 import { type ArtifactDraft, type Intent, type TaskContext, type TaskEvent } from '../types.js';
@@ -36,7 +37,7 @@ export function intent(c: TaskContext, at: number, kind: Intent['kind'], target:
   const item: Intent = { id: `${c.taskId}:E${c.epoch}:${kind}:${c.nextSeq++}`, kind, target,
     payload: kind === 'facilitator' ? { ...payload, owner: c.owner } : payload,
     ...(c.localSkillVersions?.length ? { localSkills: structuredClone(c.localSkillVersions) } : {}),
-    ...fence(c), status: 'pending', replay, attempt: 0, deadline: at + c.config.limits.workTimeoutMs,
+    ...fence(c), status: 'pending', replay, attempt: 0, deadline: kind === 'cancel' ? at + c.config.limits.workTimeoutMs : Math.min(at + c.config.limits.workTimeoutMs, processingWindow(c).hardDeadline, processingWindow(c).repairDeadline ?? Number.MAX_SAFE_INTEGER),
     bucket: kind === 'check' ? 'checks' : kind === 'cancel' ? 'none' : 'ordinary', requestCount: 0 };
   const model = resolveModel(c.config, kind, target);
   if (model) item.model = model;
@@ -65,7 +66,7 @@ export function cancelWork(c: TaskContext, e: TaskEvent, all = false) {
 export function release(c: TaskContext, id: string | undefined) {
   if (!id) return;
   const work = c.intents.find(i => i.id === id);
-  if (work && localPhysicalPending(work)) return;
+  if (work && (localPhysicalPending(work) || c.resilience?.cleanup.some(item => item.kind === 'legacyWork' && item.workId === work.id && item.state === 'pending'))) return;
   if (work) { cancelLocalOperations(work); work.status = 'done'; }
   for (const cancel of c.intents.filter(i => i.kind === 'cancel' && i.payload.intentId === id)) cancel.status = 'done';
 }
@@ -99,12 +100,33 @@ export function conversationInput(c: TaskContext) {
 }
 
 export function owner(c: TaskContext, e: TaskEvent, payload: Record<string, unknown> = {}) {
-  if (c.stopped || unresolvedInput(c) || discussionActive(c) || c.intents.some(localPhysicalPending)) return;
+  if (c.stopped || taskHumanGate(c) || unresolvedInput(c) || discussionActive(c) || c.intents.some(work => localPhysicalPending(work) && !workInCleanup(c, work))) return;
   // Pending instructions are superseded, not executed in parallel.
   for (const i of c.intents) if (i.kind === 'owner' && i.status === 'pending') i.status = 'cancelled';
   intent(c, e.at, 'owner', c.owner, { ...payload, goal: c.goal, inputs: c.inputs.filter(n => n.applied),
     board: c.board, ...deliveryArtifacts(c, Array.isArray(payload.artifactIds) ? payload.artifactIds as string[] : []), repeat: c.repeat, ...conversationInput(c),
     capabilities: capabilities(c), roster: c.config.bots.map(b => ({ id: b.id, name: b.name, instructions: b.instructions, tools: b.tools })) });
+  c.nextCheckAt = e.at + c.config.limits.progressIntervalMs;
+}
+
+/** A coordinator may resume the original, settled local-tool conversation. Its
+ * receipt belongs to that work and execution attempt, so replacing the work
+ * would lose the evidence needed to continue without replaying the effect. */
+export function continueOwner(c: TaskContext, e: TaskEvent, reason: string) {
+  if (c.stopped || taskHumanGate(c) || unresolvedInput(c) || discussionActive(c)
+    || c.intents.some(work => localPhysicalPending(work) && !workInCleanup(c, work))) return;
+  const window = processingWindow(c);
+  const resumable = c.intents.find(work => work.kind === 'owner' && work.target === c.owner && !work.discussionId
+    && work.status === 'pending' && work.replay === 'safe' && work.epoch === c.epoch && work.goalVersion === c.goalVersion
+    && work.localCheckpoint && !work.localCheckpoint.pendingOperationId
+    && work.localOperations?.some(op => op.result && op.finishedAt !== undefined)
+    && work.localOperations.every(op => ['succeeded', 'failed', 'cancelled'].includes(op.status))
+    && work.deadline !== null && e.at < Math.min(work.deadline, window.hardDeadline, window.repairDeadline ?? Number.MAX_SAFE_INTEGER));
+  if (!resumable) { owner(c, e, { reason }); return; }
+  for (const work of c.intents) if (work !== resumable && work.kind === 'owner' && work.status === 'pending') work.status = 'cancelled';
+  resumable.deadline = Math.min(resumable.deadline!, window.hardDeadline, window.repairDeadline ?? Number.MAX_SAFE_INTEGER);
+  c.trace.push({ event: 'OWNER_CHECKPOINT_RESUMED', at: e.at, detail: JSON.stringify({ workId: resumable.id,
+    originalOperationIds: resumable.localOperations!.map(op => op.id) }) });
   c.nextCheckAt = e.at + c.config.limits.progressIntervalMs;
 }
 
@@ -119,17 +141,24 @@ export function coordinate(c: TaskContext, e: TaskEvent, reason: string) {
 }
 
 export function finish(c: TaskContext, e: TaskEvent, outcome: TaskContext['outcome'], reason: string) {
+  if (taskHumanGate(c) && outcome !== 'stopped') return;
+  if (outcome !== 'complete') { freezeIncomplete(c, e, reason, outcome === 'stopped' ? 'stopped' : undefined); return; }
+  if (c.resilience?.skips.some(skip => skip.epoch === c.epoch && skip.goalVersion === c.goalVersion)) {
+    freezeIncomplete(c, e, '当前目标存在明确跳过的内容，独立检查通过仍仅能交付不完整结果'); return;
+  }
+  adoptCleanup(c, e.at);
+  if (c.resilience?.cleanup.some(item => item.state === 'pending')) { freezeIncomplete(c, e, '存在未决物理效果，不能完整完成'); return; }
   c.hostSession = undefined;
   cancelWork(c, e, true); cancelHostRetries(c, reason || 'TASK_ENDED'); c.outcome = outcome; c.reason = reason;
   settleDeliveryCycle(c, outcome, reason);
   for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight'].includes(input.status)) {
-    input.status = outcome === 'stopped' ? 'cancelled' : 'failed'; input.error = reason;
+    input.status = 'failed'; input.error = reason;
   }
-  if (c.review) c.review.status = outcome === 'stopped' ? 'cancelled' : 'complete';
+  if (c.review) c.review.status = 'complete';
   if (outcome === 'complete' && c.candidate) {
     c.publishedDelivery = { ...(c.candidate.revision ? { revision: c.candidate.revision } : {}), goalVersion: c.goalVersion, artifactIds: [...c.candidate.artifactIds], at: e.at };
   }
-  if (outcome !== 'stopped') {
+  {
     const full = `${c.candidate?.text ?? ''}${reason ? `\n${reason}` : ''}`.trim();
     const summary = reason ? `${reason}\n${c.candidate?.summary ?? compactMessage(c.candidate?.text ?? '')}`.trim() : c.candidate?.summary;
     message(c, e, c.owner, full, 'final', {

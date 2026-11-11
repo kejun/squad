@@ -1,0 +1,177 @@
+{
+  "change": "process-identity-fixture-handshake",
+  "outcome": "updated",
+  "sourceCommit": "11a1023b8cbb6483fef55af62b5212141eb2d789",
+  "previousSourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+  "changedFile": {
+    "file": "tests/fixtures/local-effect-crash-host.ts",
+    "oldSha256": "7615a0f38f687f1750e0d129933bb6d6a3d37eb40b46c77928c16e9d6cf3322f",
+    "newSha256": "89ebb6db872c9d3c309f7c4dcc6f218594b02861cea8bb5df7ccfc601d441aba"
+  },
+  "reason": "A fast settled process may legitimately exit before identity observation (ENOENT). The crash fixture required recorded identity, so it now makes the real CLI effect wait until onSpawn has persisted the spawned journal identity. The callback reads phase/pid and asserts the effect is absent before releasing the gate. Existing identity/completion/business assertions stay; this fixes the physical test precondition, not production behavior.",
+  "scope": "Only the existing real crash bridge prefix changes. No src/web, model, property, source-fault control, graph bound or checker timeout changes. The fixture adds a bounded 10-second gate; existing verifier subprocess deadlines are unchanged.",
+  "originalAsIs": "reports/process-identity-fixture-original-as-is-11a1023",
+  "validation": {
+    "status": "verified",
+    "entry": {
+      "entry": "local-effects",
+      "sourceCommit": "11a1023b8cbb6483fef55af62b5212141eb2d789",
+      "evidence": "reports/process-identity-fixture-local-effects-11a1023-final-1",
+      "status": "verified",
+      "outcome": "updated",
+      "change": "process-identity-fixture-handshake",
+      "completeProducerReexecutedThisRound": true,
+      "runtimeSourceEquivalentToCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+      "completeRun": {
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-local-effects/scripts/check.py",
+          "--jar",
+          "work/tools/tla2tools.jar",
+          "--evidence",
+          "reports/process-identity-fixture-local-effects-11a1023-final-1"
+        ],
+        "exitCode": 0,
+        "seconds": 48.308
+      },
+      "independentReadback": {
+        "exitCode": 0,
+        "log": "work/process-identity-fixture-c3/local-effects-readback.log"
+      },
+      "readerControls": {
+        "command": [
+          "python3",
+          "tests/local-effects-formal-readback-controls.py",
+          "--checker",
+          ".agents/skills/verify-squad-local-effects/scripts/check.py",
+          "--proof",
+          "reports/process-identity-fixture-local-effects-11a1023-final-1",
+          "--evidence",
+          "reports/process-identity-fixture-reader-controls-11a1023-final-1"
+        ],
+        "exitCode": 0,
+        "log": "work/process-identity-fixture-c3/reader-controls.log"
+      },
+      "postControlsReadback": {
+        "exitCode": 0,
+        "log": "work/process-identity-fixture-c3/local-effects-post-controls-readback.log"
+      },
+      "phases": {
+        "positive": "verified",
+        "realSourceFaults": "detected",
+        "restoredOriginal": "verified",
+        "independentReadback": "verified"
+      },
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true
+      },
+      "metrics": {
+        "retainedArtifacts": 249
+      },
+      "scope": "Unchanged LocalEffects finite domain and all real integration bridges, with the actual fixture identity-recorded prefix made deterministic. No production/model/property/bound/timeout change."
+    },
+    "retainedEightCurrentReaders": "all exit0",
+    "globalEvidenceIndex": "work/process-identity-fixture-c3/final-global-nine.json"
+  },
+  "previousVerification": {
+    "entry": "local-effects",
+    "sourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "evidence": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/local-effects",
+    "status": "verified",
+    "readerControls": [
+      {
+        "command": [
+          "python3",
+          "/workspace/squad/tests/local-effects-formal-readback-controls.py",
+          "--checker",
+          "/workspace/squad/.agents/skills/verify-squad-local-effects/scripts/check.py",
+          "--proof",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/local-effects",
+          "--evidence",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/reader-controls/local-effects-generic"
+        ],
+        "exitCode": 0,
+        "seconds": 0.491,
+        "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/local-effects-generic-reader-controls.log",
+        "kind": "generic"
+      }
+    ],
+    "completeRun": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-local-effects/scripts/check.py",
+        "--jar",
+        "/workspace/squad/work/tools/tla2tools.jar",
+        "--evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/local-effects"
+      ],
+      "exitCode": 0,
+      "seconds": 61.022,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/local-effects.log"
+    },
+    "independentReadback": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-local-effects/scripts/check.py",
+        "--verify-evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/local-effects"
+      ],
+      "exitCode": 0,
+      "seconds": 0.061,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/local-effects-readback.log"
+    },
+    "postControlsReadback": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-local-effects/scripts/check.py",
+        "--verify-evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/local-effects"
+      ],
+      "exitCode": 0,
+      "seconds": 0.064,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/local-effects-post-controls-readback.log"
+    },
+    "phases": {
+      "positive": "verified",
+      "realSourceFaults": "detected",
+      "restoredOriginal": "verified",
+      "independentReadback": "verified"
+    },
+    "outcome": "updated",
+    "change": "shared-agent-behavior-LB07-C2",
+    "source": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true
+    },
+    "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+    "metrics": {
+      "manifestEntries": 248,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true
+      },
+      "readbackOutput": "Evidence verified: /workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/local-effects (248 retained artifacts)",
+      "actualProcessBridges": 7,
+      "models": [
+        {
+          "domain": "local-effects",
+          "states": 108,
+          "edgesPerStore": 282
+        }
+      ],
+      "witnesses": 6,
+      "realSourceFaultStrategies": 4,
+      "retainedArtifacts": 248,
+      "realCodeControls": 4,
+      "steps": 24
+    }
+  },
+  "syncAdvance": {
+    "from": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "to": "11a1023b8cbb6483fef55af62b5212141eb2d789",
+    "producerReexecuted": true,
+    "otherEightProducerReexecuted": false
+  }
+}

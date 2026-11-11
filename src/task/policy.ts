@@ -1,3 +1,5 @@
+import { humanGateProblem, windowExpired, workInCleanup, taskHumanGate } from './resilience.js';
+import { acquisitionEventProblem } from '../resource-acquisition.js';
 import { validPartitionRecoveries } from './map-recovery.js';
 import { modelOutputIssues, type InputReference, type TaskContext, type TaskEvent } from '../types.js';
 import { localAwaitingApproval, localEventProblem, localPhysicalPending, localUnsettled } from '../local-operation.js';
@@ -13,6 +15,17 @@ import { deliveryVerificationProblem } from './verification.js';
 import { toolFailureProblem } from './tool-recovery.js';
 
 export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
+  if (e.type === 'SUPERVISE') return null;
+  if (e.type === 'HUMAN_GATE_DECISION') return humanGateProblem(c, e);
+  if (e.type === 'RECORD_ACQUISITION') return acquisitionEventProblem(c, e);
+  if (e.type === 'EXECUTION_NOT_STARTED') {
+    const work = c.intents.find(w => w.id === e.intentId);
+    if (!work || work.status !== 'inflight') return 'WORK_NOT_INFLIGHT';
+    if (e.attempt !== undefined && work.attempt !== e.attempt) return 'STALE_ATTEMPT';
+    if (!fresh(c, e) || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion) return 'STALE_WORK';
+    return localPhysicalPending(work) ? 'LOCAL_OPERATION_PENDING' : null;
+  }
+  if (c.resilience?.frozen && ['DELIVER', 'CHECK_RESULT', 'DISCUSSION_RESULT', 'DISCUSSION_PLAN', 'COORDINATE', 'HELP_RESULT', 'RECORD_RESULT', 'HUMAN_DECISION', 'USER_INPUT', 'ARTIFACT'].includes(e.type)) return 'FROZEN_DELIVERY';
   if (e.type.startsWith('LOCAL_')) return localEventProblem(c, e, work => requestBudgetProblem(c, work));
   if (e.type === 'REVOKE_HOST_SESSION') return c.hostSession && e.fence && fresh(c, e) && c.hostSession.id === e.grantId ? null : 'HOST_SESSION_MISMATCH';
   if (e.type === 'REQUEST_HOST_RETRY') {
@@ -28,6 +41,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     && c.intents.some(work => (e.workId ? work.id === e.workId : !work.discussionId) && localUnsettled(work))) return 'LOCAL_OPERATION_PENDING';
   if (e.type === 'WORK_FAILED' && c.intents.some(work => work.id === e.intentId && localPhysicalPending(work))) return 'LOCAL_OPERATION_PENDING';
   if (e.type === 'SETTLE' && c.intents.some(work => work.id === e.intentId && localPhysicalPending(work))) return 'LOCAL_OPERATION_PENDING';
+  if (e.type === 'SETTLE' && c.resilience?.cleanup.some(item => item.kind === 'legacyWork' && item.workId === e.intentId && item.state === 'pending')) return 'LEGACY_EFFECT_REQUIRES_RECONCILIATION';
   if (e.type === 'RECONCILE' && c.intents.some(work => work.id === e.intentId && localPhysicalPending(work))) return 'LOCAL_OPERATION_PENDING';
   if (!fresh(c, e)) return 'STALE_FENCE';
   if (e.workId) {
@@ -35,8 +49,12 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     if (!op || op.status !== 'inflight') return 'UNKNOWN_OR_SETTLED_WORK';
     if (op.epoch !== c.epoch || op.goalVersion !== c.goalVersion) return 'STALE_WORK';
     if (op.discussionId && !['DISCUSSION_PLAN', 'DISCUSSION_RESULT', 'WORK_FAILED'].includes(e.type)) return 'DISCUSSION_EVENT_REQUIRED';
+    if (['DELIVER', 'COORDINATE', 'HELP', 'WAIT_USER', 'BLOCKED', 'INTERPRETATION_RESULT', 'DISCUSSION_RESULT', 'DISCUSSION_PLAN', 'CHECK_RESULT'].includes(e.type)
+      && op.deadline !== null && e.at >= op.deadline) return 'WORK_EXPIRED';
   }
-  if (c.stopped && !['STOP', 'SETTLE', 'HELP_RESULT', 'CONTINUE', 'RETRY_ASSISTANCE', 'RECOVER', 'CLAIM', 'WORK_FAILED', 'HUMAN_DECISION'].includes(e.type)) return 'STOPPED';
+  if (['DELIVER', 'COORDINATE', 'HELP', 'WAIT_USER', 'BLOCKED', 'INTERPRETATION_RESULT', 'DISCUSSION_RESULT', 'DISCUSSION_PLAN', 'CHECK_RESULT'].includes(e.type)
+    && windowExpired(c, e.at)) return 'PROCESSING_WINDOW_EXPIRED';
+  if (c.stopped && !['STOP', 'SETTLE', 'HELP_RESULT', 'CONTINUE', 'RETRY_ASSISTANCE', 'RECOVER', 'CLAIM', 'WORK_FAILED', 'HUMAN_DECISION', 'RECONCILE'].includes(e.type)) return 'STOPPED';
   if (e.type === 'DELIVER' && !validPartitionRecoveries(e.partitionRecoveries)) return 'INVALID_REPORT';
   if ((e.type === 'DELIVER' || e.type === 'RECORD_RESULT') && (!validArtifactDrafts(e.artifacts) || !validSummary(e.summary))) return 'INVALID_REPORT';
   switch (e.type) {
@@ -96,12 +114,14 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (!i || i.status !== 'pending') return 'WORK_NOT_PENDING';
       if (i.kind === 'cancel') return null;
       if (localAwaitingApproval(i)) return 'HOST_APPROVAL_REQUIRED';
+      if (!i.discussionId && taskHumanGate(c)) return 'HUMAN_GATE_REQUIRED';
       if (c.stopped) return 'STOPPED';
       if (i.epoch !== c.epoch || i.goalVersion !== c.goalVersion) return 'STALE_WORK';
       if (['owner', 'assistance', 'tool'].includes(i.kind) && !isBot(c, i.target)) return 'UNKNOWN_BOT';
       if (i.kind === 'assistance' && ((i.payload.requiredTools as string[] | undefined) ?? []).some(t => !c.config.bots.find(b => b.id === i.target)?.tools.includes(t))) return 'TOOL_PERMISSION';
       if (!workLaneAvailable(c, i)) return 'WORK_BUSY';
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
+      if (windowExpired(c, e.at)) return 'PROCESSING_WINDOW_EXPIRED';
       if (i.kind === 'tool' && !c.config.bots.find(b => b.id === i.target)?.tools.includes(String(i.payload.tool))) return 'TOOL_PERMISSION';
       if (i.kind === 'check' && !isBoundedCheck(i)) return 'CHECK_PROTOCOL_CHANGED';
       // Recovery can reuse the claim only until the batch has authorized its first model request.
@@ -120,6 +140,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       return requestBudgetProblem(c, i);
     }
     case 'CONSUME': {
+      if (windowExpired(c, e.at)) return 'PROCESSING_WINDOW_EXPIRED';
       const i = c.intents.find(i => i.id === e.intentId);
       if (!i || i.status !== 'inflight' || i.bucket === 'none') return 'WORK_NOT_INFLIGHT';
       if (i.epoch !== c.epoch || i.goalVersion !== c.goalVersion) return 'STALE_WORK';
@@ -150,9 +171,11 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       return e.reviewTargets?.some(target => target === c.owner || !isBot(c, target)) ? 'INVALID_REVIEW_TARGET' : null;
     case 'HANDOFF': return !isBot(c, e.owner) ? 'UNKNOWN_BOT' : allInflight(c).length || discussionActive(c) ? 'WAIT_FOR_BOUNDARY' : null;
     case 'CONTINUE': {
+      if (e.newWindowMs !== undefined && (!Number.isSafeInteger(e.newWindowMs) || e.newWindowMs <= 0 || !Number.isSafeInteger(e.at + e.newWindowMs))) return 'INVALID_PROCESSING_WINDOW';
+      if (windowExpired(c, e.at) && e.newWindowMs === undefined) return 'PROCESSING_WINDOW_EXPIRED';
       const upgraded = legacyTerminalConfig(c, e.currentConfig);
       if (!upgraded && (incompatibleExecution(c) || e.currentConfig && taskProtocolChanged(c.config, e.currentConfig))) return 'INCOMPATIBLE_EXECUTION';
-      if (allInflight(c).length || c.intents.some(i => i.status === 'uncertain')) return 'UNRESOLVED_WORK';
+      if (allInflight(c).length || c.intents.some(i => i.status === 'uncertain' && !workInCleanup(c, i))) return 'UNRESOLVED_WORK';
       if (!(upgraded ?? c.config).bots.some(bot => bot.id === c.owner)) return 'OWNER_UNAVAILABLE';
       if (e.extraOrdinary !== undefined && (!Number.isSafeInteger(e.extraOrdinary) || e.extraOrdinary <= 0)) return 'INVALID_BUDGET';
       return hasOrdinary(c) || e.extraOrdinary ? null : 'BUDGET_EXHAUSTED';
@@ -184,7 +207,7 @@ export const valid = ({ context, event }: { context: TaskContext; event: TaskEve
 
 export function localResumeKind(c: TaskContext, e: TaskEvent): string | null {
   if (!valid({ context: c, event: e }) || c.stopped || incompatibleExecution(c) || c.outcome !== null) return null;
-  if (e.type !== 'LOCAL_RECONCILE' && e.type !== 'LOCAL_RESULT') return null;
+  if (e.type !== 'LOCAL_RECONCILE' && e.type !== 'LOCAL_RESULT' && e.type !== 'LOCAL_APPROVAL_DECISION') return null;
   const work = c.intents.find(i => i.id === e.intentId);
   if (e.type === 'LOCAL_RESULT' && (work?.status !== 'uncertain' || !e.settled || !e.effectsKnown)) return null;
   if (!work || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion) return null;

@@ -7,6 +7,10 @@ export class DebugJournal {
   private bytes = 0;
   private records: { record: DebugRecord; bytes: number }[] = [];
   constructor(private readonly maxRecords = 200, private readonly maxBytes = 4 * 1024 * 1024) {}
+  removeRoom(roomId: string): void {
+    this.records = this.records.filter(item => item.record.roomId !== roomId);
+    this.bytes = this.records.reduce((total, item) => total + item.bytes, 0);
+  }
   append(roomId: string, frame: DebugFrame) {
     const snapshot = frame.snapshot as { context: { taskId: string } };
     const previous = [...this.records].reverse().find(item => item.record.roomId === roomId && item.record.taskId === snapshot.context.taskId)?.record;

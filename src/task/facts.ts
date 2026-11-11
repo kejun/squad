@@ -1,3 +1,4 @@
+import { workInCleanup } from './resilience.js';
 import { type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { localEnabled, localPhysicalPending, localRecoveryBlocked } from '../local-operation.js';
 import { modelSignature, resolveModel } from '../model-config.js';
@@ -45,7 +46,7 @@ export const incompatibleExecution = localRecoveryBlocked;
 /** Lane and member locks are shared by the read projection and transactional claim guard. */
 export function workLaneAvailable(c: TaskContext, work: Intent): boolean {
   if (allInflight(c).some(item => item.target === work.target)
-    || c.intents.some(item => item.status === 'uncertain' && item.target === work.target)) return false;
+    || c.intents.some(item => item.status === 'uncertain' && item.target === work.target && !workInCleanup(c, item))) return false;
   return work.discussionId ? discussionActive(c) && work.discussionId === c.discussion?.id : inflight(c).length === 0;
 }
 

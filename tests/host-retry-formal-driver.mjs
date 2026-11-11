@@ -87,8 +87,15 @@ export async function hostRetryDriver(root, backend, mode = 0) {
     } else if (action === 'ClaimParent') { oldWork = engine.claim(room, task, oldWork.id); assert(oldWork); }
     else if (action === 'DeniedEnd') { assert.equal(send({ type: 'SETTLE', intentId: oldWork.id }).ok, false); }
     else if (action === 'EndOwner') { assert(send({ type: 'SETTLE', intentId: oldWork.id }).ok); }
-    else if (action === 'RejectOwner') { const result = send({ type: 'HELP', workId: oldWork.id, fence: work(), caller: work().target, target: work().target,
-      requestId: 'self-help', question: '核对', expected: '证据' }); assert.equal(result.code, 'SELF_DEPENDENCY'); }
+    else if (action === 'RejectOwner') {
+      const expected = work().deadline !== null && now >= work().deadline ? 'WORK_EXPIRED' : 'SELF_DEPENDENCY';
+      const saved = structuredClone({ candidate: c().candidate, artifacts: c().artifacts, assists: c().assists, receipt: op().result });
+      const result = send({ type: 'HELP', workId: oldWork.id, fence: work(), caller: work().target, target: work().target,
+        requestId: 'self-help', question: '核对', expected: '证据' });
+      assert.equal(result.ok, false); assert.equal(result.code, expected);
+      assert.deepEqual({ candidate: c().candidate, artifacts: c().artifacts, assists: c().assists, receipt: op().result }, saved,
+        'Rejected HELP cannot create assistance or change the saved candidate, artifacts or original receipt');
+    }
     else if (action === 'Expire') { now = c().hostRetryRequests[0].deadline; }
     else if (action === 'Sweep') { recoverySlice(); engine.tick(room); }
     else if (action === 'Duplicate') { assert(engine.requestHostRetry(room, task, source.id, sourceOps[0].id, sourceOps[0].requestHash, `retry:first:duplicate:${++sequence}`).ok); }

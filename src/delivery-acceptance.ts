@@ -3,6 +3,7 @@ import { isLongResult } from './presentation.js';
 import { mapRecoveryCriteria } from './task/map-recovery.js';
 import type { DeliveryEvidenceSource } from './task/evidence.js';
 import type { ArtifactSourceMetadata, Candidate, InputAnalysis, InputReference, TaskContext, TaskEvent } from './types.js';
+import { missingResourceAcquisitions } from './resource-acquisition.js';
 
 export type CriterionSource = { kind: 'goal' | 'input'; id: string };
 export type AcceptanceCriterion = { id: string; text: string; goalVersion: number; sources: CriterionSource[]; requiredSourceIds?: string[] };
@@ -197,6 +198,8 @@ export function deliveryPreflight(c: TaskContext, e: Delivery) {
   const drafts = e.artifacts?.length ? e.artifacts : !c.sourceArtifact && isLongResult(e.text) ? [{ name: 'result.md', content: e.text }] : [];
   const listed = [...new Set(e.artifactIds)];
   const gaps: DeliveryGap[] = [];
+  for (const requirement of missingResourceAcquisitions(c)) gaps.push(gap(revision, 'missing_evidence',
+    `RESOURCE_ACQUISITION_UNVERIFIED:${JSON.stringify(requirement.resource)}`));
   const available = listed.filter(id => c.artifacts.some(artifact => artifact.id === id && artifact.goalVersion === c.goalVersion && !!artifact.content.trim()));
   if (available.length + drafts.filter(draft => !!draft.content.trim()).length < c.goal.requiredArtifacts)
     gaps.push(gap(revision, 'missing_requirement', 'MISSING_ARTIFACTS'));

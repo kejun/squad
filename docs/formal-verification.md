@@ -52,7 +52,7 @@ Delivery 的独立 `scripts/composition-check.py` 供开发时单跑新增域，
 | KEJ-108 A5 授权组合 | 撤销、重新审批与 parent attempt 变化后旧身份无新执行效果 | authority ApprovalComposition；BT_N30–N32；[详细边界](authority-composition.md) |
 | KEJ-108 A6 来源与 lineage | 创建时冻结原文；新请求拒绝旧发布，后继任务只记录直接交付来源 | delivery SourceLineage；BT_F53 |
 | KEJ-108 B1 网页回执与快照 | 另一群成功发送不清原群重试身份；旧快照不污染当前群及连接状态 | 真实 Chromium、HTTP、SQLite；BT_U20–U21 |
-| KEJ-108 B2 服务生命周期 | 关闭后不启动新操作；存储故障全实例停止，非存储 hostError 只隔离本房间 | 真实 WebService/SQLite、受控 Promise/定时器及宿主边界；BT_K03–K07 |
+| KEJ-108 B2 服务生命周期 | 关闭后不启动新操作；存储故障全实例停止，非存储 hostError 暂隔离本房间后由监督按原窗口与预算恢复 | 真实 WebService/SQLite、受控 Promise/定时器及宿主边界；BT_K03–K07 |
 | KEJ-108 B3 资源准备 | 并发、源变更和发布/marker 前后丢失后，只交付完整版本及具备临时、适用检查输出目录的隔离副本 | 真实文件系统、SIGKILL、公开技能/执行接口；BT_L81–L84；[准备流程](preparation-composition.md) |
 | KEJ-108 B4 模型会话 | 工具资料在格式修正后保留，修正不重跑工具或回显无效原文，新工作不继承旧资料 | 真实 WorkRunner/模型适配器、受控 HTTP 与本地技能；BT_M50–M51 |
 | KEJ-108 B5 Inspector 多代装载 | 旧 generation 不导航、投递或覆盖反馈，当前身份先注册后发快照，释放后无迟到快照 | 生产控制器/bridge 的四种装载顺序；BT_V41 |

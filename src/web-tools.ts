@@ -2,9 +2,14 @@ import { createHTTPWebSearch, renderWebSearchResults, WebSearchError, type WebSe
 import { fetchWeb, windowWebFetchPage, renderWebFetchPage, WebFetchError, type DirectWebFetchOptions, type WebFetchToolInput, type WebFetchToolOutput } from 'agents/webfetch';
 import { WorkFailure } from './runner.js';
 import { readModelEnv, type ModelEnvironment } from './model-env.js';
+import type { HostEvidenceReference } from './resource-acquisition.js';
 
 export type { WebSearchToolInput, WebSearchToolOutput, WebFetchToolInput, WebFetchToolOutput };
-export interface WebToolResult<T> { output: T; text: string }
+export interface WebFetchHostCapture {
+  url: string; finalUrl: string; status: number; content: string; totalChars: number;
+  headers: Record<string, string>; redirects: string[];
+}
+export interface WebToolResult<T> { output: T; text: string; hostCapture?: WebFetchHostCapture; hostEvidence?: HostEvidenceReference }
 export interface WebTools {
   search(input: WebSearchToolInput, signal: AbortSignal): Promise<WebToolResult<WebSearchToolOutput>>;
   fetch(input: WebFetchToolInput, signal: AbortSignal): Promise<WebToolResult<WebFetchToolOutput>>;
@@ -127,7 +132,8 @@ export class CloudflareWebTools implements WebTools {
         ...(this.options.allowedHosts ? { allowedHosts: this.options.allowedHosts } : {}),
       });
       const output = windowWebFetchPage(page, { offset: input.offset ?? 0, pageChars: this.pageChars });
-      return { output, text: renderWebFetchPage(output) };
+      return { output, text: renderWebFetchPage(output), hostCapture: { url: page.url, finalUrl: page.finalUrl,
+        status: page.status, content: page.content, totalChars: page.totalChars, headers: page.headers, redirects: page.redirects } };
     });
   }
 }

@@ -28,7 +28,8 @@ export function startHelp(c: TaskContext, e: TaskEvent, id: string, target: stri
 }
 
 export function savedHelpResult(c: TaskContext, requestId: string) {
-  if (c.assists.find(h => h.id === requestId)?.status !== 'answered') return undefined;
+  const help = c.assists.find(h => h.id === requestId);
+  if (!help || help.status !== 'answered' && !(c.outcome !== null && help.status === 'cancelled')) return undefined;
   return c.results.find(r => r.requestId === requestId && !r.consumed && r.epoch === c.epoch && r.goalVersion === c.goalVersion);
 }
 

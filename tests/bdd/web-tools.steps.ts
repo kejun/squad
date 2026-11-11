@@ -15,6 +15,7 @@ interface WebState {
   fixture: ReturnType<typeof webFixture>;
   model?: ReturnType<typeof scriptedModel>;
   constraint?: string;
+  authorizationPriority?: boolean;
   error?: string;
   url?: string;
   pages?: WebToolResult<WebFetchToolOutput>[];
@@ -68,6 +69,7 @@ Then('三次模型请求与两次联网工具请求应消耗五次普通额度',
 Given('网页工具工作受到{string}约束', function (this: SpecWorld, constraint: string) {
   setup(this).constraint = constraint;
   const config = configuration({ ordinary: constraint === '普通额度耗尽' ? 1 : constraint === '评审汇总保留额度' ? 3 : 30 });
+  if (constraint === '工作过期') config.limits.workTimeoutMs = 1000;
   if (constraint === '工具关闭') config.webTools = { enabled: false };
   this.h = new Harness(config);
   if (constraint === '评审汇总保留额度') {
@@ -123,12 +125,22 @@ Given('联网服务出现{string}', function (this: SpecWorld, error: string) {
   const state = setup(this, webFixture({ timeoutMs: 30, ...(error === '未配置凭据' ? { env: {} } : {}) }));
   this.h = new Harness(configuration({ retries: 0 }));
   if (error === '搜索鉴权失败') state.fixture.state.searchStatus = 401;
+  if (error === 'HTTP503携带明确鉴权失败') {
+    this.h = new Harness(configuration({ retries: 1 }));
+    state.fixture.state.searchStatus = 503; state.authorizationPriority = true;
+  }
   if (error === '搜索限流') { state.fixture.state.searchStatus = 429; state.fixture.state.errorCode = 'web_search_rate_limited'; }
   if (error === '搜索超时') state.fixture.state.wait = true;
 });
-Then('工作应明确失败并保留安全错误代码', function (this: SpecWorld) {
+Then('工作应明确失败并保留安全错误代码', async function (this: SpecWorld) {
   assert(s(this).error?.match(/WEB_TOOLS_NOT_CONFIGURED|web_search_(unauthorized|rate_limited|timeout)/), s(this).error);
   assert.equal(this.h.view().phase, 'waitingHuman'); assert.equal(this.h.context().candidate, null);
+  if (s(this).authorizationPriority) {
+    await requestSearch(this);
+    assert.equal(s(this).fixture.calls.length, 1, 'Explicit authentication failure must not retry merely because HTTP status is transient');
+    assert.equal(this.h.context().usage.retries, 0); assert.equal(this.h.context().usage.ordinary, 2);
+    assert(this.h.context().resilience?.gates.some(gate => gate.kind === 'authorization' && gate.status === 'open' && gate.required));
+  }
 });
 Then('任务记录不应包含 Cloudflare 密钥或供应商原始错误正文', function (this: SpecWorld) {
   const text = JSON.stringify(this.h.store.read(this.h.room)); assert(!text.includes(webEnv.CLOUDFLARE_API_TOKEN)); assert(!text.includes('raw-provider-echo'));

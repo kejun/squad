@@ -1,0 +1,457 @@
+{
+  "change": "Shared Agent behavior prompt",
+  "outcome": "updated",
+  "reviewedHead": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+  "reviewedProductWorkingTree": false,
+  "previousProductSourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+  "productionFiles": [
+    {
+      "file": "src/model-adapter.ts",
+      "oldSha256": "ee0ea2b17c929316c050dc8f5c4a4828aed3e2be817e8275086daa11104d3fd3",
+      "candidateSha256": "343bc56fe91240cf19df74af5dd51f2c965f1d6622186674165a10c6d339b84f",
+      "classification": "check-prompt-static-literal-only",
+      "reason": "One added checkMessages string describes the already enforced citation source catalog and the existing optional-source omission rule. It preserves requiredSourceIds and exact quotation obligations. Shared behavior text, host source catalog/guards, schemas, 0.65 threshold, event/state/budget/deadline code and all ordinary model-work prompts are unchanged."
+    }
+  ],
+  "implementationCorrespondence": {
+    "hostMechanics": "No code in checkCitationSources, judgmentsDiagnostic, protocol validation, check disposition, task transitions or authority changed. Old finite source/citation properties retain their exact meanings.",
+    "localEffects": "Existing real Adapter/controlled-transport bridges still execute unchanged; no model, fixture or response script change. They do not prove provider obedience to the new sentence.",
+    "contextCost": "The added literal participates in the existing enforceFixedContext input bound; fixed-context gates were separately rerun. No formal bound or guard is raised.",
+    "proofSourceIdentity": "The C1 4032 complete proofs remain historical in phaseHistory and their original directories. Every C2 entry requires a new complete producer/source-negative/restored run and an independent reader."
+  },
+  "scope": "The old finite host properties retain their original guarantees. Full source replay and real mutants validate the unchanged implementation correspondence, not LLM obedience, arbitrary prompt quality, or all protocol/provider combinations.",
+  "validation": {
+    "status": "verified",
+    "frozenSourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "entries": {
+      "authority": {
+        "entry": "authority",
+        "evidence": "reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1/authority",
+        "sourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+        "completeRun": {
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-authority/scripts/check.py",
+            "--jar",
+            "/workspace/squad/work/tools/tla2tools.jar",
+            "--evidence",
+            "/workspace/squad/reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1/authority"
+          ],
+          "exitCode": 0,
+          "seconds": 53.444
+        },
+        "independentReadback": {
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-authority/scripts/check.py",
+            "--verify-evidence",
+            "/workspace/squad/reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1/authority"
+          ],
+          "exitCode": 0
+        },
+        "readerControls": [],
+        "status": "verified",
+        "outcome": "updated",
+        "change": "shared-agent-behavior-LB07-C2",
+        "source": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+        "phases": {
+          "positive": "verified",
+          "realSourceFaults": "detected",
+          "restoredOriginal": "verified",
+          "independentReadback": "verified"
+        },
+        "cleanup": true,
+        "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+        "metrics": {
+          "retainedArtifacts": 142,
+          "realCodeControls": 6,
+          "steps": 34
+        }
+      },
+      "authority-composition": {
+        "entry": "authority-composition",
+        "evidence": "reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1/authority-composition",
+        "sourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+        "completeRun": {
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+            "--jar",
+            "/workspace/squad/work/tools/tla2tools.jar",
+            "--evidence",
+            "/workspace/squad/reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1/authority-composition"
+          ],
+          "exitCode": 0,
+          "seconds": 32.244
+        },
+        "independentReadback": {
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+            "--verify-evidence",
+            "/workspace/squad/reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1/authority-composition"
+          ],
+          "exitCode": 0
+        },
+        "readerControls": [],
+        "status": "verified",
+        "outcome": "updated",
+        "change": "shared-agent-behavior-LB07-C2",
+        "source": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+        "phases": {
+          "positive": "verified",
+          "realSourceFaults": "detected",
+          "restoredOriginal": "verified",
+          "independentReadback": "verified"
+        },
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true
+        },
+        "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+        "metrics": {
+          "retainedArtifacts": 208,
+          "realCodeControls": 4,
+          "domains": 1,
+          "edgesPerStorePerStage": 182,
+          "witnesses": 4
+        }
+      }
+    },
+    "allNineEntrypointsVerified": true,
+    "independentReadbacks": "verified",
+    "postMetadataReaderLogs": "work/shared-agent-behavior-lb07-formal/post-metadata-<entry>.log"
+  },
+  "entries": [
+    {
+      "entry": "authority",
+      "coverage": ".agents/skills/verify-squad-authority/references/coverage.json",
+      "previousSyncCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "oldPinCount": 87,
+      "plannedPinCount": 87,
+      "adapterOldSha256": "ee0ea2b17c929316c050dc8f5c4a4828aed3e2be817e8275086daa11104d3fd3",
+      "adapterCandidateSha256": "343bc56fe91240cf19df74af5dd51f2c965f1d6622186674165a10c6d339b84f",
+      "firstStageCompleteEvidence": "reports/shared-agent-behavior-four-formal-4032d88-final-1/authority"
+    },
+    {
+      "entry": "authority-composition",
+      "coverage": ".agents/skills/verify-squad-authority/references/composition-coverage.json",
+      "previousSyncCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "oldPinCount": 89,
+      "plannedPinCount": 89,
+      "adapterOldSha256": "ee0ea2b17c929316c050dc8f5c4a4828aed3e2be817e8275086daa11104d3fd3",
+      "adapterCandidateSha256": "343bc56fe91240cf19df74af5dd51f2c965f1d6622186674165a10c6d339b84f",
+      "firstStageCompleteEvidence": "reports/shared-agent-behavior-four-formal-4032d88-final-1/authority-composition"
+    }
+  ],
+  "frozenSourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+  "originalAsIs": [
+    {
+      "entry": "authority",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-authority/scripts/check.py",
+        "--jar",
+        "/workspace/squad/work/tools/tla2tools.jar",
+        "--evidence",
+        "/workspace/squad/reports/shared-agent-behavior-lb07-original-as-is-e1c29ed-1/authority"
+      ],
+      "exitCode": 1,
+      "expectedSourceDriftBlock": true,
+      "evidence": "reports/shared-agent-behavior-lb07-original-as-is-e1c29ed-1/authority"
+    },
+    {
+      "entry": "authority-composition",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+        "--jar",
+        "/workspace/squad/work/tools/tla2tools.jar",
+        "--evidence",
+        "/workspace/squad/reports/shared-agent-behavior-lb07-original-as-is-e1c29ed-1/authority-composition"
+      ],
+      "exitCode": 1,
+      "expectedSourceDriftBlock": true,
+      "evidence": "reports/shared-agent-behavior-lb07-original-as-is-e1c29ed-1/authority-composition"
+    }
+  ],
+  "originalAsIsSummary": "reports/shared-agent-behavior-lb07-original-as-is-e1c29ed-1/summary.json",
+  "staticModuleAudit": {
+    "statements": 1,
+    "staticConstExport": true,
+    "hasImports": false,
+    "hasTemplateInterpolation": false,
+    "bodyChars": 2148,
+    "bodyUtf8Bytes": 6178
+  },
+  "targetGatesReportedByRoot": {
+    "sourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "pureModelTrajectories": 13,
+    "actualHttpBdd": "42/42, 2492 steps",
+    "fixedCapacity": "15/15",
+    "adapter": "39/39",
+    "types": "passed"
+  },
+  "previousMetadata": {
+    ".agents/skills/verify-squad-authority/references/coverage.json": null,
+    ".agents/skills/verify-squad-authority/references/composition-coverage.json": null
+  },
+  "verificationInputChanges": {
+    "archive": "Existing shared-agent review filename and capture hooks are reused unchanged. No checker, reader, model, CFG, fixture, mutation, bound or timeout changes for C2."
+  },
+  "phaseHistory": [
+    {
+      "phase": "shared-behavior-C1",
+      "sourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "review": {
+        "change": "Shared Agent behavior prompt",
+        "outcome": "updated",
+        "reviewedHead": "4032d88341b75c3b419215b73a63c0830f6f137a",
+        "reviewedProductWorkingTree": false,
+        "previousProductSourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+        "productionFiles": [
+          {
+            "file": "src/model-adapter.ts",
+            "classification": "prompt-construction-only",
+            "oldSha256": "7d2c7be8703ca71129fd7eb85a8b10f611b5c2ab563762115fb81a30a7759eef",
+            "candidateSha256": "ee0ea2b17c929316c050dc8f5c4a4828aed3e2be817e8275086daa11104d3fd3",
+            "reason": "Only adds a static import, injects the same shared string in checkMessages and the ordinary model-work system message, and replaces the previous owner/facilitator-only short behavior paragraph. Role headers, output schemas, the 0.65 interpretation threshold, capability gates, transport, validation, accounting, cancellation, retry and state events stay byte-identical outside these hunks."
+          },
+          {
+            "file": "src/agent-behavior.ts",
+            "classification": "new-static-transitive-dependency",
+            "oldSha256": null,
+            "candidateSha256": "1b1c18b90e05f7673e1d2b5253a7a2171e5dfa4ccf869219e265835f25b4e814",
+            "reason": "One exported const initialized by a no-substitution template literal; no imports, calls, interpolation or other top-level statements. It is source text for model messages and has no module-load I/O. Every existing coverage already pins its direct importer model-adapter.ts, so add this module to all nine conservative dependency gates."
+          }
+        ],
+        "implementationCorrespondence": {
+          "unchanged": [
+            "State/event/context contracts",
+            "Public transaction seams",
+            "Permission and one-use execution guards",
+            "0.65 confidence/clarification predicate",
+            "Budget/deadline/retry/cleanup rules",
+            "Finite models/CFG/projections/fairness/bounds",
+            "Fixtures/real-source mutants/subprocess timeouts"
+          ],
+          "localEffectsException": "LocalEffects actually instantiates OpenAICompatibleAdapter in three CLI/SIGKILL bridges with controlled transport. The actual new system messages are consumed there; this is not real provider semantic evaluation. Preserve that full bridge and the original trusted receipt/checkpoint assertions.",
+          "otherEight": "The other declared finite entrypoints use public Engine events, controlled result injection, or a Runner adapter that must not be called in its flush probe. None establishes natural-language compliance with the shared prompt.",
+          "fixedContextCost": "The additional system text contributes to the existing conservative UTF-8 input bound at model-adapter enforceFixedContext. Preserve the A45/F28 source/check context tests and new six-role actual SDK/HTTP request gates; do not enlarge a formal state domain or relax context/permission guards to hide this cost.",
+          "moduleCopies": "All nine real-source mutation harnesses copy the complete src tree. The existing generic .js-to-.ts loader resolves the new static module; no fixture or loader change is needed."
+        },
+        "scope": "The old finite host properties retain their original guarantees. Full source replay and real mutants validate the unchanged implementation correspondence, not LLM obedience, arbitrary prompt quality, or all protocol/provider combinations.",
+        "validation": {
+          "status": "verified",
+          "frozenSourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+          "entries": {
+            "authority": {
+              "entry": "authority",
+              "evidence": "reports/shared-agent-behavior-four-formal-4032d88-final-1/authority",
+              "sourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+              "completeRun": {
+                "command": [
+                  "python3",
+                  ".agents/skills/verify-squad-authority/scripts/check.py",
+                  "--jar",
+                  "/workspace/squad/work/tools/tla2tools.jar",
+                  "--evidence",
+                  "/workspace/squad/reports/shared-agent-behavior-four-formal-4032d88-final-1/authority"
+                ],
+                "exitCode": 0,
+                "seconds": 57.343
+              },
+              "independentReadback": {
+                "command": [
+                  "python3",
+                  ".agents/skills/verify-squad-authority/scripts/check.py",
+                  "--verify-evidence",
+                  "/workspace/squad/reports/shared-agent-behavior-four-formal-4032d88-final-1/authority"
+                ],
+                "exitCode": 0
+              },
+              "readerControls": [],
+              "status": "verified",
+              "outcome": "updated",
+              "change": "shared-agent-behavior",
+              "source": "4032d88341b75c3b419215b73a63c0830f6f137a",
+              "phases": {
+                "positive": "verified",
+                "realSourceFaults": "detected",
+                "restoredOriginal": "verified",
+                "independentReadback": "verified"
+              },
+              "cleanup": true,
+              "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+              "metrics": {
+                "retainedArtifacts": 142,
+                "realCodeControls": 6,
+                "steps": 34
+              }
+            },
+            "authority-composition": {
+              "entry": "authority-composition",
+              "evidence": "reports/shared-agent-behavior-four-formal-4032d88-final-1/authority-composition",
+              "sourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+              "completeRun": {
+                "command": [
+                  "python3",
+                  ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+                  "--jar",
+                  "/workspace/squad/work/tools/tla2tools.jar",
+                  "--evidence",
+                  "/workspace/squad/reports/shared-agent-behavior-four-formal-4032d88-final-1/authority-composition"
+                ],
+                "exitCode": 0,
+                "seconds": 33.558
+              },
+              "independentReadback": {
+                "command": [
+                  "python3",
+                  ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+                  "--verify-evidence",
+                  "/workspace/squad/reports/shared-agent-behavior-four-formal-4032d88-final-1/authority-composition"
+                ],
+                "exitCode": 0
+              },
+              "readerControls": [],
+              "status": "verified",
+              "outcome": "updated",
+              "change": "shared-agent-behavior",
+              "source": "4032d88341b75c3b419215b73a63c0830f6f137a",
+              "phases": {
+                "positive": "verified",
+                "realSourceFaults": "detected",
+                "restoredOriginal": "verified",
+                "independentReadback": "verified"
+              },
+              "cleanup": {
+                "scratchRemoved": true,
+                "coveredFilesUnchanged": true
+              },
+              "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+              "metrics": {
+                "retainedArtifacts": 208,
+                "realCodeControls": 4,
+                "domains": 1,
+                "edgesPerStorePerStage": 182,
+                "witnesses": 4
+              }
+            }
+          },
+          "allNineEntrypointsVerified": true,
+          "independentReadbacks": "verified",
+          "postMetadataReaderLogs": "work/shared-agent-behavior-formal/post-metadata-<entry>.log"
+        },
+        "entries": [
+          {
+            "entry": "authority",
+            "skill": "authority",
+            "coverage": ".agents/skills/verify-squad-authority/references/coverage.json",
+            "script": ".agents/skills/verify-squad-authority/scripts/check.py",
+            "oldSyncCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+            "oldPinCount": 86,
+            "plannedPinCount": 87,
+            "adapterOldSha256": "7d2c7be8703ca71129fd7eb85a8b10f611b5c2ab563762115fb81a30a7759eef",
+            "adapterCandidateSha256": "ee0ea2b17c929316c050dc8f5c4a4828aed3e2be817e8275086daa11104d3fd3",
+            "constantCandidateSha256": "1b1c18b90e05f7673e1d2b5253a7a2171e5dfa4ccf869219e265835f25b4e814",
+            "oldCompleteEvidence": "reports/kej-113-114-four-formal-36916b5-final-2/authority"
+          },
+          {
+            "entry": "authority-composition",
+            "skill": "authority",
+            "coverage": ".agents/skills/verify-squad-authority/references/composition-coverage.json",
+            "script": ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+            "oldSyncCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+            "oldPinCount": 88,
+            "plannedPinCount": 89,
+            "adapterOldSha256": "7d2c7be8703ca71129fd7eb85a8b10f611b5c2ab563762115fb81a30a7759eef",
+            "adapterCandidateSha256": "ee0ea2b17c929316c050dc8f5c4a4828aed3e2be817e8275086daa11104d3fd3",
+            "constantCandidateSha256": "1b1c18b90e05f7673e1d2b5253a7a2171e5dfa4ccf869219e265835f25b4e814",
+            "oldCompleteEvidence": "reports/kej-113-114-four-formal-36916b5-final-2/authority-composition"
+          }
+        ],
+        "frozenSourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+        "originalAsIs": [
+          {
+            "entry": "authority",
+            "command": [
+              "python3",
+              ".agents/skills/verify-squad-authority/scripts/check.py",
+              "--jar",
+              "/workspace/squad/work/tools/tla2tools.jar",
+              "--evidence",
+              "/workspace/squad/reports/shared-agent-behavior-original-as-is-4032d88-original-1/authority"
+            ],
+            "exitCode": 1,
+            "expectedSourceDriftBlock": true,
+            "evidence": "reports/shared-agent-behavior-original-as-is-4032d88-original-1/authority"
+          },
+          {
+            "entry": "authority-composition",
+            "command": [
+              "python3",
+              ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+              "--jar",
+              "/workspace/squad/work/tools/tla2tools.jar",
+              "--evidence",
+              "/workspace/squad/reports/shared-agent-behavior-original-as-is-4032d88-original-1/authority-composition"
+            ],
+            "exitCode": 1,
+            "expectedSourceDriftBlock": true,
+            "evidence": "reports/shared-agent-behavior-original-as-is-4032d88-original-1/authority-composition"
+          }
+        ],
+        "originalAsIsSummary": "reports/shared-agent-behavior-original-as-is-4032d88-original-1/summary.json",
+        "staticModuleAudit": {
+          "statements": 1,
+          "staticConstExport": true,
+          "hasImports": false,
+          "hasTemplateInterpolation": false,
+          "bodyChars": 2148,
+          "bodyUtf8Bytes": 6178
+        },
+        "targetGatesReportedByRoot": {
+          "sourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+          "pureModelTrajectories": 12,
+          "feature63ActualHttpScenarios": "39/39",
+          "vitest": "437/437",
+          "fixedSourceAndCheckContextA45F28": "15/15",
+          "types": "passed",
+          "provenance": "Root SOURCE_FREEZE message; these are separate from the finite formal runs below."
+        },
+        "previousMetadata": {
+          ".agents/skills/verify-squad-authority/references/coverage.json": null,
+          ".agents/skills/verify-squad-authority/references/composition-coverage.json": null
+        },
+        "verificationInputChanges": {
+          "archiveCapture": "Four existing checker files only add this new audit record to archived inputs; Handoff original uses its existing review.basis hook and four other entries already copy complete references/skill directories.",
+          "hostRetryReader": "A proof whose captured source pins contain agent-behavior.ts must retain the new review input. Legacy proofs without that module preserve their original readback contract.",
+          "unchanged": "No model, CFG, fixture, product-source mutant, bound, fairness, timeout or state projection changed."
+        },
+        "syncAdvance": {
+          "from": "36916b5c6e974c11f8e51720189c64facef9269e",
+          "to": "4032d88341b75c3b419215b73a63c0830f6f137a",
+          "metadataOnly": true,
+          "allNineEntrypointsVerified": true,
+          "note": "Original raw evidence keeps the old sync values. Synchronization is not another full rerun and does not enlarge any finite guarantee."
+        }
+      }
+    }
+  ],
+  "phase": "LB07-check-citation-catalog-C2",
+  "previousSourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+  "unchangedSharedModule": {
+    "file": "src/agent-behavior.ts",
+    "sha256": "1b1c18b90e05f7673e1d2b5253a7a2171e5dfa4ccf869219e265835f25b4e814",
+    "sameAsSource": "4032d88341b75c3b419215b73a63c0830f6f137a"
+  },
+  "addedCheckPromptUtf8Bytes": 798,
+  "syncAdvance": {
+    "from": "4032d88341b75c3b419215b73a63c0830f6f137a",
+    "to": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "metadataOnly": true,
+    "allNineEntrypointsVerified": true,
+    "note": "Original raw evidence keeps the old sync values. Synchronization is not another full rerun and does not enlarge any finite guarantee."
+  }
+}

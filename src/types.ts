@@ -5,6 +5,8 @@ import type { HostSessionGrant } from './host-session.js';
 import type { LocalCheckpoint, LocalEvent, LocalOperation, SkillBinding } from './local-operation.js';
 import type { SourceItem } from './source-items.js';
 import type { InputIntentSpec, MapReducePlan } from './input-intent.js';
+import type { ResilienceEvent, ResiliencePolicy, TaskResilience } from './task/resilience.js';
+import type { HostAcquisition, AcquisitionEvent, ResourceRequirement, ResourceIdentity } from './resource-acquisition.js';
 export type { InputIntentSpec, InputReference } from './input-intent.js';
 
 export interface Bot { id: string; name: string; instructions: string; tools: string[]; model?: string; localTools?: boolean }
@@ -28,12 +30,16 @@ export interface TeamConfig {
   /** Shared read-only web tools; omitted means enabled. Credentials stay in the host environment. */
   webTools?: { enabled: boolean };
   inputAnalysis?: { enabled: boolean };
+  resilience?: ResiliencePolicy;
   models?: ModelConfiguration;
 }
 export const localEnabled = (config: TeamConfig, target: string) => config.localTools?.enabled !== false
   && config.bots.find(bot => bot.id === target)?.localTools !== false;
 export interface Fence { epoch: number; goalVersion: number }
-export interface Goal { text: string; constraints: string[]; criteria: string[]; requiredArtifacts: number }
+export interface Goal { text: string; constraints: string[]; criteria: string[]; requiredArtifacts: number; resourceRequirements?: ResourceRequirement[];
+  /** Direct user/host obligations by stable partition id; never inferred authority from model prose. */
+  partitionResources?: Record<string, ResourceIdentity[]>;
+}
 export type Phase = 'interpreting' | 'running' | 'waitingAssistance' | 'coordinating' | 'waitingHuman' | 'checking' | 'stopping' | 'ended';
 export type Outcome = 'complete' | 'partial' | 'failed' | 'stopped';
 export interface Message {
@@ -79,6 +85,7 @@ export type ToolFailureCode = typeof toolFailureCodes[number];
 export type WebToolKind = 'web_search' | 'web_fetch';
 export interface ToolFailureFeedback { tool: WebToolKind; code: ToolFailureCode }
 export interface Intent extends Fence {
+  hostAcquisitions?: HostAcquisition[];
   id: string; kind: WorkKind; target: string; payload: Record<string, unknown>;
   status: 'pending' | 'inflight' | 'done' | 'cancelled' | 'uncertain';
   replay: 'safe' | 'idempotent' | 'unsafe'; attempt: number; deadline: number | null;
@@ -99,7 +106,7 @@ export interface Intent extends Fence {
   /** Bounded check failures, retained across recovery without rejected model text. */
   checkDiagnostics?: CheckDiagnosticRecord[];
   /** Known Web failures already returned for an alternative decision; never stores provider text. */
-  toolRecovery?: { failures: (ToolFailureFeedback & { requestId: string; attempt: number })[] };
+  toolRecovery?: { failures: (ToolFailureFeedback & { requestId: string; attempt: number; at?: number })[] };
 }
 export interface Reply { ok: boolean; code: string; detail: string }
 export interface InputNote { id: string; text: string; applied: boolean }
@@ -152,11 +159,14 @@ export interface ReviewRound extends Fence {
 }
 export interface DiscussionRound extends Fence {
   mapReduce?: MapReducePlan & { inputId: string; assignments: { partitionId: string; target: string; workId?: string; attempt?: number }[];
+    scheduling?: import('./task/map-scheduling.js').MapSchedulingState;
     concurrency?: number; queue?: MapPartitionRun[] };
   id: string; request: string; targets: string[];
   status: 'planning' | 'collecting' | 'summarizing' | 'ready' | 'delivered' | 'cancelled';
   skipped: { target: string; reason: string }[];
   results: { target: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; artifactIds: string[];
+    reportedStatus?: 'success' | 'partial' | 'failed' | 'timeout'; missingResources?: ResourceIdentity[]; sourceOperationIds?: string[];
+    resourceSources?: { acquisitionId: string; operationId: string; workId: string; attempt: number; at: number; reused: boolean }[];
     id?: string; partitionId?: string; attempt?: number; workId?: string }[];
   question?: string; expected?: string; summary?: string; incomplete?: string;
 }
@@ -168,6 +178,8 @@ export interface MapPartitionRun {
   resolution?: PartitionResolution;
 }
 export interface TaskContext extends Fence {
+  /** Persisted supervision; absent only on pre-supervision snapshots. */
+  resilience?: TaskResilience;
   schemaVersion: 1; taskId: string; owner: string; config: TeamConfig; goal: Goal;
   messages: Message[]; board: BoardEntry[]; boardHistory: BoardEntry[]; artifacts: Artifact[]; assists: Assistance[];
   intents: Intent[]; trace: { event: string; detail: string; at: number }[];
@@ -202,6 +214,8 @@ export type Decision =
   | { action: 'askUser'; question: string; reason: string }
   | { action: 'finish'; reason: string };
 export type TaskEvent = Envelope & (
+  | AcquisitionEvent
+  | ResilienceEvent
   | { type: 'REVOKE_HOST_SESSION'; grantId: string }
   | { type: 'HOST_RETRY_EXPIRE' }
   | { type: 'HOST_RETRY_RECONCILE' }
@@ -228,7 +242,7 @@ export type TaskEvent = Envelope & (
   | { type: 'CHECK_RESULT'; resultId: string; candidateRevision?: string; criteriaResults?: CriterionJudgment[]; passed?: boolean; gaps?: string[] }
   | { type: 'STOP'; text?: string }
   | { type: 'SETTLE'; intentId: string }
-  | { type: 'CONTINUE'; extraOrdinary?: number; text?: string; currentConfig?: TeamConfig }
+  | { type: 'CONTINUE'; extraOrdinary?: number; text?: string; currentConfig?: TeamConfig; newWindowMs?: number }
   | { type: 'TICK' }
   | { type: 'ACTIVITY'; text: string }
   | { type: 'PROGRESS'; detail: string; refs: string[] }
@@ -253,6 +267,14 @@ export function validateConfig(config: TeamConfig): void {
   if (config.webTools !== undefined && (!config.webTools || typeof config.webTools.enabled !== 'boolean')) throw new Error('Invalid web tools configuration');
   if (config.inputAnalysis !== undefined && (!config.inputAnalysis || typeof config.inputAnalysis.enabled !== 'boolean')) throw new Error('Invalid input analysis configuration');
   if (config.localTools !== undefined && typeof config.localTools.enabled !== 'boolean') throw new Error('Invalid local tools configuration');
+  if (config.resilience !== undefined) {
+    if (!config.resilience || typeof config.resilience !== 'object') throw new Error('Invalid resilience configuration');
+    for (const key of ['automaticTimeoutMs', 'repairTimeoutMs', 'cancelGraceMs', 'repairLimit'] as const) {
+      const value = config.resilience[key];
+      if (value !== undefined && (!Number.isSafeInteger(value) || value < (key === 'repairLimit' ? 0 : 1))) throw new Error(`Invalid resilience limit: ${key}`);
+    }
+    if (config.resilience.allowMissingContent !== undefined && typeof config.resilience.allowMissingContent !== 'boolean') throw new Error('Invalid missing-content policy');
+  }
   if (config.bots.some(b => b.localTools !== undefined && typeof b.localTools !== 'boolean')) throw new Error('Invalid bot local tools configuration');
   validateModels(config);
   const ids = config.bots.map(b => b.id);

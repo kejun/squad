@@ -40,14 +40,34 @@ jobs:
           fc-match ":charset=4e2d"
       - name: Verify real sandbox boundaries
         run: npm run verify:local-sandbox
+      - name: Verify native sandbox copies can execute concurrently
+        run: node --import tsx tests/local-resource-sandbox-acceptance.ts
+      - name: Verify resilience and deletion state models
+        run: |
+          node --import tsx tests/task-resilience-model-fixture.ts
+          node --import tsx tests/execution-receipts-model-fixture.ts
+          node --import tsx tests/partition-resilience-model-fixture.ts
+          node --import tsx tests/local-resource-policy-model-fixture.ts
+          node --import tsx tests/local-resource-preparation-model-fixture.ts
+          node --import tsx tests/room-deletion-model-fixture.ts
+          node --import tsx tests/process-supervisor-model-gate.ts
       - name: Type checks, all tests, Gherkin and coverage
         run: npm run check
+      - name: Verify shared agent prompt injection fault detection
+        run: |
+          node tests/shared-agent-behavior-negative.mjs
+          node --import tsx tests/shared-agent-behavior-live.ts --self-check
       - name: Verify crash and response-limit fault detection
         run: |
           node --import tsx scripts/verify-local-crash.ts --negative-controls
           node --import tsx scripts/verify-local-crash.ts
           node --import tsx scripts/verify-sqlite-crash.ts
           node tests/model-response-limit-negative.mjs
+      - name: Verify resilience fault detection and bounded resource stability
+        run: |
+          node tests/resilience-negative-controls.mjs
+          node --expose-gc --import tsx tests/resilience-soak.ts
+          node --import tsx tests/tool-bootstrap-acceptance.ts
       - name: Verify original browser contracts detect faults
         run: node .agents/skills/verify-squad/scripts/negative.mjs
       - name: Verify composition fault detection and evidence

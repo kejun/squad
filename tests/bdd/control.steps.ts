@@ -59,7 +59,19 @@ Then('不应把检查预留用于继续探索或无限评审', function (this: S
 Given('普通执行和检查额度均已耗尽', function (this: SpecWorld) { this.h = new Harness(configuration({ ordinary: 0, checks: 0 })); });
 Given('已有部分产物与明确缺口', function (this: SpecWorld) { this.h.event({ type: 'DELIVER', text: '已有部分成果，但缺少核查', artifactIds: [] }); });
 When('系统结算任务', function (this: SpecWorld) { assert.equal(this.h.view().phase, 'ended'); });
-Then('应根据已有记录交付成果与缺口并标记{string}', function (this: SpecWorld, outcome: string) { assert.equal(outcome, '部分完成'); assert.equal(this.h.context().outcome, 'partial'); assert(this.h.context().messages.at(-1)?.text.includes('缺少核查')); });
+Then('应根据已有记录交付成果与缺口并标记{string}', function (this: SpecWorld, outcome: string) {
+  assert.equal(outcome, '部分完成'); const c = this.h.context(), frozen = c.resilience!.frozen!;
+  assert.equal(c.outcome, 'partial'); assert.equal(frozen.verification, 'incomplete'); assert.equal(c.publishedDelivery, undefined);
+  assert.equal(c.candidate!.text, '已有部分成果，但缺少核查');
+  const draft = c.artifacts.find(artifact => artifact.id !== frozen.reportArtifactId)!;
+  assert.equal(draft.content, c.candidate!.text); assert.equal(frozen.items.find(item => item.artifactId === draft.id)!.status, 'unverified');
+  const report = c.artifacts.find(artifact => artifact.id === frozen.reportArtifactId)!;
+  assert.equal(report.name, 'task-report.md'); assert.equal(report.content, frozen.text);
+  assert(frozen.text.includes('partial')); assert(frozen.text.includes('核验未完成')); assert(frozen.text.includes(c.reason));
+  assert.deepEqual(frozen.artifactIds, [report.id, draft.id]); assert.deepEqual(c.messages.at(-1)!.artifactIds, frozen.artifactIds);
+  assert.equal(c.messages.at(-1)!.detailText, report.content);
+  assert(c.messages.at(-1)!.text.includes('partial'));
+});
 Then('不应再调用模型来解释为什么额度耗尽', function (this: SpecWorld) { assert.equal(this.h.context().usage.checks, 0); assert.equal(this.h.engine.pending(this.h.room, this.h.task).length, 0); });
 Given('团队配置遗漏必需的执行上限或工具期限', function (this: SpecWorld) { const config = configuration(); delete (config.limits as Partial<typeof config.limits>).workTimeoutMs; data(this).config = config; });
 When('应用校验执行配置', function (this: SpecWorld) { try { validateConfig(data(this).config!); this.problem = ''; } catch (error) { this.problem = String(error); } });

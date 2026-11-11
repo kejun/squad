@@ -148,7 +148,17 @@ Then('陈旧修订应被拒绝并保留已有候选', function (this: SpecWorld)
   assert.equal(context(test).candidate?.revision, test.replacementCandidate!.candidate?.revision);
   assert.deepEqual(context(test).candidate, test.beforeStale!.candidate);
   assert.deepEqual(context(test).candidate?.artifactIds, [test.second]);
-  assert.deepEqual(context(test).artifacts, test.replacementCandidate!.artifacts);
+  assert.deepEqual(context(test).artifacts, test.beforeStale!.artifacts);
+  const existing = new Set(test.replacementCandidate!.artifacts.map(artifact => artifact.id));
+  assert.deepEqual(context(test).artifacts.filter(artifact => existing.has(artifact.id)), test.replacementCandidate!.artifacts);
+  const frozen = test.beforeStale!.resilience!.frozenHistory!.at(-1)!;
+  const added = context(test).artifacts.filter(artifact => !existing.has(artifact.id));
+  assert.equal(added.length, 2);
+  const hostReport = added.find(artifact => artifact.id === frozen.reportArtifactId)!;
+  const draft = added.find(artifact => artifact.id !== frozen.reportArtifactId)!;
+  assert.equal(hostReport.name, 'task-report.md'); assert.equal(hostReport.content, frozen.text);
+  assert.equal(draft.name, 'unverified-draft.md'); assert.equal(draft.content, test.replacementCandidate!.candidate!.text);
+  assert.deepEqual(frozen.artifactIds, [frozen.reportArtifactId, test.second, draft.id]);
 });
 Then('第一份检查结论不应发布任何新修订', function (this: SpecWorld) {
   const test = tests.get(this)!;

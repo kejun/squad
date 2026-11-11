@@ -53,13 +53,23 @@ npm start
 
 打开 http://127.0.0.1:4318 。`WEB_PORT` 可修改 API/生产服务端口（默认 `4318`），`WEB_DATABASE` 可指定独立数据库路径（默认 `team.sqlite`）。开发代理跟随 `WEB_PORT`。服务仅监听本机回环地址，适合本地使用。
 
+`npm start` 与开发宿主由独立进程守卫管理。宿主退出、启动不就绪或健康探测持续失败时，守卫会终止旧宿主并退避重启；明确停止守卫后不再重启。任务默认自动处理窗口为15分钟，监督修复最多2次、修复窗口30秒，关闭宽限5秒，可在 `TeamConfig.resilience` 配置。普通重试和重启保留原截止时间；需要延长时由用户明确授权新窗口。必需人类请求保持待答，自动兜底把可信成果、未核实材料、跳过项和未决效果写成固定的部分交付报告。
+
 ## 本地技能与 CLI
 
 成员可先用 `discoverHost` 查询平台、技能目录、沙箱状态和指定 CLI 的存在性，再按技能说明调用已有接口。每次最多查询 20 个裸命令名，不运行探测命令、不扫描凭据、不自动安装；未查询的命令仍为未知。命令存在不代表已获得宿主批准或已执行。当前服务未接入原生 MCP transport，回执会明确说明，不能据此推断机器上没有 MCP 配置。
 
 服务启动先扫描运行账号的 `~/.agents/skills/`，所有 Bot 共用一个版本目录；正文与引用按需加载，CLI 在受控工作区执行。新增 Bot 自动继承；`Bot.localTools = false` 可单独关闭。技能更新后重启生效，不自动安装技能或命令依赖。
 
-模型使用 `discoverHost`、`listSkills`、`loadSkill`、`readSkillResource`、`readEvidence`、`readArtifact`、`runCli` 等本地 JSON 动作。每次磁盘/命令操作先经 XState 保存和领取；命令回执、技能版本和模型续办检查点持久化。检查与后台讨论在副本中运行，权威工程不变；检查的源文件只读，输出目录可写，正面结论提交前复核源版本。同一工程跨群串行，不同默认任务目录隔离。
+模型使用 `discoverHost`、`listSkills`、`loadSkill`、`readSkillResource`、`readEvidence`、`readArtifact`、`runCli` 等本地 JSON 动作。每次磁盘/命令操作先经 XState 保存和领取；命令回执、技能版本和模型续办检查点持久化。检查与后台讨论在副本中运行；检查的源文件只读，输出目录可写，正面结论提交前复核源版本。具备实际沙箱约束的独立副本可并行执行，准备源快照持短读租约，同一副本及真实共享写入保持互斥。未知宿主或旧自定义工具效果保留全局隔离，直至可信核对。
+
+`SQUAD_CLI_CATALOG_FILE` 指向管理员维护的工具用途目录。`SQUAD_ACQUISITION_READERS_FILE` 指向专用CLI正文校验器的静态JSON；配置只声明参数和响应契约，真实执行后才能形成资源凭证。未登记的命令仍保留真实进程结果，正文状态为未知。以下示例要求管理员已有专用 `yuque-reader document <id>` 入口，并返回匹配文档ID及完整正文，不自动安装或授权该命令：
+
+```json
+[{"id":"yuque-doc-json","version":"1","command":"yuque-reader","argsPrefix":["document"],"format":"json-document","resource":{"kind":"document-argument","index":1,"service":"yuque","namespace":"team"}}]
+```
+
+目录及正文校验器配置的指纹纳入工具版本；配置变化后的旧任务须重新核查。凭证绑定原资源、操作、尝试、正文指纹和采集时间。模型重试复用已保存凭证时保留原身份，不能重标为新抓取。归档会话可明确确认删除；进度、未知效果、清理失败和重试入口持续可见，全部核对完成后才显示删除完成。用户源工程、共享技能、账号配置及外部业务结果保留。
 
 默认 CLI 后端为固定版本的 Anthropic Sandbox Runtime：macOS 使用 sandbox-exec 和系统 Python 3 的 libproc 进程身份探测，Linux 使用 bubblewrap、socat、ripgrep 及用户/PID/网络命名空间。依赖不可用时明确返回 `CLI_SANDBOX_UNAVAILABLE`，不自动降级。需要使用本机登录态或系统能力时，Bot 可申请按次宿主执行，网页显示具体命令与目录，由用户“允许本次”或“拒绝”，无需逐个 CLI 预配置。批准前不执行，重启后重新确认；宿主权限属于服务机器及账号。`npm run verify:local-sandbox` 验证实际文件、网络与环境边界（环境不可用退出78）。[运行配置与未决操作核对](docs/local-tools.md) 说明目录、权限及恢复命令；[验证记录](docs/local-tools-verification.md) 区分模型、真实子进程和 OS 沙箱证据。
 
@@ -130,6 +140,16 @@ CLI 外部效果后的真实宿主终止沿用已领取操作 → uncertain → 
 调试面板的状态图使用中文阶段、可展开的事件与条件分支，以及当次诊断证据中的执行路径。阶段概览只画局部跨状态连线；全局转移、内部更新和空处理保留独立规则入口，所选步骤包含真实自动微步。详见[调试图投影边界](docs/state-diagrams.md#调试图的结构与所选步骤)。
 
 任务根 actor 统一管理阶段、预算和结果交接，每次领取的执行请求使用独立子 actor；父子快照在同一事务提交。BT_N06–BT_N15 的边界、执行状态与恢复协议见[多 actor 设计](docs/task-actors.md)；前一轮模块拆分与 BT_N01–BT_N05 冻结业务基线见[重构记录](docs/task-machine-refactor.md)。
+
+KEJ-113/114 的持续推进与安全删除按[监督、凭证和删除模型](docs/state-diagrams.md#持续推进与安全删除kej-113114)实现：任务保留八阶段，固定处理窗口、人类门、冻结交付和独立清理责任由对应所有者保存；删除拥有独立持久生命周期，网页与任务记录在内存和文件模式下使用同一数据库。各模块文档分别记录真实模型、执行接线和验收范围。
+
+实际执行结果与有限保证范围见[KEJ-113/114 验证记录](docs/implementation/kej-113-114-verification.md)。
+
+所有默认模型工作共用[Agent行为规范](docs/implementation/shared-agent-behavior.md)，在原角色、能力和输出协议内约束证据、完成声明、纠错与推进。规范接入复用原状态事件；[流程与验证边界](docs/state-diagrams.md#共享-agent-行为规范)区分提示注入、宿主强制边界与真实模型效果。
+
+宿主命令授权沿用同一人类门原则：批准令牌过期只撤销执行资格，未答复的权限请求保持可见，直到精确授权决定、明确跳过或停止；[授权门模型](docs/implementation/host-approval-gates.md)覆盖令牌期限与任务窗口交错。
+
+可信效果核对后的协调续办接续原负责人检查点，保留原操作回执、身份和执行时间，不重放已结算命令；恢复交叉边界见 BT_Y113 及[恢复细图](docs/implementation/kej-113-task-resilience.md)。
 
 设计遵循 [XState 八条原则](docs/xstate-design.md)：按状态所有者和生命周期划分，区分真实机器、上下文生命周期、执行流程与 UI 投影。以下两图合起来展示 `src/task.machine.ts` 的八个真实状态与选定路径，完整公共规则见表，细节见[分层索引](docs/state-diagrams.md)。它不是新增父状态或子 actor 的实现方案。
 

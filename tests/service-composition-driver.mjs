@@ -56,7 +56,13 @@ try {
   run.proof = fixture.result(); run.completed.push(scenario); run.status = 'verified';
 } catch (error) { run.status = 'failed'; run.error = error.stack; process.exitCode = 1; }
 finally {
-  try { await fixture.close(); run.cleanup.fixtureClosed = true; } catch (error) { run.status = 'failed'; run.cleanupError = error.stack; process.exitCode = 1; }
+  try {
+    await fixture.close(); run.cleanup.fixtureClosed = true;
+    assert(!fixture.root || !existsSync(fixture.root), 'Service fixture temporary directory must actually be removed');
+    run.cleanup.directoryRemoved = true;
+    assert.equal(globalThis.__squadServiceComposition, undefined, 'Service diagnostic probe must actually be retired');
+    run.cleanup.probeRemoved = true;
+  } catch (error) { run.status = 'failed'; run.cleanupError = error.stack; process.exitCode = 1; }
   run.cleanup.sourceUnchanged = before.every(({ file, sha256 }) => hash(file) === sha256);
   if (!run.cleanup.sourceUnchanged) { run.status = 'failed'; process.exitCode = 1; }
   writeFileSync(join(evidence, 'run.json'), JSON.stringify(run, null, 2));

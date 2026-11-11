@@ -8,7 +8,7 @@ const root=process.cwd(), area=resolve(process.env.MODEL_SESSION_CONTROLS_EVIDEN
 mkdirSync(area,{recursive:true});
 const env={...process.env};for(const key of Object.keys(env))if(/^(?:MODEL_|A_MODEL_|B_MODEL_|BUILDER_[123]_MODEL_|FACILITATOR_MODEL_|CHECK_MODEL_|INTENT_MODEL_)/.test(key))delete env[key];
 const faults=[
- ['drop-web-result','SessionEvidence',"messages.push({ role: 'assistant', content: choice.message.content },\n            { role: 'user', content: JSON.stringify({ type: `${toolType}_result`, untrusted: true, text }) });","/* faulty omission of acquired webpage result */"],
+ ['drop-web-result','SessionEvidence',"messages.push({ role: 'assistant', content: choice.message.content },\n            { role: 'user', content: JSON.stringify({ type: `${toolType}_result`, untrusted: true, text,\n              ...(hostEvidence ? { hostEvidence } : {}) }) });","/* faulty omission of acquired webpage result */"],
  ['echo-invalid-body','InvalidBodyIsolation','messages.push(repairFeedback(work.kind, error.issue, error.fieldRequirements));',"messages.push({ role: 'assistant', content: choice.message.content }, repairFeedback(work.kind, error.issue, error.fieldRequirements));"],
 ];
 const original=readFileSync('src/model-adapter.ts','utf8'), before=createHash('sha256').update(original).digest('hex'), records=[];

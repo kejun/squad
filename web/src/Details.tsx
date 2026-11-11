@@ -21,6 +21,7 @@ import type {
   RoomSnapshot,
   WebAgent,
   WebWork,
+  WebTask,
 } from "../../src/web/contracts";
 import {
   AgentAvatar,
@@ -288,6 +289,7 @@ export function Details({
             {task && (
               <>
                 <SourceArtifactLink source={task.sourceArtifact} onOpen={setOpened} />
+                <FrozenDelivery task={task} />
                 <div className="task-info">
                   <span>负责人</span>
                   <strong>
@@ -342,6 +344,9 @@ export function Details({
                 )}
                 <h3 className="detail-section-heading">交付产物</h3>
                 <Artifacts artifacts={artifacts} onOpen={(artifact) => setOpened({ taskId: artifact.taskId, artifactId: artifact.id })} />
+                {!!delivery.history.length && <details><summary>历史产物（{delivery.history.length}）</summary>
+                  <Artifacts artifacts={delivery.history} onOpen={(artifact) => setOpened({ taskId: artifact.taskId, artifactId: artifact.id })} />
+                </details>}
                 {!!task.board.length && (
                   <>
                     <h3 className="detail-section-heading">共享记录</h3>
@@ -434,6 +439,19 @@ function SourceArtifactLink({ source, onOpen }: {
   </Button>;
 }
 
+function FrozenDelivery({ task }: { task: WebTask }) {
+  const delivery = task.delivery;
+  if (!delivery) return null;
+  const report = task.artifacts.find(artifact => artifact.id === delivery.reportArtifactId);
+  return <section aria-label="冻结交付说明">
+    <p>{delivery.status === 'complete' ? '已核验完整交付' : '部分交付，仍有缺失或未核验内容'}</p>
+    <p>目标版本 {delivery.goalVersion} · 执行轮次 {delivery.epoch} · 交付版本 {delivery.revision}</p>
+    <p>最终报告包含核验结论、失败、跳过与未决清理项；原始产物的内容和历史另行保留。</p>
+    {report && <Button className="result-link" aria-label="下载最终宿主报告"
+      onClick={() => downloadDetailDocument(artifactDocument(report, task.id))}><ArrowDownToLine size={15} />下载最终报告</Button>}
+  </section>;
+}
+
 const noAgentAction = () => {};
 
 function ResultDetails({ snapshot, target, onClose, onOpen, onBack, connected, onAgent, onReference }: {
@@ -468,6 +486,7 @@ function ResultDetails({ snapshot, target, onClose, onOpen, onBack, connected, o
           {!available ? <p className="no-record">内容已不可用</p> : artifact ? <>
             <Button className="result-back" onClick={onBack}><ArrowLeft size={13} /> 返回详情</Button>
             <div className="report-heading"><h2>{artifact.name}</h2></div>
+            {task?.delivery && <p>{artifact.id === task.delivery.reportArtifactId ? '冻结宿主报告' : '原始产物或历史资料；核验结论以最终宿主报告为准'} · 目标版本 {artifact.goalVersion}</p>}
             {author && <p className="report-author">{agent?.name ?? author}</p>}
             {onReference && canReferenceArtifact(task, artifact) && <Button className="result-link" aria-label="引用到新任务"
               onClick={() => onReference({ sourceTaskId: task!.id, artifactId: artifact.id, name: artifact.name })}>
@@ -479,6 +498,7 @@ function ResultDetails({ snapshot, target, onClose, onOpen, onBack, connected, o
           </> : <>
             <h2>{task!.goal}</h2>
             <span className="task-state">{connected ? phaseLabel(task) : "连接中断"}</span>
+            <FrozenDelivery task={task!} />
             {message && <MessageText text={message.detailText ?? message.text} agents={onAgent ? snapshot?.agents ?? [] : []} onAgent={onAgent ?? noAgentAction} />}
             {!message && task!.reason && <p className="task-reason">{task!.reason}</p>}
             {!message && task!.currentArtifactIds && <h3 className="detail-section-heading">当前交付</h3>}

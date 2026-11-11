@@ -1,5 +1,11 @@
 import { discoverHostCapabilities } from './host-capabilities.js';
 import { CliCatalog, CliCatalogError, type CliCatalogEntry } from './cli-catalog.js';
+import { observeCliAcquisitions, type CliAcquisitionReader } from './acquisition-readers.js';
+import type { HostAcquisition } from './resource-acquisition.js';
+import { RuntimeOwnership, type ClaimedRuntimeCleanup, type RoomCleanupInput } from './runtime-ownership.js';
+import type { RuntimeCleanupInventory } from './room-deletion.machine.js';
+import { resolveLocalResourcePolicy } from './local-resource-policy.js';
+import type { LocalAction } from './local-operation.js';
 import { publishObservation } from './measurement.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { constants, createReadStream } from 'node:fs';
@@ -17,6 +23,7 @@ export interface LocalRuntimeOptions {
   commandEnv?: Record<string, Record<string, string>>; redact?: string[];
   /** Host-maintained usage metadata only; does not grant execution permission. */
   cliCatalog?: CliCatalogEntry[];
+  acquisitionReaders?: CliAcquisitionReader[];
   backend?: CliBackend; registryLimits?: Omit<RegistryOptions, 'roots' | 'snapshotRoot'>;
   /** Explicit for non-service embedding/tests; production bootstrap always takes the single-host lock. */
   acquireServiceLock?: boolean;
@@ -47,9 +54,13 @@ export class LocalRuntime {
   private readonly workspaceWaiters = new Map<string, { generation: number; waiters: Set<() => void> }>();
   private readonly lockToken = randomUUID();
   private readonly cliCatalog: CliCatalog;
+  private readonly ownership: RuntimeOwnership;
+  private readonly physicalJobs = new Map<string, Set<Promise<unknown>>>();
+  private readonly legacyPhysicalJobs = new Set<Promise<unknown>>();
   private constructor(readonly options: LocalRuntimeOptions, backend: CliBackend, readonly sourceRoot?: string) {
     this.backend = backend; this.journal = new CliJournal(join(options.dataRoot, 'sessions'));
     this.cliCatalog = new CliCatalog(options.cliCatalog);
+    this.ownership = new RuntimeOwnership(options.dataRoot, sourceRoot, options.clock ?? Date.now);
   }
   static async create(options: LocalRuntimeOptions): Promise<LocalRuntime> {
     await mkdir(resolve(options.dataRoot), { recursive: true, mode: 0o700 }); const dataRoot = await realpath(resolve(options.dataRoot));
@@ -87,10 +98,52 @@ export class LocalRuntime {
     throw new LocalToolError('LOCAL_RUNTIME_IN_USE');
   }
   catalog(): SkillPage { return this.registry.list(); }
+  observeAcquisitions(work: Intent, op: LocalOperation, configuration?: HostAcquisition['configuration']): HostAcquisition[] {
+    return observeCliAcquisitions(work, op, this.options.acquisitionReaders ?? [], digest, configuration);
+  }
+  planRoomCleanup(input: RoomCleanupInput): Promise<RuntimeCleanupInventory> { return this.ownership.inventory(input); }
+  private trackPhysical<T>(roomId: string | undefined, job: Promise<T>): Promise<T> {
+    let jobs = roomId ? this.physicalJobs.get(roomId) : this.legacyPhysicalJobs;
+    if (!jobs) { jobs = new Set(); this.physicalJobs.set(roomId!, jobs); }
+    jobs.add(job);
+    return job.finally(() => {
+      jobs.delete(job);
+      if (roomId && jobs.size === 0) this.physicalJobs.delete(roomId);
+    });
+  }
+  roomQuiescent(roomId: string): boolean {
+    return this.legacyPhysicalJobs.size === 0 && (this.physicalJobs.get(roomId)?.size ?? 0) === 0;
+  }
+  private retireWorkspaceCache(asset: ClaimedRuntimeCleanup['asset']) {
+    const { namespace, workId } = asset.owner;
+    if (asset.kind === 'workspace') {
+      for (const key of this.workspaces.keys()) if (key.startsWith(`${namespace}:`)) this.workspaces.delete(key);
+    } else if (asset.kind === 'copy' && workId) this.workspaces.delete(`${namespace}:${workId}`);
+  }
+  cleanupRoom(claim: ClaimedRuntimeCleanup, signal: AbortSignal) {
+    const cleanup = this.ownership.remove(claim, signal).then(result => {
+      this.retireWorkspaceCache(claim.asset);
+      return result;
+    });
+    return this.trackPhysical(claim.roomId, cleanup);
+  }
+  async verifyRoomCleanup(inventory: RuntimeCleanupInventory): Promise<boolean> {
+    if (!await this.ownership.verify(inventory)) return false;
+    return ![...this.workspaces.keys()].some(key => inventory.tasks.some(task => key.startsWith(`${task.namespace}:`)));
+  }
   workspaceId(work: Intent, namespace?: string): string {
     // Explicit engineering roots are shared; default task roots must include room identity.
     const taskNamespace = namespace ?? digest(work.id.slice(0, work.id.lastIndexOf(':E')));
     return this.sourceRoot ? `workspace:${this.sourceRoot}` : `workspace:${join(this.options.dataRoot, 'workspaces', taskNamespace)}`;
+  }
+  resourcePolicy(work: Intent, action: LocalAction, namespace?: string) {
+    if (action.type !== 'runCli' && action.type !== 'verifyWorkspace') return undefined;
+    const taskNamespace = namespace ?? digest(work.id.slice(0, work.id.lastIndexOf(':E')));
+    const isolatedWork = work.kind === 'check' || !!work.discussionId;
+    const copyId = `workspace:${this.copyPath(work, { namespace: taskNamespace })}`;
+    return resolveLocalResourcePolicy({ workspaceId: this.workspaceId(work, taskNamespace), copyId, isolatedWork,
+      execution: action.type === 'runCli' && action.execution === 'host' ? 'host' : 'sandbox', action: action.type,
+      sandboxConfinesWorkspace: this.backend.available && this.backend.isolation === 'workspace' });
   }
   workspaceGeneration(key: string): number { return this.workspaceWaiters.get(key)?.generation ?? 0; }
   waitForWorkspace(key: string, generation: number, signal: AbortSignal): Promise<void> {
@@ -109,7 +162,7 @@ export class LocalRuntime {
     if (!entry) { entry = { generation: 0, waiters: new Set() }; this.workspaceWaiters.set(key, entry); }
     entry.generation++; for (const done of [...entry.waiters]) done();
   }
-  private copyPath(work: Intent, op: LocalOperation) { return join(this.options.dataRoot, 'copies', digest(`${op.namespace}:${work.id}`)); }
+  private copyPath(work: Intent, op: Pick<LocalOperation, 'namespace'>) { return join(this.options.dataRoot, 'copies', digest(`${op.namespace}:${work.id}`)); }
   private async workspace(work: Intent, op: LocalOperation): Promise<Workspace> {
     if (op.workspaceId !== this.workspaceId(work, op.namespace)) throw new LocalToolError('WORKSPACE_IDENTITY_MISMATCH');
     if (work.kind !== 'check' && !work.discussionId) return this.prepareWorkspace(work, op);
@@ -176,9 +229,18 @@ export class LocalRuntime {
     }
     return { ok: false, code: 'LOCAL_RESULT_LIMIT', data: { originalCode: cleaned.code } };
   }
-  async execute(work: Intent, op: LocalOperation, signal: AbortSignal,
+  execute(work: Intent, op: LocalOperation, signal: AbortSignal,
     started: (metadata: { workspaceRevision?: string; isolated?: boolean }) => void,
-    observe?: (phase: 'local.prepareStarted' | 'local.prepareFinished' | 'local.processStarted' | 'local.processFinished') => void): Promise<LocalExecution> {
+    observe?: (phase: 'local.prepareStarted' | 'local.prepareFinished' | 'local.processStarted' | 'local.processFinished') => void,
+    owner?: { roomId: string; taskId: string },
+    workspacePrepared?: (metadata: { workspaceRevision?: string; isolated?: boolean }) => void): Promise<LocalExecution> {
+    return this.trackPhysical(owner?.roomId, this.executeOperation(work, op, signal, started, observe, owner, workspacePrepared));
+  }
+  private async executeOperation(work: Intent, op: LocalOperation, signal: AbortSignal,
+    started: (metadata: { workspaceRevision?: string; isolated?: boolean }) => void,
+    observe?: (phase: 'local.prepareStarted' | 'local.prepareFinished' | 'local.processStarted' | 'local.processFinished') => void,
+    owner?: { roomId: string; taskId: string },
+    workspacePrepared?: (metadata: { workspaceRevision?: string; isolated?: boolean }) => void): Promise<LocalExecution> {
     const action = op.action; signal.throwIfAborted();
     if (action.type === 'readArtifact') return { result: { ok: false, code: 'ARTIFACT_UNAVAILABLE', data: {} }, settled: true, effectsKnown: true };
     if (action.type === 'readEvidence') return { result: { ok: false, code: 'EVIDENCE_SOURCE_REQUIRED', data: {} }, settled: true, effectsKnown: true };
@@ -228,6 +290,7 @@ export class LocalRuntime {
       prepared = true;
       publishObservation(observe, 'local.prepareFinished');
     };
+    if (owner) await this.ownership.register(work, op, owner);
     await this.journal.write({ operationId: op.id, sessionId, phase: 'prepared' });
     let launched = false;
     let completion: LocalExecution;
@@ -235,6 +298,10 @@ export class LocalRuntime {
       const host = action.execution === 'host';
       if (!host && !this.backend.available) throw new LocalToolError('CLI_SANDBOX_UNAVAILABLE');
       const workspace = await this.workspace(work, op); signal.throwIfAborted();
+      if (op.resourceLeases?.some(lease => lease.phase === 'prepare')) {
+        if (!workspacePrepared) throw new LocalToolError('LOCAL_PREPARATION_CALLBACK_REQUIRED');
+        workspacePrepared({ workspaceRevision: workspace.revision, isolated: workspace.isolated });
+      }
       let skillPath: string | undefined;
       if (action.skillId) {
         const binding = this.binding(op.skillBindings ? { ...work, localSkills: op.skillBindings } : work, action.skillId);
@@ -335,6 +402,7 @@ export class LocalRuntime {
     return { resolution: 'receipt' as const, result, detail: `Operator acknowledged effects: ${review.reviewDigest}` };
   }
   async close() {
+    await Promise.allSettled([...this.legacyPhysicalJobs, ...[...this.physicalJobs.values()].flatMap(jobs => [...jobs])]);
     await this.backend.close?.();
     if (this.lockPath) {
       try { const lock = JSON.parse(await readFile(this.lockPath, 'utf8')) as { token: string }; if (lock.token === this.lockToken) await rm(this.lockPath); } catch { /* Keep an uncertain lock rather than claiming it was removed. */ }

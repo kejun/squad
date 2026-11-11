@@ -52,6 +52,25 @@ export class RetryComposition {
 
   observe() {
     const c = this.context();
+    assert.equal(this.engine.roomDeletion(this.room), undefined, 'Slice: deletion is outside retry composition');
+    assert(c.resilience && c.resilience.window.hardDeadline > 1, 'Slice: fixed time 1 must precede the task deadline');
+    assert.equal(c.resilience.window.openedAt, 1, 'Slice: the original window cannot be silently replaced');
+    assert.equal(c.resilience.window.authorizationId, undefined, 'Slice: replacement windows are outside this domain');
+    assert.equal(c.resilience.window.repairUsed, 0, 'Slice: no supervisor repair budget is used');
+    assert.equal(c.resilience.window.repairDeadline, undefined, 'Slice: no repair window');
+    assert.deepEqual([c.resilience.gates.length, c.resilience.skips.length, c.resilience.cleanup.length], [0, 0, 0],
+      'Slice: human gates, skips and physical cleanup are separate domains');
+    assert.equal(c.resilience.frozen, undefined, 'Slice: no salvage publication');
+    assert.equal(c.intents.some(work => work.replay === 'unsafe'), false, 'Slice: no legacy unsafe effects or global barrier');
+    assert.equal(c.candidate, null, 'Slice: delivery/checking is outside retry composition');
+    assert.equal(c.discussion, undefined, 'Slice: no partition scheduler');
+    assert.equal(c.review, undefined, 'Slice: no multi-member review queue');
+    assert.equal(c.intents.some(work => work.localOperations?.length || work.hostAcquisitions?.length), false,
+      'Slice: no local process or acquisition receipt');
+    assert.equal(c.goal.resourceRequirements?.length ?? 0, 0, 'Slice: no external source obligation');
+    assert.equal(Object.keys(c.goal.partitionResources ?? {}).length, 0, 'Slice: no partition resource obligation');
+    assert.equal(c.trace.some(entry => ['SUPERVISE', 'HUMAN_GATE_DECISION', 'EXECUTION_NOT_STARTED'].includes(entry.event)), false,
+      'Slice: new protocol events are not stuttered away');
     const descendants = c.assists.filter(help => help.retryOf === 'original');
     const originalConsumed = c.results.some(result => result.requestId === 'original' && result.consumed);
     const memberRevoked = !this.config.bots.find(bot => bot.id === 'B')?.tools.includes('read');

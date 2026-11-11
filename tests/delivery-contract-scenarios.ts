@@ -83,7 +83,7 @@ export const deliveryScenarios: DeliveryScenario[] = [
   { label: "固定原文修订", condition: "旧来源身份不属于当前任务产物", operation: "发送带旧来源ID的产物事件", result: "拒绝身份注入且当前产物仍为空", create: source_artifact_model.cannotInjectTheOldSourceIdentityThroughTheArtifactEvent },
   { label: "固定原文修订", condition: "负责人已提交保留原文的新修订文档", operation: "独立检查当前候选并全部通过", result: "只发布新文档且固定来源保持原样", create: source_artifact_model.publishesOnlyTheNewDocumentAfterAnIndependentCurrentCandidateCheck },
   { label: "固定原文修订", condition: "候选未保留必须保存的原文要求", operation: "独立检查报告保留要求失败", result: "保留失败发现且不发布并安排负责人修正", create: source_artifact_model.retainsAnIndependentPreservationFailureAndDoesNotPublishTheCandidate },
-  { label: "固定原文修订", condition: "原文已固定且用户已停止任务", operation: "提交停止前的迟到交付并保存恢复任务", result: "拒绝迟到交付且恢复后保留原文而无当前产物", create: source_artifact_model.preservesTheFixedSourceOnStopStaleCompletionAndPersistedRecovery },
+  { label: "固定原文修订", condition: "原文已固定且用户已停止任务", operation: "提交停止前的迟到交付并保存恢复任务", result: "拒绝迟到交付且恢复后保留原文并只提供宿主停止报告", create: source_artifact_model.preservesTheFixedSourceOnStopStaleCompletionAndPersistedRecovery },
   { label: "固定原文修订", condition: "旧任务快照没有固定来源", operation: "按原协议提交候选", result: "继续按原有检查流程处理", create: source_artifact_model.retainsExistingBehaviorForSnapshotsWithNoSource },
   { label: "固定原文模型请求", condition: "负责人工作有完整固定原文", operation: "构造并执行修订模型请求", result: "完整传递原文并给出隔离和默认文件名规则", create: source_artifact_adapter.sendsTheOriginalCompleteTextAndSourceIsolationInstructions },
   { label: "固定原文模型请求", condition: "负责人原文超出上下文容量", operation: "尝试执行修订模型请求", result: "返回永久SOURCE_CONTEXT_LIMIT且不发传输", create: source_artifact_adapter.rejectsOversizedOwnerSourceBeforeTransport },

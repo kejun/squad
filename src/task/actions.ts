@@ -1,3 +1,5 @@
+import { applySupervision } from './resilience.js';
+import type { Phase } from '../types.js';
 import { failHostRetryBoundary, retireHostRetryBatch, startHostRetryBatch, synchronizeHostRetryBatch } from '../host-retry.js';
 import { type TaskContext, type TaskEvent } from '../types.js';
 import { assign } from 'xstate';
@@ -26,7 +28,15 @@ const coordinationProblems: Record<string, string> = {
   MISSING_QUESTION: '缺少需要用户回答的问题',
 };
 
+const supervise = (phase: Phase) => taskAssign(({ context, event }) => {
+  const c = structuredClone(context); applySupervision(c, event, phase); return c;
+});
+
 export const taskActions = {
+    superviseInterpreting: supervise('interpreting'), superviseRunning: supervise('running'),
+    superviseAssistance: supervise('waitingAssistance'), superviseCoordinating: supervise('coordinating'),
+    superviseHuman: supervise('waitingHuman'), superviseChecking: supervise('checking'),
+    superviseStopping: supervise('stopping'), superviseEnded: supervise('ended'),
     advanceMapQueue: taskAssign(({ context, event }) => {
       const c = structuredClone(context); advanceMapQueue(c, { ...event, at: event.at ?? c.lastActivityAt }); return c;
     }),
