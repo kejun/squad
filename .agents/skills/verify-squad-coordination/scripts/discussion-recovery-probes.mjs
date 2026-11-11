@@ -118,8 +118,12 @@ export function discussionRecoveryProbes(make, backend, directory) {
     assert.deepEqual(s.context().intents.filter(work => work.kind === 'owner').map(work => work.id), owners);
     assert.equal(driver.work(1).status, 'uncertain', 'PhysicalRetention: unknown local effects must remain occupied');
     assert(['done', 'cancelled'].includes(driver.work(2).status), 'EndedDiscussionRecovery: the safe companion must retire before local reconciliation');
-    const blocked = publicContinue(driver, `before-${entry}`);
-    assert.equal(blocked.ok, false); assert.equal(blocked.code, 'UNRESOLVED_WORK', 'PhysicalRetention: public CONTINUE must be denied before effects are known');
+    const cleanup = s.context().resilience.cleanup.find(item => item.operationId === identity.operationId);
+    assert(cleanup && cleanup.state === 'pending' && cleanup.resourceKeys.length,
+      'PhysicalRetention: independent cleanup must own the original operation and conflict resource');
+    assert(publicContinue(driver, `before-${entry}`).ok,
+      'ContentContinuation: explicit content continuation may proceed after independent cleanup takes custody');
+    assert.equal(driver.work(1).status, 'uncertain', 'PhysicalRetention: continuing content must not settle the old physical work');
     const receipt = { ok: true, code: 'succeeded', data: { exitCode: 0, stdout: 'known effects' } };
     const response = s.send({ type: entry, ...identity, result: receipt, ...(entry === 'LOCAL_RESULT'
       ? { settled: true, effectsKnown: true } : { resolution: 'receipt', detail: 'formal host receipt' }) });
@@ -127,7 +131,8 @@ export function discussionRecoveryProbes(make, backend, directory) {
     assert.equal(driver.work(1).status, 'done', 'SettledDiscussionRecovery: known receipt must retire abandoned logical work');
     assert.deepEqual(driver.work(1).localOperations[0].result, receipt, 'SettledDiscussionRecovery: retirement must retain the receipt');
     assert.equal(s.context().discussion.status, 'cancelled'); assert.equal(driver.summary(), undefined);
-    assert(publicContinue(driver, `after-${entry}`).ok, 'SettledDiscussionRecovery: public CONTINUE must succeed only after known settlement');
+    assert.equal(s.context().resilience.cleanup.find(item => item.operationId === identity.operationId).state, 'settled',
+      'SettledDiscussionRecovery: trusted receipt must settle independent physical custody');
     inviteAndClaim(driver, driver.work(1), 'SettledDiscussionRecovery');
   });
   example('unsafe-compatibility', 'map', driver => {

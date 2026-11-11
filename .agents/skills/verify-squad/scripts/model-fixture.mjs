@@ -21,8 +21,16 @@ export async function startFixture(log) {
       let raw = '';
       for await (const chunk of req) { raw += chunk; if (raw.length > 2_000_000) throw new Error('Request too large'); }
       const request = JSON.parse(raw);
-      const initial = request.messages.find(m => m.role === 'user');
-      const { workId, context } = JSON.parse(initial.content);
+      // Host tool observations may precede the fixed task envelope. Match the
+      // envelope itself rather than mistaking an untrusted observation for it.
+      const inputs = request.messages.filter(m => m.role === 'user').flatMap(message => {
+        let value;
+        try { value = JSON.parse(message.content); } catch { return []; }
+        return typeof value?.workId === 'string' && value.workId && value.context &&
+          typeof value.context === 'object' && !Array.isArray(value.context) ? [value] : [];
+      });
+      if (inputs.length !== 1) throw new Error('Production task envelope drift');
+      const { workId, context } = inputs[0];
       const match = /^You are (.+?), executing (\w+) work\./.exec(request.messages[0].content);
       if (!match || !workId) throw new Error('Production model protocol drift');
       const [, target, kind] = match;

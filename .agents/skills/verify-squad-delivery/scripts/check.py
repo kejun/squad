@@ -28,7 +28,7 @@ composition_spec.loader.exec_module(composition)
 
 CONTROLS = {
     'drop-final': ('AtomicPublication', 'src/task/operations.ts',
-                   "if (outcome !== 'stopped') {", "if (outcome !== 'stopped' && outcome !== 'complete') {"),
+                   "    message(c, e, c.owner, full, 'final', {", "    if (false) message(c, e, c.owner, full, 'final', {"),
     'accept-stale': ('CurrentCandidate', 'src/task/delivery.ts',
                      'e.candidateRevision !== candidate.revision || ', ''),
     'skip-snapshot': ('SnapshotBinding', 'src/task/evidence.ts',

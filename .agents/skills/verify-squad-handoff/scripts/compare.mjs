@@ -67,6 +67,37 @@ function setup(backend, base) {
     const c = reader.view(room, task).context;
     // These executable slice conditions justify why the newer delivery/host/map-reduce
     // branches cannot silently change the abstraction under this replay.
+    assert.equal(reader.roomDeletion(room), undefined, 'Slice: deletion barrier is outside the handoff model');
+    assert(c.resilience && c.resilience.window.hardDeadline > 0, 'Slice: fixed time 0 must precede the task deadline');
+    assert.equal(c.resilience.window.openedAt, 0, 'Slice: original window must remain fixed');
+    assert.equal(c.resilience.window.authorizationId, undefined, 'Slice: no explicit replacement window');
+    assert.equal(c.resilience.window.repairUsed, 0, 'Slice: supervision repair is outside the action alphabet');
+    assert.equal(c.resilience.window.repairDeadline, undefined, 'Slice: no repair window');
+    assert.equal(c.resilience.gates.length, 0, 'Slice: human decisions are outside the handoff slice');
+    assert.equal(c.resilience.skips.length, 0, 'Slice: content skipping is outside the handoff slice');
+    assert.equal(c.resilience.cleanup.length, 0, 'Slice: no physical cleanup ownership');
+    // Recovery may add a deterministic stopped notice. It has no business material and
+    // must not conceal a partial/complete result or alter the R1 handoff projection.
+    const stoppedPublications = [...(c.resilience.frozenHistory ?? []), ...(c.resilience.frozen ? [c.resilience.frozen] : [])];
+    for (const publication of stoppedPublications) {
+      assert.equal(publication.outcome, 'stopped', 'Slice: business salvage is outside handoff');
+      assert.equal(publication.verification, 'incomplete', 'Slice: stop notice is no verification proof');
+      assert.equal(publication.windowId, c.resilience.window.id, 'Slice: stop notice belongs to original window');
+      assert.equal(publication.epoch <= c.epoch && publication.goalVersion <= c.goalVersion, true, 'Slice: stop notice identity');
+      assert.deepEqual(publication.items, [], 'Slice: no business material in stopped notice');
+      assert.deepEqual([publication.skippedIds, publication.cleanupIds, publication.sourceReceiptIds], [[], [], []], 'Slice: no hidden skipped/source/cleanup obligation');
+      assert.deepEqual(publication.artifactIds, [publication.reportArtifactId], 'Slice: stopped notice only links its host report');
+      const report = c.artifacts.find(artifact => artifact.id === publication.reportArtifactId);
+      assert(report && report.content === publication.text && report.goalVersion === publication.goalVersion, 'Slice: exact stopped report');
+      assert(publication.text.includes(`任务：${c.taskId}`) && publication.text.includes('状态：stopped；核验未完成'), 'Slice: stop report declares its status');
+    }
+    if (c.resilience.frozen) assert(c.stopped && c.outcome === 'stopped', 'Slice: current stopped notice must preserve stop');
+    assert.equal(c.goal.resourceRequirements?.length ?? 0, 0, 'Slice: no resource acquisition obligation');
+    assert.equal(Object.keys(c.goal.partitionResources ?? {}).length, 0, 'Slice: no partition resource obligation');
+    assert.equal(c.intents.some(work => work.hostAcquisitions?.length), false, 'Slice: no acquisition receipt');
+    assert.equal(c.intents.some(work => work.replay === 'unsafe'), false, 'Slice: legacy unsafe effect barriers are outside handoff');
+    assert.equal(c.trace.some(entry => ['SUPERVISE', 'HUMAN_GATE_DECISION', 'EXECUTION_NOT_STARTED'].includes(entry.event)), false,
+      'Slice: no resilience-only event was projected away');
     assert.equal(c.config.version, config.version, 'Slice: execution protocol changed');
     assert.equal(c.config.toolVersion, config.toolVersion, 'Slice: tool protocol changed');
     assert.equal(c.sourceArtifact, undefined, 'Slice: unexpected cross-task source artifact');

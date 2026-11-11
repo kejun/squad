@@ -125,3 +125,18 @@ authority 的 Execution/Host/SessionScope 与 LocalRuntime 启动前中止探针
 这些驱动直接调用 TeamEngine 和 LocalRuntime，不实例化 WorkRunner 或 OpenAICompatibleAdapter；runtime-binding 使用无技能和空 catalog，不调用推荐方法，且在启动回调主动阻止实际 spawn。新增候选、诊断、重复失败模型门槛和受控模型 HTTP 由 BT_L117–L123 单独验收，不冒称这两张旧有限图证明新旧行为的任意组合。
 
 原 TLA/CFG、性质、公平性、边界、双存储所有标记边、6 类原授权及 4 类组合真实代码负对照保持。完整正向、负对照、未改坏原版恢复复验和独立读回均已通过；证据为 `reports/kej-112-final-authority` 与 `reports/kej-112-final-authority-composition`，精确统计和结果见本轮审查。两入口通过不代替其余七入口；全部九入口通过前保留旧同步提交。
+
+## KEJ-113/114：恢复与资源责任的旧授权切片审查
+
+逐文件旧/候选SHA、原样阻塞、完整运行和读回见 [本轮审查](drift-review-kej-113-114.json)。可用 `15d2714` 与旧授权76项、组合78项指纹全部相同。原名义sync对象在此clone不可读，使用已逐字核对的等价源码作diff基线；候选HEAD不包括工作区产品修改，因此实际冻结指纹才是受测输入。
+
+原Execution、Host、SessionScope、ApprovalComposition的变量、性质、公平性、有限界限和旧能力探针保持。STOP/RECOVER现在可以逻辑冻结交付并把物理责任移交cleanup；Host投影原本就是旧能力曾走过的最远stage和实际接受启动计数，不把当前父work状态或最终报告正文等同授权。所有后续旧approval/attempt/session/permit探针继续核对真实公开入口拒绝。组合图仅在物理claim前恢复，因此不具备已启动未知效果；新cleanup的业务继续路径不会被本图冒称已验证。
+
+历史LOCAL_REQUEST前缀均省略新增trusted resource plan，仍走Store legacy workspace独占路径；新RW资源计划和LOCAL_PREPARED不在本图字母表，独立资源策略模型/Runtime验收承担。Store新增删除屏障在所有旧前缀无REQUEST时不生效；原BEGIN IMMEDIATE/事务回滚与MemoryStore原子提交继续核对，不能从没有删除事件的旧授权图推导KEJ114删除正确性。
+
+新增宿主receipt/no-start/监督/人类gate事件和窗口配置保守纳入源码门禁，但原驱动不执行WorkRunner、模型HTTP、skillsHTTP、WebService或浏览器。默认窗口夹限在有限时钟0/1/900均未触发；synthetic owner/runCli无读取URL、typed资源义务或sourceItems，新增取得前置为空。LocalRuntime十条绑定变体无owner/resource plan且在started callback主动中止spawn，故新增ownership文件与prepared callback不扩大原OS保证。旧六类授权/四类组合真实源码负控、模型失效变体、所有双存储边及原版恢复后复验都必须保持。
+
+旧式unsafe TOOL没有LOCAL子记录时，Store现在从所有房间持久inflight/uncertain快照形成同事务global物理屏障；可信RECONCILE退休前保留，当前inflight父的合法子frame仍属同一责任边界。Engine新unsafe CLAIM在收费前原子检查资源，不把临时busy变成永久回执。旧有限图没有此unsafe资源申请/核对组合；仅历史unsafe输入探针仍检查不能退休/重放。跨房间实际Engine双存储验证由 `tests/legacy-effects-acceptance.ts` / BT_Z106 承担，未扩大这些TLC域。
+
+
+KEJ-113/114 最终复验：冻结产品 `36916b5c6e974c11f8e51720189c64facef9269e`，本技能两个完整入口均完成真实源码负对照、原版复验和各自独立读回，结果为 updated。最终原始证据分别为 `reports/kej-113-114-four-formal-36916b5-final-2/authority`、`reports/kej-113-114-four-formal-36916b5-final-2/authority-composition`；汇总与最新独立读回位于 `reports/kej-113-114-four-formal-36916b5-final-3`。精确计数、首轮冗余负控失败与维护理由见[逐文件审查](drift-review-kej-113-114.json)。同步元数据不表示额外完整运行；本技能有限域不证明新宿主、网页、人类门或删除行为的全部组合。

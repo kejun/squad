@@ -1,0 +1,963 @@
+{
+  "issues": [
+    "KEJ-113",
+    "KEJ-114"
+  ],
+  "outcome": "updated",
+  "reviewedHead": "36916b5c6e974c11f8e51720189c64facef9269e",
+  "reviewedWorkingTree": false,
+  "commitMessages": [
+    "36916b5c6e974c11f8e51720189c64facef9269e feat: implement KEJ-113 resilience and KEJ-114 safe archived room deletion",
+    "e526f6f1f6dce276dfd0be14bd60d106aee139c5 docs: define KEJ-113 and KEJ-114 acceptance and state contracts"
+  ],
+  "coverageReviews": [
+    {
+      "coverage": "coverage.json",
+      "previousSyncCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+      "equivalentBaselineProof": {
+        "commit": "15d27144b05086b27ae6b02338c094a3df60fbd2",
+        "allOldPinsMatch": true,
+        "count": 76
+      },
+      "files": [
+        {
+          "file": "package.json",
+          "oldSha256": "3116143dffa7c27a4fc9a8892e08603d754bc5e2f506752b500d874befb0ab3c",
+          "candidateSha256": "e809edfebb43fbfd77f200e6afec11e6109c7d7e8549efb8ee45536d6278df21",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Only start entry now invokes the independent process supervisor; formal commands directly invoke Python/Node fixtures and never execute npm start. No dependency lock or TLC budget changes."
+        },
+        {
+          "file": "src/acquisition-readers.ts",
+          "oldSha256": null,
+          "candidateSha256": "011b165c1c4d8acfbf32c16c8655baf312148b9944dd518a61e4f528fdd48d47",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New pure trusted CLI parser registry, dedicated-command JSON admin profile validation, optional exact provider ID/body fields, batch targets and moved documentBodies; empty default registry never treats stdout self-claims as authority. Direct old graph injection does not call parsers. Conservatively pin transitive module; no new parser-semantic proof claimed here."
+        },
+        {
+          "file": "src/cli-catalog.ts",
+          "oldSha256": "bf961fb4e4d6d9f1bb396ca0ee6fc282df16be89224c1ccd742ec5a6ff220ebc",
+          "candidateSha256": "08a49e8e7a8cb15da8cb4d8b4fa22f7bbd6aa5636edb59bcceae43c30f74734d",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Pure metadata now distinguishes unconfigured/empty/configured and match/no-match. Original graph actions never choose tools from this projection; runtime-binding has an empty catalog. No permission is granted by readiness."
+        },
+        {
+          "file": "src/cli-readiness.ts",
+          "oldSha256": null,
+          "candidateSha256": "cb973987c1b91f5a0d684e7dd6f762cdc2ae2822723230a523025ca0b3dfcb6e",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New pure current-config metadata readiness projection, never execution authority; not called by finite direct-event drivers. Covered by native Runner/CLI configuration acceptance."
+        },
+        {
+          "file": "src/delivery-acceptance.ts",
+          "oldSha256": "dfbf0e5330e6da8c8822186eeccc080da7253818b614e88aaabde38f9d916253",
+          "candidateSha256": "4cc0389a027e13631058b52ba911e0b99e487160a898510168e47e44fe117dc4",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds host resource acquisition preflight. Existing synthetic formal goals contain no explicit acquisition URL or typed resourceRequirements, so requiredResources is empty; MapRecovery still checks complete source quotes. Actual URL/content receipt combinations remain separate KEJ113 model/BDD evidence."
+        },
+        {
+          "file": "src/engine.ts",
+          "oldSha256": "a2c2583aa9fb4ab14e403816c528f0799a9c2cdce297658fabafeb32bc17196a",
+          "candidateSha256": "ea4fc1ba23f93b9591a8201ad7e71ce2a438c1b3ba0214513b89808922264d0f",
+          "classification": "correspondence-updated",
+          "reason": "Public dispatch/claim/start/CONSUME remain individual Store transactions. beginExecution reloads and validates the exact current attempt before committing its one-use permit; executionNotStarted accepts only authorized/cancelled-not-started phases and uses the trusted path, not public send. Post-dataErased deletion preparation now returns before creating any business transaction; deletion is absent from the old graph alphabet. Host-only recordAcquisition/notStarted and deletion settlement are new alphabets absent from old graphs. Recover includes ended cleanup; CancelledDiscussion updates Reopen/custody correspondence and keeps <=1 commit at clock0. New unsafe CLAIM atomically prechecks the global physical resource before charging, then the committed unsafe snapshot supplies its barrier. Existing graph CLAIM prefixes are safe; historical unsafe regression only checks retained/rejected old work, not this new acquisition lifecycle. Legacy workspace path remains exercised by Host and CancelledDiscussion; new RW resource-policy branch is independently tested, not claimed by legacy graph."
+        },
+        {
+          "file": "src/local-cli.ts",
+          "oldSha256": "db577455e9fb60f5d12e0cc6af6980c52eec7f8fbec0cbc3ff3a34223092e69e",
+          "candidateSha256": "5a11e027e082424df77d9f5dcfb92c35f51507440e836465d2609b59cf26fc40",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Trusted backend isolation marker only. Formal runtime binding aborts before spawn and direct engine graphs do not instantiate a CLI backend. No claim of OS confinement or process cleanup."
+        },
+        {
+          "file": "src/local-operation.ts",
+          "oldSha256": "754c1e5e49f62c4e266fda3eb7511c54112a866f9cc35fc94f63e7da77568876",
+          "candidateSha256": "ba9a546b17402b7f585d7c81fc8c53beb1786651384d0a4822ae56a456622482",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds optional trusted conflictKey/resourceLeases and LOCAL_PREPARED. All historical graph LOCAL_REQUEST prefixes omit the optional plan and retain legacy exclusive workspace leases and approval guards. New preparation/RW lifecycle is outside old graph and covered by dedicated model gates."
+        },
+        {
+          "file": "src/local-resource-policy.ts",
+          "oldSha256": null,
+          "candidateSha256": "8bfe9c1095ab34cafad7a6a6d97fdc4d398d9d8afeb4435a8ed70ad5652e3673",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New pure conflict resource/RW lease resolver; legacy model prefixes intentionally omit resource plan, so new confinement/prepare-release cases have independent R25/R26 gates and actual Runtime integration. Pin dependency without claiming arbitrary RW/legacy composition."
+        },
+        {
+          "file": "src/local-runtime.ts",
+          "oldSha256": "b6f2d674c90b794567dd2e2f77669a6225d6cd37a66c5de0863151e415aa8084",
+          "candidateSha256": "ece2447adc368f94ea549bfb9a1b4dbb0127b3a2cd1da62bcdb89d7d0383cf60",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Execute wrapper tracks actual physical jobs, optional owner manifests and optional prepared callback; historical runtime-binding uses no owner/resource plan and deliberately throws at started before spawn. Digest/approval/namespace/version checks remain. Host parsers/cleanup inventory are new I/O dependencies not invoked by direct coordination replay."
+        },
+        {
+          "file": "src/model-adapter.ts",
+          "oldSha256": "4f51a62861c7c0e825d5750d263312e4a05ca8e832d5f19edc90cdce6a73e9cd",
+          "candidateSha256": "7d2c7be8703ca71129fd7eb85a8b10f611b5c2ab563762115fb81a30a7759eef",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Prompt explains CLI readiness/verified method scope and directs owner/facilitator to actively complete authorized work with bounded alternatives and only essential human questions, preserving budget/deadline/approval/facts. E127 now passes host-generated canonical Web evidence IDs separately from untrusted page text; source operation IDs remain execution provenance. No finite driver calls model HTTP or this prompt; tool-choice and provider/stream liveness belong to real adapter acceptance."
+        },
+        {
+          "file": "src/process-supervisor.machine.ts",
+          "oldSha256": null,
+          "candidateSha256": "29d41335694b5e75fdc93196fc193a40d52622d656249ef2574cac910a63a3fe",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Independent process watchdog model used by npm start wrapper; not invoked by finite TeamEngine drivers. New process failures, probes and OS restart are separate guarantees."
+        },
+        {
+          "file": "src/resource-acquisition.ts",
+          "oldSha256": null,
+          "candidateSha256": "adc62f7be3cca22ded73bb7e42cebb893da98b5b1a7c68097ca12bc5f39cca02",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New pure host observation seal, source snapshot/resource identity/generation binding, requirement and artifact verification. Old graph synthetic goals have no typed/URL requirements, partitionResources or receipt events; exact selected acquisition references and current-versus-saved rules therefore remain outside their finite alphabet. New 20 resource paths and direct CLI/Web tests independently cover this new alphabet."
+        },
+        {
+          "file": "src/room-deletion-coordinator.ts",
+          "oldSha256": null,
+          "candidateSha256": "62399fe89fe47ffce3ed690e65bd16064caff598c09654422e83eed553cb6c9a",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New deletion executor coordinates separate machine/storage/runtime custody; never constructed by these finite engine drivers. Room deletion protocol must not be inferred from old budget/authority verification."
+        },
+        {
+          "file": "src/room-deletion.machine.ts",
+          "oldSha256": null,
+          "candidateSha256": "61320dc8213a9d546cb706349a8fa786c9acd244461608e6e3422487a8b7d4f4",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New persisted destructive lifecycle; Store imports its pure helpers but no original graph submits REQUEST so deletion barrier is absent. Independent KEJ114 model/BDD handles confirmation/inventory/physical settlement/tombstones; original graphs do not prove it."
+        },
+        {
+          "file": "src/runner.ts",
+          "oldSha256": "19ebc1b09cbfb6eaf6d05b5906be2b590b1c77e2768974d668194ea1fb4c069d",
+          "candidateSha256": "c367c12a5c1da32b4cac4b8d2871e8dac6348219ccb0da5e340beae7337716eb",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds bounded abort/drain/detach lifecycle, trusted no-start successor and acquisition recording, resource policy/prepared callbacks and fresh getter wiring. CLI-only deterministic result backfill before adapter/replay preserves original parentAttempt/finishedAt/sourceSnapshot; E126/Y71 model-first/native-CLI/dual-store completion checks cover the new cut window without reexecuting a settled command. These four old finite entrypoints directly call TeamEngine, except LocalRuntime pre-spawn binding; they never instantiate WorkRunner. New paths require independent real Runner/HTTP/SQLite acceptance, not expansion of old proof."
+        },
+        {
+          "file": "src/runtime-ownership.ts",
+          "oldSha256": null,
+          "candidateSha256": "210e8d0108df16149d9a3fc3c5e1d3e417f9ccdb1c54040042dec89494aafc60",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New optional pre-journal ownership manifest and cleanup inventory/removal. Original runtime-binding passes no owner and never reaches OS spawn; no original graph touches cleanup paths. Pin conservative dependency; actual filesystem ownership tested independently."
+        },
+        {
+          "file": "src/skills.ts",
+          "oldSha256": "81bf7ae230a719f046a0caced6c0293807f259c4d500349c7a78ecdfbbf1e111",
+          "candidateSha256": "616a30fed055e935a09fef66cded225626220c5a1e9211dac44ec543d37a6bb2",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Transient HTTP/transport failures classified for bounded retry; auth/config remain explicit. No formal graph calls skills HTTP. Product finite retry model and native loopback adapter BDD cover this separately."
+        },
+        {
+          "file": "src/source-claims.ts",
+          "oldSha256": "9e4dbb2f07d5d0315dc0be5a66ca5042602121651e6be4225dee6982727e289c",
+          "candidateSha256": "ed1d86ae9c38e8c850da5b0c9d695f5fd4ab1091f9212759fa573d7981dc52c3",
+          "classification": "reviewed-domain-restricted",
+          "reason": "SourceItem claims require matching host acquisition. Typed documents bind original resource.id/content; URL documents require host-signed exact documentId, with strict default JSON identity/body fallback for generic web receipts. Custom provider fields are parsed once by the trusted reader, avoiding a mismatched second default parser. Old finite goals/artifacts contain no sourceItems, so sourceItemsProblem returns before changed checks; no source-item semantic guarantee added."
+        },
+        {
+          "file": "src/store.ts",
+          "oldSha256": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
+          "candidateSha256": "3eb36535afb71bad478495506f0dea78a0fef3d69fa56b85d5a4e2756d7da432",
+          "classification": "correspondence-updated",
+          "reason": "SqliteStore now accepts an optional borrowed DatabaseSync for WebService memory-mode consistency and closes only owned path connections. All four finite drivers retain the original string-path self-owned branch, so the borrowed connection/service close composition is independently covered by real memory WebService and deletion acceptance, not these old graphs. Adds deletion barrier/tombstone protocol and transactional RW leases alongside legacy workspace leases. All four finite drivers create no room deletion and legacy workspace graph requests have no resourceLeases. New transaction-local cross-room unsafe snapshot barriers quarantine generic adapter effects; these old graphs contain no unsafe physical resource claim, so dedicated two-store legacy-effects acceptance is separate. SQLite atomic helper preserves BEGIN IMMEDIATE/COMMIT rollback and MemoryStore snapshot commit semantics; explicit failure injection remains required. CancelledDiscussion observes actual acquire/release returns after commit, not inferred op text."
+        },
+        {
+          "file": "src/task/actions.ts",
+          "oldSha256": "ea83801f566c9a457aafd351b6f23639bb836da9f2efcb789e3740b1776671bd",
+          "candidateSha256": "4b25c51842badc38daa3d3201f02a660df227d105141521dd334b928bda34333",
+          "classification": "reviewed-domain-restricted",
+          "reason": "SUPERVISE actions invoke new pure resilience transitions. Existing graph alphabets do not emit SUPERVISE; canceled graph explicit public RECOVER remains separately projected. No new microstep is collapsed into a model I/O action."
+        },
+        {
+          "file": "src/task/assistance.ts",
+          "oldSha256": "d472d9c7422118a217d23ef0019831ad1598e3d9137da794830f39ac286ee6df",
+          "candidateSha256": "a8628937aad37ca19bfa210b288e537f406b4323c1b191ab86e6333438cd1950",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Allows saved canceled help to be consumed after a logical terminal outcome, preserving saved material on explicit retry. Existing ReviewQueue models success/failed members and retry snapshots; cancellation/terminal retry composition remains a separately disclosed finite product scenario."
+        },
+        {
+          "file": "src/task/context.ts",
+          "oldSha256": "e5efe2a6ca63f8c4835a18fb93737cb1c3d94ff96e972fc3f0b537fc821fba08",
+          "candidateSha256": "ae96dd7dd487b3776758fe5f0c452c64c52ca0e454f766818b7f5bc268f16092",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds persisted window/gates/cleanup initialized at openedAt. Existing model clocks are below default hard deadline and repair supervision due; no hidden automatic allowance or budget reset."
+        },
+        {
+          "file": "src/task/delivery.ts",
+          "oldSha256": "b38e539124b74974dae3e487f352c113704631fddb9f9ed40c8d72b5d07f7b0b",
+          "candidateSha256": "e6879a729d525d3e699e0c2a5be63b318c66f90e60b10d6d67dfd186642560ed",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Explicit publishedDelivery is authoritative even on goal mismatch: mismatched records yield no publication instead of falling back to old final artifacts; legacy fallback without an explicit record and frozen-report precedence stay. All old finite publishedDelivery prefixes use the current goal; wrong-goal recovery input is separate A31 model/BDD. Requires acquired resources before submission/complete and projects immutable frozen incomplete publication. Old graphs use no URL/typed resource requirements; CheckBudget and MapRecovery still exercise ordinary mechanical/citation checks. Failed/stopped publication now host-freezes a report, which is outside old projected publication text."
+        },
+        {
+          "file": "src/task/discussion.ts",
+          "oldSha256": "91545a2d721deaaec705c3590fc985f68c1a83c32cb20aa1d182bcc460b58ca2",
+          "candidateSha256": "6090f36fce08f19d19cff4dcd38344c20c249493b45b767a1993dd676d4cb39b",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Invitation and planning now ignore independently cleanup-owned uncertain work when computing content member availability. Old noncleanup discussion domains unchanged; CancelledDiscussion extends content-before-receipt paths and still rejects stale old results and conflicting physical claims. This fixes a real correspondence counterexample rather than permitting perpetual missing members."
+        },
+        {
+          "file": "src/task/evidence.ts",
+          "oldSha256": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
+          "candidateSha256": "463a61866b5e849da7565972e5dd8167f0419e36e51c374bd1483fca4034ae6f",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds host web acquisitions to delivery evidence and immutable acquisition snapshots. Existing graph receipts are local runCli with saved stdout and no hostAcquisitions; their old evidence metadata/quote binding remains exercised. Web-only/local-disabled check is separate product model/BDD."
+        },
+        {
+          "file": "src/task/facts.ts",
+          "oldSha256": "7d29345b1e74ed3ffcb70cd592161d2d1728f7c57d3c3b7b4eb91f84cc9cd273",
+          "candidateSha256": "ee7161ab136bb54191c5af11ce3bbdd508260f75c583a16bb6ff7a0b4f916d2b",
+          "classification": "correspondence-updated",
+          "reason": "Member/lane eligibility excludes independently owned cleanup from uncertain logical work. CancelledDiscussion updates RoundIsolation to distinguish permitted new content from the still-held physical resource, and adds actual lease/custody variables; no weakening of physical exclusion."
+        },
+        {
+          "file": "src/task/guards.ts",
+          "oldSha256": "8b26dc562f769117962e72c9d68804bc0ca10db4274fa944750e6a8a774e7553",
+          "candidateSha256": "94053221acc0f2f9b91005f4e17027c0a2c8b0a51c13c972afce750457704a29",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds human/window/no-start/safe-repair guards and ignores independent cleanup at pure content boundaries. Old safe synthetic slices have no cleanup and preserve guards. CancelledDiscussion deliberately includes cleanup. Negative selectors updated at same activeHelp/deferred decisions, retaining behavior-target assertions."
+        },
+        {
+          "file": "src/task/lifecycle.ts",
+          "oldSha256": "94963a5125285181fa0c325d3379abb400514289918f75ad0b77f01be792518f",
+          "candidateSha256": "4de9ac0127f11dbe2980c73b1176e7b053a2720a7fb06b31e0cc03627759d9e1",
+          "classification": "correspondence-updated",
+          "reason": "Adds supervisor/human/no-start/receipt events and permits cancellation CLAIM in ended. STOP may end logically before external effects settle, so CancelledDiscussion no longer equates logical end with physical release. Existing WORK_FAILED synthetic transient rules/retry and ordinary claim/consume/check boundaries retained."
+        },
+        {
+          "file": "src/task/map-queue.ts",
+          "oldSha256": "8aa95a725bf9d43f3340f519d0e0ffa928893371100ad24d4f49ea3174150e54",
+          "candidateSha256": "79b0c55b825bd31e78c818064ea2ced205edb2724f0b254c31d9ae981199c5da",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds shared prerequisite block, new verified-method reevaluation, typed per-partition acquisition references and logical skip; old 2-part graphs have no trusted method/failure-fingerprint facts, typed partitionResources or URL scopes, so those new branches and per-partition proof fields are absent. Deadline clamp is unchanged at finite clock0. More partitions/prerequisite scheduling remains independent model/BDD, not a TLC claim."
+        },
+        {
+          "file": "src/task/map-recovery.ts",
+          "oldSha256": "302ffcab7a03cedd8881200692fbbbbc58dc64a491a1ada238ffb40df4b1a6f3",
+          "candidateSha256": "cf4e6ac76482d0765b6d7d523f77173ee70e160ce00ac4e4a257d2a3e84dc7b7",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Web recovery now accepts only a canonical saved host acquisition ID whose source work/operation/request/content hash exactly matches delivery evidence; typed partition requirements query the actual original source owner without changing receipt ownership/attempt. Old MapRecovery has complete local runCli sources with no typed partition resource, so the original local eligibility/citation/independent-check branches remain. New actual Web provider JSON-only references and wrong-document controls are separately modeled and accepted. The old single generic unavailable-return mutant anchor became four returns after adding Web cases; select the exact existing missing/empty/stale source guard, retaining RecoveryEvidenceEligibility rather than replacing every new branch."
+        },
+        {
+          "file": "src/task/map-reduce-capacity.ts",
+          "oldSha256": "565fee8a9b59523339f0548e41002560a83a48a85ec4b0aedfa121cf39e3239a",
+          "candidateSha256": "884164a24ac692c40dbf196fb0fd4b00f833e2cc0e5ddda6b8ee7e0c6472f0c7",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Capacity member eligibility now excludes independently owned cleanup from busy members, matching workLaneAvailable and discussion invitation. Existing no-cleanup capacity0/1/2/4 finite probes remain intact; new content-versus-physical responsibility is separately represented by CancelledDiscussion and the public resource-conflict probe."
+        },
+        {
+          "file": "src/task/map-reduce.ts",
+          "oldSha256": "8409db33692155fbf5b18383a54991087ecbb334bc26a4cfbe2f99cfb7c6c74b",
+          "candidateSha256": "694139c96425237e892f56bbe830f5bb460f298bdc3d708d2b8c31c2f32ab55a",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Partition deadline is clamped to processing hard/repair window; old 2-part finite runs at clock0 have workTimeout below default global deadline and no repairDeadline. Assignment/init projection unchanged."
+        },
+        {
+          "file": "src/task/map-scheduling.ts",
+          "oldSha256": null,
+          "candidateSha256": "1cd8e33e0acf158fab9520bf9201811694b054bd5f256d8847e2d557cbf25913",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New pure prerequisite/method generation/config/resource semantics, including trusted same-generation/config Web authentication failures invalidating old verified methods; no old graph has two trusted prerequisite failures or acquired-method observations, so scheduling branches inactive. Old MapRecovery synthetic source still uses preexisting evidence/citation obligations; no implication that old graph proves new method selection."
+        },
+        {
+          "file": "src/task/operations.ts",
+          "oldSha256": "67713454a5f4be40770f185ffa864ae6084b82bfc71075406234ec0fdcf1d386",
+          "candidateSha256": "b997ec9f15f59a4e8d3eacfc73ebf189e0d0d996dde42b3409331f45ffbd0621",
+          "classification": "correspondence-updated",
+          "reason": "continueOwner reuses only an original safe pending current-generation owner with a durable checkpoint and fully settled local operations, preserving original operation ownership/attempt/session/time. Old finite COORDINATE prefixes have no Runner-created checkpoint, so the fallback remains the existing owner creation; actual crash checkpoint handoff is separate finite model/native crash acceptance. Intent deadlines clamped, owner content path ignores independently owned cleanup, incomplete finish freezes deterministic report, complete finish rejects pending cleanup. CancelledDiscussion explicitly updates STOP/EXHAUSTED immediate custody while preserving known-result retirement and resource responsibility."
+        },
+        {
+          "file": "src/task/policy.ts",
+          "oldSha256": "f34c53e815fed60a564f4b4ad454d107ec115b19a1987938241cc23a281b0905",
+          "candidateSha256": "ded18a03e7b5485e608a3d15cbb0927e787f928d9c969c505375336e92ba5078",
+          "classification": "correspondence-updated",
+          "reason": "New trusted event gates, current deadline/window enforcement and CONTINUE cleanup exception. Finite clocks below deadlines preserve original budget/authority graph guards. Intentional change: cleanup-owned unknown effects permit new content, while original op authorization/lease remain immutable; CancelledDiscussion revised and negative controls strengthened."
+        },
+        {
+          "file": "src/task/reducer.ts",
+          "oldSha256": "3fb30e8295897c4af5d12a34aae7f0640d858024d89a8139cdd400a1256c5b1e",
+          "candidateSha256": "c2e15627db07645398c20f4fdbf16aa876a9529f8a7532961f608f98393277d3",
+          "classification": "correspondence-updated",
+          "reason": "Explicit RETRY_ASSISTANCE archives an existing frozen publication before reopening the logical cycle, retaining the same processing deadline (no implicit new window) and original saved-help/charge rules. Records trusted acquisition, bounded no-start/repair, explicit human gates, terminal report and cleanup adoption/settlement. CancelledDiscussion updates immediate Cancel and RECOVER while retaining canceled safe retirement, trusted receipt retirement and old-round rejection. Candidate replay found frozen RECOVER skipped safe retirement; product owner fixed it before acceptance, retained as a real bug rather than relaxing property."
+        },
+        {
+          "file": "src/task/resilience.ts",
+          "oldSha256": null,
+          "candidateSha256": "51d02fdcd222637df8626e7ef2d94310f387a312b43269eabc90c0be3535612f",
+          "classification": "correspondence-updated",
+          "reason": "Direct review responses may answer a generic human decision gate when no related work is inflight; authorization/approval gates remain tied to their explicit decision and do not grant execution by message text. Explicit clarification replies supersede the old unresolved input, cancel related assistance and enqueue ordinary validated interpretation instead of leaving no pending successor. Old four graphs do not emit HUMAN_GATE_DECISION or clarification analyses; the public-model/service prefix is independently checked. New persisted finite supervision, skip, human gate, cleanup ownership and deterministic incomplete finish. CancelledDiscussion now represents immediate physical custody, content continuation before receipt and actual legacy lease retention; other old graphs execute below fixed deadlines without supervisor events. Newly added repair/provider failure permutations remain separate executable real taskMachine gates."
+        },
+        {
+          "file": "src/task/tool-knowledge.ts",
+          "oldSha256": "75027f3c4001d3ad42d459953f1909800b2b29e8d657ddbeb13e71a398fd2987",
+          "candidateSha256": "7739654b94e4ccf6628bd8c55095c066f52691a074a190b0b8d39b299b0299b9",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Replaces exit0 read method success with host verified resource/config/auth scope; observations cannot authorize execution. Old finite engine drivers do not call sharedToolKnowledge/model recommendations. New scheduling/receipt product tests cover the observation semantics."
+        },
+        {
+          "file": "src/task/tool-recovery.ts",
+          "oldSha256": "d8f30b4b646edd31f625ecd8a46929e025a7232a6ea6d7d3dc5794b4da8193ec",
+          "candidateSha256": "225859aa5e025691ec323b8399579aed9d46168ea0002ce4d8cdf6500eb4ef8c",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds trusted event timestamp to saved failure item, maintaining two-feedback ceiling, request identity, charge and deadline checks. ToolRecovery projection counts the same items; double-charge negative mutation anchor updated to include at without changing its target."
+        },
+        {
+          "file": "src/types.ts",
+          "oldSha256": "8e8d85e75b8f5ea7b0ce39d308d88d606fb9a0f02e8491d3741e418d921503f5",
+          "candidateSha256": "53b2dca9c74c55152c72aef123cf2cb38c3d714bb42284ef50fd488824eb9334",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds optional resilience/resource/acquisition/resource-plan contracts and positive configuration validation; the explicit finite fixtures retain valid old config. No model range is silently enlarged; newly modeled custody/resource fields declared separately."
+        },
+        {
+          "file": "src/web-tools.ts",
+          "oldSha256": "aefd3b4625fada48ef66e821bd6252c6b0dae9e454a8799f4c0c321efc531840",
+          "candidateSha256": "c03bdca771c9af1e67bc35a9156a3da124f51cc1902254d6f091f69cef5d5545",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Returns bounded full hostCapture alongside model-visible window and optional hostEvidence type; Runner removes provider-supplied provenance and exposes only metadata from successfully saved receipts. No old finite graph performs a fetch; actual resource/capture and local-disabled behavior remains adapter/receipt acceptance."
+        },
+        {
+          "file": "src/web/contracts.ts",
+          "oldSha256": "41d69f61d23bbd57913a2ba382dc12b12f3d795eb4a69ed0e8ddfaa4d2de8d69",
+          "candidateSha256": "e43478d16ed855a960e5042e02c0524b28c6f2de79ab40a1608643d528a46f98",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds blocker/deletion/supervision/incomplete publication projections. None of these finite checkers instantiate WebService or browser UI; hash is a conservative drift gate only."
+        },
+        {
+          "file": "src/web/debug-journal.ts",
+          "oldSha256": "5473cefd6b2f382f6a2d6a5928803569a19e09ceef4efd4a47d60a4b636a65c7",
+          "candidateSha256": "5894a650d045569bdfe5e161a54ace71d2e2a89d30a50b2a4c84a6249106eebe",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Removes deleted room records in bounded in-memory debug view. No old graph invokes deletion or debug journal; no authority/budget transaction altered."
+        },
+        {
+          "file": "src/web/http.ts",
+          "oldSha256": "0353bf851274b11b4c31d6adf0cc60c62e49883541e6d1e2c67a6904e50bd3ad",
+          "candidateSha256": "b1d122e4a840ad722ee4ca6b43a73187b31ec8ed92be232f495c1716cdcccbfc",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds health, explicit blocker decisions, operation review/reconcile and confirmed deletion endpoints with same-origin checks; public finite drivers bypass HTTP. No proof of UI pop-up, HTTP authorization or watchdog liveness claimed by these graphs."
+        },
+        {
+          "file": "src/web/service.ts",
+          "oldSha256": "615cbde81c144c593435b24e454dd5871e255952d8c44d6ff78917118185655e",
+          "candidateSha256": "9aa09280c67d4d9cd037d01aa40dc575acca3e46ebf39625ea36b04650cbfab3",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Uses one shared DatabaseSync for WebService tables and SqliteStore, including :memory:, with explicit close ownership. Completes scope getters, all-task scheduling/cleanup, failure supervision and bounded close; integrates deletion coordinator and callback fences. These four original formal entrypoints never instantiate WebService, so real timer/close/storage fault behavior belongs to new service/browser/process acceptance."
+        }
+      ]
+    },
+    {
+      "coverage": "extensions-coverage.json",
+      "previousSyncCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+      "equivalentBaselineProof": {
+        "commit": "15d27144b05086b27ae6b02338c094a3df60fbd2",
+        "allOldPinsMatch": true,
+        "count": 76
+      },
+      "files": [
+        {
+          "file": "package.json",
+          "oldSha256": "3116143dffa7c27a4fc9a8892e08603d754bc5e2f506752b500d874befb0ab3c",
+          "candidateSha256": "e809edfebb43fbfd77f200e6afec11e6109c7d7e8549efb8ee45536d6278df21",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Only start entry now invokes the independent process supervisor; formal commands directly invoke Python/Node fixtures and never execute npm start. No dependency lock or TLC budget changes."
+        },
+        {
+          "file": "src/acquisition-readers.ts",
+          "oldSha256": null,
+          "candidateSha256": "011b165c1c4d8acfbf32c16c8655baf312148b9944dd518a61e4f528fdd48d47",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New pure trusted CLI parser registry, dedicated-command JSON admin profile validation, optional exact provider ID/body fields, batch targets and moved documentBodies; empty default registry never treats stdout self-claims as authority. Direct old graph injection does not call parsers. Conservatively pin transitive module; no new parser-semantic proof claimed here."
+        },
+        {
+          "file": "src/cli-catalog.ts",
+          "oldSha256": "bf961fb4e4d6d9f1bb396ca0ee6fc282df16be89224c1ccd742ec5a6ff220ebc",
+          "candidateSha256": "08a49e8e7a8cb15da8cb4d8b4fa22f7bbd6aa5636edb59bcceae43c30f74734d",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Pure metadata now distinguishes unconfigured/empty/configured and match/no-match. Original graph actions never choose tools from this projection; runtime-binding has an empty catalog. No permission is granted by readiness."
+        },
+        {
+          "file": "src/cli-readiness.ts",
+          "oldSha256": null,
+          "candidateSha256": "cb973987c1b91f5a0d684e7dd6f762cdc2ae2822723230a523025ca0b3dfcb6e",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New pure current-config metadata readiness projection, never execution authority; not called by finite direct-event drivers. Covered by native Runner/CLI configuration acceptance."
+        },
+        {
+          "file": "src/delivery-acceptance.ts",
+          "oldSha256": "dfbf0e5330e6da8c8822186eeccc080da7253818b614e88aaabde38f9d916253",
+          "candidateSha256": "4cc0389a027e13631058b52ba911e0b99e487160a898510168e47e44fe117dc4",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds host resource acquisition preflight. Existing synthetic formal goals contain no explicit acquisition URL or typed resourceRequirements, so requiredResources is empty; MapRecovery still checks complete source quotes. Actual URL/content receipt combinations remain separate KEJ113 model/BDD evidence."
+        },
+        {
+          "file": "src/engine.ts",
+          "oldSha256": "a2c2583aa9fb4ab14e403816c528f0799a9c2cdce297658fabafeb32bc17196a",
+          "candidateSha256": "ea4fc1ba23f93b9591a8201ad7e71ce2a438c1b3ba0214513b89808922264d0f",
+          "classification": "correspondence-updated",
+          "reason": "Public dispatch/claim/start/CONSUME remain individual Store transactions. beginExecution reloads and validates the exact current attempt before committing its one-use permit; executionNotStarted accepts only authorized/cancelled-not-started phases and uses the trusted path, not public send. Post-dataErased deletion preparation now returns before creating any business transaction; deletion is absent from the old graph alphabet. Host-only recordAcquisition/notStarted and deletion settlement are new alphabets absent from old graphs. Recover includes ended cleanup; CancelledDiscussion updates Reopen/custody correspondence and keeps <=1 commit at clock0. New unsafe CLAIM atomically prechecks the global physical resource before charging, then the committed unsafe snapshot supplies its barrier. Existing graph CLAIM prefixes are safe; historical unsafe regression only checks retained/rejected old work, not this new acquisition lifecycle. Legacy workspace path remains exercised by Host and CancelledDiscussion; new RW resource-policy branch is independently tested, not claimed by legacy graph."
+        },
+        {
+          "file": "src/local-cli.ts",
+          "oldSha256": "db577455e9fb60f5d12e0cc6af6980c52eec7f8fbec0cbc3ff3a34223092e69e",
+          "candidateSha256": "5a11e027e082424df77d9f5dcfb92c35f51507440e836465d2609b59cf26fc40",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Trusted backend isolation marker only. Formal runtime binding aborts before spawn and direct engine graphs do not instantiate a CLI backend. No claim of OS confinement or process cleanup."
+        },
+        {
+          "file": "src/local-operation.ts",
+          "oldSha256": "754c1e5e49f62c4e266fda3eb7511c54112a866f9cc35fc94f63e7da77568876",
+          "candidateSha256": "ba9a546b17402b7f585d7c81fc8c53beb1786651384d0a4822ae56a456622482",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds optional trusted conflictKey/resourceLeases and LOCAL_PREPARED. All historical graph LOCAL_REQUEST prefixes omit the optional plan and retain legacy exclusive workspace leases and approval guards. New preparation/RW lifecycle is outside old graph and covered by dedicated model gates."
+        },
+        {
+          "file": "src/local-resource-policy.ts",
+          "oldSha256": null,
+          "candidateSha256": "8bfe9c1095ab34cafad7a6a6d97fdc4d398d9d8afeb4435a8ed70ad5652e3673",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New pure conflict resource/RW lease resolver; legacy model prefixes intentionally omit resource plan, so new confinement/prepare-release cases have independent R25/R26 gates and actual Runtime integration. Pin dependency without claiming arbitrary RW/legacy composition."
+        },
+        {
+          "file": "src/local-runtime.ts",
+          "oldSha256": "b6f2d674c90b794567dd2e2f77669a6225d6cd37a66c5de0863151e415aa8084",
+          "candidateSha256": "ece2447adc368f94ea549bfb9a1b4dbb0127b3a2cd1da62bcdb89d7d0383cf60",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Execute wrapper tracks actual physical jobs, optional owner manifests and optional prepared callback; historical runtime-binding uses no owner/resource plan and deliberately throws at started before spawn. Digest/approval/namespace/version checks remain. Host parsers/cleanup inventory are new I/O dependencies not invoked by direct coordination replay."
+        },
+        {
+          "file": "src/model-adapter.ts",
+          "oldSha256": "4f51a62861c7c0e825d5750d263312e4a05ca8e832d5f19edc90cdce6a73e9cd",
+          "candidateSha256": "7d2c7be8703ca71129fd7eb85a8b10f611b5c2ab563762115fb81a30a7759eef",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Prompt explains CLI readiness/verified method scope and directs owner/facilitator to actively complete authorized work with bounded alternatives and only essential human questions, preserving budget/deadline/approval/facts. E127 now passes host-generated canonical Web evidence IDs separately from untrusted page text; source operation IDs remain execution provenance. No finite driver calls model HTTP or this prompt; tool-choice and provider/stream liveness belong to real adapter acceptance."
+        },
+        {
+          "file": "src/process-supervisor.machine.ts",
+          "oldSha256": null,
+          "candidateSha256": "29d41335694b5e75fdc93196fc193a40d52622d656249ef2574cac910a63a3fe",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Independent process watchdog model used by npm start wrapper; not invoked by finite TeamEngine drivers. New process failures, probes and OS restart are separate guarantees."
+        },
+        {
+          "file": "src/resource-acquisition.ts",
+          "oldSha256": null,
+          "candidateSha256": "adc62f7be3cca22ded73bb7e42cebb893da98b5b1a7c68097ca12bc5f39cca02",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New pure host observation seal, source snapshot/resource identity/generation binding, requirement and artifact verification. Old graph synthetic goals have no typed/URL requirements, partitionResources or receipt events; exact selected acquisition references and current-versus-saved rules therefore remain outside their finite alphabet. New 20 resource paths and direct CLI/Web tests independently cover this new alphabet."
+        },
+        {
+          "file": "src/room-deletion-coordinator.ts",
+          "oldSha256": null,
+          "candidateSha256": "62399fe89fe47ffce3ed690e65bd16064caff598c09654422e83eed553cb6c9a",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New deletion executor coordinates separate machine/storage/runtime custody; never constructed by these finite engine drivers. Room deletion protocol must not be inferred from old budget/authority verification."
+        },
+        {
+          "file": "src/room-deletion.machine.ts",
+          "oldSha256": null,
+          "candidateSha256": "61320dc8213a9d546cb706349a8fa786c9acd244461608e6e3422487a8b7d4f4",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New persisted destructive lifecycle; Store imports its pure helpers but no original graph submits REQUEST so deletion barrier is absent. Independent KEJ114 model/BDD handles confirmation/inventory/physical settlement/tombstones; original graphs do not prove it."
+        },
+        {
+          "file": "src/runner.ts",
+          "oldSha256": "19ebc1b09cbfb6eaf6d05b5906be2b590b1c77e2768974d668194ea1fb4c069d",
+          "candidateSha256": "c367c12a5c1da32b4cac4b8d2871e8dac6348219ccb0da5e340beae7337716eb",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds bounded abort/drain/detach lifecycle, trusted no-start successor and acquisition recording, resource policy/prepared callbacks and fresh getter wiring. CLI-only deterministic result backfill before adapter/replay preserves original parentAttempt/finishedAt/sourceSnapshot; E126/Y71 model-first/native-CLI/dual-store completion checks cover the new cut window without reexecuting a settled command. These four old finite entrypoints directly call TeamEngine, except LocalRuntime pre-spawn binding; they never instantiate WorkRunner. New paths require independent real Runner/HTTP/SQLite acceptance, not expansion of old proof."
+        },
+        {
+          "file": "src/runtime-ownership.ts",
+          "oldSha256": null,
+          "candidateSha256": "210e8d0108df16149d9a3fc3c5e1d3e417f9ccdb1c54040042dec89494aafc60",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New optional pre-journal ownership manifest and cleanup inventory/removal. Original runtime-binding passes no owner and never reaches OS spawn; no original graph touches cleanup paths. Pin conservative dependency; actual filesystem ownership tested independently."
+        },
+        {
+          "file": "src/skills.ts",
+          "oldSha256": "81bf7ae230a719f046a0caced6c0293807f259c4d500349c7a78ecdfbbf1e111",
+          "candidateSha256": "616a30fed055e935a09fef66cded225626220c5a1e9211dac44ec543d37a6bb2",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Transient HTTP/transport failures classified for bounded retry; auth/config remain explicit. No formal graph calls skills HTTP. Product finite retry model and native loopback adapter BDD cover this separately."
+        },
+        {
+          "file": "src/source-claims.ts",
+          "oldSha256": "9e4dbb2f07d5d0315dc0be5a66ca5042602121651e6be4225dee6982727e289c",
+          "candidateSha256": "ed1d86ae9c38e8c850da5b0c9d695f5fd4ab1091f9212759fa573d7981dc52c3",
+          "classification": "reviewed-domain-restricted",
+          "reason": "SourceItem claims require matching host acquisition. Typed documents bind original resource.id/content; URL documents require host-signed exact documentId, with strict default JSON identity/body fallback for generic web receipts. Custom provider fields are parsed once by the trusted reader, avoiding a mismatched second default parser. Old finite goals/artifacts contain no sourceItems, so sourceItemsProblem returns before changed checks; no source-item semantic guarantee added."
+        },
+        {
+          "file": "src/store.ts",
+          "oldSha256": "f870c2dbad5f257cc7c973274c767d00214f057b048ba313d977f435871a6239",
+          "candidateSha256": "3eb36535afb71bad478495506f0dea78a0fef3d69fa56b85d5a4e2756d7da432",
+          "classification": "correspondence-updated",
+          "reason": "SqliteStore now accepts an optional borrowed DatabaseSync for WebService memory-mode consistency and closes only owned path connections. All four finite drivers retain the original string-path self-owned branch, so the borrowed connection/service close composition is independently covered by real memory WebService and deletion acceptance, not these old graphs. Adds deletion barrier/tombstone protocol and transactional RW leases alongside legacy workspace leases. All four finite drivers create no room deletion and legacy workspace graph requests have no resourceLeases. New transaction-local cross-room unsafe snapshot barriers quarantine generic adapter effects; these old graphs contain no unsafe physical resource claim, so dedicated two-store legacy-effects acceptance is separate. SQLite atomic helper preserves BEGIN IMMEDIATE/COMMIT rollback and MemoryStore snapshot commit semantics; explicit failure injection remains required. CancelledDiscussion observes actual acquire/release returns after commit, not inferred op text."
+        },
+        {
+          "file": "src/task/actions.ts",
+          "oldSha256": "ea83801f566c9a457aafd351b6f23639bb836da9f2efcb789e3740b1776671bd",
+          "candidateSha256": "4b25c51842badc38daa3d3201f02a660df227d105141521dd334b928bda34333",
+          "classification": "reviewed-domain-restricted",
+          "reason": "SUPERVISE actions invoke new pure resilience transitions. Existing graph alphabets do not emit SUPERVISE; canceled graph explicit public RECOVER remains separately projected. No new microstep is collapsed into a model I/O action."
+        },
+        {
+          "file": "src/task/assistance.ts",
+          "oldSha256": "d472d9c7422118a217d23ef0019831ad1598e3d9137da794830f39ac286ee6df",
+          "candidateSha256": "a8628937aad37ca19bfa210b288e537f406b4323c1b191ab86e6333438cd1950",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Allows saved canceled help to be consumed after a logical terminal outcome, preserving saved material on explicit retry. Existing ReviewQueue models success/failed members and retry snapshots; cancellation/terminal retry composition remains a separately disclosed finite product scenario."
+        },
+        {
+          "file": "src/task/context.ts",
+          "oldSha256": "e5efe2a6ca63f8c4835a18fb93737cb1c3d94ff96e972fc3f0b537fc821fba08",
+          "candidateSha256": "ae96dd7dd487b3776758fe5f0c452c64c52ca0e454f766818b7f5bc268f16092",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds persisted window/gates/cleanup initialized at openedAt. Existing model clocks are below default hard deadline and repair supervision due; no hidden automatic allowance or budget reset."
+        },
+        {
+          "file": "src/task/delivery.ts",
+          "oldSha256": "b38e539124b74974dae3e487f352c113704631fddb9f9ed40c8d72b5d07f7b0b",
+          "candidateSha256": "e6879a729d525d3e699e0c2a5be63b318c66f90e60b10d6d67dfd186642560ed",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Explicit publishedDelivery is authoritative even on goal mismatch: mismatched records yield no publication instead of falling back to old final artifacts; legacy fallback without an explicit record and frozen-report precedence stay. All old finite publishedDelivery prefixes use the current goal; wrong-goal recovery input is separate A31 model/BDD. Requires acquired resources before submission/complete and projects immutable frozen incomplete publication. Old graphs use no URL/typed resource requirements; CheckBudget and MapRecovery still exercise ordinary mechanical/citation checks. Failed/stopped publication now host-freezes a report, which is outside old projected publication text."
+        },
+        {
+          "file": "src/task/discussion.ts",
+          "oldSha256": "91545a2d721deaaec705c3590fc985f68c1a83c32cb20aa1d182bcc460b58ca2",
+          "candidateSha256": "6090f36fce08f19d19cff4dcd38344c20c249493b45b767a1993dd676d4cb39b",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Invitation and planning now ignore independently cleanup-owned uncertain work when computing content member availability. Old noncleanup discussion domains unchanged; CancelledDiscussion extends content-before-receipt paths and still rejects stale old results and conflicting physical claims. This fixes a real correspondence counterexample rather than permitting perpetual missing members."
+        },
+        {
+          "file": "src/task/evidence.ts",
+          "oldSha256": "383737f9bca85f77284d8aae4d97b4e6837964c3e71610694b5da0023255463e",
+          "candidateSha256": "463a61866b5e849da7565972e5dd8167f0419e36e51c374bd1483fca4034ae6f",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds host web acquisitions to delivery evidence and immutable acquisition snapshots. Existing graph receipts are local runCli with saved stdout and no hostAcquisitions; their old evidence metadata/quote binding remains exercised. Web-only/local-disabled check is separate product model/BDD."
+        },
+        {
+          "file": "src/task/facts.ts",
+          "oldSha256": "7d29345b1e74ed3ffcb70cd592161d2d1728f7c57d3c3b7b4eb91f84cc9cd273",
+          "candidateSha256": "ee7161ab136bb54191c5af11ce3bbdd508260f75c583a16bb6ff7a0b4f916d2b",
+          "classification": "correspondence-updated",
+          "reason": "Member/lane eligibility excludes independently owned cleanup from uncertain logical work. CancelledDiscussion updates RoundIsolation to distinguish permitted new content from the still-held physical resource, and adds actual lease/custody variables; no weakening of physical exclusion."
+        },
+        {
+          "file": "src/task/guards.ts",
+          "oldSha256": "8b26dc562f769117962e72c9d68804bc0ca10db4274fa944750e6a8a774e7553",
+          "candidateSha256": "94053221acc0f2f9b91005f4e17027c0a2c8b0a51c13c972afce750457704a29",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds human/window/no-start/safe-repair guards and ignores independent cleanup at pure content boundaries. Old safe synthetic slices have no cleanup and preserve guards. CancelledDiscussion deliberately includes cleanup. Negative selectors updated at same activeHelp/deferred decisions, retaining behavior-target assertions."
+        },
+        {
+          "file": "src/task/lifecycle.ts",
+          "oldSha256": "94963a5125285181fa0c325d3379abb400514289918f75ad0b77f01be792518f",
+          "candidateSha256": "4de9ac0127f11dbe2980c73b1176e7b053a2720a7fb06b31e0cc03627759d9e1",
+          "classification": "correspondence-updated",
+          "reason": "Adds supervisor/human/no-start/receipt events and permits cancellation CLAIM in ended. STOP may end logically before external effects settle, so CancelledDiscussion no longer equates logical end with physical release. Existing WORK_FAILED synthetic transient rules/retry and ordinary claim/consume/check boundaries retained."
+        },
+        {
+          "file": "src/task/map-queue.ts",
+          "oldSha256": "8aa95a725bf9d43f3340f519d0e0ffa928893371100ad24d4f49ea3174150e54",
+          "candidateSha256": "79b0c55b825bd31e78c818064ea2ced205edb2724f0b254c31d9ae981199c5da",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds shared prerequisite block, new verified-method reevaluation, typed per-partition acquisition references and logical skip; old 2-part graphs have no trusted method/failure-fingerprint facts, typed partitionResources or URL scopes, so those new branches and per-partition proof fields are absent. Deadline clamp is unchanged at finite clock0. More partitions/prerequisite scheduling remains independent model/BDD, not a TLC claim."
+        },
+        {
+          "file": "src/task/map-recovery.ts",
+          "oldSha256": "302ffcab7a03cedd8881200692fbbbbc58dc64a491a1ada238ffb40df4b1a6f3",
+          "candidateSha256": "cf4e6ac76482d0765b6d7d523f77173ee70e160ce00ac4e4a257d2a3e84dc7b7",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Web recovery now accepts only a canonical saved host acquisition ID whose source work/operation/request/content hash exactly matches delivery evidence; typed partition requirements query the actual original source owner without changing receipt ownership/attempt. Old MapRecovery has complete local runCli sources with no typed partition resource, so the original local eligibility/citation/independent-check branches remain. New actual Web provider JSON-only references and wrong-document controls are separately modeled and accepted. The old single generic unavailable-return mutant anchor became four returns after adding Web cases; select the exact existing missing/empty/stale source guard, retaining RecoveryEvidenceEligibility rather than replacing every new branch."
+        },
+        {
+          "file": "src/task/map-reduce-capacity.ts",
+          "oldSha256": "565fee8a9b59523339f0548e41002560a83a48a85ec4b0aedfa121cf39e3239a",
+          "candidateSha256": "884164a24ac692c40dbf196fb0fd4b00f833e2cc0e5ddda6b8ee7e0c6472f0c7",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Capacity member eligibility now excludes independently owned cleanup from busy members, matching workLaneAvailable and discussion invitation. Existing no-cleanup capacity0/1/2/4 finite probes remain intact; new content-versus-physical responsibility is separately represented by CancelledDiscussion and the public resource-conflict probe."
+        },
+        {
+          "file": "src/task/map-reduce.ts",
+          "oldSha256": "8409db33692155fbf5b18383a54991087ecbb334bc26a4cfbe2f99cfb7c6c74b",
+          "candidateSha256": "694139c96425237e892f56bbe830f5bb460f298bdc3d708d2b8c31c2f32ab55a",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Partition deadline is clamped to processing hard/repair window; old 2-part finite runs at clock0 have workTimeout below default global deadline and no repairDeadline. Assignment/init projection unchanged."
+        },
+        {
+          "file": "src/task/map-scheduling.ts",
+          "oldSha256": null,
+          "candidateSha256": "1cd8e33e0acf158fab9520bf9201811694b054bd5f256d8847e2d557cbf25913",
+          "classification": "reviewed-domain-restricted",
+          "reason": "New pure prerequisite/method generation/config/resource semantics, including trusted same-generation/config Web authentication failures invalidating old verified methods; no old graph has two trusted prerequisite failures or acquired-method observations, so scheduling branches inactive. Old MapRecovery synthetic source still uses preexisting evidence/citation obligations; no implication that old graph proves new method selection."
+        },
+        {
+          "file": "src/task/operations.ts",
+          "oldSha256": "67713454a5f4be40770f185ffa864ae6084b82bfc71075406234ec0fdcf1d386",
+          "candidateSha256": "b997ec9f15f59a4e8d3eacfc73ebf189e0d0d996dde42b3409331f45ffbd0621",
+          "classification": "correspondence-updated",
+          "reason": "continueOwner reuses only an original safe pending current-generation owner with a durable checkpoint and fully settled local operations, preserving original operation ownership/attempt/session/time. Old finite COORDINATE prefixes have no Runner-created checkpoint, so the fallback remains the existing owner creation; actual crash checkpoint handoff is separate finite model/native crash acceptance. Intent deadlines clamped, owner content path ignores independently owned cleanup, incomplete finish freezes deterministic report, complete finish rejects pending cleanup. CancelledDiscussion explicitly updates STOP/EXHAUSTED immediate custody while preserving known-result retirement and resource responsibility."
+        },
+        {
+          "file": "src/task/policy.ts",
+          "oldSha256": "f34c53e815fed60a564f4b4ad454d107ec115b19a1987938241cc23a281b0905",
+          "candidateSha256": "ded18a03e7b5485e608a3d15cbb0927e787f928d9c969c505375336e92ba5078",
+          "classification": "correspondence-updated",
+          "reason": "New trusted event gates, current deadline/window enforcement and CONTINUE cleanup exception. Finite clocks below deadlines preserve original budget/authority graph guards. Intentional change: cleanup-owned unknown effects permit new content, while original op authorization/lease remain immutable; CancelledDiscussion revised and negative controls strengthened."
+        },
+        {
+          "file": "src/task/reducer.ts",
+          "oldSha256": "3fb30e8295897c4af5d12a34aae7f0640d858024d89a8139cdd400a1256c5b1e",
+          "candidateSha256": "c2e15627db07645398c20f4fdbf16aa876a9529f8a7532961f608f98393277d3",
+          "classification": "correspondence-updated",
+          "reason": "Explicit RETRY_ASSISTANCE archives an existing frozen publication before reopening the logical cycle, retaining the same processing deadline (no implicit new window) and original saved-help/charge rules. Records trusted acquisition, bounded no-start/repair, explicit human gates, terminal report and cleanup adoption/settlement. CancelledDiscussion updates immediate Cancel and RECOVER while retaining canceled safe retirement, trusted receipt retirement and old-round rejection. Candidate replay found frozen RECOVER skipped safe retirement; product owner fixed it before acceptance, retained as a real bug rather than relaxing property."
+        },
+        {
+          "file": "src/task/resilience.ts",
+          "oldSha256": null,
+          "candidateSha256": "51d02fdcd222637df8626e7ef2d94310f387a312b43269eabc90c0be3535612f",
+          "classification": "correspondence-updated",
+          "reason": "Direct review responses may answer a generic human decision gate when no related work is inflight; authorization/approval gates remain tied to their explicit decision and do not grant execution by message text. Explicit clarification replies supersede the old unresolved input, cancel related assistance and enqueue ordinary validated interpretation instead of leaving no pending successor. Old four graphs do not emit HUMAN_GATE_DECISION or clarification analyses; the public-model/service prefix is independently checked. New persisted finite supervision, skip, human gate, cleanup ownership and deterministic incomplete finish. CancelledDiscussion now represents immediate physical custody, content continuation before receipt and actual legacy lease retention; other old graphs execute below fixed deadlines without supervisor events. Newly added repair/provider failure permutations remain separate executable real taskMachine gates."
+        },
+        {
+          "file": "src/task/tool-knowledge.ts",
+          "oldSha256": "75027f3c4001d3ad42d459953f1909800b2b29e8d657ddbeb13e71a398fd2987",
+          "candidateSha256": "7739654b94e4ccf6628bd8c55095c066f52691a074a190b0b8d39b299b0299b9",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Replaces exit0 read method success with host verified resource/config/auth scope; observations cannot authorize execution. Old finite engine drivers do not call sharedToolKnowledge/model recommendations. New scheduling/receipt product tests cover the observation semantics."
+        },
+        {
+          "file": "src/task/tool-recovery.ts",
+          "oldSha256": "d8f30b4b646edd31f625ecd8a46929e025a7232a6ea6d7d3dc5794b4da8193ec",
+          "candidateSha256": "225859aa5e025691ec323b8399579aed9d46168ea0002ce4d8cdf6500eb4ef8c",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds trusted event timestamp to saved failure item, maintaining two-feedback ceiling, request identity, charge and deadline checks. ToolRecovery projection counts the same items; double-charge negative mutation anchor updated to include at without changing its target."
+        },
+        {
+          "file": "src/types.ts",
+          "oldSha256": "8e8d85e75b8f5ea7b0ce39d308d88d606fb9a0f02e8491d3741e418d921503f5",
+          "candidateSha256": "53b2dca9c74c55152c72aef123cf2cb38c3d714bb42284ef50fd488824eb9334",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds optional resilience/resource/acquisition/resource-plan contracts and positive configuration validation; the explicit finite fixtures retain valid old config. No model range is silently enlarged; newly modeled custody/resource fields declared separately."
+        },
+        {
+          "file": "src/web-tools.ts",
+          "oldSha256": "aefd3b4625fada48ef66e821bd6252c6b0dae9e454a8799f4c0c321efc531840",
+          "candidateSha256": "c03bdca771c9af1e67bc35a9156a3da124f51cc1902254d6f091f69cef5d5545",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Returns bounded full hostCapture alongside model-visible window and optional hostEvidence type; Runner removes provider-supplied provenance and exposes only metadata from successfully saved receipts. No old finite graph performs a fetch; actual resource/capture and local-disabled behavior remains adapter/receipt acceptance."
+        },
+        {
+          "file": "src/web/contracts.ts",
+          "oldSha256": "41d69f61d23bbd57913a2ba382dc12b12f3d795eb4a69ed0e8ddfaa4d2de8d69",
+          "candidateSha256": "e43478d16ed855a960e5042e02c0524b28c6f2de79ab40a1608643d528a46f98",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds blocker/deletion/supervision/incomplete publication projections. None of these finite checkers instantiate WebService or browser UI; hash is a conservative drift gate only."
+        },
+        {
+          "file": "src/web/debug-journal.ts",
+          "oldSha256": "5473cefd6b2f382f6a2d6a5928803569a19e09ceef4efd4a47d60a4b636a65c7",
+          "candidateSha256": "5894a650d045569bdfe5e161a54ace71d2e2a89d30a50b2a4c84a6249106eebe",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Removes deleted room records in bounded in-memory debug view. No old graph invokes deletion or debug journal; no authority/budget transaction altered."
+        },
+        {
+          "file": "src/web/http.ts",
+          "oldSha256": "0353bf851274b11b4c31d6adf0cc60c62e49883541e6d1e2c67a6904e50bd3ad",
+          "candidateSha256": "b1d122e4a840ad722ee4ca6b43a73187b31ec8ed92be232f495c1716cdcccbfc",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Adds health, explicit blocker decisions, operation review/reconcile and confirmed deletion endpoints with same-origin checks; public finite drivers bypass HTTP. No proof of UI pop-up, HTTP authorization or watchdog liveness claimed by these graphs."
+        },
+        {
+          "file": "src/web/service.ts",
+          "oldSha256": "615cbde81c144c593435b24e454dd5871e255952d8c44d6ff78917118185655e",
+          "candidateSha256": "9aa09280c67d4d9cd037d01aa40dc575acca3e46ebf39625ea36b04650cbfab3",
+          "classification": "reviewed-domain-restricted",
+          "reason": "Uses one shared DatabaseSync for WebService tables and SqliteStore, including :memory:, with explicit close ownership. Completes scope getters, all-task scheduling/cleanup, failure supervision and bounded close; integrates deletion coordinator and callback fences. These four original formal entrypoints never instantiate WebService, so real timer/close/storage fault behavior belongs to new service/browser/process acceptance."
+        }
+      ]
+    }
+  ],
+  "originalAsIs": [
+    {
+      "evidence": "work/formal-kej-113-114/coordination-original-blocked",
+      "exitCode": 1,
+      "status": "blocked",
+      "reason": "source drift before any pin change"
+    },
+    {
+      "evidence": "work/formal-kej-113-114/coordination-extensions-original-blocked",
+      "exitCode": 1,
+      "status": "blocked",
+      "reason": "source drift before any pin change"
+    }
+  ],
+  "synchronization": "Root confirmed all nine complete entrypoints and independent readers before synchronization. These four coverage sync commits advance only metadata after all positive, genuine code-negative and restored-original checks passed; all source pins still match the same frozen product exactly.",
+  "scope": "Finite TLC graphs + one representative reachable public prefix per edge in MemoryStore and SQLite. Not TypeScript machine proof or arbitrary-history/whole-system composition. SQLite commit atomicity assumed. No production model HTTP or real CLI spawn.",
+  "newUncoveredScopes": [
+    "New supervisor/no-start/receipt event alphabets outside declared updated CancelledDiscussion domain",
+    "New host parser, CLI readiness, model HTTP/skills retry and output streaming",
+    "Actual OS cancellation/restart/filesystem ownership and room deletion",
+    "Arbitrary RW resource-policy conflicts and sandbox confinement; legacy Store lease observation is narrower",
+    "Arbitrary new-method/prerequisite scheduling and content semantic truth"
+  ],
+  "validation": {
+    "status": "verified",
+    "frozenSourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+    "entries": {
+      "coordination": {
+        "issues": [
+          "KEJ-113",
+          "KEJ-114"
+        ],
+        "entry": "coordination",
+        "sourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+        "source": "36916b5c6e974c11f8e51720189c64facef9269e",
+        "evidence": "reports/kej-113-114-four-formal-36916b5-final-3/coordination",
+        "status": "verified",
+        "outcome": "updated",
+        "seconds": 437.648,
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "checkerInputsUnchanged": true
+        },
+        "independentReadback": "verified",
+        "phases": {
+          "positive": "verified",
+          "realSourceFaults": "detected",
+          "restoredOriginal": "verified",
+          "retainedEvidenceReader": "verified"
+        },
+        "readbackOutput": "Verified 372 retained artifacts",
+        "scope": "Complete declared finite domains, genuine product-source fault controls, restored original implementation, and separate retained-evidence reader. Not arbitrary histories or whole-system proof.",
+        "syncStatus": "synchronized-after-nine-entrypoints",
+        "domains": 3,
+        "witnesses": 23,
+        "realCodeControls": 24,
+        "edgesPerStorePerStage": 2657,
+        "retainedArtifacts": 372,
+        "postMetadataIndependentReadback": "verified"
+      },
+      "coordination-extensions": {
+        "issues": [
+          "KEJ-113",
+          "KEJ-114"
+        ],
+        "entry": "coordination-extensions",
+        "sourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+        "source": "36916b5c6e974c11f8e51720189c64facef9269e",
+        "evidence": "reports/kej-113-114-four-formal-36916b5-final-3/coordination-extensions",
+        "status": "verified",
+        "outcome": "updated",
+        "seconds": 487.892,
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "checkerInputsUnchanged": true
+        },
+        "independentReadback": "verified",
+        "phases": {
+          "positive": "verified",
+          "realSourceFaults": "detected",
+          "restoredOriginal": "verified",
+          "retainedEvidenceReader": "verified"
+        },
+        "readbackOutput": "Verified 1121 coordination extension evidence files",
+        "scope": "Complete declared finite domains, genuine product-source fault controls, restored original implementation, and separate retained-evidence reader. Not arbitrary histories or whole-system proof.",
+        "syncStatus": "synchronized-after-nine-entrypoints",
+        "domains": 23,
+        "witnesses": 74,
+        "realCodeControls": 31,
+        "edgesPerStorePerStage": 3754,
+        "retainedArtifacts": 1121,
+        "evidenceReaderControls": 7,
+        "postMetadataIndependentReadback": "verified"
+      }
+    },
+    "allFourOwnedEntrypoints": "verified",
+    "independentReadbacks": "verified",
+    "postMetadataIndependentReadback": "verified",
+    "postMetadataReadbackLogs": "work/formal-kej-113-114/final-post-metadata-<entry>.log"
+  },
+  "verificationChanges": {
+    "source": "User-authorized KEJ113 changes logical continuation while preserving independent physical responsibility; KEJ114 adds uninstantiated deletion alphabet.",
+    "originalModels": "Budget/CheckBudget/Shards, Authority/SessionScope/ApprovalComposition preserved, including boundaries/fairness/timeouts.",
+    "cancelledDomain": "12 original configurations preserved; immediate custody at stop/end, explicit content continuation, actual successful Store lease calls retained. Two scalar observations custody/resourceHeld, two safety properties, four independent reachability witnesses, two new dual-store product mutants, and eight public backend+variant resource-conflict examples per stage.",
+    "changedControlSelectors": "Same activeHelp/deferred/ended recovery decisions follow current source. Known receipt retirement is now also performed by cleanup, so a redundant guard omission is replaced by deliberately reoccupying the settled old work at the same result boundary; target retirement property remains. No controls silently removed. E127 Web eligibility adds independent unavailable returns; the existing accept-invalid-map-source mutant now targets the unique original missing/empty/stale source guard rather than an ambiguous bare return. RecoveryEvidenceEligibility and all original invalid-source probes remain. RECOVER now retires safe old work before configuration validation, so the obsolete-member mutant deliberately makes that same compatibility loop include already retired members. The original ObsoleteMemberRecovery property is preserved; both stores must catch that wrong strategy. First final failed-control evidence retained.",
+    "executionOrder": {
+      "file": ".agents/skills/verify-squad-coordination/scripts/replay-extensions.mjs",
+      "beforeSha256": "0055643b66217b900806051266cf6e357df6ec0b8197f6373866c684a59baa21",
+      "afterSha256": "870cdcec7541c3fd8f43a045fad9aa15867ca0f9b0f9ced62c0317ddf71b985d",
+      "change": "Run complete per-edge conformance before the same extra custody resource examples, without removing or weakening either; precise original KnownReceiptRetirement oracle no longer preempted by generic CancelledRetirement.",
+      "targetedEvidence": "work/formal-kej-113-114/cancel-order-controls-preflight",
+      "targetedResult": "all six cancellation mutants detected on both stores with their original precise properties",
+      "signatureImpact": {
+        "coordination": "archive signature includes changed driver: full rerun required",
+        "coordination-extensions": "actively executes driver: full rerun required",
+        "authority": "no changed driver in signature: unchanged complete proof plus fresh reader",
+        "authority-composition": "no changed driver in signature: unchanged complete proof plus fresh reader"
+      }
+    }
+  },
+  "candidateDiagnostics": {
+    "purpose": "Semantics-only preflight; never substitute for frozen-source full verification.",
+    "authority": {
+      "evidence": "work/formal-kej-113-114/authority-candidate-run",
+      "status": "verified",
+      "steps": 34,
+      "readback": "separate command verified"
+    },
+    "authorityComposition": {
+      "evidence": "work/formal-kej-113-114/authority-composition-candidate-run",
+      "status": "verified",
+      "states": 36,
+      "edges": 182,
+      "readbackArtifacts": 196
+    },
+    "shards": {
+      "evidence": "work/formal-kej-113-114/shards-candidate-1",
+      "status": "verified",
+      "states": 456,
+      "edgesPerStore": 1379,
+      "note": "Includes revised independent finite discussion-recovery examples and original capacity examples."
+    },
+    "cancellationControls": {
+      "evidence": "work/formal-kej-113-114/cancel-controls-candidate-1",
+      "status": "all four requested behaviors caught on both stores"
+    },
+    "coreRetirementControl": {
+      "evidence": "work/formal-kej-113-114/core-retirement-control-candidate",
+      "status": "SettledDiscussionRecovery caught on both stores"
+    },
+    "cancelled": {
+      "evidence": "work/formal-kej-113-114/cancel-candidate-4",
+      "status": "12/12 TLC graphs and dual-store every-edge replay verified",
+      "counts": "fresh graph sizes captured in each result.json; no original config removed",
+      "resourceExamples": "8 backend+variant public real Store resource-conflict probes verified",
+      "notFinal": "products still under integration; full frozen-source suite not run yet"
+    },
+    "nonCancelledExtensions": {
+      "evidence": "work/formal-kej-113-114/noncancel-candidate-1",
+      "status": "all11 TLC/dual-store every-edge replays verified",
+      "notFinal": "preflight only, no witnesses/controls/restored combined here"
+    },
+    "receiptWindow": {
+      "originalEvidence": "work/formal-kej-113-114/receipt-window-original.json",
+      "fixedTest": "tests/execution-recovery-acceptance.ts:receiptWindowRecoveryAcceptance",
+      "backend": "MemoryStore and SQLite (actual close/reopen)",
+      "result": "complete via owner delivery and independent check, one native CLI only, original capture identity retained, no activity-clock rewind, same ID accepted after pending refusal",
+      "modelGate": "E126: 28 resource paths before Runner I/O change",
+      "bdd": "BT_Y71 included in feature58 43scenarios/2611steps green"
+    },
+    "mapRecoverySelector": {
+      "evidence": "work/formal-kej-113-114/map-control-preflight",
+      "baseline": "real TLC + every-edge replay verified",
+      "fault": "unique original missing/empty/stale source guard returns null",
+      "result": "RecoveryEvidenceEligibility caught by normal AssertionError exit1 on MemoryStore and SQLite"
+    }
+  },
+  "findings": [
+    {
+      "kind": "product-regression-fixed",
+      "introducedBy": "uncommitted KEJ113 implementation; no introducing product commit yet",
+      "prefix": "CancelledDiscussion map-stop-physical or discussion-stop-safe: two members actually CLAIMed; STOP; public RECOVER/reopen",
+      "before": "frozen/stopped RECOVER returned before safe members/owner were retired; pending content continuation remained blocked.",
+      "fix": "Retire safe obsolete discussion and safe ordinary work before frozen/stopped RECOVER early return, retaining pending physical effects.",
+      "validation": "all12 public-domain TLC/dual-store candidate4 replay passes"
+    },
+    {
+      "kind": "product-integration-gap-fixed",
+      "introducedBy": "uncommitted KEJ113 implementation",
+      "prefix": "Cancel; Recover; Continue; ClaimOwner; Invite while old B op remains cleanup-owned/uncertain",
+      "before": "workLaneAvailable allowed content but invitation/planner/capacity busy filters still removed B, preventing the new content round.",
+      "fix": "All three availability projections exclude independent cleanup while actual resource claim retains conflict.",
+      "validation": "all12 candidate4; new members can be genuinely claimed before old receipt in4 physical stop/end domains"
+    },
+    {
+      "kind": "product-regression-fixed",
+      "introducedBy": "uncommitted KEJ113 implementation",
+      "prefix": "discussion-stop-physical: Cancel; KnownReceipt; Late2; Reopen",
+      "before": "oldmembersdone + cleanupsettled made Engine.recover skip ended task although safe original owner remained inflight.",
+      "fix": "Outer ended filter includes noncancel safe/idempotent pending/inflight so core retirement can execute.",
+      "validation": "CancelledRetirement strengthened to require safe original owner retired; all12 candidate4 pass"
+    },
+    {
+      "kind": "new-recovery-commit-window-fixed",
+      "introducedBy": "uncommitted KEJ113 new host acquisition protocol",
+      "prefix": "LOCAL_RESULT committed; no acquisition event; RECOVER; samework CLAIM attempt2; host observation retains op.parentAttempt1",
+      "before": "STALE_ACQUISITION_RECEIPT rejected a reliable saved CLI observation, requiring repeat read.",
+      "fix": "Model-gated CLI-only same-work/goal/epoch active backfill, strict original op snapshot/time/attempt; Runner rebuilds absent observation before adapter/resume with no command execution. Temporary pending refusal is not cached.",
+      "validation": "BT_Y71/E126 actual native CLI+dual Store full delivery/check completion and no clock rewind"
+    }
+  ],
+  "frozenSourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+  "validationAttempts": [
+    {
+      "evidence": "reports/kej-113-114-four-formal-36916b5-final-1",
+      "status": "failed-verification-control-survived",
+      "sourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+      "productBaseline": "Budget/Shards/CheckBudget all passed on both stores",
+      "reason": "RECOVER now retires obsolete safe members before recoveryIssue, making deletion of the second exclusion guard redundant",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "checkerInputsUnchanged": true
+      },
+      "repair": {
+        "source": "src/task/facts.ts",
+        "property": "ObsoleteMemberRecovery",
+        "originalSha256": "ee7161ab136bb54191c5af11ce3bbdd508260f75c583a16bb6ff7a0b4f916d2b",
+        "mutantSha256": "43f8aee646b44e9a15857fade33a855efc2117414e1c843decc035484d0dccbf",
+        "boundary": "recoveryIssue configuration membership loop",
+        "change": "Deliberately includes retired obsolete work in configuration requirements after early RECOVER retirement",
+        "preflightDriverAssertedNormalExitCode": 1,
+        "backends": {
+          "memory": {
+            "rawStatus": "failed",
+            "target": "ObsoleteMemberRecovery"
+          },
+          "sqlite": {
+            "rawStatus": "failed",
+            "target": "ObsoleteMemberRecovery"
+          }
+        }
+      },
+      "targetedEvidence": "work/formal-kej-113-114/obsolete-member-control-preflight"
+    },
+    {
+      "evidence": "reports/kej-113-114-four-formal-36916b5-final-2",
+      "status": "three-entries-complete-extensions-precise-oracle-preempted",
+      "sourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+      "reason": "Known-retirement product fault was caught by both stores at generic CancelledRetirement in an extra resource example before original KnownReceiptRetirement ran; not a surviving product fault.",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "checkerInputsUnchanged": true
+      },
+      "verificationRepair": {
+        "file": ".agents/skills/verify-squad-coordination/scripts/replay-extensions.mjs",
+        "beforeSha256": "0055643b66217b900806051266cf6e357df6ec0b8197f6373866c684a59baa21",
+        "afterSha256": "870cdcec7541c3fd8f43a045fad9aa15867ca0f9b0f9ced62c0317ddf71b985d",
+        "change": "Run complete per-edge conformance before the same extra custody resource examples, without removing or weakening either; precise original KnownReceiptRetirement oracle no longer preempted by generic CancelledRetirement.",
+        "targetedEvidence": "work/formal-kej-113-114/cancel-order-controls-preflight",
+        "targetedResult": "all six cancellation mutants detected on both stores with their original precise properties",
+        "signatureImpact": {
+          "coordination": "archive signature includes changed driver: full rerun required",
+          "coordination-extensions": "actively executes driver: full rerun required",
+          "authority": "no changed driver in signature: unchanged complete proof plus fresh reader",
+          "authority-composition": "no changed driver in signature: unchanged complete proof plus fresh reader"
+        }
+      }
+    }
+  ],
+  "reviewedSourceTree": "Exact committed product bytes; verification-only working tree edits are retained separately.",
+  "syncAdvance": {
+    "from": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+    "to": "36916b5c6e974c11f8e51720189c64facef9269e",
+    "metadataOnly": true,
+    "note": "This synchronization is not an additional full rerun; original run inputs and old sync metadata stay captured in raw evidence.",
+    "allNineEntrypointsVerified": true,
+    "rootConfirmation": "Root message after reading v3 status=verified with four exit/readback=0 entries; other five complete entries already verified."
+  }
+}

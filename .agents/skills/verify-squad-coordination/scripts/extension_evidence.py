@@ -16,13 +16,14 @@ REQUIRED = {
     'InputBoundary': (['TypeOK', 'NoPrematureInterpretation', 'AppliedInputBoundary', 'NoUnresolvedPublication', 'NoUnresolvedOwner', 'StopCancelsInputSuccessor'], ['Progress']),
     'ReviewQueue': (['TypeOK', 'AllReviewersSettled', 'UniqueReviewSynthesis', 'PreserveReviewFailure', 'StoppedReview'], ['Progress']),
     'DeferredCoordination': (['TypeOK', 'UniqueCoordination', 'DeferredProgress', 'SafeCoordinationBoundary', 'StoppedCoordination'], ['Progress']),
-    'CancelledDiscussion': (['TypeOK', 'CancelledRetirement', 'UnknownMemberRetention', 'KnownReceiptRetirement', 'RoundIsolation'], ['RetirementProgress']),
+    'CancelledDiscussion': (['TypeOK', 'CancelledRetirement', 'UnknownMemberRetention', 'KnownReceiptRetirement', 'RoundIsolation', 'UnknownResourceCustody', 'CleanupCustody'], ['RetirementProgress']),
 }
 READER_REASONS = {
     'remove-negative-json': 'memory.json', 'remove-negative-log': 'memory.log',
     'remove-negative-diff': 'real-code.diff', 'remove-required-property': 'required liveness properties differ',
     'remove-fixture-body': 'coordination-composition-fixture.ts',
     'remove-recovery-driver': 'map-recovery-driver.mjs',
+    'remove-custody-probes': 'Missing cleanup resource-conflict probes',
 }
 COUNTS = r'([\d,]+) states generated, ([\d,]+) distinct states found, ([\d,]+) states left on queue'
 
@@ -146,6 +147,14 @@ def readback(area, specs, controls, check_reader_controls=True):
             graph = required(area, manifest, prefix / 'graph.dot')
             assert raw['graphStates'] == result['counts'][1] and raw['graphEdges'] + 1 == result['counts'][0], 'Omitted graph structure'
             replay_rows(area, manifest, replay_path, raw, graph)
+            if model == 'CancelledDiscussion' and variant.endswith('-physical') and '-goal-' not in variant:
+                probes = raw.get('probes', [])
+                assert len(probes) == 2 and {probe.get('backend') for probe in probes} == {'memory', 'sqlite'}, 'Missing cleanup resource-conflict probes'
+                assert all(probe.get('name') == 'cleanup-content-resource-conflict' and probe.get('variant') == variant
+                           and probe.get('verified') is True and probe.get('contentClaimedBeforeReceipt') is True
+                           and probe.get('conflictingClaimBeforeReceipt') == 'WORKSPACE_BUSY'
+                           and probe.get('claimAfterTrustedReceipt') is True and probe.get('physicalCommandsSpawned') == 0
+                           for probe in probes), 'Incomplete cleanup resource-conflict observation'
             if model == 'MapRecovery':
                 probes = raw.get('probes', [])
                 for backend in ['memory', 'sqlite']:
@@ -204,6 +213,7 @@ def reader_controls(area, specs, controls):
         'remove-required-property': Path('baseline') / key / f'{model}.cfg',
         'remove-fixture-body': Path('checker-inputs/tests/coordination-composition-fixture.ts'),
         'remove-recovery-driver': Path('checker-inputs/.agents/skills/verify-squad-coordination/scripts/map-recovery-driver.mjs'),
+        'remove-custody-probes': Path('baseline-CancelledDiscussion-map-stop-physical.json'),
     }
     scratch = Path(tempfile.mkdtemp(prefix='squad-coordination-reader-'))
     results = {}
@@ -216,14 +226,26 @@ def reader_controls(area, specs, controls):
             manifest = json.loads((copy / 'artifacts.json').read_text())
             for entry in list(manifest):
                 if not (copy / entry).is_file(): manifest.pop(entry)
-            if name == 'remove-required-property':
+            report = json.loads((copy / 'run.json').read_text())
+            if name == 'remove-custody-probes':
+                path = copy / relative
+                raw = json.loads(path.read_text()); raw['probes'] = []
+                path.write_text(json.dumps(raw))
+                log = path.with_suffix('.log')
+                lines = log.read_text().splitlines()
+                lines = [json.dumps(raw) if line.startswith('{') and line.endswith('}') else line for line in lines]
+                log.write_text('\n'.join(lines) + '\n')
+                report['baseline']['CancelledDiscussion-map-stop-physical']['replay']['probes'] = []
+                for changed in [path, log]:
+                    manifest[str(changed.relative_to(copy))] = {'sha256': sha(changed), 'bytes': changed.stat().st_size}
+            elif name == 'remove-required-property':
                 path = copy / relative
                 path.write_text(re.sub(r'^PROPERTY .*\n?', '', path.read_text(), flags=re.M))
                 manifest[str(relative)] = {'sha256': sha(path), 'bytes': path.stat().st_size}
             else:
                 (copy / relative).unlink(); manifest.pop(str(relative))
             (copy / 'artifacts.json').write_text(json.dumps(manifest))
-            report = json.loads((copy / 'run.json').read_text()); report['manifestSha256'] = sha(copy / 'artifacts.json')
+            report['manifestSha256'] = sha(copy / 'artifacts.json')
             (copy / 'run.json').write_text(json.dumps(report))
             try:
                 readback(copy, specs, controls, check_reader_controls=False)

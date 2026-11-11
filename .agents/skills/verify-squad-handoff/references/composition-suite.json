@@ -67,8 +67,8 @@
       "name": "repeat-saved-work",
       "property": "ExclusiveResultChoice",
       "file": "src/task/reducer.ts",
-      "old": "      if (saved) { acceptHelpResult(c, { ...e, ...saved, type: 'HELP_RESULT' }); break; }",
-      "new": "      if (false && saved) { acceptHelpResult(c, { ...e, ...saved, type: 'HELP_RESULT' }); break; }",
+      "old": "      if (saved) {\n        c.stopped = false; c.outcome = null; c.reason = ''; archiveFrozen(c);",
+      "new": "      if (false && saved) {\n        c.stopped = false; c.outcome = null; c.reason = ''; archiveFrozen(c);",
       "domain": "saved"
     },
     {

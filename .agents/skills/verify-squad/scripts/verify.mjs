@@ -185,13 +185,23 @@ async function capture(name) {
     const { root: document } = await cdp.send('DOM.getDocument');
     const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: document.nodeId, selector: '.message-text, .welcome h2' });
     if (nodeId) {
-      const fonts = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
+      const samples = [], startedAt = Date.now();
+      let fonts;
+      do {
+        fonts = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
+        samples.push({ elapsedMs: Date.now() - startedAt, ...fonts });
+        if (fonts.fonts.some(font => font.glyphCount > 0 && /Noto Sans CJK|WenQuanYi|Microsoft YaHei|PingFang|Source Han|Droid Sans Fallback/i.test(font.familyName))) break;
+        await new Promise(ready => setTimeout(ready, 25));
+      } while (Date.now() - startedAt < 3000);
+      writeFileSync(join(evidence, `${name}.fonts-observations.json`), JSON.stringify(samples, null, 2));
       writeFileSync(join(evidence, `${name}.fonts.json`), JSON.stringify(fonts, null, 2));
       assert(fonts.fonts.some(font => font.glyphCount > 0 && /Noto Sans CJK|WenQuanYi|Microsoft YaHei|PingFang|Source Han|Droid Sans Fallback/i.test(font.familyName)), 'Capture must use actual Chinese font glyphs');
     }
-  } finally { await cdp.detach(); }
-  await page.screenshot({ path: join(evidence, `${name}.png`), fullPage: true });
-  writeFileSync(join(evidence, `${name}.aria.txt`), await page.locator('body').ariaSnapshot());
+  } finally {
+    await cdp.detach();
+    await page.screenshot({ path: join(evidence, `${name}.png`), fullPage: true });
+    writeFileSync(join(evidence, `${name}.aria.txt`), await page.locator('body').ariaSnapshot());
+  }
 }
 async function click(role, name, exact = true) {
   log('click', { role, name });
@@ -213,6 +223,32 @@ async function send(text, enter = false) {
   await page.getByRole('textbox', { name: '群聊消息输入框' }).fill(text);
   if (enter) { log('keypress', { key: 'Enter' }); await page.getByRole('textbox', { name: '群聊消息输入框' }).press('Enter'); }
   else await click('button', '发送消息');
+}
+async function continueOriginalWindow() {
+  const before = posted.length;
+  await click('button', '继续执行', false);
+  await page.getByRole('dialog', { name: '继续处理当前任务', exact: true })
+    .getByRole('button', { name: '沿用原窗口继续', exact: true }).click();
+  const request = posted.slice(before).find(post => post.path.endsWith('/messages'));
+  assert(request, 'Explicit continuation submits the actual message request');
+  const payload = JSON.parse(request.body);
+  assert.equal(payload.intent, 'continue');
+  assert(!Object.hasOwn(payload, 'newWindowMs'), 'Continuing in the original window must not renew it');
+  assert(!Object.hasOwn(payload, 'extraOrdinary'), 'Continuing in the original window must not add execution budget');
+}
+async function closeRequiredPrompt(room, question) {
+  const before = await until(() => get(`/api/rooms/${room.id}`), snapshot => snapshot.blockers?.some(gate =>
+    gate.status === 'open' && gate.requiredHuman && gate.question === question), 'required human gate: ' + question);
+  const gate = before.blockers.find(gate => gate.status === 'open' && gate.requiredHuman && gate.question === question);
+  const dialog = page.getByRole('dialog', { name: '需要你的回复', exact: true });
+  await dialog.getByText(question, { exact: true }).waitFor();
+  await dialog.getByRole('button', { name: '暂时关闭处理提示', exact: true }).click();
+  const after = await get(`/api/rooms/${room.id}`);
+  assert(after.blockers.some(current => current.id === gate.id && current.version === gate.version && current.status === 'open'),
+    'Closing the prompt keeps this exact human decision unanswered');
+  assert.equal(after.works.filter(work => work.kind === 'owner').length, before.works.filter(work => work.kind === 'owner').length,
+    'Closing a prompt cannot resume owner execution');
+  log('required-prompt-closed-without-decision', { roomId: room.id, gateId: gate.id, version: gate.version, question });
 }
 async function done(room, owner) {
   const snapshot = await until(() => get(`/api/rooms/${room.id}`), v => v.tasks.at(-1)?.outcome === 'complete', 'task complete');
@@ -369,7 +405,7 @@ async function control() {
   assert(transport.some(e => e.event === 'request-cancelled' && e.goal === before.tasks[0].goal
     && before.works.some(w => w.id === e.workId && w.status === 'inflight')), 'Retain transport cancellation for this inflight work');
   await capture('control-stopped');
-  await click('button', '继续执行', false);
+  await continueOriginalWindow();
   const after = await done(room, 'A');
   assert.equal(after.tasks.length, 1);
   assert.equal(after.tasks[0].id, before.tasks[0].id);
@@ -381,6 +417,7 @@ async function assistance() {
     const room = await newRoom();
     await send(`VERIFY_RETRY ${entry} 核查中断后交回负责人`);
     const before = await until(() => get(`/api/rooms/${room.id}`), s => s.tasks[0]?.phase === 'waitingHuman' && s.tasks[0].assists?.some(h => h.retryable), 'retryable assistance');
+    await closeRequiredPrompt(room, '核查中断，请重试 B');
     await capture(`assistance-${entry}-interrupted`);
     if (entry === 'button') await page.getByRole('log').getByRole('button', { name: '重试 B 的这次协助', exact: true }).first().click();
     else await send('B 重试', true);
@@ -557,7 +594,7 @@ async function basics() {
   await until(() => page.evaluate(() => localStorage.getItem('squad-room')), id => id === second.id, 'switch back to stopped task');
 }
 async function inputAndContinue() {
-  await click('button', '继续执行', false);
+  await continueOriginalWindow();
   const continued = await done(observed.room, 'builder-2');
   assert.equal(continued.tasks.length, 1);
   assert.equal(continued.tasks[0].id, observed.beforeStop.tasks[0].id);
@@ -575,7 +612,10 @@ async function inputAndContinue() {
   await timeline().getByText('追加资料：验收必须保留来源', { exact: true }).waitFor();
   await capture('input-received');
   fixture.release('input-owner');
+  await closeRequiredPrompt(observed.room, '请补充报告的来源要求。');
+  await send('来源要求是：追加资料中的验收必须保留来源');
   const waiting = await until(() => get(`/api/rooms/${observed.room.id}`), s => s.tasks[0]?.phase === 'waitingHuman' && s.works.filter(work => work.kind === 'owner').length >= 2, 'explicit user question after supplement handoff');
+  await closeRequiredPrompt(observed.room, '请确认是否采用追加资料中的来源要求？');
   await timeline().getByText('请确认是否采用追加资料中的来源要求？', { exact: true }).waitFor();
   assert.match(await page.locator('.task-status-row').innerText(), /等待你的回复/);
   await capture('input-waiting-human');
@@ -590,6 +630,7 @@ async function retryFromHelp() {
   observed.room = await newRoom();
   await send('VERIFY_RETRY 浏览器原求助重试');
   const before = await until(() => get(`/api/rooms/${observed.room.id}`), s => s.tasks[0]?.phase === 'waitingHuman' && s.tasks[0].assists?.some(help => help.retryable), 'retryable assistance');
+  await closeRequiredPrompt(observed.room, '核查中断，请重试 B');
   await timeline().getByText('核查中断，请重试 B', { exact: true }).waitFor();
   await capture('retry-failed');
   await timeline().getByRole('button', { name: '重试 B 的这次协助', exact: true }).first().click();

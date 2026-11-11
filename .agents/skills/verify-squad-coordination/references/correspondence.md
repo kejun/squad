@@ -182,3 +182,22 @@ Init 经公开输入解释、两个成员 CLAIM/CONSUME/结果（一个failed、
 七项独立可达见证覆盖完整声明/成功发布、部分声明结算、引用补试、重开保存proof、停止及旧目标。五项真实源码负对照分别绕过剩余分片门禁、改写原状态、取消指定来源引用、放过无效来源及检查前写resolution；必须在双存储以目标断言正常失败。另有六项公开前缀探针拒绝failed/truncated/unknown来源、重复声明、错轮次及真正上一epoch的来源。第七项独立评审缺口探针将明确记录的有限review快照输入Store，随后只走公开DELIVER/CHECK_RESULT，检查map补齐不能绕过review.incomplete；其origin明确为 `bounded-snapshot-input`。ReviewQueue单独验证评审生命周期，本轮未声称枚举两者完整组合。
 
 两新增图均枚举完有限域，原版与故障代码使用相同捕获图。读回器强制新模型性质、图/日志/配置、逐边JSONL、新驱动正文及probe来源分类；新增自洽删除驱动正文控制，保留原五项读回控制。完整结果记录在覆盖清单中，只有冻结产品九入口及独立读回成功后推进sync；适配器选择正确替代工具、CLI真实执行与任意正文语义仍属独立产品验收。
+
+## KEJ-113/114：逻辑终止、独立清理与执行恢复
+
+逐文件旧/候选 SHA、可用等价基线、原样四入口 blocked 记录及最终验证状态见 [本轮审查](drift-review-kej-113-114.json)。可用 `15d2714` 与旧 coverage 的全部76项、extensions 的全部76项逐字相同；本轮产品仍为受审 HEAD 加工作区差异，以冻结时保存指纹为准。更新候选 pins 只是执行漂移门禁的准备，不是通过或同步。
+
+原 Budget、CheckBudget、Shards 及其界限、性质、公平性和时限保持。新 acquisition/window/no-start/human/supervisor 事件不在这三个图字母表。原合成目标无明确读取 URL、typed resourceRequirements 或 sourceItems，故取得正文新增前置条件在这些前缀为空；MapRecovery 的旧完整CLI来源/逐字引用门槛保持。ToolRecovery 新增失败事件 at，但仍只保存两次合法反馈、不收费、恢复不清零；故障改坏定位同步到新代码，目标不变。
+
+KEJ-113 明确改变旧 CancelledDiscussion 的成员占用承诺：旧要求未知物理工作阻挡整个成员和显式继续；新要求把未知操作交给独立 cleanup，保留操作身份和实际冲突资源，允许新的纯内容或独立资源工作继续。授权依据为 `features/58_execution_recovery.feature` BT_Y70、任务韧性场景和 `docs/implementation/kej-113-adapter.md` R34，且原用户要求执行失败不能永久卡住总任务。未移交 cleanup 的未知效果仍阻挡继续；旧轮结果不能推进新轮。
+
+因此保留原12域、两成员、单物理操作、两次恢复及一次新邀请，新增 custody（无/待核对/已结算）和 resourceHeld。后者由真实 Store 成功 acquireWorkspace/releaseWorkspace 在提交后记录；回放不会从模型或命令stdout推断锁已持有。STOP/EXHAUSTED 在同一公开事务立即移交物理责任；RECOVER 是独立事务，将运行中操作变为 uncertain，退休安全旧成员及原owner。继续、owner领取、邀请、planner领取、计划、新成员领取、可信原回执仍分别是公共边。模型新增允许“新内容已领取、旧操作仍uncertain、cleanup待核对、实际旧lease仍持有”的路径；goal失效尚无移交时保留原拒绝行为。Reopen 到带cleanup的ended任务可执行一个RECOVER，仍由提交计数断言时钟0/无结果前缀至多一个事务。
+
+`CancelledRetirement`、`UnknownMemberRetention`、`KnownReceiptRetirement`、条件性 `RetirementProgress` 保持。`RoundIsolation` 从“新成员只能在旧成员done后领取”改为“旧逻辑工作done或已交cleanup、无旧普通执行占用”；以新增 `UnknownResourceCustody` 和 `CleanupCustody` 补足真实效果隔离。原“跳过ended恢复”及已知回执退休负控定位新守卫；新增实际过早releaseWorkspace、丢弃cleanup owner两项真实源码负控。四个stop/end物理域新增独立可达见证，确认内容继续路径并非空通过。真实进程、RW计划、隔离能力、prepare租约释放与跨域资源冲突仍由R25/R26模型及真实Runtime验收承接，本旧legacy单lease域不声称证明它们。
+
+对应审查实际发现 frozen/stopped RECOVER 提前返回跳过安全旧成员及owner退休；保留真实公开反例，并由产品owner修复后复验。随后发现邀请和Map容量前置busy仍把cleanup成员算作占用；同样作为产品接线缺口交回修复，未将永远缺员写成模型允许。完整入口、真实负控、原版恢复复验及独立读回结果以本轮审查 validation 为准。
+
+旧式unsafe TOOL没有LOCAL子记录时，Store现在从所有房间持久inflight/uncertain快照形成同事务global物理屏障；可信RECONCILE退休前保留，当前inflight父的合法子frame仍属同一责任边界。Engine新unsafe CLAIM在收费前原子检查资源，不把临时busy变成永久回执。旧有限图没有此unsafe资源申请/核对组合；仅历史unsafe输入探针仍检查不能退休/重放。跨房间实际Engine双存储验证由 `tests/legacy-effects-acceptance.ts` / BT_Z106 承担，未扩大这些TLC域。
+
+
+KEJ-113/114 最终复验：冻结产品 `36916b5c6e974c11f8e51720189c64facef9269e`，本技能两个完整入口均完成真实源码负对照、原版复验和各自独立读回，结果为 updated。最终原始证据分别为 `reports/kej-113-114-four-formal-36916b5-final-3/coordination`、`reports/kej-113-114-four-formal-36916b5-final-3/coordination-extensions`；汇总与最新独立读回位于 `reports/kej-113-114-four-formal-36916b5-final-3`。精确计数、首轮冗余负控失败与维护理由见[逐文件审查](drift-review-kej-113-114.json)。同步元数据不表示额外完整运行；本技能有限域不证明新宿主、网页、人类门或删除行为的全部组合。

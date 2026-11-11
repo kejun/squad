@@ -1954,6 +1954,8 @@ BT_Q48 为同一恢复声明的模型协议边界：`answer` 等非 `deliver` �
 
 本节对应实现中的状态及责任边界。主任务仍是原八阶段；需求核查、完整细图和分层验证记录分别由以下文档承接，有限形式化切片的保证范围以各自对应关系文档为准：
 
+完整执行范围、失败保留、故障检出与 CI 来源见[验证记录](implementation/kej-113-114-verification.md)。
+
 | 层次与所有者 | 细图、契约及验收 |
 | --- | --- |
 | 真实 taskMachine 及任务 context：固定窗口、监督、人类门、冻结交付、清理接管及可信回执续办 | [核心监督](implementation/kej-113-task-resilience.md)，BT_Y01–Y20、BT_Y111、BT_Y113；覆盖 interpreting、running、waitingAssistance、coordinating、waitingHuman、checking、stopping、ended |

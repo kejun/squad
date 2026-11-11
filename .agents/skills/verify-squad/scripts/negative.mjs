@@ -17,7 +17,7 @@ const env = { ...process.env, TSX_TSCONFIG_PATH: 'tests/bdd/tsconfig.json' };
 delete env.MODEL_API_KEY;
 const cases = [
   { name: 'active-placeholder', tag: 'BT_U01', file: 'web/src/App.tsx', from: '"补充当前工作…"', to: '"开始新任务…"', detects: 'Timed out: active task input placeholder' },
-  { name: 'midflight-input', tag: 'BT_U01', file: 'web/src/App.tsx', from: 'disabled={!connected || sending}', to: 'disabled={!connected || sending || !!task}', detects: 'not enabled' },
+  { name: 'midflight-input', tag: 'BT_U01', file: 'web/src/App.tsx', from: 'disabled={!connected || sending || deleting}', to: 'disabled={!connected || sending || deleting || !!task}', detects: 'not enabled' },
   { name: 'replace-status-row', tag: 'BT_U02', file: 'web/src/App.tsx', from: '<div className="task-status-row">', to: '<div className="task-status-row" key={latestTask.phase}>', detects: 'must update the original DOM status row' },
   { name: 'status-message-leak', tag: 'BT_U02', file: 'web/src/App.tsx', from: '{messages.map((message: Message) => {', to: '<article className="message">状态更新：正在执行</article>{messages.map((message: Message) => {', detects: 'Timeline contains exactly the persisted actual messages' },
   { name: 'raw-tool-open', tag: 'BT_U02', file: 'web/src/Details.tsx', from: '<Collapsible.Root\n                                  className={`execution-event', to: '<Collapsible.Root defaultOpen\n                                  className={`execution-event', detects: 'Raw tool details start collapsed' },
@@ -66,9 +66,15 @@ try {
     assert(test.all ? matches > 0 : matches === 1, `Mutation anchor drift: ${test.name} (${matches})`);
     const mutated = test.all ? original.replaceAll(test.from, test.to) : original.replace(test.from, test.to);
     writeFileSync(path, mutated);
+    writeFileSync(join(folder, 'mutation.json'), JSON.stringify({ file: test.file,
+      originalSha256: createHash('sha256').update(original).digest('hex'),
+      mutatedSha256: createHash('sha256').update(mutated).digest('hex'), from: test.from, to: test.to }, null, 2));
     const build = command(process.execPath, ['scripts/build.mjs'], directory, join(folder, 'build.log'));
     normalExit(build, 0, `Mutation ${test.name} build`);
     const result = command(process.execPath, ['--import', 'tsx', 'node_modules/@cucumber/cucumber/bin/cucumber.js', 'features', '--import', 'tests/bdd/*.ts', '--tags', `@${test.tag}`, '--format', 'progress', '--format', `json:${join(folder, 'cucumber.json')}`], directory, join(folder, 'failure.log'));
+    if (existsSync(join(directory, 'reports/verify-squad'))) {
+      cpSync(join(directory, 'reports/verify-squad'), join(folder, 'browser'), { recursive: true });
+    }
     const output = readFileSync(join(folder, 'failure.log'), 'utf8');
     normalExit(result, 1, `Mutation ${test.name}`);
     assert(output.includes(test.detects), `Mutation ${test.name} failed without the intended business assertion: ${test.detects}`);
@@ -81,7 +87,6 @@ try {
     const runs = browserRuns(join(directory, 'reports/verify-squad'), 'failed');
     assert.equal(runs.length, 1, 'A mutation executes exactly one original browser contract');
     if (existsSync(join(directory, 'reports/verify-squad'))) {
-      cpSync(join(directory, 'reports/verify-squad'), join(folder, 'browser'), { recursive: true });
       rmSync(join(directory, 'reports/verify-squad'), { recursive: true });
     }
     report.results.push({ mutation: test.name, scenario: test.tag, file: test.file, mutatedSha256: createHash('sha256').update(mutated).digest('hex'), exitCode: result.status, signal: result.signal, cleanupVerified: true, detectedBy: test.detects });

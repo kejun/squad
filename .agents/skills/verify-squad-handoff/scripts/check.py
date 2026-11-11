@@ -126,6 +126,14 @@ def verify_evidence(evidence):
     assert digest(manifest) == report['evidenceManifestSha256'], 'Evidence manifest changed'
     entries = json.loads(manifest.read_text())
     assert entries, 'Empty evidence manifest'
+    if report.get('evidenceVersion', 1) >= 2:
+        audit_path = evidence / 'checker-inputs/references/coverage.json'
+        assert 'checker-inputs/references/coverage.json' in entries, 'Missing captured coverage'
+        audit = json.loads(audit_path.read_text())
+        assert audit['files'] == report['coveredFileHashes'], 'Captured source fingerprints differ from the completed run'
+        for relative, expected in audit['files'].items():
+            captured = 'checker-inputs/implementation/' + relative
+            assert captured in entries and digest(evidence / captured) == expected, f'Missing or changed captured implementation: {relative}'
     for relative, expected in entries.items():
         path = evidence / relative
         assert path.is_file() and path.stat().st_size == expected['bytes'] and digest(path) == expected['sha256'], f'Evidence missing or changed: {relative}'
@@ -165,7 +173,7 @@ def main():
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(SKILL / relative, destination)
     before = {p: digest(ROOT / p) for p in audit['files']}
-    report = {'status': 'running', 'evidence': str(evidence), 'syncCommit': audit['syncCommit'],
+    report = {'evidenceVersion': 2, 'status': 'running', 'evidence': str(evidence), 'syncCommit': audit['syncCommit'],
               'source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
               'workingTree': subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT, text=True).strip(),
               'coveredFileHashes': before, 'bounds': audit['bounds'], 'models': {}, 'negativeControls': {}}
@@ -174,6 +182,11 @@ def main():
     try:
         drift = [p for p, sha in before.items() if sha != audit['files'][p]]
         assert not drift, 'BLOCKED: covered code changed; perform the documented code-to-model audit before updating coverage.json: ' + ', '.join(drift)
+        for relative, expected in before.items():
+            captured = inputs / 'implementation' / relative
+            captured.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / relative, captured)
+            assert digest(captured) == expected, f'BLOCKED: source changed while capturing {relative}'
         jar = jar_at(args.jar.resolve())
         report['tool'] = {'release': 'TLA+ Tools v1.7.4 / TLC 2.19', 'sha256': digest(jar)}
         print('Checking complete finite model, then replaying every labeled graph edge on real code...', flush=True)

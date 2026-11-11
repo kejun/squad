@@ -35,19 +35,21 @@ for origin in ['map', 'discussion']:
     for mode in ['goal', 'stop', 'end']:
         for effects in ['safe', 'physical']:
             key = f'CancelledDiscussion-{origin}-{mode}-{effects}'
-            SPECS[key] = ('CancelledDiscussion', f'{origin}-{mode}-{effects}', ['NeverRetired', 'NeverReinvited'] + (['NeverRecoveredUnknown'] if effects == 'physical' else []))
+            SPECS[key] = ('CancelledDiscussion', f'{origin}-{mode}-{effects}', ['NeverRetired', 'NeverReinvited'] + (['NeverRecoveredUnknown'] if effects == 'physical' else []) + (['NeverContentResumedWithCustody'] if effects == 'physical' and mode != 'goal' else []))
 
 CONTROLS = {
     'tool-recovery-no-bound': ('ToolRecovery', 'BoundedToolRecovery', 'src/task/tool-recovery.ts', "  if (failures.length >= 2) return 'TOOL_RECOVERY_EXHAUSTED';", '  /* faulty missing feedback ceiling */'),
     'tool-recovery-no-duplicate': ('ToolRecovery', 'ToolFailureIdentity', 'src/task/tool-recovery.ts', "  if (failures.some(item => item.requestId === e.requestId)) return 'DUPLICATE_TOOL_FAILURE';", '  /* faulty missing duplicate guard */'),
     'tool-recovery-no-request': ('ToolRecovery', 'ToolFailureIdentity', 'src/task/tool-recovery.ts', "|| !c.trace.some(entry => entry.event === 'CONSUME' && entry.detail === e.requestId)", ''),
     'tool-recovery-no-budget': ('ToolRecovery', 'ToolRecoveryAccounting', 'src/task/tool-recovery.ts', '  return requestBudgetProblem(c, work);', '  return null; /* faulty missing follow-up reservation */'),
-    'tool-recovery-feedback-fee': ('ToolRecovery', 'ToolRecoveryAccounting', 'src/task/tool-recovery.ts', '  (work.toolRecovery ??= { failures: [] }).failures.push({ requestId: e.requestId, tool: e.tool, code: e.code, attempt: work.attempt });', '  (work.toolRecovery ??= { failures: [] }).failures.push({ requestId: e.requestId, tool: e.tool, code: e.code, attempt: work.attempt });\n  c.usage.ordinary++; /* faulty double charge for feedback */'),
+    'tool-recovery-feedback-fee': ('ToolRecovery', 'ToolRecoveryAccounting', 'src/task/tool-recovery.ts', '  (work.toolRecovery ??= { failures: [] }).failures.push({ requestId: e.requestId, tool: e.tool, code: e.code, attempt: work.attempt, at: e.at });', '  (work.toolRecovery ??= { failures: [] }).failures.push({ requestId: e.requestId, tool: e.tool, code: e.code, attempt: work.attempt, at: e.at });\n  c.usage.ordinary++; /* faulty double charge for feedback */'),
     'tool-recovery-no-deadline': ('ToolRecovery', 'StoppedToolRecovery', 'src/task/tool-recovery.ts', "  if (work.deadline !== null && e.at >= work.deadline) return 'WORK_EXPIRED';", '  /* faulty expired feedback accepted */'),
     'unresolved-map-publication': ('MapRecovery', 'NoUnresolvedPublication', 'src/task/delivery.ts', '    if (c.candidate?.partitionRecoveries?.length && unresolved.length)', '    if (false && c.candidate?.partitionRecoveries?.length && unresolved.length)'),
     'rewrite-map-failure-history': ('MapRecovery', 'RecoveryHistoryImmutable', 'src/task/map-recovery.ts', '    part.resolution = { ...structuredClone(claim),', "    part.status = 'succeeded'; /* faulty erasure of original failure */\n    part.resolution = { ...structuredClone(claim),"),
     'omit-map-required-citation': ('MapRecovery', 'VerifiedRecoveryEvidence', 'src/delivery-acceptance.ts', "    if (item.status === 'passed' && criterion.requiredSourceIds?.length", "    if (false && item.status === 'passed' && criterion.requiredSourceIds?.length"),
-    'accept-invalid-map-source': ('MapRecovery', 'RecoveryEvidenceEligibility', 'src/task/map-recovery.ts', "return 'MAP_RECOVERY_EVIDENCE_UNAVAILABLE';", 'return null /* faulty invalid source acceptance */;'),
+    'accept-invalid-map-source': ('MapRecovery', 'RecoveryEvidenceEligibility', 'src/task/map-recovery.ts',
+        "        || !source.metadata.capturedContentHash || !source.stdout?.trim()) return 'MAP_RECOVERY_EVIDENCE_UNAVAILABLE';",
+        "        || !source.metadata.capturedContentHash || !source.stdout?.trim()) return null /* faulty invalid source acceptance */;"),
     'resolve-map-before-check': ('MapRecovery', 'NoUnverifiedRecovery', 'src/task/reducer.ts', '      const outcome = checkDisposition(c, e, work);', '      resolveMapRecoveries(c, work, e.at); /* faulty resolution before independent verification */\n      const outcome = checkDisposition(c, e, work);'),
     'spend-discussion-reserve': ('DiscussionBudget', 'ProtectedDiscussionBudget', 'src/task/budget.ts',
         "if (c.usage.ordinary + 1 + reserve + hostReserve > c.config.limits.ordinary) return 'DISCUSSION_BUDGET_RESERVED';", '/* faulty loss of promised discussion capacity */'),
@@ -60,8 +62,8 @@ CONTROLS = {
     'spend-verification-capacity': ('ReservedRequests-verification', 'ProtectedContinuation', 'src/task/budget.ts',
         "if (work.bucket === 'ordinary' && work.payload.deliveryRevision === true && deliveryVerificationPlan(c)?.status === 'required'", "if (false && work.bucket === 'ordinary' && work.payload.deliveryRevision === true && deliveryVerificationPlan(c)?.status === 'required'"),
     'parse-before-help-consumption': ('InputBoundary-help', 'NoPrematureInterpretation', 'src/task/guards.ts',
-        "analysisReady: ({ context }) => !context.stopped && context.outcome === null && !incompatibleExecution(context) && !!pendingInput(context)\n      && inflight(context).length === 0 && !context.intents.some(localPhysicalPending) && !activeHelp(context),",
-        "analysisReady: ({ context }) => !context.stopped && context.outcome === null && !incompatibleExecution(context) && !!pendingInput(context)\n      && inflight(context).length === 0 && !context.intents.some(localPhysicalPending),"),
+        "analysisReady: ({ context }) => !taskHumanGate(context) && !context.stopped && context.outcome === null && !incompatibleExecution(context) && !!pendingInput(context)\n      && inflight(context).length === 0 && !context.intents.some(work => localPhysicalPending(work) && !workInCleanup(context, work)) && !activeHelp(context),",
+        "analysisReady: ({ context }) => !taskHumanGate(context) && !context.stopped && context.outcome === null && !incompatibleExecution(context) && !!pendingInput(context)\n      && inflight(context).length === 0 && !context.intents.some(work => localPhysicalPending(work) && !workInCleanup(context, work)),"),
     'publish-over-pending-input': ('InputBoundary-check', 'NoUnresolvedPublication', 'src/task/delivery.ts',
         "if (deliveryInterruptionPending(c)) return { kind: 'handoff' };", "if (deliveryInterruptionPending(c)) return { kind: 'complete' };"),
     'retain-input-check-evidence': ('InputBoundary-check', 'AppliedInputBoundary', 'src/task/reducer.ts',
@@ -79,16 +81,21 @@ CONTROLS = {
     'erase-review-failure': ('ReviewQueue', 'PreserveReviewFailure', 'src/task/assistance.ts',
         "if (['failed', 'timeout'].includes(completed.status)) review.incomplete = `成员 ${completed.target} 未能完成评审：${completed.status}`;", '/* faulty loss of failed reviewer status */'),
     'lose-deferred-coordination': ('DeferredCoordination', 'DeferredProgress', 'src/task/guards.ts',
-        "deferredReady: ({ context }) => context.deferredCoordination && !discussionActive(context) && !unresolvedInput(context) && inflight(context).length === 0 && !context.intents.some(localPhysicalPending),", 'deferredReady: () => false,'),
+        "deferredReady: ({ context }) => context.deferredCoordination && !discussionActive(context) && !unresolvedInput(context) && inflight(context).length === 0 && !context.intents.some(work => localPhysicalPending(work) && !workInCleanup(context, work)),", 'deferredReady: () => false,'),
     'retire-obsolete-discussion-too-late': ('CancelledDiscussion-map-goal-safe', 'CancelledRetirement', 'src/task/reducer.ts',
         'for (const work of c.intents.filter(work => canRetireDiscussionWork(c, work))) release(c, work.id);', '/* faulty cancelled work continues occupying members after recovery */'),
     'skip-ended-obsolete-discussion': ('CancelledDiscussion-discussion-end-safe', 'CancelledRetirement', 'src/engine.ts',
-        "if (taskPhase(snapshot) === 'ended' && !snapshot.context.intents.some(work => canRetireDiscussionWork(snapshot.context, work))) continue;", "if (taskPhase(snapshot) === 'ended') continue;"),
+        "if (taskPhase(snapshot) === 'ended' && !snapshot.context.resilience?.cleanup.some(item => item.state === 'pending')\n        && !snapshot.context.intents.some(work => canRetireDiscussionWork(snapshot.context, work) || localPhysicalPending(work)\n          || work.kind !== 'cancel' && work.replay !== 'unsafe' && ['pending', 'inflight'].includes(work.status))) continue;", "if (taskPhase(snapshot) === 'ended') continue;"),
+    'release-unknown-resource': ('CancelledDiscussion-map-stop-physical', 'UnknownResourceCustody', 'src/engine.ts',
+        '        let next = this.step(current, event);',
+        "        let next = this.step(current, event);\n        if (event.type === 'RECOVER') for (const w of next.context.intents) for (const op of w.localOperations ?? []) if (localPhysicalPending(w) && op.workspaceId) tx.releaseWorkspace(op.workspaceId, fingerprint({ roomId, taskId, operationId: op.id })); /* faulty premature resource release */"),
+    'lose-cleanup-owner': ('CancelledDiscussion-map-stop-physical', 'CleanupCustody', 'src/task/resilience.ts',
+        "    r.cleanup.push({ kind: 'local', id:", "    if (false) r.cleanup.push({ kind: 'local', id:"),
     'forget-unknown-command-effects': ('CancelledDiscussion-map-stop-physical', 'UnknownMemberRetention', 'src/local-operation.ts',
         "for (const op of work.localOperations ?? []) if (['claimed', 'running', 'cancelling'].includes(op.status)) op.status = 'uncertain';",
         "for (const op of work.localOperations ?? []) if (['claimed', 'running', 'cancelling'].includes(op.status)) op.status = 'cancelled';"),
     'lose-known-discussion-retirement': ('CancelledDiscussion-map-end-physical', 'KnownReceiptRetirement', 'src/task/reducer.ts',
-        "if ((e.type === 'LOCAL_RESULT' || e.type === 'LOCAL_RECONCILE') && work && canRetireDiscussionWork(c, work)) release(c, work.id);", '/* faulty known obsolete command not retired after receipt */'),
+        "if ((e.type === 'LOCAL_RESULT' || e.type === 'LOCAL_RECONCILE') && work && canRetireDiscussionWork(c, work)) release(c, work.id);", "if ((e.type === 'LOCAL_RESULT' || e.type === 'LOCAL_RECONCILE') && work?.discussionId && c.discussion?.status === 'cancelled') work.status = 'uncertain'; /* faulty known work reoccupied after receipt */"),
 }
 
 
@@ -172,7 +179,8 @@ def main():
     coverage_path = SKILL / 'references/extensions-coverage.json'
     coverage = json.loads(coverage_path.read_text())
     before = {name: sha(ROOT / name) for name in coverage['files']}
-    inputs = {str(path.relative_to(ROOT)): sha(path) for path in [*sorted((SKILL / 'scripts').glob('*')), ROOT / 'tests/coordination-composition-fixture.ts'] if path.is_file()}
+    inputs = {str(path.relative_to(ROOT)): sha(path) for path in [*sorted((SKILL / 'scripts').glob('*')), ROOT / 'tests/coordination-composition-fixture.ts',
+        SKILL / 'SKILL.md', SKILL / 'references/correspondence.md', SKILL / 'references/drift-review-kej-113-114.json'] if path.is_file()}
     report = {'status': 'running', 'source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
         'syncCommit': coverage['syncCommit'], 'coveredFileHashes': before, 'checkerInputHashes': inputs,
         'baseline': {}, 'restored': {}, 'witnesses': {}, 'negativeControls': {}}
