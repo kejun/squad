@@ -1,5 +1,5 @@
 {
-  "syncCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+  "syncCommit": "d865873678688789dbf9399980b841caeed17946",
   "bounds": {
     "tasks": 2,
     "workspaces": 1,
@@ -26,9 +26,9 @@
     "src/artifact-request.ts": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
     "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
     "src/catalog-search.ts": "94f713cda0ee9f6e817b0e2682d91ee6efa555d18e677421d3f241eab37eda3f",
-    "src/cli-catalog.ts": "08a49e8e7a8cb15da8cb4d8b4fa22f7bbd6aa5636edb59bcceae43c30f74734d",
+    "src/cli-catalog.ts": "e7c517ab7170da4a47e31646c1f92eef089d5e2789a6f7baeba9afe7ca0c1050",
     "src/cli-failure.ts": "717211b0c07092641dce7467c1649832c1d7d0bd654d2b0191341ec29077beb8",
-    "src/cli-readiness.ts": "cb973987c1b91f5a0d684e7dd6f762cdc2ae2822723230a523025ca0b3dfcb6e",
+    "src/cli-readiness.ts": "427ed54fbd4dea5ebe6a1b8bb0f6584df969b3db9d6a35eeffe87e91d5ae2cfd",
     "src/conversation.ts": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
     "src/coordination-view.ts": "eee53b627a8031726ef9dc37947b218aaecaeccbbd369a09b7eb1fdc1ffd557f",
     "src/darwin-process.ts": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b",
@@ -45,20 +45,21 @@
     "src/local-cli.ts": "5a11e027e082424df77d9f5dcfb92c35f51507440e836465d2609b59cf26fc40",
     "src/local-operation.ts": "0dfc11164909e070f69147cad6d31c56c72d7a1d67b68bfd2a25432410612f9d",
     "src/local-resource-policy.ts": "08061b38c1876835ee0255484e855eb7f9c01bf7009c2f9106c8aa559e6c72de",
-    "src/local-runtime.ts": "2329ae21453eadc86b4be05cda6821578ca3b7aaab5a36f260c1039ac9bca552",
-    "src/local-skills.ts": "dc5d7e4e8ebb5e5a82e9b608a377b4fa4d454ab54e276ffcd75ee5f2c8794917",
+    "src/local-runtime.ts": "127ede26af498876ad626f0685d52eb8a4b37db08bc9f5292a2f16d6037fd850",
+    "src/local-skills.ts": "ee63e411cc932479195a90199a2b961899b93e28093bfa1e53a6b013ee24d09a",
     "src/measurement-report.ts": "62a9010d7a112c52f7e93b6e21d5fcb6a6e6a8011c4852784dd44b811a196183",
     "src/measurement.ts": "0ceeba39fe20ece308c1a0ed1df3b1438e40052af651f9a0037592f2af1cc773",
-    "src/model-adapter.ts": "c48f6ca41c2d6cffd7562f49e89f94630c899bf9953b593b9fb223df8329c7a3",
+    "src/model-adapter.ts": "a7e9973837b861961e34d5176f72062af24cb328929c6e55d93aff5823fbbc9f",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
     "src/model-env.ts": "7f8bb277dab42d749c82dab229d66cbb508e1af83b78986895da41956a9e6cf0",
+    "src/model-tool-inventory.ts": "f3588f30895a7246f06b5da4cc5c9dda8488c5c4c35d51cee161e53fca5babfc",
     "src/presentation.ts": "1ffa66657884dffe98cceb1166485df99541aee762a53cfaa3a57de69af896d8",
     "src/process-supervisor.machine.ts": "29d41335694b5e75fdc93196fc193a40d52622d656249ef2574cac910a63a3fe",
     "src/resource-acquisition.ts": "adc62f7be3cca22ded73bb7e42cebb893da98b5b1a7c68097ca12bc5f39cca02",
     "src/room-deletion-coordinator.ts": "62399fe89fe47ffce3ed690e65bd16064caff598c09654422e83eed553cb6c9a",
     "src/room-deletion.machine.ts": "61320dc8213a9d546cb706349a8fa786c9acd244461608e6e3422487a8b7d4f4",
     "src/room.machine.ts": "1f2acd3d217731acd39b4258e0148b65b600f2b8cd7ae8cdcee8f047d8b696ab",
-    "src/runner.ts": "1d390f47b8ad29d3cea4b0a8c4b27d820ac2267ea1a22a267d1a5b37b3ea3972",
+    "src/runner.ts": "ff42644df6be9b4ff853e1ba2aa7b5f058d134d1688ce389eb8b2b8cd43ebf21",
     "src/runtime-ownership.ts": "210e8d0108df16149d9a3fc3c5e1d3e417f9ccdb1c54040042dec89494aafc60",
     "src/skills.ts": "616a30fed055e935a09fef66cded225626220c5a1e9211dac44ec543d37a6bb2",
     "src/source-artifact.ts": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4",
@@ -98,6 +99,7 @@
     "src/task/tool-knowledge.ts": "7739654b94e4ccf6628bd8c55095c066f52691a074a190b0b8d39b299b0299b9",
     "src/task/tool-recovery.ts": "225859aa5e025691ec323b8399579aed9d46168ea0002ce4d8cdf6500eb4ef8c",
     "src/task/verification.ts": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24",
+    "src/tool-inventory.ts": "f811cc69d2dff40747f5c2ab467f05bc6b3d036df0ed1b7aeec950f4303b7626",
     "src/tool-recommendation.ts": "8f3ec269c241a6eeeab9f9727b9fbd34208f262feb8bc8a73127540cc89f80e3",
     "src/types.ts": "53b2dca9c74c55152c72aef123cf2cb38c3d714bb42284ef50fd488824eb9334",
     "src/web-tools.ts": "c03bdca771c9af1e67bc35a9156a3da124f51cc1902254d6f091f69cef5d5545",
@@ -105,11 +107,11 @@
     "src/web/debug-journal.ts": "5894a650d045569bdfe5e161a54ace71d2e2a89d30a50b2a4c84a6249106eebe",
     "src/web/http.ts": "b1d122e4a840ad722ee4ca6b43a73187b31ec8ed92be232f495c1716cdcccbfc",
     "src/web/service-lifecycle.ts": "265e659384eaae1770fbefa71c632e060cded863b47768f7292cd8151fd561db",
-    "src/web/service.ts": "cda44f536a549ac03394de2f6ce7de761b5f2e37deae866795f9f8549e99a3c2",
+    "src/web/service.ts": "0724cbf33545e0f252f7540996bad0fdf2e5104bb32f10a38ebb1af8d8693e32",
     "team.config.ts": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb",
     "tests/artifact-fixture.ts": "a2de06afce5f57ee3054e6f75c6e39b96de7f86f1e766a42fea10515cf2dcdb6",
     "tests/bdd/local-effects-formal.steps.ts": "2583c377dc57d9927bd99a81018f67b798af9f85758d39f38da788c2fc136cd4",
-    "tests/delivery-protocol-fixture.ts": "36372de8994e8ee65485dca09e14d7f80fc5cffad37586e8964889bffe0d3b39",
+    "tests/delivery-protocol-fixture.ts": "06c18b785685c46d7a0a2f5a983c4453b1ca6041050b0193261372a92d6e9aa3",
     "tests/fixtures/crash.ts": "fbf409a6cc2f3eb327d03c75dbc433779a6b35b1c373a54e1a92902ee25a41e1",
     "tests/fixtures/local-effect-crash-host.ts": "89ebb6db872c9d3c309f7c4dcc6f218594b02861cea8bb5df7ccfc601d441aba",
     "tests/fixtures/sqlite-transaction-child.ts": "280d8686194a0cf9fd89bc12c9758ebb4416827f5e522a174291d5bca2942553",
@@ -118,7 +120,7 @@
     "tests/local-effect-crash-fixture.ts": "15ff21e0b3b942d469a731338048c3fe6c8881e8f5e1f7ee4d23d305f4e6b822",
     "tests/local-effects-formal-bridges.mjs": "c8f14bd16bd27cdf440c9ab72c7addcbe3a7b2a663b97a67f773d27a118243d8",
     "tests/local-effects-formal-fixture.ts": "db063d9009aad21adde60481418cca5d09a9f48f420ddcec7d4ed36cf7d6dece",
-    "tests/local-tools-fixture.ts": "30330728a63e66822946429b3d7fe14555521f375de489ef9d3de081a6a7b953",
+    "tests/local-tools-fixture.ts": "30e4a338a899a317cc3f9da6583ea3dc841198b88f2adc5e5955f6e47b51bfe7",
     "tests/model-regeneration-fixture.ts": "133bf59aa091a8c9213179ece6745e8593d9f176c527cefecd159e6259bb215c",
     "tests/sqlite-transaction-crash.ts": "333a0f000204a5e8da5760f082bb01b4f82731e783f5561133c1a557c54a7904"
   },
@@ -349,6 +351,15 @@
       "outcome": "updated",
       "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-final",
       "scope": "Original declared finite domains and real-source controls/restored replay. New queued-wait and global coordinator semantics are independently validated by BT_Y114-Y120, not proven by these old finite models."
+    },
+    {
+      "change": "unified-tool-context",
+      "review": "references/drift-review-unified-tool-context.json",
+      "reviewedCommit": "d865873678688789dbf9399980b841caeed17946",
+      "previousSyncCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+      "validation": "/workspace/work/squad-tool-context/formal/verified/local-effects",
+      "outcome": "updated",
+      "scope": "Original finite models/properties/bounds unchanged; metadata and model-only optional-field compatibility are separate BT_Y121–BT_Y130 acceptance."
     }
   ],
   "mapReduceLiveReview": "references/drift-review-map-reduce-live.json",
@@ -702,6 +713,44 @@
         "realCodeControls": 4,
         "steps": 24
       }
+    },
+    {
+      "status": "verified",
+      "completeProducerReexecutedThisRound": true,
+      "review": "references/drift-review-workspace-wait.json",
+      "reviewedBaseCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
+      "reviewedWorkingTree": true,
+      "sourceIdentity": "Base commit plus exact files hashes; no claim that uncommitted source belongs to base commit",
+      "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-final",
+      "producerCommand": "env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true python3 .agents/skills/verify-squad-local-effects/scripts/check.py --jar /workspace/work/squad-e2e/workspace-fix/formal/tla2tools-1.7.4.jar --evidence /workspace/work/squad-e2e/workspace-fix/formal/local-effects-final",
+      "producerExitCode": 0,
+      "seconds": 64.855,
+      "independentReadback": {
+        "command": "python3 .agents/skills/verify-squad-local-effects/scripts/check.py --verify-evidence /workspace/work/squad-e2e/workspace-fix/formal/local-effects-final",
+        "exitCode": 0,
+        "log": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-post-controls-readback.log"
+      },
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true
+      },
+      "metrics": {
+        "retainedArtifacts": 251,
+        "states": 108,
+        "edgesPerStorePerStage": 282,
+        "realSourceControlKinds": 4,
+        "witnesses": 6,
+        "realProcessBridges": 7
+      },
+      "coveredSourceArchive": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-final-reviewed-source",
+      "coveredSourceUnchanged": true,
+      "scope": "Original declared finite domains and real-source controls/restored replay. New queued-wait and global coordinator semantics are independently validated by BT_Y114-Y120, not proven by these old finite models.",
+      "readerControls": {
+        "status": "verified",
+        "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-reader-controls",
+        "sourceProofUnchanged": true,
+        "intactAfter": true
+      }
     }
   ],
   "globalSynchronizationHistory": [
@@ -717,51 +766,83 @@
     }
   ],
   "pendingReview": {
-    "change": "workspace-wait-and-global-coordination-observation",
-    "review": "references/drift-review-workspace-wait.json",
-    "reviewSha256": "cd975f06a63238c0b997ae81b9863fce5000d099e25e54221d25cc8eb325c21b",
-    "reviewedBaseCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
-    "reviewedWorkingTree": true,
-    "stage": "Complete producers and independent readbacks verified; source-equivalent product commit synchronized in metadata only",
-    "synchronizedCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777"
+    "change": "unified-tool-context",
+    "review": "references/drift-review-unified-tool-context.json",
+    "reviewedCommit": "d865873678688789dbf9399980b841caeed17946",
+    "previousSyncCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "status": "verified-and-synchronized-after-nine-entrypoints",
+    "scope": "Original properties/bounds/assumptions remain unchanged. BT_Y121–BT_Y130 inventory/model/protocol/UI acceptance is independent; these finite domains do not prove model tool selection accuracy or private-resource acquisition.",
+    "synchronizedCommit": "d865873678688789dbf9399980b841caeed17946",
+    "centralIndex": "/workspace/work/squad-tool-context/formal/nine-entry-index.json"
   },
   "candidateVerification": {
+    "entry": "local-effects",
     "status": "verified",
-    "completeProducerReexecutedThisRound": true,
-    "review": "references/drift-review-workspace-wait.json",
-    "reviewedBaseCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
-    "reviewedWorkingTree": true,
-    "sourceIdentity": "Base commit plus exact files hashes; no claim that uncommitted source belongs to base commit",
-    "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-final",
-    "producerCommand": "env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true python3 .agents/skills/verify-squad-local-effects/scripts/check.py --jar /workspace/work/squad-e2e/workspace-fix/formal/tla2tools-1.7.4.jar --evidence /workspace/work/squad-e2e/workspace-fix/formal/local-effects-final",
-    "producerExitCode": 0,
-    "seconds": 64.855,
-    "independentReadback": {
-      "command": "python3 .agents/skills/verify-squad-local-effects/scripts/check.py --verify-evidence /workspace/work/squad-e2e/workspace-fix/formal/local-effects-final",
+    "sourceCommit": "d865873678688789dbf9399980b841caeed17946",
+    "evidence": "/workspace/work/squad-tool-context/formal/verified/local-effects",
+    "completeRun": {
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-local-effects/scripts/check.py",
+        "--jar",
+        "/workspace/work/squad-e2e/workspace-fix/formal/tla2tools-1.7.4.jar",
+        "--evidence",
+        "/workspace/work/squad-tool-context/formal/verified/local-effects"
+      ],
       "exitCode": 0,
-      "log": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-post-controls-readback.log"
+      "seconds": 53.867,
+      "log": "/workspace/work/squad-tool-context/formal/verified/local-effects-producer.log"
+    },
+    "independentReadback": {
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-local-effects/scripts/check.py",
+        "--verify-evidence",
+        "/workspace/work/squad-tool-context/formal/verified/local-effects"
+      ],
+      "exitCode": 0,
+      "seconds": 0.066,
+      "log": "/workspace/work/squad-tool-context/formal/verified/local-effects-independent-readback.log"
+    },
+    "readerControls": [
+      {
+        "command": [
+          "python3",
+          "tests/local-effects-formal-readback-controls.py",
+          "--checker",
+          ".agents/skills/verify-squad-local-effects/scripts/check.py",
+          "--proof",
+          "/workspace/work/squad-tool-context/formal/verified/local-effects",
+          "--evidence",
+          "/workspace/work/squad-tool-context/formal/verified/local-effects-reader-controls"
+        ],
+        "exitCode": 0,
+        "seconds": 0.617,
+        "log": "/workspace/work/squad-tool-context/formal/verified/local-effects-reader-controls.log"
+      }
+    ],
+    "postControlsReadback": {
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-local-effects/scripts/check.py",
+        "--verify-evidence",
+        "/workspace/work/squad-tool-context/formal/verified/local-effects"
+      ],
+      "exitCode": 0,
+      "seconds": 0.064,
+      "log": "/workspace/work/squad-tool-context/formal/verified/local-effects-post-controls-readback.log"
     },
     "cleanup": {
       "scratchRemoved": true,
       "coveredFilesUnchanged": true
     },
-    "metrics": {
-      "retainedArtifacts": 251,
-      "states": 108,
-      "edgesPerStorePerStage": 282,
-      "realSourceControlKinds": 4,
-      "witnesses": 6,
-      "realProcessBridges": 7
+    "phases": {
+      "positive": "verified",
+      "realSourceFaults": "detected",
+      "restoredOriginal": "verified",
+      "independentReadback": "verified"
     },
-    "coveredSourceArchive": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-final-reviewed-source",
-    "coveredSourceUnchanged": true,
-    "scope": "Original declared finite domains and real-source controls/restored replay. New queued-wait and global coordinator semantics are independently validated by BT_Y114-Y120, not proven by these old finite models.",
-    "readerControls": {
-      "status": "verified",
-      "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-reader-controls",
-      "sourceProofUnchanged": true,
-      "intactAfter": true
-    }
+    "scope": "Original declared finite models with real-source controls and restored implementation; new tool semantics remain independent acceptance."
   },
   "pendingReviewHistory": [
     {
@@ -769,6 +850,15 @@
       "review": "references/drift-review-process-identity-fixture.json",
       "reviewedCommit": "11a1023b8cbb6483fef55af62b5212141eb2d789",
       "status": "verified-and-synchronized"
+    },
+    {
+      "change": "workspace-wait-and-global-coordination-observation",
+      "review": "references/drift-review-workspace-wait.json",
+      "reviewSha256": "cd975f06a63238c0b997ae81b9863fce5000d099e25e54221d25cc8eb325c21b",
+      "reviewedBaseCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
+      "reviewedWorkingTree": true,
+      "stage": "Complete producers and independent readbacks verified; source-equivalent product commit synchronized in metadata only",
+      "synchronizedCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777"
     }
   ],
   "workspaceWaitCorrespondence": {
@@ -789,5 +879,17 @@
     "producerReexecutedForMetadataAdvance": false,
     "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback.",
     "previousSyncCommit": "11a1023b8cbb6483fef55af62b5212141eb2d789"
+  },
+  "unifiedToolContextSyncAdvance": {
+    "change": "unified-tool-context",
+    "sourceEquivalentToCommit": "d865873678688789dbf9399980b841caeed17946",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-tool-context/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "rawProofIdentitiesPreserved": true,
+    "note": "Retained producer inputs keep their original captured sync identity. Post-sync independent readbacks are recorded in the central index; no producer is counted twice.",
+    "previousSyncCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777"
   }
 }

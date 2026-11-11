@@ -1,0 +1,277 @@
+{
+  "change": "unified-tool-context",
+  "status": "updated",
+  "productCommit": "d865873678688789dbf9399980b841caeed17946",
+  "previousSyncCommits": [
+    "e7c0952eae1bdd0c224b3d12207ed684541a7777"
+  ],
+  "reviewedSourceFiles": [
+    {
+      "path": "scripts/web.ts",
+      "sha256": "758a20ab9b2acf117f07bb788d43dad788aafd10367cbaf1512b0d2ddbf10555",
+      "classification": "intentional observation/contract version separation at bootstrap; old-protocol recovery compatibility remains unchanged; outside old formal slice, exercised by integration"
+    },
+    {
+      "path": "src/cli-catalog.ts",
+      "sha256": "e7c517ab7170da4a47e31646c1f92eef089d5e2789a6f7baeba9afe7ca0c1050",
+      "classification": "full metadata projection; no scheduler, permission or execution transition change"
+    },
+    {
+      "path": "src/cli-readiness.ts",
+      "sha256": "427ed54fbd4dea5ebe6a1b8bb0f6584df969b3db9d6a35eeffe87e91d5ae2cfd",
+      "classification": "full per-environment in-memory observation from settled receipts; no authority; shared preprocessing; old bounded recommendation API retained"
+    },
+    {
+      "path": "src/local-runtime.ts",
+      "sha256": "127ede26af498876ad626f0685d52eb8a4b37db08bc9f5292a2f16d6037fd850",
+      "classification": "inventory lifecycle replaces startup-only registry; existing execution, approval digest, leases and effect reconciliation code unchanged"
+    },
+    {
+      "path": "src/local-skills.ts",
+      "sha256": "ee63e411cc932479195a90199a2b961899b93e28093bfa1e53a6b013ee24d09a",
+      "classification": "full metadata export and retention of already published/pending pinned versions across catalog generations; package manifest/hash guards unchanged"
+    },
+    {
+      "path": "src/model-adapter.ts",
+      "sha256": "a7e9973837b861961e34d5176f72062af24cb328929c6e55d93aff5823fbbc9f",
+      "classification": "complete authorized inventory added before each mutable-work request, direct host choice guidance; selected registered-entry change rejected before local intent; fixed materials/check path unchanged R-U11 additionally omits only an unused exactly-empty model skill selector after the remaining action passes the unchanged public validator; raw transcript, real skill references, host reasons and runtime activation/approval guards remain intact."
+    },
+    {
+      "path": "src/runner.ts",
+      "sha256": "ff42644df6be9b4ff853e1ba2aa7b5f058d134d1688ce389eb8b2b8cd43ebf21",
+      "classification": "authorized live getter injects inventory and diagnostics using original work/epoch/permission/physical-pending guards; persisted execution remains through existing invoke"
+    },
+    {
+      "path": "src/web/service.ts",
+      "sha256": "0724cbf33545e0f252f7540996bad0fdf2e5104bb32f10a38ebb1af8d8693e32",
+      "classification": "forwards live getter only; no new execute/approve/scheduling path"
+    },
+    {
+      "path": "src/tool-inventory.ts",
+      "sha256": "f811cc69d2dff40747f5c2ab467f05bc6b3d036df0ed1b7aeec950f4303b7626",
+      "classification": "new observation-only lifecycle: single in-flight builder, atomic published immutable generations, file/periodic refresh, old snapshot on failure, watcher/timer close; no process execution or credentials"
+    },
+    {
+      "path": "src/model-tool-inventory.ts",
+      "sha256": "f3588f30895a7246f06b5da4cc5c9dda8488c5c4c35d51cee161e53fca5babfc",
+      "classification": "new observation merge/selected-entry identity helper; only current role interfaces; hidden inventory preserves original execution refusal; no persisted action change"
+    },
+    {
+      "path": "tests/local-tools-fixture.ts",
+      "sha256": "30e4a338a899a317cc3f9da6583ea3dc841198b88f2adc5e5955f6e47b51bfe7",
+      "classification": "Controlled fixture adds optional beforeModelResponse hook to drive catalog changes or permission boundaries during actual transport requests. Default remains no hook; no model/guard/state assertions or formal bounds are weakened. This file is a conservative LocalEffects bridge dependency."
+    },
+    {
+      "path": "tests/delivery-protocol-fixture.ts",
+      "sha256": "06c18b785685c46d7a0a2f5a983c4453b1ca6041050b0193261372a92d6e9aa3",
+      "classification": "Formal LocalEffects controlled bridge dependency now locates exactly one original work envelope by user role, workId and context among host observations. Existing acceptance-criteria judgments, output fields, candidate comparisons and content deepEqual assertions are preserved; missing/ambiguous fixture envelopes fail closed instead of using positional message 1."
+    }
+  ],
+  "followUpReviews": [
+    {
+      "file": "src/model-adapter.ts",
+      "previousSha256": "73c2bd1eab9c7f6a48a12611d3809ee718cb2528f713eeab1c378622076c0836",
+      "sha256": "f9675ecb4d84e137263cff62e28dfc2f5f65bd710cedf84dcdd4a08cd7ab29a2",
+      "change": "Conditional host recovery wording retains original genuine sandbox-boundary failure approval behavior while explicitly allowing direct host choice and forbidding unnecessary preliminary sandbox probes. No guards, request accounting or command execution flow changed.",
+      "outcome": "reviewed; original BT_L31 test assertions remain meaningful and unchanged"
+    },
+    {
+      "file": "src/tool-inventory.ts",
+      "previousSha256": "71854e77552e57109625de477f116d8efa218a9d5b72b94508667ab8c9b1f470",
+      "sha256": "ea81e394cb274b5167538061e24c65d1db2e530e20aa00d00eb6f0e0a128860c",
+      "change": "Snapshot content identity now includes CLI configuration (unconfigured vs explicit empty). This leaves the existing CliCatalog entry/cursor identity and selected-entry identity unchanged; no permission or task protocol version changes.",
+      "outcome": "reviewed; red-capable real-runtime configuration-state probe retained; final Y129 integration verification pending"
+    },
+    {
+      "file": "src/local-skills.ts",
+      "previousSha256": "a8cc01eb7ebcd24fcc425dd1babdfef471c4eba60822efd99e32dba3d42df224",
+      "sha256": "ee63e411cc932479195a90199a2b961899b93e28093bfa1e53a6b013ee24d09a",
+      "change": "SkillRegistry now owns strict complete-scan semantics for all/list/recommend/discovery; initial source diagnostics make completeness false. ToolInventoryStore reuses that fact instead of independently interpreting diagnostics. No action/permission/lease/approval transition changed.",
+      "outcome": "reviewed; unchanged public runtime red probe now green with inventoryComplete=false and legacyCatalogComplete=false; source diagnostic preserved"
+    },
+    {
+      "file": "src/tool-inventory.ts",
+      "previousSha256": "ea81e394cb274b5167538061e24c65d1db2e530e20aa00d00eb6f0e0a128860c",
+      "sha256": "f811cc69d2dff40747f5c2ab467f05bc6b3d036df0ed1b7aeec950f4303b7626",
+      "change": "SkillRegistry now owns strict complete-scan semantics for all/list/recommend/discovery; initial source diagnostics make completeness false. ToolInventoryStore reuses that fact instead of independently interpreting diagnostics. No action/permission/lease/approval transition changed.",
+      "outcome": "reviewed; unchanged public runtime red probe now green with inventoryComplete=false and legacyCatalogComplete=false; source diagnostic preserved"
+    },
+    {
+      "file": "src/model-adapter.ts",
+      "previousSha256": "f9675ecb4d84e137263cff62e28dfc2f5f65bd710cedf84dcdd4a08cd7ab29a2",
+      "sha256": "a7e9973837b861961e34d5176f72062af24cb328929c6e55d93aff5823fbbc9f",
+      "change": "R-U11 intentionally canonicalizes only a model runCli response whose skillId is exactly empty, only when omitting it yields an already legal public action and executable/args/cwd contain no skill-namespace reference. Raw assistant content is retained; public validLocalAction and taskMachine remain strict; nonempty IDs and all permission/activation validation remain unchanged.",
+      "outcome": "reviewed; actual captured private response replay and SQLite/Runner/Adapter plain-host approval/one-process execution plus seven rejected paths checked independently at source level; source commit and exact-commit full check pending"
+    }
+  ],
+  "resolvedFindings": [
+    "Refresh failures from SkillRegistry diagnostics now keep previous valid generation, with explicit incomplete initial/limited scan observations",
+    "Hidden inventory is not treated as registered entry deletion; original stop/revoke/expiry guard owns refusal",
+    "Initial missing/unreadable skill sources expose one consistent completeness meaning in both unified inventory and existing public catalog/discovery APIs; the same real-runtime probe failed before and passed after the minimal fix"
+  ],
+  "originalDrift": {
+    "index": "/workspace/work/squad-tool-context/formal/original-drift-C3/index.json",
+    "status": "blocked",
+    "allNineOriginalEntrypointsExecuted": true,
+    "interpretation": "Expected correspondence drift before updating reviewed pins, not a product counterexample."
+  },
+  "coverageMappings": [
+    {
+      "mapping": "coverage.json",
+      "changedFiles": [
+        {
+          "file": "src/cli-catalog.ts",
+          "previousSha256": "08a49e8e7a8cb15da8cb4d8b4fa22f7bbd6aa5636edb59bcceae43c30f74734d",
+          "sha256": "e7c517ab7170da4a47e31646c1f92eef089d5e2789a6f7baeba9afe7ca0c1050",
+          "classification": "full metadata projection; no scheduler, permission or execution transition change"
+        },
+        {
+          "file": "src/cli-readiness.ts",
+          "previousSha256": "cb973987c1b91f5a0d684e7dd6f762cdc2ae2822723230a523025ca0b3dfcb6e",
+          "sha256": "427ed54fbd4dea5ebe6a1b8bb0f6584df969b3db9d6a35eeffe87e91d5ae2cfd",
+          "classification": "full per-environment in-memory observation from settled receipts; no authority; shared preprocessing; old bounded recommendation API retained"
+        },
+        {
+          "file": "src/local-runtime.ts",
+          "previousSha256": "2329ae21453eadc86b4be05cda6821578ca3b7aaab5a36f260c1039ac9bca552",
+          "sha256": "127ede26af498876ad626f0685d52eb8a4b37db08bc9f5292a2f16d6037fd850",
+          "classification": "inventory lifecycle replaces startup-only registry; existing execution, approval digest, leases and effect reconciliation code unchanged"
+        },
+        {
+          "file": "src/local-skills.ts",
+          "previousSha256": "dc5d7e4e8ebb5e5a82e9b608a377b4fa4d454ab54e276ffcd75ee5f2c8794917",
+          "sha256": "ee63e411cc932479195a90199a2b961899b93e28093bfa1e53a6b013ee24d09a",
+          "classification": "full metadata export and retention of already published/pending pinned versions across catalog generations; package manifest/hash guards unchanged"
+        },
+        {
+          "file": "src/model-adapter.ts",
+          "previousSha256": "c48f6ca41c2d6cffd7562f49e89f94630c899bf9953b593b9fb223df8329c7a3",
+          "sha256": "a7e9973837b861961e34d5176f72062af24cb328929c6e55d93aff5823fbbc9f",
+          "classification": "complete authorized inventory added before each mutable-work request, direct host choice guidance; selected registered-entry change rejected before local intent; fixed materials/check path unchanged R-U11 additionally omits only an unused exactly-empty model skill selector after the remaining action passes the unchanged public validator; raw transcript, real skill references, host reasons and runtime activation/approval guards remain intact."
+        },
+        {
+          "file": "src/runner.ts",
+          "previousSha256": "1d390f47b8ad29d3cea4b0a8c4b27d820ac2267ea1a22a267d1a5b37b3ea3972",
+          "sha256": "ff42644df6be9b4ff853e1ba2aa7b5f058d134d1688ce389eb8b2b8cd43ebf21",
+          "classification": "authorized live getter injects inventory and diagnostics using original work/epoch/permission/physical-pending guards; persisted execution remains through existing invoke"
+        },
+        {
+          "file": "src/web/service.ts",
+          "previousSha256": "cda44f536a549ac03394de2f6ce7de761b5f2e37deae866795f9f8549e99a3c2",
+          "sha256": "0724cbf33545e0f252f7540996bad0fdf2e5104bb32f10a38ebb1af8d8693e32",
+          "classification": "forwards live getter only; no new execute/approve/scheduling path"
+        },
+        {
+          "file": "src/tool-inventory.ts",
+          "previousSha256": null,
+          "sha256": "f811cc69d2dff40747f5c2ab467f05bc6b3d036df0ed1b7aeec950f4303b7626",
+          "classification": "new observation-only lifecycle: single in-flight builder, atomic published immutable generations, file/periodic refresh, old snapshot on failure, watcher/timer close; no process execution or credentials",
+          "role": "new conservative transitive dependency; no new finite-model guarantee"
+        },
+        {
+          "file": "src/model-tool-inventory.ts",
+          "previousSha256": null,
+          "sha256": "f3588f30895a7246f06b5da4cc5c9dda8488c5c4c35d51cee161e53fca5babfc",
+          "classification": "new observation merge/selected-entry identity helper; only current role interfaces; hidden inventory preserves original execution refusal; no persisted action change",
+          "role": "new conservative transitive dependency; no new finite-model guarantee"
+        }
+      ]
+    }
+  ],
+  "correspondenceDecision": {
+    "modelsChanged": false,
+    "propertiesChanged": false,
+    "boundsChanged": false,
+    "fairnessAssumptionsChanged": false,
+    "publicLocalActionValidatorRelaxed": false,
+    "reason": "New metadata readers and model-only optional-field omission produce only existing legal LocalAction intents. Task ownership, admission, request accounting, commit/claim/start/approval/stop/recovery/lease guards are unchanged. Direct host commands were already admitted by the prepared-command finite slices."
+  },
+  "independentScope": "BT_Y121–BT_Y130 and real Runner/HTTP/SQLite/browser acceptance cover inventory, refresh, selection and optional selector behavior. Existing finite models do not prove model decision semantics, private document acquisition, OS sandbox correctness, arbitrary timing or service availability.",
+  "verification": {
+    "status": "verified",
+    "entries": [
+      {
+        "entry": "host-retry",
+        "status": "verified",
+        "sourceCommit": "d865873678688789dbf9399980b841caeed17946",
+        "completeProducerExecuted": true,
+        "producer": {
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-host-retry/scripts/check.py",
+            "--jar",
+            "/workspace/work/squad-e2e/workspace-fix/formal/tla2tools-1.7.4.jar",
+            "--evidence",
+            "/workspace/work/squad-tool-context/formal/verified/host-retry"
+          ],
+          "exitCode": 0,
+          "seconds": 26.987,
+          "log": "/workspace/work/squad-tool-context/formal/verified/host-retry-producer.log"
+        },
+        "evidence": "/workspace/work/squad-tool-context/formal/verified/host-retry",
+        "producerStatus": "verified",
+        "independentReadback": {
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-host-retry/scripts/check.py",
+            "--verify-evidence",
+            "/workspace/work/squad-tool-context/formal/verified/host-retry"
+          ],
+          "exitCode": 0,
+          "seconds": 0.064,
+          "log": "/workspace/work/squad-tool-context/formal/verified/host-retry-independent-readback.log"
+        },
+        "readerControls": [
+          {
+            "command": [
+              "python3",
+              "tests/local-effects-formal-readback-controls.py",
+              "--checker",
+              ".agents/skills/verify-squad-host-retry/scripts/check.py",
+              "--proof",
+              "/workspace/work/squad-tool-context/formal/verified/host-retry",
+              "--evidence",
+              "/workspace/work/squad-tool-context/formal/verified/host-retry-reader-controls"
+            ],
+            "exitCode": 0,
+            "seconds": 0.67,
+            "log": "/workspace/work/squad-tool-context/formal/verified/host-retry-reader-controls.log"
+          }
+        ],
+        "postControlsReadback": {
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-host-retry/scripts/check.py",
+            "--verify-evidence",
+            "/workspace/work/squad-tool-context/formal/verified/host-retry"
+          ],
+          "exitCode": 0,
+          "seconds": 0.064,
+          "log": "/workspace/work/squad-tool-context/formal/verified/host-retry-post-controls-readback.log"
+        },
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "evidenceRetained": true
+        },
+        "syncCommitCaptured": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+        "coveredFilesUnchanged": true,
+        "scope": "Original declared finite models with real-source controls and restored implementation; new tool semantics remain independent acceptance."
+      }
+    ],
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-tool-context/formal/nine-entry-index.json"
+  },
+  "syncAdvance": {
+    "change": "unified-tool-context",
+    "sourceEquivalentToCommit": "d865873678688789dbf9399980b841caeed17946",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-tool-context/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "rawProofIdentitiesPreserved": true,
+    "note": "Retained producer inputs keep their original captured sync identity. Post-sync independent readbacks are recorded in the central index; no producer is counted twice.",
+    "advanced": true
+  }
+}
