@@ -19,6 +19,7 @@
 - [网页与观察](#网页与观察)：群聊、导出、面板、调试和 Inspector。
 - [验证模型与文档](#验证模型与文档)：模型回归、文档核对与验收报告边界。
 - [KEJ-107/108 组合验证](#kej-107108-组合验证补充)：17 项的所有者、现有模型、有限抽象与宿主接线。
+- [持续推进与安全删除](#持续推进与安全删除kej-113114)：KEJ-113/114 的处理窗口、人类门、取得凭证、失败重评与独立清理/删除责任。
 
 ## 事务与外部执行的共同边界
 
@@ -1938,3 +1939,63 @@ stateDiagram-v2
 本期恢复来源限定为宿主已捕获并保存完整输出的成功 `runCli` 回执（同目标同 epoch，exitCode=0）。Web 成功响应、历史 artifact 或仅技能读取目前不具备本协议的同等持久化证据形态，不能作为恢复声明来源；这不限制它们在普通工作中的原有用途。
 
 BT_Q48 为同一恢复声明的模型协议边界：`answer` 等非 `deliver` 输出附带恢复字段时，适配器按现有 `invalid_work_output → REGENERATE_MODEL_OUTPUT` 回路反馈，不能静默丢弃后结算。沿用已有格式修复状态、预算与检查点，不新增模型事件；实现前复验真实任务的格式修复授权及上述恢复模型，再接实际模型协议验证。格式修正不能重跑已成功的 CLI。
+
+## 持续推进与安全删除（KEJ-113/114）
+
+本节是实现前确定的目标契约；未通过真实模型及接线门槛前，不宣称新增行为已可用。主任务仍是原八阶段，不增加虚构父状态。需求核查、完整细图和可重复验证记录分别由以下文档承接：
+
+| 层次与所有者 | 细图、契约及验收 |
+| --- | --- |
+| 真实 taskMachine 及任务 context：固定窗口、监督、人类门、冻结交付、清理接管 | [核心监督](implementation/kej-113-task-resilience.md)，BT_Y01–Y20；覆盖 interpreting、running、waitingAssistance、coordinating、waitingHuman、checking、stopping、ended |
+| 取得事实与发布 context：宿主绑定资源、操作、尝试和内容语义 | [执行凭证](implementation/kej-113-evidence.md)，BT_E100–E119 |
+| 分片队列及共享方法 context：共同前提背压、可信新方法有界重评、实际冲突资源 | [调度恢复](implementation/kej-113-scheduling.md)，BT_Y41–Y49 |
+| 执行器处理流程：领取、启动许可、取消、技能配置和服务关闭 | [适配器恢复](implementation/kej-113-adapter.md)，BT_Y61–Y70 |
+| 独立 roomDeletionMachine：删除屏障、全历史清单、逐项清理、核对与无正文墓碑 | [安全删除](implementation/kej-114-deletion.md)，BT_X01–X25 |
+| 网页投影：明确人类门、固定版本下载、确认删除/进度/重试/缓存退休 | [网页恢复](implementation/kej-113-114-ui.md)，BT_Y81–Y99 |
+| 独立进程监督模型与可信路由：健康检测、终止宽限、退避重启、当前任务身份与授权传递 | [宿主守卫](implementation/kej-113-host.md)，BT_Z100–Z105 |
+
+类型：任务拥有的上下文生命周期；所有者 `taskMachine` / `src/task/resilience.ts`。窗口由初次授权固定，普通恢复、重试、心跳不能续期。`SUPERVISE` 由可信宿主提交，模型不能自行生成授权。
+
+```mermaid
+stateDiagram-v2
+    [*] --> automatic
+    automatic --> repairing: SUPERVISE [失去可执行路径且预算与原窗口允许] / 保存有界修复意图
+    repairing --> automatic: 可信结果 [原身份且未过期限] / 保存唯一后继
+    automatic --> human: 阻塞事件 [必须直接回复] / 保存有版本人类门
+    repairing --> human: 阻塞事件 [必须直接回复] / 保存有版本人类门
+    human --> automatic: HUMAN_GATE_DECISION [当前门且reply或明确newWindow] / 记录回复及授权
+    human --> frozen: HUMAN_GATE_DECISION [明确skip或stop] / 记录缺失或停止
+    automatic --> frozen: SUPERVISE [原自动窗口耗尽且无必需任务门] / 无模型冻结partial或failed
+    repairing --> frozen: SUPERVISE [修复或原窗口耗尽且无必需任务门] / 冻结缺失清单
+    human --> human: SUPERVISE [必需任务门未回复] / 保留门与UI入口
+    frozen --> frozen: 迟到结果 [原操作身份有效] / 只结算历史及cleanup
+```
+
+类型：独立清理责任的 context 生命周期；所有者 `TaskResilience.cleanup`，与活动任务指针和归档展示独立。冻结交付与建立接管责任必须同事务保存。未知效果只保留实际受影响资源，不凭截止时间冒充已退出。
+
+```mermaid
+stateDiagram-v2
+    none --> pending: 冻结或停止或恢复 [仍有物理未决] / 保存operation和session及资源身份
+    pending --> pending: SUPERVISE [未知效果] / 保存下一核对时间或明确cleanup门
+    pending --> settled: LOCAL_RESULT或LOCAL_RECONCILE [可信且物理结算] / 原子结算并释放所属资源
+    settled --> settled: 重复或迟到事件 / 幂等且不改冻结交付
+```
+
+类型：拟建真实 XState 独立删除生命周期；所有者 `roomDeletionMachine`。归档仍由原 `roomMachine` 拥有。删除屏障和作业在独立表持久化，不能随待删房间数据一起丢失。所有事件检查删除身份、版本与领取；I/O 只能执行已保存意图。
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle
+    idle --> preparing: REQUEST [确认且归档版本一致] / 持久屏障及清单意图
+    preparing --> waiting: INVENTORY [在途或归属不明] / 保存停止与核对责任
+    waiting --> preparing: SETTLED [可信结算] / 更新未决事实
+    preparing --> deleting: INVENTORY [完整且物理责任满足] / 保存逐项清理意图
+    preparing --> paused: FAILED / 保存原因与余项
+    deleting --> deleting: ITEM_SETTLED [当前领取] / 保存进度
+    deleting --> paused: FAILED / 不回滚已删文件
+    paused --> preparing: RETRY或RECOVER [原删除身份] / 续办
+    deleting --> deleted: VERIFIED [DB文件执行及投影全核对] / 同事务清业务表并压缩墓碑
+    deleted --> deleted: 迟到业务或轮询或重复删除 / 拒绝复活或幂等
+```
+
+删除的全历史所有权、共享目录保护、历史 session 与 pending 文件、崩溃检查点和客户端墓碑同步规则见删除细图。UI 仅投影持久状态，不能自行超时关门、把后台清理当成已删干净，或绕过版本屏障。上述门槛均须由真实模型、真实 SQLite/文件/HTTP 与浏览器按层验证。
