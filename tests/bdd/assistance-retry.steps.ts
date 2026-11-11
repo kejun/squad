@@ -11,6 +11,7 @@ import { SqliteStore, MemoryStore, TeamEngine, WorkRunner, type Intent, type Sub
 import { WebService } from '../../src/web/service.js';
 import type { WebAssistance } from '../../src/web/contracts.js';
 import { AssistanceRetry, assistanceRetrySubmission } from '../../web/src/AssistanceRetry.js';
+import { resilienceReviewRetryGate } from '../task-resilience-model-fixture.js';
 import type { SpecWorld } from './steps.js';
 
 interface State {
@@ -18,6 +19,7 @@ interface State {
   resultId?: string; before: number; goal: unknown; phase?: string;
   calls: Intent[]; command?: Submission; first?: unknown; service?: WebService;
   help?: WebAssistance; html?: string;
+  frozenBeforeRetry?: unknown;
 }
 const states = new WeakMap<SpecWorld, State>();
 function s(w: SpecWorld) { const value = states.get(w); assert(value); return value; }
@@ -199,6 +201,7 @@ Given('B 的核查属于已有其他成员结果的失败评审', function (this
   this.h.event({ type: 'DELIVER', text: '评审暂未完成', artifactIds: [] });
   this.h.event({ type: 'CHECK_RESULT', passed: true, gaps: [], resultId: 'partial-review' });
   assert.equal(this.h.context().outcome, 'partial');
+  s(this).frozenBeforeRetry = structuredClone(this.h.context().resilience!.frozen);
 });
 Then('应保留其他成员意见并让 A 汇总已修复的评审', function (this: SpecWorld) {
   const work = pendingOwner(this); assert(JSON.stringify(work.payload).includes('其他成员的意见'));
@@ -206,6 +209,11 @@ Then('应保留其他成员意见并让 A 汇总已修复的评审', function (t
   assert.equal(this.h.context().review!.status, 'summarizing');
   assert.deepEqual(new Set(this.h.context().review!.completed), new Set(['B', 'builder-1']));
   assert.equal(s(this).calls.filter(i => i.kind === 'assistance').length, 1);
+});
+Then('旧不完整交付应保持历史版本且不应拦截本次明确授权的结果', function (this: SpecWorld) {
+  resilienceReviewRetryGate(); assert.equal(this.h.context().resilience!.frozen, undefined);
+  assert.deepEqual(this.h.context().resilience!.frozenHistory!.at(-1), s(this).frozenBeforeRetry);
+  assert(this.h.context().results.some(result => result.resultId === s(this).resultId && result.consumed));
 });
 When('网页展示原任务的协助操作', function (this: SpecWorld) {
   // Use the real snapshot projection; the waiting task has no work to dispatch.

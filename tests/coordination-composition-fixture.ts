@@ -9,6 +9,7 @@ export interface CompositionDriver {
   apply(action: string): Record<string, number | boolean>;
   properties(): void;
   close(): void;
+  custodyLeaseProbe?(): Record<string, unknown>;
 }
 type Session = Awaited<ReturnType<typeof session>>;
 const identity = (work: Intent) => ({ workId: work.id, attempt: work.attempt, fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
@@ -22,8 +23,18 @@ export async function session(root: string, backend: string, directory: string, 
   const path = join(directory, 'state.sqlite');
   let store = backend === 'sqlite' ? new SqliteStore(path) : new MemoryStore();
   let now = 0, seq = 0, commits = 0;
+  let workspaceLeases = new Map<string, string>();
   const tracked: Store = { read: (roomId: string) => store.read(roomId), close: () => store.close(),
-    transact<T>(roomId: string, fn: (tx: Transaction) => T): T { commits++; return store.transact(roomId, fn); } };
+    transact<T>(roomId: string, fn: (tx: Transaction) => T): T {
+      commits++;
+      const committedLeases = new Map(workspaceLeases);
+      const value = store.transact(roomId, (tx: Transaction) => fn({ ...tx,
+        acquireWorkspace: (key, owner) => { const acquired = tx.acquireWorkspace(key, owner); if (acquired) committedLeases.set(key, owner); return acquired; },
+        releaseWorkspace: (key, owner) => { tx.releaseWorkspace(key, owner); if (committedLeases.get(key) === owner) committedLeases.delete(key); },
+      }));
+      workspaceLeases = committedLeases;
+      return value;
+    } };
   let engine = new TeamEngine(tracked, config, () => now);
   const room = 'composition', task = 'task:start';
   const send = (body: Record<string, unknown>) => engine.send(room, task, { id: `composition:${++seq}`, at: now, ...body } as TaskEvent);
@@ -53,7 +64,7 @@ export async function session(root: string, backend: string, directory: string, 
       reopen(); const before = commits; engine.recover(room);
       assert(commits - before <= 1, 'RecoveryAtomicBoundary: this single-task, no-result, pre-deadline recovery contains at most one committed RECOVER; settled ended tasks are a no-op');
     },
-    engine: () => engine, setNow: (value: number) => { now = value; }, close: () => store.close() };
+    engine: () => engine, workspaceHeld: (key: string) => workspaceLeases.has(key), setNow: (value: number) => { now = value; }, close: () => store.close() };
 }
 
 function sourceFree(s: Session) {
@@ -412,10 +423,12 @@ async function cancelledDiscussion(root: string, variant: string, backend: strin
   const newMembers = () => s.context().intents.filter(work => work.kind === 'assistance' && work.discussionId === newRound()?.id);
   const observe = () => {
     sourceFree(s); const op = oldWork(0).localOperations?.find(item => item.id === operationId);
+    const cleanup = s.context().resilience?.cleanup.find(item => item.operationId === operationId && item.workId === tickets[0]!.id);
     return { work1: ['pending', 'inflight', 'done', 'cancelled', 'uncertain'].indexOf(oldWork(0).status),
       work2: ['pending', 'inflight', 'done', 'cancelled', 'uncertain'].indexOf(oldWork(1).status),
       local: !op ? 0 : ['running', 'cancelling'].includes(op.status) ? 1 : op.status === 'uncertain' ? 2 : op.status === 'succeeded' ? 3 : -1,
       cancelled: s.context().discussion?.id !== oldRound || s.context().discussion?.status === 'cancelled',
+      custody: !cleanup ? 0 : cleanup.state === 'pending' ? 1 : 2, resourceHeld: s.workspaceHeld('workspace:composition-cancel'),
       recoveries, continued, ownerClaimed, newStage, receiptAfterCancel: s.context().trace.some(entry => entry.detail === 'cancel-round')
         && s.context().trace.findIndex(entry => entry.detail === 'trusted-receipt') > s.context().trace.findIndex(entry => entry.detail === 'cancel-round'), primaryBusy: !!primary && s.current(primary.id).status === 'inflight',
       new1: newMembers().some(work => work.target === tickets[0]!.target && work.status === 'inflight'),
@@ -425,6 +438,7 @@ async function cancelledDiscussion(root: string, variant: string, backend: strin
     const o = observe();
     if (o.cancelled && recoveries > 0) {
       assert(o.work2 === 2, 'CancelledRetirement: safe obsolete companion must retire during recovery');
+      assert(!o.primaryBusy, 'CancelledRetirement: the safe original owner must retire during recovery');
       if (o.local === 0 || o.local === 3) assert(o.work1 === 2, 'CancelledRetirement: known obsolete work must retire, never requeue');
       else {
         assert([1, 2].includes(Number(o.local)), 'UnknownMemberRetention: an unconfirmed command cannot be marked settled during recovery');
@@ -435,7 +449,12 @@ async function cancelledDiscussion(root: string, variant: string, backend: strin
     assert.equal(s.context().intents.filter(work => work.kind === 'discussionSummary' && work.discussionId === oldRound).length, 0,
       'NoCancelledHandoff: recovering abandoned work must not create its reducer');
     if (newRound()) assert.deepEqual(newRound()!.targets, tickets.map(work => work.target), 'MemberRelease: both retired members must participate in the next public invitation');
-    assert(!o.new1 && !o.new2 || o.work1 === 2 && o.work2 === 2 && !o.primaryBusy, 'RoundIsolation: new member work must not coexist with unknown old effects');
+    assert(!o.new1 && !o.new2 || (o.work1 === 2 || o.work1 === 4 && o.custody === 1) && o.work2 === 2 && !o.primaryBusy,
+      'RoundIsolation: new content work requires retired old work or independently owned physical custody');
+    assert(![1, 2].includes(Number(o.local)) || o.resourceHeld, 'UnknownResourceCustody: unknown physical effects must retain the actual Store lease');
+    assert(!(o.cancelled && cancellation !== 'goal' && [1, 2].includes(Number(o.local)))
+      || o.custody === 1 && o.work1 === 4 && o.resourceHeld,
+      'CleanupCustody: pending cleanup must retain its uncertain operation and conflict resource');
   };
   const apply = (action: string) => {
     switch (action) {
@@ -466,7 +485,25 @@ async function cancelledDiscussion(root: string, variant: string, backend: strin
     }
     properties(); return observe();
   };
-  return { observe, apply, properties, close: s.close };
+  const custodyLeaseProbe = () => {
+    assert(effect === 'physical' && cancellation !== 'goal', 'Scope: physical stop/end custody only');
+    for (const action of ['Cancel', 'Recover', 'Continue', 'ClaimOwner']) apply(action);
+    const owner = s.find('owner', 'inflight');
+    const pending = s.engine().requestLocal(s.room, s.task, owner.id, owner.attempt,
+      { type: 'runCli', executable: 'node', args: ['--version'] }, [], 'workspace:composition-cancel');
+    const blocked = s.engine().claimLocal(s.room, s.task, owner.id, pending.id, owner.attempt);
+    assert.equal(blocked.response.code, 'WORKSPACE_BUSY', 'UnknownResourceCustody: resumed content must not claim the actual unknown operation resource');
+    assert.equal(blocked.operation?.status, 'queued', 'UnknownResourceCustody: a conflicting physical execution must not be claimed');
+    apply('KnownReceipt');
+    const released = s.engine().claimLocal(s.room, s.task, owner.id, pending.id, owner.attempt);
+    assert(released.response.ok && released.operation?.status === 'claimed',
+      'KnownReceiptRetirement: the original known receipt must release the actual resource for a new claim');
+    return { name: 'cleanup-content-resource-conflict', backend, variant, verified: true,
+      contentClaimedBeforeReceipt: true, conflictingClaimBeforeReceipt: blocked.response.code,
+      claimAfterTrustedReceipt: released.response.ok, physicalCommandsSpawned: 0 };
+  };
+  return { observe, apply, properties, close: s.close,
+    ...(effect === 'physical' && cancellation !== 'goal' ? { custodyLeaseProbe } : {}) };
 }
 
 export interface CompositionScenarioResult {

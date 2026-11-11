@@ -60,5 +60,5 @@ export function toolFailureProblem(c: TaskContext, e: Failure): string | null {
 
 export function recordToolFailure(c: TaskContext, e: Failure): void {
   const work = c.intents.find(item => item.id === e.intentId)!;
-  (work.toolRecovery ??= { failures: [] }).failures.push({ requestId: e.requestId, tool: e.tool, code: e.code, attempt: work.attempt });
+  (work.toolRecovery ??= { failures: [] }).failures.push({ requestId: e.requestId, tool: e.tool, code: e.code, attempt: work.attempt, at: e.at });
 }

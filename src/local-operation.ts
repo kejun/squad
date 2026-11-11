@@ -3,6 +3,7 @@ import { hostSessionMatches } from './host-session.js';
 import { evidenceSource, type EvidenceStream } from './task/evidence.js';
 import { verificationActionProblem } from './task/verification.js';
 import { repeatedCliFailures } from './cli-failure.js';
+import type { ResourceLease } from './local-resource-policy.js';
 /** Persisted child-operation contract. This module has no filesystem, process or network I/O. */
 import { localEnabled, type Intent, type TaskContext, type TaskEvent, type TeamConfig } from './types.js';
 export { localEnabled } from './types.js';
@@ -33,6 +34,7 @@ export interface LocalOperation {
   status: 'queued' | 'claimed' | 'awaitingApproval' | 'running' | 'succeeded' | 'failed' | 'cancelling' | 'cancelled' | 'uncertain';
   parentAttempt: number; attempt: number; sessionId?: string;
   workspaceId?: string; workspaceRevision?: string; isolated?: boolean;
+  conflictKey?: string; resourceLeases?: ResourceLease[]; preparedAt?: number;
   createdAt: number; startedAt?: number; finishedAt?: number;
   result?: LocalToolResult;
   approval?: HostApproval;
@@ -45,7 +47,7 @@ export interface LocalOperation {
   forceManualApproval?: boolean;
 }
 export type LocalEvent =
-  | { type: 'LOCAL_REQUEST'; intentId: string; operationId: string; namespace: string; requestHash: string; action: LocalAction; parentAttempt: number; messages: LocalMessage[]; workspaceId?: string }
+  | { type: 'LOCAL_REQUEST'; intentId: string; operationId: string; namespace: string; requestHash: string; action: LocalAction; parentAttempt: number; messages: LocalMessage[]; workspaceId?: string; conflictKey?: string; resourceLeases?: ResourceLease[] }
   | { type: 'LOCAL_REJECTED'; intentId: string; operationId: string; parentAttempt: number; result: LocalToolResult }
   | { type: 'LOCAL_CLAIM'; intentId: string; operationId: string; parentAttempt: number; sessionId: string; leaseAvailable: boolean }
   | { type: 'LOCAL_APPROVAL_REQUIRED'; intentId: string; operationId: string; sessionId: string; approval: HostApproval }
@@ -53,6 +55,7 @@ export type LocalEvent =
   | { type: 'LOCAL_RETRY_EXPIRED'; intentId: string; operationId: string }
   | { type: 'LOCAL_APPROVAL_EXPIRED'; intentId: string; operationId: string }
   | { type: 'LOCAL_STARTED'; intentId: string; operationId: string; sessionId: string; workspaceRevision?: string; isolated?: boolean }
+  | { type: 'LOCAL_PREPARED'; intentId: string; operationId: string; sessionId: string; workspaceRevision?: string; isolated?: boolean }
   | { type: 'LOCAL_RESULT'; intentId: string; operationId: string; sessionId: string; result: LocalToolResult; settled: boolean; effectsKnown: boolean }
   | { type: 'LOCAL_RECONCILE'; intentId: string; operationId: string; sessionId: string; resolution: 'notStarted' | 'receipt'; result?: LocalToolResult; detail: string };
 
@@ -84,6 +87,22 @@ export function validLocalAction(value: unknown): value is LocalAction {
 export const localAwaitingApproval = (work: Intent) => work.localOperations?.some(op => op.status === 'awaitingApproval') ?? false;
 export const localUnsettled = (work: Intent) => localAwaitingApproval(work) || (work.localOperations?.some(op => ['queued', 'claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false);
 export const localPhysicalPending = (work: Intent) => work.localOperations?.some(op => ['claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false;
+export function heldLocalResourceLeases(op: LocalOperation): ResourceLease[] {
+  return op.resourceLeases?.filter(lease => lease.phase === 'execute' || op.preparedAt === undefined)
+    ?? (op.workspaceId ? [{ key: op.workspaceId, mode: 'write', phase: 'execute' }] : []);
+}
+function resourcePlanProblem(event: Extract<LocalEvent, { type: 'LOCAL_REQUEST' }>): string | null {
+  if (event.resourceLeases === undefined && event.conflictKey === undefined) return null;
+  if (!['runCli', 'verifyWorkspace'].includes(event.action.type) || !event.workspaceId || !event.conflictKey?.trim()
+    || !Array.isArray(event.resourceLeases) || !event.resourceLeases.length) return 'INVALID_LOCAL_RESOURCES';
+  if (!event.resourceLeases.every(lease => lease && typeof lease.key === 'string' && !!lease.key.trim() && lease.key.length <= 4096
+    && !lease.key.includes('\0') && ['read', 'write'].includes(lease.mode) && ['prepare', 'execute'].includes(lease.phase))
+    || new Set(event.resourceLeases.map(lease => `${lease.key}:${lease.phase}`)).size !== event.resourceLeases.length
+    || !event.resourceLeases.some(lease => lease.key === event.conflictKey && lease.phase === 'execute')) return 'INVALID_LOCAL_RESOURCES';
+  if (event.resourceLeases.some(lease => lease.phase === 'prepare')
+    && (event.action.type !== 'runCli' || event.action.execution === 'host')) return 'INVALID_LOCAL_RESOURCES';
+  return null;
+}
 export function hostRetryMemberAllowed(config: TeamConfig, source: Intent): boolean {
   return (source.kind === 'facilitator' || source.kind === 'check' || config.bots.some(bot => bot.id === source.target))
     && localEnabled(config, source.target);
@@ -133,6 +152,7 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
       if (isSavedRead(event.action) && event.workspaceId !== undefined) return 'INVALID_LOCAL_REQUEST';
       if (event.action.type === 'verifyWorkspace' && work.kind !== 'check') return 'WORKSPACE_VALIDATION_NOT_ALLOWED';
       if (['runCli', 'verifyWorkspace'].includes(event.action.type) && !event.workspaceId) return 'WORKSPACE_REQUIRED';
+      if (resourcePlanProblem(event)) return resourcePlanProblem(event);
       return verificationActionProblem(work, event.action, event.workspaceId);
     case 'LOCAL_REJECTED':
       return op?.status === 'queued' && op.parentAttempt === event.parentAttempt && event.result?.ok === false ? null : 'LOCAL_NOT_QUEUED';
@@ -166,6 +186,16 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
       return null;
     }
     case 'LOCAL_APPROVAL_DECISION': {
+      // An expired execution token cannot approve execution. A precise refusal may still
+      // answer its durable, unresolved permission question when no process ever started.
+      const pendingGate = c.resilience?.gates.find(gate => gate.scope === 'task' && gate.kind === 'authorization'
+        && gate.status === 'open' && gate.epoch === c.epoch && gate.goalVersion === c.goalVersion
+        && gate.workId === work.id && gate.operationId === op?.id
+        && (gate as typeof gate & { approvalId?: string }).approvalId === event.approvalId);
+      if (event.decision === 'deny' && pendingGate && !c.stopped && c.outcome === null
+        && work.epoch === c.epoch && work.goalVersion === c.goalVersion && e.fence?.epoch === work.epoch && e.fence.goalVersion === work.goalVersion
+        && op?.startedAt === undefined && ['awaitingApproval', 'failed', 'cancelled'].includes(op?.status ?? '')
+        && op?.approval?.id === event.approvalId && ['pending', 'expired'].includes(op.approval.status)) return null;
       const problem = localParentProblem(c, work.status === 'pending' ? { ...work, status: 'inflight' } : work, e.at);
       if (problem) return problem;
       if (c.outcome !== null || !e.fence || e.fence.epoch !== work.epoch || e.fence.goalVersion !== work.goalVersion) return 'STALE_FENCE';
@@ -178,8 +208,17 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
       return op?.approval && ['awaitingApproval', 'queued'].includes(op.status) && e.at >= op.approval.expiresAt ? null : 'HOST_APPROVAL_NOT_EXPIRED';
     case 'LOCAL_RETRY_EXPIRED':
       return op?.deadline !== undefined && e.at >= op.deadline && ['queued', 'awaitingApproval'].includes(op.status) && op.startedAt === undefined ? null : 'HOST_RETRY_NOT_EXPIRED';
+    case 'LOCAL_PREPARED': {
+      const problem = localParentProblem(c, work, e.at);
+      if (problem) return problem;
+      if (!op || op.status !== 'claimed' || op.sessionId !== event.sessionId || op.startedAt !== undefined) return 'LOCAL_SESSION_MISMATCH';
+      if (!op.resourceLeases?.some(lease => lease.phase === 'prepare') || op.preparedAt !== undefined) return 'LOCAL_PREPARATION_NOT_EXPECTED';
+      if (event.workspaceRevision !== undefined && !/^[a-f0-9]{64}$/.test(event.workspaceRevision)) return 'INVALID_WORKSPACE_REVISION';
+      return null;
+    }
     case 'LOCAL_STARTED':
       if (!op || op.sessionId !== event.sessionId || !['claimed', 'cancelling'].includes(op.status)) return 'LOCAL_SESSION_MISMATCH';
+      if (op.resourceLeases?.some(lease => lease.phase === 'prepare') && op.preparedAt === undefined) return 'LOCAL_PREPARATION_REQUIRED';
       if (op.action.type === 'runCli' && op.action.execution === 'host' && op.approval?.status !== 'approved') return 'HOST_APPROVAL_REQUIRED';
       if (op.approval?.sessionGrantId && (op.approval.sessionGrantId !== c.hostSession?.id || !hostSessionMatches(c, work, op, op.approval))) return 'HOST_APPROVAL_REQUIRED';
       if (op.deadline !== undefined || op.action.type === 'runCli' && op.action.execution === 'host') {
@@ -229,7 +268,8 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
     case 'LOCAL_REQUEST':
       work.localSkills = [...(work.localSkills ?? []).filter(s => !c.localSkillVersions?.some(p => p.skillId === s.skillId)), ...(c.localSkillVersions ?? [])];
       op = { id: e.operationId, namespace: e.namespace, requestHash: e.requestHash, action: e.action, status: 'queued', parentAttempt: work.attempt, attempt: 0, createdAt: e.at,
-        ...(e.workspaceId ? { workspaceId: e.workspaceId } : {}) };
+        ...(e.workspaceId ? { workspaceId: e.workspaceId } : {}), ...(e.conflictKey ? { conflictKey: e.conflictKey } : {}),
+        ...(e.resourceLeases ? { resourceLeases: structuredClone(e.resourceLeases) } : {}) };
       (work.localOperations ??= []).push(op);
       work.localCheckpoint = { messages: e.messages, nextOperation: (work.localCheckpoint?.nextOperation ?? 0) + 1, pendingOperationId: op.id };
       break;
@@ -242,6 +282,7 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
         if (op!.hostRetryRequestId) op!.executionCharged = true;
       }
       op!.status = 'claimed'; op!.sessionId = e.sessionId; op!.parentAttempt = work.attempt; op!.attempt++;
+      delete op!.preparedAt;
       break;
     case 'LOCAL_APPROVAL_REQUIRED':
       op!.approval = structuredClone(e.approval); op!.status = 'awaitingApproval';
@@ -267,6 +308,11 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
     case 'LOCAL_RETRY_EXPIRED':
       if (op!.approval) op!.approval.status = 'expired';
       finishOperation(work, op!, { ok: false, code: 'WORK_EXPIRED', data: {} }, e.at);
+      break;
+    case 'LOCAL_PREPARED':
+      op!.preparedAt = e.at;
+      if (e.workspaceRevision !== undefined) op!.workspaceRevision = e.workspaceRevision;
+      if (e.isolated !== undefined) op!.isolated = e.isolated;
       break;
     case 'LOCAL_STARTED':
       if (op!.status !== 'cancelling') op!.status = 'running';

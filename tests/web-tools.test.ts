@@ -18,6 +18,7 @@ describe('Cloudflare SDK web tools', () => {
   });
   it('[BT_W05] bounds automatic transient retries through the existing task budget', async () => {
     const h = new Harness(configuration({ retries: 1 })); const f = webFixture(); f.state.searchStatus = 503;
+    f.state.errorCode = 'web_search_unavailable';
     const runner = new WorkRunner(h.engine, { execute: async (_work, sig, scope) => { await scope.webSearch({ query: 'SDK' }, sig); return answer; } }, () => 0, undefined, f.tools);
     for (let n = 0; n < 10 && await runner.runOne(h.room, h.task); n++);
     expect(f.calls).toHaveLength(2); expect(h.context().usage.ordinary).toBe(4);

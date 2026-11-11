@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import { Given, When, Then } from '@cucumber/cucumber';
+import { configurationRecoveryModel, configurationResponseGate, configurationSkipGate, configurationCleanupWakeGate } from '../configuration-recovery-model-fixture.js';
+import { configurationEngineAcceptance } from '../configuration-recovery-acceptance.js';
+import { taskHumanGate, processingWindow } from '../../src/task/resilience.js';
+import type { ResilienceModel } from '../task-resilience-model-fixture.js';
+interface State { model: ResilienceModel; materials?: string; deadline: number; response?: string; io?: ReturnType<typeof configurationEngineAcceptance> }
+const states = new WeakMap<object, State>();
+const state = (world: object) => { const s = states.get(world); assert(s); return s; };
+Given('原任务的工具协议与当前宿主不兼容', function () { const model = configurationRecoveryModel(); states.set(this, { model, deadline: processingWindow(model.c).hardDeadline }); });
+Given('不兼容恢复门打开且任务{string}', function (materials: string) { const model = configurationRecoveryModel(materials !== '没有可用成果', materials.includes('未知操作')); states.set(this, { model, materials, deadline: processingWindow(model.c).hardDeadline }); });
+Given('不兼容恢复门与未知操作的清理责任同时存在', function () { const model = configurationRecoveryModel(true, true); model.supervise(); assert(model.c.resilience!.cleanup.some(item => item.state === 'pending')); states.set(this, { model, deadline: processingWindow(model.c).hardDeadline }); });
+When('恢复后收到{string}', function (response: string) { const s = state(this); s.response = response; configurationResponseGate(response, s.model); s.io = configurationEngineAcceptance(response); });
+When('人类明确跳过该不兼容任务的剩余业务', function () { const s = state(this); assert(s.materials); configurationSkipGate(s.materials, s.model); s.io = configurationEngineAcceptance(undefined, s.materials); });
+When('监督器重复检查尚未答复的人类门', function () { const s = state(this); configurationCleanupWakeGate(s.model); s.io = configurationEngineAcceptance(undefined, '已保存成果并有未知操作', true); });
+Then('不兼容恢复门应保持打开且不得出现没有工作路径的running', function () { const s = state(this); assert.equal(s.model.phase, 'waitingHuman'); assert(taskHumanGate(s.model.c)); assert(s.io!.every(row => row.phase === 'waitingHuman')); });
+Then('当前门只应提供跳过剩余业务与停止', function () { assert.deepEqual(taskHumanGate(state(this).model.c)!.decisions, ['skip', 'stop']); });
+Then('应按保存材料生成固定partial或failed并记录跳过范围', function () { const s = state(this); assert.equal(s.model.phase, 'ended'); assert(s.model.c.resilience!.frozen!.skippedIds.length); assert(s.io!.every(row => ['partial', 'failed'].includes(row.outcome!))); });
+Then('原未知物理效果仍应由独立清理继续核对', function () { const s = state(this); if (s.materials!.includes('未知操作')) { assert(s.model.c.resilience!.cleanup.some(item => item.state === 'pending')); assert(s.io!.every(row => row.cleanup > 0)); } });
+Then('人类门和原自动窗口应保持不变', function () { const s = state(this); assert(taskHumanGate(s.model.c)); assert.equal(processingWindow(s.model.c).hardDeadline, s.deadline); });
+Then('独立清理应保持有限下次检查时间且不得释放未知资源', function () { const s = state(this); assert(s.model.c.resilience!.nextSupervisionAt! > s.model.at); assert(s.model.c.resilience!.cleanup.some(item => item.state === 'pending')); assert(s.io!.every(row => row.cleanup > 0)); });

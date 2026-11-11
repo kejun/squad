@@ -117,3 +117,129 @@ stateDiagram-v2
 ```
 
 此图是本地操作上下文生命周期的资源视角；真实XState状态仍由local-operation/taskMachine持有，Engine事务负责全局读写冲突，Runtime负责真实准备回调。纯门槛先使用真实taskMachine验证策略输入和领取拒绝/允许；之后由Engine/SQLite读写集合及实际副本准备接线验收，不把可用的无沙箱测试后端当OS隔离证明。
+
+迁移边界补充（R26，BT_Y53）：旧workspace_leases没有可信隔离或访问模式声明，任何仍由其他owner持有的旧租约都按未知全局写屏障处理。新policy请求global读/写时不得越过该屏障；旧领取遇新global读/写也必须等待。该限制在原操作可信结算后解除，不按租约年龄假定安全。
+
+BT_Y56补充队列派发守卫：可用成员总数可在恢复后增加，固定并发空位不表示只检查名单前N名。纯动作依次查找满足分片方法权限的成员，成功派发才消耗空位；无合适成员不产生重复的always转换。该转移仍是上文queued→running的「成员可用且前提可用」守卫，无新增业务状态。
+
+## 本模块实施与验证记录
+
+按场景、细图、纯状态模型门槛、具体接线的顺序实施。调度模型从最初39条扩展为48条，包含24种响应顺序、可信共同故障、无关来源推进、原成功片保留、最小补做、原期限/预算/停止/目标/权限/unknown、typed document/file完整身份及未映射、同版本故障失效、尚未交最终answer的即时操作失败、恢复后后位合法成员选择。每个公开事件均通过真实taskMachine并persist/restore。
+
+R26纯门槛11条同时覆盖实际描述符、读写冲突、同copy互斥、unknown/host边界、读读并行、多资源原子拒绝、legacy跨workspace全局屏障、真实LOCAL_PREPARED会话/重复/STOP/期限/另一owner保护。legacy跨workspace负对照先观察错误放行，再加入保守屏障复验通过。
+
+模型门槛后，新增SQLite/Engine接线验证实际资源事务：不同副本同源读同时领取；错误准备回执不释放；仅一份准备完成仍挡源写；两份均完成后源写可领取而同copy仍互斥；最终回执逐资源释放。两次SQLite关闭重开后unknown执行保护仍在，独立副本可以继续。Memory与SQLite均验证多资源原子拒绝不残留先占、另一owner不能释放、同key双phase只释放prepare、legacy新旧双向屏障。子操作回执受控；不将此层声明为OS沙箱证明，实际backend准备/进程接线由本地Runtime验收承接。
+
+旧BT_L109的模型与接线夹具已迁移为宿主配置reader、真实Node输出正文、可信获取凭证及已注册domain范围；不再用exitCode=0当正文成功。真实Runner、SQLite和Node两次独立读取仍验证共享参数脱敏、不共享原正文、不替代目标执行凭证。
+
+```sh
+env -u MODEL_API_KEY node --import tsx tests/partition-resilience-model-fixture.ts
+env -u MODEL_API_KEY node --import tsx tests/local-resource-policy-model-fixture.ts
+env -u MODEL_API_KEY node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js \
+  features/46_shared_tool_knowledge.feature features/57_partition_resilience.feature \
+  --import 'tests/bdd/*.ts' --format progress
+```
+
+当前并行工作树以上命令分别退出0：48条调度路径、11条资源策略路径、37个直接执行场景/2101步骤通过。对应模块与受测依赖摘要记录在 `work/kej-113-scheduling-evidence.json`。新场景BT_Y41–Y56全部默认参与执行，无新增排除或空步骤。宽回归首次104场景中有5项废弃safe讨论恢复保护失败，已交核心恢复所有者核对；不通过放宽断言掩盖，最终整体复验由主分支汇总记录。
+
+## R02 分片结果的资源事实门禁
+
+BT_Y57–Y59补充最终交付前的分片入口。中文场景和此细图先于生产修改；普通无资源推理沿用既有成功结算，不一律要求CLI。
+
+- 对明确资源获取义务，`recordMapResult`复用资源模块 `requiredResources/missingResourceAcquisitions` 的唯一来源判据，包含宿主稳定partitionId映射。缺口非空时可信part/result状态为partial，保留reportedStatus=原success、原answer及missingResources，标记RESOURCE_ACQUISITION_UNVERIFIED；不接受模型HTTP状态/字符数自述为凭证。
+- 缺口已被真实匹配saved源满足时允许复用同goal来源；引用原HostAcquisition身份、原work/attempt/at，显式标reused，不把复用说成当前成员又抓取。current源要求当前epoch及本work；同work安全模型重试仍沿用原始获取attempt与at，不重标采集。
+- 新方法补齐partial仍由原R25队列逻辑安排，保留原自报/缺口历史；期限、预算、权限和未知效果约束不变。
+
+```mermaid
+flowchart TD
+    R[成员分片结果] --> O{明确资源读取义务}
+    O -->|无| N[沿用普通推理结果契约]
+    O -->|有| E{宿主可信来源完整且身份适用}
+    E -->|缺口| P[可信partial 保留reportedStatus和answer 列出资源缺口]
+    E -->|满足| S[成功结算 绑定原始获取来源并标明复用]
+    P -->|新方法可用且原期限额度允许| Q[追加有界分片补做 保留历史]
+```
+
+该图为 `src/task/map-queue.ts` 的上下文结果接收流程，真实taskMachine的DISCUSSION_RESULT/WORK_FAILED仍持有转换；验收BT_Y57–Y59。未知物理效果在入口前继续受localUnsettled守卫保护，不通过partial降级释放外部效果。模型门槛须先观察当前无凭success被错误接受的红灯，再实现；模型通过后追加真实Engine/SQLite接线，不只在最终DELIVER/CHECK_RESULT挡complete。
+
+## R02 负责人恢复声明的逐片来源绑定
+
+BT_Y60细化同一R02，不新增读取义务。EARS R02-MR：当负责人声明恢复一个具有明确资源获取义务的失败分片时，系统应仅在该声明的sourceOperationIds集合中存在覆盖该片每项义务的合法HostAcquisition时允许独立核验；如果真实资源仅由未指定操作取得，则系统应保留原始失败并报告MAP_RECOVERY_RESOURCE_UNVERIFIED。核查结论：资源身份与freshness复用资源模块；全任务满足获取义务不能证明指定echo命令取得了正文；没有资源义务的历史推理分片保留原恢复契约。
+
+```mermaid
+flowchart TD
+    D[DELIVER/CHECK_RESULT的逐片恢复声明] --> F{指定操作属于当前冻结完整成功证据}
+    F -->|否| U[拒绝恢复 保留原失败和未发布候选]
+    F -->|是| R{原分片具有明确资源义务}
+    R -->|无| C[沿用原指定来源独立核验契约]
+    R -->|有| A{仅在指定操作集合中按原来源身份校验每项资源}
+    A -->|缺口| U
+    A -->|全部满足| C
+    C -->|独立核验通过且其余义务完成| P[绑定候选版本的resolution 原失败历史不改]
+```
+
+此图是 `src/task/map-recovery.ts` 的上下文处理流程，真实taskMachine仍持有DELIVER/CHECK_RESULT，未增加顶层状态。资源模块先过滤声明操作集合，再复用完整哈希、当前goal、原work/attempt/epoch及freshness判据；只读查询可附原partition定义，不得重标真实来源身份。停止、旧目标、旧epoch、未冻结来源、截断来源及未知效果继续沿用原拒绝边界。模型门槛先重放「opX真实读取、opY只echo、声明Y却complete」负例，再通过公开Engine/SQLite与真实Node命令验证实际接线。
+
+补充实施记录：上述负例在旧真实taskMachine中未产生拒绝，独立check甚至可以引用foo使原分片complete；修复后11条来源绑定路径通过，包括URL/document/file正反例、current原sourceWork、多资源来源集合缺一项与完整覆盖，以及不同work操作ID重名时冻结sourceWork优先。来源只能属于对应冻结证据的sourceWorkId/sourceOperationId，不能靠另一个同名操作替证。原无资源恢复模型23条继续通过。
+
+资源结果门禁6条、调度48条、资源租约11条均复验通过；三类资源各经真实Engine/SQLite关闭重开两次仍保留拒绝和原HostAcquisition。真实Runner与Node先由操作X读取八份文档，再由操作Y完整成功echo foo；声明Y被拒绝，0次check、0条resolution，7条原失败不变。未将受控backend验收扩大为OS隔离证明。
+
+```sh
+env -u MODEL_API_KEY node --import tsx tests/partition-evidence-model-fixture.ts
+env -u MODEL_API_KEY node --import tsx tests/map-recovery-source-model-fixture.ts
+env -u MODEL_API_KEY node --import tsx tests/map-recovery-model-fixture.ts
+env -u MODEL_API_KEY node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js \
+  features/26_map_reduce.feature features/46_shared_tool_knowledge.feature \
+  features/47_task_efficiency.feature features/52_map_recovery.feature \
+  features/57_partition_resilience.feature --import 'tests/bdd/*.ts' --format progress
+```
+
+本工作树宽回归136场景/7953步骤全通过；冻结sourceWork细化后定向52+57再跑61场景/3574步骤全通过。产品与测试TypeScript均通过。以上为模块实施与实际接线证据，不替代主分支整体冻结后的验证记录。新BT_Y41–Y60全部默认参与直接执行，无新增排除或空步骤。
+
+## R02 网页来源的恢复入口
+
+BT_Y112与资源凭证BT_E127共同约束统一入口。EARS R02-WEB：当负责人通过网页工具取得与原分片明确资源义务匹配的完整宿主可信获取凭证，并使用工具回传的canonical sourceRef声明恢复时，系统应允许该冻结网页来源进入独立核验；如果来源未核实、不完整、身份错配、旧版本或冻结后改变，则系统应拒绝恢复并保留原失败。CLI来源仍要求成功退出，Web来源不虚构CLI退出码。核查结论：Web与CLI复用同一资源凭证契约；扩大的是既有可信来源入口，不扩大读取权限或忽略资源义务。
+
+```mermaid
+flowchart TD
+    W[可信网页读取完成] --> H[宿主保存HostAcquisition与canonical sourceRef]
+    H --> M[工具JSON向模型返回sourceRef 不暴露宿主内部身份推断]
+    M --> D[DELIVER恢复声明指定sourceRef]
+    D --> F{完整冻结来源身份匹配}
+    F -->|CLI且成功退出| R{声明集合覆盖原片全部资源义务}
+    F -->|Web且完整可信HostAcquisition| R
+    F -->|未验证或不完整或冻结变更| U[拒绝恢复 保留原失败]
+    R -->|缺口| U
+    R -->|满足| C[独立检查原目标与指定原文引用]
+    C -->|全部通过且剩余义务完成| P[绑定候选resolution 保留历史与原采集身份]
+```
+
+此图为map-recovery上下文流程，源码所有者 `src/task/map-recovery.ts`；工具引用保存与回传由资源/evidence/Runner所有者接线。`sourceRef`对应冻结DeliveryEvidenceSource.id；Web原operationId另保留真实请求ID，不能把虚拟证据ID当成新执行或把HostAcquisition改贴到owner。模型门槛先验证完整Web目前被CLI-only守卫错误拒绝，再对停止、目标/epoch、无可信验证器、资源错配、不完整及冻结后变化作负对照。模型通过后使用真实Runner/适配器、SQLite和真实本地HTTP正文服务，模型回放只能从工具JSON取sourceRef，不得读取Engine内部生成声明ID。
+
+最终工具字段为 `web_fetch_result.hostEvidence.evidenceId`，另有acquisitionId、原请求sourceOperationId和status；partitionRecoveries与check引用都复制canonical evidenceId。Web机械守卫还逐项匹配冻结sourceWorkId、原sourceOperationId、requestHash、contentHash与完整content；CLI仍额外要求exitCode=0。首次完整Web轨迹不能生成check，修复后9条真实状态模型路径通过；既有来源绑定11条及旧恢复23条继续提供原来源与版本边界。
+
+```sh
+env -u MODEL_API_KEY node --import tsx tests/map-recovery-web-model-fixture.ts
+env -u MODEL_API_KEY node --import tsx tests/map-recovery-web-acceptance.ts
+env -u MODEL_API_KEY node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js \
+  features/52_map_recovery.feature features/57_partition_resilience.feature \
+  --import 'tests/bdd/*.ts' --format progress
+```
+
+最后接线结果：2份真实本地HTTP正文、0条CLI操作，owner仅从工具JSON复制证据引用；SQLite重开后原文不重读，独立check一次完成2片resolution，2条失败历史保留。指定第一份网页来源冒充第二片时保留partial、0check/0resolution。定向52+57共62场景/3633步骤通过，产品与tests TypeScript通过。该层证明真实接线与原引用可用，不证明公共DNS、真实账号登录或真实供应商模型的内容判断。
+
+### R25 网页认证观察的时序约束
+
+BT_Y50补齐原R25同版本失效契约：当当前目标/epoch中、同一配置的宿主可信Web观察在已验证方法之后报告authentication_required时，系统应立即使该来源域的旧方法失效，不等待模型最终answer；仅故障后新的匹配正文凭证可开启有界新generation。原HostAcquisition的work/requestID/at保留。未验证unknown、旧配置、旧目标/epoch或快照失效观察不能被升级为共同认证故障。
+
+此变更细化前文methodVerified→methodUnavailable的「可信同域失败」守卫，不新增业务状态。failureFacts从同一savedAcquisitions来源查询可信Web诊断，按已保存原请求身份与原观察时间分组；两片同域真实认证故障才形成共同前提，旧成功和model prose均不能替代新正文。纯状态门槛首先观察「acquired at6→同配置Login authentication_required at8，旧method仍1条」的红轨迹，再复验新正文generation与真实HTTP返回登录页的Runner接线。
+
+```sh
+env -u MODEL_API_KEY node --import tsx tests/partition-web-auth-model-fixture.ts
+env -u MODEL_API_KEY node --import tsx tests/partition-web-auth-acceptance.ts
+env -u MODEL_API_KEY node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js \
+  features/46_shared_tool_knowledge.feature features/52_map_recovery.feature \
+  features/57_partition_resilience.feature --import 'tests/bdd/*.ts' --format progress
+```
+
+4条纯状态路径通过：即时失效/停止共享与旧补做、故障后一次generation及恢复不重放、两片共同Web认证失败，以及旧配置和unknown负对照。实际本地HTTP200依次返回正文、Login、新正文，SDK/Runner/适配器/SQLite观察到methodCounts=[1,0,1]，原采集时间110/120/130和请求身份保留，0条CLI，SQLite重开不再发请求。最终46+52+57共70场景/4099步骤通过，调度48条与Web恢复9条模型复验通过，产品与tests TypeScript通过；所属生产代码至此冻结。

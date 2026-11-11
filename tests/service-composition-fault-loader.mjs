@@ -26,7 +26,9 @@ registerHooks({ load(url, context, nextLoad) {
     if (mode === 'drop-recovery-close') source = change(source, '          if (this.closing) return;\n          const reconciliation', '          const reconciliation');
     if (mode === 'drop-execution-close') source = change(source, 'this.closing ? false : this.runner(roomId).runOne(roomId, taskId, work.id)', 'this.runner(roomId).runOne(roomId, taskId, work.id)');
     if (mode === 'drop-pump-dedupe') source = change(source, 'if (this.running.has(key)) continue;', 'if (false) continue;');
-    if (mode === 'drop-room-failstop') source = change(source, 'this.failedRooms.has(roomId)', 'false');
+    if (mode === 'drop-room-failstop') source = change(source,
+      'this.closing || !this.initialized || this.failedRooms.has(roomId) ||',
+      'this.closing || !this.initialized || false ||');
   }
   if (path.endsWith('/src/engine.ts') && mode === 'drop-instance-failstop') source = change(source,
     "if (this.storageFault) throw new Error('Storage fault: reopen engine before dispatching more work');", 'if (false) throw new Error("disabled storage fail-stop");');

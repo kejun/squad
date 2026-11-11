@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
 import { DebugUIFixture } from './task-debug-ui-fixture.js';
+import { chartEdges } from '../src/task-chart.js';
+import { taskGraph } from '../src/task-structure.js';
 
 let ui: DebugUIFixture | undefined;
 afterEach(async () => { await ui?.close(); ui = undefined; });
@@ -17,14 +19,17 @@ describe('statechart interactions', () => {
   it('[BT_V32] opens every aggregated branch by keyboard and selects a later automatic condition', async () => {
     const fixture = await openGraph();
 
-    await activateGraphControl(fixture, '执行中 到 协调中 的5条规则', ' ');
+    const branches = chartEdges(taskGraph()).find(edge => edge.source === 'running' && edge.target === 'coordinating')!.rules;
+    const laterAutomaticRule = branches.find(rule => rule.event === '@always' && rule.guards.includes('deferredReady'))!;
+    expect(laterAutomaticRule).toBeDefined();
+    expect(branches.indexOf(laterAutomaticRule)).toBeGreaterThan(0);
+    await activateGraphControl(fixture, `执行中 到 协调中 的${branches.length}条规则`, ' ');
 
     expect([...document.querySelectorAll('[aria-label="连线分支"] button[aria-label^="查看规则 "]')].map(node => node.getAttribute('aria-label'))).toEqual([
-      '查看规则 running:BLOCKED:1', '查看规则 running:TICK:0', '查看规则 running:FAILURE_SIGNAL:0',
-      '查看规则 running:@always:1', '查看规则 running:@always:2',
+      ...branches.map(rule => '查看规则 ' + rule.id),
     ]);
     expect(document.querySelector('[aria-label="规则详情"]')).toBeNull();
-    await fixture.click('查看规则 running:@always:2');
+    await fixture.click('查看规则 ' + laterAutomaticRule.id);
     expect(document.querySelector('[aria-label="规则详情"]')!.textContent).toContain('deferredReady');
     expect(fixture.phase).toBe('running');
     expect(fixture.requests).toEqual([]);

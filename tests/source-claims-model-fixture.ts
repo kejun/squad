@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { persistTask, restoreTask } from '../src/task.machine.js';
 import { LocalModel } from './local-model-fixture.js';
+import { observeResourceAcquisition, operationAcquisitionSnapshot } from '../src/resource-acquisition.js';
 
 const currentDocument = { data: { id: 'doc-4', slug: 'four', body: '进行中，等待评审。' } };
 const documents = { data: [{ id: 'doc-4', slug: 'four', body: '待开始，尚未安排执行。' }, { id: 'doc-5', body: '进行中，等待评审。' }] };
@@ -15,6 +16,20 @@ export function sourceClaimsModel(source = '同文档') {
     data: { stdout, exitCode: source === '失败回执' ? 1 : 0, truncated: source === '截断正文',
       capturedEvidence: { stdout: { capturedContentHash: createHash('sha256').update(stdout).digest('hex'),
         bytes: Buffer.byteLength(stdout), chars: Array.from(stdout).length } } } } }).ok);
+  if (!['失败回执', '截断正文', '非JSON正文', '文档标识重复'].includes(source)) {
+    const parsed = JSON.parse(stdout).data as { id: string; body: string } | { id: string; body: string }[];
+    const docs = Array.isArray(parsed) ? parsed : [parsed];
+    for (const doc of docs) {
+      const op = m.op!, resource = { kind: 'document' as const, service: 'fixture-documents', namespace: 'source-claims', id: doc.id };
+      const receipt = observeResourceAcquisition({ id: `${op.id}:${doc.id}`, operationId: op.id, taskId: m.c.taskId,
+        workId: m.work.id, attempt: m.work.attempt, epoch: m.work.epoch, goalVersion: m.work.goalVersion,
+        source: 'runCli', requestHash: op.requestHash, requestedResource: resource, resource, content: doc.body,
+        contentHash: createHash('sha256').update(doc.body).digest('hex'), complete: true,
+        verifier: { id: 'source-claims-host-fixture', version: '1' }, executionSucceeded: true,
+        sourceSnapshot: operationAcquisitionSnapshot(op), at: m.at });
+      assert(m.send({ type: 'RECORD_ACQUISITION', intentId: m.work.id, receipt, fence: m.work, attempt: m.work.attempt }).ok);
+    }
+  }
   if (source === '旧目标') {
     m.c.intents.push({ ...structuredClone(m.c.intents[0]!), id: 'old-source', goalVersion: 0, status: 'done' });
     m.c.intents[0]!.localOperations = [];
@@ -87,6 +102,6 @@ export function verifySourceClaimsModel() {
   valid.m.snapshot = restoreTask(saved);
   assert.equal(valid.m.c.candidate?.revision, saved.context.candidate.revision);
   const successor = sourceReportRevision(); submitUnboundSuccessor(successor); assertSourceGate(successor, 'SOURCE_ITEMS_REQUIRED');
-  return { paths: 11, model: 'taskMachine', baseline: 'origin/main 942dfe4' };
+  return { paths: 11, model: 'taskMachine', baseline: 'KEJ-113 host acquisition receipts' };
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) console.log(JSON.stringify(verifySourceClaimsModel()));

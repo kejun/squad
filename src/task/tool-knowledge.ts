@@ -1,5 +1,7 @@
 import { localEnabled, type Intent, type TaskContext } from '../types.js';
 import type { LocalOperation } from '../local-operation.js';
+import { partitionResources, verifiedReadMethods, type VerifiedReadMethod } from './map-scheduling.js';
+import { sameResourceIdentity } from '../resource-acquisition.js';
 
 const record = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value)
   ? value as Record<string, unknown> : {};
@@ -25,7 +27,6 @@ function observation(operation: LocalOperation): { observation?: Record<string, 
   const action = operation.action, result = operation.result;
   if (!result) return null;
   if (action.type === 'runCli') {
-    if (operation.status === 'succeeded' && result.ok && result.data.exitCode === 0) return {};
     return operation.status === 'failed' && !result.ok && result.code === 'CLI_SANDBOX_UNAVAILABLE' && action.execution !== 'host'
       ? { observation: { sandbox: { available: false }, code: result.code } } : null;
   }
@@ -38,13 +39,28 @@ function observation(operation: LocalOperation): { observation?: Record<string, 
     ? { cli: { sandbox: { available: sandbox.available } } } : {}, metadataComplete: false };
 }
 
+function methodForWork(c: TaskContext, method: VerifiedReadMethod, work: Intent): boolean {
+  const partition = work.payload.partition as { id?: string; objective?: string; expectedOutput?: string } | undefined;
+  if (partition?.id && c.goal.partitionResources) return partitionResources(c, partition.id).some(resource =>
+    method.scope.kind === 'resource' ? sameResourceIdentity(resource, method.scope.resource)
+      : resource.kind === 'url' && new URL(resource.url).origin === method.scope.origin);
+  const goal = work.payload.goal as { text?: string } | undefined;
+  const assignment = partition ? `${partition.objective ?? ''}\n${partition.expectedOutput ?? ''}`
+    : `${work.payload.question ?? ''}\n${work.payload.expected ?? ''}\n${goal?.text ?? ''}`;
+  return (assignment.match(/https?:\/\/[^\s<>"'`，。；、）)]+/g) ?? []).some(url => {
+    try { return method.scope.kind === 'resource'
+      ? sameResourceIdentity({ kind: 'url', url: new URL(url).href }, method.scope.resource)
+      : new URL(url).origin === method.scope.origin; } catch { return false; }
+  });
+}
+
 /** Read methods are observations, never evidence for another resource or execution authority. */
 export function sharedToolKnowledge(c: TaskContext, work: Intent) {
   if (c.stopped || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion
     || !['owner', 'assistance', 'facilitator'].includes(work.kind)
     || !localEnabled(c.config, work.target)
     || (work.payload.capabilities as { localTools?: boolean } | undefined)?.localTools !== true) return [];
-  return c.intents.filter(source => source.id !== work.id && source.epoch === c.epoch && source.goalVersion === c.goalVersion)
+  const observations = c.intents.filter(source => source.id !== work.id && source.epoch === c.epoch && source.goalVersion === c.goalVersion)
     .flatMap(source => (source.localOperations ?? []).flatMap(operation => {
       const action = operation.action;
       const fact = observation(operation);
@@ -52,5 +68,12 @@ export function sharedToolKnowledge(c: TaskContext, work: Intent) {
       return [{ sourceOperationId: operation.id, sourceMember: source.target, finishedAt: operation.finishedAt ?? null,
         action: structuredClone(action), ...fact,
         observationOnly: true, requiresIndependentExecution: true }];
-    })).slice(-10);
+    }));
+  const methods = verifiedReadMethods(c).filter(method => method.sourceWorkId !== work.id && methodForWork(c, method, work))
+    .map(method => ({ sourceOperationId: method.sourceOperationId, sourceMember: method.sourceMember,
+      finishedAt: method.acquisition.at, action: structuredClone(method.action), methodId: method.id,
+      resourceScope: structuredClone(method.scope), configuration: method.configuration,
+      validation: { status: 'acquired' as const, resource: method.resource, verifier: method.acquisition.verifier },
+      observationOnly: true as const, requiresIndependentExecution: true as const }));
+  return [...observations, ...methods].slice(-10);
 }

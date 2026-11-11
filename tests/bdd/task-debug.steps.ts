@@ -11,6 +11,7 @@ import { DebugJournal } from '../../src/web/debug-journal.js';
 import { Workspace } from '../../web/src/App.js';
 import { mergeDebugFeed } from '../../web/src/use-debug-feed.js';
 import { StateGraph } from '../../web/src/StateGraph.js';
+import { chartEdges } from '../../src/task-chart.js';
 import { debugHost, sandboxBoundary } from '../task-debug-fixture.js';
 import { DebugUIFixture } from '../task-debug-ui-fixture.js';
 import type { SpecWorld } from './steps.js';
@@ -221,16 +222,18 @@ async function activateChart(ui: DebugUIFixture, label: string) {
 }
 When('选择执行中到协调中的聚合连线', async function (this: SpecWorld) {
   const ui = state(this).ui!; await ui.click('完整状态图');
-  await activateChart(ui, '执行中 到 协调中 的5条规则');
+  const edge = chartEdges(taskGraph()).find(item => item.source === 'running' && item.target === 'coordinating'); assert(edge);
+  await activateChart(ui, `执行中 到 协调中 的${edge.rules.length}条规则`);
 });
 Then('应能分别查看所有事件和条件分支而不是只打开第一条规则', async function (this: SpecWorld) {
   const region = chartBranches();
-  assert.deepEqual([...region.querySelectorAll('button[aria-label^="查看规则 "]')].map(node => node.getAttribute('aria-label')), [
-    '查看规则 running:BLOCKED:1', '查看规则 running:TICK:0', '查看规则 running:FAILURE_SIGNAL:0',
-    '查看规则 running:@always:1', '查看规则 running:@always:2',
-  ]);
+  const edge = chartEdges(taskGraph()).find(item => item.source === 'running' && item.target === 'coordinating'); assert(edge);
+  assert.deepEqual([...region.querySelectorAll('button[aria-label^="查看规则 "]')].map(node => node.getAttribute('aria-label')),
+    edge.rules.map(rule => '查看规则 ' + rule.id));
   assert.equal(document.querySelector('[aria-label="规则详情"]'), null, '聚合连线不能自动冒选首分支');
-  await state(this).ui!.click('查看规则 running:@always:2');
+  const laterAutomatic = edge.rules.find(rule => rule.event === '@always' && rule.guards.includes('deferredReady')); assert(laterAutomatic);
+  assert(edge.rules.indexOf(laterAutomatic) > 0);
+  await state(this).ui!.click('查看规则 ' + laterAutomatic.id);
   assert(document.querySelector('[aria-label="规则详情"]')!.textContent!.includes('deferredReady'));
 });
 Then('应以中文说明状态事件和条件并保留源码标识', function () {
@@ -283,8 +286,10 @@ Then('输入解析的全局进入条件与结束后继续规则应可查看', as
   assert(rule); await ui.click(rule.getAttribute('aria-label')!);
   assert(document.querySelector('[aria-label="规则详情"]')!.textContent!.includes('analysisReady'));
   await ui.click('关闭规则详情'); await ui.click('聚焦所选状态');
-  await activateChart(ui, '本轮已结束 到 执行中 的1条规则');
-  await ui.click('查看规则 ended:CONTINUE:0');
+  const edge = chartEdges(taskGraph()).find(item => item.source === 'ended' && item.target === 'running'); assert(edge);
+  await activateChart(ui, `本轮已结束 到 执行中 的${edge.rules.length}条规则`);
+  const continuation = edge.rules.find(rule => rule.event === 'CONTINUE' && rule.guards.includes('valid')); assert(continuation);
+  await ui.click('查看规则 ' + continuation.id);
   assert(document.querySelector('[aria-label="规则详情"]')!.textContent!.includes('CONTINUE')); focusedGraphContract();
 });
 When('状态图读取{string}的所选步骤', function (this: SpecWorld, record: string) {

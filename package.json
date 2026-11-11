@@ -11,7 +11,7 @@
     "build": "node scripts/build.mjs",
     "build:web": "tsc -p web/tsconfig.json && vite build --config web/vite.config.ts",
     "dev": "node scripts/dev.mjs",
-    "start": "node --import tsx scripts/web.ts",
+    "start": "node --import tsx scripts/supervise.ts",
     "test": "node scripts/test.mjs",
     "test:unit": "vitest run .unit.test.ts --maxWorkers=1 --passWithNoTests",
     "demo": "node --import tsx examples/collaboration.ts",

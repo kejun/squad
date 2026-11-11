@@ -33,7 +33,11 @@ export class RoomArchiveUIFixture {
     await this.ui.waitFor(() => document.querySelector('.room-button[aria-current="page"]')?.textContent === this.host.first.title);
     await this.ui.fill('群聊消息输入框', '尚未发送的草稿');
   }
-  async archive() { await this.ui.click('归档群聊 ' + this.host.first.title); }
+  async archive() {
+    await this.ui.waitFor(() => [...document.querySelectorAll<HTMLButtonElement>('button[aria-label]')]
+      .some(button => button.getAttribute('aria-label') === '归档群聊 ' + this.host.first.title && !button.disabled));
+    await this.ui.click('归档群聊 ' + this.host.first.title);
+  }
   async failed() { await this.ui.waitFor(() => !!document.querySelector('[role="alert"]')); }
   assertFailed() {
     assert(document.querySelector('[role="alert"]')?.textContent?.includes('模拟网络断开'));

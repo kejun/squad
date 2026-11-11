@@ -14,6 +14,8 @@ import { SqliteStore } from '../src/store.js';
 import type { Intent, TeamConfig } from '../src/types.js';
 import { SandboxManager } from '@anthropic-ai/sandbox-runtime';
 import { SandboxCliBackend } from '../src/local-cli.js';
+import type { CliAcquisitionReader } from '../src/acquisition-readers.js';
+import type { CliCatalogEntry } from '../src/cli-catalog.js';
 
 // Isolated fixtures verify local builds, never npm's own network update check.
 export const localFixtureCommandEnv = { npm: { NPM_CONFIG_UPDATE_NOTIFIER: 'false' } };
@@ -54,17 +56,18 @@ export class LocalFixture {
   readonly replies: unknown[] = [];
   runtime!: LocalRuntime; h!: Harness; source!: string; skills!: string; skillId!: string;
   private constructor(readonly root: string) {}
-  static async create(role = '方案师', sqlite = false, serviceClock = false, options: { backend?: CliBackend; ordinaryLimit?: number } = {}): Promise<LocalFixture> {
+  static async create(role = '方案师', sqlite = false, serviceClock = false, options: { backend?: CliBackend; ordinaryLimit?: number;
+    runtimeOptions?: { acquisitionReaders?: CliAcquisitionReader[]; cliCatalog?: CliCatalogEntry[] } } = {}): Promise<LocalFixture> {
     const f = new LocalFixture(await mkdtemp(join(tmpdir(), 'squad-local-')));
     f.source = join(f.root, 'source'); f.skills = join(f.root, 'skills'); await mkdir(f.source); await mkdir(f.skills); await writeSkill(f.skills);
     await writeFile(join(f.source, 'source.txt'), 'authoritative'); await writeFile(join(f.source, '.env'), 'SECRET_FILE=do-not-copy');
     const config = localConfig();
     if (options.ordinaryLimit !== undefined) config.limits.ordinary = options.ordinaryLimit;
-    if (serviceClock) { config.limits.workTimeoutMs = Date.now() + 60_000; config.limits.progressIntervalMs = Date.now() + 60_000; }
+    if (serviceClock) { config.limits.workTimeoutMs = 60_000; config.limits.progressIntervalMs = 60_000; }
     if (role === '核查员') config.defaultBot = 'B';
     if (role === 'Builder') config.defaultBot = 'builder-1';
     if (role === '新增成员') { config.bots.push({ id: 'new-bot', name: '新增成员', instructions: '', tools: [] }); config.defaultBot = 'new-bot'; }
-    f.h = new Harness(config, sqlite ? new SqliteStore(join(f.root, 'team.sqlite')) : undefined);
+    f.h = new Harness(config, sqlite ? new SqliteStore(join(f.root, 'team.sqlite')) : undefined, serviceClock ? Date.now() : 0);
     if (role === '最终检查') {
       await writeFile(join(f.source, 'package.json'), JSON.stringify({ private: true, scripts: { build: 'node build.mjs' } }));
       await writeFile(join(f.source, 'build.mjs'), skillScript);
@@ -80,7 +83,7 @@ export class LocalFixture {
     }
     f.runtime = await LocalRuntime.create({ dataRoot: join(f.root, 'runtime'), skillRoots: [f.skills], workspaceRoot: f.source,
       commandEnv: localFixtureCommandEnv,
-      backend: options.backend ?? f.backend, clock: () => f.h.now, redact: ['host-model-secret'] });
+      backend: options.backend ?? f.backend, clock: () => f.h.now, redact: ['host-model-secret'], ...options.runtimeOptions });
     f.skillId = f.runtime.catalog().skills[0]!.skillId;
     f.backend.before = () => {
       const current = f.h.context().intents.flatMap(w => w.localOperations ?? []).find(o => o.status === 'running');

@@ -48,6 +48,7 @@ export class ServiceCompositionFixture {
   constructor(readonly scenario: string, readonly order = '') {
     this.config.inputAnalysis = { enabled: false };
     this.config.limits.workTimeoutMs = 60_000; this.config.limits.progressIntervalMs = 60_000;
+    if (scenario === 'BT_K07') this.config.resilience = { ...this.config.resilience, automaticTimeoutMs: 60_000 };
   }
   private readonly adapter: WorkAdapter = { execute: async (work, _signal, scope) => {
     this.calls.push({ roomId: scope.sessionId!, workId: work.id, kind: work.kind });
@@ -55,6 +56,8 @@ export class ServiceCompositionFixture {
       if (work.kind === 'owner') { await this.gate.promise; return { type: 'deliver', text: '一次完整结果', artifactIds: [] }; }
       return fixtureCheck(work.payload.candidate);
     }
+    if (this.scenario === 'BT_K07') return work.kind === 'check' ? fixtureCheck(work.payload.candidate)
+      : { type: 'deliver', text: '宿主故障后沿原窗口完成的真实服务结果', artifactIds: [] };
     return { type: 'askUser', question: '等待明确的下一步' };
   } };
   private start(local?: LocalRuntime) { this.service = new WebService(this.config, this.database, this.adapter, undefined, false, local); return this.service; }
@@ -81,8 +84,13 @@ export class ServiceCompositionFixture {
     assert.equal(this.scenario, 'BT_K07');
     this.probe.hostRoom = this.rooms[0]!;
     this.tasks = [service.submit(this.rooms[0]!, { id: 'host-error', text: '宿主调度边界故障' }).taskId!];
-    await until(() => service.snapshot(this.rooms[0]!).tasks[0]?.phase === 'waitingHuman', 'non-storage host error');
+    await until(() => service.snapshot(this.rooms[0]!).tasks[0]?.supervision?.status === 'faulted', 'non-storage host error');
     assert(this.probe.hostThrown); assert.equal(this.calls.length, 0, 'Host failure must precede the adapter, not be an adapter WorkFailure');
+    const context = service.engine.view(this.rooms[0]!, this.tasks[0]!)!.context;
+    assert.equal(context.resilience!.window.openedAt, context.messages[0]!.at);
+    assert.equal(context.resilience!.window.hardDeadline, context.messages[0]!.at + 60_000);
+    assert(context.trace.some(row => row.event === 'SUPERVISE' && JSON.parse(row.detail).trigger === 'hostFailure'));
+    this.report.originalWindow = structuredClone(context.resilience!.window);
   }
   private async prepareStartup() {
     await mkdir(join(this.root, 'source'));
@@ -139,9 +147,25 @@ export class ServiceCompositionFixture {
       assert.throws(() => service.submit(third.id, { id: 'after-fault', text: '不能取得新许可' }), /Storage fault/, 'InstanceStorageFailStop: every room rejects new permits');
       await turns(); return;
     }
-    service.submit(this.rooms[0]!, { id: 'continue-after-host-error', text: '继续执行', intent: 'continue', replyToTaskId: this.tasks[0]! });
+    service.submit(this.rooms[0]!, { id: 'supplement-after-host-error', text: '补充同一目标的核对要求', intent: 'supplement', replyToTaskId: this.tasks[0]! });
+    await turns();
+    assert.equal(this.calls.filter(call => call.roomId === this.rooms[0]).length, 0,
+      'RoomHostFailStop: temporary quarantine must block new external work before the next supervisor callback');
     this.tasks.push(service.submit(this.rooms[1]!, { id: 'other-after-host-error', text: '其他房间仍可运行' }).taskId!);
-    mock.timers.tick(1000); await turns();
+    await until(() => service.snapshot(this.rooms[1]!).tasks[0]?.outcome === 'complete', 'other room completes while first room is quarantined');
+    assert.equal(this.calls.filter(call => call.roomId === this.rooms[0]).length, 0);
+    this.report.quarantinedBeforeTick = { first: service.snapshot(this.rooms[0]!), other: service.snapshot(this.rooms[1]!) };
+    mock.timers.tick(1000);
+    await until(() => service.snapshot(this.rooms[0]!).tasks[0]?.outcome === 'complete', 'same-instance supervisor recovers quarantined room');
+    const context = service.engine.view(this.rooms[0]!, this.tasks[0]!)!.context;
+    const window = this.report.originalWindow as { id: string; openedAt: number; hardDeadline: number };
+    assert.equal(context.resilience!.window.id, window.id); assert.equal(context.resilience!.window.openedAt, window.openedAt);
+    assert.equal(context.resilience!.window.hardDeadline, window.hardDeadline, 'Recovery must not silently open a new processing window');
+    assert(context.resilience!.window.repairUsed <= context.resilience!.window.repairLimit);
+    assert(context.usage.ordinary <= context.config.limits.ordinary && context.usage.retries <= context.config.limits.retries);
+    assert(context.trace.some(row => row.event === 'RECOVER'), 'The real Engine.recover path must own resumption');
+    assert.equal(context.intents.flatMap(work => work.localOperations ?? []).length, 0, 'This pre-adapter host fault cannot invent or replay physical effects');
+    this.report.recoveredWindow = structuredClone(context.resilience!.window);
   }
   assertScope() {
     if (this.scenario === 'BT_K03') {
@@ -162,8 +186,11 @@ export class ServiceCompositionFixture {
     } else if (this.scenario === 'BT_K06') {
       assert.equal(this.calls.length, 0, 'InstanceStorageFailStop: no room may start external I/O after a commit fault');
     } else {
-      assert.equal(this.calls.filter(call => call.roomId === this.rooms[0]).length, 0, 'RoomHostFailStop: failed room cannot start new work in the same instance');
-      assert.equal(this.calls.filter(call => call.roomId === this.rooms[1]).length, 1, 'Other rooms must remain usable after non-storage host failure');
+      for (const room of this.rooms) {
+        assert.equal(this.calls.filter(call => call.roomId === room && call.kind === 'owner').length, 1, 'Each room must perform its original business work once');
+        assert.equal(this.calls.filter(call => call.roomId === room && call.kind === 'check').length, 1);
+        assert.equal(this.service!.snapshot(room).tasks[0]!.outcome, 'complete');
+      }
     }
     this.report.beforeReopen = { calls: structuredClone(this.calls), runnerEntries: structuredClone(this.probe.entries), reconciliations: [...this.reconciliationCalls], sqlite: this.sqlite() };
   }
@@ -171,6 +198,15 @@ export class ServiceCompositionFixture {
     await this.service!.close(); this.service = undefined;
     this.calls.length = 0; this.probe.entries.length = 0; delete this.probe.hostRoom;
     const service = this.start(); await service.ready(); await turns();
+    if (this.scenario === 'BT_K07') {
+      assert.equal(this.calls.length, 0, 'A new instance must not execute already completed room work again');
+      for (const room of this.rooms) assert.equal(service.snapshot(room).tasks[0]!.outcome, 'complete');
+      assert(service.submit(this.rooms[0]!, { id: 'host-error', text: '宿主调度边界故障' }).duplicate);
+      await turns(); assert.equal(this.calls.length, 0, 'The original user command remains idempotent after reopening');
+      const original = this.report.originalWindow as { hardDeadline: number };
+      assert.equal(service.engine.view(this.rooms[0]!, this.tasks[0]!)!.context.resilience!.window.hardDeadline, original.hardDeadline);
+      this.report.reopened = { calls: structuredClone(this.calls), snapshots: this.rooms.map(room => service.snapshot(room)) }; return;
+    }
     const expected = this.scenario === 'BT_K06' ? this.rooms : [this.rooms[0]!];
     for (const roomId of expected) assert(this.calls.some(call => call.roomId === roomId), 'SameDatabaseRecovery: a fresh instance must resume persisted eligible work');
     this.report.reopened = { calls: structuredClone(this.calls), snapshots: this.rooms.map(room => service.snapshot(room)) };

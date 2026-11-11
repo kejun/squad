@@ -7,7 +7,7 @@ import {
   verifySourceBeyondHistory, verifyReferenceReplay, verifyReferenceRollback,
   verifyReferenceRecovery, verifyLegacyPublication,
 } from '../artifact-reference-fixture.js';
-import { verifyRejectedRevision, verifyStoppedRevision, verifyFixedSourceExecution } from '../artifact-reference-model-fixture.js';
+import { verifyRejectedRevision, verifyStoppedRevision, verifyFixedSourceExecution, verifyExplicitPublicationAuthority } from '../artifact-reference-model-fixture.js';
 import { verifyReferenceConcurrency } from '../artifact-reference-http-fixture.js';
 import { verifyArtifactSourceComposer } from '../artifact-source-ui-fixture.js';
 
@@ -33,6 +33,7 @@ Then('应固定所选原文并由点名成员负责', function (this: SpecWorld)
 Given('用户选择的来源为{string}', function (this: SpecWorld, variant: string) { state(this).variant = variant; });
 When('用户请求引用到新任务', function (this: SpecWorld) { verifySourceRejections(state(this).variant!); state(this).verified = true; });
 Then('应明确拒绝且不创建任务或派发工作', function (this: SpecWorld) { assert(state(this).verified); });
+Then('存在显式发布记录时不能回退到更早的最终消息', function () { assert.equal(verifyExplicitPublicationAuthority().status, 'passed'); });
 Given('群内存在已发布的 a.md', function (this: SpecWorld) { state(this); });
 When('用户发送{string}', function (this: SpecWorld, input: string) { verifyReferenceControls(input); state(this).verified = true; });
 Then('不应从这条输入创建产物修订任务', function (this: SpecWorld) { assert(state(this).verified); });
@@ -54,7 +55,7 @@ Then('相同载荷只创建一个任务且变更载荷复用标识被拒绝', fu
 Then('未提交任务不会执行且来源任务不变', function (this: SpecWorld) { assert(state(this).verified); });
 Given('引用任务已领取负责人工作', function (this: SpecWorld) { state(this); });
 When('用户停止任务后旧结果返回', function (this: SpecWorld) { verifyStoppedRevision(); state(this).verified = true; });
-Then('不应发布新结果且固定来源与原任务均保持原样', function (this: SpecWorld) { assert(state(this).verified); });
+Then('不应发布成功修订且固定来源与原任务均保持原样', function (this: SpecWorld) { assert(state(this).verified); });
 Given('用户预览当前群成功发布的Markdown', function (this: SpecWorld) { state(this); });
 When('用户引用到新任务并编辑或移除引用', async function (this: SpecWorld) { await verifyArtifactSourceComposer(); state(this).verified = true; });
 Then('输入区应展示可移除的来源且请求只携带来源身份', function (this: SpecWorld) { assert(state(this).verified); });

@@ -20,12 +20,25 @@ Given('未启动的宿主续办处于{string}', function (this: SpecWorld, varia
 });
 When('该宿主续办到期并在原负责人返回时保存结果', function (this: SpecWorld) {
   const { m, variant } = state(this);
-  if (variant === '原负责人尚未结束') { m.at = m.c.hostRetryRequests![0]!.deadline; assert(m.send({ type: 'HOST_RETRY_EXPIRE' }).ok); assert.equal(m.c.intents[0]?.status, 'inflight'); assert(deliver(m).ok); }
+  if (variant === '原负责人尚未结束') {
+    const original = structuredClone(m.c.intents[0]);
+    m.at = m.c.hostRetryRequests![0]!.deadline; assert(m.send({ type: 'HOST_RETRY_EXPIRE' }).ok);
+    assert.deepEqual(m.c.intents[0], original, 'Expiring a queued host request may not pretend its original owner settled');
+    // The original owner shares the same bounded timeout and is already late here.
+    // A late candidate cannot manufacture partial delivery after that deadline.
+    assert.equal(deliver(m).code, 'WORK_EXPIRED');
+  }
   else { const work = retryWork(m), op = retryOp(m); m.at = op.deadline!; assert.equal(decideRetry(m).code, variant === '后续请求尚未到期' ? 'HOST_APPROVAL_EXPIRED' : 'WORK_EXPIRED'); assert(m.send({ type: 'LOCAL_RETRY_EXPIRED', intentId: work.id, operationId: op.id }).ok); if (variant === '等待批准') state(this).postExpiryCode = decideRetry(m).code; }
 });
 Then('到期请求应未执行且只允许未过期的后续请求继续', function (this: SpecWorld) {
   const { m, variant } = state(this); assert.equal(m.c.hostRetryRequests?.[0]?.status, 'expired');
-  if (variant === '原负责人尚未结束') { assert.equal(m.c.outcome, 'partial'); assert.equal(m.c.hostRetryRequests?.[0]?.reason, 'WORK_EXPIRED'); }
+  if (variant === '原负责人尚未结束') {
+    assert.equal(m.c.outcome, 'failed'); assert.equal(m.c.candidate, null);
+    assert(!m.c.artifacts.some(artifact => artifact.content.includes('候选说明')), 'Rejected late delivery may not become saved business material');
+    assert.equal(m.c.hostRetryRequests?.[0]?.reason, 'WORK_EXPIRED');
+    assert.equal(m.c.hostRetryRequests?.[0]?.operationId, undefined);
+    assert(!m.c.intents.some(work => work.localOperations?.some(op => op.action.type === 'runCli' && op.action.execution === 'host' && op.startedAt !== undefined)));
+  }
   else if (variant === '后续请求尚未到期') { assert.equal(retryOp(m).hostRetryOf, 'op2'); assert.equal(retryOp(m).startedAt, undefined); }
   else { assert.notEqual(state(this).postExpiryCode, 'OK'); assert.equal(retryOp(m).startedAt, undefined); }
 });

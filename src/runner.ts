@@ -1,9 +1,11 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { deliveryObservations, initialModelRequestId, publishObservation, type ExecutionObservation, type MeasurementSink, type ModelObservation } from './measurement.js';
 import { readSavedArtifact, readSavedEvidence } from './evidence-reader.js';
 import { deliveryEvidence, evidenceIndex } from './task/evidence.js';
 import { sharedToolKnowledge } from './task/tool-knowledge.js';
 import { cliFailureGuidance, toolGuidanceAllowed, toolGuidanceObjective } from './task/tool-guidance.js';
+import { withCliReadiness } from './cli-readiness.js';
+import { hostEvidenceReference, observeResourceAcquisition, resourceIdentity } from './resource-acquisition.js';
 import { deliveryCheckMaterials } from './delivery-check-delta.js';
 import { validPartitionRecoveries } from './task/map-recovery.js';
 import { acceptanceCriteria, checkCitationSources, judgmentsDiagnostic, validCriterionJudgments, type CheckDiagnostic, type CheckMaterials, type CriterionJudgment } from './delivery-acceptance.js';
@@ -15,7 +17,7 @@ import type { TeamEngine } from './engine.js';
 import type { Artifact, ArtifactDraft, Candidate, Decision, InputIntentSpec, InputReference, Intent, ModelOutputIssue, PartitionRecovery, TaskContext, TaskEvent, ToolFailureFeedback, WebToolKind } from './types.js';
 import { inputIntentSchema, validInputIntent } from './input-intent.js';
 import { validArtifactDrafts, validSummary } from './presentation.js';
-import { findSkills, type FoundSkill, type SkillSearchTransport } from './skills.js';
+import { findSkills, SkillSearchFailure, type FoundSkill, type SkillSearchTransport } from './skills.js';
 import { CloudflareWebTools, validWebFetchInput, validWebSearchInput, type WebTools } from './web-tools.js';
 
 export type WorkOutput =
@@ -35,7 +37,7 @@ export interface WorkAdapter {
 }
 export interface LocalWorkTools {
   readonly catalog: SkillPage;
-  readonly sharedToolKnowledge?: ReturnType<typeof sharedToolKnowledge>;
+  readonly sharedToolKnowledge?: ReturnType<typeof sharedToolKnowledge> | undefined;
   readonly toolGuidance?: { recommendations: ReturnType<LocalRuntime['recommendTools']>; failures: ReturnType<typeof cliFailureGuidance> } | undefined;
   readonly checkpoint: LocalCheckpoint | undefined;
   invoke(action: LocalAction, messages: LocalMessage[], signal: AbortSignal, requested?: (operationId: string) => void): Promise<LocalToolResult>;
@@ -62,6 +64,7 @@ export class WorkFailure extends Error {
   constructor(message: string, readonly transient = false, readonly resultUncertain = false, readonly checkDiagnostic?: CheckDiagnostic) { super(message); }
 }
 class ApprovalSuspended extends Error {}
+class ExecutionDetached extends Error {}
 export function validWorkOutput(value: unknown): value is WorkOutput {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
@@ -122,12 +125,38 @@ async function finishCheckVerification(work: () => Intent, tools: LocalWorkTools
 
 /** Host driver: persisted claim precedes every adapter call. No XState entry action starts I/O. */
 export class WorkRunner {
-  private controllers = new Map<string, { roomId: string; intentId: string; controller: AbortController }>();
+  private controllers = new Map<string, { roomId: string; taskId: string; intentId: string; controller: AbortController }>();
+  private executions = new Map<string, Promise<boolean>>();
+  private detached = false;
+  private releaseDetach!: () => void;
+  private readonly detachedExecution = new Promise<false>(resolve => { this.releaseDetach = () => resolve(false); });
   constructor(readonly engine: TeamEngine, private readonly adapter: WorkAdapter, private readonly clock: () => number = Date.now,
     private readonly skillSearchTransport: SkillSearchTransport = globalThis.fetch,
     private readonly webTools: WebTools = new CloudflareWebTools(),
     private readonly localRuntime?: LocalRuntime,
     private readonly observe?: MeasurementSink) {}
+  /** Cancellation itself needs no writable database; custody is persisted by the host before detaching. */
+  abortExecutions(roomId?: string, taskId?: string): void {
+    for (const item of this.controllers.values()) if ((!roomId || item.roomId === roomId) && (!taskId || item.taskId === taskId))
+      item.controller.abort();
+  }
+  async drainExecutions(graceMs: number): Promise<{ settled: boolean; pending: number }> {
+    if (!Number.isFinite(graceMs) || graceMs < 0) throw new Error('Invalid execution drain grace');
+    if (!this.executions.size) return { settled: true, pending: 0 };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([Promise.allSettled([...this.executions.values()]),
+        new Promise<void>(resolve => { timer = setTimeout(resolve, Math.min(graceMs, 2_147_483_647)); })]);
+      return { settled: this.executions.size === 0, pending: this.executions.size };
+    } finally { if (timer) clearTimeout(timer); }
+  }
+  /** After durable handoff, late adapter callbacks can neither inspect nor mutate the retired engine. */
+  detachExecutions(): void {
+    this.detached = true;
+    this.abortExecutions();
+    this.releaseDetach();
+  }
+  private assertAttached(): void { if (this.detached) throw new ExecutionDetached('Execution host has detached'); }
   /** Shutdown of an idle approval waiter preserves its durable checkpoint for the next service. */
   suspendApprovals(roomId: string, taskId: string) {
     const c = this.engine.view(roomId, taskId)?.context;
@@ -135,6 +164,15 @@ export class WorkRunner {
       item.controller.abort(new ApprovalSuspended('等待宿主授权已保存，服务关闭'));
   }
   async runOne(roomId: string, taskId: string, intentId?: string): Promise<boolean> {
+    if (this.detached) return false;
+    const key = randomUUID();
+    const execution = this.executeOne(roomId, taskId, intentId);
+    this.executions.set(key, execution);
+    try { return await Promise.race([execution, this.detachedExecution]); }
+    finally { this.executions.delete(key); }
+  }
+  private async executeOne(roomId: string, taskId: string, intentId?: string): Promise<boolean> {
+    this.assertAttached();
     if (this.engine.flushResults(roomId, taskId)) return true;
     const available = this.engine.pending(roomId, taskId);
     const pending = intentId ? available.find(work => work.id === intentId) : available[0];
@@ -143,10 +181,10 @@ export class WorkRunner {
     // A denied recovery claim may settle a reviewer and schedule synthesis in the same transaction.
     if (!work) return this.engine.pending(roomId, taskId).some(item => item.id !== pending.id);
     const executionKey = JSON.stringify([roomId, taskId, work.id, work.attempt]);
-    const send = (event: TaskEvent) => this.engine.send(roomId, taskId, { ...event, attempt: work.attempt });
+    const send = (event: TaskEvent) => { this.assertAttached(); return this.engine.send(roomId, taskId, { ...event, attempt: work.attempt }); };
     if (!this.engine.beginExecution(roomId, taskId, work)) {
       // No adapter or local process has started for this attempt; retire its reservation safely.
-      send({ type: 'SETTLE', id: `not-started:${work.id}:${work.attempt}`, at: this.clock(), intentId: work.id });
+      this.engine.executionNotStarted(roomId, taskId, work, 'Execution permit expired or became unavailable before adapter start');
       return true;
     }
     if (work.kind === 'cancel') {
@@ -155,21 +193,25 @@ export class WorkRunner {
       try {
         const original = this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === id)!;
         if (this.adapter.cancel) await this.adapter.cancel(original);
+        if (this.detached) return true;
         // Cancellation acknowledgement only means settled when the worker confirms it.
         send({ id: `${work.id}:cancelSent:${work.attempt}`, at: this.clock(), type: 'SETTLE', intentId: work.id });
       } catch (error) {
+        if (this.detached) return true;
         send({ id: `${work.id}:cancelFailed:${work.attempt}`, at: this.clock(), type: 'WORK_FAILED', intentId: work.id, reason: String(error), transient: false });
       }
       return true;
     }
     const context = { roomId, taskId, workId: work.id, agentId: work.target, attempt: work.attempt, epoch: work.epoch, goalVersion: work.goalVersion };
     const report = (observation: ExecutionObservation) => {
+      if (this.detached) return;
       try { this.observe?.(context, observation); } catch { /* Observation is best effort. */ }
     };
     const checkRevision = work.kind === 'check' ? (work.payload.candidate as Candidate | undefined)?.revision : undefined;
     report({ phase: 'work.started', kind: work.kind, ...(checkRevision ? { candidateRevision: checkRevision } : {}) });
     let modelRequestId: string | null = null;
     const submitResult = (event: TaskEvent) => {
+      this.assertAttached();
       let before: TaskContext | undefined;
       if (this.observe && (event.type === 'DELIVER' || event.type === 'CHECK_RESULT' || event.type === 'COORDINATE')) {
         try { before = this.engine.view(roomId, taskId)?.context; } catch { /* Observation is best effort. */ }
@@ -187,7 +229,7 @@ export class WorkRunner {
       return response;
     };
     const controller = new AbortController();
-    this.controllers.set(executionKey, { roomId, intentId: work.id, controller });
+    this.controllers.set(executionKey, { roomId, taskId, intentId: work.id, controller });
     let output: WorkOutput;
     let skillSearchSequence = 0;
     let webSequence = 0;
@@ -203,6 +245,7 @@ export class WorkRunner {
       if (!response.ok) throw new WorkFailure(response.code);
       lastWebRequest = { id: `request:${work.id}:${work.attempt}:${requestId}`, tool: capability };
       report({ phase: 'budget.authorized', requestId, category: capability });
+      return lastWebRequest;
     };
     const scope: WorkScope = { sessionId: taskId, observeModel: observation => {
       if (observation.phase === 'model.protocol' && observation.valid && observation.terminal) modelRequestId = observation.requestId;
@@ -227,13 +270,18 @@ export class WorkRunner {
         fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       if (!response.ok) throw new WorkFailure(response.code);
     }, findSkills: async (query, signal) => {
+      this.assertAttached();
       const current = this.engine.view(roomId, taskId)!.context;
       if (this.engine.config.skillSearch?.enabled === false || current.config.skillSearch?.enabled === false) throw new WorkFailure('SKILL_SEARCH_DISABLED');
       if (!['owner', 'assistance', 'facilitator'].includes(work.kind)) throw new WorkFailure('SKILL_SEARCH_NOT_ALLOWED');
       if (typeof query !== 'string' || !query.trim()) throw new WorkFailure('INVALID_SKILL_QUERY');
       signal?.throwIfAborted();
       scope.authorizeAdditionalRequest(`findSkills:${++skillSearchSequence}`);
-      return findSkills(query, signal ? AbortSignal.any([controller.signal, signal]) : controller.signal, this.skillSearchTransport);
+      try { return await findSkills(query, signal ? AbortSignal.any([controller.signal, signal]) : controller.signal, this.skillSearchTransport); }
+      catch (error) {
+        if (error instanceof SkillSearchFailure) throw new WorkFailure(error.code, error.transient);
+        throw error;
+      }
     }, webSearch: async (input, signal) => {
       if (!validWebSearchInput(input)) throw new WorkFailure('invalid_web_search_input');
       const combined = AbortSignal.any([controller.signal, signal]);
@@ -244,13 +292,39 @@ export class WorkRunner {
     }, webFetch: async (input, signal) => {
       if (!validWebFetchInput(input)) throw new WorkFailure('invalid_web_fetch_input');
       const combined = AbortSignal.any([controller.signal, signal]);
-      authorizeWeb('web_fetch', combined);
-      const result = await this.webTools.fetch(input, combined);
+      const request = authorizeWeb('web_fetch', combined);
+      const result = { ...await this.webTools.fetch(input, combined) };
+      // Reserved provenance comes only from the receipt committed below.
+      delete result.hostEvidence;
       combined.throwIfAborted();
+      this.assertAttached();
+      const requestedResource = resourceIdentity({ kind: 'url', url: input.url });
+      if (requestedResource) {
+        const page = result.output, capture = result.hostCapture;
+        const content = capture?.content ?? page.content;
+        const sourceSnapshot = JSON.stringify({ input, output: page, ...(capture ? { hostCapture: capture } : {}) });
+        const finalResource = resourceIdentity({ kind: 'url', url: capture?.finalUrl ?? page.finalUrl });
+        const observation = { id: `${request.id}:acquisition`, operationId: request.id,
+          taskId, workId: work.id, attempt: work.attempt, epoch: work.epoch, goalVersion: work.goalVersion,
+          requestHash: createHash('sha256').update(sourceSnapshot).digest('hex'), source: 'webFetch' as const, requestedResource,
+          ...(finalResource ? { resource: finalResource } : {}),
+          content: typeof content === 'string' ? content : '',
+          contentHash: typeof content === 'string' ? createHash('sha256').update(content).digest('hex') : null,
+          complete: capture ? capture.url === input.url.trim() && capture.totalChars === capture.content.length
+            : page.offset === 0 && page.nextOffset === null,
+          verifier: { id: 'squad-web-fetch', version: '1' },
+          executionSucceeded: (capture?.status ?? page.status) >= 200 && (capture?.status ?? page.status) < 300, at: this.clock(), sourceSnapshot,
+          configuration: { id: 'task-protocol', version: JSON.stringify([this.engine.config.version, this.engine.config.toolVersion]), authentication: 'unknown' as const } };
+        const receipt = observeResourceAcquisition(observation);
+        const saved = this.engine.recordAcquisition(roomId, taskId, receipt);
+        if (!saved.ok) throw new WorkFailure(saved.code);
+        result.hostEvidence = hostEvidenceReference(receipt);
+      }
       return result;
     } };
-    const currentWork = () => this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === work.id)!;
+    const currentWork = () => { this.assertAttached(); return this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === work.id)!; };
     const toolKnowledge = () => {
+      this.assertAttached();
       const current = this.engine.view(roomId, taskId)!.context;
       return this.localRuntime!.clean(sharedToolKnowledge(current, currentWork()));
     };
@@ -267,12 +341,38 @@ export class WorkRunner {
         return { sourceOperationId: evidence.sourceOperationId };
       return {};
     };
+    let backfillAcquisitions = () => {};
     if (this.localRuntime) {
       const runtime = this.localRuntime;
+      const persistCliAcquisitions = (operation: LocalOperation) => {
+        this.assertAttached();
+        const context = this.engine.view(roomId, taskId)!.context, current = currentWork();
+        if (current.status !== 'inflight' || context.stopped || context.outcome !== null
+          || current.epoch !== context.epoch || current.goalVersion !== context.goalVersion) return;
+        for (const receipt of runtime.observeAcquisitions(current, operation, { id: 'task-protocol',
+          version: JSON.stringify([context.config.version, context.config.toolVersion]), authentication: 'unknown' })) {
+          if (current.hostAcquisitions?.some(saved => saved.id === receipt.id)) continue;
+          this.assertAttached();
+          const saved = this.engine.recordAcquisition(roomId, taskId, receipt);
+          if (!saved.ok) throw new WorkFailure(saved.code);
+        }
+      };
+      const completeCliReceipt = (operation: LocalOperation) => operation.action.type === 'runCli'
+        && operation.status === 'succeeded' && operation.result?.ok && typeof operation.result.data.stdout === 'string'
+        && operation.result.data.truncated === false;
+      backfillAcquisitions = () => {
+        for (const operation of currentWork().localOperations ?? []) if (completeCliReceipt(operation)) persistCliAcquisitions(operation);
+      };
+      const notifyResources = (operation: LocalOperation) => {
+        runtime.notifyWorkspace('resources');
+        if (operation.workspaceId) runtime.notifyWorkspace(operation.workspaceId);
+        for (const lease of operation.resourceLeases ?? []) runtime.notifyWorkspace(lease.key);
+      };
       const toolGuidance = () => {
+        this.assertAttached();
         const current = this.engine.view(roomId, taskId)!.context, member = currentWork();
         if (!localEnabled(this.engine.config, member.target) || !toolGuidanceAllowed(current, member, this.clock())) return undefined;
-        return runtime.clean({ recommendations: runtime.recommendTools(toolGuidanceObjective(member)), failures: cliFailureGuidance(member) });
+        return runtime.clean({ recommendations: withCliReadiness(current, member, runtime.recommendTools(toolGuidanceObjective(member))), failures: cliFailureGuidance(member) });
       };
       const executeLocal = async (operationId: string, externalSignal: AbortSignal): Promise<LocalToolResult> => {
         const retryDeadline = currentWork().localOperations?.find(op => op.id === operationId)?.deadline;
@@ -290,6 +390,7 @@ export class WorkRunner {
           op = currentWork().localOperations?.find(o => o.id === operationId);
           if (!op) throw new WorkFailure('LOCAL_OPERATION_MISSING');
           if (['succeeded', 'failed', 'cancelled'].includes(op.status) && op.result) {
+            if (completeCliReceipt(op)) persistCliAcquisitions(op);
             report({ phase: 'local.receiptRead', ...localCorrelation(op), readKind: 'receiptReplay',
               ...(op.action.type === 'readEvidence' ? evidenceCorrelation(op.result) : {}) });
             return op.result;
@@ -309,7 +410,8 @@ export class WorkRunner {
             continue;
           }
           if (op.status !== 'queued') throw new WorkFailure('LOCAL_OPERATION_UNCERTAIN', false, true);
-          const generation = op.workspaceId ? runtime.workspaceGeneration(op.workspaceId) : 0;
+          const waitKey = op.resourceLeases?.length ? 'resources' : op.workspaceId;
+          const generation = waitKey ? runtime.workspaceGeneration(waitKey) : 0;
           const claim = this.engine.claimLocal(roomId, taskId, work.id, op.id, work.attempt);
           if (claim.response.ok) { op = claim.operation!; break; }
           if (claim.response.code !== 'WORKSPACE_BUSY') {
@@ -319,7 +421,7 @@ export class WorkRunner {
             if (rejected.ok && (op.hostRetryRequestId || isSavedRead(op.action) && ['EVIDENCE_UNAVAILABLE', 'ARTIFACT_UNAVAILABLE'].includes(result.code))) return result;
             throw new WorkFailure(claim.response.code);
           }
-          try { await runtime.waitForWorkspace(op.workspaceId!, generation, signal); }
+          try { await runtime.waitForWorkspace(waitKey!, generation, signal); }
           catch (error) {
             if (retryDeadline !== undefined && this.clock() >= retryDeadline && !controller.signal.aborted && !externalSignal.aborted) continue;
             throw error;
@@ -349,7 +451,13 @@ export class WorkRunner {
                 intentId: work.id, operationId: operation.id, sessionId: operation.sessionId!, ...metadata });
               if (!started.ok) throw new LocalToolError(started.code);
               report({ phase: 'local.startAuthorized', ...local });
-            }, phase => report({ phase, ...local }));
+            }, phase => report({ phase, ...local }), { roomId, taskId }, metadata => {
+              const prepared = send({ type: 'LOCAL_PREPARED', id: `local-prepared:${operation.sessionId}`, at: this.clock(),
+                intentId: work.id, operationId: operation.id, sessionId: operation.sessionId!, ...metadata,
+                fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
+              if (!prepared.ok) throw new LocalToolError(prepared.code);
+              notifyResources(operation);
+            });
           }
         } catch (error) {
           // An unknown host failure after a claim is never converted to permission to replay a write.
@@ -366,13 +474,17 @@ export class WorkRunner {
                 if (approval) report({ phase: 'local.approvalRequired', ...local, approvalId: approval.id, sessionApproved: !!approval.sessionGrantId });
               } catch { /* Observation is best effort. */ }
             }
-            if (op.workspaceId) runtime.notifyWorkspace(op.workspaceId);
+            notifyResources(op);
             return executeLocal(operationId, externalSignal);
           }
           // Preparation never spawned a process; even a concurrent stop can settle its claim safely.
         }
         const response = send({ type: 'LOCAL_RESULT', id: `local-result:${op.sessionId}`, at: this.clock(),
           intentId: work.id, operationId: op.id, sessionId: op.sessionId!, ...execution });
+        if (response.ok && execution.settled && execution.effectsKnown && op.action.type === 'runCli') {
+          const current = currentWork(), finalized = current.localOperations?.find(item => item.id === op!.id);
+          if (finalized) persistCliAcquisitions(finalized);
+        }
         if (response.ok && execution.result.ok && isSavedRead(op.action)) {
           report(op.action.type === 'readEvidence'
             ? { phase: 'local.receiptRead', ...local, readKind: 'evidencePage', ...evidenceCorrelation(execution.result) }
@@ -380,7 +492,7 @@ export class WorkRunner {
         }
         report({ phase: 'local.result', ...local, committed: response.ok, settled: execution.settled,
           effectsKnown: execution.effectsKnown, code: response.ok ? 'LOCAL_RESULT_RECORDED' : response.code, ok: execution.result.ok });
-        if (response.ok && execution.settled && execution.effectsKnown && op.workspaceId) runtime.notifyWorkspace(op.workspaceId);
+        if (response.ok && execution.settled && execution.effectsKnown) notifyResources(op);
         if (!response.ok || !execution.settled || !execution.effectsKnown) throw new WorkFailure(response.ok ? 'LOCAL_OPERATION_UNCERTAIN' : response.code, false, true);
         if (op.hostRetryRequestId) {
           const status = currentWork().localOperations?.find(o => o.id === op!.id)?.status;
@@ -399,7 +511,10 @@ export class WorkRunner {
           if (!localEnabled(this.engine.config, work.target)) throw new WorkFailure('LOCAL_TOOLS_DISABLED');
           let op: LocalOperation;
           try {
-            op = this.engine.requestLocal(roomId, taskId, work.id, work.attempt, action, messages, ['runCli', 'verifyWorkspace'].includes(action.type) ? runtime.workspaceId(work, this.engine.localNamespace(roomId, taskId)) : undefined);
+            const namespace = this.engine.localNamespace(roomId, taskId);
+            op = this.engine.requestLocal(roomId, taskId, work.id, work.attempt, action, messages,
+              ['runCli', 'verifyWorkspace'].includes(action.type) ? runtime.workspaceId(work, namespace) : undefined,
+              runtime.resourcePolicy(currentWork(), action, namespace));
           } catch (error) {
             // The model may choose a different evidenced action, but cannot execute the rejected one.
             if (error instanceof Error && error.message === 'CLI_REPEAT_FAILURE_LIMIT')
@@ -414,6 +529,7 @@ export class WorkRunner {
       } satisfies LocalWorkTools, enumerable: true });
     }
     try {
+      backfillAcquisitions();
       if (hostRetry) {
         if (!scope.localTools) throw new WorkFailure('LOCAL_RUNTIME_NOT_CONFIGURED');
         // The state machine persists exactly one next operation after each trusted receipt.
@@ -443,7 +559,9 @@ export class WorkRunner {
       if (work.kind === 'check') {
         await prepareCheckVerification(currentWork, scope.localTools, controller.signal);
         const current = this.engine.view(roomId, taskId)!.context;
-        if (!localEnabled(this.engine.config, work.target) && current.deliveryCycle?.evidence?.length) throw new WorkFailure('CHECK_EVIDENCE_REVOKED');
+        if (!localEnabled(this.engine.config, work.target) && current.deliveryCycle?.evidence?.length
+          && current.deliveryCycle.evidence.some(ref => evidenceIndex(current, currentWork()).find(source => source.evidenceId === ref.id)?.command.type !== 'webFetch'))
+          throw new WorkFailure('CHECK_EVIDENCE_REVOKED');
         const materials = fixedCheckMaterials(current, currentWork());
         work.payload.checkMaterials = materials;
         scope.authorizeAdditionalRequest(initialModelRequestId);
@@ -460,6 +578,7 @@ export class WorkRunner {
       }
     }
     catch (error) {
+      if (this.detached || error instanceof ExecutionDetached) { this.controllers.delete(executionKey); return true; }
       if (controller.signal.reason instanceof ApprovalSuspended) { this.controllers.delete(executionKey); return true; }
       if (controller.signal.aborted && !this.engine.view(roomId, taskId)!.context.intents.some(i => i.id === work.id && localPhysicalPending(i))) {
         submitResult({ id: `${work.id}:cancelled:${work.attempt}`, at: this.clock(), type: 'SETTLE', intentId: work.id });
@@ -472,6 +591,7 @@ export class WorkRunner {
       this.controllers.delete(executionKey);
       return true;
     }
+    if (this.detached) { this.controllers.delete(executionKey); return true; }
     const base = { id: `result:${work.id}:${work.attempt}`, at: this.clock(), workId: work.id, fence: { epoch: work.epoch, goalVersion: work.goalVersion } };
     const allowed: Record<Intent['kind'], WorkOutput['type'][]> = {
       interpretation: ['interpretation'], owner: ['help', 'answer', 'deliver', 'blocked', 'askUser'], assistance: ['answer'], facilitator: ['decision'], discussionSummary: ['answer'], check: ['check'], tool: ['settled'], cancel: ['settled'],

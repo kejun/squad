@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { initialTask, stepTask, persistTask, restoreTask, taskMachine, type TaskSnapshot } from '../src/task.machine.js';
 import { inspectInitialTask, inspectTask, type DebugEvidence } from '../src/task-inspection.js';
-import { taskGraph, type MachineGraph } from '../src/task-structure.js';
+import { taskGraph, type MachineGraph, type MachineTransition } from '../src/task-structure.js';
 import { capabilities, completeProblem } from '../src/task/facts.js';
 import { conversationInput, deliveryArtifacts } from '../src/task/operations.js';
 import { localEnabled } from '../src/local-operation.js';
@@ -77,7 +77,98 @@ const approvalRules = ['LOCAL_APPROVAL_REQUIRED', 'LOCAL_APPROVAL_DECISION', 'LO
   { id: `*:${event}:0`, order: 0, source: '*', event, target: null, guards: ['valid'], actions: ['apply'] },
   { id: `*:${event}:1`, order: 1, source: '*', event, target: null, guards: [], actions: ['reject'] },
 ]);
-function assertLegacyEvidence(actual: DebugEvidence, expected: DebugEvidence, label: string, published = false, checkClaim = false) {
+const supervisionActions: Record<string, string> = { interpreting: 'superviseInterpreting', running: 'superviseRunning',
+  waitingAssistance: 'superviseAssistance', coordinating: 'superviseCoordinating', waitingHuman: 'superviseHuman',
+  checking: 'superviseChecking', stopping: 'superviseStopping', ended: 'superviseEnded' };
+/** Exact structural extension; unexpected old/new rules remain in the equality comparison. */
+function resilienceTransitions(base: MachineTransition[]): MachineTransition[] {
+  const added = [
+    ...rules('*', 'RECORD_ACQUISITION', [['valid', null], [null, null, 'reject']]),
+    ...rules('*', 'HUMAN_GATE_DECISION', [['gateDecisionEnds', 'ended'], ['gateDecisionHelp', 'waitingAssistance'], ['gateDecisionTask', 'running'], ['valid', null], [null, null, 'reject']]),
+  ];
+  const seen = new Set<string>();
+  for (const row of base) {
+    if (row.source !== '*' && !seen.has(row.source)) {
+      seen.add(row.source);
+      const action = supervisionActions[row.source]; assert(action);
+      added.push(...rules(row.source, 'SUPERVISE', [['supervisionEnds', 'ended', action],
+        ['supervisionWaitsForHuman', 'waitingHuman', action],
+        ['supervisionRepairs', 'coordinating', action], [null, null, action]]));
+    }
+    if (row.source === '*' && row.event === 'LOCAL_STARTED' && row.order === 0)
+      added.push(...rules('*', 'LOCAL_PREPARED', [['valid', null], [null, null, 'reject']]));
+    if (row.source === '*' && row.event === 'LOCAL_APPROVAL_DECISION') {
+      if (row.order === 0) added.push(...rules('*', row.event, [['approvalDecisionEnds', 'ended'],
+        ['localResumeOwner', 'running'], ['localResumeHelp', 'waitingAssistance'], ['localResumeFacilitator', 'coordinating'],
+        ['localResumeCheck', 'checking'], ['valid', null], [null, null, 'reject']]));
+      continue;
+    }
+    let shift = 0;
+    const prefixes: Record<string, [string, string][]> = {
+      HUMAN_DECISION: [['humanDecisionExpired', 'ended']], USER_INPUT: [['directHumanResponseExpired', 'ended']],
+      RETRY_ASSISTANCE: [['directHumanResponseExpired', 'ended']],
+      RECOVER: [['recoverStopped', 'ended'], ['recoverIncompatible', 'waitingHuman'], ['hasTaskHumanGate', 'waitingHuman']], EXHAUSTED: [['hasTaskHumanGate', 'waitingHuman']],
+    };
+    const prefix = row.source === '*' ? prefixes[row.event] : undefined;
+    if (prefix) {
+      if (row.order === 0) added.push(...rules(row.source, row.event, prefix));
+      shift = prefix.length;
+    }
+    if (row.source === 'running' && row.event === 'DELIVER' || row.source === 'coordinating' && row.event === 'COORDINATE'
+      || row.source === 'checking' && ['CHECK_RESULT', 'SETTLE'].includes(row.event)) {
+      if (row.order === 0) added.push(...rules(row.source, row.event, [['businessBlockedByHuman', 'waitingHuman']]));
+      shift++;
+    }
+    if (row.source === 'stopping' && row.event === '@always') {
+      if (row.order === 0) added.push({ id: 'stopping:@always:0', source: 'stopping', event: '@always', order: 0, target: 'ended', guards: ['logicalStopped'], actions: [] });
+      shift = 1;
+    }
+    if (row.source === 'ended' && row.event === 'CLAIM') {
+      if (row.order === 0) added.push(...rules('ended', 'CLAIM', [['claimCancel', null]]));
+      shift = 1;
+    }
+    const retryAt = row.source === 'checking' ? 2 : 1;
+    if (row.event === 'WORK_FAILED' && row.source !== 'stopping') {
+      if (row.order === 0) added.push(...rules(row.source, row.event, [['approvalBlockedFailure', 'waitingHuman']]));
+      shift = 1 + Number(row.source !== '*' && row.order > retryAt);
+    }
+    const projected = { ...row, order: row.order + shift, id: `${row.source}:${row.event}:${row.order + shift}` };
+    added.push(projected);
+    if (row.event === 'WORK_FAILED' && row.guards.includes('retryable')) added.push({ id: `${row.source}:WORK_FAILED:${row.order + 2}`,
+      source: row.source, event: row.event, order: row.order + 2, target: null, guards: ['safeFailureRetry'], actions: ['apply'] });
+  }
+  return added;
+}
+function beforeResilienceEvidence(actual: DebugEvidence, label: string, salvage: boolean): DebugEvidence {
+  assert.equal(actual.definition, taskGraph().definition);
+  const inserted = new Set(['recoverIncompatible', 'businessBlockedByHuman', 'approvalBlockedFailure', 'approvalDecisionEnds', 'directHumanResponseExpired', 'humanDecisionExpired', 'recoverStopped', 'hasTaskHumanGate', 'logicalStopped', 'safeFailureRetry']);
+  const evaluations = actual.evaluations.flatMap(row => {
+    if (row.guard === 'recoverIncompatible' && row.passed) {
+      assert(label.startsWith('不兼容恢复:') && row.event === 'RECOVER' && row.source === '*', `${label}: unexpected incompatible recovery`);
+      // The explicit early recovery gate replaces the original equivalent false/false/fallback branch.
+      // Its cause, decisions and public RECOVER origin are independently checked in assertFrame.
+      return [
+        { ...row, ruleId: '*:RECOVER:0', guard: 'recoveredCheckExhausted', passed: false },
+        { ...row, ruleId: '*:RECOVER:1', guard: 'recoveredSafe', passed: false },
+        { ...row, ruleId: '*:RECOVER:2', guard: null, passed: true },
+      ];
+    }
+    if (row.guard && inserted.has(row.guard)) { assert.equal(row.passed, false, `${label}: new guard changes this frozen trace`); return []; }
+    const parts = row.ruleId.split(':'); let order = Number(parts.at(-1));
+    if (row.source === 'running' && row.event === 'DELIVER' || row.source === 'coordinating' && row.event === 'COORDINATE'
+      || row.source === 'checking' && ['CHECK_RESULT', 'SETTLE'].includes(row.event)) order--;
+    if (row.source === '*' && ['HUMAN_DECISION', 'USER_INPUT', 'RETRY_ASSISTANCE', 'EXHAUSTED'].includes(row.event) || row.source === 'stopping' && row.event === '@always') order--;
+    if (row.source === '*' && row.event === 'RECOVER') order -= 3;
+    if (row.event === 'WORK_FAILED' && row.source !== 'stopping') order--;
+    if (row.event === 'WORK_FAILED' && row.source !== '*' && row.source !== 'stopping' && order > (row.source === 'checking' ? 3 : 2)) order--;
+    return [{ ...row, ruleId: `${row.source}:${row.event}:${order}` }];
+  });
+  const changed = (keys: string[]) => keys.filter(key => key !== 'resilience' && !(salvage && key === 'artifacts'));
+  return { ...actual, definition: extendedDefinition, evaluations, changed: changed(actual.changed),
+    microsteps: actual.microsteps.map(step => ({ ...step, changed: changed(step.changed) })) };
+}
+function assertLegacyEvidence(actualRaw: DebugEvidence, expected: DebugEvidence, label: string, published = false, checkClaim = false, salvage = false) {
+  const actual = beforeResilienceEvidence(actualRaw, label, salvage);
   assert.equal(actual.definition, extendedDefinition);
   const evaluations = expected.evaluations.flatMap((evaluation, index) => {
     const group = boundedRules(evaluation.source, evaluation.event);
@@ -203,6 +294,49 @@ function assertFrame(snapshot: TaskSnapshot, expected: Frame, label: string, own
   const value = businessSnapshot(snapshot) as { context: TaskContext };
   // Assert the new identifiers and publication, then compare all remaining legacy data byte-for-byte by digest.
   const { context } = value;
+  // KEJ-113 adds independently checked supervision facts. The retired frozen
+  // model is unchanged: compare all old fields after validating this extension.
+  const resilience = context.resilience;
+  assert(resilience, `${label}: newly evaluated task must preserve its fixed window`);
+  const createdAt = context.messages[0]!.at;
+  assert.deepEqual(resilience.window, { id: `${context.taskId}:window:initial`, openedAt: createdAt,
+    hardDeadline: createdAt + 900_000, repairUsed: 0, repairLimit: 2 }, label);
+  assert.deepEqual(resilience.skips, [], label); assert.deepEqual(resilience.cleanup, [], label);
+  assert.equal(resilience.lastSupervisedAt, undefined, label); assert.equal(resilience.frozenHistory, undefined, label);
+  for (const gate of resilience.gates) {
+    assert.equal(gate.scope, 'task'); assert.equal(gate.required, true); assert.equal(gate.windowId, resilience.window.id);
+    if (gate.cause === 'incompatibleExecution') {
+      assert(label.startsWith('不兼容恢复:')); assert.equal(gate.kind, 'recovery'); assert.deepEqual(gate.decisions, ['skip', 'stop']);
+      assert.equal(gate.status, 'open'); assert.equal(context.reason, 'Execution version incompatible');
+      assert.equal(gate.question, '当前宿主不支持原执行协议。请跳过剩余业务并交付缺口，或停止；需要继续请建立当前配置的新任务。');
+      assert(context.trace.some(entry => entry.event === 'RECOVER' && gate.id === `${context.taskId}:gate:${entry.detail}:task`));
+    } else {
+      assert(context.trace.some(entry => ['WAIT_USER', 'COORDINATE', 'INTERPRETATION_RESULT'].includes(entry.event)
+        && gate.id === `${context.taskId}:gate:${entry.detail}:task`), `${label}: gate must originate from a real question`);
+      assert(context.messages.some(item => item.text.includes(gate.question) || item.detailText?.includes(gate.question)), label);
+    }
+    assert(gate.epoch <= context.epoch && gate.goalVersion <= context.goalVersion);
+    if (gate.status !== 'open') assert(context.trace.some(entry => entry.detail === gate.responseId && entry.at === gate.resolvedAt));
+  }
+  const continued = context.trace.filter(entry => entry.event === 'CONTINUE').at(-1);
+  assert.equal(resilience.nextSupervisionAt, resilience.frozen || resilience.gates.some(gate => gate.status === 'open') ? null
+    : (continued?.at ?? createdAt) + 30_000, label);
+  if (resilience.frozen) {
+    // This one original trace intentionally gains a standalone failed report.
+    // Validate the new report completely before projecting it to its old final notice.
+    assert(label.startsWith('普通额度耗尽:'), `${label}: unexpected business change in frozen trace`);
+    assert.equal(context.outcome, 'failed'); assert.equal(resilience.frozen.outcome, 'failed');
+    assert.equal(resilience.frozen.verification, 'incomplete'); assert.deepEqual(resilience.frozen.cleanupIds, []);
+    assert.deepEqual(resilience.frozen.items, []); assert.deepEqual(resilience.frozen.skippedIds, []);
+    const report = context.artifacts.find(artifact => artifact.id === resilience.frozen!.reportArtifactId);
+    assert(report && report.content === resilience.frozen.text && report.content.includes('状态：failed'));
+    assert.deepEqual(resilience.frozen.artifactIds, [report.id]);
+    assert.equal(context.artifacts.length, 1); context.artifacts = [];
+    const final = context.messages.find(item => item.kind === 'final'); assert(final);
+    assert.equal(final.author, 'facilitator'); assert.equal(final.detailText ?? final.text, report.content); assert.deepEqual(final.artifactIds, [report.id]);
+    final.author = context.owner; final.text = context.reason; final.artifactIds = []; delete final.detailText;
+  }
+  delete context.resilience;
   const cycle = context.deliveryCycle;
   assert(cycle, label);
   assert.equal(cycle.requests, expected.usage.checks, label);
@@ -296,7 +430,8 @@ export function replayLegacyTrace(name: string, diagnostics = false, comparisons
       assert.equal(snapshotDigest(inspected.snapshot), snapshotDigest(snapshot));
       comparisons?.push({ pureDigest: snapshotDigest(snapshot), inspectedDigest: snapshotDigest(inspected.snapshot), evidence: inspected.evidence });
       assertLegacyEvidence(inspected.evidence, frame.evidence, `${name}:${index}:diagnostics`,
-        before.context.outcome !== 'complete' && snapshot.context.outcome === 'complete', !!consume);
+        before.context.outcome !== 'complete' && snapshot.context.outcome === 'complete', !!consume,
+        !before.context.resilience?.frozen && !!snapshot.context.resilience?.frozen);
     }
     if (consume) {
       assert.deepEqual(snapshot.context.usage, before.context.usage, 'Claiming a check does not charge a model request');
@@ -356,6 +491,21 @@ function verifyInterpretationCapacityFaultDetection() {
   mustReject(work => { work.payload.unexpectedMetadata = true; });
   mustReject(work => { work.kind = 'owner'; });
 }
+function verifyResilienceExtensionFaultDetection() {
+  const trace = legacyTaskContract.traces.find(item => item.name === '协助结果交接'); assert(trace);
+  const initial = initialTask(structuredClone(trace.input));
+  for (const field of ['hardDeadline', 'repairUsed'] as const) {
+    const saved = structuredClone(persistTask(initial)) as { context: TaskContext };
+    saved.context.resilience!.window[field]++;
+    assert.throws(() => assertFrame(restoreTask(saved), trace.frames[0]!, `resilience ${field} mutation`, new Map()), assert.AssertionError);
+  }
+  const exhausted = legacyTaskContract.traces.find(item => item.name === '普通额度耗尽'); assert(exhausted);
+  let finished = initialTask(structuredClone(exhausted.input));
+  for (const event of exhausted.events) finished = stepTask(finished, structuredClone(event));
+  const saved = structuredClone(persistTask(finished)) as { context: TaskContext };
+  saved.context.resilience!.frozen!.outcome = 'complete';
+  assert.throws(() => assertFrame(restoreTask(saved), exhausted.frames.at(-1)!, '普通额度耗尽:tampered completion', new Map()), assert.AssertionError);
+}
 export function verifyLegacyDiagnostics() {
   const graph = legacyTaskContract.graph, insertion = graph.transitions.findIndex(t => t.event === 'LOCAL_RESULT');
   assert.deepEqual(graph.transitions.find(rule => rule.id === coordinationRejectionId), {
@@ -377,10 +527,16 @@ export function verifyLegacyDiagnostics() {
     }).flatMap(rule => rule.source === '*' && rule.event === '@always'
       ? [...(rule.order === 0 ? lifecycleRules : []), { ...rule, id: shiftedGlobal(rule.id), order: rule.order + 2 }] : [rule])
     .flatMap(rule => rule.id === '*:REGENERATE_MODEL_OUTPUT:0' ? [rule, ...toolFailureRules] : [rule]);
-  assert.deepEqual(taskGraph(), { ...graph, definition: extendedDefinition, transitions });
+  const extended = resilienceTransitions(transitions);
+  assert.deepEqual(taskGraph().transitions, extended);
+  assert.equal(taskGraph().id, graph.id); assert.equal(taskGraph().initial, graph.initial); assert.deepEqual(taskGraph().states, graph.states);
   const comparisons: DiagnosticComparison[] = [];
   for (const trace of legacyTaskContract.traces) replayLegacyTrace(trace.name, true, comparisons);
   verifyCoordinationExtensionFaultDetection();
   verifyInterpretationCapacityFaultDetection();
-  return { graph: taskGraph(), expectedGraph: { ...graph, definition: extendedDefinition, transitions }, comparisons };
+  verifyResilienceExtensionFaultDetection();
+  // The full extended row structure was independently checked above. Its current
+  // definition is an opaque compatibility token, not the retired fixture token.
+  const checkedGraph = taskGraph();
+  return { graph: checkedGraph, expectedGraph: { ...graph, definition: checkedGraph.definition, transitions: extended }, comparisons };
 }

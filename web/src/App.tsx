@@ -10,6 +10,7 @@ import {
 import { Button } from "@base-ui/react/button";
 import { Popover } from "@base-ui/react/popover";
 import { Tooltip } from "@base-ui/react/tooltip";
+import { Dialog } from '@base-ui/react/dialog';
 import {
   ArrowDown,
   ArrowUp,
@@ -48,6 +49,8 @@ import { AgentAvatar, agentStatus, IconButton, phaseLabel, time } from "./ui";
 import { roomList } from './room-list';
 import { HostApprovals } from './HostApprovals';
 import { HostRetryButton } from './HostRetryButton';
+import { RoomDeletion, RoomDeletionStatus } from './RoomDeletion';
+import { HumanBlockers } from './HumanBlockers';
 
 const MessageText = lazy(() =>
   import("./MessageText").then((module) => ({ default: module.MessageText })),
@@ -104,6 +107,9 @@ export function Workspace({
   const [sending, setSending] = useState(false);
   const [creating, setCreating] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [extraOrdinary, setExtraOrdinary] = useState('');
+  const [continueOpen, setContinueOpen] = useState(false);
+  const [continueMinutes, setContinueMinutes] = useState('15');
   const [showArchived, setShowArchived] = useState(false);
   const roomListInitialized = useRef(false);
   const [roomAction, setRoomAction] = useState<string | null>(null);
@@ -119,6 +125,15 @@ export function Workspace({
     payload: string;
     id: string;
   }>>({});
+  const clearedRooms = useRef(new Set<string>());
+  useEffect(() => {
+    const removed = (workspace.deletedRooms ?? []).map(room => room.roomId).filter(id => !clearedRooms.current.has(id));
+    if (!removed.length) return;
+    for (const id of removed) { clearedRooms.current.add(id); delete sendIdentities.current[id]; }
+    const omit = <T,>(values: Record<string, T>) => Object.fromEntries(Object.entries(values).filter(([id]) => !clearedRooms.current.has(id)));
+    setDrafts(omit); setMentionsByRoom(omit); setSourcesByRoom(omit); setCandidatesByRoom(omit);
+    if (roomId && removed.includes(roomId)) { setDetailOpen(false); setDetailTarget(null); setSelectedAgent(null); setDebugOpen(false); }
+  }, [workspace.deletedRooms, roomId]);
   const draftKey = roomId ?? "new";
   const text = drafts[draftKey] ?? "";
   const sourceArtifact = sourcesByRoom[draftKey];
@@ -127,6 +142,7 @@ export function Workspace({
   const task = snapshot?.tasks.find(
     (task) => task.id === snapshot.activeTaskId,
   );
+  const deleting = !!snapshot?.room.deletion;
   const latestTask = task ?? snapshot?.tasks.at(-1);
   const selected = agents.find((agent) => agent.id === selectedAgent) ?? null;
   const activeAgents = agents.filter((agent) => !agent.retired);
@@ -160,6 +176,8 @@ export function Workspace({
     setSelectedAgent(null);
     setDetailOpen(false);
     setDetailTarget(null);
+    setDebugOpen(false);
+    setContinueOpen(false);
     atBottom.current = true;
   }, [roomId]);
   useEffect(() => {
@@ -226,8 +244,9 @@ export function Workspace({
     setRoomAction(id); setError('');
     try {
       await workspace.setRoomArchived(id, archived);
+      if (clearedRooms.current.has(id)) return;
       setShowArchived(false);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : '群聊操作失败，请重试。'); }
+    } catch (cause) { if (!clearedRooms.current.has(id)) setError(cause instanceof Error ? cause.message : '群聊操作失败，请重试。'); }
     finally { setRoomAction(null); }
   };
   useEffect(() => {
@@ -256,8 +275,8 @@ export function Workspace({
       setSending(false);
     }
   };
-  const send = async (continueTask = false) => {
-    if (sending || !connected || (!text.trim() && !continueTask)) return;
+  const send = async (continueTask = false, addedOrdinary?: number, newWindowMs?: number) => {
+    if (sending || deleting || !connected || (!text.trim() && !continueTask)) return;
     setSending(true);
     setError("");
     let submittedRoom = roomId;
@@ -280,7 +299,8 @@ export function Workspace({
         ),
         ...(!continueTask && sourceArtifact ? { sourceArtifact: { sourceTaskId: sourceArtifact.sourceTaskId, artifactId: sourceArtifact.artifactId } } : {}),
         ...(continueTask
-          ? { intent: "continue", replyToTaskId: latestTask?.id }
+          ? { intent: "continue", replyToTaskId: latestTask?.id, ...(addedOrdinary !== undefined ? { extraOrdinary: addedOrdinary } : {}),
+            ...(newWindowMs !== undefined ? { newWindowMs } : {}) }
           : !isRevision && task?.phase === "waitingHuman"
             ? { intent: "decision", replyToTaskId: task.id }
             : {}),
@@ -290,7 +310,10 @@ export function Workspace({
       const id = identity?.payload === serialized ? identity.id : crypto.randomUUID();
       sendIdentities.current[targetRoom] = { payload: serialized, id };
       await api(`/rooms/${targetRoom}/messages`, { id, ...payload });
+      if (clearedRooms.current.has(targetRoom)) return;
       delete sendIdentities.current[targetRoom];
+      if (continueTask) setContinueOpen(false);
+      if (addedOrdinary !== undefined) setExtraOrdinary('');
       if (!continueTask) {
         setSourcesByRoom(previous => ({ ...previous, [draftKey]: undefined, [targetRoom]: undefined }));
         setCandidatesByRoom(previous => ({ ...previous, [draftKey]: [], [targetRoom]: [] }));
@@ -311,6 +334,7 @@ export function Workspace({
       });
       textarea.current?.focus();
     } catch (error) {
+      if (submittedRoom && clearedRooms.current.has(submittedRoom)) return;
       if (error instanceof ApiError) {
         if (submittedRoom) delete sendIdentities.current[submittedRoom];
         setCandidatesByRoom(previous => ({ ...previous, [draftKey]: error.sourceCandidates ?? [] }));
@@ -369,7 +393,8 @@ export function Workspace({
     snapshot?.room.title ??
     rooms.find((room) => room.id === roomId)?.title ??
     "新的群聊";
-  const working = task && !["waitingHuman", "stopping"].includes(task.phase);
+  const working = task && !["waitingHuman", "stopping"].includes(task.phase)
+    && (!task.supervision || ['running', 'repairing'].includes(task.supervision.status));
   const executing = agents.filter(
     (agent) => agentStatus(agent.id, snapshot, connected) === "执行中",
   );
@@ -435,10 +460,12 @@ export function Workspace({
                   {room.id === roomId && <i />}
                 </Button>
                 <IconButton label={`${showArchived ? '恢复' : '归档'}群聊 ${room.title}`} className="room-archive-action"
-                  disabled={!!roomAction || !connected || sending}
+                  disabled={!!roomAction || !connected || sending || !!room.deletion}
                   onClick={() => { void organizeRoom(room.id, !showArchived); }}>
                   {roomAction === room.id ? <LoaderCircle className="spin" size={15} /> : showArchived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
                 </IconButton>
+                {showArchived && workspace.deleteRoom && workspace.retryRoomDeletion && <RoomDeletion key={`delete:${room.id}`} room={room}
+                  connected={connected && !sending} onDelete={workspace.deleteRoom} onRetry={workspace.retryRoomDeletion} />}
                 </div>
               ))
             ) : (
@@ -541,6 +568,7 @@ export function Workspace({
               暂时无法连接本地服务，正在重试。执行状态将在重新连接后更新。
             </div>
           )}
+          {snapshot && <RoomDeletionStatus room={snapshot.room} />}
           {snapshot && !snapshot.modelConfigured && (
             <div className="config-banner">
               <CircleAlert size={15} />
@@ -748,7 +776,20 @@ export function Workspace({
               && snapshot?.failedSandboxCommands?.filter(command => command.taskId === latestTask.id
               && (command.canRequest || command.retry && ['pending', 'active', 'awaitingApproval', 'running', 'uncertain'].includes(command.retry.status))).slice(-2).map(command =>
               <HostRetryButton key={`${roomId}:${command.operationId}`} roomId={roomId} command={command} connected={connected} />)}
-            {roomId && <HostApprovals key={roomId} roomId={roomId} requests={snapshot?.hostApprovals ?? []} sessions={snapshot?.hostSessions ?? []} connected={connected} />}
+            {roomId && <HostApprovals key={roomId} roomId={roomId} requests={deleting ? [] : snapshot?.hostApprovals ?? []} sessions={deleting ? [] : snapshot?.hostSessions ?? []} connected={connected} />}
+            {roomId && <HumanBlockers key={`blockers:${roomId}`} roomId={roomId} blockers={snapshot?.blockers ?? []} connected={connected}
+              availableHostApprovalIds={snapshot?.hostApprovals?.map(request => request.approvalId) ?? []}
+              expiredTaskIds={snapshot?.tasks.filter(item => item.supervision?.hardDeadlineAt != null
+                && item.supervision.hardDeadlineAt <= snapshot.serverTime).map(item => item.id) ?? []} />}
+            {task?.phase === 'waitingHuman' && task.usage.ordinary >= task.limits.ordinary && !deleting && <div className="host-session" aria-label="明确追加任务额度">
+              <label>追加执行额度<input aria-label="追加执行额度" type="number" min="1" step="1" value={extraOrdinary} disabled={sending || !connected}
+                onChange={event => setExtraOrdinary(event.target.value)} /></label>
+              <Button disabled={sending || !connected} onClick={() => {
+                const amount = Number(extraOrdinary);
+                if (!Number.isSafeInteger(amount) || amount <= 0) { setError('追加额度应为正整数。'); return; }
+                void send(true, amount);
+              }}>增加额度并继续</Button>
+            </div>}
             {latestTask && (
               <div className="task-status-row">
                 <Button
@@ -774,9 +815,9 @@ export function Workspace({
                     {connected ? phaseLabel(latestTask) : "连接中断"}
                   </strong>
                   <span className="status-summary">
-                    {executing.length && connected
+                    {latestTask.supervision?.reason || (executing.length && connected
                       ? `${executing.map((agent) => agent.name).join("、")}正在工作`
-                      : latestTask.goal}
+                      : latestTask.goal)}
                   </span>
                   <ChevronRight size={12} />
                 </Button>
@@ -797,7 +838,7 @@ export function Workspace({
                   <Button
                     className="continue-button"
                     onClick={() => {
-                      void send(true);
+                      setContinueOpen(true);
                     }}
                     disabled={sending || !connected}
                   >
@@ -842,7 +883,7 @@ export function Workspace({
                   setMentionIndex(0);
                 }}
                 onKeyDown={onKeyDown}
-                disabled={!connected || sending}
+                disabled={!connected || sending || deleting}
                 placeholder={
                   task
                     ? task.phase === "waitingHuman"
@@ -921,7 +962,7 @@ export function Workspace({
                   </span>
                   <Button
                     className="send-button"
-                    disabled={!text.trim() || sending || !connected}
+                    disabled={!text.trim() || sending || !connected || deleting}
                     aria-label="发送消息"
                     onClick={() => {
                       void send();
@@ -964,7 +1005,7 @@ export function Workspace({
               connected={connected}
               target={detailTarget ?? undefined}
               onAgent={openAgent}
-              onReference={connected && !sending ? source => { selectSource(source); setDetailOpen(false); } : undefined}
+              onReference={connected && !sending && !deleting ? source => { selectSource(source); setDetailOpen(false); } : undefined}
               onClose={closeDetails}
               />
               </Suspense>
@@ -972,6 +1013,31 @@ export function Workspace({
           </>
         )}
       </div>
+      <Dialog.Root open={continueOpen} onOpenChange={setContinueOpen}>
+        <Dialog.Portal><Dialog.Backdrop className="host-approval-backdrop" />
+          <Dialog.Popup className="host-approval-dialog" aria-busy={sending}>
+            <div className="host-approval-heading">
+              <Dialog.Title>继续处理当前任务</Dialog.Title>
+              <Dialog.Close aria-label="关闭继续确认"><X size={18} /></Dialog.Close>
+            </div>
+            <Dialog.Description>继续会沿用原处理窗口。原窗口已耗尽时，只有明确授权新的时长才会建立新窗口。</Dialog.Description>
+            <label>新处理时长（分钟）<input type="number" min="1" step="1" aria-label="新处理时长（分钟）"
+              value={continueMinutes} onChange={event => setContinueMinutes(event.target.value)} disabled={sending} /></label>
+            {error && <p role="alert">{error}</p>}
+            <div className="host-approval-actions">
+              <Dialog.Close disabled={sending}>取消继续</Dialog.Close>
+              <Button disabled={sending || !connected || deleting} onClick={() => { void send(true); }}>沿用原窗口继续</Button>
+              <Button className="primary" disabled={sending || !connected || deleting} onClick={() => {
+                const minutes = Number(continueMinutes);
+                if (!Number.isSafeInteger(minutes) || minutes <= 0 || !Number.isSafeInteger(minutes * 60_000)) {
+                  setError('新处理时长必须为正整数分钟。'); return;
+                }
+                void send(true, undefined, minutes * 60_000);
+              }}>授权新窗口并继续</Button>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
       {debugEnabled && debugOpen && <Suspense fallback={<div role="status">加载状态机调试…</div>}>
         <TaskDebug key={roomId ?? "sandbox"} roomId={roomId} onClose={() => setDebugOpen(false)} />
       </Suspense>}

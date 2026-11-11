@@ -60,14 +60,48 @@ export function guardAcceptance(constraint: string, expected?: string) {
   return result.code;
 }
 export function stopAcceptance(stage: string) {
-  const m = new LocalModel(); m.request(); if (stage !== 'queued') m.claim(); if (stage === 'running') m.started();
-  m.send({ type: 'STOP' });
-  if (stage !== 'queued') {
-    assert.equal(m.op?.status, 'cancelling'); assert.equal(m.send({ type: 'SETTLE', intentId: m.work.id }).code, 'LOCAL_OPERATION_PENDING');
-    assert.equal(m.c.intents[0]!.status, 'inflight'); assert.equal(m.result({ sessionId: 'wrong' }).ok, false);
-    m.result({ result: { ok: false, code: 'cancelled', data: {} } });
-  }
-  m.send({ type: 'SETTLE', intentId: m.work.id }); assert.equal(m.c.candidate, null); assert.equal(m.c.outcome, 'stopped');
+  const store = new MemoryStore(), h = new Harness(localModelInput().config, store, 1), work = h.claim();
+  const requested = h.engine.requestLocal(h.room, h.task, work.id, work.attempt, { type: 'runCli', executable: 'node', args: [] }, [], 'stop-resource');
+  const claimed = stage === 'queued' ? undefined : h.engine.claimLocal(h.room, h.task, work.id, requested.id, work.attempt);
+  if (claimed) assert(claimed.response.ok);
+  const sessionId = claimed?.operation?.sessionId;
+  if (stage === 'running') assert(h.event({ type: 'LOCAL_STARTED', intentId: work.id, operationId: requested.id, sessionId: sessionId! }).ok);
+  const current = () => h.context().intents.find(item => item.id === work.id)!;
+  const operation = () => current().localOperations!.find(op => op.id === requested.id)!;
+  const foreignRoom = 'stop-resource-contender', foreignTask = h.engine.submit(foreignRoom, { id: 'M2', text: '核对同一真实租约' }).taskId!;
+  const foreignWork = h.engine.claim(foreignRoom, foreignTask, h.engine.pending(foreignRoom, foreignTask)[0]!.id)!;
+  const foreignOp = h.engine.requestLocal(foreignRoom, foreignTask, foreignWork.id, foreignWork.attempt,
+    { type: 'runCli', executable: 'node', args: [] }, [], 'stop-resource');
+  const contend = () => h.engine.claimLocal(foreignRoom, foreignTask, foreignWork.id, foreignOp.id, foreignWork.attempt);
+  try {
+    assert(h.event({ type: 'STOP' }).ok);
+    if (stage !== 'queued') {
+      assert.equal(operation().status, 'cancelling'); assert.equal(current().status, 'uncertain');
+      const custody = h.context().resilience!.cleanup.find(item => item.operationId === requested.id)!;
+      assert(custody); assert.equal(custody.sessionId, sessionId); assert.equal(custody.state, 'pending');
+      assert.deepEqual(custody.resourceKeys, ['stop-resource']);
+      const frozen = structuredClone(h.context().resilience!.frozen);
+      assert.equal(h.event({ type: 'SETTLE', intentId: work.id }).code, 'LOCAL_OPERATION_PENDING');
+      assert.equal(contend().response.code, 'WORKSPACE_BUSY', 'Logical stop may not release the actual Store lease');
+      assert.equal(h.event({ type: 'LOCAL_RESULT', intentId: work.id, operationId: requested.id, sessionId: 'wrong',
+        result: { ok: false, code: 'cancelled', data: {} }, settled: true, effectsKnown: true }).ok, false);
+      assert.equal(contend().response.code, 'WORKSPACE_BUSY');
+      assert(h.event({ type: 'LOCAL_RESULT', intentId: work.id, operationId: requested.id, sessionId: sessionId!,
+        result: { ok: false, code: 'cancelled', data: {} }, settled: false, effectsKnown: false }).ok);
+      assert.equal(operation().status, 'uncertain'); assert.equal(contend().response.code, 'WORKSPACE_BUSY');
+      assert.equal(h.context().resilience!.cleanup.find(item => item.id === custody.id)!.state, 'pending');
+      assert(!h.engine.pending(h.room, h.task).some(item => item.kind === 'owner'));
+      assert(h.event({ type: 'LOCAL_RESULT', intentId: work.id, operationId: requested.id, sessionId: sessionId!,
+        result: { ok: false, code: 'cancelled', data: {} }, settled: true, effectsKnown: true }).ok);
+      assert.equal(h.context().resilience!.cleanup.find(item => item.id === custody.id)!.state, 'settled');
+      assert.equal(current().status, 'done'); assert.deepEqual(h.context().resilience!.frozen, frozen);
+    } else assert.equal(operation().status, 'cancelled');
+    const admitted = contend(); assert(admitted.response.ok, 'Only known physical settlement, or an unclaimed cancelled request, frees the resource');
+    assert(h.engine.send(foreignRoom, foreignTask, { type: 'LOCAL_RESULT', id: 'settle-contender', at: h.now,
+      intentId: foreignWork.id, operationId: foreignOp.id, sessionId: admitted.operation!.sessionId!,
+      result: { ok: false, code: 'not-started', data: {} }, settled: true, effectsKnown: true }).ok);
+    assert(h.event({ type: 'SETTLE', intentId: work.id }).ok); assert.equal(h.context().candidate, null); assert.equal(h.context().outcome, 'stopped');
+  } finally { store.close(); }
 }
 export function leaseAcceptance(sqlitePath?: string) {
   const store = sqlitePath ? new SqliteStore(sqlitePath) : new MemoryStore(); const config = configuration();

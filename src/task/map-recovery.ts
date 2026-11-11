@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { AcceptanceCriterion } from '../delivery-acceptance.js';
 import type { Candidate, Intent, MapPartitionRun, PartitionRecovery, TaskContext, TaskEvent } from '../types.js';
+import { requiredResources, resourceAcquisitionSources, sameResourceIdentity, savedResourceAcquisitions } from '../resource-acquisition.js';
 import { deliveryEvidence } from './evidence.js';
 
 const identity = z.string().min(1).max(1024).refine(value => value === value.trim() && !/[\r\n\0]/.test(value));
@@ -28,6 +29,7 @@ export function mapRecoveryProblem(c: TaskContext, delivery: Delivery): string |
     && work.epoch === c.epoch && work.goalVersion === c.goalVersion);
   if (!owner) return 'MAP_RECOVERY_OWNER_REQUIRED';
   const evidence = deliveryEvidence(c, owner, c.deliveryCycle?.evidence);
+  const acquiredWeb = new Map(savedResourceAcquisitions(c).filter(receipt => receipt.source === 'webFetch').map(receipt => [receipt.id, receipt]));
   const seen = new Set<string>();
   for (const claim of claims) {
     if (claim.discussionId !== round.id) return 'MAP_RECOVERY_STALE_DISCUSSION';
@@ -38,9 +40,31 @@ export function mapRecoveryProblem(c: TaskContext, delivery: Delivery): string |
     for (const id of claim.sourceOperationIds) {
       const source = evidence?.sources.find(source => source.id === id);
       if (!source || source.metadata.epoch !== c.epoch || source.metadata.goalVersion !== c.goalVersion
-        || source.metadata.command.type !== 'runCli'
-        || source.metadata.status !== 'succeeded' || source.metadata.exitCode !== 0 || source.metadata.completeness !== 'complete'
+        || source.metadata.status !== 'succeeded' || source.metadata.completeness !== 'complete'
         || !source.metadata.capturedContentHash || !source.stdout?.trim()) return 'MAP_RECOVERY_EVIDENCE_UNAVAILABLE';
+      if (source.metadata.command.type === 'runCli') {
+        if (source.metadata.exitCode !== 0) return 'MAP_RECOVERY_EVIDENCE_UNAVAILABLE';
+      } else if (source.metadata.command.type === 'webFetch') {
+        const receipt = acquiredWeb.get(id);
+        if (!receipt || receipt.workId !== source.metadata.sourceWorkId || receipt.operationId !== source.metadata.sourceOperationId
+          || receipt.requestHash !== source.metadata.command.requestHash || receipt.contentHash !== source.metadata.capturedContentHash
+          || receipt.content !== source.stdout) return 'MAP_RECOVERY_EVIDENCE_UNAVAILABLE';
+      } else return 'MAP_RECOVERY_EVIDENCE_UNAVAILABLE';
+    }
+    const partition = round.mapReduce!.partitions.find(item => item.id === claim.partitionId);
+    if (!partition) return 'MAP_RECOVERY_PARTITION_NOT_UNRESOLVED';
+    const scope = (work: Intent): Intent => ({ ...work, payload: { ...work.payload, partition } });
+    const requirements = requiredResources(c, scope(owner));
+    if (requirements.length) {
+      // Query each actual source owner; attaching a partition scopes its obligations without
+      // changing the receipt's work/attempt/epoch or relabelling saved content as a new read.
+      const sources = (evidence?.sources ?? []).filter(source => claim.sourceOperationIds.includes(source.id)).flatMap(source => {
+        const work = c.intents.find(item => item.id === source.metadata.sourceWorkId);
+        return work ? resourceAcquisitionSources(c, scope(work), [source.id]).filter(receipt =>
+          receipt.workId === source.metadata.sourceWorkId && receipt.operationId === source.metadata.sourceOperationId) : [];
+      });
+      if (requirements.some(requirement => !sources.some(source => sameResourceIdentity(requirement.resource, source.resource))))
+        return 'MAP_RECOVERY_RESOURCE_UNVERIFIED';
     }
   }
   return null;

@@ -10,7 +10,8 @@ export type EventBody = TaskEvent extends infer E ? E extends TaskEvent ? Omit<E
 export const configuration = (change?: Partial<TeamConfig['limits']>): TeamConfig => ({ ...structuredClone(baseline), limits: { ...baseline.limits, ...change } });
 export class Harness {
   now = 0; seq = 0; room = 'room1'; task = 'task:M1'; engine: TeamEngine;
-  constructor(readonly config = configuration(), readonly store: Store = new MemoryStore()) {
+  constructor(readonly config = configuration(), readonly store: Store = new MemoryStore(), initialAt = 0) {
+    this.now = initialAt;
     this.engine = new TeamEngine(store, config, () => this.now);
     this.engine.submit(this.room, { id: 'M1', text: 'Write a plan', goal: { text: 'Write a plan', constraints: ['cite sources'], criteria: ['Complete plan'], requiredArtifacts: 0 } });
   }

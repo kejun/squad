@@ -10,7 +10,8 @@ import { candidateJudgments, type EventBody } from '../helpers.js';
 import type { SpecWorld } from './steps.js';
 import { withFixtureAcceptance } from '../delivery-protocol-fixture.js';
 
-interface RepairState { fixture: RegenerationFixture; directory?: string; web?: WebService; room?: string; failure?: unknown; expectFailure?: boolean; failureEvent?: Extract<EventBody, { type: 'WORK_FAILED' }>; expectedRequests?: number }
+interface RepairState { fixture: RegenerationFixture; directory?: string; web?: WebService; room?: string; failure?: unknown; expectFailure?: boolean; failureEvent?: Extract<EventBody, { type: 'WORK_FAILED' }>; expectedRequests?: number;
+  providerFault?: string; originalCandidate?: { text: string; artifactIds: string[]; revision: string | undefined; artifacts: { id: string; content: string }[] } }
 const states = new WeakMap<SpecWorld, RepairState>();
 const state = (world: SpecWorld) => { const s = states.get(world); assert(s); return s; };
 function setup(world: SpecWorld, kind: ModelKind = 'check', limits: Parameters<typeof regenerationConfig>[0] = {}, sqlite = false, sources: string[] = []) {
@@ -124,6 +125,9 @@ Then('不得发出第二次请求或提交检查通过', function (this: SpecWor
 
 Given('模型请求返回{string}', function (this: SpecWorld, fault: string) {
   const f = setup(this);
+  const c = f.h.context(); state(this).providerFault = fault;
+  state(this).originalCandidate = { text: c.candidate!.text, artifactIds: [...c.candidate!.artifactIds], revision: c.candidate!.revision,
+    artifacts: c.artifacts.map(artifact => ({ id: artifact.id, content: artifact.content })) };
   state(this).expectedRequests = fault === 'HTTP401' || fault === '输出截断' ? 1 : 2;
   f.responseFactory = () => fault === 'HTTP401' ? new Response('private-provider-body', { status: 401 })
     : fault === '输出截断' ? modelResponse(goodModelOutput('check'), 'length') : Response.json({ unrelated: 'not-a-completion' });
@@ -132,9 +136,35 @@ Then('不应保存格式修正记录且仅瞬时供应商故障可自动重试',
   const s = state(this), f = s.fixture;
   assert.equal(f.requests.length, s.expectedRequests);
   assert.equal(f.repairs.length, 0);
-  assert.equal(f.h.view().phase, 'ended');
-  assert.equal(f.h.context().outcome, 'partial');
+  const c = f.h.context();
+  if (s.providerFault === 'HTTP401') {
+    assert.equal(f.h.view().phase, 'waitingHuman'); assert.equal(c.outcome, null);
+    const gate = c.resilience?.gates.find(gate => gate.kind === 'authorization' && gate.scope === 'task' && gate.required && gate.status === 'open');
+    assert(gate);
+    f.h.now = c.resilience!.window.hardDeadline + 1; f.h.engine.tick(f.h.room);
+    assert.equal(f.h.view().phase, 'waitingHuman'); assert.equal(f.h.context().outcome, null);
+    assert.equal(f.h.context().resilience!.gates.find(item => item.id === gate.id)!.status, 'open');
+    assert.equal(f.requests.length, 1); assert.equal(f.h.context().usage.retries, 0);
+    assert(f.h.event({ type: 'HUMAN_GATE_DECISION', gateId: gate.id, decision: 'skip', fence: f.h.context() }).ok);
+    assert.equal(f.h.view().phase, 'ended'); assert.equal(f.h.context().outcome, 'partial');
+    assert.equal(f.h.context().resilience!.gates.find(item => item.id === gate.id)!.status, 'skipped');
+  } else {
+    assert.equal(f.h.view().phase, 'ended'); assert.equal(c.outcome, 'partial');
+  }
   assert.equal(f.h.context().usage.retries, s.expectedRequests! - 1);
+});
+Then('供应商正文不得替换原候选或发布为成功交付', function (this: SpecWorld) {
+  const s = state(this), c = s.fixture.h.context(), original = s.originalCandidate!;
+  assert.equal(c.candidate!.text, original.text); assert.equal(c.candidate!.revision, original.revision);
+  assert.deepEqual(c.candidate!.artifactIds, original.artifactIds);
+  assert.equal(c.publishedDelivery, undefined); assert(!c.trace.some(entry => entry.event === 'CHECK_RESULT'));
+  assert(!JSON.stringify(c).includes('private-provider-body'));
+  for (const artifact of c.artifacts) {
+    if (original.artifacts.some(old => old.id === artifact.id && old.content === artifact.content)) continue;
+    if (artifact.id === c.resilience?.frozen?.reportArtifactId) { assert.equal(artifact.content, c.resilience.frozen.text); continue; }
+    assert(artifact.id.startsWith(`${c.resilience!.window.id}:unverified-draft:`) && artifact.name === 'unverified-draft.md'
+      && artifact.content === original.text, 'Only the original candidate shadow and identified host report may be added; rejected provider content cannot become an artifact');
+  }
 });
 
 const secret = 'INVALID_RETURN_SECRET_DO_NOT_RETAIN';

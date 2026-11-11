@@ -7,6 +7,7 @@ import type { LocalRuntime } from "../local-runtime.js";
 import { isSavedRead, localAwaitingApproval } from '../local-operation.js';
 import { findHostRetry, hostRetryProblem } from '../host-retry.js';
 import { createHash, randomUUID } from "node:crypto";
+import { setTimeout as hostTimeout, clearTimeout as clearHostTimeout } from 'node:timers';
 import { DatabaseSync } from "node:sqlite";
 import { TeamEngine, type CommandResult, type Submission } from "../engine.js";
 import { artifactSourceMetadata } from '../types.js';
@@ -22,9 +23,12 @@ import {
   type WorkScope,
 } from "../runner.js";
 import { SqliteStore } from "../store.js";
+import { RoomDeletionCoordinator } from '../room-deletion-coordinator.js';
+import type { RuntimeCleanupInventory, SavedRoomDeletion } from '../room-deletion.machine.js';
 import { DebugJournal } from "./debug-journal.js";
 import type { DebugFeed } from "../task-debug.js";
 import type { Intent, TeamConfig } from "../types.js";
+import { processingWindow } from '../task/resilience.js';
 import type { WebTools } from "../web-tools.js";
 import type {
   ExecutionEvent,
@@ -35,6 +39,9 @@ import type {
   WebWork,
   WebHostApproval,
   WebFailedSandboxCommand,
+  WebBlocker,
+  WebOperationReview,
+  DeletedRoom,
 } from "./contracts.js";
 
 export class WebError extends Error {
@@ -54,7 +61,12 @@ export class WebService {
   private readonly store: SqliteStore;
   private readonly adapter: WorkAdapter;
   private readonly runners = new Map<string, WorkRunner>();
-  private readonly running = new Map<string, { roomId: string; job: Promise<void> }>();
+  private readonly running = new Map<string, { roomId: string; taskId: string; job: Promise<void> }>();
+  private readonly cancellationJobs = new Map<string, { roomId: string; taskId: string; job: Promise<void> }>();
+  private readonly cleanupJobs = new Map<string, Promise<void>>();
+  private readonly retiredRooms = new Set<string>();
+  private storageClosed = false;
+  private hostFault = false;
   private readonly failedRooms = new Set<string>();
   private readonly timer: ReturnType<typeof setInterval>;
   private lifecycle = initialTransition(serviceLifecycleMachine)[0];
@@ -64,6 +76,7 @@ export class WebService {
   private get initialized() { return this.lifecycle.matches('ready'); }
   private readonly debugJournal: DebugJournal | null;
   private readonly measurement: MeasurementRun;
+  private readonly deletions: RoomDeletionCoordinator;
 
   constructor(
     readonly config: TeamConfig,
@@ -75,12 +88,13 @@ export class WebService {
     measurementIdentity?: MeasurementIdentity,
   ) {
     this.measurement = measurementRun(config, measurementIdentity);
-    this.store = new SqliteStore(path);
+    // Web projections and task/deletion transactions share one database even for
+    // :memory:. This service owns the connection; its store only borrows it.
+    this.db = new DatabaseSync(path);
+    this.store = new SqliteStore(this.db);
     this.debugJournal = debugEnabled ? new DebugJournal() : null;
     this.engine = new TeamEngine(this.store, config, Date.now,
       this.debugJournal ? (roomId, frame) => this.debugJournal!.append(roomId, frame) : undefined);
-    // A second connection keeps Web metadata out of the engine's snapshot/receipt contract.
-    this.db = new DatabaseSync(path);
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS web_rooms(id TEXT PRIMARY KEY, title TEXT NOT NULL, createdAt INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS web_events(
@@ -99,6 +113,33 @@ export class WebService {
               throw new WorkFailure("请先在 .env 配置模型服务，然后重启应用。");
             },
           });
+    this.deletions = new RoomDeletionCoordinator(this.store, this.engine, {
+      prepare: async roomId => {
+        this.retiredRooms.add(roomId);
+        const runner = this.runners.get(roomId);
+        runner?.abortExecutions(roomId);
+        if (runner) { await runner.drainExecutions(this.config.resilience?.cancelGraceMs ?? 5000); runner.detachExecutions(); }
+        if (this.localRuntime) for (const taskId of Object.keys(this.store.read(roomId).tasks)) {
+          const c = this.engine.view(roomId, taskId)!.context;
+          for (const work of c.intents) for (const op of work.localOperations ?? []) if (op.status === 'uncertain' && op.sessionId) {
+            const reconciliation = await this.localRuntime.reconcile(op);
+            if (this.closing) return;
+            if (reconciliation) this.engine.send(roomId, taskId, { type: 'LOCAL_RECONCILE', id: randomUUID(), at: Date.now(),
+              intentId: work.id, operationId: op.id, sessionId: op.sessionId, ...reconciliation });
+          }
+        }
+      },
+      inventory: (roomId, saved) => this.deletionInventory(roomId, saved),
+      remove: (claim, signal) => {
+        if (!this.localRuntime) throw new Error('CLEANUP_RUNTIME_UNAVAILABLE');
+        return this.localRuntime.cleanupRoom(claim, signal);
+      },
+      filesGone: inventory => this.localRuntime ? this.localRuntime.verifyRoomCleanup(inventory) : Promise.resolve(inventory.assets.length === 0 && inventory.sessions.length === 0),
+      retire: roomId => { this.retiredRooms.add(roomId); this.debugJournal?.removeRoom(roomId); this.runners.get(roomId)?.detachExecutions(); this.runners.delete(roomId); this.failedRooms.delete(roomId); },
+      projectionsGone: roomId => !this.runners.has(roomId) && !this.failedRooms.has(roomId) && !(this.debugJournal?.read(roomId).records.length),
+      failed: roomId => { this.hostFault = true; this.hostError(roomId, new Error('DELETION_STORAGE_FAULT')); },
+    });
+    this.deletions.resume();
     if (localRuntime) {
       this.startup = this.recoverLocal().then(() => {
         this.advanceLifecycle('RECOVERED');
@@ -115,10 +156,19 @@ export class WebService {
     }
     this.timer = setInterval(() => {
       if (this.closing || !this.initialized) return;
-      for (const room of this.rooms()) {
-        const wake = this.engine.nextWake(room.id);
-        if (wake !== null && wake <= Date.now()) this.engine.tick(room.id);
-        this.kick(room.id);
+      let rooms: WebRoom[];
+      try { this.deletions.tick(); rooms = this.rooms(); } catch { this.hostFault = true; return; }
+      for (const room of rooms) {
+        try {
+          if (this.failedRooms.has(room.id)) {
+            if (!this.engine.healthy) continue;
+            this.engine.recover(room.id); this.failedRooms.delete(room.id);
+          }
+          this.scheduleCleanup(room.id);
+          const wake = this.engine.nextWake(room.id);
+          if (wake !== null && wake <= Date.now()) this.engine.tick(room.id);
+          this.kick(room.id);
+        } catch (error) { this.hostError(room.id, error); }
       }
     }, 1000);
     this.timer.unref();
@@ -131,9 +181,13 @@ export class WebService {
     await this.startup;
     if (!this.initialized) throw new WebError(503, '执行服务未就绪或已经关闭。');
   }
+  health() {
+    return { healthy: this.initialized && !this.closing && !this.hostFault && this.engine.healthy,
+      hostId: process.env.SQUAD_SUPERVISION_ID ?? null };
+  }
   private async recoverLocal(): Promise<void> {
-    const rooms = this.rooms();
-    for (const room of rooms) this.engine.recover(room.id);
+    const rooms = this.rooms().filter(room => !room.deletion);
+    for (const room of rooms) { if (this.closing) return; this.engine.recover(room.id); }
     for (const room of rooms) {
       for (const taskId of Object.keys(this.store.read(room.id).tasks)) {
         const context = this.engine.view(room.id, taskId)!.context;
@@ -141,6 +195,7 @@ export class WebService {
           if (op.status !== 'uncertain' || !op.sessionId) continue;
           if (this.closing) return;
           const reconciliation = await this.localRuntime!.reconcile(op);
+          if (this.closing) return;
           if (reconciliation) {
             const reply = this.engine.send(room.id, taskId, { type: 'LOCAL_RECONCILE', id: `startup-local:${randomUUID()}`, at: Date.now(),
               intentId: work.id, operationId: op.id, sessionId: op.sessionId, ...reconciliation });
@@ -167,7 +222,49 @@ export class WebService {
       )
       .all() as unknown as WebRoom[];
     // Scheduling and recovery use this complete list, including archived rooms.
-    return rooms.map(room => ({ ...room, ...this.engine.roomArchive(room.id) }));
+    const all: WebRoom[] = rooms.map(room => ({ ...room, ...this.engine.roomArchive(room.id) }));
+    for (const saved of this.store.listDeletions()) {
+      if (saved.value === 'idle') continue;
+      const index = all.findIndex(room => room.id === saved.context.roomId);
+      if (saved.value === 'deleted') { if (index >= 0) all.splice(index, 1); continue; }
+      const deletion = { id: saved.context.deletionId!, version: saved.context.revision, status: saved.value as 'preparing' | 'waiting' | 'deleting' | 'paused',
+        reason: saved.context.reason, remaining: [...saved.context.blockers.map(b => b.reason),
+          ...saved.context.assets.filter(a => a.status !== 'removed').map(a => `${a.kind}: ${a.id}`)], canRetry: ['waiting', 'paused'].includes(saved.value) };
+      const room: WebRoom = { ...(index >= 0 ? all[index]! : { id: saved.context.roomId, title: '正在删除的会话', createdAt: saved.context.requestedAt ?? 0,
+        archived: true, archiveVersion: saved.context.archiveVersion ?? 0 }), deletion };
+      if (index >= 0) all[index] = room; else all.push(room);
+    }
+    return all;
+  }
+  deletedRooms(): DeletedRoom[] { return this.store.listDeletions().filter(saved => saved.value === 'deleted').map(saved => ({ roomId: saved.context.roomId, deletionVersion: saved.context.revision, status: 'deleted' })); }
+  async deleteRoom(roomId: string, data: { id: string; expectedArchiveVersion: number; expectedDeletionVersion?: number }): Promise<WebRoom | DeletedRoom> {
+    const before = this.engine.roomDeletion(roomId);
+    if (before?.value === 'deleted') return { roomId, deletionVersion: before.context.revision, status: 'deleted' };
+    this.room(roomId);
+    if (data.expectedDeletionVersion !== undefined && before?.context.revision !== data.expectedDeletionVersion) throw new WebError(409, '删除状态已更新，请重新确认。');
+    const saved = this.engine.requestRoomDeletion(roomId, data.id, data.expectedArchiveVersion);
+    if (!saved.context.reply.ok) throw new WebError(409, saved.context.reply.detail, saved.context.reply);
+    this.deletions.kick(roomId); return this.room(roomId);
+  }
+  async retryRoomDeletion(roomId: string, data: { id: string; deletionId: string; expectedDeletionVersion: number }): Promise<WebRoom | DeletedRoom> {
+    const saved = this.engine.roomDeletion(roomId);
+    if (!saved || saved.context.deletionId !== data.deletionId || saved.context.revision !== data.expectedDeletionVersion) throw new WebError(409, '删除请求已失效，请查看最新状态。');
+    if (saved.value === 'deleted') return { roomId, deletionVersion: saved.context.revision, status: 'deleted' };
+    const next = this.store.stepDeletion(roomId, { type: 'RETRY', id: data.id, at: Date.now(), deletionId: data.deletionId });
+    if (!next.context.reply.ok) throw new WebError(409, next.context.reply.detail);
+    this.deletions.kick(roomId); return this.room(roomId);
+  }
+  private async deletionInventory(roomId: string, saved: SavedRoomDeletion): Promise<RuntimeCleanupInventory> {
+    const tasks = Object.keys(this.store.read(roomId).tasks).map(taskId => this.engine.view(roomId, taskId)!);
+    const previous: RuntimeCleanupInventory = { tasks: saved.context.tasks, sessions: saved.context.sessions, assets: saved.context.assets,
+      complete: saved.context.tasks.length === saved.context.allTasks.length, executionsSettled: saved.context.blockers.length === 0, blockers: saved.context.blockers };
+    if (this.localRuntime) return this.localRuntime.planRoomCleanup({ roomId, tasks, previous, databaseErased: saved.context.dataErased, quiescent: this.localRuntime.roomQuiescent(roomId) });
+    const local = tasks.some(t => t.context.intents.some(w => w.localOperations?.length)) || previous.assets.length > 0 || previous.sessions.length > 0;
+    const unknown = tasks.some(t => t.context.intents.some(w => w.status === 'uncertain' && w.replay === 'unsafe'));
+    return { tasks: tasks.map(t => ({ taskId: t.context.taskId, namespace: this.engine.localNamespace(roomId, t.context.taskId), phase: t.phase,
+      outcome: t.context.outcome, workIds: t.context.intents.map(w => w.id), operationIds: t.context.intents.flatMap(w => w.localOperations?.map(op => op.id) ?? []) })),
+      sessions: [], assets: [], complete: !local, executionsSettled: !unknown && !local,
+      blockers: local || unknown ? [{ id: 'runtime-unavailable', kind: local ? 'ownership' : 'effects', human: true, reason: '原执行或文件需要本地运行时核对，尚未清理完成。' }] : [] };
   }
   createRoom(title = "新的群聊"): WebRoom {
     const room = {
@@ -183,6 +280,8 @@ export class WebService {
     return room;
   }
   private room(id: string): WebRoom {
+    const deletion = this.engine.roomDeletion(id);
+    if (deletion?.value === 'deleted') throw new WebError(410, '这个群聊已删除。', { ok: false, code: 'ROOM_DELETED', detail: '这个群聊已删除。', roomId: id, deletionVersion: deletion.context.revision });
     const room = this.rooms().find((room) => room.id === id);
     if (!room) throw new WebError(404, "找不到这个群聊。");
     return room;
@@ -255,6 +354,7 @@ export class WebService {
     const hostApprovals: WebHostApproval[] = [];
     const hostSessions: { taskId: string; grantId: string; host: string; account: string }[] = [];
     const failedSandboxCommands: WebFailedSandboxCommand[] = [];
+    const blockers: WebBlocker[] = [];
     const agents: WebAgent[] = this.config.bots.map((bot) => ({
       id: bot.id,
       name: bot.name,
@@ -266,7 +366,26 @@ export class WebService {
       const { phase, context: c } = this.engine.view(roomId, taskId)!;
       const currentArtifactIds = publicationIds(c);
       const deliveryGaps = currentDeliveryIssues(c);
+      for (const gate of c.resilience?.gates ?? []) if (['open', 'skipped'].includes(gate.status) && (gate.scope === 'cleanup' || gate.epoch === c.epoch && gate.goalVersion === c.goalVersion)) {
+        const actions: WebBlocker['actions'] = gate.scope === 'cleanup' || gate.status === 'skipped' ? [] : gate.approvalId
+          ? [{ id: 'skip', label: '跳过此命令' }, { id: 'stop', label: '停止任务' }]
+          : [{ id: 'reply', label: '回复', requiresText: true }, { id: 'skip', label: '跳过' },
+            { id: 'stop', label: '停止任务' }, { id: 'newWindow', label: '授权新窗口', requiresText: true, allowsNewWindowMs: true }];
+        blockers.push({ id: gate.id, version: gate.createdAt, taskId, epoch: gate.epoch, goalVersion: gate.goalVersion,
+          scope: gate.scope, ...(gate.workId && gate.operationId ? { operation: { workId: gate.workId, operationId: gate.operationId,
+            ...(gate.approvalId ? { approvalId: gate.approvalId } : {}) } } : {}),
+          title: gate.scope === 'cleanup' ? '执行效果等待核对' : gate.status === 'skipped' ? '内容已明确跳过'
+            : gate.cause === 'incompatibleExecution' ? '执行配置需要重新核对' : '需要你的回复', question: gate.question, requiredHuman: gate.required, status: gate.status === 'skipped' ? 'skipped' : 'open',
+          actions: gate.decisions ? actions.filter(action => gate.decisions!.includes(action.id)) : actions });
+      }
+      const frozen = c.resilience?.frozen;
+      const cleanup = c.resilience?.cleanup.some(item => item.state === 'pending');
       tasks.push({
+        supervision: { status: this.failedRooms.has(roomId) ? 'faulted' : cleanup ? 'cleaning' : c.resilience?.gates.some(g => g.scope === 'task' && g.status === 'open') ? 'waitingHuman'
+          : c.outcome !== null ? 'settled' : c.resilience?.window.repairUsed ? 'repairing' : 'running', reason: this.failedRooms.has(roomId) ? '执行服务发生错误，正在自动核查与恢复。' : c.reason,
+          nextWakeAt: c.resilience?.nextSupervisionAt ?? null, hardDeadlineAt: processingWindow(c).hardDeadline },
+        ...(frozen ? { delivery: { epoch: frozen.epoch, goalVersion: frozen.goalVersion, revision: frozen.id, status: frozen.verification,
+          currentArtifactIds: [...frozen.artifactIds], reportArtifactId: frozen.reportArtifactId } } : {}),
         id: taskId,
         goal: c.goal.text,
         owner: c.owner,
@@ -370,6 +489,8 @@ export class WebService {
       hostApprovals,
       hostSessions,
       failedSandboxCommands,
+      blockers,
+      deletedRooms: this.deletedRooms(),
       messages: this.engine.timeline(roomId),
       activeTaskId: stored.activeTaskId,
       modelConfigured: !!this.config.models,
@@ -407,7 +528,7 @@ export class WebService {
     const result = this.engine.submit(roomId, input);
     if (!result.ok) throw new WebError(409, result.detail, result);
     if (result.taskId && this.engine.view(roomId, result.taskId)?.context.stopped) {
-      void this.drainCancellation(roomId, result.taskId).catch(error => this.hostError(roomId, error));
+      this.scheduleCancellation(roomId, result.taskId);
     }
     if (first) {
       const title =
@@ -431,15 +552,73 @@ export class WebService {
     });
     if (!result.ok) throw new WebError(409, result.detail);
     // Cancellation must be dispatched while execute() is still awaiting the model.
-    void this.drainCancellation(roomId, taskId).catch((error) =>
-      this.hostError(roomId, error),
-    );
+    this.scheduleCancellation(roomId, taskId);
     return result;
+  }
+  decideBlocker(roomId: string, data: { id: string; taskId: string; blockerId: string; blockerVersion: number;
+    actionId: 'reply' | 'skip' | 'stop' | 'newWindow'; text?: string; newWindowMs?: number }) {
+    this.room(roomId);
+    const c = this.engine.view(roomId, data.taskId)?.context;
+    const gate = c?.resilience?.gates.find(g => g.id === data.blockerId);
+    if (!gate || gate.createdAt !== data.blockerVersion || gate.epoch !== c!.epoch || gate.goalVersion !== c!.goalVersion)
+      throw new WebError(409, '这个请求已失效，请查看最新任务状态。');
+    if (gate.scope === 'cleanup') throw new WebError(409, '执行效果必须通过真实核对结算。');
+    const result = this.engine.send(roomId, data.taskId, { type: 'HUMAN_GATE_DECISION', id: data.id, at: Date.now(), gateId: gate.id,
+      decision: data.actionId, fence: { epoch: gate.epoch, goalVersion: gate.goalVersion },
+      ...(data.text === undefined ? {} : { text: data.text }), ...(data.newWindowMs === undefined ? {} : { newWindowMs: data.newWindowMs }) });
+    if (!result.ok) throw new WebError(409, result.detail, result);
+    this.failedRooms.delete(roomId); this.kick(roomId); return result;
+  }
+  private operation(roomId: string, taskId: string, workId: string, operationId: string) {
+    this.room(roomId);
+    if (!this.localRuntime) throw new WebError(409, '本地运行时不可用，无法核对执行。');
+    const work = this.engine.view(roomId, taskId)?.context.intents.find(w => w.id === workId);
+    const op = work?.localOperations?.find(o => o.id === operationId);
+    if (!work || !op || op.status !== 'uncertain' || !op.sessionId || op.action.type !== 'runCli')
+      throw new WebError(409, '找不到可核对的未决执行。');
+    return { work, op };
+  }
+  async operationReview(roomId: string, data: { taskId: string; workId: string; operationId: string }): Promise<WebOperationReview> {
+    const { work, op } = this.operation(roomId, data.taskId, data.workId, data.operationId);
+    return this.localRuntime!.reviewOperation(work, op);
+  }
+  async reconcileOperation(roomId: string, data: { id: string; taskId: string; workId: string; operationId: string; reviewDigest: string }) {
+    const { work, op } = this.operation(roomId, data.taskId, data.workId, data.operationId);
+    const receipt = await this.localRuntime!.acknowledgeOperation(work, op, data.reviewDigest);
+    if (this.closing) throw new WebError(503, '服务正在关闭，持久回执将在重启后继续核对。');
+    const result = this.engine.send(roomId, data.taskId, { type: 'LOCAL_RECONCILE', id: data.id, at: Date.now(), intentId: work.id,
+      operationId: op.id, sessionId: op.sessionId!, ...receipt });
+    if (!result.ok) throw new WebError(409, result.detail, result);
+    this.localRuntime!.notifyWorkspace(op.workspaceId ?? ''); this.kick(roomId); return result;
   }
   private async drainCancellation(roomId: string, taskId: string) {
     const runner = this.runner(roomId);
-    while (this.engine.pending(roomId, taskId).some((i) => i.kind === "cancel"))
-      await runner.runOne(roomId, taskId);
+    while (!this.storageClosed && this.engine.pending(roomId, taskId).some((i) => i.kind === "cancel"))
+      if (!await runner.runOne(roomId, taskId)) break;
+  }
+  private scheduleCancellation(roomId: string, taskId: string) {
+    const key = JSON.stringify([roomId, taskId]); if (this.cancellationJobs.has(key)) return;
+    const job = this.drainCancellation(roomId, taskId).catch(error => this.hostError(roomId, error)).finally(() => { this.cancellationJobs.delete(key); });
+    this.cancellationJobs.set(key, { roomId, taskId, job });
+  }
+  private scheduleCleanup(roomId: string) {
+    if (!this.localRuntime || this.closing || this.retiredRooms.has(roomId) || this.engine.roomDeletion(roomId)?.value && this.engine.roomDeletion(roomId)?.value !== 'idle') return;
+    for (const taskId of Object.keys(this.store.read(roomId).tasks)) {
+      const c = this.engine.view(roomId, taskId)!.context;
+      for (const item of c.resilience?.cleanup ?? []) {
+        if (item.state !== 'pending' || item.nextCheckAt > Date.now()) continue;
+        const key = JSON.stringify([roomId, taskId, item.operationId]); if (this.cleanupJobs.has(key)) continue;
+        const work = c.intents.find(w => w.id === item.workId), op = work?.localOperations?.find(o => o.id === item.operationId);
+        if (!work || !op?.sessionId || op.status !== 'uncertain') continue;
+        const job = this.localRuntime.reconcile(op).then(receipt => {
+          if (!receipt || this.closing || this.retiredRooms.has(roomId)) return;
+          this.engine.send(roomId, taskId, { type: 'LOCAL_RECONCILE', id: randomUUID(), at: Date.now(), intentId: work.id,
+            operationId: op.id, sessionId: op.sessionId!, ...receipt });
+          this.kick(roomId);
+        }).catch(error => this.hostError(roomId, error)).finally(() => { this.cleanupJobs.delete(key); });
+        this.cleanupJobs.set(key, job);
+      }
+    }
   }
   private append(
     roomId: string,
@@ -448,6 +627,7 @@ export class WebService {
     title: string,
     detail: string,
   ) {
+    if (this.storageClosed || this.retiredRooms.has(roomId) || this.engine.roomDeletion(roomId)?.value && this.engine.roomDeletion(roomId)?.value !== 'idle') return;
     // Never serialize service bindings, headers, environment variables or provider secrets.
     for (const service of Object.values(this.config.models?.services ?? {})) {
       const key = service.apiKeyEnv
@@ -458,7 +638,7 @@ export class WebService {
     const taskId = work.id.slice(0, work.id.lastIndexOf(":E"));
     this.db
       .prepare(
-        "INSERT INTO web_events(roomId, taskId, workId, agentId, at, kind, title, detail) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO web_events(roomId, taskId, workId, agentId, at, kind, title, detail) SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS(SELECT 1 FROM web_rooms WHERE id=?) AND NOT EXISTS(SELECT 1 FROM room_deletions WHERE room_id=? AND json_extract(data,'$.value') <> 'idle')",
       )
       .run(
         roomId,
@@ -469,13 +649,16 @@ export class WebService {
         kind,
         title,
         detail.slice(0, 64_000),
+        roomId,
+        roomId,
       );
   }
   private recordMeasurement(context: MeasurementContext, observation: ExecutionObservation) {
+    if (this.storageClosed || this.retiredRooms.has(context.roomId) || this.engine.roomDeletion(context.roomId)?.value && this.engine.roomDeletion(context.roomId)?.value !== 'idle') return;
     const record: MeasurementRecord = { ...context, run: this.measurement, at: Date.now(), monotonicMs: performance.now(), observation };
     try {
-      this.db.prepare("INSERT INTO web_events(roomId, taskId, workId, agentId, at, kind, title, detail) VALUES(?, ?, ?, ?, ?, ?, ?, ?)")
-        .run(record.roomId, record.taskId, record.workId, record.agentId, record.at, "measurement", observation.phase, JSON.stringify(record));
+      this.db.prepare("INSERT INTO web_events(roomId, taskId, workId, agentId, at, kind, title, detail) SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS(SELECT 1 FROM web_rooms WHERE id=?) AND NOT EXISTS(SELECT 1 FROM room_deletions WHERE room_id=? AND json_extract(data,'$.value') <> 'idle')")
+        .run(record.roomId, record.taskId, record.workId, record.agentId, record.at, "measurement", observation.phase, JSON.stringify(record), record.roomId, record.roomId);
     } catch { /* Failed observation must never affect a completed operation or retry policy. */ }
   }
   private runner(roomId: string): WorkRunner {
@@ -498,8 +681,12 @@ export class WebService {
         const tracedScope: WorkScope = {
           sessionId: roomId,
           ...(scope.observeModel ? { observeModel: scope.observeModel } : {}),
+          ...(scope.recordToolFailure ? { recordToolFailure: scope.recordToolFailure } : {}),
           ...(scope.localTools ? { localTools: {
-            catalog: scope.localTools.catalog, checkpoint: scope.localTools.checkpoint,
+            get catalog() { return scope.localTools!.catalog; },
+            get checkpoint() { return scope.localTools!.checkpoint; },
+            get sharedToolKnowledge() { return scope.localTools!.sharedToolKnowledge; },
+            get toolGuidance() { return scope.localTools!.toolGuidance; },
             invoke: async (action, messages, toolSignal, requested) => {
               const labels = { discoverHost: "发现宿主能力", listSkills: "查看本地技能", loadSkill: "激活本地技能", readSkillResource: "读取技能资源", readEvidence: "查读执行证据", readArtifact: "查读历史产物", runCli: "执行本地命令", verifyWorkspace: "核对工程版本" };
               this.append(roomId, work, "tool-start", labels[action.type], JSON.stringify(this.localRuntime!.clean(action)));
@@ -600,30 +787,28 @@ export class WebService {
     return runner;
   }
   private hostError(roomId: string, error: unknown) {
+    if (this.storageClosed || this.retiredRooms.has(roomId)) return;
     this.failedRooms.add(roomId);
     console.error(
       `Web host failure in room ${roomId}:`,
       error instanceof Error ? error.name : "Unknown error",
     );
     // Surface unexpected host failures instead of leaving a task looking healthy.
-    const view = this.engine.view(roomId);
-    if (view) {
-      try {
+    try {
+      const view = this.engine.view(roomId);
+      if (view) {
         this.engine.send(roomId, view.context.taskId, {
-          type: "WAIT_USER",
+          type: "SUPERVISE",
           id: randomUUID(),
           at: Date.now(),
-          question: "执行服务发生错误，请重启服务后查看任务状态。",
+          trigger: 'hostFailure', reason: '执行服务发生错误，正在核查并尝试恢复。',
         });
-      } catch {
-        /* A storage fault must not trigger another external request. */
       }
-    }
+    } catch { this.hostFault = true; /* A storage fault cannot claim durable recovery; the independent watchdog restarts it. */ }
   }
   private kick(roomId: string) {
-    if (this.closing || !this.initialized || this.failedRooms.has(roomId)) return;
-    const taskId = this.store.read(roomId).activeTaskId;
-    if (!taskId) return;
+    if (this.closing || !this.initialized || this.failedRooms.has(roomId) || this.engine.roomDeletion(roomId)?.value && this.engine.roomDeletion(roomId)?.value !== 'idle') return;
+    for (const taskId of Object.keys(this.store.read(roomId).tasks)) {
     while (this.engine.flushResults(roomId, taskId)) { /* Consume durable handoffs before projecting successors. */ }
     for (const work of this.engine.pending(roomId, taskId)) {
       const key = `${roomId}:${work.id}`;
@@ -638,7 +823,8 @@ export class WebService {
           this.running.delete(key);
           if (progressed) this.kick(roomId);
         });
-      this.running.set(key, { roomId, job });
+      this.running.set(key, { roomId, taskId, job });
+    }
     }
   }
   close(): Promise<void> {
@@ -650,10 +836,13 @@ export class WebService {
   }
   private async shutdown(): Promise<void> {
     // ready owns startup failure; it cannot bypass resource cleanup.
-    await this.startup.catch(() => {});
+    const grace = this.config.resilience?.cancelGraceMs ?? 5000;
+    await this.deletions.close(grace);
+    await this.bounded(this.startup.catch(() => {}), grace);
     try {
       await this.stopRunning();
     } finally {
+      this.storageClosed = true;
       try { this.db.close(); }
       finally {
         try { this.store.close(); }
@@ -662,22 +851,38 @@ export class WebService {
     }
   }
   private async stopRunning(): Promise<void> {
-    for (const roomId of new Set([...this.running.values()].map(work => work.roomId))) {
-      const taskId = this.store.read(roomId).activeTaskId;
-      if (taskId) {
+    for (const room of this.rooms()) {
+      const roomId = room.id;
+      if (this.engine.roomDeletion(roomId)?.value && this.engine.roomDeletion(roomId)?.value !== 'idle') continue;
+      for (const taskId of Object.keys(this.store.read(roomId).tasks)) {
         const active = this.engine.view(roomId, taskId)!.context.intents.filter(work => work.kind !== 'cancel' && work.status === 'inflight');
         if (active.length && active.every(localAwaitingApproval)) {
           this.runner(roomId).suspendApprovals(roomId, taskId);
           continue;
         }
-        this.engine.send(roomId, taskId, {
+        if (active.length) this.engine.send(roomId, taskId, {
           type: "STOP",
           id: randomUUID(),
           at: Date.now(),
         });
-        await this.drainCancellation(roomId, taskId);
+        if (active.length) this.scheduleCancellation(roomId, taskId);
       }
     }
-    await Promise.all([...this.running.values()].map(work => work.job));
+    for (const runner of this.runners.values()) runner.abortExecutions();
+    await Promise.all([...this.runners.values()].map(runner => runner.drainExecutions(this.config.resilience?.cancelGraceMs ?? 5000)));
+    for (const room of this.rooms()) for (const taskId of Object.keys(this.store.read(room.id).tasks)) {
+      if (this.engine.roomDeletion(room.id)?.value && this.engine.roomDeletion(room.id)?.value !== 'idle') continue;
+      const c = this.engine.view(room.id, taskId)!.context;
+      if (!c.intents.some(work => work.status === 'inflight' && !localAwaitingApproval(work) || work.status === 'uncertain')) continue;
+      this.engine.send(room.id, taskId, { type: 'RECOVER', id: randomUUID(), at: Date.now(), config: this.config });
+      this.engine.send(room.id, taskId, { type: 'SUPERVISE', id: randomUUID(), at: Date.now(), trigger: 'recover' });
+    }
+    for (const runner of this.runners.values()) runner.detachExecutions();
+    await this.bounded(Promise.allSettled([...this.running.values(), ...this.cancellationJobs.values()].map(work => work.job).concat([...this.cleanupJobs.values()])), 100);
+  }
+  private async bounded<T>(promise: Promise<T>, timeoutMs: number): Promise<T | undefined> {
+    let timer: ReturnType<typeof hostTimeout> | undefined;
+    try { return await Promise.race([promise, new Promise<undefined>(resolve => { timer = hostTimeout(() => resolve(undefined), timeoutMs); })]); }
+    finally { if (timer) clearHostTimeout(timer); }
   }
 }

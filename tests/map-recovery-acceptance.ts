@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { LocalRuntime } from '../src/local-runtime.js';
 import { WorkRunner } from '../src/runner.js';
+import { CloudflareWebTools } from '../src/web-tools.js';
 import type { DeliveryEvidenceSource } from '../src/task/evidence.js';
 import type { AcceptanceCriterion } from '../src/delivery-acceptance.js';
 import type { DiscussionRound } from '../src/types.js';
@@ -10,10 +11,12 @@ import { InputIntentFixture, intentConfig, type IntentRequest } from './input-in
 import { ControlledProcessBackend, localFixtureCommandEnv } from './local-tools-fixture.js';
 import { documentRequest, documentUrls, groupedIntent } from './map-capacity-fixture.js';
 import { modelResponse } from './model-regeneration-fixture.js';
+import { resourceAcquisitionProblem, savedResourceAcquisitions } from '../src/resource-acquisition.js';
 
 /** Actual engine/SQLite, adapter, runner and Node process; only model HTTP is controlled. */
-async function runMapRecoveryIntegration(wrongDocument: boolean, wrongOutput = false) {
-  const config = intentConfig({ ordinary: 100, checks: 5, assists: 20 });
+async function runMapRecoveryIntegration(wrongDocument: boolean, wrongOutput = false, wrongSource = false) {
+  const config = intentConfig({ ordinary: 100, checks: 5, assists: 20, workTimeoutMs: 1000 });
+  config.resilience = { automaticTimeoutMs: 100_000 };
   config.inputAnalysis = { enabled: true };
   const fixture = new InputIntentFixture(config, true);
   const sourceRoot = join(fixture.directory!, 'source'), runtimeRoot = join(fixture.directory!, 'runtime');
@@ -25,8 +28,12 @@ async function runMapRecoveryIntegration(wrongDocument: boolean, wrongOutput = f
   try {
     await mkdir(sourceRoot);
     await writeFile(join(sourceRoot, 'read-docs.mjs'), `console.log(${JSON.stringify(JSON.stringify(returnedDocuments))});\n`);
+    if (wrongSource) await writeFile(join(sourceRoot, 'echo.mjs'), 'console.log("foo");\n');
     runtime = await LocalRuntime.create({ dataRoot: runtimeRoot, workspaceRoot: sourceRoot, skillRoots: [],
-      commandEnv: localFixtureCommandEnv, backend, clock: () => fixture.now });
+      commandEnv: localFixtureCommandEnv, backend, clock: () => fixture.now,
+      acquisitionReaders: [{ id: 'map-recovery-batch', version: '1', command: 'node', argsPrefix: ['read-docs.mjs'],
+        format: 'json-document', resource: { kind: 'document-batch', documents: documents.map(document => ({ id: document.id,
+          resource: { kind: 'url', url: document.url } })) } }] });
     backend.before = () => {
       const operation = fixture.context().intents.flatMap(work => work.localOperations ?? []).find(item => item.status === 'running');
       assert(operation, 'A real process must follow persisted LOCAL_STARTED');
@@ -36,6 +43,9 @@ async function runMapRecoveryIntegration(wrongDocument: boolean, wrongOutput = f
       if (request.kind === 'interpretation') return modelResponse({ type: 'interpretation', spec: groupedIntent(8) });
       if (request.kind === 'assistance') {
         const partition = request.context.partition as { id: string };
+        if (partition.id === 'group-2' && !request.messages.some(message => message.role === 'user' && message.content.includes('\"type\":\"web_fetch_result\"')))
+          return modelResponse({ type: 'web_fetch', url: documentUrls[1] });
+        if (partition.id === 'group-8') fixture.now = 1050;
         return modelResponse({ type: 'answer', status: partition.id === 'group-2' ? 'success' : 'failed',
           text: partition.id === 'group-2' ? `${documentUrls[1]} DOC_2_FACT` : '未能取到正文，保留该片未完成' });
       }
@@ -45,6 +55,10 @@ async function runMapRecoveryIntegration(wrongDocument: boolean, wrongOutput = f
         const receipt = fixture.context().intents.flatMap(work => work.localOperations ?? [])
           .find(operation => operation.action.type === 'runCli' && operation.status === 'succeeded');
         if (!receipt) return modelResponse({ type: 'runCli', executable: 'node', args: ['read-docs.mjs'] });
+        const echo = fixture.context().intents.flatMap(work => work.localOperations ?? [])
+          .find(operation => operation.action.type === 'runCli' && operation.action.args[0] === 'echo.mjs' && operation.status === 'succeeded');
+        if (wrongSource && !echo) return modelResponse({ type: 'runCli', executable: 'node', args: ['echo.mjs'] });
+        const declared = wrongSource ? echo! : receipt;
         const resultMessages = request.messages.filter(message => message.role === 'user')
           .map(message => JSON.parse(message.content) as { type?: string; operationId?: string; ok?: boolean });
         assert(resultMessages.some(message => message.type === 'local_tool_result' && message.operationId === receipt.id && message.ok === true));
@@ -56,7 +70,7 @@ async function runMapRecoveryIntegration(wrongDocument: boolean, wrongOutput = f
         return modelResponse({ type: wrongProtocol ? 'answer' : 'deliver', text: '已补齐八篇并完成汇总。', artifactIds: [],
           artifacts: [{ name: 'recovered-documents.md', content: documents.map(document => `${document.url}\n${document.body}`).join('\n\n') }],
           partitionRecoveries: discussion.mapReduce!.queue!.filter(part => part.status === 'failed').map(part => ({
-            discussionId: discussion.id, partitionId: part.partitionId, sourceOperationIds: [receipt.id] })) });
+            discussionId: discussion.id, partitionId: part.partitionId, sourceOperationIds: [declared.id] })) });
       }
       assert.equal(request.kind, 'check'); checkCalls++;
       const requirements = request.context.requirements as AcceptanceCriterion[];
@@ -86,7 +100,11 @@ async function runMapRecoveryIntegration(wrongDocument: boolean, wrongOutput = f
           : { criterionId: criterion.id, status: 'passed', source: { id: criterion.requiredSourceIds[0], quote: `DOC_${number}_FACT` } };
       }) });
     };
-    const runner = new WorkRunner(fixture.engine, fixture.adapter, () => fixture.now, undefined, undefined, runtime);
+    const sourceTools = new CloudflareWebTools({ env: {}, transport: async address => {
+      assert.equal(String(address), documentUrls[1]);
+      return new Response(documents[1]!.body, { headers: { 'content-type': 'text/markdown' } });
+    } });
+    const runner = new WorkRunner(fixture.engine, fixture.adapter, () => fixture.now, undefined, sourceTools, runtime);
     assert(fixture.submit(documentRequest).ok);
     assert(await runner.runOne(fixture.room, fixture.task));
     assert.equal(fixture.context().discussion!.mapReduce!.queue!.length, 8);
@@ -97,23 +115,50 @@ async function runMapRecoveryIntegration(wrongDocument: boolean, wrongOutput = f
     assert(await runner.runOne(fixture.room, fixture.task));
     assert.equal(fixture.context().discussion!.status, 'delivered');
     const failureHistory = structuredClone(fixture.context().discussion!.results.filter(result => result.status === 'failed'));
+    // The old partition window has ended; the owner still has its own bounded continuation window.
+    // This preserves KEJ-111 recovery semantics without asking KEJ-113 to re-execute expired partitions.
+    fixture.now = 1200;
     assert(await runner.runOne(fixture.room, fixture.task));
-    assert.equal(fixture.engine.pending(fixture.room, fixture.task).filter(work => work.kind === 'check').length, 1);
-    assert(await runner.runOne(fixture.room, fixture.task));
+    const rejected = wrongDocument || wrongSource;
+    const expectedIssue = 'MAP_RECOVERY_RESOURCE_UNVERIFIED';
+    if (rejected) {
+      assert.equal(fixture.engine.pending(fixture.room, fixture.task).filter(work => work.kind === 'check').length, 0,
+        'Missing resources are rejected before independent inspection');
+      assert.equal(fixture.context().candidate!.deliveryIssue!.code, expectedIssue);
+      assert.equal(fixture.context().publishedDelivery, undefined);
+      assert.equal(fixture.context().discussion!.mapReduce!.queue!.filter(part => part.resolution).length, 0);
+      if (wrongSource) {
+        const context = fixture.context(), operations = context.intents.flatMap(work => work.localOperations ?? []);
+        const echo = operations.find(operation => operation.action.type === 'runCli' && operation.action.args[0] === 'echo.mjs')!;
+        assert.equal(resourceAcquisitionProblem(context), null, 'Another operation already satisfied every whole-task resource obligation');
+        assert.equal(echo.status, 'succeeded'); assert.equal(echo.result!.data.exitCode, 0);
+        assert.equal(echo.result!.data.stdout, 'foo\n'); assert.equal(echo.result!.data.truncated, false);
+        assert(echo.result!.data.capturedEvidence && (echo.result!.data.capturedEvidence as { stdout?: { capturedContentHash?: string } }).stdout?.capturedContentHash);
+        assert(!savedResourceAcquisitions(context).some(acquisition => acquisition.operationId === echo.id));
+        fixture.reopen();
+        assert.equal(fixture.context().candidate!.deliveryIssue!.code, expectedIssue);
+        assert.equal(fixture.context().discussion!.mapReduce!.queue!.filter(part => part.resolution).length, 0);
+      }
+      assert(fixture.event({ type: 'EXHAUSTED', reason: '指定来源未证明全部分片资源，保留未核实交付' }).ok);
+    } else {
+      assert.equal(fixture.engine.pending(fixture.room, fixture.task).filter(work => work.kind === 'check').length, 1);
+      assert(await runner.runOne(fixture.room, fixture.task));
+    }
     const context = fixture.context(), queue = context.discussion!.mapReduce!.queue!;
-    assert.equal(ownerCalls, wrongOutput ? 3 : 2); assert.equal(checkCalls, 1); assert.equal(backend.calls.length, 1);
+    assert.equal(ownerCalls, wrongOutput || wrongSource ? 3 : 2); assert.equal(checkCalls, rejected ? 0 : 1); assert.equal(backend.calls.length, wrongSource ? 2 : 1);
     if (wrongOutput) {
       assert.equal(context.usage.retries, 1);
       assert.equal(context.trace.filter(event => event.event === 'MODEL_OUTPUT_REPAIR').length, 1);
       assert(fixture.requests.filter(request => request.kind === 'owner').at(-1)!.messages.some(message => message.content.includes('model_output_validation_error')));
     }
-    assert.equal(context.usage.checks, 1);
+    assert.equal(context.usage.checks, rejected ? 0 : 1);
     assert.deepEqual(context.discussion!.results.filter(result => result.status === 'failed'), failureHistory);
     assert.equal(queue.filter(part => part.status === 'failed').length, 7);
-    if (wrongDocument) {
+    if (rejected) {
       assert.notEqual(context.outcome, 'complete'); assert.equal(context.publishedDelivery, undefined);
       assert.equal(queue.filter(part => part.resolution).length, 0);
-      assert.equal(context.intents.filter(work => work.kind === 'check').at(-1)!.criteriaResults!.filter(item => item.status === 'failed').length, 7);
+      assert.equal(context.candidate!.deliveryIssue!.code, expectedIssue);
+      assert.equal(context.intents.filter(work => work.kind === 'check').length, 0);
     } else {
       assert.equal(context.outcome, 'complete'); assert.equal(context.publishedDelivery!.revision, context.candidate!.revision);
       const receipt = context.intents.flatMap(work => work.localOperations ?? []).find(operation => operation.action.type === 'runCli')!;
@@ -135,3 +180,4 @@ export async function verifyMapRecoveryIntegration() { return runMapRecoveryInte
 export async function verifyMapRecoveryRejectedContentIntegration() { return runMapRecoveryIntegration(true); }
 
 export async function verifyMapRecoveryWrongOutputIntegration() { return runMapRecoveryIntegration(false, true); }
+export async function verifyMapRecoveryWrongSourceIntegration() { return runMapRecoveryIntegration(false, false, true); }

@@ -20,7 +20,7 @@ export class SourceUIFixture {
     snapshot.tasks[1]!.phase = 'ended'; snapshot.tasks[1]!.outcome = 'complete';
     snapshot.messages[1]!.artifactIds = ['report'];
     this.state = { rooms: [snapshot.room], roomId: snapshot.room.id, snapshot, connected: true, error: '',
-      setError: (value) => { const error = typeof value === 'function' ? value(this.state.error) : value; this.state = { ...this.state, error }; this.render(); },
+      setError: (error) => { this.state = { ...this.state, error }; this.render(); },
       chooseRoom() {}, createRoom: async () => snapshot.room.id, refreshRooms: async () => [snapshot.room],
       setRoomArchived: async () => { throw new Error('Unexpected archive action'); } };
     globalThis.fetch = async (_input, init) => {

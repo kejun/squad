@@ -25,6 +25,26 @@ export interface WebRoom {
   createdAt: number;
   archived?: boolean;
   archiveVersion?: number;
+  deletion?: WebRoomDeletion;
+}
+export interface WebRoomDeletion {
+  id: string; version: number; status: 'preparing' | 'waiting' | 'deleting' | 'paused';
+  reason: string; remaining: string[]; canRetry: boolean;
+}
+export interface DeletedRoom { roomId: string; deletionVersion: number; status: 'deleted' }
+export interface WebBlockerAction {
+  id: 'reply' | 'skip' | 'stop' | 'newWindow'; label: string; requiresText?: boolean;
+  allowsExtraOrdinary?: boolean; allowsNewWindowMs?: boolean;
+}
+export interface WebBlocker {
+  scope?: 'task' | 'cleanup';
+  operation?: { workId: string; operationId: string; approvalId?: string };
+  id: string; version: number; taskId: string; epoch: number; goalVersion: number;
+  title: string; question: string; requiredHuman: boolean; status: 'open' | 'resolved' | 'skipped'; actions: WebBlockerAction[];
+}
+export interface WebOperationReview {
+  operationId: string; sessionId: string; action: unknown; processState: string;
+  receipt: unknown; workspaceRevision: string; files: unknown[]; filesTruncated: boolean; reviewDigest: string;
 }
 export interface ExecutionEvent {
   id: number;
@@ -56,6 +76,8 @@ export interface WebWork {
   epoch: number;
 }
 export interface WebTask {
+  supervision?: { status: 'running' | 'repairing' | 'waitingHuman' | 'cleaning' | 'faulted' | 'settled'; reason: string; nextWakeAt: number | null; hardDeadlineAt: number | null };
+  delivery?: { epoch: number; goalVersion: number; revision: string; status: 'complete' | 'incomplete'; currentArtifactIds: string[]; reportArtifactId?: string };
   id: string;
   goal: string;
   owner: string;
@@ -83,6 +105,8 @@ export interface WebAssistance {
   reason: string;
 }
 export interface RoomSnapshot {
+  blockers?: WebBlocker[];
+  deletedRooms?: DeletedRoom[];
   failedSandboxCommands?: WebFailedSandboxCommand[];
   hostApprovals?: WebHostApproval[];
   hostSessions?: { taskId: string; grantId: string; host: string; account: string }[];

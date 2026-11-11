@@ -15,6 +15,7 @@ import { withFixtureAcceptance } from '../delivery-protocol-fixture.js';
 interface ResultState {
   work?: Intent; event?: TaskEvent; error?: unknown; directory?: string; sqlite?: SqliteStore;
   snapshot?: ReturnType<typeof artifactSnapshot>; html?: string; requests?: { messages: { role: string; content: string }[] }[];
+  beforeCommit?: ReturnType<Harness['context']>;
 }
 const states = new WeakMap<SpecWorld, ResultState>();
 function state(world: SpecWorld): ResultState {
@@ -70,13 +71,17 @@ Then('A 的接续输入应包含完整核查结果和报告', function (this: Sp
 });
 
 When('保存带报告的结果时事务提交失败', function (this: SpecWorld) {
+  state(this).beforeCommit = structuredClone(this.h.context());
   (this.h.store as MemoryStore).failNextCommit = true;
   try { this.h.engine.send(this.h.room, this.h.task, delivery(this.h, state(this).work!)); } catch (error) { state(this).error = error; }
 });
 Then('不应保存报告、交付候选或成功消息', function (this: SpecWorld) {
   assert(state(this).error); const c = this.h.context();
   assert.equal(c.artifacts.length, 0); assert.equal(c.candidate, null); assert(!c.messages.some(message => message.kind === 'final'));
-  assert.throws(() => this.h.engine.claim(this.h.room, this.h.task, state(this).work!.id), /Storage fault/);
+  assert.deepEqual(c, state(this).beforeCommit); assert.equal(this.h.engine.healthy, false);
+  // The already claimed work has an unused execution permit: exercise the real execution transaction.
+  assert.throws(() => this.h.engine.beginExecution(this.h.room, this.h.task, state(this).work!), /Storage fault/);
+  assert.deepEqual(this.h.context(), state(this).beforeCommit);
 });
 When('相同的带报告结果被重复提交', function (this: SpecWorld) {
   const event = delivery(this.h, state(this).work!);

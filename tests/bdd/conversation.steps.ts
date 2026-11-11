@@ -6,6 +6,8 @@ import { join } from 'node:path';
 import { After, Given, When, Then } from '@cucumber/cucumber';
 import { TeamEngine, MemoryStore, SqliteStore, WorkRunner, initialTask, persistTask, type Intent, type WorkAdapter, type Store } from '../../src/index.js';
 import { Harness, configuration, passFixtureCheck } from '../helpers.js';
+import { processingWindow } from '../../src/task/resilience.js';
+import { resilienceReviewReplyGate } from '../task-resilience-model-fixture.js';
 import type { SpecWorld } from './steps.js';
 
 const proposal = 'ESP32 同步方案：缓存文档增量并在联网后同步，墨水屏按区域刷新。';
@@ -58,6 +60,7 @@ Given('同群已有方案且一个旧等待任务没有历史上下文', functio
 });
 When('用户要求大家评审上述方案', function (this: SpecWorld) { request(this); });
 Then('促进者输入应包含原方案且不应要求重复提交已有材料', function (this: SpecWorld) { const work = this.h.engine.pending(this.h.room, this.h.task)[0]!; assert.equal(work.kind, 'facilitator'); assert(JSON.stringify(work.payload.messages).includes(proposal)); assert.equal(this.h.view().phase, 'coordinating'); });
+Then('无在途主工作时本次直接评审请求应回应原材料询问并保留原窗口', function (this: SpecWorld) { resilienceReviewReplyGate(); assert(this.h.context().resilience!.gates.some(gate => gate.kind === 'decision' && gate.status === 'answered' && gate.response === '大家都提提意见')); assert.equal(processingWindow(this.h.context()).hardDeadline, 900000); });
 Given('同群历史超过消息或文本上限且包含旧任务产物', function (this: SpecWorld) { fresh(this); const task = this.h.engine.submit(this.h.room, { id: 'large', text: '历史长文本'.repeat(25000) }); const id = task.taskId!; this.h.engine.send(this.h.room, id, { type: 'DELIVER', id: 'large-deliver', at: 0, text: '大任务已交付', artifactIds: [] }); passFixtureCheck(this.h.engine, this.h.room, id, 'large-check'); });
 When('准备一个要求新交付物的后续任务', function (this: SpecWorld) { const result = this.h.engine.submit(this.h.room, { id: 'new-delivery', text: '参考旧方案，交付新文件', goal: { text: '交付新文件', constraints: [], criteria: ['文件存在'], requiredArtifacts: 1 } }); this.h.task = result.taskId!; });
 When('尝试将旧产物作为本轮交付', function (this: SpecWorld) { this.h.event({ type: 'DELIVER', text: '声称复用文件', artifactIds: ['old-plan'] }); this.h.event({ type: 'CHECK_RESULT', resultId: 'new-check', passed: true, gaps: [] }); });
@@ -74,7 +77,7 @@ When('评审邀请来自{string}', function (this: SpecWorld, source: string) { 
 Then('不应创建全员评审队列', function (this: SpecWorld) { assert.equal(this.h.context().review, undefined); assert.equal(this.h.context().assists.length, 0); });
 Given('群内没有待评审方案', function (this: SpecWorld) { fresh(this, false); });
 When('用户要求全员评审且促进者请求补充方案', async function (this: SpecWorld) { s(this).decision = 'askUser'; request(this); await drain(this); });
-Then('应等待用户且不应通过定时检查反复询问', function (this: SpecWorld) { this.h.now = 1000000; this.h.engine.tick(this.h.room); assert.equal(this.h.view().phase, 'waitingHuman'); assert.equal(s(this).calls.length, 1); assert.equal(this.h.engine.nextWake(this.h.room), null); });
+Then('应等待用户且不应通过定时检查反复询问', function (this: SpecWorld) { this.h.now = processingWindow(this.h.context()).hardDeadline - 1; this.h.engine.tick(this.h.room); assert.equal(this.h.view().phase, 'waitingHuman'); assert.equal(s(this).calls.length, 1); assert.equal(this.h.engine.nextWake(this.h.room), null); });
 When('用户提交缺失方案', function (this: SpecWorld) { s(this).decision = 'review'; this.h.engine.submit(this.h.room, { id: 'material', text: proposal, intent: 'decision' }); });
 Then('应重新组织评审并向促进者提供该方案', function (this: SpecWorld) { const work = this.h.engine.pending(this.h.room, this.h.task)[0]!; assert.equal(work.kind, 'facilitator'); assert(JSON.stringify(work.payload).includes(proposal)); });
 When('用户要求全员评审但促进者返回{string}', async function (this: SpecWorld, decision: string) { s(this).decision = decision; request(this); await drain(this); });

@@ -9,6 +9,7 @@ import { deliveryVerificationEvidence, deliveryVerificationPlan, deliveryVerific
 import { deliveryRevisionBudget } from './delivery-cycle.js';
 import { sourceItemsProblem } from '../source-claims.js';
 import { mapRecoveryCheckProblem, mapRecoveryProblem, uncoveredMapRecoveries } from './map-recovery.js';
+import { resourceAcquisitionProblem } from '../resource-acquisition.js';
 
 type Delivery = Extract<TaskEvent, { type: 'DELIVER' }>;
 type CheckResult = Extract<TaskEvent, { type: 'CHECK_RESULT' }>;
@@ -81,7 +82,8 @@ export function checkReferenceSources(c: TaskContext): CheckReferenceSource[] | 
 }
 
 export function deliverySubmissionProblem(c: TaskContext, e: Delivery): { code: string; mechanical: boolean } | null {
-  const problem = deliveryVersionProblem(c, e) ?? sourceItemsProblem(c, e) ?? mapRecoveryProblem(c, e) ?? deliveryPreflight(c, e).gaps[0]?.reason;
+  const problem = deliveryVersionProblem(c, e) ?? sourceItemsProblem(c, e) ?? mapRecoveryProblem(c, e)
+    ?? resourceAcquisitionProblem(c) ?? deliveryPreflight(c, e).gaps[0]?.reason;
   if (problem) return { code: problem, mechanical: true };
   const budget = deliveryCheckBudgetProblem(c);
   if (budget) return { code: budget, mechanical: false };
@@ -134,6 +136,8 @@ function beforeCheckResult(c: TaskContext, e: CheckResult, work: Intent): CheckD
 }
 
 function checkedDelivery(c: TaskContext, e: CheckResult, work: Intent): CheckDisposition {
+  const resourceProblem = resourceAcquisitionProblem(c);
+  if (resourceProblem) return { kind: 'finish', code: resourceProblem, checked: true };
   const mechanical = completeProblem(c);
   if (mechanical) return { kind: 'finish', code: mechanical, checked: true };
   const findings = e.criteriaResults!.filter(item => item.status !== 'passed');
@@ -178,12 +182,16 @@ export const documentIdentity = (artifact: Artifact) => artifact.documentId ?? a
 const lastFinal = (c: TaskContext) => c.messages.filter(message => message.kind === 'final').at(-1);
 
 export function publicationIds(c: TaskContext): string[] | undefined {
-  if (c.publishedDelivery) return c.publishedDelivery.artifactIds;
-  if (c.outcome === 'complete') return lastFinal(c)?.artifactIds ?? c.candidate?.artifactIds;
+  if (c.resilience?.frozen?.goalVersion === c.goalVersion) return c.resilience.frozen.artifactIds;
+  if (c.publishedDelivery) return c.publishedDelivery.goalVersion === c.goalVersion ? c.publishedDelivery.artifactIds : [];
+  const selected = lastFinal(c)?.artifactIds ?? c.candidate?.artifactIds;
+  if (c.outcome !== null && selected) return selected
+    .filter(id => c.artifacts.some(artifact => artifact.id === id && artifact.goalVersion === c.goalVersion));
   return undefined;
 }
 
 export function retainLegacyPublication(c: TaskContext, at: number) {
+  if (c.outcome !== 'complete') return;
   const artifactIds = publicationIds(c);
   if (!c.publishedDelivery && artifactIds) c.publishedDelivery = {
     goalVersion: c.candidate?.goalVersion ?? c.goalVersion,

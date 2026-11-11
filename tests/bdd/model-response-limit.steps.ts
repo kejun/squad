@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { After, Given, When, Then } from '@cucumber/cucumber';
 import { createTeamConfig } from '../../team.config.js';
 import { validateConfig, type TeamConfig } from '../../src/types.js';
-import { ResponseLimitFixture, privateBodyMarker, type ResponseTransfer } from '../model-response-limit-fixture.js';
+import { ResponseLimitFixture, assertNoProviderBodyArtifacts, privateBodyMarker, type ResponseTransfer } from '../model-response-limit-fixture.js';
 import type { SpecWorld } from './steps.js';
 const fixtures = new WeakMap<SpecWorld, ResponseLimitFixture>();
 const active = (world: SpecWorld) => { const fixture = fixtures.get(world); assert(fixture); return fixture; };
@@ -28,7 +28,7 @@ Then('应取消超大响应并记录明确且脱敏的字节超限原因', async
 Then('不得发布部分正文或按原容量重试且请求应能结算', async function (this: SpecWorld) {
   const f = active(this); await f.run();
   assert.equal(f.requests.length, 1); assert.equal(f.h.context().usage.retries, 0);
-  assert.equal(f.h.context().publishedDelivery, undefined); assert.equal(f.h.context().artifacts.length, 0);
+  assert.equal(f.h.context().publishedDelivery, undefined); assertNoProviderBodyArtifacts(f);
   assert.equal(f.h.view().phase, f.kind === 'check' ? 'ended' : 'waitingHuman');
   assert.equal(f.h.context().outcome, f.kind === 'check' ? 'partial' : null);
   assert.equal(f.h.context().intents.filter(work => work.status === 'inflight').length, 0);
@@ -48,7 +48,7 @@ Then('应终止响应读取且不发布部分正文或重试该响应', async fu
   const f = active(this); await f.waitClosed(); await f.run();
   assert.equal(f.requests.length, 1); assert.equal(f.h.context().candidate, null);
   assert.equal(f.h.context().usage.retries, 0); assert.equal(f.h.context().publishedDelivery, undefined);
-  assert.equal(f.h.context().artifacts.length, 0);
+  assertNoProviderBodyArtifacts(f);
   assert(f.h.context().stopped || /deadline exceeded/.test(f.h.context().reason), 'deadline must remain distinct from malformed JSON');
 });
 const configs = new WeakMap<SpecWorld, TeamConfig>();

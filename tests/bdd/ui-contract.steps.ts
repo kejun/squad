@@ -5,7 +5,7 @@ import { StateGraph } from '../../web/src/StateGraph.js';
 import { Given, When, Then } from '@cucumber/cucumber';
 import { initialTransition, transition } from 'xstate';
 import { inspectorMachine, inspectorWindowMachine, inspectorOrigin, type InspectorFrame } from '../../src/inspector.machine.js';
-import { chartStep } from '../../src/task-chart.js';
+import { chartEdges, chartStep } from '../../src/task-chart.js';
 import { debugEventTemplate, TaskSandbox, taskGraph, type DebugFrame } from '../../src/task-debug.js';
 import { persistTask } from '../../src/task.machine.js';
 import { DEFAULT_PANEL_PREFERENCES, resizePanelFromDrag, type PanelSide } from '../../web/src/panel-layout.js';
@@ -91,20 +91,28 @@ When('沙箱执行路径用例{string}', function (this: SpecWorld, operation: s
 });
 Then('路径应完整记录{string}', function (this: SpecWorld, expected: string) {
   const { result, box, before, head } = paths.get(this)!; assert(result); assert.equal(result.status, 'recorded');
+  const graph = taskGraph();
+  const ruleId = (source: string, event: string, guard?: string) => {
+    const rules = graph.transitions.filter(rule => rule.source === source && rule.event === event
+      && (guard ? rule.guards.includes(guard) : rule.guards.length === 0));
+    assert.equal(rules.length, 1, `semantic rule must be unambiguous: ${source}/${event}/${guard ?? 'unconditional'}`);
+    return rules[0]!.id;
+  };
   const outcomes: Record<string, { steps: unknown[]; rules: string[] }> = {
-    求助转移: { steps: [['running', 'waitingAssistance', false]], rules: ['running:HELP:0'] },
-    自依赖拒绝: { steps: [['running', 'running', false]], rules: ['*:*:0'] },
-    停止及自动结算: { steps: [['running', 'stopping', false], ['stopping', 'ended', true]], rules: ['*:STOP:0', 'stopping:@always:0'] },
-    重复停止空处理: { steps: [['ended', 'ended', false]], rules: ['ended:STOP:0'] },
-    全局协助重试: { steps: [['waitingAssistance', 'running', false]], rules: ['*:RETRY_ASSISTANCE:1'] },
-    结束后继续: { steps: [['ended', 'running', false]], rules: ['ended:CONTINUE:0'] },
+    求助转移: { steps: [['running', 'waitingAssistance', false]], rules: [ruleId('running', 'HELP', 'valid')] },
+    自依赖拒绝: { steps: [['running', 'running', false]], rules: [ruleId('*', '*')] },
+    停止及自动结算: { steps: [['running', 'stopping', false], ['stopping', 'ended', true]], rules: [ruleId('*', 'STOP', 'valid'), ruleId('stopping', '@always', 'stoppedSettled')] },
+    重复停止空处理: { steps: [['ended', 'ended', false]], rules: [ruleId('ended', 'STOP')] },
+    全局协助重试: { steps: [['waitingAssistance', 'running', false]], rules: [ruleId('*', 'RETRY_ASSISTANCE', 'retryHasResult')] },
+    结束后继续: { steps: [['ended', 'running', false]], rules: [ruleId('ended', 'CONTINUE', 'valid')] },
   };
   assert(Object.hasOwn(outcomes, expected));
   assert.deepEqual(result.steps.map(step => [step.from, step.phase, step.automatic]), outcomes[expected]!.steps);
   assert.deepEqual(result.rules.map(rule => rule.id), outcomes[expected]!.rules);
   if (expected === '全局协助重试') {
-    const markup = renderToStaticMarkup(createElement(StateGraph, { graph: taskGraph(), active: 'running', focus: 'running', frame: paths.get(this)!.frame, onFocus() {} }));
-    assert(markup.includes('等待协助 到 执行中 的2条规则')); assert(!markup.includes('is-recorded'));
+    const markup = renderToStaticMarkup(createElement(StateGraph, { graph, active: 'running', focus: 'running', frame: paths.get(this)!.frame, onFocus() {} }));
+    const local = chartEdges(graph).find(edge => edge.source === 'waitingAssistance' && edge.target === 'running'); assert(local);
+    assert(markup.includes(`等待协助 到 执行中 的${local.rules.length}条规则`)); assert(!markup.includes('is-recorded'));
   }
   if (expected === '自依赖拒绝') assert.equal(box.snapshot.context.reply.code, 'SELF_DEPENDENCY');
   if (expected === '重复停止空处理') { assert.deepEqual(result.steps[0]?.changed, []); assert.deepEqual(result.rules[0]?.actions, []); }

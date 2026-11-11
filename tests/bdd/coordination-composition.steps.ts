@@ -34,13 +34,19 @@ Then('未解释补充不得被旧检查发布为完成', function (this: SpecWor
 When(/^「(.+)」因「(.+)」结束后恢复且原效果为「(.+)」$/, async function (this: SpecWorld, origin: string, cancellation: string, effect: string) {
   const mode = ({ 目标变化: 'goal', 用户停止: 'stop', 本轮终结: 'end' } as Record<string, string>)[cancellation]; assert(mode);
   const physical = effect === '有待核对操作';
-  const actions = ['Cancel', 'Reopen', ...(physical ? ['BlockedContinue', 'KnownReceipt', 'Reopen'] : []),
-    ...(mode === 'goal' ? [] : ['Continue']), 'ClaimOwner', 'Invite', 'ClaimPlanner', 'Plan', 'ClaimNew1', 'ClaimNew2', 'Late1', 'Late2'];
+  const contentActions = ['ClaimOwner', 'Invite', 'ClaimPlanner', 'Plan', 'ClaimNew1', 'ClaimNew2'];
+  const actions = physical && mode !== 'goal'
+    ? ['Cancel', 'Reopen', 'Continue', ...contentActions, 'KnownReceipt', 'Late1', 'Late2']
+    : ['Cancel', 'Reopen', ...(physical ? ['BlockedContinue', 'KnownReceipt', 'Reopen'] : []),
+      ...(mode === 'goal' ? [] : ['Continue']), ...contentActions, 'Late1', 'Late2'];
   runs.set(this, await runCompositionScenario('CancelledDiscussion', `${origin === '并行分片' ? 'map' : 'discussion'}-${mode}-${physical ? 'physical' : 'safe'}`, actions));
 });
-Then('已知旧工作应退休而未知效果应先阻止继续', function (this: SpecWorld) {
+Then('已知旧工作应退休且独立清理允许内容续办并保留未知效果', function (this: SpecWorld) {
   const result = run(this); assert.equal(result.final.work1, 2); assert.equal(result.final.work2, 2);
-  const unknown = result.observations.find(value => value.local === 2); if (unknown) assert.equal(unknown.work1, 4);
+  const unknown = result.observations.find(value => value.local === 2);
+  if (unknown) { assert.equal(unknown.work1, 4); assert.equal(unknown.resourceHeld, true); }
+  if (result.observations.some(value => value.custody === 1)) assert(result.observations.some(value => value.new1
+    && value.work1 === 4 && value.custody === 1 && value.resourceHeld), 'content proceeds while the original physical responsibility remains held');
 });
 Then('可信结算后两位成员应能参加新轮次且旧结果不能推进它', function (this: SpecWorld) {
   assert.partialDeepStrictEqual(run(this).final, { newStage: 3, new1: true, new2: true });

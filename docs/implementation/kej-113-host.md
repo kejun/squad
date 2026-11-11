@@ -26,3 +26,7 @@ stateDiagram-v2
 可信路由不新增任务阶段，沿用taskMachine角色、版本、预算和执行许可；模型门槛复验原task/room和执行actor路径后，在Engine事务和真实HTTP验证。拒绝事件不能改变activeTaskId；非当前任务仅明确合法继续且房间空闲时能重新成为当前任务。
 
 实现前门槛已执行：`node --import tsx tests/process-supervisor-model-gate.ts`，真实XState 15个断言路径通过（旧generation、启动截止、连续健康失败、退出/退避、停止宽限及终态无重启）。随后才接入`scripts/supervise.ts`的实际spawn/fetch/进程组终止。主任务原模型门槛`node --import tsx tests/core-model-gate.ts`80条通过；新监督模型另由核心gate覆盖，不以这80条替代新增行为验证。
+
+旧自定义unsafe工作没有LocalOperation时，`TaskResilience.cleanup.kind=legacyWork`保存原work身份和提供方核对门。Store从全部持久房间快照读取inflight/uncertain的unsafe工作，作为全局未知效果屏障；正常新unsafe领取、LOCAL资源领取与旧workspace领取均在原事务内检查。当前inflight父工作的自身Local子操作继承其责任边界，不能借此放行其他工作。可信RECONCILE提交退休原工作后才移除屏障，普通SETTLE/迟到失败/文本回复不能清除。BT_Z106用两存储公开Engine验证同房间及跨房间隔离，不声称识别任意外部写入或无凭核对其效果。该上下文生命周期与真实taskMachine模型由核心监督门槛承接，Store只读取事实执行资源守卫。
+
+BT_Z108 沿用真实 executionMachine 的 `authorized→running` 单次许可：Engine.claim仅返回本次实际新领取的pending工作；duplicate receipt不授予第二执行器。可信未启动API在同一Store事务核对原child处于authorized或从authorized取消后的cancelled，running/cancelling/uncertain/interrupted均不能变成“从未启动”的事实。安全恢复的新attempt不受之前WORK_NOT_PENDING等临时拒绝回执遮蔽；原成功claim仍保持幂等成本。XState的重复START拒绝及取消前未启动路径先由原actor门槛和核心未启动/停止模型复验，随后用两种实际Store验证可信接缝。
