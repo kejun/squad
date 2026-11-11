@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { taskPhase } from '../src/task.machine.js';
+import type { CriterionJudgment } from '../src/delivery-acceptance.js';
 import { processingWindow, taskHumanGate } from '../src/task/resilience.js';
 import type { Intent } from '../src/types.js';
 import { fixtureCheck } from './delivery-protocol-fixture.js';
@@ -46,6 +47,47 @@ function fixedCheckCannotAcquireEvidence() {
   assert.deepEqual(currentWork(model, checker), before);
   assert.equal(model.phase, 'checking');
   return { denial: result.code, phase: model.phase };
+}
+
+function fixedCheckCitationCatalog(mode: 'candidate' | 'omit' | 'rawInput') {
+  const model = new ResilienceModel(input => {
+    input.message.text = '把标题改为当前报告，并证明当前测试已经运行通过';
+    input.goal = { text: '核对当前报告和测试声明', constraints: [], criteria: ['标题为当前报告', '当前测试已经运行通过'], requiredArtifacts: 1 };
+  });
+  const content = '# 当前报告\n作者声称测试全部通过，但没有提供执行记录。';
+  assert(model.send({ type: 'ARTIFACT', artifact: { id: 'artifact:live', name: 'report.md', content } }).ok);
+  const owner = model.claim();
+  assert(model.send({ type: 'DELIVER', workId: owner.id, fence: owner, text: content, artifactIds: ['artifact:live'] }).ok);
+  const checker = model.claim('check'), candidate = model.c.candidate!;
+  assert(Array.isArray(checker.payload.artifacts) && checker.payload.artifacts.some(item => item.id === 'artifact:live'));
+  const title = candidate.acceptance!.criteria.find(item => item.text === '标题为当前报告')!;
+  const tests = candidate.acceptance!.criteria.find(item => item.text === '当前测试已经运行通过')!;
+  assert(title && tests, 'Both independent requirements must exist in the real fixed candidate');
+  const rawInputs = checker.payload.rawInputs as { id: string; text: string }[];
+  assert(rawInputs.length > 0);
+  assert(model.send({ type: 'CONSUME', intentId: checker.id, fence: checker }).ok);
+  const criteriaResults: CriterionJudgment[] = fixtureCheck(candidate).criteriaResults.map(judgment => judgment.criterionId === tests.id
+    ? { ...judgment, status: 'unverified', reason: '未提供当前测试的执行记录',
+      ...(mode === 'candidate' ? { source: { id: 'artifact:live', quote: '作者声称测试全部通过' } }
+        : mode === 'rawInput' ? { source: { id: rawInputs[0]!.id, quote: rawInputs[0]!.text } } : {}) }
+    : judgment);
+  assert(model.send({ type: 'CHECK_RESULT', workId: checker.id, fence: checker, attempt: checker.attempt,
+    candidateRevision: candidate.revision, resultId: `citation:${mode}`, criteriaResults }).ok);
+  const saved = currentWork(model, checker);
+  assert.equal(model.c.artifacts.find(item => item.id === 'artifact:live')!.content, content);
+  assert(model.c.intents.every(work => !(work.localOperations?.length)), 'Optional source handling must not acquire more evidence');
+  if (mode === 'candidate') {
+    assert.equal(saved.checkDiagnostics?.at(-1)?.diagnostic.code, 'CHECK_SOURCE_NOT_FOUND');
+    assert.equal(saved.criteriaResults, undefined, 'A rejected citation must not save any of its judgments');
+    assert.notEqual(model.c.outcome, 'complete');
+    return { mode, diagnostic: 'CHECK_SOURCE_NOT_FOUND', judgmentsSaved: false };
+  }
+  assert.equal(saved.criteriaResults?.find(item => item.criterionId === title.id)?.status, 'passed');
+  assert.equal(saved.criteriaResults?.find(item => item.criterionId === tests.id)?.status, 'unverified');
+  assert.equal(model.c.outcome, 'partial');
+  assert.equal(saved.criteriaResults?.find(item => item.criterionId === tests.id)?.source?.id,
+    mode === 'rawInput' ? rawInputs[0]!.id : undefined);
+  return { mode, title: 'passed', tests: 'unverified', outcome: model.c.outcome };
 }
 
 function humanDecisionRequiresAnAction() {
@@ -140,6 +182,7 @@ export function verifySharedAgentBehaviorModel() {
     ['ordinary-report-does-not-grant-host-approval', () => approvalGateDecision('门的普通回复')],
     ['supplement-does-not-grant-host-approval', () => approvalGateDecision('普通用户补充')],
     ['existing-confidence-protocol-is-not-redefined', clarificationKeepsTheExistingProtocol],
+    ['fixed-check-citation-catalog-and-optional-omission', () => (['candidate', 'omit', 'rawInput'] as const).map(fixedCheckCitationCatalog)],
   ];
   return { model: 'real taskMachine; persist/restore at every event', scope: 'host protocol and lifecycle compatibility, not model semantic effectiveness',
     results: cases.map(([name, run]) => ({ name, observed: run() })) };

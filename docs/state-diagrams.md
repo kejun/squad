@@ -2020,8 +2020,10 @@ stateDiagram-v2
 
 类型：提示构建、输出协议和既有状态交接流程；所有者 `OpenAICompatibleAdapter`、`WorkRunner`及真实`taskMachine`。六种模型工作使用同一规范，固定材料check保留专用无工具边界。`tool/cancel`及自定义适配器不被假称为模型提示覆盖。
 
-验收范围：BT_SB01–BT_SB12。
+验收范围：BT_S01–BT_S13。
 
 该变更不新增XState状态、事件、权限或调度：内容检查仍经 `DELIVER → checking → CHECK_RESULT`；需要人类的结果仍经 `WAIT_USER/COORDINATE askUser → waitingHuman`；成员问题通过原answer交回；未知外部效果仍由原operation/session与cleanup负责。普通文字、沉默和关闭提示不能替代人类决定，格式修复不能重放工具。先复验这些真实模型路径，再接入共享system段；模型是否按规范选择行动由独立行为回放验证。
 
 需求核查、六工作类型/协议映射、细图和验证范围见[共享行为规范](implementation/shared-agent-behavior.md)。本入口不把提示词文本存在、脚本化模型选择或旧状态机通过扩大成真实模型服从率。
+
+BT_S13细化固定check的现有来源目录：候选及当前产物可见不等于它们的ID可用于source；未知引用仍由原守卫拒绝。没有可选支持来源时可省略source并保留unverified原因，直接内容判定不额外要求工具凭证；带requiredSourceIds的条件沿用原必需引用守卫。该补充来自真实回放的协议失败，不修改原实验结果，也不引入新状态或权限。

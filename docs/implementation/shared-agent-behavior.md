@@ -20,14 +20,17 @@
 | SAB-R10 | 当受到赞同、质疑或压力时，规范应要求按具体依据复核，维持有据判断或明确纠正错误及受影响结论，不迎合也不刻意反对。 | 第1、3条 | SB10 |
 | SAB-R11 | 当信息有缺口时，规范应要求先使用已有材料，只提出影响工作的最少问题；低影响可逆选择可默认推进，但不假设授权或把自评分数当校准正确率。 | 第4、5条；保持现有confidence协议 | SB11 |
 | SAB-R12 | 当给出贡献或汇总时，规范应要求保留来源、分歧、反证和未完成范围，在原可读字段中让重要限制可见，不强制固定检查表。 | 第7、8条 | SB12 |
+| SAB-R13 | 当固定核查选择可选source时，check专用提示应限定source.id为宿主提供的evidence/references/reviewRecords/verification/rawInputs目录中的原ID；候选和交付产物不因可见而自动可引证。无支持来源时应省略可选source并在原判定中说明未验证，宿主继续拒绝未知引用，不改变schema或必需来源要求。 | 真实LB07回放暴露的CHECK_SOURCE_NOT_FOUND协议失败；不改变原40样本结果 | SB13 |
 
-核查：十二条保留原文八项行为目标，未引入新权限、输出字段、动作、预算或宿主调度。当前实现的 `inputIntentSchema` 仍要求 `confidence` 在0到1之间，低于0.65必须含澄清；本次不改该门槛，也不把模型自评分数解释成已验证正确率。规范中的固定检查按 `work.kind === 'check'` 和宿主能力判定；名为“核查员”的Bot在assistance工作中仍可获得调查权限。
+核查：前十二条保留原文八项行为目标，第十三条把真实回放暴露的引用目录边界落实到check专用提示；均未引入新权限、输出字段、动作、预算或宿主调度。当前实现的 `inputIntentSchema` 仍要求 `confidence` 在0到1之间，低于0.65必须含澄清；本次不改该门槛，也不把模型自评分数解释成已验证正确率。规范中的固定检查按 `work.kind === 'check'` 和宿主能力判定；名为“核查员”的Bot在assistance工作中仍可获得调查权限。
 
 共享规范负责模型的选择和表达。凭证真实性、权限、重试与期限、真实人类门、资源隔离及确定性交付仍由既有宿主强制。`tool`和`cancel`不是默认模型角色；自定义`WorkAdapter`不因默认模型提示更新而自动受到该自然语言约束，仍须满足宿主输出协议和守卫。
 
 格式修复按各角色原有机制进行：非check可走当前适配器的受限格式重生成，check继续使用其固定材料失败和宿主检查重试路径。合法后继工作使用宿主创建的新身份；本规范既不要求所有角色使用同一重生成路径，也不冻结旧workId来绕过正常重试。
 
 共享段计入完整固定输入的容量开销。容量不足继续使用现有 `CHECK_CONTEXT_LIMIT` / `SOURCE_CONTEXT_LIMIT` 路径，不静默截断固定材料或规范，不把未调用模型当作已经核查；模型配置必须容纳完整角色提示、共享规范、固定材料及输出预留。本次不放松该容量守卫。
+
+固定核查的可引证集合由既有 `checkCitationSources` 形成：`evidence`、`references`、`reviewRecords`、`verification`及`rawInputs`。候选正文和当前交付产物是受检查对象，不能仅凭可见而自行生成`artifact:*`或`candidate:*`来源ID。标题等直接内容要求仍可在无可选引用时判定；缺少测试执行记录则保留unverified及具体原因。带`requiredSourceIds`的恢复要求仍须满足原必需来源守卫，不能借“可选引用省略”把缺证项判通过。
 
 ## 分层流程与状态复用
 
@@ -47,6 +50,19 @@ flowchart TD
     Repair --> Request
     Validate -->|合法| Event[原TaskEvent与持久化交接]
     Validate -->|失败或额度耗尽| Failure[既有失败监督与确定性交付]
+```
+
+类型：固定材料核查的既有来源校验流程；所有者 `checkMessages` / `checkCitationSources` / `judgmentsDiagnostic`。BT_S13只补check专用提示，不修改来源集合、宿主守卫或输出schema。
+
+```mermaid
+flowchart TD
+    FixedMaterials[固定候选与当前要求] --> Judge[原criteriaResults判定]
+    Judge --> Optional{是否提供可选source}
+    Optional -->|提供| Catalog{ID来自宿主来源目录且原文支持引用}
+    Catalog -->|否| Reject[保留原来源诊断且不接受该判定]
+    Catalog -->|是| Existing[继续原检查与必需来源守卫]
+    Optional -->|省略| Existing
+    Existing --> Result[内容可判定则passed / 缺执行依据则unverified]
 ```
 
 类型：既有真实XState路径的投影；所有者 `taskMachine`、执行子actor与`TaskResilience`。本变更只改变模型请求中的规范，不改变以下事件和守卫。状态模型门槛复验这些已有路径后才接入提示；它不能证明模型一定服从规范。
@@ -81,7 +97,7 @@ stateDiagram-v2
 
 命令：`env -u MODEL_API_KEY node --import tsx tests/shared-agent-behavior-model-fixture.ts`。
 
-结果：12条真实模型轨迹通过，每个事件均经真实`persistTask/restoreTask`往返。测试对象为当前仓库的`taskMachine`，没有为了提示词添加新的模拟状态机。
+结果：13项真实模型检查通过，其中引用目录一项包含三个独立前缀；每个事件均经真实`persistTask/restoreTask`往返。测试对象为当前仓库的`taskMachine`，没有为了提示词添加新的模拟状态机。
 
 | 轨迹 | 观察 |
 | --- | --- |
@@ -96,5 +112,6 @@ stateDiagram-v2
 | 必答门沉默 | 到期不自动同意，明确回复仍不能自动扩大原窗口 |
 | 门普通回复与用户补充 | 两条独立原授权门轨迹均不能当成批准 |
 | 原confidence协议 | 低于0.65且无澄清被拒；附合法澄清则使用原waitingHuman路径 |
+| 可选来源与引用目录 | artifact:live可见但不在来源目录仍拒绝且不保存判定；省略可选source或引用rawInputs原ID和准确原文均可保留标题passed、测试unverified及partial |
 
 本表只证明共享规范与既有宿主路径相容，不证明模型会选择正确输出；没有将这些纯门槛当作中文场景的直接执行通过。直接HTTP/SDK、Gherkin与真实模型A/B的结果由后续对应层给出。
