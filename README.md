@@ -145,6 +145,8 @@ KEJ-113/114 的持续推进与安全删除按[监督、凭证和删除模型](do
 
 实际执行结果与有限保证范围见[KEJ-113/114 验证记录](docs/implementation/kej-113-114-verification.md)。
 
+所有默认模型工作共用[Agent行为规范](docs/implementation/shared-agent-behavior.md)，在原角色、能力和输出协议内约束证据、完成声明、纠错与推进。规范接入复用原状态事件；[流程与验证边界](docs/state-diagrams.md#共享-agent-行为规范)区分提示注入、宿主强制边界与真实模型效果。
+
 宿主命令授权沿用同一人类门原则：批准令牌过期只撤销执行资格，未答复的权限请求保持可见，直到精确授权决定、明确跳过或停止；[授权门模型](docs/implementation/host-approval-gates.md)覆盖令牌期限与任务窗口交错。
 
 可信效果核对后的协调续办接续原负责人检查点，保留原操作回执、身份和执行时间，不重放已结算命令；恢复交叉边界见 BT_Y113 及[恢复细图](docs/implementation/kej-113-task-resilience.md)。

@@ -2015,3 +2015,13 @@ stateDiagram-v2
 删除的全历史所有权、共享目录保护、历史 session 与 pending 文件、崩溃检查点和客户端墓碑同步规则见删除细图。UI 仅投影持久状态，不能自行超时关门、把后台清理当成已删干净，或绕过版本屏障。上述门槛均须由真实模型、真实 SQLite/文件/HTTP 与浏览器按层验证。
 
 分片的可信成功守卫为“原始自报success，且该片明确资源义务已由合法宿主来源满足”。缺凭证时可信状态为partial，原始状态和文本另存，来源引用保留acquisition/operation/work/attempt/采集时间及复用标记；同goal合法saved来源可复用，不能改称新抓取。恢复声明还须在其指定的sourceOperationIds集合内逐项覆盖资源，其他全局来源不能替声明作证；无资源义务的推理不增加工具要求。见[分片事实与恢复](implementation/kej-113-scheduling.md)的BT_Y57–Y60及[统一资源校验](implementation/kej-113-evidence.md)。
+
+## 共享 Agent 行为规范
+
+类型：提示构建、输出协议和既有状态交接流程；所有者 `OpenAICompatibleAdapter`、`WorkRunner`及真实`taskMachine`。六种模型工作使用同一规范，固定材料check保留专用无工具边界。`tool/cancel`及自定义适配器不被假称为模型提示覆盖。
+
+验收范围：BT_SB01–BT_SB12。
+
+该变更不新增XState状态、事件、权限或调度：内容检查仍经 `DELIVER → checking → CHECK_RESULT`；需要人类的结果仍经 `WAIT_USER/COORDINATE askUser → waitingHuman`；成员问题通过原answer交回；未知外部效果仍由原operation/session与cleanup负责。普通文字、沉默和关闭提示不能替代人类决定，格式修复不能重放工具。先复验这些真实模型路径，再接入共享system段；模型是否按规范选择行动由独立行为回放验证。
+
+需求核查、六工作类型/协议映射、细图和验证范围见[共享行为规范](implementation/shared-agent-behavior.md)。本入口不把提示词文本存在、脚本化模型选择或旧状态机通过扩大成真实模型服从率。

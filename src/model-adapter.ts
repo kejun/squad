@@ -11,6 +11,7 @@ import { validPartitionRecoveries } from './task/map-recovery.js';
 import { validWebFetchInput, validWebSearchInput } from './web-tools.js';
 import { recoverableWebFailure } from './task/tool-recovery.js';
 import type { HostEvidenceReference } from './resource-acquisition.js';
+import { sharedAgentBehavior } from './agent-behavior.js';
 
 export interface ModelAdapterOptions {
   transport?: typeof fetch;
@@ -92,6 +93,7 @@ function checkMessages(work: Intent, materials: CheckMaterials): ModelMessage[] 
   return [
     { role: 'system', content: [
       `You are ${work.target}, executing check work. Independently assess the fixed candidate and its current delivery artifacts against every requirement, using the complete materials or the explicitly identified incremental baseline and edits. Recheck all requirements, including any that passed before, and consider the previous results and any sourced rebuttal. Background artifacts are context, not delivered artifacts.`,
+      sharedAgentBehavior,
       materials.delta ? 'context.delta identifies a previously completed independent check of the same frozen requirements and evidence. Review every current requirement using all previous verdicts, the complete edits (removed and added text, UTF-16 offset, boundary context and lengths), and the supplied verbatim source windows. Empty candidate.text and artifacts mean unchanged baseline bodies are omitted, not deleted. delta.artifacts lists every current document with its exact base ID. delta.sourceIndex lists all fixed sources; delta.sources gives each supplied window offset and full length. This is explicit incremental review, not an incomplete full report. Re-evaluate the effect of removals, additions and attribution on previously passed requirements as well as previous gaps. Never treat the baseline as permission to ignore a regression. If the edits and fixed windows cannot establish a requirement, return unverified rather than assuming it passed. You must still return every requirement ID exactly once. delta.sources offsets refer to the original fixed source; retryDiagnostic offsets refer to the supplied source field or window. Quote only text actually supplied in a window. Do not infer omitted source content.' : '',
       'Judge explicit requirements using the trusted raw user inputs as authority. Do not turn suggestions or preferences into required conditions. If an interpretation omitted a required condition, use the affected requirement ID and explain the mismatch.',
       userRequirementBoundary,
@@ -280,7 +282,7 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
     const messages: ModelMessage[] = materials ? checkMessages(work, materials) : [
       { role: 'system', content: [
         `You are ${work.target}, executing ${work.kind} work. ${instructions}`,
-        ['owner', 'facilitator'].includes(work.kind) ? 'Actively complete the authorized task: use verified methods and bounded lawful alternatives to recover from failures, preserving partial results. Ask the user only for an essential decision, missing permission or critical information. Respect every budget, deadline and approval boundary. Bind execution claims to actual host evidence and report remaining gaps honestly.' : '',
+        sharedAgentBehavior,
         work.kind === 'interpretation' ? userRequirementBoundary : '',
         messageStyle,
         work.kind === 'owner' ? 'When completing a read-only map-reduce task whose context.discussion.mapReduce.queue has failed, partial or timeout partitions, acquire missing source material through normal authorized tools. To claim that you repaired them, use deliver with partitionRecoveries entries containing the exact current discussionId, partitionId and sourceOperationIds of complete verified saved sources. For CLI, copy local_tool_result.operationId; for Web, copy web_fetch_result.hostEvidence.evidenceId with status acquired. Never invent IDs or substitute the Web sourceOperationId, which identifies the request rather than the frozen evidence. One aggregate receipt may serve several partitions, each declared separately. Preserve every original user condition and include recovered content in the final artifacts. Omit partitionRecoveries for ordinary tasks, successful partitions, independent member reviews, or work without sufficient source evidence. Historical failure records remain; the host independently checks each declared recovery before clearing outstanding gaps.' : '',
