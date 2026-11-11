@@ -1,5 +1,5 @@
 {
-  "syncCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+  "syncCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
   "bounds": {
     "budget": "2 discussion participants, one original owner, one synthesis, one extra request, protected owner continuation; 4 bounded reserve-frontier slices",
     "input": "one supplemental input, original help or check, one recovery, two epochs, clarification/success/stop",
@@ -13,6 +13,7 @@
     "package-lock.json": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
     "package.json": "e809edfebb43fbfd77f200e6afec11e6109c7d7e8549efb8ee45536d6278df21",
     "src/acquisition-readers.ts": "011b165c1c4d8acfbf32c16c8655baf312148b9944dd518a61e4f528fdd48d47",
+    "src/agent-behavior.ts": "1b1c18b90e05f7673e1d2b5253a7a2171e5dfa4ccf869219e265835f25b4e814",
     "src/artifact-request.ts": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
     "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
     "src/catalog-search.ts": "94f713cda0ee9f6e817b0e2682d91ee6efa555d18e677421d3f241eab37eda3f",
@@ -38,7 +39,7 @@
     "src/local-skills.ts": "dc5d7e4e8ebb5e5a82e9b608a377b4fa4d454ab54e276ffcd75ee5f2c8794917",
     "src/measurement-report.ts": "62a9010d7a112c52f7e93b6e21d5fcb6a6e6a8011c4852784dd44b811a196183",
     "src/measurement.ts": "0ceeba39fe20ece308c1a0ed1df3b1438e40052af651f9a0037592f2af1cc773",
-    "src/model-adapter.ts": "7d2c7be8703ca71129fd7eb85a8b10f611b5c2ab563762115fb81a30a7759eef",
+    "src/model-adapter.ts": "343bc56fe91240cf19df74af5dd51f2c965f1d6622186674165a10c6d339b84f",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
     "src/model-env.ts": "7f8bb277dab42d749c82dab229d66cbb508e1af83b78986895da41956a9e6cf0",
     "src/presentation.ts": "1ffa66657884dffe98cceb1166485df99541aee762a53cfaa3a57de69af896d8",
@@ -98,39 +99,55 @@
     "team.config.ts": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb"
   },
   "verification": {
-    "issues": [
-      "KEJ-113",
-      "KEJ-114"
-    ],
     "entry": "coordination-extensions",
-    "sourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
-    "source": "36916b5c6e974c11f8e51720189c64facef9269e",
-    "evidence": "reports/kej-113-114-four-formal-36916b5-final-3/coordination-extensions",
+    "evidence": "reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1/coordination-extensions",
+    "sourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "completeRun": {
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-coordination/scripts/check-extensions.py",
+        "--jar",
+        "/workspace/squad/work/tools/tla2tools.jar",
+        "--evidence",
+        "/workspace/squad/reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1/coordination-extensions"
+      ],
+      "exitCode": 0,
+      "seconds": 524.254
+    },
+    "independentReadback": {
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-coordination/scripts/check-extensions.py",
+        "--verify-evidence",
+        "/workspace/squad/reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1/coordination-extensions"
+      ],
+      "exitCode": 0
+    },
+    "readerControls": [],
     "status": "verified",
     "outcome": "updated",
-    "seconds": 487.892,
+    "change": "shared-agent-behavior-LB07-C2",
+    "source": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "phases": {
+      "positive": "verified",
+      "realSourceFaults": "detected",
+      "restoredOriginal": "verified",
+      "independentReadback": "verified"
+    },
     "cleanup": {
       "scratchRemoved": true,
       "coveredFilesUnchanged": true,
       "checkerInputsUnchanged": true
     },
-    "independentReadback": "verified",
-    "phases": {
-      "positive": "verified",
-      "realSourceFaults": "detected",
-      "restoredOriginal": "verified",
-      "retainedEvidenceReader": "verified"
-    },
-    "readbackOutput": "Verified 1121 coordination extension evidence files",
-    "scope": "Complete declared finite domains, genuine product-source fault controls, restored original implementation, and separate retained-evidence reader. Not arbitrary histories or whole-system proof.",
-    "syncStatus": "synchronized-after-nine-entrypoints",
-    "domains": 23,
-    "witnesses": 74,
-    "realCodeControls": 31,
-    "edgesPerStorePerStage": 3754,
-    "retainedArtifacts": 1121,
-    "evidenceReaderControls": 7,
-    "postMetadataIndependentReadback": "verified"
+    "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+    "metrics": {
+      "retainedArtifacts": 1123,
+      "realCodeControls": 31,
+      "domains": 23,
+      "edgesPerStorePerStage": 3754,
+      "witnesses": 74,
+      "evidenceReaderControls": 7
+    }
   },
   "verificationHistory": [
     {
@@ -203,6 +220,92 @@
       "evidenceReaderControls": 6,
       "sourceCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
       "syncStatus": "synchronized-after-nine-entrypoints"
+    },
+    {
+      "issues": [
+        "KEJ-113",
+        "KEJ-114"
+      ],
+      "entry": "coordination-extensions",
+      "sourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+      "source": "36916b5c6e974c11f8e51720189c64facef9269e",
+      "evidence": "reports/kej-113-114-four-formal-36916b5-final-3/coordination-extensions",
+      "status": "verified",
+      "outcome": "updated",
+      "seconds": 487.892,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "checkerInputsUnchanged": true
+      },
+      "independentReadback": "verified",
+      "phases": {
+        "positive": "verified",
+        "realSourceFaults": "detected",
+        "restoredOriginal": "verified",
+        "retainedEvidenceReader": "verified"
+      },
+      "readbackOutput": "Verified 1121 coordination extension evidence files",
+      "scope": "Complete declared finite domains, genuine product-source fault controls, restored original implementation, and separate retained-evidence reader. Not arbitrary histories or whole-system proof.",
+      "syncStatus": "synchronized-after-nine-entrypoints",
+      "domains": 23,
+      "witnesses": 74,
+      "realCodeControls": 31,
+      "edgesPerStorePerStage": 3754,
+      "retainedArtifacts": 1121,
+      "evidenceReaderControls": 7,
+      "postMetadataIndependentReadback": "verified"
+    },
+    {
+      "entry": "coordination-extensions",
+      "evidence": "reports/shared-agent-behavior-four-formal-4032d88-final-1/coordination-extensions",
+      "sourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "completeRun": {
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-coordination/scripts/check-extensions.py",
+          "--jar",
+          "/workspace/squad/work/tools/tla2tools.jar",
+          "--evidence",
+          "/workspace/squad/reports/shared-agent-behavior-four-formal-4032d88-final-1/coordination-extensions"
+        ],
+        "exitCode": 0,
+        "seconds": 527.723
+      },
+      "independentReadback": {
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-coordination/scripts/check-extensions.py",
+          "--verify-evidence",
+          "/workspace/squad/reports/shared-agent-behavior-four-formal-4032d88-final-1/coordination-extensions"
+        ],
+        "exitCode": 0
+      },
+      "readerControls": [],
+      "status": "verified",
+      "outcome": "updated",
+      "change": "shared-agent-behavior",
+      "source": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "phases": {
+        "positive": "verified",
+        "realSourceFaults": "detected",
+        "restoredOriginal": "verified",
+        "independentReadback": "verified"
+      },
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "checkerInputsUnchanged": true
+      },
+      "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+      "metrics": {
+        "retainedArtifacts": 1123,
+        "realCodeControls": 31,
+        "domains": 23,
+        "edgesPerStorePerStage": 3754,
+        "witnesses": 74,
+        "evidenceReaderControls": 7
+      }
     }
   ],
   "maintenanceReviews": [
@@ -276,6 +379,26 @@
       "validation": "reports/kej-113-114-four-formal-36916b5-final-3/coordination-extensions",
       "independentReadback": "verified",
       "scope": "Complete declared finite domains, genuine product-source fault controls, restored original implementation, and separate retained-evidence reader. Not arbitrary histories or whole-system proof."
+    },
+    {
+      "change": "shared-agent-behavior",
+      "review": "references/drift-review-shared-agent-behavior.json",
+      "reviewedCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "previousSyncCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+      "outcome": "updated",
+      "validation": "reports/shared-agent-behavior-four-formal-4032d88-final-1/coordination-extensions",
+      "independentReadback": "verified",
+      "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience."
+    },
+    {
+      "change": "shared-agent-behavior-LB07-C2",
+      "review": "references/drift-review-shared-agent-behavior.json",
+      "reviewedCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+      "previousSyncCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "outcome": "updated",
+      "validation": "reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1/coordination-extensions",
+      "independentReadback": "verified",
+      "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience."
     }
   ],
   "mapReduceLiveReview": "references/drift-review-map-reduce-live.json",
@@ -286,61 +409,71 @@
     "originalSyncCommit": "95ae75c91689ad4e94a78d7bdc86cbdf490dd593"
   },
   "pendingReview": {
-    "issues": [
-      "KEJ-113",
-      "KEJ-114"
-    ],
-    "review": "references/drift-review-kej-113-114.json",
-    "reviewedCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+    "change": "shared-agent-behavior-LB07-C2",
+    "review": "references/drift-review-shared-agent-behavior.json",
+    "reviewedCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
     "status": "verified-and-synchronized-after-nine-entrypoints",
-    "syncedCommit": "36916b5c6e974c11f8e51720189c64facef9269e"
+    "syncedCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940"
   },
   "candidateVerification": {
-    "issues": [
-      "KEJ-113",
-      "KEJ-114"
-    ],
     "entry": "coordination-extensions",
-    "sourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
-    "source": "36916b5c6e974c11f8e51720189c64facef9269e",
-    "evidence": "reports/kej-113-114-four-formal-36916b5-final-3/coordination-extensions",
+    "evidence": "reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1/coordination-extensions",
+    "sourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "completeRun": {
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-coordination/scripts/check-extensions.py",
+        "--jar",
+        "/workspace/squad/work/tools/tla2tools.jar",
+        "--evidence",
+        "/workspace/squad/reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1/coordination-extensions"
+      ],
+      "exitCode": 0,
+      "seconds": 524.254
+    },
+    "independentReadback": {
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-coordination/scripts/check-extensions.py",
+        "--verify-evidence",
+        "/workspace/squad/reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1/coordination-extensions"
+      ],
+      "exitCode": 0
+    },
+    "readerControls": [],
     "status": "verified",
     "outcome": "updated",
-    "seconds": 487.892,
+    "change": "shared-agent-behavior-LB07-C2",
+    "source": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "phases": {
+      "positive": "verified",
+      "realSourceFaults": "detected",
+      "restoredOriginal": "verified",
+      "independentReadback": "verified"
+    },
     "cleanup": {
       "scratchRemoved": true,
       "coveredFilesUnchanged": true,
       "checkerInputsUnchanged": true
     },
-    "independentReadback": "verified",
-    "phases": {
-      "positive": "verified",
-      "realSourceFaults": "detected",
-      "restoredOriginal": "verified",
-      "retainedEvidenceReader": "verified"
-    },
-    "readbackOutput": "Verified 1121 coordination extension evidence files",
-    "scope": "Complete declared finite domains, genuine product-source fault controls, restored original implementation, and separate retained-evidence reader. Not arbitrary histories or whole-system proof.",
-    "syncStatus": "synchronized-after-nine-entrypoints",
-    "domains": 23,
-    "witnesses": 74,
-    "realCodeControls": 31,
-    "edgesPerStorePerStage": 3754,
-    "retainedArtifacts": 1121,
-    "evidenceReaderControls": 7,
-    "postMetadataIndependentReadback": "verified"
+    "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+    "metrics": {
+      "retainedArtifacts": 1123,
+      "realCodeControls": 31,
+      "domains": 23,
+      "edgesPerStorePerStage": 3754,
+      "witnesses": 74,
+      "evidenceReaderControls": 7
+    }
   },
   "globalSynchronization": {
-    "issues": [
-      "KEJ-113",
-      "KEJ-114"
-    ],
-    "productCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+    "change": "shared-agent-behavior-LB07-C2",
+    "productCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
     "allNineEntrypointsVerified": true,
     "centralIndependentReadbacks": "passed",
     "outcome": "updated",
     "metadataOnly": true,
-    "note": "Root confirmed all nine complete entrypoints and independent readers. This metadata synchronization is not another complete run; original run inputs, prior sync values and the two verification-maintenance failures remain retained. Each current coverage pin matches the same frozen product source.",
-    "currentTreeSourcePins": "match frozen product"
+    "evidenceIndex": "work/shared-agent-behavior-lb07-formal/final-nine-summary.json",
+    "note": "All complete positive/source-negative/restored runs and readers passed before this sync. Original proof inputs retain their prior sync and pending-review values. This metadata update is not an additional complete run."
   }
 }

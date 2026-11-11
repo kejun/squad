@@ -140,3 +140,19 @@ authority 的 Execution/Host/SessionScope 与 LocalRuntime 启动前中止探针
 
 
 KEJ-113/114 最终复验：冻结产品 `36916b5c6e974c11f8e51720189c64facef9269e`，本技能两个完整入口均完成真实源码负对照、原版复验和各自独立读回，结果为 updated。最终原始证据分别为 `reports/kej-113-114-four-formal-36916b5-final-2/authority`、`reports/kej-113-114-four-formal-36916b5-final-2/authority-composition`；汇总与最新独立读回位于 `reports/kej-113-114-four-formal-36916b5-final-3`。精确计数、首轮冗余负控失败与维护理由见[逐文件审查](drift-review-kej-113-114.json)。同步元数据不表示额外完整运行；本技能有限域不证明新宿主、网页、人类门或删除行为的全部组合。
+
+
+## 共享 Agent 行为规范维护
+
+冻结产品 `4032d88341b75c3b419215b73a63c0830f6f137a` 只新增静态共享提示模块，并在默认适配器的固定检查和普通模型工作 system 消息中各注入一次，替换原 owner/facilitator 短段。逐文件来源、归档依赖和实际运行状态见[本轮审查](drift-review-shared-agent-behavior.json)。旧有限模型、性质、夹具、真实源码负对照和超时保持；九入口全部完整验证和独立读回成功前保留旧 sync。LocalEffects 的真实适配器桥仍使用受控 transport，其通过不代表真实模型服从自然语言规范；新增上下文占用和六角色请求由独立适配器场景验证。
+
+
+共享规范最终复验：冻结产品 `4032d88341b75c3b419215b73a63c0830f6f137a` 的九入口均完整通过正向、真实源码负对照、原版复验和独立读回，结果为 updated。本技能精确证据路径和保证边界见[本轮审查](drift-review-shared-agent-behavior.json)；仅同步元数据，不冒称额外完整运行。
+
+
+## LB07 固定核查引用提示的第二阶段审查
+
+冻结产品 `e1c29edbc080b4638b34b9406e4e81b057e20940` 只在 checkMessages 增加一条既有来源目录和可选引用省略规则说明；共享规范、宿主校验和旧有限性质均未改。`4032d883` 的完整证明仅保留为第一阶段历史；本阶段须以新源码重新完成九入口全部正向、真实源码负对照、原版复验和独立读回。逐项差分及阶段状态见[共享规范审查](drift-review-shared-agent-behavior.json)。
+
+
+LB07 第二阶段最终复验：冻结产品 `e1c29edbc080b4638b34b9406e4e81b057e20940` 的九入口均完整通过正向、真实源码负对照、原版复验和独立读回，结果为 updated。本技能精确证据路径和保证边界见[本轮审查](drift-review-shared-agent-behavior.json)；仅同步元数据，不冒称额外完整运行。

@@ -220,7 +220,7 @@ def main():
         assert sha(jar) == JAR_SHA, 'Wrong pinned TLC archive'
         report['tool'] = {'release': 'TLA+ Tools v1.7.4 / TLC 2.19', 'jarSha256': JAR_SHA}
         shutil.copytree(SKILL / 'scripts', area / 'checker-inputs', ignore=shutil.ignore_patterns('__pycache__'))
-        for name in ['SKILL.md', 'references/correspondence.md', 'references/drift-review-pr40.json', 'references/drift-review-kej-106.json', 'references/drift-review-kej-102-105.json', 'references/drift-review-kej-113-114.json']:
+        for name in ['SKILL.md', 'references/correspondence.md', 'references/drift-review-pr40.json', 'references/drift-review-kej-106.json', 'references/drift-review-kej-102-105.json', 'references/drift-review-kej-113-114.json', 'references/drift-review-shared-agent-behavior.json']:
             retained = area / 'checker-inputs' / name
             retained.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(SKILL / name, retained)

@@ -102,6 +102,8 @@ def verify_evidence(area):
         required.update(f'negative-controls/{control}/{backend}.{suffix}' for backend in ['memory','sqlite'] for suffix in ['json','log'])
     captured_coverage=json.loads((area/'inputs/references-coverage.json').read_text())
     assert captured_coverage['files']==report['coveredHashes'], 'Coverage input disagrees with tested source fingerprints'
+    if 'src/agent-behavior.ts' in captured_coverage['files']:
+        required.add('inputs/references-drift-review-shared-agent-behavior.json')
     required.update('inputs/implementation/'+name for name in captured_coverage['files'])
     assert required <= set(entries), 'Required raw evidence missing: '+', '.join(sorted(required-set(entries)))
     for name,record in entries.items():
@@ -183,7 +185,7 @@ def main():
     area=(args.evidence or ROOT/'reports/verify-squad-host-retry'/(time.strftime('%Y%m%dT%H%M%SZ',time.gmtime())+f'-{os.getpid()}')).resolve()
     assert not area.exists(),'Refuse to overwrite retained proof';area.mkdir(parents=True)
     inputs=area/'inputs';inputs.mkdir()
-    for name in ['scripts/check.py','scripts/replay.mjs','scripts/HostRetry.tla','scripts/HostRetry.cfg','references/coverage.json','references/correspondence.md']:
+    for name in ['scripts/check.py','scripts/replay.mjs','scripts/HostRetry.tla','scripts/HostRetry.cfg','references/coverage.json','references/correspondence.md','references/drift-review-shared-agent-behavior.json']:
         source_file=SKILL/name
         if source_file.exists():shutil.copyfile(source_file,inputs/name.replace('/','-'))
     coverage=json.loads((SKILL/'references/coverage.json').read_text())

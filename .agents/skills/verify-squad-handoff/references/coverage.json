@@ -1,5 +1,5 @@
 {
-  "syncCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+  "syncCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
   "bounds": {
     "tasks": 1,
     "owner": "A",
@@ -12,88 +12,89 @@
     "resumedOwnerClaims": 0
   },
   "files": {
-    "src/task.machine.ts": "a147ecce5aa608c858150da78ccdb3d84a6a39737cf69f33f33b62744b3aec6c",
-    "src/engine.ts": "ea4fc1ba23f93b9591a8201ad7e71ce2a438c1b3ba0214513b89808922264d0f",
-    "src/store.ts": "3eb36535afb71bad478495506f0dea78a0fef3d69fa56b85d5a4e2756d7da432",
-    "src/runner.ts": "c367c12a5c1da32b4cac4b8d2871e8dac6348219ccb0da5e340beae7337716eb",
-    "src/types.ts": "53b2dca9c74c55152c72aef123cf2cb38c3d714bb42284ef50fd488824eb9334",
-    "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
-    "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
-    "src/presentation.ts": "1ffa66657884dffe98cceb1166485df99541aee762a53cfaa3a57de69af896d8",
-    "src/conversation.ts": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
-    "src/model-env.ts": "7f8bb277dab42d749c82dab229d66cbb508e1af83b78986895da41956a9e6cf0",
-    "src/index.ts": "79ef24ede132e36388df54ccbb8e6e48efc472adff3c13d57f68ce745b98e331",
-    "team.config.ts": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb",
-    "package.json": "e809edfebb43fbfd77f200e6afec11e6109c7d7e8549efb8ee45536d6278df21",
     "package-lock.json": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
-    "src/task/discussion.ts": "6090f36fce08f19d19cff4dcd38344c20c249493b45b767a1993dd676d4cb39b",
-    "src/task/input.ts": "369fd09eab97fbec1d5ed8c801f11f30a72c675b45e89c57349ebbe0f770e608",
-    "src/task/lifecycle.ts": "4de9ac0127f11dbe2980c73b1176e7b053a2720a7fb06b31e0cc03627759d9e1",
-    "src/task/context.ts": "ae96dd7dd487b3776758fe5f0c452c64c52ca0e454f766818b7f5bc268f16092",
-    "src/task/operations.ts": "b997ec9f15f59a4e8d3eacfc73ebf189e0d0d996dde42b3409331f45ffbd0621",
-    "src/task/reducer.ts": "c2e15627db07645398c20f4fdbf16aa876a9529f8a7532961f608f98393277d3",
-    "src/task/assistance.ts": "a8628937aad37ca19bfa210b288e537f406b4323c1b191ab86e6333438cd1950",
-    "src/task/policy.ts": "ded18a03e7b5485e608a3d15cbb0927e787f928d9c969c505375336e92ba5078",
-    "src/task/actions.ts": "4b25c51842badc38daa3d3201f02a660df227d105141521dd334b928bda34333",
-    "src/task/budget.ts": "8bc89ad5e0b4af104fc8d3c82d5c8f6fa9c16a83e34039e577c48ee05379f6e4",
-    "src/task/guards.ts": "94053221acc0f2f9b91005f4e17027c0a2c8b0a51c13c972afce750457704a29",
-    "src/task/facts.ts": "ee7161ab136bb54191c5af11ce3bbdd508260f75c583a16bb6ff7a0b4f916d2b",
+    "package.json": "e809edfebb43fbfd77f200e6afec11e6109c7d7e8549efb8ee45536d6278df21",
+    "src/acquisition-readers.ts": "011b165c1c4d8acfbf32c16c8655baf312148b9944dd518a61e4f528fdd48d47",
+    "src/agent-behavior.ts": "1b1c18b90e05f7673e1d2b5253a7a2171e5dfa4ccf869219e265835f25b4e814",
+    "src/artifact-request.ts": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
+    "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
+    "src/catalog-search.ts": "94f713cda0ee9f6e817b0e2682d91ee6efa555d18e677421d3f241eab37eda3f",
+    "src/cli-catalog.ts": "08a49e8e7a8cb15da8cb4d8b4fa22f7bbd6aa5636edb59bcceae43c30f74734d",
+    "src/cli-failure.ts": "717211b0c07092641dce7467c1649832c1d7d0bd654d2b0191341ec29077beb8",
+    "src/cli-readiness.ts": "cb973987c1b91f5a0d684e7dd6f762cdc2ae2822723230a523025ca0b3dfcb6e",
+    "src/conversation.ts": "d8d562d9e2f0ac074b0942575e18074fbaaf250d2fcfedc5fa5938ed66333853",
+    "src/darwin-process.ts": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b",
+    "src/delivery-acceptance.ts": "4cc0389a027e13631058b52ba911e0b99e487160a898510168e47e44fe117dc4",
+    "src/delivery-check-delta.ts": "676f1a53878cf893a1073b6e599a038b099fc26bffc5d7a6e9cc8ee00602c4d1",
+    "src/engine.ts": "ea4fc1ba23f93b9591a8201ad7e71ce2a438c1b3ba0214513b89808922264d0f",
+    "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
+    "src/host-capabilities.ts": "887050d6c668a648c8e61f21503aa4322870e6139c10b9b05b8be2a804625414",
+    "src/host-retry.ts": "912367bbab70879c8a67e60e324a31aa46aa1dda76de27f694fc4249ae743f4a",
+    "src/host-session.ts": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab",
+    "src/index.ts": "79ef24ede132e36388df54ccbb8e6e48efc472adff3c13d57f68ce745b98e331",
     "src/input-intent.ts": "8c2886e4b9054655203f5b72fc357aaab0d3502927320b722f9fa196a951d266",
+    "src/local-cli.ts": "5a11e027e082424df77d9f5dcfb92c35f51507440e836465d2609b59cf26fc40",
     "src/local-operation.ts": "ba9a546b17402b7f585d7c81fc8c53beb1786651384d0a4822ae56a456622482",
+    "src/local-resource-policy.ts": "8bfe9c1095ab34cafad7a6a6d97fdc4d398d9d8afeb4435a8ed70ad5652e3673",
+    "src/local-runtime.ts": "ece2447adc368f94ea549bfb9a1b4dbb0127b3a2cd1da62bcdb89d7d0383cf60",
+    "src/local-skills.ts": "dc5d7e4e8ebb5e5a82e9b608a377b4fa4d454ab54e276ffcd75ee5f2c8794917",
+    "src/measurement.ts": "0ceeba39fe20ece308c1a0ed1df3b1438e40052af651f9a0037592f2af1cc773",
+    "src/model-adapter.ts": "343bc56fe91240cf19df74af5dd51f2c965f1d6622186674165a10c6d339b84f",
+    "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
+    "src/model-env.ts": "7f8bb277dab42d749c82dab229d66cbb508e1af83b78986895da41956a9e6cf0",
+    "src/presentation.ts": "1ffa66657884dffe98cceb1166485df99541aee762a53cfaa3a57de69af896d8",
+    "src/resource-acquisition.ts": "adc62f7be3cca22ded73bb7e42cebb893da98b5b1a7c68097ca12bc5f39cca02",
+    "src/room-deletion.machine.ts": "61320dc8213a9d546cb706349a8fa786c9acd244461608e6e3422487a8b7d4f4",
     "src/room.machine.ts": "1f2acd3d217731acd39b4258e0148b65b600f2b8cd7ae8cdcee8f047d8b696ab",
+    "src/runner.ts": "c367c12a5c1da32b4cac4b8d2871e8dac6348219ccb0da5e340beae7337716eb",
+    "src/runtime-ownership.ts": "210e8d0108df16149d9a3fc3c5e1d3e417f9ccdb1c54040042dec89494aafc60",
+    "src/skills.ts": "616a30fed055e935a09fef66cded225626220c5a1e9211dac44ec543d37a6bb2",
+    "src/source-artifact.ts": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4",
+    "src/source-claims.ts": "ed1d86ae9c38e8c850da5b0c9d695f5fd4ab1091f9212759fa573d7981dc52c3",
+    "src/source-items.ts": "8a9f1e122ce69c05b3f41a776c7bf75fcf7253f6dc022115ad8097da37343f28",
+    "src/store.ts": "3eb36535afb71bad478495506f0dea78a0fef3d69fa56b85d5a4e2756d7da432",
     "src/task-debug.ts": "38dd3bf387bd69f1caf7f7aeb0f539a8b9d2361ee63ca56dc5c555714fbcaa89",
     "src/task-inspection.ts": "a66a44d5b85f487b60ee33985fd9af54064bbacc6951dd47e7aaf3127a2fabd5",
     "src/task-structure.ts": "03f4fdd3056848007d83d8381fb5f21df12fdd4dd3ea65a7dbfe87fdcde9a87a",
-    "src/skills.ts": "616a30fed055e935a09fef66cded225626220c5a1e9211dac44ec543d37a6bb2",
-    "src/web-tools.ts": "c03bdca771c9af1e67bc35a9156a3da124f51cc1902254d6f091f69cef5d5545",
-    "src/task/execution.machine.ts": "7ed6793adbd8413de0c53161ea8adbe6bdcb29eae910864ccd01e29baf68fcff",
-    "src/task/delivery.ts": "e6879a729d525d3e699e0c2a5be63b318c66f90e60b10d6d67dfd186642560ed",
-    "src/task/protocol.ts": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
-    "src/task/evidence.ts": "463a61866b5e849da7565972e5dd8167f0419e36e51c374bd1483fca4034ae6f",
-    "src/task/verification.ts": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24",
-    "src/task/map-reduce.ts": "694139c96425237e892f56bbe830f5bb460f298bdc3d708d2b8c31c2f32ab55a",
-    "src/host-retry.ts": "912367bbab70879c8a67e60e324a31aa46aa1dda76de27f694fc4249ae743f4a",
-    "src/host-session.ts": "9b014549e6b9e6a5f3525a64176da825e539006acceb2265e7a7a928fb586cab",
-    "src/delivery-acceptance.ts": "4cc0389a027e13631058b52ba911e0b99e487160a898510168e47e44fe117dc4",
-    "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
-    "src/measurement.ts": "0ceeba39fe20ece308c1a0ed1df3b1438e40052af651f9a0037592f2af1cc773",
-    "src/local-skills.ts": "dc5d7e4e8ebb5e5a82e9b608a377b4fa4d454ab54e276ffcd75ee5f2c8794917",
-    "src/artifact-request.ts": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
-    "src/source-artifact.ts": "8c34e62463c38a2d94b756c13b60c6fa74380c8ef0b702b0cae425719f1e16b4",
-    "src/task/map-reduce-capacity.ts": "884164a24ac692c40dbf196fb0fd4b00f833e2cc0e5ddda6b8ee7e0c6472f0c7",
-    "src/catalog-search.ts": "94f713cda0ee9f6e817b0e2682d91ee6efa555d18e677421d3f241eab37eda3f",
-    "src/cli-catalog.ts": "08a49e8e7a8cb15da8cb4d8b4fa22f7bbd6aa5636edb59bcceae43c30f74734d",
-    "src/task/tool-knowledge.ts": "7739654b94e4ccf6628bd8c55095c066f52691a074a190b0b8d39b299b0299b9",
-    "src/task/map-queue.ts": "79b0c55b825bd31e78c818064ea2ced205edb2724f0b254c31d9ae981199c5da",
-    "src/web/service-lifecycle.ts": "265e659384eaae1770fbefa71c632e060cded863b47768f7292cd8151fd561db",
+    "src/task.machine.ts": "a147ecce5aa608c858150da78ccdb3d84a6a39737cf69f33f33b62744b3aec6c",
+    "src/task/actions.ts": "4b25c51842badc38daa3d3201f02a660df227d105141521dd334b928bda34333",
+    "src/task/assistance.ts": "a8628937aad37ca19bfa210b288e537f406b4323c1b191ab86e6333438cd1950",
+    "src/task/budget.ts": "8bc89ad5e0b4af104fc8d3c82d5c8f6fa9c16a83e34039e577c48ee05379f6e4",
+    "src/task/context.ts": "ae96dd7dd487b3776758fe5f0c452c64c52ca0e454f766818b7f5bc268f16092",
     "src/task/delivery-cycle.ts": "b2e027c05c8a5b4762dbfb05b3f159f11e0c8f37356b381542d5657d6d9e0994",
-    "src/delivery-check-delta.ts": "676f1a53878cf893a1073b6e599a038b099fc26bffc5d7a6e9cc8ee00602c4d1",
-    "src/source-claims.ts": "ed1d86ae9c38e8c850da5b0c9d695f5fd4ab1091f9212759fa573d7981dc52c3",
-    "src/source-items.ts": "8a9f1e122ce69c05b3f41a776c7bf75fcf7253f6dc022115ad8097da37343f28",
+    "src/task/delivery.ts": "e6879a729d525d3e699e0c2a5be63b318c66f90e60b10d6d67dfd186642560ed",
+    "src/task/discussion.ts": "6090f36fce08f19d19cff4dcd38344c20c249493b45b767a1993dd676d4cb39b",
+    "src/task/evidence.ts": "463a61866b5e849da7565972e5dd8167f0419e36e51c374bd1483fca4034ae6f",
+    "src/task/execution.machine.ts": "7ed6793adbd8413de0c53161ea8adbe6bdcb29eae910864ccd01e29baf68fcff",
+    "src/task/facts.ts": "ee7161ab136bb54191c5af11ce3bbdd508260f75c583a16bb6ff7a0b4f916d2b",
+    "src/task/guards.ts": "94053221acc0f2f9b91005f4e17027c0a2c8b0a51c13c972afce750457704a29",
+    "src/task/input.ts": "369fd09eab97fbec1d5ed8c801f11f30a72c675b45e89c57349ebbe0f770e608",
+    "src/task/lifecycle.ts": "4de9ac0127f11dbe2980c73b1176e7b053a2720a7fb06b31e0cc03627759d9e1",
+    "src/task/map-queue.ts": "79b0c55b825bd31e78c818064ea2ced205edb2724f0b254c31d9ae981199c5da",
     "src/task/map-recovery.ts": "cf4e6ac76482d0765b6d7d523f77173ee70e160ce00ac4e4a257d2a3e84dc7b7",
-    "src/task/tool-recovery.ts": "225859aa5e025691ec323b8399579aed9d46168ea0002ce4d8cdf6500eb4ef8c",
-    "src/cli-failure.ts": "717211b0c07092641dce7467c1649832c1d7d0bd654d2b0191341ec29077beb8",
-    "src/task/tool-guidance.ts": "6c1487d82bdf94d5aca7c659a56f7342dc13bde2169619abbe5dcd49fbc0f6e4",
-    "src/tool-recommendation.ts": "8f3ec269c241a6eeeab9f9727b9fbd34208f262feb8bc8a73127540cc89f80e3",
-    "src/acquisition-readers.ts": "011b165c1c4d8acfbf32c16c8655baf312148b9944dd518a61e4f528fdd48d47",
-    "src/cli-readiness.ts": "cb973987c1b91f5a0d684e7dd6f762cdc2ae2822723230a523025ca0b3dfcb6e",
-    "src/darwin-process.ts": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b",
-    "src/host-capabilities.ts": "887050d6c668a648c8e61f21503aa4322870e6139c10b9b05b8be2a804625414",
-    "src/local-cli.ts": "5a11e027e082424df77d9f5dcfb92c35f51507440e836465d2609b59cf26fc40",
-    "src/local-resource-policy.ts": "8bfe9c1095ab34cafad7a6a6d97fdc4d398d9d8afeb4435a8ed70ad5652e3673",
-    "src/local-runtime.ts": "ece2447adc368f94ea549bfb9a1b4dbb0127b3a2cd1da62bcdb89d7d0383cf60",
-    "src/model-adapter.ts": "7d2c7be8703ca71129fd7eb85a8b10f611b5c2ab563762115fb81a30a7759eef",
-    "src/resource-acquisition.ts": "adc62f7be3cca22ded73bb7e42cebb893da98b5b1a7c68097ca12bc5f39cca02",
-    "src/room-deletion.machine.ts": "61320dc8213a9d546cb706349a8fa786c9acd244461608e6e3422487a8b7d4f4",
-    "src/runtime-ownership.ts": "210e8d0108df16149d9a3fc3c5e1d3e417f9ccdb1c54040042dec89494aafc60",
+    "src/task/map-reduce-capacity.ts": "884164a24ac692c40dbf196fb0fd4b00f833e2cc0e5ddda6b8ee7e0c6472f0c7",
+    "src/task/map-reduce.ts": "694139c96425237e892f56bbe830f5bb460f298bdc3d708d2b8c31c2f32ab55a",
     "src/task/map-scheduling.ts": "1cd8e33e0acf158fab9520bf9201811694b054bd5f256d8847e2d557cbf25913",
-    "src/task/resilience.ts": "51d02fdcd222637df8626e7ef2d94310f387a312b43269eabc90c0be3535612f"
+    "src/task/operations.ts": "b997ec9f15f59a4e8d3eacfc73ebf189e0d0d996dde42b3409331f45ffbd0621",
+    "src/task/policy.ts": "ded18a03e7b5485e608a3d15cbb0927e787f928d9c969c505375336e92ba5078",
+    "src/task/protocol.ts": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
+    "src/task/reducer.ts": "c2e15627db07645398c20f4fdbf16aa876a9529f8a7532961f608f98393277d3",
+    "src/task/resilience.ts": "51d02fdcd222637df8626e7ef2d94310f387a312b43269eabc90c0be3535612f",
+    "src/task/tool-guidance.ts": "6c1487d82bdf94d5aca7c659a56f7342dc13bde2169619abbe5dcd49fbc0f6e4",
+    "src/task/tool-knowledge.ts": "7739654b94e4ccf6628bd8c55095c066f52691a074a190b0b8d39b299b0299b9",
+    "src/task/tool-recovery.ts": "225859aa5e025691ec323b8399579aed9d46168ea0002ce4d8cdf6500eb4ef8c",
+    "src/task/verification.ts": "8824268cdd19d72678b51b12290e8b0b0d45e5b60ca969583d0c98778d330c24",
+    "src/tool-recommendation.ts": "8f3ec269c241a6eeeab9f9727b9fbd34208f262feb8bc8a73127540cc89f80e3",
+    "src/types.ts": "53b2dca9c74c55152c72aef123cf2cb38c3d714bb42284ef50fd488824eb9334",
+    "src/web-tools.ts": "c03bdca771c9af1e67bc35a9156a3da124f51cc1902254d6f091f69cef5d5545",
+    "src/web/service-lifecycle.ts": "265e659384eaae1770fbefa71c632e060cded863b47768f7292cd8151fd561db",
+    "team.config.ts": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb"
   },
   "review": {
     "status": "verified",
-    "head": "36916b5c6e974c11f8e51720189c64facef9269e",
-    "basis": "references/drift-review-kej-113-114.json",
-    "previousSyncCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62"
+    "head": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "basis": "references/drift-review-shared-agent-behavior.json",
+    "previousSyncCommit": "36916b5c6e974c11f8e51720189c64facef9269e"
   },
   "maintenanceReviews": [
     {
@@ -250,6 +251,26 @@
       "reviewedCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
       "validation": "reports/kej-113-114-handoff-final",
       "independentReadback": "verified"
+    },
+    {
+      "change": "shared-agent-behavior",
+      "review": "references/drift-review-shared-agent-behavior.json",
+      "reviewedCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "previousSyncCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+      "outcome": "updated",
+      "validation": "reports/shared-agent-behavior-five-formal-4032d88-final-1/handoff",
+      "independentReadback": "verified",
+      "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience."
+    },
+    {
+      "change": "shared-agent-behavior-LB07-C2",
+      "review": "references/drift-review-shared-agent-behavior.json",
+      "reviewedCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+      "previousSyncCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "outcome": "updated",
+      "validation": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff",
+      "independentReadback": "verified",
+      "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience."
     }
   ],
   "mapReduceLiveReview": "references/drift-review-map-reduce-live.json",
@@ -261,24 +282,80 @@
   },
   "verification": {
     "entry": "handoff",
+    "sourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "evidence": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff",
     "status": "verified",
-    "sourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
-    "evidence": "reports/kej-113-114-handoff-final",
-    "absoluteEvidence": "/workspace/squad/reports/kej-113-114-handoff-final",
-    "independentReadback": "verified",
-    "retainedArtifacts": 184,
+    "readerControls": [],
+    "completeRun": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-handoff/scripts/check.py",
+        "--jar",
+        "/workspace/squad/work/tools/tla2tools.jar",
+        "--evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff"
+      ],
+      "exitCode": 0,
+      "seconds": 38.836,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff.log"
+    },
+    "independentReadback": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-handoff/scripts/check.py",
+        "--verify-evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff"
+      ],
+      "exitCode": 0,
+      "seconds": 0.046,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff-readback.log"
+    },
+    "postControlsReadback": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-handoff/scripts/check.py",
+        "--verify-evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff"
+      ],
+      "exitCode": 0,
+      "seconds": 0.057,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff-post-controls-readback.log"
+    },
+    "phases": {
+      "positive": "verified",
+      "realSourceFaults": "detected",
+      "restoredOriginal": "verified",
+      "independentReadback": "verified"
+    },
+    "outcome": "updated",
+    "change": "shared-agent-behavior-LB07-C2",
+    "source": "e1c29edbc080b4638b34b9406e4e81b057e20940",
     "cleanup": {
       "scratchRemoved": true,
       "coveredFilesUnchanged": true,
       "evidenceRetained": true
     },
-    "syncStatus": "synchronized-after-nine-entrypoints",
-    "scope": "Original finite domain, unchanged safety/liveness and bounds; real Memory/SQLite edge replay, genuine code controls and restored originals. No whole-system resilience or deletion proof.",
-    "states": 146,
-    "edgesPerStorePerStage": 424,
-    "witnesses": 6,
-    "realCodeControls": 4,
-    "seconds": 37.977
+    "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+    "metrics": {
+      "manifestEntries": 185,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true
+      },
+      "readbackOutput": "Evidence verified: 185 retained artifacts",
+      "models": [
+        {
+          "domain": "handoff",
+          "states": 146,
+          "edgesPerStore": 424
+        }
+      ],
+      "witnesses": 6,
+      "realSourceFaultStrategies": 4,
+      "retainedArtifacts": 185,
+      "realCodeControls": 4
+    }
   },
   "candidateReview": {
     "issues": [
@@ -290,19 +367,14 @@
     "sourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e"
   },
   "globalSynchronization": {
-    "issues": [
-      "KEJ-113",
-      "KEJ-114"
-    ],
-    "productCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+    "change": "shared-agent-behavior-LB07-C2",
+    "productCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
     "allNineEntrypointsVerified": true,
-    "status": "all-nine-completed",
     "centralIndependentReadbacks": "passed",
-    "fourEntrypointSummary": "reports/kej-113-114-four-formal-36916b5-final-3/summary.json",
-    "rootConfirmedOtherFiveIndependentReadbacks": "passed",
     "outcome": "updated",
     "metadataOnly": true,
-    "note": "All nine complete finite checks, genuine controls, restored-original checks and independent evidence readers passed. Authority entries reuse their complete final-2 proof because checked product bytes are identical, with fresh final-3 readback; coordination entries were fully rerun in final-3. Root independently read back the remaining five. Metadata synchronization is not another complete proof run and does not expand any finite guarantee."
+    "evidenceIndex": "work/shared-agent-behavior-lb07-formal/final-nine-summary.json",
+    "note": "All complete positive/source-negative/restored runs and readers passed before this sync. Original proof inputs retain their prior sync and pending-review values. This metadata update is not an additional complete run."
   },
   "verificationHistory": [
     {
@@ -325,6 +397,104 @@
       "witnesses": 6,
       "realCodeControls": 4,
       "seconds": 100.529
+    },
+    {
+      "entry": "handoff",
+      "status": "verified",
+      "sourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+      "evidence": "reports/kej-113-114-handoff-final",
+      "absoluteEvidence": "/workspace/squad/reports/kej-113-114-handoff-final",
+      "independentReadback": "verified",
+      "retainedArtifacts": 184,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true
+      },
+      "syncStatus": "synchronized-after-nine-entrypoints",
+      "scope": "Original finite domain, unchanged safety/liveness and bounds; real Memory/SQLite edge replay, genuine code controls and restored originals. No whole-system resilience or deletion proof.",
+      "states": 146,
+      "edgesPerStorePerStage": 424,
+      "witnesses": 6,
+      "realCodeControls": 4,
+      "seconds": 37.977
+    },
+    {
+      "entry": "handoff",
+      "sourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "evidence": "reports/shared-agent-behavior-five-formal-4032d88-final-1/handoff",
+      "status": "verified",
+      "readerControls": [],
+      "completeRun": {
+        "command": [
+          "python3",
+          "/workspace/squad/.agents/skills/verify-squad-handoff/scripts/check.py",
+          "--jar",
+          "/workspace/squad/work/tools/tla2tools.jar",
+          "--evidence",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/handoff"
+        ],
+        "exitCode": 0,
+        "seconds": 44.117,
+        "log": "reports/shared-agent-behavior-five-formal-4032d88-final-1/handoff.log"
+      },
+      "independentReadback": {
+        "command": [
+          "python3",
+          "/workspace/squad/.agents/skills/verify-squad-handoff/scripts/check.py",
+          "--verify-evidence",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/handoff"
+        ],
+        "exitCode": 0,
+        "seconds": 0.07,
+        "log": "reports/shared-agent-behavior-five-formal-4032d88-final-1/handoff-readback.log"
+      },
+      "postControlsReadback": {
+        "command": [
+          "python3",
+          "/workspace/squad/.agents/skills/verify-squad-handoff/scripts/check.py",
+          "--verify-evidence",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/handoff"
+        ],
+        "exitCode": 0,
+        "seconds": 0.069,
+        "log": "reports/shared-agent-behavior-five-formal-4032d88-final-1/handoff-post-controls-readback.log"
+      },
+      "phases": {
+        "positive": "verified",
+        "realSourceFaults": "detected",
+        "restoredOriginal": "verified",
+        "independentReadback": "verified"
+      },
+      "outcome": "updated",
+      "change": "shared-agent-behavior",
+      "source": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true
+      },
+      "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+      "metrics": {
+        "manifestEntries": 185,
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "evidenceRetained": true
+        },
+        "readbackOutput": "Evidence verified: 185 retained artifacts",
+        "models": [
+          {
+            "domain": "handoff",
+            "states": 146,
+            "edgesPerStore": 424
+          }
+        ],
+        "witnesses": 6,
+        "realSourceFaultStrategies": 4,
+        "retainedArtifacts": 185,
+        "realCodeControls": 4
+      }
     }
   ],
   "globalSynchronizationHistory": [
@@ -338,5 +508,89 @@
       "metadataOnly": true,
       "note": "All complete proofs, genuine controls, restored-original checks and independent readers passed before synchronization. Original proof inputs and old sync values remain historical evidence. Metadata synchronization is not another complete run and does not expand the finite guarantee."
     }
-  ]
+  ],
+  "pendingReview": {
+    "change": "shared-agent-behavior-LB07-C2",
+    "review": "references/drift-review-shared-agent-behavior.json",
+    "reviewedCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "status": "verified-and-synchronized-after-nine-entrypoints",
+    "syncedCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940"
+  },
+  "candidateVerification": {
+    "entry": "handoff",
+    "sourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "evidence": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff",
+    "status": "verified",
+    "readerControls": [],
+    "completeRun": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-handoff/scripts/check.py",
+        "--jar",
+        "/workspace/squad/work/tools/tla2tools.jar",
+        "--evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff"
+      ],
+      "exitCode": 0,
+      "seconds": 38.836,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff.log"
+    },
+    "independentReadback": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-handoff/scripts/check.py",
+        "--verify-evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff"
+      ],
+      "exitCode": 0,
+      "seconds": 0.046,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff-readback.log"
+    },
+    "postControlsReadback": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-handoff/scripts/check.py",
+        "--verify-evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff"
+      ],
+      "exitCode": 0,
+      "seconds": 0.057,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/handoff-post-controls-readback.log"
+    },
+    "phases": {
+      "positive": "verified",
+      "realSourceFaults": "detected",
+      "restoredOriginal": "verified",
+      "independentReadback": "verified"
+    },
+    "outcome": "updated",
+    "change": "shared-agent-behavior-LB07-C2",
+    "source": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "evidenceRetained": true
+    },
+    "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+    "metrics": {
+      "manifestEntries": 185,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true
+      },
+      "readbackOutput": "Evidence verified: 185 retained artifacts",
+      "models": [
+        {
+          "domain": "handoff",
+          "states": 146,
+          "edgesPerStore": 424
+        }
+      ],
+      "witnesses": 6,
+      "realSourceFaultStrategies": 4,
+      "retainedArtifacts": 185,
+      "realCodeControls": 4
+    }
+  }
 }

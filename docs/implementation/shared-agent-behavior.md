@@ -20,7 +20,7 @@
 | SAB-R10 | 当受到赞同、质疑或压力时，规范应要求按具体依据复核，维持有据判断或明确纠正错误及受影响结论，不迎合也不刻意反对。 | 第1、3条 | SB10 |
 | SAB-R11 | 当信息有缺口时，规范应要求先使用已有材料，只提出影响工作的最少问题；低影响可逆选择可默认推进，但不假设授权或把自评分数当校准正确率。 | 第4、5条；保持现有confidence协议 | SB11 |
 | SAB-R12 | 当给出贡献或汇总时，规范应要求保留来源、分歧、反证和未完成范围，在原可读字段中让重要限制可见，不强制固定检查表。 | 第7、8条 | SB12 |
-| SAB-R13 | 当固定核查选择可选source时，check专用提示应限定source.id为宿主提供的evidence/references/reviewRecords/verification/rawInputs目录中的原ID；候选和交付产物不因可见而自动可引证。无支持来源时应省略可选source并在原判定中说明未验证，宿主继续拒绝未知引用，不改变schema或必需来源要求。 | 真实LB07回放暴露的CHECK_SOURCE_NOT_FOUND协议失败；不改变原40样本结果 | SB13 |
+| SAB-R13 | 当固定核查选择可选source时，check专用提示应限定source.id为宿主提供的evidence/references/reviewRecords/verification/rawInputs目录中的原ID；候选和交付产物不因可见而自动可引证。对缺少执行证据的要求应保留unverified及原因，无合格来源时省略可选source；固定正文可直接支持的内容要求仍可passed。宿主继续拒绝未知引用，不改变schema或必需来源要求。 | 真实LB07回放暴露的CHECK_SOURCE_NOT_FOUND协议失败；不改变原40样本结果 | SB13 |
 
 核查：前十二条保留原文八项行为目标，第十三条把真实回放暴露的引用目录边界落实到check专用提示；均未引入新权限、输出字段、动作、预算或宿主调度。当前实现的 `inputIntentSchema` 仍要求 `confidence` 在0到1之间，低于0.65必须含澄清；本次不改该门槛，也不把模型自评分数解释成已验证正确率。规范中的固定检查按 `work.kind === 'check'` 和宿主能力判定；名为“核查员”的Bot在assistance工作中仍可获得调查权限。
 
@@ -115,3 +115,50 @@ stateDiagram-v2
 | 可选来源与引用目录 | artifact:live可见但不在来源目录仍拒绝且不保存判定；省略可选source或引用rawInputs原ID和准确原文均可保留标题passed、测试unverified及partial |
 
 本表只证明共享规范与既有宿主路径相容，不证明模型会选择正确输出；没有将这些纯门槛当作中文场景的直接执行通过。直接HTTP/SDK、Gherkin与真实模型A/B的结果由后续对应层给出。
+
+
+## 当前实现与执行证据
+
+共享规范为`src/agent-behavior.ts`的单一静态正文，六种默认模型工作分别在原专用system协议内注入一次；工具后续轮次和格式修复保留同一正文。产品提交为`4032d88341b75c3b419215b73a63c0830f6f137a`，固定核查来源说明补充为`e1c29edbc080b4638b34b9406e4e81b057e20940`。后续验证维护不改变这两个生产文件。
+
+- BT_S01–BT_S13直接执行42/42场景、2492步骤通过；使用实际HTTP/SDK、SQLite、Engine及Runner。返回内容受控，用于验证接线和宿主边界。
+- 13项真实taskMachine门槛通过；BT_A45/BT_F28的15项完整固定材料容量场景通过；三个适配器回归文件39项通过，生产、网页和测试TypeScript检查及生产构建通过。原43文件437项回归在共享规范提交上通过，最终全量由对应提交的CI重新核对。
+- 三个源码故障分别移除普通工作、固定检查及后续轮次的共享段：每个都由真实请求断言检出，原版和恢复版通过，共9子进程自然退出，服务、连接和临时资源均清理。证据`reports/shared-agent-behavior-negative/2026-11-11T09-03-21.669Z-163370/run.json`。
+- CI增加上述三故障检查及真实模型评估器的无网络正反控制；CI不访问付费模型或使用真实业务工具。
+
+## 真实模型效果回放
+
+模型由用户指定为`deepseek-v4.1-flash`，服务为OpenCode OpenAI兼容接口。基线为`1893d0be5c2f5903732afc4fd1a95383c8812ed5`的真实默认Adapter。配对使用相同固定工作、输入、能力、参数和受控工具刺激，捕获模型原始动作再执行宿主校验；不实际写入外部业务资源。保存原请求/响应、输入差分和文件哈希，服务身份头及路由行为只在可观测范围内核对。
+
+| 研究 | 源码 | 观察 | 结论范围 |
+| --- | --- | --- | --- |
+| 预登记十类用例，各两次AB/BA，共40样本 | 4032d88 | 旧15/20通过硬判据，1次硬失败、4次协议无效；新18/20通过，0次硬失败、2次协议无效；20/20配对输入可比 | 新版在本组有较多通过样本；仍观察到违约，不能声称整体正确或一般性改善 |
+| 独立预登记LB07来源引用复验，四对，共8样本 | e1c29ed | 新旧均4/4通过；无协议/服务无效；4/4配对输入可比 | 新来源说明与当前核查路径兼容；没有证明因果改善或错误已根除 |
+
+第一轮候选的两次协议无效分别是LB07引用不在目录的`artifact:live`，以及LB01的deliver混入answer使用的顶层`status`。前者促成SAB-R13及check专用提示补充；后者保留为已观察到的输出协议缺陷，没有放宽schema或硬判据使其通过。LB02旧版有一次未发起已授权读取，新版两次均发起；这只是该固定情境的样本观察。
+
+第一轮`automaticContractsStatus=failed`，`behaviorConclusion=automatic-contract-violation-observed`；第二轮为`passed`及`automatic-contracts-passed-improvement-not-established`。`status=completed`与退出0仅代表研究执行完成，不代表模型语义全部正确。
+
+证据目录为`reports/shared-agent-behavior-live/source4032-real-proxy-20261111`和`reports/shared-agent-behavior-live/sourcee1c29ed-LB07-targeted-20261111`，各含run/manifest及独立读回。原40样本的manifest SHA256为`ff92dc49950c3341d7e1b7c7115a3a3b7c17e6c95cd1f18cfc8eb7b217800e83`；原评估器源码完整冻结在`reports/shared-agent-behavior-live-sources/source4032-40trials`，未用后续修改重算原结果。
+
+实际模型服务请求共55次：首次连接失败1次（独立保留）、首轮40样本含工具后续共46次、引用复验8次；全程低于64次上限。通过环境代理及系统CA恢复连通，不关闭TLS校验、不换模型、不自动重试提供商错误。两轮48有效样本无provider-invalid或脱敏排除；首次失败不伪装成有效模型结果。
+
+自动判据仅覆盖预登记动作与字段。独立34个坏输入控制还发现四种已知误接受边界，例如LB04的741子串检查不能保证准确代码值；这类开放语义不能由硬判据通过代替。另生成去除变体信息的40项完整材料供独立LLM审阅，人工审阅字段保持null；LLM审阅不作为人类真值或校准准确率。小样本、提供商默认参数、缓存和路由亦限制效果解释。
+
+
+盲审材料曾把LB03首次请求中继承的历史操作放入`observedInteractions`且漏列检查点，容易误读为本轮动作。补充包`reports/shared-agent-behavior-blind-supplement/20261111`逐项说明四项历史归属：本轮requestedActions/invokedActions均为空，各仅一个模型响应；因此不能认定本轮重放。补充manifest SHA256为`d7073a886d5538e3bdb8ebc00951e102473726eaf3c0ef76885c5bbba250a470`。原bundle及研究未修改；该缺口不影响原先直接读取模型响应/实际action数组的硬判据。
+
+
+独立LLM审阅已覆盖全部40项及52个问题实例，报告位于`reports/shared-agent-behavior-blind-review/20261111/review.json`，保留逐项引文、原uncertain草稿及来源补正记录。审阅指出候选仍有历史执行归因/重复计数和把“缺少证据”扩大为“无人取得”的表述问题；例如没有本轮工具动作却写“在本轮我发出了一次 CLI 调用”，以及“本轮无人取得原文或可核验回执”。这些是需要结合历史工作范围复核的定性发现，不能被18/20硬判据通过覆盖，也不改写原硬指标。来源说明复验只覆盖LB07，并未验证这类开放表述已修复。人工`humanVerdict`仍为null，不能将LLM审阅当人类真值。审阅过程中协作工具曾显示不含变体身份的其他代理状态摘要，此隔离限制也已披露。
+
+
+该LLM审阅报告SHA256为`3f30d8bdcc2b937b4d9dddde6d422c936508617921c0bb811ae6061b0d38a085`。由主实现者在审阅冻结后才按单独映射核对归属；未给审阅者提供变体标签。补充包和定性发现均不改变原40样本的预登记指标。
+
+
+## 九套形式化复验
+
+对生产源码`e1c29edbc080b4638b34b9406e4e81b057e20940`重新执行全部九个入口：handoff、handoff-composition、delivery、authority、authority-composition、coordination、coordination-extensions、local-effects、host-retry。每套包含原完整正向域、真实源码故障检出、恢复原版、独立证据读回和原适用reader负对照；全部通过。新增静态共享模块纳入导入闭包与归档，check专用来源补充重新触发完整门禁；没有修改模型、性质、夹具、状态界限或超时使其通过。
+
+本轮索引为`work/shared-agent-behavior-lb07-formal/final-nine-summary.json`，原件在`reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1`和`reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1`。九套metadata仅在全套完成后同步源码提交，随后逐套重新读回；4032阶段及原始漂移拒绝记录完整保留，未充当当前通过证据。最终CI仍独立执行对应提交的完整流程。
+
+这些证明仅覆盖已声明的有限宿主状态域及对应实现，不证明模型自然语言始终遵守共享规范，也不扩大为操作系统或外部服务的完整证明。

@@ -180,7 +180,7 @@ def main():
     coverage = json.loads(coverage_path.read_text())
     before = {name: sha(ROOT / name) for name in coverage['files']}
     inputs = {str(path.relative_to(ROOT)): sha(path) for path in [*sorted((SKILL / 'scripts').glob('*')), ROOT / 'tests/coordination-composition-fixture.ts',
-        SKILL / 'SKILL.md', SKILL / 'references/correspondence.md', SKILL / 'references/drift-review-kej-113-114.json'] if path.is_file()}
+        SKILL / 'SKILL.md', SKILL / 'references/correspondence.md', SKILL / 'references/drift-review-kej-113-114.json', SKILL / 'references/drift-review-shared-agent-behavior.json'] if path.is_file()}
     report = {'status': 'running', 'source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
         'syncCommit': coverage['syncCommit'], 'coveredFileHashes': before, 'checkerInputHashes': inputs,
         'baseline': {}, 'restored': {}, 'witnesses': {}, 'negativeControls': {}}

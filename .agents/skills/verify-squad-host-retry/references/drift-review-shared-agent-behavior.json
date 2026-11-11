@@ -1,0 +1,478 @@
+{
+  "change": "Shared Agent behavior prompt",
+  "outcome": "updated",
+  "reviewedHead": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+  "reviewedProductWorkingTree": false,
+  "previousProductSourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+  "productionFiles": [
+    {
+      "file": "src/model-adapter.ts",
+      "oldSha256": "ee0ea2b17c929316c050dc8f5c4a4828aed3e2be817e8275086daa11104d3fd3",
+      "candidateSha256": "343bc56fe91240cf19df74af5dd51f2c965f1d6622186674165a10c6d339b84f",
+      "classification": "check-prompt-static-literal-only",
+      "reason": "One added checkMessages string describes the already enforced citation source catalog and the existing optional-source omission rule. It preserves requiredSourceIds and exact quotation obligations. Shared behavior text, host source catalog/guards, schemas, 0.65 threshold, event/state/budget/deadline code and all ordinary model-work prompts are unchanged."
+    }
+  ],
+  "implementationCorrespondence": {
+    "hostMechanics": "No code in checkCitationSources, judgmentsDiagnostic, protocol validation, check disposition, task transitions or authority changed. Old finite source/citation properties retain their exact meanings.",
+    "localEffects": "Existing real Adapter/controlled-transport bridges still execute unchanged; no model, fixture or response script change. They do not prove provider obedience to the new sentence.",
+    "contextCost": "The added literal participates in the existing enforceFixedContext input bound; fixed-context gates were separately rerun. No formal bound or guard is raised.",
+    "proofSourceIdentity": "The C1 4032 complete proofs remain historical in phaseHistory and their original directories. Every C2 entry requires a new complete producer/source-negative/restored run and an independent reader."
+  },
+  "scope": "The old finite host properties retain their original guarantees. Full source replay and real mutants validate the unchanged implementation correspondence, not LLM obedience, arbitrary prompt quality, or all protocol/provider combinations.",
+  "validation": {
+    "status": "verified",
+    "frozenSourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "entries": {
+      "host-retry": {
+        "entry": "host-retry",
+        "sourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+        "evidence": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/host-retry",
+        "status": "verified",
+        "readerControls": [
+          {
+            "command": [
+              "python3",
+              "/workspace/squad/tests/local-effects-formal-readback-controls.py",
+              "--checker",
+              "/workspace/squad/.agents/skills/verify-squad-host-retry/scripts/check.py",
+              "--proof",
+              "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/host-retry",
+              "--evidence",
+              "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/reader-controls/host-retry-generic"
+            ],
+            "exitCode": 0,
+            "seconds": 0.461,
+            "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/host-retry-generic-reader-controls.log",
+            "kind": "generic"
+          },
+          {
+            "command": [
+              "python3",
+              "/workspace/squad/tests/host-retry-formal-evidence-controls.py",
+              "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/host-retry",
+              "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/reader-controls/host-retry-semantic/result.json"
+            ],
+            "exitCode": 0,
+            "seconds": 0.699,
+            "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/host-retry-semantic-reader-controls.log",
+            "kind": "semantic"
+          }
+        ],
+        "completeRun": {
+          "command": [
+            "python3",
+            "/workspace/squad/.agents/skills/verify-squad-host-retry/scripts/check.py",
+            "--jar",
+            "/workspace/squad/work/tools/tla2tools.jar",
+            "--evidence",
+            "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/host-retry"
+          ],
+          "exitCode": 0,
+          "seconds": 28.446,
+          "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/host-retry.log"
+        },
+        "independentReadback": {
+          "command": [
+            "python3",
+            "/workspace/squad/.agents/skills/verify-squad-host-retry/scripts/check.py",
+            "--verify-evidence",
+            "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/host-retry"
+          ],
+          "exitCode": 0,
+          "seconds": 0.055,
+          "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/host-retry-readback.log"
+        },
+        "postControlsReadback": {
+          "command": [
+            "python3",
+            "/workspace/squad/.agents/skills/verify-squad-host-retry/scripts/check.py",
+            "--verify-evidence",
+            "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/host-retry"
+          ],
+          "exitCode": 0,
+          "seconds": 0.08,
+          "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/host-retry-post-controls-readback.log"
+        },
+        "phases": {
+          "positive": "verified",
+          "realSourceFaults": "detected",
+          "restoredOriginal": "verified",
+          "independentReadback": "verified"
+        },
+        "outcome": "updated",
+        "change": "shared-agent-behavior-LB07-C2",
+        "source": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "evidenceRetained": true
+        },
+        "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+        "metrics": {
+          "manifestEntries": 162,
+          "cleanup": {
+            "scratchRemoved": true,
+            "coveredFilesUnchanged": true,
+            "evidenceRetained": true
+          },
+          "readbackOutput": "{\"status\": \"verified\", \"artifacts\": 162}",
+          "models": [
+            {
+              "domain": "host-retry",
+              "states": 41,
+              "edgesPerStore": 111
+            }
+          ],
+          "witnesses": 4,
+          "realSourceFaultStrategies": 4,
+          "retainedArtifacts": 162,
+          "realCodeControls": 4,
+          "domains": 1,
+          "graphStates": 41,
+          "graphEdges": 111
+        }
+      }
+    },
+    "allNineEntrypointsVerified": true,
+    "independentReadbacks": "verified",
+    "postMetadataReaderLogs": "work/shared-agent-behavior-lb07-formal/post-metadata-<entry>.log"
+  },
+  "entries": [
+    {
+      "entry": "host-retry",
+      "coverage": ".agents/skills/verify-squad-host-retry/references/coverage.json",
+      "previousSyncCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "oldPinCount": 89,
+      "plannedPinCount": 89,
+      "adapterOldSha256": "ee0ea2b17c929316c050dc8f5c4a4828aed3e2be817e8275086daa11104d3fd3",
+      "adapterCandidateSha256": "343bc56fe91240cf19df74af5dd51f2c965f1d6622186674165a10c6d339b84f",
+      "firstStageCompleteEvidence": "reports/shared-agent-behavior-five-formal-4032d88-final-1/host-retry"
+    }
+  ],
+  "frozenSourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+  "originalAsIs": [
+    {
+      "entry": "host-retry",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-host-retry/scripts/check.py",
+        "--jar",
+        "/workspace/squad/work/tools/tla2tools.jar",
+        "--evidence",
+        "/workspace/squad/reports/shared-agent-behavior-lb07-original-as-is-e1c29ed-1/host-retry"
+      ],
+      "exitCode": 1,
+      "expectedSourceDriftBlock": true,
+      "evidence": "reports/shared-agent-behavior-lb07-original-as-is-e1c29ed-1/host-retry"
+    }
+  ],
+  "originalAsIsSummary": "reports/shared-agent-behavior-lb07-original-as-is-e1c29ed-1/summary.json",
+  "staticModuleAudit": {
+    "statements": 1,
+    "staticConstExport": true,
+    "hasImports": false,
+    "hasTemplateInterpolation": false,
+    "bodyChars": 2148,
+    "bodyUtf8Bytes": 6178
+  },
+  "targetGatesReportedByRoot": {
+    "sourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "pureModelTrajectories": 13,
+    "actualHttpBdd": "42/42, 2492 steps",
+    "fixedCapacity": "15/15",
+    "adapter": "39/39",
+    "types": "passed"
+  },
+  "previousMetadata": {
+    ".agents/skills/verify-squad-host-retry/references/coverage.json": {
+      "productCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
+      "sourceChanges": {
+        "src/web/service.ts": "Only closing guard in WebService startup physical reconciliation. The formal fixture constructs TeamEngine only, never WebService or LocalRuntime; no modeled owner, request, transaction or timeout behavior changes.",
+        "tests/host-retry-formal-driver.mjs": "Added executable no-results/one-task/no-expiry assertions around recover/tick; same public prefixes and projections, model domain unchanged."
+      },
+      "checkerChanges": [
+        "Required raw proof inventory and actual negative JSON/log/diff verification",
+        "All-action-edge JSONL inventory checked against raw TLC graph for both stores",
+        "Per-JVM temporary directories prevent concurrent standard-module extraction races"
+      ],
+      "outcome": "verified",
+      "evidence": "reports/verify-squad-host-retry/e77-implementation-complete",
+      "independentReadback": {
+        "status": "verified",
+        "artifacts": 136
+      },
+      "evidenceNegativeControls": "reports/verify-squad-host-retry/evidence-controls-implementation-final.json",
+      "metadataAdvance": "Only after complete final run and independent raw proof readback; not represented as an additional full execution.",
+      "capturedImplementation": true,
+      "requiredConfiguredProperties": true
+    }
+  },
+  "verificationInputChanges": {
+    "archive": "Existing shared-agent review filename and capture hooks are reused unchanged. No checker, reader, model, CFG, fixture, mutation, bound or timeout changes for C2."
+  },
+  "phaseHistory": [
+    {
+      "phase": "shared-behavior-C1",
+      "sourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "review": {
+        "change": "Shared Agent behavior prompt",
+        "outcome": "updated",
+        "reviewedHead": "4032d88341b75c3b419215b73a63c0830f6f137a",
+        "reviewedProductWorkingTree": false,
+        "previousProductSourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+        "productionFiles": [
+          {
+            "file": "src/model-adapter.ts",
+            "classification": "prompt-construction-only",
+            "oldSha256": "7d2c7be8703ca71129fd7eb85a8b10f611b5c2ab563762115fb81a30a7759eef",
+            "candidateSha256": "ee0ea2b17c929316c050dc8f5c4a4828aed3e2be817e8275086daa11104d3fd3",
+            "reason": "Only adds a static import, injects the same shared string in checkMessages and the ordinary model-work system message, and replaces the previous owner/facilitator-only short behavior paragraph. Role headers, output schemas, the 0.65 interpretation threshold, capability gates, transport, validation, accounting, cancellation, retry and state events stay byte-identical outside these hunks."
+          },
+          {
+            "file": "src/agent-behavior.ts",
+            "classification": "new-static-transitive-dependency",
+            "oldSha256": null,
+            "candidateSha256": "1b1c18b90e05f7673e1d2b5253a7a2171e5dfa4ccf869219e265835f25b4e814",
+            "reason": "One exported const initialized by a no-substitution template literal; no imports, calls, interpolation or other top-level statements. It is source text for model messages and has no module-load I/O. Every existing coverage already pins its direct importer model-adapter.ts, so add this module to all nine conservative dependency gates."
+          }
+        ],
+        "implementationCorrespondence": {
+          "unchanged": [
+            "State/event/context contracts",
+            "Public transaction seams",
+            "Permission and one-use execution guards",
+            "0.65 confidence/clarification predicate",
+            "Budget/deadline/retry/cleanup rules",
+            "Finite models/CFG/projections/fairness/bounds",
+            "Fixtures/real-source mutants/subprocess timeouts"
+          ],
+          "localEffectsException": "LocalEffects actually instantiates OpenAICompatibleAdapter in three CLI/SIGKILL bridges with controlled transport. The actual new system messages are consumed there; this is not real provider semantic evaluation. Preserve that full bridge and the original trusted receipt/checkpoint assertions.",
+          "otherEight": "The other declared finite entrypoints use public Engine events, controlled result injection, or a Runner adapter that must not be called in its flush probe. None establishes natural-language compliance with the shared prompt.",
+          "fixedContextCost": "The additional system text contributes to the existing conservative UTF-8 input bound at model-adapter enforceFixedContext. Preserve the A45/F28 source/check context tests and new six-role actual SDK/HTTP request gates; do not enlarge a formal state domain or relax context/permission guards to hide this cost.",
+          "moduleCopies": "All nine real-source mutation harnesses copy the complete src tree. The existing generic .js-to-.ts loader resolves the new static module; no fixture or loader change is needed."
+        },
+        "scope": "The old finite host properties retain their original guarantees. Full source replay and real mutants validate the unchanged implementation correspondence, not LLM obedience, arbitrary prompt quality, or all protocol/provider combinations.",
+        "validation": {
+          "status": "verified",
+          "frozenSourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+          "entries": {
+            "host-retry": {
+              "entry": "host-retry",
+              "sourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+              "evidence": "reports/shared-agent-behavior-five-formal-4032d88-final-1/host-retry",
+              "status": "verified",
+              "readerControls": [
+                {
+                  "command": [
+                    "python3",
+                    "/workspace/squad/tests/local-effects-formal-readback-controls.py",
+                    "--checker",
+                    "/workspace/squad/.agents/skills/verify-squad-host-retry/scripts/check.py",
+                    "--proof",
+                    "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/host-retry",
+                    "--evidence",
+                    "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/reader-controls/host-retry-generic"
+                  ],
+                  "exitCode": 0,
+                  "seconds": 0.573,
+                  "log": "reports/shared-agent-behavior-five-formal-4032d88-final-1/host-retry-generic-reader-controls.log",
+                  "kind": "generic"
+                },
+                {
+                  "command": [
+                    "python3",
+                    "/workspace/squad/tests/host-retry-formal-evidence-controls.py",
+                    "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/host-retry",
+                    "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/reader-controls/host-retry-semantic/result.json"
+                  ],
+                  "exitCode": 0,
+                  "seconds": 0.871,
+                  "log": "reports/shared-agent-behavior-five-formal-4032d88-final-1/host-retry-semantic-reader-controls.log",
+                  "kind": "semantic"
+                }
+              ],
+              "completeRun": {
+                "command": [
+                  "python3",
+                  "/workspace/squad/.agents/skills/verify-squad-host-retry/scripts/check.py",
+                  "--jar",
+                  "/workspace/squad/work/tools/tla2tools.jar",
+                  "--evidence",
+                  "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/host-retry"
+                ],
+                "exitCode": 0,
+                "seconds": 28.012,
+                "log": "reports/shared-agent-behavior-five-formal-4032d88-final-1/host-retry.log"
+              },
+              "independentReadback": {
+                "command": [
+                  "python3",
+                  "/workspace/squad/.agents/skills/verify-squad-host-retry/scripts/check.py",
+                  "--verify-evidence",
+                  "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/host-retry"
+                ],
+                "exitCode": 0,
+                "seconds": 0.086,
+                "log": "reports/shared-agent-behavior-five-formal-4032d88-final-1/host-retry-readback.log"
+              },
+              "postControlsReadback": {
+                "command": [
+                  "python3",
+                  "/workspace/squad/.agents/skills/verify-squad-host-retry/scripts/check.py",
+                  "--verify-evidence",
+                  "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/host-retry"
+                ],
+                "exitCode": 0,
+                "seconds": 0.057,
+                "log": "reports/shared-agent-behavior-five-formal-4032d88-final-1/host-retry-post-controls-readback.log"
+              },
+              "phases": {
+                "positive": "verified",
+                "realSourceFaults": "detected",
+                "restoredOriginal": "verified",
+                "independentReadback": "verified"
+              },
+              "outcome": "updated",
+              "change": "shared-agent-behavior",
+              "source": "4032d88341b75c3b419215b73a63c0830f6f137a",
+              "cleanup": {
+                "scratchRemoved": true,
+                "coveredFilesUnchanged": true,
+                "evidenceRetained": true
+              },
+              "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+              "metrics": {
+                "manifestEntries": 162,
+                "cleanup": {
+                  "scratchRemoved": true,
+                  "coveredFilesUnchanged": true,
+                  "evidenceRetained": true
+                },
+                "readbackOutput": "{\"status\": \"verified\", \"artifacts\": 162}",
+                "models": [
+                  {
+                    "domain": "host-retry",
+                    "states": 41,
+                    "edgesPerStore": 111
+                  }
+                ],
+                "witnesses": 4,
+                "realSourceFaultStrategies": 4,
+                "retainedArtifacts": 162,
+                "realCodeControls": 4,
+                "domains": 1,
+                "graphStates": 41,
+                "graphEdges": 111
+              }
+            }
+          },
+          "allNineEntrypointsVerified": true,
+          "independentReadbacks": "verified",
+          "postMetadataReaderLogs": "work/shared-agent-behavior-formal/post-metadata-<entry>.log"
+        },
+        "entries": [
+          {
+            "entry": "host-retry",
+            "skill": "host-retry",
+            "coverage": ".agents/skills/verify-squad-host-retry/references/coverage.json",
+            "script": ".agents/skills/verify-squad-host-retry/scripts/check.py",
+            "oldSyncCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+            "oldPinCount": 88,
+            "plannedPinCount": 89,
+            "adapterOldSha256": "7d2c7be8703ca71129fd7eb85a8b10f611b5c2ab563762115fb81a30a7759eef",
+            "adapterCandidateSha256": "ee0ea2b17c929316c050dc8f5c4a4828aed3e2be817e8275086daa11104d3fd3",
+            "constantCandidateSha256": "1b1c18b90e05f7673e1d2b5253a7a2171e5dfa4ccf869219e265835f25b4e814",
+            "oldCompleteEvidence": "reports/kej-113-114-final-host-retry-2"
+          }
+        ],
+        "frozenSourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+        "originalAsIs": [
+          {
+            "entry": "host-retry",
+            "command": [
+              "python3",
+              ".agents/skills/verify-squad-host-retry/scripts/check.py",
+              "--jar",
+              "/workspace/squad/work/tools/tla2tools.jar",
+              "--evidence",
+              "/workspace/squad/reports/shared-agent-behavior-original-as-is-4032d88-original-1/host-retry"
+            ],
+            "exitCode": 1,
+            "expectedSourceDriftBlock": true,
+            "evidence": "reports/shared-agent-behavior-original-as-is-4032d88-original-1/host-retry"
+          }
+        ],
+        "originalAsIsSummary": "reports/shared-agent-behavior-original-as-is-4032d88-original-1/summary.json",
+        "staticModuleAudit": {
+          "statements": 1,
+          "staticConstExport": true,
+          "hasImports": false,
+          "hasTemplateInterpolation": false,
+          "bodyChars": 2148,
+          "bodyUtf8Bytes": 6178
+        },
+        "targetGatesReportedByRoot": {
+          "sourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+          "pureModelTrajectories": 12,
+          "feature63ActualHttpScenarios": "39/39",
+          "vitest": "437/437",
+          "fixedSourceAndCheckContextA45F28": "15/15",
+          "types": "passed",
+          "provenance": "Root SOURCE_FREEZE message; these are separate from the finite formal runs below."
+        },
+        "previousMetadata": {
+          ".agents/skills/verify-squad-host-retry/references/coverage.json": {
+            "productCommit": "e77f052acacd208fd8eb8587ac6901ba19003220",
+            "sourceChanges": {
+              "src/web/service.ts": "Only closing guard in WebService startup physical reconciliation. The formal fixture constructs TeamEngine only, never WebService or LocalRuntime; no modeled owner, request, transaction or timeout behavior changes.",
+              "tests/host-retry-formal-driver.mjs": "Added executable no-results/one-task/no-expiry assertions around recover/tick; same public prefixes and projections, model domain unchanged."
+            },
+            "checkerChanges": [
+              "Required raw proof inventory and actual negative JSON/log/diff verification",
+              "All-action-edge JSONL inventory checked against raw TLC graph for both stores",
+              "Per-JVM temporary directories prevent concurrent standard-module extraction races"
+            ],
+            "outcome": "verified",
+            "evidence": "reports/verify-squad-host-retry/e77-implementation-complete",
+            "independentReadback": {
+              "status": "verified",
+              "artifacts": 136
+            },
+            "evidenceNegativeControls": "reports/verify-squad-host-retry/evidence-controls-implementation-final.json",
+            "metadataAdvance": "Only after complete final run and independent raw proof readback; not represented as an additional full execution.",
+            "capturedImplementation": true,
+            "requiredConfiguredProperties": true
+          }
+        },
+        "verificationInputChanges": {
+          "archiveCapture": "Four existing checker files only add this new audit record to archived inputs; Handoff original uses its existing review.basis hook and four other entries already copy complete references/skill directories.",
+          "hostRetryReader": "A proof whose captured source pins contain agent-behavior.ts must retain the new review input. Legacy proofs without that module preserve their original readback contract.",
+          "unchanged": "No model, CFG, fixture, product-source mutant, bound, fairness, timeout or state projection changed."
+        },
+        "syncAdvance": {
+          "from": "36916b5c6e974c11f8e51720189c64facef9269e",
+          "to": "4032d88341b75c3b419215b73a63c0830f6f137a",
+          "metadataOnly": true,
+          "allNineEntrypointsVerified": true,
+          "note": "Original raw evidence keeps the old sync values. Synchronization is not another full rerun and does not enlarge any finite guarantee."
+        }
+      }
+    }
+  ],
+  "phase": "LB07-check-citation-catalog-C2",
+  "previousSourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+  "unchangedSharedModule": {
+    "file": "src/agent-behavior.ts",
+    "sha256": "1b1c18b90e05f7673e1d2b5253a7a2171e5dfa4ccf869219e265835f25b4e814",
+    "sameAsSource": "4032d88341b75c3b419215b73a63c0830f6f137a"
+  },
+  "addedCheckPromptUtf8Bytes": 798,
+  "syncAdvance": {
+    "from": "4032d88341b75c3b419215b73a63c0830f6f137a",
+    "to": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "metadataOnly": true,
+    "allNineEntrypointsVerified": true,
+    "note": "Original raw evidence keeps the old sync values. Synchronization is not another full rerun and does not enlarge any finite guarantee."
+  }
+}

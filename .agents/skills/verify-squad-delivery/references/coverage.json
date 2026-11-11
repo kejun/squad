@@ -1,5 +1,5 @@
 {
-  "syncCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+  "syncCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
   "bounds": {
     "tasks": 1,
     "candidates": 1,
@@ -19,6 +19,7 @@
     "package-lock.json": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
     "package.json": "e809edfebb43fbfd77f200e6afec11e6109c7d7e8549efb8ee45536d6278df21",
     "src/acquisition-readers.ts": "011b165c1c4d8acfbf32c16c8655baf312148b9944dd518a61e4f528fdd48d47",
+    "src/agent-behavior.ts": "1b1c18b90e05f7673e1d2b5253a7a2171e5dfa4ccf869219e265835f25b4e814",
     "src/artifact-request.ts": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
     "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
     "src/catalog-search.ts": "94f713cda0ee9f6e817b0e2682d91ee6efa555d18e677421d3f241eab37eda3f",
@@ -44,7 +45,7 @@
     "src/local-skills.ts": "dc5d7e4e8ebb5e5a82e9b608a377b4fa4d454ab54e276ffcd75ee5f2c8794917",
     "src/measurement-report.ts": "62a9010d7a112c52f7e93b6e21d5fcb6a6e6a8011c4852784dd44b811a196183",
     "src/measurement.ts": "0ceeba39fe20ece308c1a0ed1df3b1438e40052af651f9a0037592f2af1cc773",
-    "src/model-adapter.ts": "7d2c7be8703ca71129fd7eb85a8b10f611b5c2ab563762115fb81a30a7759eef",
+    "src/model-adapter.ts": "343bc56fe91240cf19df74af5dd51f2c965f1d6622186674165a10c6d339b84f",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
     "src/model-env.ts": "7f8bb277dab42d749c82dab229d66cbb508e1af83b78986895da41956a9e6cf0",
     "src/presentation.ts": "1ffa66657884dffe98cceb1166485df99541aee762a53cfaa3a57de69af896d8",
@@ -275,6 +276,26 @@
       "status": "synchronized-after-nine-entrypoints",
       "validation": "reports/kej-113-114-final-delivery",
       "scope": "Exact frozen production bytes, captured verification-only maintenance, unchanged original finite domains/properties/bounds, all real-code fault controls and restored reruns. No new resource semantic, supervisor, RW or deletion proof is inferred."
+    },
+    {
+      "change": "shared-agent-behavior",
+      "review": "references/drift-review-shared-agent-behavior.json",
+      "reviewedCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "previousSyncCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+      "outcome": "updated",
+      "validation": "reports/shared-agent-behavior-five-formal-4032d88-final-1/delivery",
+      "independentReadback": "verified",
+      "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience."
+    },
+    {
+      "change": "shared-agent-behavior-LB07-C2",
+      "review": "references/drift-review-shared-agent-behavior.json",
+      "reviewedCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+      "previousSyncCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "outcome": "updated",
+      "validation": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery",
+      "independentReadback": "verified",
+      "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience."
     }
   ],
   "compositionBounds": {
@@ -312,86 +333,127 @@
     "originalSyncCommit": "8f4a1acb31f1aa9d73996e60dbb9aa3becce0596"
   },
   "verification": {
-    "issue": "KEJ-113 + KEJ-114",
+    "entry": "delivery",
+    "sourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "evidence": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery",
     "status": "verified",
-    "sourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
-    "evidence": "reports/kej-113-114-final-delivery",
-    "command": "env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true PYTHONDONTWRITEBYTECODE=1 python3 .agents/skills/verify-squad-delivery/scripts/check.py --jar /workspace/squad/work/tools/tla2tools.jar --evidence reports/kej-113-114-final-delivery",
-    "exitCode": 0,
-    "seconds": 153.21371404400088,
-    "retainedArtifacts": 290,
-    "models": {
-      "Delivery": {
-        "states": 31,
-        "edges": 79
+    "readerControls": [
+      {
+        "command": [
+          "python3",
+          "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/composition-evidence-controls.py",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery",
+          "--output",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/reader-controls/delivery-detailed/result.json"
+        ],
+        "exitCode": 0,
+        "seconds": 0.785,
+        "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery-detailed-reader-controls.log",
+        "kind": "detailed"
       },
-      "Verification": {
-        "states": 47,
-        "edges": 91
-      },
-      "Cycles": {
-        "states": 79,
-        "edges": 203
-      },
-      "SourceLineage": {
-        "states": 71,
-        "edges": 226
+      {
+        "command": [
+          "python3",
+          "/workspace/squad/tests/local-effects-formal-readback-controls.py",
+          "--checker",
+          "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+          "--proof",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery",
+          "--evidence",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/reader-controls/delivery-generic"
+        ],
+        "exitCode": 0,
+        "seconds": 0.692,
+        "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery-generic-reader-controls.log",
+        "kind": "generic"
       }
-    },
-    "realCodeNegativeControls": {
-      "original": [
-        "drop-final",
-        "accept-stale",
-        "skip-snapshot"
+    ],
+    "completeRun": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+        "--jar",
+        "/workspace/squad/work/tools/tla2tools.jar",
+        "--evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery"
       ],
-      "composition": [
-        "skip-validation",
-        "skip-version",
-        "accept-changed",
-        "drop-publication",
-        "accept-old-cycle",
-        "corrupt-freeze",
-        "transitive-source"
-      ]
+      "exitCode": 0,
+      "seconds": 137.142,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery.log"
     },
+    "independentReadback": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+        "--verify-evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery"
+      ],
+      "exitCode": 0,
+      "seconds": 0.082,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery-readback.log"
+    },
+    "postControlsReadback": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+        "--verify-evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery"
+      ],
+      "exitCode": 0,
+      "seconds": 0.077,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery-post-controls-readback.log"
+    },
+    "phases": {
+      "positive": "verified",
+      "realSourceFaults": "detected",
+      "restoredOriginal": "verified",
+      "independentReadback": "verified"
+    },
+    "outcome": "updated",
+    "change": "shared-agent-behavior-LB07-C2",
+    "source": "e1c29edbc080b4638b34b9406e4e81b057e20940",
     "cleanup": {
       "scratchRemoved": true,
       "coveredFilesUnchanged": true,
       "evidenceRetained": true,
       "checkerInputsUnchanged": true
     },
-    "manifestSha256": "33c8eeaf06dbfb95b8514a8fdc1f3aefe2d58dae7ea05fad56c422a1ea7c7ba2",
-    "independentReadback": {
-      "status": "verified",
-      "exitCode": 0,
-      "artifacts": 290,
-      "log": "work/kej-113-114-delivery-readback.log"
-    },
-    "readerControls": {
-      "selfConsistent": {
-        "evidence": "reports/kej-113-114-final-delivery-reader-controls.json",
-        "status": "verified",
-        "rejections": 11
+    "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+    "metrics": {
+      "manifestEntries": 291,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true,
+        "checkerInputsUnchanged": true
       },
-      "raw": {
-        "evidence": "reports/kej-113-114-final-delivery-raw-reader-controls/run.json",
-        "status": "verified",
-        "rejections": 4
-      }
-    },
-    "syncStatus": "synchronized-after-nine-entrypoints",
-    "scope": "Exact frozen production bytes, captured verification-only maintenance, unchanged original finite domains/properties/bounds, all real-code fault controls and restored reruns. No new resource semantic, supervisor, RW or deletion proof is inferred.",
-    "capturedAtProofTime": {
-      "syncCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
-      "syncCommitAdvanced": false,
-      "note": "Raw proof-generation inputs remain unchanged; current synchronization is recorded in globalSynchronization."
-    },
-    "postMetadataIndependentReadback": {
-      "status": "verified",
-      "exitCode": 0,
-      "log": "work/kej-113-114-delivery-post-sync-readback.log",
-      "logSha256": "34e5e8d1ffdd072702429bdd99c0055bc71d828b40b8e142ddf94641eddddc80",
-      "scope": "Independent retained-evidence readback after metadata synchronization; not another complete proof run"
+      "readbackOutput": "Evidence verified: 291 artifacts",
+      "models": [
+        {
+          "domain": "delivery",
+          "states": 31,
+          "edgesPerStore": 79
+        },
+        {
+          "domain": "Verification",
+          "states": 47,
+          "edgesPerStore": 91
+        },
+        {
+          "domain": "Cycles",
+          "states": 79,
+          "edgesPerStore": 203
+        },
+        {
+          "domain": "SourceLineage",
+          "states": 71,
+          "edgesPerStore": 226
+        }
+      ],
+      "witnesses": 16,
+      "realSourceFaultStrategies": 10,
+      "retainedArtifacts": 291,
+      "realCodeControls": 3
     }
   },
   "verificationHistory": [
@@ -483,77 +545,224 @@
         "syncGate": "Keep previous syncCommit until parent confirms all nine CI formal entrypoints passed.",
         "note": "Historical proof-generation inputs; current sync state is globalSynchronization."
       }
+    },
+    {
+      "issue": "KEJ-113 + KEJ-114",
+      "status": "verified",
+      "sourceCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+      "evidence": "reports/kej-113-114-final-delivery",
+      "command": "env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true PYTHONDONTWRITEBYTECODE=1 python3 .agents/skills/verify-squad-delivery/scripts/check.py --jar /workspace/squad/work/tools/tla2tools.jar --evidence reports/kej-113-114-final-delivery",
+      "exitCode": 0,
+      "seconds": 153.21371404400088,
+      "retainedArtifacts": 290,
+      "models": {
+        "Delivery": {
+          "states": 31,
+          "edges": 79
+        },
+        "Verification": {
+          "states": 47,
+          "edges": 91
+        },
+        "Cycles": {
+          "states": 79,
+          "edges": 203
+        },
+        "SourceLineage": {
+          "states": 71,
+          "edges": 226
+        }
+      },
+      "realCodeNegativeControls": {
+        "original": [
+          "drop-final",
+          "accept-stale",
+          "skip-snapshot"
+        ],
+        "composition": [
+          "skip-validation",
+          "skip-version",
+          "accept-changed",
+          "drop-publication",
+          "accept-old-cycle",
+          "corrupt-freeze",
+          "transitive-source"
+        ]
+      },
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true,
+        "checkerInputsUnchanged": true
+      },
+      "manifestSha256": "33c8eeaf06dbfb95b8514a8fdc1f3aefe2d58dae7ea05fad56c422a1ea7c7ba2",
+      "independentReadback": {
+        "status": "verified",
+        "exitCode": 0,
+        "artifacts": 290,
+        "log": "work/kej-113-114-delivery-readback.log"
+      },
+      "readerControls": {
+        "selfConsistent": {
+          "evidence": "reports/kej-113-114-final-delivery-reader-controls.json",
+          "status": "verified",
+          "rejections": 11
+        },
+        "raw": {
+          "evidence": "reports/kej-113-114-final-delivery-raw-reader-controls/run.json",
+          "status": "verified",
+          "rejections": 4
+        }
+      },
+      "syncStatus": "synchronized-after-nine-entrypoints",
+      "scope": "Exact frozen production bytes, captured verification-only maintenance, unchanged original finite domains/properties/bounds, all real-code fault controls and restored reruns. No new resource semantic, supervisor, RW or deletion proof is inferred.",
+      "capturedAtProofTime": {
+        "syncCommit": "7e5b3426d0909e133fd6329a06e08288ea4c5c62",
+        "syncCommitAdvanced": false,
+        "note": "Raw proof-generation inputs remain unchanged; current synchronization is recorded in globalSynchronization."
+      },
+      "postMetadataIndependentReadback": {
+        "status": "verified",
+        "exitCode": 0,
+        "log": "work/kej-113-114-delivery-post-sync-readback.log",
+        "logSha256": "34e5e8d1ffdd072702429bdd99c0055bc71d828b40b8e142ddf94641eddddc80",
+        "scope": "Independent retained-evidence readback after metadata synchronization; not another complete proof run"
+      }
+    },
+    {
+      "entry": "delivery",
+      "sourceCommit": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "evidence": "reports/shared-agent-behavior-five-formal-4032d88-final-1/delivery",
+      "status": "verified",
+      "readerControls": [
+        {
+          "command": [
+            "python3",
+            "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/composition-evidence-controls.py",
+            "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/delivery",
+            "--output",
+            "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/reader-controls/delivery-detailed/result.json"
+          ],
+          "exitCode": 0,
+          "seconds": 1.295,
+          "log": "reports/shared-agent-behavior-five-formal-4032d88-final-1/delivery-detailed-reader-controls.log",
+          "kind": "detailed"
+        },
+        {
+          "command": [
+            "python3",
+            "/workspace/squad/tests/local-effects-formal-readback-controls.py",
+            "--checker",
+            "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+            "--proof",
+            "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/delivery",
+            "--evidence",
+            "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/reader-controls/delivery-generic"
+          ],
+          "exitCode": 0,
+          "seconds": 0.832,
+          "log": "reports/shared-agent-behavior-five-formal-4032d88-final-1/delivery-generic-reader-controls.log",
+          "kind": "generic"
+        }
+      ],
+      "completeRun": {
+        "command": [
+          "python3",
+          "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+          "--jar",
+          "/workspace/squad/work/tools/tla2tools.jar",
+          "--evidence",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/delivery"
+        ],
+        "exitCode": 0,
+        "seconds": 139.075,
+        "log": "reports/shared-agent-behavior-five-formal-4032d88-final-1/delivery.log"
+      },
+      "independentReadback": {
+        "command": [
+          "python3",
+          "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+          "--verify-evidence",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/delivery"
+        ],
+        "exitCode": 0,
+        "seconds": 0.099,
+        "log": "reports/shared-agent-behavior-five-formal-4032d88-final-1/delivery-readback.log"
+      },
+      "postControlsReadback": {
+        "command": [
+          "python3",
+          "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+          "--verify-evidence",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-4032d88-final-1/delivery"
+        ],
+        "exitCode": 0,
+        "seconds": 0.078,
+        "log": "reports/shared-agent-behavior-five-formal-4032d88-final-1/delivery-post-controls-readback.log"
+      },
+      "phases": {
+        "positive": "verified",
+        "realSourceFaults": "detected",
+        "restoredOriginal": "verified",
+        "independentReadback": "verified"
+      },
+      "outcome": "updated",
+      "change": "shared-agent-behavior",
+      "source": "4032d88341b75c3b419215b73a63c0830f6f137a",
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true,
+        "checkerInputsUnchanged": true
+      },
+      "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+      "metrics": {
+        "manifestEntries": 291,
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "evidenceRetained": true,
+          "checkerInputsUnchanged": true
+        },
+        "readbackOutput": "Evidence verified: 291 artifacts",
+        "models": [
+          {
+            "domain": "delivery",
+            "states": 31,
+            "edgesPerStore": 79
+          },
+          {
+            "domain": "Verification",
+            "states": 47,
+            "edgesPerStore": 91
+          },
+          {
+            "domain": "Cycles",
+            "states": 79,
+            "edgesPerStore": 203
+          },
+          {
+            "domain": "SourceLineage",
+            "states": 71,
+            "edgesPerStore": 226
+          }
+        ],
+        "witnesses": 16,
+        "realSourceFaultStrategies": 10,
+        "retainedArtifacts": 291,
+        "realCodeControls": 3
+      }
     }
   ],
   "globalSynchronization": {
-    "issue": "KEJ-113 + KEJ-114",
-    "productCommit": "36916b5c6e974c11f8e51720189c64facef9269e",
+    "change": "shared-agent-behavior-LB07-C2",
+    "productCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
     "allNineEntrypointsVerified": true,
-    "centralIndependentReadbacks": "passed; parent independently read all other five entrypoints and confirmed four-entry final summary readback exit0",
+    "centralIndependentReadbacks": "passed",
     "outcome": "updated",
     "metadataOnly": true,
-    "at": "2026-11-11T07:21:57.132495+00:00",
-    "entries": [
-      {
-        "evidence": "reports/kej-113-114-final-delivery",
-        "status": "verified",
-        "runSha256": "239b1d8f6cf991b8472d34012e281e10deb21ecd8fe3863ae2bdc64eb60f3fe5",
-        "manifestSha256": "33c8eeaf06dbfb95b8514a8fdc1f3aefe2d58dae7ea05fad56c422a1ea7c7ba2"
-      },
-      {
-        "evidence": "reports/kej-113-114-final-local-effects",
-        "status": "verified",
-        "runSha256": "25c3f4a642b4e6609a057cab62992cdd41f97b594a8bf7cf7b1505bd7d29844d",
-        "manifestSha256": "5ccadefeda78255af386a9d9d30337e92e31c626031c907ec8ec03a7d1812f4f"
-      },
-      {
-        "evidence": "reports/kej-113-114-final-host-retry-2",
-        "status": "verified",
-        "runSha256": "3f5610984d9933da59636fc24b561f092dfbf6bb4e52db625595a5658f41b8d8",
-        "manifestSha256": "cf8c71cbe5571911304894431279d446a3f02f4033f69d2e1ca7b99b6d059603"
-      },
-      {
-        "evidence": "reports/kej-113-114-handoff-final",
-        "status": "verified",
-        "runSha256": "ad8cb5c70b0c809de11e2f844011859e7cb160482b341836a717714a38e4bba8",
-        "manifestSha256": "83562b5cdc1effc360dff1938c0ce19934e0322ed2057c758620a3800475409f"
-      },
-      {
-        "evidence": "reports/kej-113-114-handoff-composition-final",
-        "status": "verified",
-        "runSha256": "21e99f815fbd5a0b67371df672eb00ddb43a745fa9c721f68264edb1ae06db03",
-        "manifestSha256": "a55ea1eae682c958e41bc87b0a66060679a1ce5215afbc5f63bf0e385cd02cc0"
-      },
-      {
-        "evidence": "reports/kej-113-114-four-formal-36916b5-final-2/authority",
-        "status": "verified",
-        "runSha256": "6ef3e3c219c74f1bceb36f8fbf37ee51b0ca52360f7893e57236e95b77d16671",
-        "manifestSha256": "771cdfdb048966b24ba012f9e4ba7dc3e711c8308f9c48a39ff2523718d496db"
-      },
-      {
-        "evidence": "reports/kej-113-114-four-formal-36916b5-final-2/authority-composition",
-        "status": "verified",
-        "runSha256": "25c0b29b84125bf72d3eb5c59b0050ef64c2015ba12ad6cf888f9d8ea630456f",
-        "manifestSha256": "9a89cc1b537d59b8b38f7c0dae8b3a0f52965b4469863f9247f7f4419b085689"
-      },
-      {
-        "evidence": "reports/kej-113-114-four-formal-36916b5-final-3/coordination",
-        "status": "verified",
-        "runSha256": "9ddef4cd14e166db0c66b88605fa4e298dd5056c62474500438cec1e4af31aec",
-        "manifestSha256": "f178e62eb8812e9ea7903c1c05f5269d9287e80daef2b56e2f84b120acdc2917"
-      },
-      {
-        "evidence": "reports/kej-113-114-four-formal-36916b5-final-3/coordination-extensions",
-        "status": "verified",
-        "runSha256": "7a5b9d45bb7f1322519e70031537398d6b760d209f35d2c1b1d7f96d0cf08689",
-        "manifestSha256": "e96dd7646357296f1365779fa1c6732c8f100ed1f9634ab45fb9fe9a771df8f8"
-      }
-    ],
-    "fourEntrypointSummary": {
-      "path": "reports/kej-113-114-four-formal-36916b5-final-3/summary.json",
-      "sha256": "99e54e2bb4b096cd6a02f97e527d630dc4126f52c53afad09749dc6b4a42d175"
-    },
-    "note": "All complete proofs, genuine real-code controls, restored-original checks and independent readers passed before this synchronization. Original proof inputs and prior failed/blocked runs remain immutable. Metadata synchronization is not another complete run and does not expand any finite guarantee."
+    "evidenceIndex": "work/shared-agent-behavior-lb07-formal/final-nine-summary.json",
+    "note": "All complete positive/source-negative/restored runs and readers passed before this sync. Original proof inputs retain their prior sync and pending-review values. This metadata update is not an additional complete run."
   },
   "globalSynchronizationHistory": [
     {
@@ -566,5 +775,136 @@
       "metadataOnly": true,
       "note": "All complete proofs, genuine controls, restored-original checks and independent readers passed before synchronization. Original proof inputs and old sync values remain historical evidence. Metadata synchronization is not another complete run and does not expand the finite guarantee."
     }
-  ]
+  ],
+  "pendingReview": {
+    "change": "shared-agent-behavior-LB07-C2",
+    "review": "references/drift-review-shared-agent-behavior.json",
+    "reviewedCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "status": "verified-and-synchronized-after-nine-entrypoints",
+    "syncedCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940"
+  },
+  "candidateVerification": {
+    "entry": "delivery",
+    "sourceCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "evidence": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery",
+    "status": "verified",
+    "readerControls": [
+      {
+        "command": [
+          "python3",
+          "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/composition-evidence-controls.py",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery",
+          "--output",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/reader-controls/delivery-detailed/result.json"
+        ],
+        "exitCode": 0,
+        "seconds": 0.785,
+        "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery-detailed-reader-controls.log",
+        "kind": "detailed"
+      },
+      {
+        "command": [
+          "python3",
+          "/workspace/squad/tests/local-effects-formal-readback-controls.py",
+          "--checker",
+          "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+          "--proof",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery",
+          "--evidence",
+          "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/reader-controls/delivery-generic"
+        ],
+        "exitCode": 0,
+        "seconds": 0.692,
+        "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery-generic-reader-controls.log",
+        "kind": "generic"
+      }
+    ],
+    "completeRun": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+        "--jar",
+        "/workspace/squad/work/tools/tla2tools.jar",
+        "--evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery"
+      ],
+      "exitCode": 0,
+      "seconds": 137.142,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery.log"
+    },
+    "independentReadback": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+        "--verify-evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery"
+      ],
+      "exitCode": 0,
+      "seconds": 0.082,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery-readback.log"
+    },
+    "postControlsReadback": {
+      "command": [
+        "python3",
+        "/workspace/squad/.agents/skills/verify-squad-delivery/scripts/check.py",
+        "--verify-evidence",
+        "/workspace/squad/reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery"
+      ],
+      "exitCode": 0,
+      "seconds": 0.077,
+      "log": "reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1/delivery-post-controls-readback.log"
+    },
+    "phases": {
+      "positive": "verified",
+      "realSourceFaults": "detected",
+      "restoredOriginal": "verified",
+      "independentReadback": "verified"
+    },
+    "outcome": "updated",
+    "change": "shared-agent-behavior-LB07-C2",
+    "source": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "cleanup": {
+      "scratchRemoved": true,
+      "coveredFilesUnchanged": true,
+      "evidenceRetained": true,
+      "checkerInputsUnchanged": true
+    },
+    "scope": "The original declared finite host domain, unchanged properties/bounds/fixtures/source-fault controls, restored implementation and retained-evidence readers. This does not prove natural-language obedience.",
+    "metrics": {
+      "manifestEntries": 291,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true,
+        "checkerInputsUnchanged": true
+      },
+      "readbackOutput": "Evidence verified: 291 artifacts",
+      "models": [
+        {
+          "domain": "delivery",
+          "states": 31,
+          "edgesPerStore": 79
+        },
+        {
+          "domain": "Verification",
+          "states": 47,
+          "edgesPerStore": 91
+        },
+        {
+          "domain": "Cycles",
+          "states": 79,
+          "edgesPerStore": 203
+        },
+        {
+          "domain": "SourceLineage",
+          "states": 71,
+          "edgesPerStore": 226
+        }
+      ],
+      "witnesses": 16,
+      "realSourceFaultStrategies": 10,
+      "retainedArtifacts": 291,
+      "realCodeControls": 3
+    }
+  }
 }

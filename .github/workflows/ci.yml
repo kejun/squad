@@ -53,6 +53,10 @@ jobs:
           node --import tsx tests/process-supervisor-model-gate.ts
       - name: Type checks, all tests, Gherkin and coverage
         run: npm run check
+      - name: Verify shared agent prompt injection fault detection
+        run: |
+          node tests/shared-agent-behavior-negative.mjs
+          node --import tsx tests/shared-agent-behavior-live.ts --self-check
       - name: Verify crash and response-limit fault detection
         run: |
           node --import tsx scripts/verify-local-crash.ts --negative-controls

@@ -102,7 +102,7 @@ def main():
     composition_inputs = [*SKILL.glob('scripts/composition-*'), *SKILL.glob('scripts/Verification.*'), *SKILL.glob('scripts/Cycles.*'), *SKILL.glob('scripts/SourceLineage.*'),
                           ROOT / 'tests/delivery-composition-fixture.ts', ROOT / 'tests/source-lineage-formal-fixture.ts',
                           ROOT / 'features/40_delivery_composition.feature', ROOT / 'tests/bdd/delivery-composition.steps.ts',
-                          SKILL / 'references/drift-review-kej-107-108.json']
+                          SKILL / 'references/drift-review-kej-107-108.json', SKILL / 'references/drift-review-shared-agent-behavior.json']
     for source in composition_inputs:
         destination = inputs / 'composition' / source.relative_to(ROOT)
         destination.parent.mkdir(parents=True, exist_ok=True)
