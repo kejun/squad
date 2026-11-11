@@ -162,3 +162,14 @@ stateDiagram-v2
 本轮索引为`work/shared-agent-behavior-lb07-formal/final-nine-summary.json`，原件在`reports/shared-agent-behavior-four-formal-lb07-c2-e1c29ed-final-1`和`reports/shared-agent-behavior-five-formal-lb07-c2-e1c29ed-final-1`。九套metadata仅在全套完成后同步源码提交，随后逐套重新读回；4032阶段及原始漂移拒绝记录完整保留，未充当当前通过证据。最终CI仍独立执行对应提交的完整流程。
 
 这些证明仅覆盖已声明的有限宿主状态域及对应实现，不证明模型自然语言始终遵守共享规范，也不扩大为操作系统或外部服务的完整证明。
+
+
+## 最终CI暴露的旧夹具时序问题
+
+`ce2eadf`的远程CI中437项回归及共享规范42场景均通过，但总Gherkin为1872/1873，BT_L06的afterJournal窗口失败于旧的`record.identity`断言；coverage、后续故障检查和构建因此未运行，不计为通过。原验证artifact SHA256为`8d72690ea1449c0468cfea32b03b704a899ea3173a7aad6d1dffeb02f3dcc147`，失败保留在run42994382085。
+
+实际记录显示完整settled回执已fsync且effectsKnown=true，但短命CLI在`/proc`身份采样前退出，processRecorded=false；这是生产runProcess明确允许的分支。直接以未修改的runProcess执行`/bin/true`三次均复现“合法已结算、未取得身份”，没有注入延迟或修改生产。旧夹具没有确保其无条件身份断言所需的前提。
+
+仅为`tests/fixtures/local-effect-crash-host.ts`增加确定性握手：真实onSpawn先等待原身份journal写入并读回，断言业务效果尚未发生，再放行CLI产生原一次非幂等效果。CLI订阅文件门并立即检查已有门，避免丢失通知；保留原identity、退出、资源保护及不重复执行断言，不增加固定sleep或扩大原超时。
+
+BT_L06六例连续三轮18/18、1062步骤通过，三个实际SIGKILL/恢复窗口各三轮共9/9通过，另核对每次spawn身份先落盘、效果尚不存在、processRecorded=true及完整清理。该夹具属于LocalEffects归档闭包，对受影响入口单独完整复验，其他八套原件只在输入未变的前提下独立读回；最终CI仍以PR最新提交重新执行完整门禁。
