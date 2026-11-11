@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
-import { localPhysicalPending } from '../src/local-operation.js';
+import { localPhysicalPending, validLocalAction, type LocalAction, type HostApproval } from '../src/local-operation.js';
 import { approvalModel, assertApprovedReceipt, assertApprovalBoundary, assertDeniedReceipt,
   assertHostRequestRejected, assertRecoveredApproval, assertWaitingApproval, decideApproval,
   hostAction, recoverApproval } from './host-approval-model-fixture.js';
 import { LocalModel } from './local-model-fixture.js';
 import { modelGuidanceBoundary } from './tool-guidance-model-fixture.js';
+import { originalPrivateToolAction } from './fixtures/live-private-tool-response.js';
 
 /**
  * BT_Y122 / BT_Y128 model gate. These are real taskMachine transitions, persisted
@@ -95,5 +96,41 @@ export function unifiedToolContextModelGate() {
     hostObservationBoundary: 'catalog publication, entry changes and executable/environment hashes require integration evidence' };
 }
 
+/** BT_Y130: adapter-only omission cannot weaken the public protocol or approvals.
+ * Unknown non-empty IDs remain a runtime activation question, not a fabricated
+ * pure taskMachine rejection. Real @skill bindings are exercised by integration. */
+export function optionalSkillIdModelGate() {
+  const raw = structuredClone(originalPrivateToolAction);
+  const { skillId: _empty, reason: _reason, ...withoutReason } = raw;
+  const rejected = [raw, { ...raw, skillId: ' ' }, { ...raw, skillId: null },
+    { ...raw, executable: '@skill/scripts/read.js' }, { ...raw, args: ['@skill/scripts/read.js'] },
+    { ...raw, cwd: '@skill' }, { ...withoutReason, skillId: '' }, withoutReason,
+    { ...raw, cwd: '' }, { ...raw, approved: true }];
+  for (const action of rejected) {
+    assert.equal(validLocalAction(action), false);
+    const m = new LocalModel(), usage = structuredClone(m.c.usage);
+    assert.equal(m.request(action as LocalAction).code, 'INVALID_LOCAL_REQUEST');
+    assert.equal(m.op, undefined); assert.deepEqual(m.c.usage, usage);
+  }
+  const { skillId: _unused, ...canonical } = raw;
+  assert(validLocalAction(canonical) && canonical.type === 'runCli');
+  const m = new LocalModel(); assert(m.request(canonical).ok); assert(m.claim().ok);
+  assert.equal(m.started().code, 'HOST_APPROVAL_REQUIRED');
+  const approval: HostApproval = { id: 'approval1', digest: 'd'.repeat(64), status: 'pending', expiresAt: 900,
+    plan: { executable: '/usr/bin/yuque', args: canonical.args, cwd: '/task', workspaceRevision: 'b'.repeat(64),
+      executableHash: 'c'.repeat(64), environmentHash: 'e'.repeat(64), host: 'service-host', account: 'user', reason: canonical.reason! } };
+  assert(m.send({ type: 'LOCAL_APPROVAL_REQUIRED', intentId: m.work.id, operationId: 'op1', sessionId: 'session1', approval, fence: m.work }).ok);
+  assertWaitingApproval(m); assert.equal(Object.hasOwn(m.op!.action, 'skillId'), false);
+  assert(decideApproval(m).ok); assert(m.claim().ok); assert(m.started().ok); assert(m.result().ok); assertApprovedReceipt(m);
+  for (const skillId of ['unknown-skill', 'local:not-activated']) {
+    const action = { ...raw, skillId }; assert(validLocalAction(action));
+    const bound = new LocalModel(); assert(bound.request(action).ok);
+    assert.equal(bound.op!.action.type, 'runCli'); assert.deepEqual(bound.op!.action, action); assert.equal(bound.op!.startedAt, undefined);
+  }
+  return { model: 'real taskMachine; persist/restore after every event', paths: 13,
+    invalidPublicActionsRejected: rejected.length, canonicalHostApproval: 1, nonemptyIdsRetainedForRuntimeValidation: 2,
+    permissionExpansion: false, runtimeBoundary: 'unknown and inactive skill IDs still require the original activation checks' };
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
-  console.log(JSON.stringify(unifiedToolContextModelGate(), null, 2));
+  console.log(JSON.stringify({ existing: unifiedToolContextModelGate(), optionalSkillField: optionalSkillIdModelGate() }, null, 2));

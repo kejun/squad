@@ -88,6 +88,16 @@ function parseOutput(content: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+/** Model-only compatibility for an unused optional selector; execution validation stays strict. */
+function normalizeUnusedSkillId(output: Record<string, unknown>): Record<string, unknown> {
+  if (output.type !== 'runCli' || output.skillId !== '') return output;
+  const { skillId: _unused, ...candidate } = output;
+  if (!validLocalAction(candidate) || candidate.type !== 'runCli') return output;
+  const paths = [candidate.executable, ...candidate.args, candidate.cwd ?? ''];
+  if (paths.some(path => /(?:^|[=:\s"'`])@skill(?:[/\\]|$|[\s"'`])/.test(path))) return output;
+  return candidate;
+}
+
 type ModelMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
 function checkMessages(work: Intent, materials: CheckMaterials): ModelMessage[] {
@@ -436,7 +446,7 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
         throw new WorkFailure('Model response incomplete or unsupported', !!materials);
       }
       try {
-        const output = parseOutput(choice.message.content);
+        const output = normalizeUnusedSkillId(parseOutput(choice.message.content));
         if (materials) {
           const sources = checkCitationSources(materials);
           const diagnostic = output.type !== 'check' || Object.keys(output).some(key => key !== 'type' && key !== 'criteriaResults')

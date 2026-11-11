@@ -1752,7 +1752,7 @@ stateDiagram-v2
 
 ### 统一工具上下文与目录快照
 
-对应 BT_Y121–BT_Y129、修订后的 BT_L117/BT_L118/BT_L124。第一张图是**宿主内存快照生命周期与模型上下文读取流程**，不是任务 XState；源码所有者为 `LocalRuntime` 的目录刷新与 `WorkRunner`、模型适配器的只读投影。快照包括完整已注册 CLI、完整已扫描技能、schema/观察版本、环境、观测时间及刷新诊断；运行器补充 CLI 条目身份和双环境 readiness，适配器加入当前角色获准的内置接口。帮助全文、技能正文、密钥及执行批准不作为目录内容。
+对应 BT_Y121–BT_Y130、修订后的 BT_L117/BT_L118/BT_L124。第一张图是**宿主内存快照生命周期与模型上下文读取流程**，不是任务 XState；源码所有者为 `LocalRuntime` 的目录刷新与 `WorkRunner`、模型适配器的只读投影。快照包括完整已注册 CLI、完整已扫描技能、schema/观察版本、环境、观测时间及刷新诊断；运行器补充 CLI 条目身份和双环境 readiness，适配器加入当前角色获准的内置接口。帮助全文、技能正文、密钥及执行批准不作为目录内容。
 
 ```mermaid
 stateDiagram-v2
@@ -1770,6 +1770,19 @@ stateDiagram-v2
 读取路径只读宿主内存与任务已有回执，不扫描目录、启动 `--help`、测试登录、自动安装或额外发起发现模型请求。刷新在请求路径外构建完整结果，再一次发布；并发成员不会读到新旧内容混合的目录。新观察版本仅影响后续请求；未知安装、认证与网络状态保持未知，已有观测附时间与来源。首次来源未配置、明确为空或扫描达到边界均如实标识；刷新错误不能清空有效工具集。技能根不可读或已发布技能的必要元信息损坏均属于刷新失败，保留上一份同代快照；正常删除技能才发布移除后的目录。首次无有效快照或配置的技能源缺失时公开来源诊断与不完整状态，不把其余可读项伪装为完整扫描。同代注册表的来源完整性须在统一目录、本地技能目录及宿主发现接口保持一致，不能分别给出相反的 complete 结论；该约束属于只读观察，不增加任务状态。
 
 第二张图是**既有真实 taskMachine 本地操作路径及宿主准备/重核流程**。任务模型所有者为 `src/task.machine.ts`、`src/local-operation.ts`；程序、环境、参数与工作目录的精确核验所有者为 `LocalRuntime`。目录读取不增加顶层任务状态，不自行安排模型工作或命令。`TOOL_METADATA_CHANGED` 是保存新执行意图前的宿主返回；`HOST_APPROVAL_STALE` 沿用实际执行准备核验，二者不能互换。
+
+BT_Y130 的前置阶段是**模型适配器协议处理流程**，由 `src/model-adapter.ts` 拥有，发生于 `LOCAL_REQUEST` 之前，不是任务 XState 状态或命令执行。只有 `runCli.skillId` 严格为 `""` 且 executable、args、cwd 没有真实 `@skill` 或 `@skill/` 引用时，才能把未使用字段规范化为省略，再进入原动作校验。原始响应保留；空白或非空未知 ID、未激活技能、实际技能引用缺少有效 ID，以及宿主缺少 reason 均保持原拒绝。`validLocalAction` 和任务模型不接受原始空字段，不通过规范化授予技能或宿主权限。
+
+```mermaid
+flowchart LR
+    response[模型原始调用] --> normalize{runCli且skillId严格为空且没有真实技能引用}
+    normalize -->|是| omit[仅省略未使用skillId]
+    normalize -->|否| preserve[保持原调用字段]
+    omit --> validation[原动作格式校验]
+    preserve --> validation
+    validation -->|格式有效| intent[原LOCAL_REQUEST及后续技能与授权守卫]
+    validation -->|无效| refusal[保留原拒绝且不启动]
+```
 
 ```mermaid
 stateDiagram-v2
