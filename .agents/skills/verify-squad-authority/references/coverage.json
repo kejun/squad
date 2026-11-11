@@ -1,5 +1,5 @@
 {
-  "syncCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+  "syncCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
   "files": {
     "package-lock.json": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
     "package.json": "e809edfebb43fbfd77f200e6afec11e6109c7d7e8549efb8ee45536d6278df21",
@@ -535,7 +535,29 @@
     "review": "references/drift-review-workspace-wait.json",
     "reviewedCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
     "reviewedProductWorkingTree": true,
-    "status": "complete-verified-awaiting-global-sync",
-    "syncAdvance": "not advanced; root must confirm all nine complete runs and independent readers"
+    "status": "verified-and-synchronized-after-nine-entrypoints",
+    "syncAdvance": {
+      "change": "workspace-wait-and-global-coordination-observation",
+      "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+      "allNineEntryPointsVerified": true,
+      "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+      "coveredBytesMatchCommitAndCurrentWorktree": true,
+      "metadataOnly": true,
+      "producerReexecutedForMetadataAdvance": false,
+      "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback."
+    },
+    "stage": "Complete producers and independent readbacks verified; source-equivalent product commit synchronized in metadata only",
+    "synchronizedCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777"
+  },
+  "workspaceWaitSyncAdvance": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback.",
+    "previousSyncCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940"
   }
 }

@@ -69,5 +69,25 @@
       "scope": "Original declared finite domains and real-source controls/restored replay. New queued-wait and global coordinator semantics are independently validated by BT_Y114-Y120, not proven by these old finite models."
     }
   ],
-  "synchronization": "No syncCommit advanced; awaiting root global nine-entry confirmation. Verification metadata updated after complete producers, not an additional producer run."
+  "synchronization": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback."
+  },
+  "syncAdvance": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback."
+  },
+  "synchronizationBeforeAdvance": "No syncCommit advanced; awaiting root global nine-entry confirmation. Verification metadata updated after complete producers, not an additional producer run."
 }

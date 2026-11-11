@@ -211,5 +211,25 @@
     "scope": "Real model/Gherkin, service, actual UI and provider-scope acceptance belong to product validation; no claim that old finite domains prove these new combinations."
   },
   "validationRecord": "references/drift-review-workspace-wait-results.json",
-  "synchronization": "Previous syncCommit retained until every required complete producer and independent readback succeeds; baseCommit plus candidate source hashes identify this uncommitted implementation."
+  "synchronization": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback."
+  },
+  "syncAdvance": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback."
+  },
+  "synchronizationBeforeAdvance": "Previous syncCommit retained until every required complete producer and independent readback succeeds; baseCommit plus candidate source hashes identify this uncommitted implementation."
 }

@@ -1,5 +1,5 @@
 {
-  "syncCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+  "syncCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
   "bounds": {
     "tasks": 1,
     "owner": "A",
@@ -603,11 +603,11 @@
   },
   "workspaceWaitReview": {
     "review": "references/drift-review-workspace-wait.json",
-    "sha256": "e8341399736b6890f855522fbb08c3cb9d746c7597b71f29688ecac5aea0ccd4",
+    "sha256": "7325627994bd174fc36933cf655c9dbf56a67f1c0186414ffced103325debb63",
     "sourceCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
     "sourceWorkingTree": "dirty; covered file bytes pin the reviewed implementation",
-    "status": "complete-verification-and-independent-readback-passed; synchronization-pending-all-nine",
-    "summary": "Workspace waiting is a non-authorizing rejection observation; resource predicate extraction is equivalent; read-only global metadata does not grant scheduling authority. Original finite models/properties/bounds/fairness/fault controls remain unchanged. New BT_Y114-120 behavior needs its own actual model/service/browser checks. syncCommit remains the previous completed baseline."
+    "status": "verified-and-synchronized-after-nine-entrypoints",
+    "summary": "Workspace waiting is a non-authorizing rejection observation; resource predicate extraction is equivalent; read-only global metadata does not grant scheduling authority. Original finite models/properties/bounds/fairness/fault controls remain unchanged. New BT_Y114-120 behavior needs its own actual model/service/browser checks. All nine complete producers and independent readbacks passed; syncCommit now names the source-equivalent tested product commit, without another producer run."
   },
   "workspaceWaitVerification": {
     "status": "verified",
@@ -683,5 +683,16 @@
     ],
     "syncCommitAdvanced": false,
     "scope": "Original finite model domains and genuine controls only; BT_Y114-120 resource waiting, UI and coordinator semantics retain their separate actual model/service/browser evidence."
+  },
+  "workspaceWaitSyncAdvance": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback.",
+    "previousSyncCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940"
   }
 }

@@ -169,6 +169,26 @@
     "metadataUpdate": "After all complete producers and their independent readers/CI controls finished, append actual results and refresh only this review-reference metadata. Retained proof inputs keep their original pending review summaries; this is not an extra producer run."
   },
   "synchronization": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback."
+  },
+  "syncAdvance": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback."
+  },
+  "synchronizationBeforeAdvance": {
     "syncCommitAdvanced": false,
     "reason": "Keep old sync until all nine CI entrypoints have completed and been independently read back. Candidate file pins are not an assertion that proof has passed."
   }

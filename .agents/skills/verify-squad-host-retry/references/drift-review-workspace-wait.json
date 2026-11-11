@@ -367,7 +367,16 @@
       }
     }
   },
-  "synchronization": "Original syncCommit remains e1c29edbc080b4638b34b9406e4e81b057e20940. All owned complete producers, genuine source negatives, restored originals and independent readers passed; root-level nine-entry confirmation is still required before synchronization. Metadata updates do not represent another execution.",
+  "synchronization": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback."
+  },
   "historicalSyncObjectAvailable": false,
   "historicalSyncResolution": "The sync object is absent in this squash checkout; all prior covered pins were independently equal to available HEAD1991d30. Reviewed current dirty diff from that exact byte-equivalent baseline; no unseen historical semantics assumed.",
   "reviewedCommitMessages": [
@@ -376,5 +385,16 @@
     "62fdb58 按任务推荐宿主工具并引导有界 CLI 纠正（KEJ-112） (#51)",
     "6134a0c 修复工具失败恢复与分片补齐后的交付结算（KEJ-111） (#50)",
     "49d2bc0 优化交付检查与并行执行效率（KEJ-110） (#49)"
-  ]
+  ],
+  "syncAdvance": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback."
+  },
+  "synchronizationBeforeAdvance": "Original syncCommit remains e1c29edbc080b4638b34b9406e4e81b057e20940. All owned complete producers, genuine source negatives, restored originals and independent readers passed; root-level nine-entry confirmation is still required before synchronization. Metadata updates do not represent another execution."
 }

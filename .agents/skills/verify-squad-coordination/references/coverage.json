@@ -1,5 +1,5 @@
 {
-  "syncCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+  "syncCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
   "bounds": {
     "Budget": "one current ordinary owner intent, 2 user epochs, ordinary limits 3 then 5, automatic retry limit 1, one safe inflight recovery; request/claim count bounded by total paid budget 5",
     "Shards": "one round with exactly 2 shards, 3 result outcomes per shard, one reducer, stop or one goal change, one reopen including active safe inflight recovery; no recovery of cancelled inflight or second round",
@@ -327,10 +327,11 @@
   "pendingReview": {
     "change": "workspace-wait-and-global-coordination-observation",
     "review": "references/drift-review-workspace-wait.json",
-    "reviewSha256": "6fb01dc5c0b39696bb0932c2a3e3f93eb0cd3f39f85cb55b1510795d0e14b54b",
+    "reviewSha256": "add0b22a1daa7141212c86c9ef55fa03f1115d45e3aaaf54638710226ad889d7",
     "reviewedBaseCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
     "reviewedWorkingTree": true,
-    "stage": "Complete producer and independent readback verified; syncCommit intentionally retained pending global nine-entry confirmation"
+    "stage": "Complete producers and independent readbacks verified; source-equivalent product commit synchronized in metadata only",
+    "synchronizedCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777"
   },
   "candidateVerification": {
     "status": "verified",
@@ -520,10 +521,21 @@
   ],
   "workspaceWaitCorrespondence": {
     "review": "references/drift-review-workspace-wait.json",
-    "reviewSha256": "6fb01dc5c0b39696bb0932c2a3e3f93eb0cd3f39f85cb55b1510795d0e14b54b",
+    "reviewSha256": "add0b22a1daa7141212c86c9ef55fa03f1115d45e3aaaf54638710226ad889d7",
     "newWaitMetadata": "WORKSPACE_BUSY stutters only under old declared projection; no authorization, lease release or budget is granted.",
     "newSupervisionBranch": "resources branch deliberately outside old alphabet; BT_Y114-Y120 own new guarantees.",
     "newDependency": "src/coordination-view.ts is pure readonly execution metadata; conservatively pinned, no old finite global-view proof claimed.",
     "sourceIdentity": "Uncommitted source is bound by files hashes, not misattributed to base HEAD."
+  },
+  "workspaceWaitSyncAdvance": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback.",
+    "previousSyncCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940"
   }
 }

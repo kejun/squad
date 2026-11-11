@@ -1,5 +1,5 @@
 {
-  "syncCommit": "11a1023b8cbb6483fef55af62b5212141eb2d789",
+  "syncCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
   "bounds": {
     "tasks": 2,
     "workspaces": 1,
@@ -719,10 +719,11 @@
   "pendingReview": {
     "change": "workspace-wait-and-global-coordination-observation",
     "review": "references/drift-review-workspace-wait.json",
-    "reviewSha256": "fa8156f98f27b3e22a53bf587b9e2a23250a936d2b49f85df7c086863da8dbee",
+    "reviewSha256": "cd975f06a63238c0b997ae81b9863fce5000d099e25e54221d25cc8eb325c21b",
     "reviewedBaseCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
     "reviewedWorkingTree": true,
-    "stage": "Complete producer and independent readback verified; syncCommit intentionally retained pending global nine-entry confirmation"
+    "stage": "Complete producers and independent readbacks verified; source-equivalent product commit synchronized in metadata only",
+    "synchronizedCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777"
   },
   "candidateVerification": {
     "status": "verified",
@@ -772,10 +773,21 @@
   ],
   "workspaceWaitCorrespondence": {
     "review": "references/drift-review-workspace-wait.json",
-    "reviewSha256": "fa8156f98f27b3e22a53bf587b9e2a23250a936d2b49f85df7c086863da8dbee",
+    "reviewSha256": "cd975f06a63238c0b997ae81b9863fce5000d099e25e54221d25cc8eb325c21b",
     "newWaitMetadata": "WORKSPACE_BUSY stutters only under old declared projection; no authorization, lease release or budget is granted.",
     "newSupervisionBranch": "resources branch deliberately outside old alphabet; BT_Y114-Y120 own new guarantees.",
     "newDependency": "src/coordination-view.ts is pure readonly execution metadata; conservatively pinned, no old finite global-view proof claimed.",
     "sourceIdentity": "Uncommitted source is bound by files hashes, not misattributed to base HEAD."
+  },
+  "workspaceWaitSyncAdvance": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback.",
+    "previousSyncCommit": "11a1023b8cbb6483fef55af62b5212141eb2d789"
   }
 }
