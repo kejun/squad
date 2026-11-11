@@ -3,7 +3,7 @@ import { Given, When, Then } from '@cucumber/cucumber';
 import { OpenAICompatibleAdapter, WorkRunner, type WorkOutput } from '../../src/index.js';
 import { Harness, configuration } from '../helpers.js';
 import type { SpecWorld } from './steps.js';
-import { fixtureCheck, withFixtureAcceptance } from '../delivery-protocol-fixture.js';
+import { fixtureCheck, fixtureWorkInput, withFixtureAcceptance } from '../delivery-protocol-fixture.js';
 
 type ModelKind = 'owner' | 'assistance' | 'facilitator' | 'check';
 interface RequestBody {
@@ -13,6 +13,7 @@ interface RequestBody {
 interface StyleState {
   kind: ModelKind; member: string; requests: RequestBody[];
   text: string; formatRequest?: string; search: boolean; searches: number;
+  workId?: string;
 }
 const states = new WeakMap<SpecWorld, StyleState>();
 function state(world: SpecWorld) { const value = states.get(world); assert(value); return value; }
@@ -34,6 +35,7 @@ async function run(world: SpecWorld) {
   const pending = world.h.engine.pending(world.h.room, world.h.task)[0];
   assert.equal(pending?.kind, s.kind);
   assert.equal(pending.target, s.member);
+  s.workId = pending.id;
   const output: WorkOutput = s.kind === 'facilitator'
     ? { type: 'decision', decision: { action: 'askUser', question: '需要兼容哪个版本？', reason: '缺少版本范围。' } }
     : s.kind === 'check' ? fixtureCheck(pending.payload.candidate)
@@ -138,8 +140,8 @@ Then('系统约定应允许用户明确要求的格式并保留请求上下文',
   const s = state(this), request = s.requests[0]!;
   assert.match(style(request), /current user's explicit format requirements ahead of these default style preferences/);
   assert.match(style(request), /lists for distinct items or ordered steps, tables for comparisons, and inline or fenced code/);
-  const input = request.messages.find(message => message.role === 'user'); assert(input);
-  assert(JSON.stringify(JSON.parse(input.content).context).includes(s.formatRequest!));
+  assert(s.workId);
+  assert(JSON.stringify(fixtureWorkInput(request, s.workId).context).includes(s.formatRequest!));
 });
 Then('返回正文应保留原有格式、技术内容和来源链接', function (this: SpecWorld) {
   assert.equal(this.h.context().candidate?.text, state(this).text);

@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
-import { parseCliCatalog } from "../src/cli-catalog.js";
 import { parseCliAcquisitionReaders } from '../src/acquisition-readers.js';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from "node:url";
@@ -11,7 +10,6 @@ import { createWebServer } from "../src/web/http.js";
 import { WebService } from "../src/web/service.js";
 
 const port = Number(process.env.WEB_PORT ?? 4318);
-const cliCatalog = process.env.SQUAD_CLI_CATALOG_FILE ? parseCliCatalog(JSON.parse(await readFile(process.env.SQUAD_CLI_CATALOG_FILE, 'utf8'))) : undefined;
 async function acquisitionReadersFromFile() {
   if (!process.env.SQUAD_ACQUISITION_READERS_FILE) return undefined;
   try {
@@ -24,15 +22,17 @@ const acquisitionReaders = await acquisitionReadersFromFile();
 const canonicalConfiguration = (value: unknown): string => value === null || typeof value !== 'object' ? JSON.stringify(value)
   : Array.isArray(value) ? `[${value.map(canonicalConfiguration).join(',')}]`
     : `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonicalConfiguration((value as Record<string, unknown>)[key])}`).join(',')}}`;
-const config = cliCatalog !== undefined || acquisitionReaders !== undefined ? { ...baseConfig,
-  toolVersion: `${baseConfig.toolVersion}:${createHash('sha256').update(canonicalConfiguration({ cliCatalogConfigured: cliCatalog !== undefined,
-    acquisitionReadersConfigured: acquisitionReaders !== undefined, cliCatalog: cliCatalog ?? [], acquisitionReaders: acquisitionReaders ?? [] })).digest('hex')}` } : baseConfig;
+// Discovery metadata has its own observation version. Only the trusted acquisition
+// reader contract changes the execution protocol, including across service restarts.
+const config = acquisitionReaders !== undefined ? { ...baseConfig,
+  toolVersion: `${baseConfig.toolVersion}:${createHash('sha256').update(canonicalConfiguration({
+    acquisitionReadersConfigured: true, acquisitionReaders })).digest('hex')}` } : baseConfig;
 const runtime = await LocalRuntime.create({
   dataRoot: process.env.SQUAD_LOCAL_DATA_DIR ?? join(dirname(resolve(process.env.WEB_DATABASE ?? "team.sqlite")), ".squad-local"),
   ...(config.localTools?.enabled === false ? { skillRoots: [], backend: { available: false, execute: async () => { throw new Error('LOCAL_TOOLS_DISABLED'); } } }
     : process.env.SQUAD_LOCAL_SKILLS_ROOTS ? { skillRoots: process.env.SQUAD_LOCAL_SKILLS_ROOTS.split(delimiter).filter(Boolean) } : {}),
   ...(process.env.SQUAD_WORKSPACE_ROOT ? { workspaceRoot: process.env.SQUAD_WORKSPACE_ROOT } : {}),
-  ...(cliCatalog !== undefined ? { cliCatalog } : {}),
+  ...(process.env.SQUAD_CLI_CATALOG_FILE ? { cliCatalogFile: process.env.SQUAD_CLI_CATALOG_FILE } : {}),
   ...(acquisitionReaders !== undefined ? { acquisitionReaders } : {}),
   redact: Object.values(config.models?.services ?? {}).flatMap(model => model.apiKeyEnv && process.env[model.apiKeyEnv] ? [process.env[model.apiKeyEnv]!] : []),
 });

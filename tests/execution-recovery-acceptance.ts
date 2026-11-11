@@ -13,7 +13,7 @@ import { ControlledProcessBackend, LocalFixture } from './local-tools-fixture.js
 import { Harness } from './helpers.js';
 import { regenerationConfig } from './model-regeneration-fixture.js';
 import { hostUntil } from './host-approval-fixture.js';
-import type { withCliReadiness } from '../src/cli-readiness.js';
+import { inventoryObservation } from './tool-inventory-observation.js';
 import { fixtureCheck } from './delivery-protocol-fixture.js';
 import { DatabaseSync } from 'node:sqlite';
 import { TeamEngine } from '../src/engine.js';
@@ -87,7 +87,7 @@ export async function webScopeRecoveryAcceptance(role: string) {
     // The wrapper must retain live getters, not a snapshot which becomes stale after the CLI.
     const targetRequests = requests.slice(2);
     assert.equal(targetRequests.length, 3);
-    assert(targetRequests.every(request => request.messages.some(message => message.content.includes('"type":"tool_guidance"'))));
+    assert(targetRequests.every(request => request.messages.some(message => message.content.includes('"type":"tool_inventory"'))));
     assert(targetRequests[0]!.messages.some(message => message.content.includes('"type":"shared_tool_knowledge"')));
     const work = service.engine.view(roomId, taskId)!.context.intents.find(item => item.id === targetId)!;
     assert.equal(work.toolRecovery?.failures.length, 1);
@@ -115,7 +115,7 @@ export async function configurationDiagnosticAcceptance(label: string) {
     const { cliCatalog: _catalog, ...options } = f.runtime.options;
     await f.runtime.close();
     const command = label === '已核实相关命令未安装' ? 'squad-no-installed-reader' : 'node';
-    const entry = { command, description: label === '已配置目录但无相关匹配' ? 'unrelated backup' : 'document read',
+    const entry = { command, description: label === '已配置目录但无相同词项' ? 'unrelated backup' : 'document read',
       helpArgs: label === '已核实相关账号需要认证' ? ['-e', 'console.error("authentication required");process.exit(1)'] : ['--help'],
       ...(label === '已核实宿主授权被拒绝' ? { execution: 'host' as const } : {}) };
     f.runtime = await LocalRuntime.create({ ...options, commandEnv: { ...options.commandEnv, node: { PRIVATE_TOKEN: 'sensitive-tool-configuration' } },
@@ -136,23 +136,23 @@ export async function configurationDiagnosticAcceptance(label: string) {
       f.runtime.notifyWorkspace(`approval:${operation.id}`);
     }
     await running;
-    const message = f.requests.at(-1)!.messages.find(item => item.content.includes('"type":"tool_guidance"'))!;
-    assert(message);
-    const recommendation = (JSON.parse(message.content) as { recommendations: ReturnType<typeof withCliReadiness> }).recommendations.cli;
+    const request = f.requests.at(-1)!;
+    const inventory = inventoryObservation(request);
     const state = label === '未配置CLI目录' ? 'unconfigured' : label === '已配置空CLI目录' ? 'empty' : 'configured';
-    assert.equal(recommendation.configuration.state, state);
-    if (label === '已配置目录但无相关匹配') assert.equal(recommendation.matchState, 'no_match');
-    const unavailable = recommendation.unavailableCandidates[0];
-    if (label === '已核实相关命令未安装') assert.equal(unavailable?.readiness.installation, 'not_found');
-    if (label === '已核实宿主授权被拒绝') assert.equal(unavailable?.readiness.authorization, 'denied');
-    if (label === '已核实相关账号需要认证') assert.equal(unavailable?.readiness.authentication, 'required');
-    assert.equal(recommendation.candidates.length, 0);
-    assert.equal(recommendation.executionAuthority, false);
-    assert(!message.content.includes('host-model-secret'));
+    assert.equal(inventory.cli.configuration.state, state);
+    assert.equal(inventory.cli.entries.length, state === 'configured' ? 1 : 0);
+    const chosen = inventory.cli.entries[0];
+    const readiness = chosen?.variants.find(variant => variant.execution === (chosen.execution ?? 'sandbox'))?.readiness;
+    if (label === '已核实相关命令未安装') assert.equal(readiness?.installation, 'not_found');
+    if (label === '已核实宿主授权被拒绝') assert.equal(readiness?.authorization, 'denied');
+    if (label === '已核实相关账号需要认证') assert.equal(readiness?.authentication, 'required');
+    if (label === '已配置目录但无相同词项') assert.equal(chosen?.description, 'unrelated backup');
+    assert.equal(inventory.executionAuthority, false);
+    assert(!JSON.stringify(inventory).includes('host-model-secret'));
     const credentialsLeaked = JSON.stringify({ requests: f.requests, context: f.h.context() }).includes('sensitive-tool-configuration');
     assert.equal(credentialsLeaked, false);
     assert.equal(f.backend.calls.length, label === '已核实相关账号需要认证' ? 1 : 0);
-    return { recommendation, cliCalls: f.backend.calls.length, credentialsLeaked,
+    return { inventory, readiness, cliCalls: f.backend.calls.length, credentialsLeaked,
       operations: f.h.context().intents.flatMap(work => work.localOperations ?? []).map(op => op.action.type) };
   } finally { await f.close(); }
 }

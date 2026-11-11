@@ -52,6 +52,11 @@ export class CliCatalog {
     this.configuration = { state: value === undefined ? 'unconfigured' : this.entries.length ? 'configured' : 'empty', entryCount: this.entries.length };
     this.catalogVersion = createHash('sha256').update(JSON.stringify(this.entries)).digest('hex');
   }
+  /** Complete metadata for the shared decision snapshot; discovery pagination remains separate. */
+  all(): CliCatalogPage {
+    return { catalogVersion: this.catalogVersion, configuration: structuredClone(this.configuration),
+      entries: structuredClone(this.entries), nextCursor: null };
+  }
   recommend(objective: string) {
     const matches = recommendMetadata(this.entries, objective,
       entry => [entry.command, entry.description, ...(entry.domains ?? []), ...(entry.requirements ?? [])].join(' '), entry => entry.command);

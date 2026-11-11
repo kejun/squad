@@ -757,6 +757,7 @@ export class WebService {
             get catalog() { return scope.localTools!.catalog; },
             get checkpoint() { return scope.localTools!.checkpoint; },
             get sharedToolKnowledge() { return scope.localTools!.sharedToolKnowledge; },
+            get toolInventory() { return scope.localTools!.toolInventory; },
             get toolGuidance() { return scope.localTools!.toolGuidance; },
             invoke: async (action, messages, toolSignal, requested) => {
               const labels = { discoverHost: "发现宿主能力", listSkills: "查看本地技能", loadSkill: "激活本地技能", readSkillResource: "读取技能资源", readEvidence: "查读执行证据", readArtifact: "查读历史产物", runCli: "执行本地命令", verifyWorkspace: "核对工程版本" };

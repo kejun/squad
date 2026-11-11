@@ -54,6 +54,7 @@ export class LocalFixture {
   readonly backend = new ControlledProcessBackend();
   readonly requests: { messages: { role: string; content: string }[] }[] = [];
   readonly replies: unknown[] = [];
+  beforeModelResponse?: ((request: LocalFixture['requests'][number], index: number) => Promise<void>) | undefined;
   runtime!: LocalRuntime; h!: Harness; source!: string; skills!: string; skillId!: string;
   private constructor(readonly root: string) {}
   static async create(role = '方案师', sqlite = false, serviceClock = false, options: { backend?: CliBackend; ordinaryLimit?: number;
@@ -96,6 +97,7 @@ export class LocalFixture {
   runner(final?: unknown) {
     const adapter = new OpenAICompatibleAdapter(this.h.config, { clock: () => this.h.now, transport: async (_url, init) => {
       this.requests.push(JSON.parse(String(init?.body)) as typeof this.requests[number]);
+      await this.beforeModelResponse?.(this.requests.at(-1)!, this.requests.length - 1);
       assert(this.replies.length || final, 'scripted model exhausted'); return modelResponse(withFixtureAcceptance(this.replies.length ? this.replies.shift() : final, this.requests.at(-1)));
     } });
     return new WorkRunner(this.h.engine, adapter, () => this.h.now, globalThis.fetch, undefined, this.runtime);
