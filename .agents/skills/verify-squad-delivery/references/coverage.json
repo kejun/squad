@@ -755,14 +755,21 @@
     }
   ],
   "globalSynchronization": {
-    "change": "shared-agent-behavior-LB07-C2",
-    "productCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
-    "allNineEntrypointsVerified": true,
-    "centralIndependentReadbacks": "passed",
-    "outcome": "updated",
+    "targetCommit": "11a1023b8cbb6483fef55af62b5212141eb2d789",
+    "mode": "one-new-producer-eight-retained-input-equivalent-complete-proofs",
+    "allNineCurrentCoveredInputsVerified": true,
+    "allNineReexecutedThisRound": false,
+    "producersThisRound": [
+      "local-effects"
+    ],
+    "retainedProducerCommit": "e1c29edbc080b4638b34b9406e4e81b057e20940",
     "metadataOnly": true,
-    "evidenceIndex": "work/shared-agent-behavior-lb07-formal/final-nine-summary.json",
-    "note": "All complete positive/source-negative/restored runs and readers passed before this sync. Original proof inputs retain their prior sync and pending-review values. This metadata update is not an additional complete run."
+    "outcome": "updated",
+    "evidenceIndex": "work/process-identity-fixture-c3/final-global-nine.json",
+    "note": "The eight retained complete producers keep their original e1 source identities and sync. Current C3 coverage hashes match those retained inputs; only LocalEffects was freshly produced. All nine were independently read back.",
+    "allNineEntrypointsVerified": true,
+    "productCommit": "11a1023b8cbb6483fef55af62b5212141eb2d789",
+    "centralIndependentReadbacks": "passed; post-metadata reader results retained in the explicit mixed-source index"
   },
   "globalSynchronizationHistory": [
     {

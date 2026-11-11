@@ -131,3 +131,10 @@ KEJ-113/114 本入口最终完整执行通过：`reports/kej-113-114-final-local
 
 
 LB07 第二阶段最终复验：冻结产品 `e1c29edbc080b4638b34b9406e4e81b057e20940` 的九入口均完整通过正向、真实源码负对照、原版复验和独立读回，结果为 updated。本技能精确证据路径和保证边界见[本轮审查](drift-review-shared-agent-behavior.json)；仅同步元数据，不冒称额外完整运行。
+
+
+## 真实崩溃夹具的进程身份握手维护
+
+冻结提交 `11a1023b8cbb6483fef55af62b5212141eb2d789` 只改变真实崩溃子进程夹具，先确认 spawned journal 身份已持久化，再允许 CLI 写入效果，以满足既有身份断言的真实前提。生产与原模型、性质、界限、故障控制及验证超时均保持。审查及本轮完整 LocalEffects 状态见[夹具审查](drift-review-process-identity-fixture.json)。旧 e1/4032 证明仍保留为各自历史；其他八入口本轮不重跑 producer。
+
+C3最终结果：仅LocalEffects在 `11a1023b8cbb6483fef55af62b5212141eb2d789` 新完成全部原正向、真实源码负对照、原版复验、真实桥、独立读回及CI reader反控。另八入口保留e1完整producer，当前输入指纹相同且独立读回通过；不记为C3重新执行。详见[夹具审查](drift-review-process-identity-fixture.json)。

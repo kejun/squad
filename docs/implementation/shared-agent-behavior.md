@@ -141,7 +141,7 @@ stateDiagram-v2
 
 证据目录为`reports/shared-agent-behavior-live/source4032-real-proxy-20261111`和`reports/shared-agent-behavior-live/sourcee1c29ed-LB07-targeted-20261111`，各含run/manifest及独立读回。原40样本的manifest SHA256为`ff92dc49950c3341d7e1b7c7115a3a3b7c17e6c95cd1f18cfc8eb7b217800e83`；原评估器源码完整冻结在`reports/shared-agent-behavior-live-sources/source4032-40trials`，未用后续修改重算原结果。
 
-实际模型服务请求共55次：首次连接失败1次（独立保留）、首轮40样本含工具后续共46次、引用复验8次；全程低于64次上限。通过环境代理及系统CA恢复连通，不关闭TLS校验、不换模型、不自动重试提供商错误。两轮48有效样本无provider-invalid或脱敏排除；首次失败不伪装成有效模型结果。
+实际模型服务请求共55次：首次连接失败1次（独立保留）、首轮40样本含工具后续共46次、引用复验8次；全程低于64次上限。通过环境代理及系统CA恢复连通，不关闭TLS校验、不换模型、不自动重试提供商错误。两轮48个收到模型响应的样本无provider-invalid或脱敏排除（其中仍有协议无效样本，按原分母保留）；首次失败不伪装成有效模型结果。
 
 自动判据仅覆盖预登记动作与字段。独立34个坏输入控制还发现四种已知误接受边界，例如LB04的741子串检查不能保证准确代码值；这类开放语义不能由硬判据通过代替。另生成去除变体信息的40项完整材料供独立LLM审阅，人工审阅字段保持null；LLM审阅不作为人类真值或校准准确率。小样本、提供商默认参数、缓存和路由亦限制效果解释。
 
@@ -173,3 +173,6 @@ stateDiagram-v2
 仅为`tests/fixtures/local-effect-crash-host.ts`增加确定性握手：真实onSpawn先等待原身份journal写入并读回，断言业务效果尚未发生，再放行CLI产生原一次非幂等效果。CLI订阅文件门并立即检查已有门，避免丢失通知；保留原identity、退出、资源保护及不重复执行断言，不增加固定sleep或扩大原超时。
 
 BT_L06六例连续三轮18/18、1062步骤通过，三个实际SIGKILL/恢复窗口各三轮共9/9通过，另核对每次spawn身份先落盘、效果尚不存在、processRecorded=true及完整清理。该夹具属于LocalEffects归档闭包，对受影响入口单独完整复验，其他八套原件只在输入未变的前提下独立读回；最终CI仍以PR最新提交重新执行完整门禁。
+
+
+夹具修复提交为`11a1023b8cbb6483fef55af62b5212141eb2d789`。受影响LocalEffects完整检查48.308秒通过，249件原始证据及独立reader/原CI反控通过，目录`reports/process-identity-fixture-local-effects-11a1023-final-1`。其余八套覆盖输入逐SHA与当前提交一致并完成新的独立读回，保留e1c29ed的原producer身份，不伪装成本轮重新执行。生产源码仍与e1c29ed相同。
