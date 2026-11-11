@@ -34,6 +34,7 @@ export interface LocalOperation {
   status: 'queued' | 'claimed' | 'awaitingApproval' | 'running' | 'succeeded' | 'failed' | 'cancelling' | 'cancelled' | 'uncertain';
   parentAttempt: number; attempt: number; sessionId?: string;
   workspaceId?: string; workspaceRevision?: string; isolated?: boolean;
+  workspaceWait?: { since: number };
   conflictKey?: string; resourceLeases?: ResourceLease[]; preparedAt?: number;
   createdAt: number; startedAt?: number; finishedAt?: number;
   result?: LocalToolResult;
@@ -87,6 +88,9 @@ export function validLocalAction(value: unknown): value is LocalAction {
 export const localAwaitingApproval = (work: Intent) => work.localOperations?.some(op => op.status === 'awaitingApproval') ?? false;
 export const localUnsettled = (work: Intent) => localAwaitingApproval(work) || (work.localOperations?.some(op => ['queued', 'claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false);
 export const localPhysicalPending = (work: Intent) => work.localOperations?.some(op => ['claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false;
+export const localWorkspaceWaiting = (work: Intent) => work.localOperations?.some(op => op.status === 'queued' && op.workspaceWait !== undefined) ?? false;
+export const taskResourceWaiting = (c: TaskContext) => !c.stopped && c.outcome === null && c.intents.some(work => work.kind !== 'cancel'
+  && work.epoch === c.epoch && work.goalVersion === c.goalVersion && ['pending', 'inflight'].includes(work.status) && localWorkspaceWaiting(work));
 export function heldLocalResourceLeases(op: LocalOperation): ResourceLease[] {
   return op.resourceLeases?.filter(lease => lease.phase === 'execute' || op.preparedAt === undefined)
     ?? (op.workspaceId ? [{ key: op.workspaceId, mode: 'write', phase: 'execute' }] : []);
@@ -283,6 +287,7 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
       }
       op!.status = 'claimed'; op!.sessionId = e.sessionId; op!.parentAttempt = work.attempt; op!.attempt++;
       delete op!.preparedAt;
+      delete op!.workspaceWait;
       break;
     case 'LOCAL_APPROVAL_REQUIRED':
       op!.approval = structuredClone(e.approval); op!.status = 'awaitingApproval';

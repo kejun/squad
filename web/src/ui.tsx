@@ -98,8 +98,8 @@ export function Scroll({
 export const phaseLabel = (task: WebTask | undefined) =>
   !task
     ? "等待开始"
-    : task.supervision && ['repairing', 'waitingHuman', 'cleaning', 'faulted'].includes(task.supervision.status)
-      ? ({ repairing: '正在修复推进', waitingHuman: '等待你的回复', cleaning: '后台核对清理', faulted: '执行服务故障', running: '正在执行', settled: '已结算' })[task.supervision.status]
+    : task.supervision && ['repairing', 'waitingHuman', 'waitingResources', 'cleaning', 'faulted'].includes(task.supervision.status)
+      ? ({ repairing: '正在修复推进', waitingHuman: '等待你的回复', waitingResources: '等待执行资源', cleaning: '后台核对清理', faulted: '执行服务故障', running: '正在执行', settled: '已结算' })[task.supervision.status]
     : task.phase === "ended"
       ? {
           complete: "已完成",
@@ -134,9 +134,11 @@ export function agentStatus(
     (work) => work.agentId === id && work.taskId === snapshot.activeTaskId,
   );
   if (
-    active.some((work) => work.status === "inflight" && work.kind !== "cancel")
+    active.some((work) => work.status === "inflight" && work.kind !== "cancel" && !work.waitingResources)
   )
     return "执行中";
+  if (active.some(work => work.waitingResources && work.kind !== 'cancel'))
+    return '等待资源';
   if (
     active.some((work) => work.status === "pending" && work.kind !== "cancel")
   )

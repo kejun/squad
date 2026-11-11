@@ -68,6 +68,10 @@ export const taskActions = {
     }),
     reject: taskAssign(({ context, event }) => {
       const c = structuredClone(context); reject(c, permissionProblem(c, event) ?? 'INVALID_STATE');
+      if (event.type === 'LOCAL_CLAIM' && c.reply.code === 'WORKSPACE_BUSY') {
+        const operation = c.intents.find(work => work.id === event.intentId)!.localOperations!.find(op => op.id === event.operationId)!;
+        operation.workspaceWait ??= { since: event.at };
+      }
       // A stale completion may retire its own physical work, never advance the new round.
       const physicalWorkId = event.type.startsWith('LOCAL_') ? undefined : event.workId ?? (event.type === 'WORK_FAILED' ? event.intentId : undefined);
       const work = context.intents.find(i => i.id === physicalWorkId);

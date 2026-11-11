@@ -1,0 +1,195 @@
+{
+  "change": "workspace-wait-and-global-coordination-observation",
+  "reviewedAt": "2026-11-11",
+  "sourceCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
+  "sourceWorkingTree": "dirty implementation candidate; exact bytes in sourceFiles and producer coveredFileHashes",
+  "outcome": "updated",
+  "previousSyncCommit": {
+    "coverage.json": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+    "composition-coverage.json": "e1c29edbc080b4638b34b9406e4e81b057e20940"
+  },
+  "unchangedHEADBasis": {
+    "allPreviouslyCoveredFilesMatchCurrentHEAD": true,
+    "note": "Each previous coverage digest was compared with git show HEAD:path before refreshing candidate bytes. Thus old baseline-to-HEAD changes are input-equivalent for this skill; this review covers the current dirty delta."
+  },
+  "sourceFiles": [
+    {
+      "path": "src/local-operation.ts",
+      "oldSha256": "ba9a546b17402b7f585d7c81fc8c53beb1786651384d0a4822ae56a456622482",
+      "newSha256": "0dfc11164909e070f69147cad6d31c56c72d7a1d67b68bfd2a25432410612f9d",
+      "classification": "new observation; existing authorization preserved",
+      "analysis": "Optional workspaceWait timestamp annotates a queued command; helpers inspect it; successful LOCAL_CLAIM removes it. No lease, approval, startedAt or result is granted by this field. Old Handoff/Retry prefixes have no local commands; Delivery Verification local claims have no competing holder and therefore never write this annotation."
+    },
+    {
+      "path": "src/local-resource-policy.ts",
+      "oldSha256": "8bfe9c1095ab34cafad7a6a6d97fdc4d398d9d8afeb4435a8ed70ad5652e3673",
+      "newSha256": "08061b38c1876835ee0255484e855eb7f9c01bf7009c2f9106c8aa559e6c72de",
+      "classification": "predicate-preserving extraction",
+      "analysis": "canAcquireResourceLeases now tests whether resourceLeaseBlockerOwners is empty. Its legacy condition is the former legacyRows.some predicate and its typed condition is the former rows.some predicate, each excluding the same owner. Dedupe changes only explanatory owner multiplicity; transactional all-or-nothing admission is unchanged."
+    },
+    {
+      "path": "src/local-runtime.ts",
+      "oldSha256": "ece2447adc368f94ea549bfb9a1b4dbb0127b3a2cd1da62bcdb89d7d0383cf60",
+      "newSha256": "2329ae21453eadc86b4be05cda6821578ca3b7aaab5a36f260c1039ac9bca552",
+      "classification": "notification extraction; no execution/approval weakening",
+      "analysis": "notifyResourceRelease groups the existing resources/workspace/typed-key notifications. Notifications are wake-ups to retry transactional qualification, not execution permits. No command planning, approval matching, journal settlement, process launch or cancellation guarantee changes."
+    },
+    {
+      "path": "src/model-adapter.ts",
+      "oldSha256": "343bc56fe91240cf19df74af5dd51f2c965f1d6622186674165a10c6d339b84f",
+      "newSha256": "c48f6ca41c2d6cffd7562f49e89f94630c899bf9953b593b9fb223df8329c7a3",
+      "classification": "facilitator-only fresh observation outside old producer use",
+      "analysis": "Only facilitator requests read scope.coordinationView before each real HTTP request and append a readOnly observation plus explicit non-authority guidance. The original Handoff/Retry/Delivery graph replay does not depend on a global observation provider or real model behavior. No parser, output permission, budget or tool guard changes."
+    },
+    {
+      "path": "src/runner.ts",
+      "oldSha256": "c367c12a5c1da32b4cac4b8d2871e8dac6348219ccb0da5e340beae7337716eb",
+      "newSha256": "1d390f47b8ad29d3cea4b0a8c4b27d820ac2267ea1a22a267d1a5b37b3ea3972",
+      "classification": "optional read-only metadata provider and notification extraction",
+      "analysis": "Adds optional coordination-view getter to WorkScope and constructor; original formal WorkRunner probes provide no getter. Replaces the former inline notify sequence with notifyResourceRelease after actual durable results. It neither releases leases nor bypasses parent/operation claim and startup validation."
+    },
+    {
+      "path": "src/store.ts",
+      "oldSha256": "3eb36535afb71bad478495506f0dea78a0fef3d69fa56b85d5a4e2756d7da432",
+      "newSha256": "2e4ba48a4ab3da7b6098c9dd7e4d89763663da17430bc1ff5aa44036c2a36a11",
+      "classification": "read-only inspection additions; original transaction boundaries unchanged",
+      "analysis": "Adds resourceBlockers and leaseInventory plus exports the existing operationLeaseOwner function. The helpers only SELECT or copy current maps; acquire/release and atomic transact paths are unchanged. Real holder identities, typed leases, legacy work barriers and compatibility predicates are observed, never released by observation."
+    },
+    {
+      "path": "src/task/actions.ts",
+      "oldSha256": "4b25c51842badc38daa3d3201f02a660df227d105141521dd334b928bda34333",
+      "newSha256": "b9f45a8804e3dce1b08a4049737786632a465a358f2b152f79eec88b1f832c48",
+      "classification": "new rejection observation outside old action domains",
+      "analysis": "Only LOCAL_CLAIM rejected specifically as WORKSPACE_BUSY records the first waiting time after the unchanged permission guard. This is not a successful transition or authorization. The original handoff/retry graphs contain no LOCAL_CLAIM; Verification uses uncontended valid claims."
+    },
+    {
+      "path": "src/task/resilience.ts",
+      "oldSha256": "51d02fdcd222637df8626e7ef2d94310f387a312b43269eabc90c0be3535612f",
+      "newSha256": "8eb1cb65d9b064af6004d59963ebfd0735f3bdaf7a32e4d6cffdb11c1a202c99",
+      "classification": "intentional supervision interpretation outside old finite domains",
+      "analysis": "effectiveWork excludes queued commands bearing a wait observation, and supervision distinguishes resources from executing work and repair. Hard/repair deadlines still precede resource waiting, so no budget/window extension. No old graph emits SUPERVISE and its fixed clock stays at 0 before expiry; original safety/liveness properties are unchanged. New BT_Y114 and actual service/browser scenarios carry this behavior."
+    }
+  ],
+  "newDependency": {
+    "path": "src/coordination-view.ts",
+    "sha256": "eee53b627a8031726ef9dc37947b218aaecaeccbbd369a09b7eb1fdc1ffd557f",
+    "classification": "new conservative source dependency, excluded read-only branch",
+    "analysis": "Pure projection of room/task/work/operation status, startedAt, command argv/cwd/reason, task.reason, gate.question, leases and wait relationships. It does not include chat or artifact bodies and contains no mutation or authorization capability. Labels/command metadata are untrusted and runtime-cleaned by its service caller. The old finite graph slice never consumes this global view; adding its bytes to coverage binds the imported dependency without claiming a new proof."
+  },
+  "modelDecision": {
+    "modelsPropertiesBoundsFairnessUnchanged": true,
+    "reason": "Existing finite alphabets do not include resource waits, cross-room UI or global coordinator knowledge. Handoff and retry retain saved-result transaction/authority/uniqueness semantics. Delivery local verification uses uncontended resource claims and all existing exact version/candidate/publication guards remain intact.",
+    "newBehaviorEvidence": "BT_Y114-120 actual taskMachine, Memory/SQLite service, real browser and facilitator observation scenarios; these are separate evidence, not newly proven by old TLC graphs.",
+    "notProven": [
+      "arbitrary global queue histories",
+      "cross-room waiting UI correctness",
+      "coordinator semantic choices",
+      "real provider instruction obedience",
+      "all host resource-contention histories"
+    ]
+  },
+  "asIs": {
+    "status": "blocked",
+    "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/handoff/as-is",
+    "classification": "expected source-correspondence drift, not a property counterexample",
+    "compositionEvidence": "/workspace/work/squad-e2e/workspace-fix/formal/handoff-composition/as-is"
+  },
+  "validation": {
+    "status": "verified",
+    "completeProducers": [
+      {
+        "entry": "handoff",
+        "status": "verified",
+        "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/handoff/complete",
+        "sourceCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
+        "syncCommitCaptured": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+        "sourceWorkingTree": "dirty; each source byte captured by coveredFileHashes and implementation artifacts",
+        "manifestSha256": "0e154f4076693ff29b417723bb354418a472dd148e78e6076b5802a951258689",
+        "retainedArtifacts": 186,
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "evidenceRetained": true
+        },
+        "realSourceControls": [
+          "drop-marker",
+          "double-resume",
+          "skip-cancel",
+          "starve-flush"
+        ],
+        "independentReadback": {
+          "status": "verified",
+          "exitCode": 0,
+          "log": "/workspace/work/squad-e2e/workspace-fix/formal/handoff-readback.log"
+        },
+        "model": {
+          "states": 146,
+          "edgesPerStore": 424,
+          "stores": [
+            "memory",
+            "sqlite"
+          ],
+          "witnesses": 6
+        }
+      },
+      {
+        "entry": "handoff-composition",
+        "status": "verified",
+        "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/handoff-composition/complete",
+        "sourceCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
+        "syncCommitCaptured": "e1c29edbc080b4638b34b9406e4e81b057e20940",
+        "sourceWorkingTree": "dirty; each source byte captured by coveredFileHashes and implementation artifacts",
+        "manifestSha256": "c77ddd21314fe3d1d5c928b440383b4ab7e843dda00ec01a8338feff2c258dfa",
+        "retainedArtifacts": 212,
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true
+        },
+        "realSourceControls": [
+          "duplicate-retry",
+          "repeat-saved-work",
+          "ignore-retry-permission",
+          "ignore-retry-owner"
+        ],
+        "independentReadback": {
+          "status": "verified",
+          "exitCode": 0,
+          "log": "/workspace/work/squad-e2e/workspace-fix/formal/handoff-composition-readback.log"
+        },
+        "readerControls": {
+          "generic": {
+            "status": "verified",
+            "rejections": 4,
+            "evidence": "/workspace/work/squad-e2e/workspace-fix/formal/handoff-composition/reader-controls"
+          }
+        }
+      }
+    ],
+    "modelsPropertiesBoundsFairnessAndCheckersUnchanged": true,
+    "metadataUpdate": "After all complete producers and their independent readers/CI controls finished, append actual results and refresh only this review-reference metadata. Retained proof inputs keep their original pending review summaries; this is not an extra producer run."
+  },
+  "synchronization": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback."
+  },
+  "syncAdvance": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback."
+  },
+  "synchronizationBeforeAdvance": {
+    "syncCommitAdvanced": false,
+    "reason": "Keep old sync until all nine CI entrypoints have completed and been independently read back. Candidate file pins are not an assertion that proof has passed."
+  }
+}

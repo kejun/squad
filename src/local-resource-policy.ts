@@ -65,7 +65,15 @@ export interface LegacyResourceLease { key: string; owner: string }
 /** Pure all-or-nothing authorization; the Store must check and insert in one transaction. */
 export function canAcquireResourceLeases(rows: readonly ResourceLeaseRow[], requests: readonly ResourceLease[], owner: string,
   legacyRows: readonly LegacyResourceLease[] = []): boolean {
-  if (legacyRows.some(row => row.owner !== owner
-    && requests.some(request => request.key === row.key || request.key === unconfinedEffectsKey))) return false;
-  return !rows.some(row => row.owner !== owner && localResourceLeasesConflict([row], requests));
+  return resourceLeaseBlockerOwners(rows, requests, owner, legacyRows).length === 0;
+}
+
+/** The same conflict predicate serves authorization and its read-only explanation. */
+export function resourceLeaseBlockerOwners(rows: readonly ResourceLeaseRow[], requests: readonly ResourceLease[], owner: string,
+  legacyRows: readonly LegacyResourceLease[] = []): string[] {
+  return [...new Set([
+    ...legacyRows.filter(row => row.owner !== owner
+      && requests.some(request => request.key === row.key || request.key === unconfinedEffectsKey)),
+    ...rows.filter(row => row.owner !== owner && localResourceLeasesConflict([row], requests)),
+  ].map(row => row.owner))];
 }

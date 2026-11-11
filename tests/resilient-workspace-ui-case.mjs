@@ -8,6 +8,8 @@ import { createTeamConfig } from '../team.config.ts';
 import { LocalRuntime } from '../src/local-runtime.ts';
 import { runProcess } from '../src/local-cli.ts';
 import { ResilientWorkspaceBrowserFixture, barrier } from './resilient-workspace-browser-fixture.mjs';
+import { prepareArchiveDeleteFeedback, actArchiveDeleteFeedback, verifyArchiveDeleteFeedback } from './archive-delete-feedback-browser-case.mjs';
+import { workspaceWaitAdapter, prepareWorkspaceWait, actWorkspaceWait, verifyWorkspaceWait } from './workspace-wait-browser-case.mjs';
 
 /** Browser assertions use committed public Engine prefixes as Given data;
  * every decision, confirmation, retry, navigation and download is a real UI action. */
@@ -141,8 +143,11 @@ export class ResilientWorkspaceUICase {
     if (this.number === 85) config.limits.ordinary = 1;
     this.host = await new ResilientWorkspaceBrowserFixture(this.id, { config, localRuntime: this.runtime,
       reopenLocalRuntime: async () => { this.runtime = await LocalRuntime.create(this.runtimeOptions); return this.runtime; },
+      ...(this.number === 116 ? { adapter: workspaceWaitAdapter(this) } : {}),
       ...(this.number === 86 ? { adapter: { execute: async () => ({ type: 'askUser', question: '修复后仍需你明确回复' }) } } : {}) }).open();
     this.page = this.host.page; this.room = await this.host.createRoom(); this.startTask();
+    if (this.number === 119) { await prepareArchiveDeleteFeedback(this); return; }
+    if (this.number === 116) { await prepareWorkspaceWait(this); return; }
     if (this.number === 85) this.event({ type: 'CONSUME', intentId: this.owner.id, fence: this.owner, attempt: this.owner.attempt });
     if ([83, 93, 101].includes(this.number)) await this.unknownOperation();
     if (this.number === 107) await this.prepareHostApproval();
@@ -246,6 +251,10 @@ export class ResilientWorkspaceUICase {
   async cancelDeletionConfirmation() {
     await this.page.getByRole('button', { name: '取消删除', exact: true }).click();
   }
+  async closeDeletionProgress() {
+    const close = this.page.getByRole('button', { name: '关闭删除提示', exact: true });
+    if (await close.isVisible()) await close.click();
+  }
   async verifyDeletionAfterServiceRestart() {
     await this.host.restartService();
     const room = await this.host.get('/rooms/' + encodeURIComponent(this.room.id));
@@ -265,7 +274,9 @@ export class ResilientWorkspaceUICase {
     await writeFile(join(this.host.evidence, 'sqlite-after-service-restart.json'), JSON.stringify(stored, null, 2));
   }
   async act() {
+    if (this.number === 119) return actArchiveDeleteFeedback(this);
     const n = this.number;
+    if (n === 116) return actWorkspaceWait(this);
     if (n === 81) { await this.dismiss(); this.facts.before = this.snapshot().blockers; await this.page.reload(); }
     if (n === 82) {
       await this.human(); this.facts.old = this.snapshot().blockers.find(gate => gate.scope !== 'cleanup');
@@ -385,6 +396,7 @@ export class ResilientWorkspaceUICase {
         }
         if ([93, 101].includes(n)) {
           await this.host.until(() => this.snapshot().room.deletion?.status, status => status === 'waiting', 'deletion waiting persisted');
+          await this.closeDeletionProgress();
           await this.page.getByRole('button', { name: '查看删除状态 ' + this.room.title, exact: true }).click();
           this.facts.progress = await this.page.getByRole('dialog').textContent();
           await this.page.getByRole('button', { name: '关闭删除提示', exact: true }).click();
@@ -425,6 +437,7 @@ export class ResilientWorkspaceUICase {
             await this.dismiss();
           }
           if (n === 97) {
+            await this.closeDeletionProgress();
             await this.page.getByRole('button', { name: '群聊', exact: true }).click();
             await this.host.selectRoom(this.other); await this.dismissFresh();
             await this.host.until(() => this.page.evaluate(() => JSON.parse(localStorage.getItem('squad-deleted-rooms') ?? '[]')),
@@ -492,7 +505,9 @@ export class ResilientWorkspaceUICase {
     await this.host.capture('when');
   }
   async verify() {
+    if (this.number === 119) return verifyArchiveDeleteFeedback(this);
     const n = this.number;
+    if (n === 116) return verifyWorkspaceWait(this);
     if (n === 81 || n === 84) {
       await this.page.getByRole('dialog').waitFor();
       assert(this.snapshot().blockers.some(gate => gate.status === 'open' && gate.requiredHuman));

@@ -12,6 +12,7 @@ import { acceptanceCriteria, checkCitationSources, judgmentsDiagnostic, validCri
 import { deliveryValidationOperation, deliveryVerificationEvidence, deliveryVerificationProblem, type DeliveryVerificationPlan } from './task/verification.js';
 import { hostRetrySourceAllowed, isSavedRead, localAwaitingApproval, localEnabled, localPhysicalPending, type LocalAction, type LocalCheckpoint, type LocalMessage, type LocalOperation, type LocalToolResult } from './local-operation.js';
 import type { LocalRuntime } from './local-runtime.js';
+import type { CoordinationView } from './coordination-view.js';
 import { LocalToolError, type SkillPage } from './local-skills.js';
 import type { TeamEngine } from './engine.js';
 import type { Artifact, ArtifactDraft, Candidate, Decision, InputIntentSpec, InputReference, Intent, ModelOutputIssue, PartitionRecovery, TaskContext, TaskEvent, ToolFailureFeedback, WebToolKind } from './types.js';
@@ -44,6 +45,8 @@ export interface LocalWorkTools {
   resume(operationId: string, signal: AbortSignal): Promise<LocalToolResult>;
 }
 export interface WorkScope {
+  /** Fresh host execution metadata; observation never grants a scheduling or tool permission. */
+  readonly coordinationView?: CoordinationView | undefined;
   readonly localTools?: LocalWorkTools;
   /** Stable conversation identity for provider routing; defaults to the persisted task ID. */
   readonly sessionId?: string;
@@ -134,7 +137,8 @@ export class WorkRunner {
     private readonly skillSearchTransport: SkillSearchTransport = globalThis.fetch,
     private readonly webTools: WebTools = new CloudflareWebTools(),
     private readonly localRuntime?: LocalRuntime,
-    private readonly observe?: MeasurementSink) {}
+    private readonly observe?: MeasurementSink,
+    private readonly observeCoordination?: () => CoordinationView) {}
   /** Cancellation itself needs no writable database; custody is persisted by the host before detaching. */
   abortExecutions(roomId?: string, taskId?: string): void {
     for (const item of this.controllers.values()) if ((!roomId || item.roomId === roomId) && (!taskId || item.taskId === taskId))
@@ -247,6 +251,7 @@ export class WorkRunner {
       report({ phase: 'budget.authorized', requestId, category: capability });
       return lastWebRequest;
     };
+    const observeCoordination = this.observeCoordination;
     const scope: WorkScope = { sessionId: taskId, observeModel: observation => {
       if (observation.phase === 'model.protocol' && observation.valid && observation.terminal) modelRequestId = observation.requestId;
       report(observation);
@@ -322,6 +327,7 @@ export class WorkRunner {
       }
       return result;
     } };
+    if (observeCoordination) Object.defineProperty(scope, 'coordinationView', { get: observeCoordination });
     const currentWork = () => { this.assertAttached(); return this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === work.id)!; };
     const toolKnowledge = () => {
       this.assertAttached();
@@ -364,9 +370,7 @@ export class WorkRunner {
         for (const operation of currentWork().localOperations ?? []) if (completeCliReceipt(operation)) persistCliAcquisitions(operation);
       };
       const notifyResources = (operation: LocalOperation) => {
-        runtime.notifyWorkspace('resources');
-        if (operation.workspaceId) runtime.notifyWorkspace(operation.workspaceId);
-        for (const lease of operation.resourceLeases ?? []) runtime.notifyWorkspace(lease.key);
+        runtime.notifyResourceRelease(operation);
       };
       const toolGuidance = () => {
         this.assertAttached();

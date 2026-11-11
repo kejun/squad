@@ -1,0 +1,145 @@
+{
+  "change": "workspace-wait-and-global-coordination-observation",
+  "reviewedBaseCommit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
+  "reviewedWorkingTree": true,
+  "codeReviewOutcome": "updated-correspondence; full validation is separately recorded",
+  "coverageReviews": [
+    {
+      "coverage": "coverage.json",
+      "previousSyncCommit": "11a1023b8cbb6483fef55af62b5212141eb2d789",
+      "equivalentBaselineProof": {
+        "commit": "1991d3094c7fb5c54f20d9b4d77670eaf82f7436",
+        "allOldPinsMatch": true,
+        "count": 102
+      },
+      "files": [
+        {
+          "file": "src/coordination-view.ts",
+          "oldSha256": null,
+          "candidateSha256": "eee53b627a8031726ef9dc37947b218aaecaeccbbd369a09b7eb1fdc1ffd557f",
+          "classification": "new conservatively pinned pure transitive dependency",
+          "reason": "Pure complete execution metadata projection over supplied rooms and read-only lease/blocker observations. It includes source IDs, command argv/cwd/reason, task reasons and gate questions together with queue/start distinction, cleanup and resource holders; it omits conversation, artifact bodies and model credential values. Service cleans configured secrets. Untrusted labels/metadata grant no cross-room scheduling, approval or release authority. Global-view completeness/freshness and content semantics are not variables or properties of the old finite graphs; BT_Y118-Y120 provide independent acceptance."
+        },
+        {
+          "file": "src/local-operation.ts",
+          "oldSha256": "ba9a546b17402b7f585d7c81fc8c53beb1786651384d0a4822ae56a456622482",
+          "candidateSha256": "0dfc11164909e070f69147cad6d31c56c72d7a1d67b68bfd2a25432410612f9d",
+          "classification": "observation-only projection extension",
+          "reason": "Adds optional workspaceWait since timestamp and pure waiting predicates; successful LOCAL_CLAIM removes only that observation. Existing authorization/attempt/fence/deadline/session guards, operation status transitions, execution budget charging, checkpoint consumption, and uncertain-effect handling remain unchanged. LocalEffects BusyProbe may add competitor-only unprojected observation; old lease/session/checkpoint/start projection remains identical."
+        },
+        {
+          "file": "src/local-resource-policy.ts",
+          "oldSha256": "8bfe9c1095ab34cafad7a6a6d97fdc4d398d9d8afeb4435a8ed70ad5652e3673",
+          "candidateSha256": "08061b38c1876835ee0255484e855eb7f9c01bf7009c2f9106c8aa559e6c72de",
+          "classification": "equivalent shared pure conflict predicate",
+          "reason": "canAcquireResourceLeases previously rejected if either legacyRows.some or rows.some matched another owner; it now checks that the unique union of exactly those matching owners is empty. Identical row/request/global-key predicates and current-owner exclusion are preserved. Enumeration grants no permission; acquisition remains in original Store transaction."
+        },
+        {
+          "file": "src/local-runtime.ts",
+          "oldSha256": "ece2447adc368f94ea549bfb9a1b4dbb0127b3a2cd1da62bcdb89d7d0383cf60",
+          "candidateSha256": "2329ae21453eadc86b4be05cda6821578ca3b7aaab5a36f260c1039ac9bca552",
+          "classification": "existing notification mechanism consolidated",
+          "reason": "notifyResourceRelease emits the same typed resources, workspace and individual resource notifications formerly in Runner. It is invoked after durable settlement. This cannot delete leases or grant execution; every waiter must reattempt transactional claim. Scheduling/wakeup liveness and cross-room UI are independently exercised by BT_Y115-120."
+        },
+        {
+          "file": "src/model-adapter.ts",
+          "oldSha256": "343bc56fe91240cf19df74af5dd51f2c965f1d6622186674165a10c6d339b84f",
+          "candidateSha256": "c48f6ca41c2d6cffd7562f49e89f94630c899bf9953b593b9fb223df8329c7a3",
+          "classification": "new read-only model observation outside old finite action alphabets",
+          "reason": "Only facilitator adds conditional guidance and reads the optional fresh scope.coordinationView before each model request. The observation is explicitly readOnly and does not mutate task state or override original goal, scheduling, budget, approval or lease guards. Old direct-event graph drivers do not send model HTTP; LocalEffects controlled real bridges use owner/check. Provider choice and global observation semantic quality are outside old formal guarantees."
+        },
+        {
+          "file": "src/runner.ts",
+          "oldSha256": "c367c12a5c1da32b4cac4b8d2871e8dac6348219ccb0da5e340beae7337716eb",
+          "candidateSha256": "1d390f47b8ad29d3cea4b0a8c4b27d820ac2267ea1a22a267d1a5b37b3ea3972",
+          "classification": "read-only scope provider; notifications consolidated",
+          "reason": "Adds optional observeCoordination callback as a getter on WorkScope, so supplied view is fresh at read time. Existing formal WorkRunner callers omit this callback; no event, transaction, permission, budget or dispatch path is added. notifyResources delegates identical existing resources/workspace/key notifications. Global coordinator visibility and real wakeup liveness are independently accepted by BT_Y115-Y120."
+        },
+        {
+          "file": "src/store.ts",
+          "oldSha256": "3eb36535afb71bad478495506f0dea78a0fef3d69fa56b85d5a4e2756d7da432",
+          "candidateSha256": "2e4ba48a4ab3da7b6098c9dd7e4d89763663da17430bc1ff5aa44036c2a36a11",
+          "classification": "read-only inventory and conflict projection",
+          "reason": "Exports unchanged canonical owner hashing and adds resourceBlockers/leaseInventory reads for SQLite and copied Memory collections. unsafeWorkBarriers supplies the existing owner identities. No acquisition, release, commit, rollback or reconciliation write path changes. Typed blocker explanation reuses exactly the previous Boolean conflict predicate; a read inventory never grants a lease."
+        },
+        {
+          "file": "src/task/actions.ts",
+          "oldSha256": "4b25c51842badc38daa3d3201f02a660df227d105141521dd334b928bda34333",
+          "candidateSha256": "b9f45a8804e3dce1b08a4049737786632a465a358f2b152f79eec88b1f832c48",
+          "classification": "reviewed stuttering metadata update",
+          "reason": "A LOCAL_CLAIM rejected specifically as WORKSPACE_BUSY preserves first wait time after existing localEventProblem validation. Stale fence/attempt, stopped, invalid operation and expiry failures do not add metadata. No successful claim, start permission, host approval, budget, journal or lease is fabricated. Existing LocalEffects BusyProbe projects as stutter, now with this additional observation; full-room state is not claimed equivalent."
+        },
+        {
+          "file": "src/task/resilience.ts",
+          "oldSha256": "51d02fdcd222637df8626e7ef2d94310f387a312b43269eabc90c0be3535612f",
+          "candidateSha256": "8eb1cb65d9b064af6004d59963ebfd0735f3bdaf7a32e4d6cffdb11c1a202c99",
+          "classification": "new behavior explicitly outside old finite domain",
+          "reason": "effectiveWork no longer treats queued marked resource waits as execution. New resources supervision outcome preserves existing window and schedules another wake without consuming repair budget. Old finite actions do not invoke this new queued+marked+SUPERVISE path; the real model BT_Y114 gate and Gherkin own it. Existing fixed window, stop cleanup and unknown-effects safety remain."
+        },
+        {
+          "file": "src/web/contracts.ts",
+          "oldSha256": "e43478d16ed855a960e5042e02c0524b28c6f2de79ab40a1608643d528a46f98",
+          "candidateSha256": "601d55f3419257ef5e3a25ab5b97425fcacd922966f8cc8bd1d078fa8f9423ae",
+          "classification": "UI projection only",
+          "reason": "Adds original-room identity and waitingResources fields/status; these are not host approval, execution permit, local operation status, or business completion."
+        },
+        {
+          "file": "src/web/service.ts",
+          "oldSha256": "9aa09280c67d4d9cd037d01aa40dc575acca3e46ebf39625ea36b04650cbfab3",
+          "candidateSha256": "cda44f536a549ac03394de2f6ce7de761b5f2e37deae866795f9f8549e99a3c2",
+          "classification": "UI and coordinator read projection; post-commit wakeup",
+          "reason": "Adds actual cross-room blocker sources and coordinationSnapshot from all owned room/task metadata and lease inventory, cleaned by LocalRuntime before model projection. Exact review/reconcile identities and digest checks remain original. Human, background and deletion-preparation reconciliation notify resource waiters only after successful original transactional settlement. Finite direct-engine domains do not instantiate this projection. LocalEffects real process bridges instantiate WebService and Adapter, but use controlled owner/check replies; they do not enter the new facilitator observation branch. Scheduling and UI liveness are separately accepted, not inferred from old graphs."
+        }
+      ],
+      "originalAsIs": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-as-is",
+      "candidateEvidence": "/workspace/work/squad-e2e/workspace-fix/formal/local-effects-final"
+    }
+  ],
+  "unchangedFormalContract": [
+    "Original TLA files/configurations, state bounds, fairness, required safety and progress properties remain unchanged.",
+    "Original real-source negative controls, every-edge representative-prefix replays on Memory and SQLite, witnesses and restored-original reruns remain required.",
+    "A snapshot hash gates drift; it does not prove the new global queue or UI."
+  ],
+  "correspondence": {
+    "claimRejection": "Existing LOCAL_CLAIM transaction rejected as WORKSPACE_BUSY now additionally persists unprivileged queued-wait metadata. LocalEffects BusyProbe and any bounded competitor probe are stuttering only for the declared lease/session/checkpoint/start projection, not the full stored room. No execution permit, approval, checkpoint consumption or lease release is introduced.",
+    "supervision": "New queued workspaceWait plus SUPERVISE resources branch is intentionally outside old model action alphabets; it is covered by actual taskMachine BT_Y114 model/Gherkin. Original graph prefixes clock0/1 are before supervision wakes; recovery remains declared zero/one original RECOVER transaction for corresponding slices.",
+    "resourcePredicate": "The old disjunction of matching legacy/typed conflicts is now a unique owner enumeration; Boolean acquisition remains equivalent for every input and still occurs atomically in Store transaction.",
+    "notifications": "Waking a waiter conveys no lease; it retries the original transactional claim. Unknown effects remain held until trusted LOCAL_RESULT/LOCAL_RECONCILE. No automatic approval or release is added.",
+    "newGlobalObservation": "The optional complete execution observation is supplied only by WebService and read fresh for facilitator model requests; it is data without cross-room command authority. Old finite projections do not claim this data completeness or model interpretation."
+  },
+  "separateAcceptance": {
+    "scenarios": [
+      "BT_Y114",
+      "BT_Y115",
+      "BT_Y116",
+      "BT_Y117",
+      "BT_Y118",
+      "BT_Y119",
+      "BT_Y120"
+    ],
+    "knownModelEvidence": "/workspace/work/squad-e2e/workspace-fix/model-evidence.json",
+    "scope": "Real model/Gherkin, service, actual UI and provider-scope acceptance belong to product validation; no claim that old finite domains prove these new combinations."
+  },
+  "validationRecord": "references/drift-review-workspace-wait-results.json",
+  "synchronization": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback."
+  },
+  "syncAdvance": {
+    "change": "workspace-wait-and-global-coordination-observation",
+    "sourceEquivalentToCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-e2e/workspace-fix/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "retainedProofsUnchanged": "The original run/manifest keep the old captured sync identity; follow this update with independent readback."
+  },
+  "synchronizationBeforeAdvance": "Previous syncCommit retained until every required complete producer and independent readback succeeds; baseCommit plus candidate source hashes identify this uncommitted implementation."
+}

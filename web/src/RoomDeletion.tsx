@@ -22,13 +22,16 @@ export function RoomDeletion({ room, connected, onDelete, onRetry }: {
     if (inFlight.current || !connected) return;
     inFlight.current = true; setBusy(true); setError('');
     try {
-      await (retry ? onRetry(room) : onDelete(confirmedRoom ?? room));
-      if (mounted.current) { setOpen(false); setConfirmedRoom(null); }
+      const result = await (retry ? onRetry(room) : onDelete(confirmedRoom ?? room));
+      if (mounted.current) {
+        if ('status' in result) { setOpen(false); setConfirmedRoom(null); }
+        else setConfirmedRoom(result);
+      }
     } catch (cause) {
       if (mounted.current) setError(cause instanceof Error ? cause.message : '删除请求未确认，请重试。');
     } finally { inFlight.current = false; if (mounted.current) setBusy(false); }
   };
-  const deletion = room.deletion;
+  const deletion = room.deletion ?? confirmedRoom?.deletion;
   return <>
     <Button className="icon-button room-delete-action" aria-label={`${deletion ? '查看删除状态' : '删除归档群聊'} ${room.title}`}
       disabled={!connected || busy} onClick={() => { setConfirmedRoom(room); setOpen(true); setError(''); }}>

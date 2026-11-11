@@ -1,6 +1,6 @@
 /** Pure task supervision, durable human gates, frozen delivery and physical custody. */
 import type { Fence, Intent, Outcome, Phase, TaskContext, TaskEvent } from '../types.js';
-import { cancelLocalOperations, heldLocalResourceLeases, localPhysicalPending } from '../local-operation.js';
+import { cancelLocalOperations, heldLocalResourceLeases, localPhysicalPending, localWorkspaceWaiting, taskResourceWaiting } from '../local-operation.js';
 import { cancelWork, coordinate, message, owner, release, intent } from './operations.js';
 import { cancelHostRetries } from '../host-retry.js';
 import { settleDeliveryCycle } from './delivery-cycle.js';
@@ -402,12 +402,12 @@ export function decideHumanGate(c: TaskContext, e: Extract<TaskEvent, { type: 'H
 const phaseKinds: Partial<Record<Phase, Intent['kind'][]>> = { interpreting: ['interpretation'], running: ['owner', 'tool'],
   waitingAssistance: ['assistance'], coordinating: ['facilitator'], checking: ['check'] };
 export function effectiveWork(c: TaskContext, phase: Phase, at: number): Intent[] {
-  return c.intents.filter(w => w.kind !== 'cancel' && w.epoch === c.epoch && w.goalVersion === c.goalVersion
+  return c.intents.filter(w => w.kind !== 'cancel' && !localWorkspaceWaiting(w) && w.epoch === c.epoch && w.goalVersion === c.goalVersion
     && (!!w.discussionId && w.discussionId === c.discussion?.id && !['cancelled', 'delivered'].includes(c.discussion!.status) || !w.discussionId && phaseKinds[phase]?.includes(w.kind))
     && (w.status === 'inflight' && w.deadline !== null && at < w.deadline && !workInCleanup(c, w)
       || w.status === 'pending' && !permissionProblem(c, { type: 'CLAIM', id: 'supervisor-probe', at, intentId: w.id })));
 }
-export type SupervisionDecision = 'none' | 'human' | 'repair' | 'freeze' | 'stopped' | 'settled';
+export type SupervisionDecision = 'none' | 'human' | 'resources' | 'repair' | 'freeze' | 'stopped' | 'settled';
 export function supervisionDecision(c: TaskContext, phase: Phase, at: number): SupervisionDecision {
   if (c.outcome !== null || c.resilience?.frozen) return phase === 'ended' ? 'none' : 'settled';
   if (c.stopped || phase === 'stopping') return 'stopped';
@@ -418,6 +418,7 @@ export function supervisionDecision(c: TaskContext, phase: Phase, at: number): S
   if (phase === 'checking' && c.intents.some(w => w.kind === 'check' && ['pending', 'inflight'].includes(w.status)
     && w.epoch === c.epoch && w.goalVersion === c.goalVersion && w.deadline !== null && at >= w.deadline)) return 'freeze';
   if (effectiveWork(c, phase, at).length || c.results.some(result => !result.consumed)) return 'none';
+  if (taskResourceWaiting(c)) return 'resources';
   if (window.repairUsed >= window.repairLimit || c.usage.ordinary >= c.config.limits.ordinary || c.usage.retries >= c.config.limits.retries) return 'freeze';
   return 'repair';
 }

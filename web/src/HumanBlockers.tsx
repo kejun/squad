@@ -65,7 +65,7 @@ export function HumanBlockers({ roomId, blockers, connected, expiredTaskIds = []
   const inFlight = useRef(false);
   const mounted = useRef(true);
   const identities = useRef(new Map<string, string>());
-  const key = (request: Blocker) => `${request.id}:${request.version}`;
+  const key = (request: Blocker) => `${request.source?.roomId ?? roomId}:${request.id}:${request.version}`;
   const pending = blockers.filter(request => request.status === 'open' && !acknowledged.includes(key(request)));
   const skipped = blockers.filter(request => request.status === 'skipped');
   const active = pending.find(request => key(request) === activeKey);
@@ -113,10 +113,14 @@ export function HumanBlockers({ roomId, blockers, connected, expiredTaskIds = []
             <Dialog.Close aria-label="暂时关闭处理提示"><X size={18} /></Dialog.Close></div>
           {active && <>
             <Dialog.Description>{active.question}</Dialog.Description>
+            {active.source && <p>来源会话：{active.source.roomTitle}</p>}
             {active.scope !== 'cleanup' && expiredTaskIds.includes(active.taskId)
               && <p role="status">自动处理窗口已耗尽，仍等待你的明确回复。</p>}
-            <p>{active.requiredHuman ? '需要你明确回复；关闭提示或等待不会代替你的决定。' : '请明确选择处理方式，跳过只省略指定内容。'}</p>
-            {active.operation && !active.operation.approvalId ? <OperationReviewPanel key={key(active)} roomId={roomId} blocker={active} connected={connected} /> : <>
+            <p>{active.scope === 'cleanup' ? '原执行效果尚未结算；关闭提示不会释放资源，也不会批准新命令。'
+              : active.requiredHuman ? '需要你明确回复；关闭提示或等待不会代替你的决定。' : '请明确选择处理方式，跳过只省略指定内容。'}</p>
+            {active.operation && !active.operation.approvalId
+              ? <OperationReviewPanel key={key(active)} roomId={active.source?.roomId ?? roomId} blocker={active} connected={connected} />
+              : active.scope === 'cleanup' ? <p>执行资源仍被占用，实际执行结算后会自动继续等待的命令。</p> : <>
               {active.operation?.approvalId ? <>
                 <p>请在宿主授权卡片核对完整命令并明确批准或拒绝；已过期的授权不能继续执行。关闭提示不会代替决定。</p>
                 {availableHostApprovalIds.includes(active.operation.approvalId)
