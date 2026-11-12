@@ -74,11 +74,11 @@ Given('{string}正在等待请求{string}', function (this: SpecWorld, _bot: str
 When('{string}提交关联{string}的核查结果{string}', function (this: SpecWorld, _bot: string, request: string, id: string) { assert.equal(request, 'H1'); assert.equal(id, 'R1'); this.record(); });
 Then('群内应显示署名{string}的答复', function (this: SpecWorld, bot: string) { assert(this.h.context().messages.some(m => m.kind === 'answer' && m.author === bot)); });
 Then('{string}应在原任务{string}中收到一次{string}', function (this: SpecWorld, bot: string, _task: string, id: string) { const input = this.h.engine.pending(this.h.room, this.h.task); assert.equal(input.length, 1); assert.equal(input[0]!.target, bot); assert.equal(input[0]!.payload.resultId, id); });
-Then('{string}应按当前目标判断原缺口是否解决', function (this: SpecWorld, _ignored0: string) { assert.equal(this.h.engine.pending(this.h.room, this.h.task)[0]!.payload.requiresAssessment, true); });
+Then('{string}应吸收结果并继续原任务', function (this: SpecWorld, _ignored0: string) { assert.equal(this.h.engine.pending(this.h.room, this.h.task)[0]!.payload.requestId, 'H1'); });
 Then('不应仅因收到答复就把主任务标记为完成', function (this: SpecWorld) { assert.equal(this.h.context().outcome, null); });
-When('协助以{string}结束并说明{string}', function (this: SpecWorld, status: string, reason: string) { const map = { '部分完成': 'partial', '失败': 'failed', '超时': 'timeout' } as const; this.record(reason, map[status as keyof typeof map]); });
+When('协助以{string}结束并说明{string}', function (this: SpecWorld, status: string, reason: string) { const map = { '部分完成': 'partial', '失败': 'failed', '超时': 'timeout' } as const; this.prepared=reason;this.record(reason, map[status as keyof typeof map]); });
 Then('{string}应结算为{string}', function (this: SpecWorld, id: string, status: string) { const map = { '部分完成': 'partial', '失败': 'failed', '超时': 'timeout' } as const; assert.equal(this.h.context().assists.find(a => a.id === id)?.status, map[status as keyof typeof map]); });
-Then('{string}应收到该结果及原因', function (this: SpecWorld, _ignored0: string) { const p = this.h.engine.pending(this.h.room, this.h.task)[0]!.payload; assert(p.status); assert(p.answer); });
+Then('{string}应收到该结果及原因', function (this: SpecWorld, _ignored0: string) { const p = this.h.engine.pending(this.h.room, this.h.task)[0]!.payload; assert(p.status); if(p.status==='partial')assert.equal(p.answer,this.prepared);else {assert.equal(p.answer,'');assert.equal(p.reason,this.prepared);} });
 Then('{string}不应继续无限等待{string}', function (this: SpecWorld, _ignored0: string, _ignored1: string) { assert.equal(this.h.view().phase, 'running'); });
 Given('本次求助存在{string}', function (this: SpecWorld, issue: string) {
   this.problem = issue; const config = configuration();
@@ -195,7 +195,7 @@ When('该成员尝试通过{string}继续执行', async function (this: SpecWorl
 Then('不应通过该路径发出额外的模型或工具请求', function (this: SpecWorld) { assert.equal(this.extraReviewRequests, 0); });
 Then('应记录该成员的未完成原因并将最后一次普通请求用于负责人汇总', function (this: SpecWorld) {
   assert.equal(this.h.context().assists[0]?.status, 'failed');
-  assert(this.h.context().assists[0]?.answer);
+  assert.equal(this.h.context().assists[0]?.answer,''); assert(this.h.context().assists[0]?.reason);
   assert(this.h.context().review?.incomplete);
   assert.equal(this.reviewCalls.filter(work => work.kind === 'owner').length, 1);
   assert.equal(this.h.context().usage.ordinary, 3);
@@ -216,8 +216,8 @@ Then('该成员的评审应成功且未收齐的成员应如实记录为缺口',
   for (const target of review.targets.filter(target => !review.completed.includes(target))) assert(review.incomplete?.includes(target));
 });
 Then('汇总应经过完成检查且群评审应结束为{string}', function (this: SpecWorld, outcome: string) {
-  assert.equal(outcome, '部分完成');
+  assert.equal(outcome, '交付完成且声明缺口');
   assert.equal(this.reviewCalls.filter(work => work.kind === 'check').length, 1);
   assert.equal(this.h.view().phase, 'ended');
-  assert.equal(this.h.context().outcome, 'partial');
+  assert.equal(this.h.context().outcome, 'complete');
 });

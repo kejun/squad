@@ -76,7 +76,7 @@ describe('bounded assistance', () => {
     const h = new Harness(); h.help(); h.result();
     expect(h.view().phase).toBe('running');
     expect(h.context().assists[0]?.consumed).toBe(true);
-    expect(h.engine.pending(h.room, h.task)[0]?.payload.requiresAssessment).toBe(true);
+    expect(h.engine.pending(h.room, h.task)[0]?.payload.answer).toBe(h.context().assists[0]?.answer);
     expect(h.context().outcome).toBeNull();
   });
   it.each(['partial', 'failed', 'timeout'] as const)('[BT_H04] settles a %s helper result', status => {

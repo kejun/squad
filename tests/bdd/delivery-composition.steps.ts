@@ -26,8 +26,8 @@ Given('使用{string}创建需要运行工程验证的候选', async function (t
 When('在工程回执前申请模型检查并随后保存成功的隔离工程回执', function (this: SpecWorld) {
   current(this).apply('ConsumeEarly'); current(this).apply('RequestValidation'); current(this).apply('ClaimValidation'); current(this).apply('StartValidation'); current(this).apply('ValidationPassed');
 });
-Then('首次申请应拒绝且成功回执之后才可申请一次模型检查', function (this: SpecWorld) {
-  const snapshot = current(this).apply('Consume'); assert('stage' in snapshot); assert.equal(snapshot.stage, 5); assert.equal(snapshot.unsafeModel, false);
+Then('首次申请应获准且后续验证结果应保留在同一检查工作', function (this: SpecWorld) {
+  const snapshot = current(this).apply('Consume'); assert('stage' in snapshot); assert.equal(snapshot.stage, 5); assert.equal(snapshot.earlyCheckAllowed, true);
 });
 When('本轮独立检查返回通过并完成相同版本的最终复核', function (this: SpecWorld) {
   current(this).apply('ModelResult'); current(this).apply('RequestVersion'); current(this).apply('ClaimVersion'); current(this).apply('StartVersion'); current(this).apply('VersionResult'); current(this).apply('Publish');
@@ -38,7 +38,7 @@ When('保存隔离工程回执并取得独立检查结果后出现{string}', fun
   if (boundary === '缺少最终版本复核') fixture.apply('PublishWithoutVersion');
   else { assert.equal(boundary, '工作区版本变化'); fixture.apply('ChangeWorkspace'); fixture.apply('RequestVersion'); fixture.apply('ClaimVersion'); fixture.apply('StartVersion'); fixture.apply('VersionFailure'); fixture.apply('FailVersionWork'); }
 });
-Then('本轮应保留未完成原因且不得发布该候选', function (this: SpecWorld) { const snapshot = current(this).observe(); assert('published' in snapshot); assert.equal(snapshot.published, false); });
+Then('本轮应正常交付且正文声明实际版本验证缺口', function (this: SpecWorld) { const snapshot = current(this).observe(); assert('published' in snapshot); assert.equal(snapshot.published, true); assert.equal(snapshot.gapsDeclared,true); });
 Given('使用{string}成功发布了第一版文档', async function (this: SpecWorld, backend: string) { await create(this, backend, 'cycles'); });
 When('用户连续修订两轮并在每轮交错提交旧检查回执', function (this: SpecWorld) {
   const fixture = current(this);

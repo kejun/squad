@@ -6,7 +6,7 @@ import { localResumeKind, permissionProblem, valid } from './policy.js';
 import { activeHelp, allInflight, d, discussionActive, fresh, incompatibleExecution, inflight, isBot, pendingInput, recoveryIssue, remainingInflight, unresolvedInput } from './facts.js';
 import { localAwaitingApproval, localPhysicalPending } from '../local-operation.js';
 import { helpResultContinuesReview, nextReviewer, reviewCanDispatch, savedHelpResult } from './assistance.js';
-import { automaticRevisionActive, canReviseDelivery, checkDisposition, deliveryInterruptionPending, deliverySubmissionProblem, hasDeliveryRetryPermit, isBoundedCheck, recoveryCheckExhausted, settlingDeliveryCheck } from './delivery.js';
+import { automaticRevisionActive, checkDisposition, deliveryInterruptionPending, deliverySubmissionProblem, hasDeliveryRetryPermit, isBoundedCheck, recoveryCheckExhausted, settlingDeliveryCheck } from './delivery.js';
 import { canRetryDeliveryCheck, canRetryWork } from './budget.js';
 
 type TaskGuardArgs = { context: TaskContext; event: TaskEvent };
@@ -133,10 +133,8 @@ export const taskGuards = {
     decisionFinish: args => valid(args) && d(args.event)?.action === 'finish',
     decisionRun: args => valid(args) && ['continue', 'replan'].includes(d(args.event)?.action ?? ''),
     deliveryReady: ({ context, event }) => event.type === 'DELIVER' && valid({ context, event }) && !deliverySubmissionProblem(context, event),
-    deliveryCanRevise: ({ context, event }) => event.type === 'DELIVER' && valid({ context, event })
-      && !!deliverySubmissionProblem(context, event)?.mechanical && canReviseDelivery(context),
     checkCanRetry: args => resultKind(args) === 'retry',
-    checkContinues: args => ['handoff', 'revise'].includes(resultKind(args) ?? ''),
+    checkContinues: args => resultKind(args) === 'handoff',
     settlingCheck,
     settlingCheckHandoff: args => settlingCheck(args) && deliveryInterruptionPending(args.context),
     checkFailureHandoff: ({ context, event }) => event.type === 'WORK_FAILED' && !event.resultUncertain && valid({ context, event })

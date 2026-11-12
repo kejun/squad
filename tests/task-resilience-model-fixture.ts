@@ -148,8 +148,8 @@ export function resilienceReviewRetryGate() {
   assert(m.send({ type: 'HELP_RESULT', requestId, resultId: 'other-review', status: 'success', answer: '其他成员的意见' }).ok);
   const owner = m.claim(); assert(m.send({ type: 'DELIVER', workId: owner.id, fence: owner, text: '评审暂未完成', artifactIds: [] }).ok);
   const check = m.claim('check'), candidate = m.c.candidate!; assert(m.send({ type: 'CONSUME', intentId: check.id, fence: check }).ok);
-  assert(m.send({ type: 'CHECK_RESULT', workId: check.id, fence: check, attempt: check.attempt, candidateRevision: candidate.revision,
-    resultId: 'partial-review', criteriaResults: fixtureCheck(candidate).criteriaResults }).ok);
+  assert(m.send({ type: 'WORK_FAILED', intentId: check.id, fence: check, attempt: check.attempt,
+    transient: false, reason: '旧检查执行中断，已有材料保留为未核验结果' }).ok);
   assert.equal(m.c.outcome, 'partial'); const frozen = structuredClone(m.c.resilience!.frozen), deadline = processingWindow(m.c).hardDeadline;
   assert(m.send({ type: 'RETRY_ASSISTANCE', requestId: String(failed.payload.requestId), text: '明确重试B', config: m.c.config }).ok);
   assert.equal(m.c.resilience!.frozen, undefined); assert.deepEqual(m.c.resilience!.frozenHistory!.at(-1), frozen);

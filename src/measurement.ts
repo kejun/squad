@@ -5,7 +5,7 @@ import type { Candidate, Intent, TaskContext, TaskEvent, TeamConfig } from './ty
 
 export const initialModelRequestId = '__initial_reserved_request__';
 
-export type ModelOutputField = 'text' | 'artifactIds' | 'backgroundArtifactIds' | 'summary' | 'artifacts' | 'status' | 'partitionRecoveries';
+export type ModelOutputField = 'text' | 'artifactIds' | 'backgroundArtifactIds' | 'summary' | 'artifacts' | 'status';
 
 type Usage = { input: number | null; output: number | null; total: number | null };
 export type ModelObservation = { requestId: string } & (

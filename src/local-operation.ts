@@ -178,7 +178,7 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
         || !checkpointWithinLimit(work, event.messages)) return 'INVALID_LOCAL_REQUEST';
       if (op) return op.requestHash === event.requestHash ? 'LOCAL_ALREADY_REQUESTED' : 'LOCAL_REQUEST_CONFLICT';
       if (localUnsettled(work)) return 'LOCAL_OPERATION_PENDING';
-      if (work.kind !== 'check' && event.action.type === 'runCli' && repeatedCliFailures(work, event.action) >= 2) return 'CLI_REPEAT_FAILURE_LIMIT';
+      if (event.action.type === 'runCli' && repeatedCliFailures(work, event.action) >= 2) return 'CLI_REPEAT_FAILURE_LIMIT';
       if (isSavedRead(event.action) && event.workspaceId !== undefined) return 'INVALID_LOCAL_REQUEST';
       if (event.action.type === 'verifyWorkspace' && work.kind !== 'check') return 'WORKSPACE_VALIDATION_NOT_ALLOWED';
       if (['runCli', 'verifyWorkspace'].includes(event.action.type) && !event.workspaceId) return 'WORKSPACE_REQUIRED';

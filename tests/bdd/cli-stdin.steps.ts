@@ -28,7 +28,7 @@ Given('标准输入命令已在{string}执行并由宿主保存实际回执', as
 When('成员提交包含自报输入信息的候选交付并进入固定检查', async function(this: SpecWorld) { await inputCase(this).runFixedCheck(); });
 Then('检查应只获得已脱敏宿主回执中的真实命令输入指纹和校验事实', async function(this: SpecWorld) { await inputCase(this).assertFixedEvidence(); });
 Then('候选自报不得替代这些证据且原始秘密参数不得进入检查上下文', function(this: SpecWorld) { inputCase(this).assertNoOwnerProofOrSecrets(); });
-Then('固定验证命令不得通过附带stdin扩张已冻结的输入范围', function(this: SpecWorld) { inputCase(this).assertBoundedCheck(); });
+Then('附带stdin的补救命令不得冒充原固定验证命令', function(this: SpecWorld) { inputCase(this).assertBoundedCheck(); });
 Given('同一标准输入调用已经连续两次返回可诊断的参数失败', async function(this: SpecWorld) { await inputCase(this).prepareRepeat(); });
 When('第三次调用前输入文件{string}', async function(this: SpecWorld, change: string) { await inputCase(this).repeat(change); });
 Then('系统应按真实输入指纹{string}且不得把未知当前字节当作相同输入', async function(this: SpecWorld, result: string) { await inputCase(this).assertRepeat(result); });

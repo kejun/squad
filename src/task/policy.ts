@@ -1,6 +1,5 @@
 import { humanGateProblem, windowExpired, workInCleanup, taskHumanGate } from './resilience.js';
 import { acquisitionEventProblem } from '../resource-acquisition.js';
-import { validPartitionRecoveries } from './map-recovery.js';
 import { modelOutputIssues, type InputReference, type TaskContext, type TaskEvent } from '../types.js';
 import { localAwaitingApproval, localEventProblem, localPhysicalPending, localUnsettled } from '../local-operation.js';
 import { boundCheckProblem, hasDeliveryRetryPermit, isBoundedCheck } from './delivery.js';
@@ -11,7 +10,6 @@ import { validInputIntent } from '../input-intent.js';
 import { assistanceRetryProblem, helpProblem } from './assistance.js';
 import { hostRetryProblem } from '../host-retry.js';
 import { legacyTerminalConfig, taskProtocolChanged } from './protocol.js';
-import { deliveryVerificationProblem } from './verification.js';
 import { toolFailureProblem } from './tool-recovery.js';
 
 export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
@@ -55,8 +53,10 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       && op.deadline !== null && e.at >= op.deadline) return 'WORK_EXPIRED';
   }
   if (c.stopped && !['STOP', 'SETTLE', 'HELP_RESULT', 'CONTINUE', 'RETRY_ASSISTANCE', 'RECOVER', 'CLAIM', 'WORK_FAILED', 'HUMAN_DECISION', 'RECONCILE'].includes(e.type)) return 'STOPPED';
-  if (e.type === 'DELIVER' && !validPartitionRecoveries(e.partitionRecoveries)) return 'INVALID_REPORT';
-  if ((e.type === 'DELIVER' || e.type === 'RECORD_RESULT') && (!validArtifactDrafts(e.artifacts) || !validSummary(e.summary))) return 'INVALID_REPORT';
+  if ((e.type === 'DELIVER' || e.type === 'RECORD_RESULT') && (!validSummary(e.summary)
+    || !(e.type === 'RECORD_RESULT' && ['failed', 'timeout'].includes(e.status)) && !validArtifactDrafts(e.artifacts))) return 'INVALID_REPORT';
+  if (e.type === 'CHECK_RESULT' && e.repair !== undefined && (!e.repair || typeof e.repair.text !== 'string'
+    || !e.repair.text.trim() || !Array.isArray(e.repair.artifacts) || !validArtifactDrafts(e.repair.artifacts))) return 'INVALID_REPORT';
   switch (e.type) {
     case 'RECORD_TOOL_FAILURE': return toolFailureProblem(c, e);
     case 'DISCUSSION_PLAN': case 'DISCUSSION_RESULT': {
@@ -67,8 +67,8 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (e.type === 'DISCUSSION_PLAN') return work.kind === 'facilitator' && c.discussion!.status === 'planning'
         && e.decision?.action === 'review' && [e.decision.question, e.decision.expected, e.decision.reason].every(value => typeof value === 'string' && value.trim()) ? null : 'INVALID_DISCUSSION_PLAN';
       return ((work.kind === 'assistance' && c.discussion!.status === 'collecting') || (work.kind === 'discussionSummary' && c.discussion!.status === 'summarizing'))
-        && typeof e.text === 'string' && !!e.text.trim() && ['success', 'partial', 'failed'].includes(e.status)
-        && validSummary(e.summary) && validArtifactDrafts(e.artifacts) ? null : 'INVALID_DISCUSSION_RESULT';
+        && typeof e.text === 'string' && (e.status === 'failed' || !!e.text.trim()) && ['success', 'partial', 'failed'].includes(e.status)
+        && validSummary(e.summary) && (e.status === 'failed' || validArtifactDrafts(e.artifacts)) ? null : 'INVALID_DISCUSSION_RESULT';
     }
     case 'INTERPRETATION_RESULT': {
       const input = c.inputAnalyses?.find(input => input.id === e.inputId);
@@ -147,14 +147,13 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
       if (c.hostRetryBatch?.workId === i.id && localUnsettled(i)) return 'LOCAL_OPERATION_PENDING';
       if (e.capability) {
-        if (!['owner', 'assistance', 'facilitator'].includes(i.kind)) return 'WEB_TOOLS_NOT_ALLOWED';
+        if (!['owner', 'assistance', 'facilitator', 'check'].includes(i.kind)) return 'WEB_TOOLS_NOT_ALLOWED';
         if (c.config.webTools?.enabled === false) return 'WEB_TOOLS_DISABLED';
       }
       if (i.kind === 'check') {
         if (!isBoundedCheck(i)) return 'CHECK_PROTOCOL_CHANGED';
         if (c.trace.some(entry => entry.event === 'CONSUME' && entry.detail === e.id)) return 'DUPLICATE_RESULT';
-        if (i.requestCount > 0 && !hasDeliveryRetryPermit(c, i)) return 'CHECK_REQUEST_NOT_AUTHORIZED';
-        return requestBudgetProblem(c, i) ?? deliveryVerificationProblem(i, false);
+        return requestBudgetProblem(c, i);
       }
       return i.requestCount > 0 ? requestBudgetProblem(c, i) : null;
     }

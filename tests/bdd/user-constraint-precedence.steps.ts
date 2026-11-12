@@ -28,10 +28,10 @@ Then('检查应核对文字规则而非仅依据样本数字一致放行', funct
   assert(instructions.includes('Matching sample outputs do not prove that two rules are equivalent'));
   assert(instructions.includes('narrative rules and recommendations'));
 });
-Then('检查发现的规则冲突应阻止候选发布并保留具体缺口', function (this: SpecWorld) {
+Then('检查发现的规则冲突应在最终正文声明且保留具体缺口', function (this: SpecWorld) {
   const f = fixtures.get(this)!;
-  assert.notEqual(f.h.context().outcome, 'complete');
-  assert.equal(f.h.context().publishedDelivery, undefined);
+  assert.equal(f.h.context().outcome, 'complete');
+  assert(f.h.context().publishedDelivery); assert(f.h.context().candidate!.text.includes(conflict));
   assert(currentDeliveryIssues(f.h.context()).some(issue => issue.reason.includes(conflict)));
 });
 After(function (this: SpecWorld) { fixtures.get(this)?.close(); fixtures.delete(this); });

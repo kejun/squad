@@ -117,23 +117,22 @@ describe('budget and delivery', () => {
   it('[BT_F07] text claiming files exist cannot satisfy missing artifacts', () => {
     const h = new Harness(); h.event({ type: 'USER_INPUT', text: 'two files', goal: { ...h.context().goal, requiredArtifacts: 2 } });
     h.event({ type: 'DELIVER', text: 'files are done', artifactIds: ['missing1', 'missing2'] });
-    expect(h.view().phase).toBe('running'); expect(h.context().outcome).toBeNull();
-    expect(h.context().intents.some(work => work.kind === 'check')).toBe(false);
-    expect(currentDeliveryIssues(h.context())).toEqual(expect.arrayContaining([expect.objectContaining({ reason: 'MISSING_ARTIFACTS' })]));
+    expect(h.view().phase).toBe('checking'); expect(h.context().outcome).toBeNull();
+    expect(h.context().candidate!.artifactIds).toEqual([]);expect(h.context().candidate!.text).toContain('尚未提供要求的全部文件');
   });
-  it('[BT_F08] a semantic gap triggers bounded correction', () => {
+  it('[BT_F08] a remaining semantic gap is declared without upstream correction', () => {
     const h = new Harness(); h.event({ type: 'DELIVER', text: 'draft', artifactIds: [] });
     h.event({ type: 'CHECK_RESULT', passed: false, gaps: ['Missing user constraint'], resultId: 'check' });
-    expect(h.view().phase).toBe('running'); expect(h.context().reason).toContain('Missing user constraint');
+    expect(h.view().phase).toBe('ended'); expect(h.context().candidate!.text).toContain('Missing user constraint'); expect(h.context().outcome).toBe('complete');
   });
   it('[BT_F09] an unsettled helper cannot be bypassed by a delivery', () => {
     const h = new Harness(); h.help(); expect(h.event({ type: 'DELIVER', text: 'premature', artifactIds: [] }).ok).toBe(false);
     expect(h.context().outcome).toBeNull(); expect(h.view().phase).toBe('waitingAssistance');
   });
-  it('[BT_F10] marks partial and failed results truthfully', () => {
+  it('[BT_F10] delivers declared content gaps and retains execution failure', () => {
     const h = new Harness(configuration({ ordinary: 0 })); h.event({ type: 'DELIVER', text: 'partial', artifactIds: [] });
     h.event({ type: 'CHECK_RESULT', passed: false, gaps: ['missing evidence'], resultId: 'check' });
-    expect(h.context().outcome).toBe('partial');
+    expect(h.context().outcome).toBe('complete');expect(h.context().candidate!.text).toContain('missing evidence');
     const g = new Harness(configuration({ ordinary: 0 })); const pending = g.engine.pending(g.room, g.task)[0]!;
     g.engine.claim(g.room, g.task, pending.id); expect(g.context().outcome).toBe('failed');
   });

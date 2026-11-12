@@ -133,7 +133,7 @@ export function evaluateLiveObservation(test: LiveBehaviorCase, observation: Liv
   const type = raw?.type;
   const allowed: Record<string, readonly string[]> = {
     answer: ['type', 'text', 'summary', 'status', 'artifacts'],
-    deliver: ['type', 'text', 'summary', 'artifacts', 'artifactIds', 'backgroundArtifactIds', 'partitionRecoveries'],
+    deliver: ['type', 'text', 'summary', 'artifacts', 'artifactIds', 'backgroundArtifactIds'],
     help: ['type', 'target', 'question', 'expected', 'requestId', 'refs'], blocked: ['type', 'reason'], askUser: ['type', 'question'],
     decision: ['type', 'decision'], check: ['type', 'criteriaResults'], interpretation: ['type', 'spec'],
   };

@@ -1,18 +1,60 @@
-import type { DiscussionRound, Intent, MapPartitionRun, TaskContext, TaskEvent } from '../types.js';
+import type { Candidate, DiscussionRound, Intent, MapPartitionRun, TaskContext, TaskEvent } from '../types.js';
 import { localPhysicalPending } from '../local-operation.js';
 import { availableMapReduceMembers } from './map-reduce-capacity.js';
 import { discussionIntent, summarizeDiscussion } from './discussion.js';
 import { hostRetryReservation } from '../host-retry.js';
 import { consumePartitionMethod, newPartitionMethod, partitionMayDispatch, schedulingState, sharedPrerequisiteFailures } from './map-scheduling.js';
 import { processingWindow } from './resilience.js';
-import { missingResourceAcquisitions, requiredResources, resourceAcquisitionSources } from '../resource-acquisition.js';
 
 const active = (part: MapPartitionRun) => ['running', 'uncertain'].includes(part.status);
 export const queuedMapPartitions = (c: TaskContext) => c.discussion?.status === 'collecting'
   ? c.discussion.mapReduce?.queue?.filter(part => part.status === 'queued').length ?? 0 : 0;
 
+const obsoleteCriterion = (item: { id: string }) => item.id.startsWith('map-recovery:');
+function restoreCandidate(candidate: Candidate | null | undefined): void {
+  if (!candidate) return;
+  Reflect.deleteProperty(candidate, 'partitionRecoveries');
+  if (candidate.acceptance) candidate.acceptance.criteria = candidate.acceptance.criteria.filter(item => !obsoleteCriterion(item));
+  if (/^(?:MAP_RECOVERY_|CHECK_RECOVERY_SOURCE_REQUIRED)/.test(candidate.deliveryIssue?.code ?? '')) delete candidate.deliveryIssue;
+}
+
+/** Drop the retired declaration protocol at the saved-task boundary; never dispatch or reset spent budgets. */
+function retireRecoveryProtocol(c: TaskContext): void {
+  restoreCandidate(c.candidate);
+  for (const work of c.intents) {
+    restoreCandidate(work.payload.candidate as Candidate | undefined);
+    Reflect.deleteProperty(work.payload, 'partitionRecoveries');
+    Reflect.deleteProperty(work.payload, 'deliveryRevision');
+    if (work.checkDiagnostics) work.checkDiagnostics = work.checkDiagnostics.filter(record => !['CHECK_SOURCE_NOT_FOUND', 'CHECK_SOURCE_QUOTE_MISMATCH'].includes(record.diagnostic.code));
+    if (typeof work.payload.reason === 'string' && /^(?:MAP_RECOVERY_|CHECK_RECOVERY_SOURCE_REQUIRED)/.test(work.payload.reason))
+      work.payload.reason = '按原任务要求继续普通交付';
+    const findings = work.payload.priorFindings as { criterionId: string }[] | undefined;
+    if (findings) work.payload.priorFindings = findings.filter(item => !item.criterionId.startsWith('map-recovery:'));
+    if (work.criteriaResults) work.criteriaResults = work.criteriaResults.filter(item => !item.criterionId.startsWith('map-recovery:'));
+    for (const round of [work.payload.discussion as DiscussionRound | undefined]) {
+      for (const part of round?.mapReduce?.queue ?? []) Reflect.deleteProperty(part, 'resolution');
+    }
+  }
+  for (const part of c.discussion?.mapReduce?.queue ?? []) Reflect.deleteProperty(part, 'resolution');
+  for (const result of c.discussion?.results ?? []) {
+    const reported = Reflect.get(result, 'reportedStatus') as typeof result.status | undefined;
+    if (reported) {
+      result.status = reported;
+      const part = c.discussion?.mapReduce?.queue?.find(item => item.resultRef === result.id);
+      if (part?.reason === 'RESOURCE_ACQUISITION_UNVERIFIED') { part.status = reported === 'success' ? 'succeeded' : reported; delete part.reason; }
+    }
+    for (const key of ['reportedStatus', 'missingResources', 'sourceOperationIds', 'resourceSources']) Reflect.deleteProperty(result, key);
+    if (result.status === 'failed' || result.status === 'timeout') {
+      result.reason ??= result.answer; result.answer = ''; result.artifactIds = [];
+    }
+  }
+  if (/^(?:MAP_RECOVERY_|CHECK_RECOVERY_SOURCE_REQUIRED)/.test(c.reason)) c.reason = '';
+  if (c.deliveryGaps) c.deliveryGaps = c.deliveryGaps.filter(gap => !/^(?:MAP_RECOVERY_|CHECK_RECOVERY_SOURCE_REQUIRED)/.test(gap.reason));
+}
+
 /** Legacy read migration: one old assignment per partition, no new dispatch. */
 export function restoreMapQueue(c: TaskContext): void {
+  retireRecoveryProtocol(c);
   const round = c.discussion, plan = round?.mapReduce;
   if (!round || !plan || plan.queue) return;
   plan.concurrency = Math.max(1, round.targets.length);
@@ -149,19 +191,10 @@ export function recordMapResult(c: TaskContext, e: TaskEvent, work: Intent, resu
   const round = c.discussion!, part = round.mapReduce?.queue?.find(item => item.workId === work.id && active(item));
   if (!part) return false;
   const id = `${round.id}:partition:${part.partitionId}:attempt:${part.attempt}`;
-  const obligations = requiredResources(c, work);
-  const missing = obligations.length ? missingResourceAcquisitions(c, work) : [];
-  const status = result.status === 'success' && missing.length ? 'partial' : result.status;
-  const sources = obligations.length ? resourceAcquisitionSources(c, work) : [];
-  const resourceSources = [...new Map(sources.map(source => [source.id, { acquisitionId: source.id,
-    operationId: source.operationId, workId: source.workId, attempt: source.attempt, at: source.at,
-    reused: source.workId !== work.id || source.attempt !== work.attempt || source.epoch !== work.epoch }])).values()];
-  round.results.push({ ...result, status, id, partitionId: part.partitionId, attempt: part.attempt, workId: work.id,
-    ...(obligations.length ? { reportedStatus: result.status, missingResources: missing.map(item => structuredClone(item.resource)),
-      sourceOperationIds: [...new Set(resourceSources.map(source => source.operationId))], resourceSources } : {}) });
-  part.status = status === 'success' ? 'succeeded' : status;
+  round.results.push({ ...result, id, partitionId: part.partitionId, attempt: part.attempt, workId: work.id });
+  part.status = result.status === 'success' ? 'succeeded' : result.status;
   delete part.reason;
-  if (result.status === 'success' && missing.length) part.reason = 'RESOURCE_ACQUISITION_UNVERIFIED';
+  if (result.reason) part.reason = result.reason;
   part.resultRef = id;
   if (transient && current(c) && part.attempt < 2 && e.at < part.deadline
     && c.usage.retries < c.config.limits.retries && queueBudget(c, 1) && !localPhysicalPending(work)) {

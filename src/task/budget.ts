@@ -32,13 +32,13 @@ export function requestBudgetProblem(c: TaskContext, work: Intent): string | nul
 export function canRetryWork(c: TaskContext, e: TaskEvent): boolean {
   if (e.type !== 'WORK_FAILED' || e.code === 'WINDOW_EXPIRED') return false;
   const work = c.intents.find(i => i.id === e.intentId);
-  if (isBoundedCheck(work)) return e.transient && !e.resultUncertain && canRetryDeliveryCheck(c, work, e.at);
+  if (isBoundedCheck(work)) return e.transient && !e.resultUncertain && canRetryDeliveryCheck(c, work, e.at, !!e.checkDiagnostic);
   return !!work && e.transient && !e.resultUncertain && work.replay !== 'unsafe' && !c.stopped
     && c.usage.retries < c.config.limits.retries && hasOrdinary(c) && !requestBudgetProblem(c, work);
 }
 
-export function canRetryDeliveryCheck(c: TaskContext, work: Intent, at: number): boolean {
-  return !!c.deliveryCycle && (!c.deliveryCycle.retry || c.config.limits.retries === maximumCount && c.deliveryCycle.retry.status === 'used') && !c.stopped && work.requestCount > 0
+export function canRetryDeliveryCheck(c: TaskContext, work: Intent, at: number, protocolError = false): boolean {
+  return !!c.deliveryCycle && (!c.deliveryCycle.retry || !protocolError && c.config.limits.retries === maximumCount && c.deliveryCycle.retry.status === 'used') && !c.stopped && work.requestCount > 0
     && c.usage.retries < c.config.limits.retries && !deliveryCheckBudgetProblem(c, true)
     && (work.deadline === null || at < work.deadline);
 }

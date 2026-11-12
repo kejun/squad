@@ -9,7 +9,7 @@ import { receiptModel, recordCliObservation, recordWebObservation, currentReceip
   finishReceiptCheck, assertReceiptBlocked, documentFive, documentUrl, receiptSemantics } from '../execution-receipts-model-fixture.js';
 import { captureCliObservation } from '../execution-receipts-model-fixture.js';
 import { receiptBackfillWindowModel, receiptCheckpointRetryModel, webHostEvidenceModel } from '../execution-receipts-model-fixture.js';
-import { prepareTypedPartitionResourcesModel, unverifiedPartitionResultModel } from '../execution-receipts-model-fixture.js';
+import { prepareTypedPartitionResourcesModel, directPartitionResultModel } from '../execution-receipts-model-fixture.js';
 import { batchReaderModel, customReaderSourceItemsModel, dedicatedReaderRegistration, registeredReaderModel, rejectedReaderConfigurationModel } from '../acquisition-reader-configuration-model-fixture.js';
 import { parseCliAcquisitionReaders } from '../../src/acquisition-readers.js';
 import type { LocalModel } from '../local-model-fixture.js';
@@ -17,7 +17,7 @@ import type { SpecWorld } from './steps.js';
 import { cliReceiptAcceptance, webReceiptAcceptance, receiptCheckpointRetryAcceptance, configuredReaderAcceptance, type CliReceiptCase, type WebReceiptCase } from '../execution-receipts-acceptance.js';
 import { receiptWindowRecoveryAcceptance } from '../execution-recovery-acceptance.js';
 
-interface Run { id: string; labels: string[]; m: LocalModel; receipt?: HostAcquisition; original?: string; metadata?: HostAcquisition[];
+interface Run { child?: ReturnType<typeof directPartitionResultModel>; id: string; labels: string[]; m: LocalModel; receipt?: HostAcquisition; original?: string; metadata?: HostAcquisition[];
   previous?: LocalModel; frozen?: string; act(): void | Promise<void>; verify(): void; prepared(): void }
 const runs = new WeakMap<SpecWorld, Run>();
 const lastOwner = (m: LocalModel) => {
@@ -78,7 +78,10 @@ function prepare(id: string, labels: string[]): Run {
       if (label === '网页读取器') await webReceiptAcceptance('正文', true); else await cliReceiptAcceptance('正文'); };
     run.verify = () => { assert.equal(m.c.outcome, 'complete'); assert.equal(savedResourceAcquisitions(m.c)[0]?.snapshot, run.receipt!.snapshot); };
   }
-  if (id === 'E100') run.act = () => { unverifiedPartitionResultModel(); assertReceiptBlocked(m); };
+  if (id === 'E100') {
+    run.act = () => { run.child = directPartitionResultModel(); };
+    run.verify = () => { assert.equal(run.child!.result.status, 'success'); assert.equal(savedResourceAcquisitions(run.child!.model.context).length, 0); };
+  }
   if (id === 'E102') {
     const actual = label === '同批文档四' ? { ...documentFive, id: 'four' } : label === '另一服务中同编号的文档五'
       ? { ...documentFive, service: 'other.example' } : { ...documentFive, namespace: 'other-team' };
@@ -338,6 +341,7 @@ for (const expression of whens) {
   else When(expression, async function (this: SpecWorld) { await runs.get(this)!.act(); });
 }
 const thens = [
+  '分片应直接保留成功自报但不伪造宿主读取回执', '普通交付不应追加分片来源验收',
   '不应把该资源记为已取得正文', '应保留缺少读取凭证的缺口并阻止完整交付', '应记录文档五的取得结果及原执行身份和正文指纹',
   '独立检查应能核对同一份冻结正文', '应保留资源不匹配的缺口', '不应借用其他文档的正文或状态完成文档五',
   '应保留本次读取尚未核实的缺口', '原始凭证仍应作为带原身份的历史观察保留', '应保留{string}而不是已取得完整正文',

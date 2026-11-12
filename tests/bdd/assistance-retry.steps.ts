@@ -19,7 +19,7 @@ interface State {
   resultId?: string; before: number; goal: unknown; phase?: string;
   calls: Intent[]; command?: Submission; first?: unknown; service?: WebService;
   help?: WebAssistance; html?: string;
-  frozenBeforeRetry?: unknown;
+  publishedBeforeRetry?: unknown; finalBeforeRetry?: { id: string; text: string };
 }
 const states = new WeakMap<SpecWorld, State>();
 function s(w: SpecWorld) { const value = states.get(w); assert(value); return value; }
@@ -71,9 +71,9 @@ When('用户补充资料并完成 B 的结果交接', function (this: SpecWorld)
   }
   assert(this.h.engine.flushResults(this.h.room, this.h.task));
 });
-Then('A 应一次收到核查结果和补充资料且需要评估缺口', function (this: SpecWorld) {
+Then('A 应一次收到核查结果和补充资料并继续原任务', function (this: SpecWorld) {
   const work = pendingOwner(this);
-  assert.equal(work.payload.resultId, s(this).resultId); assert.equal(work.payload.requiresAssessment, true);
+  assert.equal(work.payload.resultId, s(this).resultId); assert.equal(work.payload.status,this.h.context().assists.find(h=>h.id===work.payload.requestId)!.status);
   assert(JSON.stringify(work.payload.inputs).includes('还需要离线验证'));
   assert.equal(this.h.context().messages.filter(m => m.text === '本次核查结果：可以恢复').length, 1);
   assert.equal(this.h.context().intents.filter(i => i.kind === 'owner').length, 2);
@@ -116,7 +116,7 @@ When('重试的 B 完成核查', async function (this: SpecWorld) {
   await saveAnswer(this); assert(this.h.engine.flushResults(this.h.room, this.h.task));
 });
 Then('A 应在原任务继续方案且只收到一次本次核查结果', async function (this: SpecWorld) {
-  const work = pendingOwner(this); assert.equal(work.payload.resultId, s(this).resultId); assert.equal(work.payload.requiresAssessment, true);
+  const work = pendingOwner(this); assert.equal(work.payload.resultId, s(this).resultId); assert.equal(work.payload.status,this.h.context().assists.find(h=>h.id===work.payload.requestId)!.status);
   assert.equal(this.h.context().messages.filter(m => m.text === '本次核查结果：可以恢复').length, 1);
   const runner = new WorkRunner(this.h.engine, { execute: async intent => {
     s(this).calls.push(intent);
@@ -200,8 +200,9 @@ Given('B 的核查属于已有其他成员结果的失败评审', function (this
   this.h.engine.flushResults(this.h.room, this.h.task);
   this.h.event({ type: 'DELIVER', text: '评审暂未完成', artifactIds: [] });
   this.h.event({ type: 'CHECK_RESULT', passed: true, gaps: [], resultId: 'partial-review' });
-  assert.equal(this.h.context().outcome, 'partial');
-  s(this).frozenBeforeRetry = structuredClone(this.h.context().resilience!.frozen);
+  assert.equal(this.h.context().outcome, 'complete');
+  s(this).publishedBeforeRetry=structuredClone(this.h.context().publishedDelivery);
+  const final=this.h.context().messages.filter(m=>m.kind==='final').at(-1)!;s(this).finalBeforeRetry={id:final.id,text:final.text};
 });
 Then('应保留其他成员意见并让 A 汇总已修复的评审', function (this: SpecWorld) {
   const work = pendingOwner(this); assert(JSON.stringify(work.payload).includes('其他成员的意见'));
@@ -210,9 +211,10 @@ Then('应保留其他成员意见并让 A 汇总已修复的评审', function (t
   assert.deepEqual(new Set(this.h.context().review!.completed), new Set(['B', 'builder-1']));
   assert.equal(s(this).calls.filter(i => i.kind === 'assistance').length, 1);
 });
-Then('旧不完整交付应保持历史版本且不应拦截本次明确授权的结果', function (this: SpecWorld) {
+Then('已声明缺口的旧交付应保持历史版本且不应拦截本次明确授权的结果', function (this: SpecWorld) {
   resilienceReviewRetryGate(); assert.equal(this.h.context().resilience!.frozen, undefined);
-  assert.deepEqual(this.h.context().resilience!.frozenHistory!.at(-1), s(this).frozenBeforeRetry);
+  assert.deepEqual(this.h.context().publishedDelivery,s(this).publishedBeforeRetry);
+  assert(this.h.context().messages.some(m=>m.id===s(this).finalBeforeRetry!.id&&m.text===s(this).finalBeforeRetry!.text));
   assert(this.h.context().results.some(result => result.resultId === s(this).resultId && result.consumed));
 });
 When('网页展示原任务的协助操作', function (this: SpecWorld) {
@@ -268,7 +270,7 @@ When('重试核查尝试额外请求', async function (this: SpecWorld) {
 });
 Then('应保留最后一次额度并让 A 处理核查受限的结果', async function (this: SpecWorld) {
   const work = pendingOwner(this);
-  assert.equal(work.payload.status, 'failed'); assert(String(work.payload.answer).includes('ASSISTANCE_SYNTHESIS_RESERVED'));
+  assert.equal(work.payload.status, 'failed'); assert.equal(work.payload.answer,'');assert(String(work.payload.reason).includes('ASSISTANCE_SYNTHESIS_RESERVED'));
   assert.equal(this.h.context().config.limits.ordinary - this.h.context().usage.ordinary, 1);
   const runner = new WorkRunner(this.h.engine, { execute: async intent => {
     assert.equal(intent.target, 'A'); return { type: 'askUser', question: '核查额度不足，请增加额度或调整要求' };

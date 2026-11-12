@@ -65,7 +65,7 @@ Given('同群历史超过消息或文本上限且包含旧任务产物', functio
 When('准备一个要求新交付物的后续任务', function (this: SpecWorld) { const result = this.h.engine.submit(this.h.room, { id: 'new-delivery', text: '参考旧方案，交付新文件', goal: { text: '交付新文件', constraints: [], criteria: ['文件存在'], requiredArtifacts: 1 } }); this.h.task = result.taskId!; });
 When('尝试将旧产物作为本轮交付', function (this: SpecWorld) { this.h.event({ type: 'DELIVER', text: '声称复用文件', artifactIds: ['old-plan'] }); this.h.event({ type: 'CHECK_RESULT', resultId: 'new-check', passed: true, gaps: [] }); });
 Then('历史输入应有界并说明发生截断', function (this: SpecWorld) { const history = this.h.context().history!; assert(history.truncated); assert(history.messages.length <= 100); assert(history.messages.reduce((n, message) => n + message.text.length, 0) <= 96000); });
-Then('旧产物只应作为参考且不能通过本轮产物检查', function (this: SpecWorld) { assert(this.h.context().history?.artifacts.some(artifact => artifact.id === 'old-plan')); assert.equal(this.h.context().artifacts.length, 0); assert.equal(this.h.context().outcome, null); assert(this.h.context().reason.includes('MISSING')); });
+Then('旧产物只应作为参考且不能通过本轮产物检查', function (this: SpecWorld) { assert(this.h.context().history?.artifacts.some(artifact => artifact.id === 'old-plan')); assert(!this.h.context().candidate!.artifactIds.includes('old-plan')); assert.equal(this.h.context().outcome, 'complete'); assert(this.h.context().candidate!.text.includes('交付时尚缺少')); });
 Given('群内已有待评审方案与五位有效成员', function (this: SpecWorld) { fresh(this); assert.equal(this.h.config.bots.length, 5); });
 When('用户直接说{string}', async function (this: SpecWorld, text: string) { request(this, text); await drain(this); });
 Then('应先由促进者组织评审且依次收集其余四位成员意见', function (this: SpecWorld) { assert.deepEqual(s(this).calls.map(work => `${work.kind}:${work.target}`), ['facilitator:facilitator', ...reviewers.map(id => `assistance:${id}`), 'owner:A', 'check:facilitator']); });
@@ -84,7 +84,7 @@ When('用户要求全员评审但促进者返回{string}', async function (this:
 Then('应拒绝跳过评审并等待用户处理', function (this: SpecWorld) { assert.equal(this.h.view().phase, 'waitingHuman'); assert.equal(this.h.context().assists.length, 0); assert(this.h.context().trace.some(trace => trace.detail.includes('REVIEW_PLAN_REQUIRED'))); });
 When('首位评审成员失败且其余成员正常返回', async function (this: SpecWorld) { s(this).fail = 'B'; request(this); await drain(this); });
 Then('应继续收集剩余意见并由负责人汇总', function (this: SpecWorld) { assert.deepEqual(s(this).calls.filter(work => work.kind === 'assistance').map(work => work.target), reviewers); assert.equal(s(this).calls.filter(work => work.kind === 'owner').length, 1); });
-Then('最终结果应为部分完成且保留失败原因', function (this: SpecWorld) { assert.equal(this.h.context().outcome, 'partial'); assert(this.h.context().messages.some(message => message.author === 'B' && message.text.includes('核查服务不可用'))); });
+Then('最终交付应完成且正文保留失败事项', function (this: SpecWorld) { assert.equal(this.h.context().outcome, 'complete'); assert(this.h.context().messages.some(message => message.author === 'B' && message.text.includes('核查服务不可用'))); });
 Given('首位成员评审正在执行', async function (this: SpecWorld) { fresh(this); await startMember(this); });
 When('用户停止且关联工作结算', function (this: SpecWorld) { this.h.event({ type: 'STOP' }); this.h.event({ type: 'SETTLE', intentId: s(this).work!.id }); });
 Then('本轮评审队列应取消且不再派发成员', function (this: SpecWorld) { assert.equal(this.h.context().review?.status, 'cancelled'); assert.equal(this.h.context().outcome, 'stopped'); assert(this.h.engine.pending(this.h.room, this.h.task).every(work => work.kind === 'cancel')); });

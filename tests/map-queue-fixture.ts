@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import { persistTask, restoreTask } from '../src/task.machine.js';
 import { checkReviewSources } from '../src/delivery-acceptance.js';
-import type { Intent } from '../src/types.js';
+import type { Intent, TaskInput } from '../src/types.js';
 import { CapacityModel, capacityModelIntent } from './map-capacity-model-fixture.js';
 
 /** Pure public-event driver; every transition round-trips the persisted XState snapshot. */
 export class MapQueueModel extends CapacityModel {
   peak = 0;
-  constructor() {
-    super(input => { input.config.limits.retries = 4; });
+  constructor(change: (input: TaskInput) => void = () => {}) {
+    super(input => { input.config.limits.retries = 4; change(input); });
     this.claim(); this.consume();
     const spec = capacityModelIntent();
     spec.decomposition!.partitions = Array.from({ length: 8 }, (_, i) => ({ id: `part-${i + 1}`, objective: `读取doc-${i + 1}`, expectedOutput: `doc-${i + 1}证据` }));

@@ -45,7 +45,6 @@ export function assistanceRetryProblem(c: TaskContext, requestId: string, config
   if (c.assists.some(item => item.retryOf === h.id)) return 'ASSISTANCE_ALREADY_RETRIED';
   if (h.target === c.owner || (h.requestedBy && h.requestedBy !== c.owner)) return 'OWNER_CHANGED';
   if (h.reviewId && (h.reviewId !== c.review?.id || c.review.goalVersion !== c.goalVersion)) return 'STALE_REVIEW';
-  if (c.outcome === 'complete') return 'TASK_COMPLETED';
   if (!['failed', 'timeout', 'partial', 'cancelled', 'answered'].includes(h.status)) return 'ASSISTANCE_NOT_RETRYABLE';
   if (inflight(c).length || c.intents.some(i => i.status === 'uncertain')) return 'UNRESOLVED_WORK';
   if (c.config.version !== config.version || c.config.toolVersion !== config.toolVersion
@@ -94,7 +93,7 @@ export function advanceReview(c: TaskContext, e: TaskEvent, completed?: Assistan
   const review = c.review!;
   if (completed) {
     if (!review.completed.includes(completed.target)) review.completed.push(completed.target);
-    if (['failed', 'timeout'].includes(completed.status)) review.incomplete = `成员 ${completed.target} 未能完成评审：${completed.status}`;
+    refreshReviewFailures(c);
   }
   const target = nextReviewer(c);
   if (target && reviewCanDispatch(c) && isBot(c, target)) {
@@ -121,14 +120,17 @@ export function acceptHelpResult(c: TaskContext, e: Extract<TaskEvent, { type: '
   const h = c.assists.find(h => h.id === e.requestId)!;
   const recorded = c.results.find(r => r.resultId === e.resultId);
   const summary = e.summary ?? recorded?.summary;
-  const artifactIds = e.artifactIds ?? recorded?.artifactIds ?? saveReports(c, e, e.answer, h.target);
-  h.status = e.status; h.resultId = e.resultId; h.answer = e.answer; h.consumed = true;
+  const failed = e.status === 'failed' || e.status === 'timeout';
+  const answer = failed ? '' : e.answer;
+  const artifactIds = failed ? [] : e.artifactIds ?? recorded?.artifactIds ?? saveReports(c, e, answer, h.target);
+  h.status = e.status; h.resultId = e.resultId; h.answer = answer; h.consumed = true;
+  if (failed) h.reason = e.answer || summary || h.reason || e.status;
   h.artifactIds = artifactIds;
   if (summary !== undefined) h.summary = summary;
   c.consumedResults.push(e.resultId);
   if (recorded) recorded.consumed = true;
   for (const i of c.intents.filter(i => i.payload.requestId === h.id)) release(c, i.id);
-  message(c, e, h.target, e.answer, 'answer', { requestId: h.id, artifactIds, ...(recorded?.workId ? { workId: recorded.workId } : {}) }, summary);
+  message(c, e, h.target, failed ? `子 Agent ${e.status}：${h.reason}` : answer, failed ? 'notice' : 'answer', { requestId: h.id, artifactIds, ...(recorded?.workId ? { workId: recorded.workId } : {}) }, summary);
   const hasInputs = c.inputs.some(n => !n.applied);
   for (const note of c.inputs) note.applied = true;
   if (h.reviewId && h.reviewId === c.review?.id) {
@@ -136,7 +138,7 @@ export function acceptHelpResult(c: TaskContext, e: Extract<TaskEvent, { type: '
     else advanceReview(c, e, h);
   } else {
     cancelWork(c, e);
-    owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer: e.answer, artifactIds, requiresAssessment: true });
+    owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer, artifactIds, ...(h.reason ? { reason: h.reason } : {}) });
     message(c, e, 'facilitator', `${h.target} 的核查结果已交给 ${c.owner}，已安排继续完善方案。`, 'notice', { requestId: h.id, recipient: c.owner });
   }
 }

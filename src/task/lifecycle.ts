@@ -96,7 +96,6 @@ export const taskLifecycle = {
           { guard: 'businessBlockedByHuman', target: 'waitingHuman', actions: 'apply' },
           { guard: 'holdingDelivery', actions: 'apply' },
           { guard: 'deliveryReady', target: 'checking', actions: 'apply' },
-          { guard: 'deliveryCanRevise', actions: 'apply' },
           { guard: 'valid', target: 'ended', actions: 'apply' },
         ],
         TOOL: { guard: 'valid', actions: 'apply' },
