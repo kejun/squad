@@ -464,8 +464,8 @@ export function Workspace({
                   onClick={() => { void organizeRoom(room.id, !showArchived); }}>
                   {roomAction === room.id ? <LoaderCircle className="spin" size={15} /> : showArchived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
                 </IconButton>
-                {showArchived && workspace.deleteRoom && workspace.retryRoomDeletion && <RoomDeletion key={`delete:${room.id}`} room={room}
-                  connected={connected && !sending} onDelete={workspace.deleteRoom} onRetry={workspace.retryRoomDeletion} />}
+                {showArchived && workspace.deleteRoom && <RoomDeletion key={`delete:${room.id}`} room={room}
+                  connected={connected && !sending} onDelete={workspace.deleteRoom} />}
                 </div>
               ))
             ) : (

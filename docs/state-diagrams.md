@@ -1,5 +1,24 @@
 # 分层状态图
 
+## 归档会话强制删除
+
+类型：真实 XState 独立删除生命周期；所有者 `roomDeletionMachine`，验收 BT_Y162–Y167。`force && dataErased` 是 HTTP/列表的已删除事实，`deleted` 表示后台运行文件也清理完毕。新请求无需二次确认或核对旧操作，旧作业可直接升级。
+
+```mermaid
+stateDiagram-v2
+    idle --> deleting: REQUEST [授权且仍归档且force] / 保存所属资源身份和eraseData意图
+    waiting --> deleting: REQUEST [旧作业升级force] / 作废旧领取、保存eraseData意图
+    deleting --> preparing: DATA_ERASED [当前领取且force] / 原子释放所属锁、清业务表、保存prepare意图
+    preparing --> waiting: PREPARED [已知执行尚未退出] / 保存自动重试时间
+    preparing --> deleting: PREPARED [范围明确] / 保存文件清理意图、不等待外部效果核对
+    deleting --> deleting: ASSET_REMOVED [当前领取且目标路径] / 保存进度
+    deleting --> paused: FAILED / 保存后台余项及重试时间、会话仍已删除
+    paused --> preparing: TICK或RECOVER [到期] / 自动续办
+    deleting --> deleted: VERIFIED [数据及所属文件已移除] / 压缩无正文墓碑
+```
+
+所有 I/O 消费已持久化并领取的意图。目标仍须归档且请求来源有效，旧版本号不阻止仍归档的目标删除。终止已知运行器；未知外部效果不再核对，也不伪造结算。只清理目标命名空间和已归属 session；删除链接本身，不跟随链接目标。后台技术失败、重启、迟到回调不得使会话重新出现。旧安全删除图仅描述兼容快照，不再是新请求的用户流程。
+
 ## 跨会话资源等待
 
 BT_Y120 为协调者的全局只读执行投影：WebService 按持久状态读取所有会话/任务/成员、真实操作启动、租约持有与等待依赖、待授权与未决核对、原窗口；WorkRunner 提供实时观察 getter，模型适配器在每次实际协调请求前重新读取。沿用已有协调意图的领取和协议，观察不产生新事件、授权或 I/O 调度；复验 BT_Y114 既有模型路径作为接线前门槛，不新增虚构 XState 状态。

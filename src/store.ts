@@ -97,7 +97,7 @@ function assertSettlement(saved: SavedRoomDeletion | undefined, room: RoomData, 
 }
 function transitionDeletion(roomId: string, room: RoomData, saved: SavedRoomDeletion | undefined, event: RoomDeletionEvent): SavedRoomDeletion {
   const current = saved ? restoreRoomDeletion(saved) : initialRoomDeletion({ roomId });
-  if (event.type === 'REQUEST' && !saved) {
+  if (event.type === 'REQUEST' && (!saved || event.force && !saved.context.dataErased)) {
     const request = event;
     const archive = restoreRoomArchive(room.archive);
     const tasks = Object.keys(room.tasks);
@@ -248,7 +248,11 @@ export class SqliteStore implements DeletionStore {
       if (!saved) throw new RoomDeletionError('STALE_DELETION', roomId);
       const next = persistRoomDeletion(stepRoomDeletion(restoreRoomDeletion(saved), event));
       if (!next.context.reply.ok) throw new RoomDeletionError(next.context.reply.code, roomId);
-      if (this.deletionLeases(roomId).length) throw new RoomDeletionError('DELETION_LEASE_UNSETTLED', roomId);
+      if (saved.context.force) for (const lease of this.deletionLeases(roomId)) {
+        this.db.prepare('DELETE FROM workspace_leases WHERE key=? AND owner=?').run(lease.key, lease.owner);
+        this.db.prepare('DELETE FROM resource_leases WHERE key=? AND owner=?').run(lease.key, lease.owner);
+      }
+      if (!saved.context.force && this.deletionLeases(roomId).length) throw new RoomDeletionError('DELETION_LEASE_UNSETTLED', roomId);
       this.removeRoomData(roomId); this.saveDeletion(roomId, next); return next;
     });
   }
@@ -353,8 +357,14 @@ export class MemoryStore implements DeletionStore {
     if (!saved) throw new RoomDeletionError('STALE_DELETION', roomId);
     const next = persistRoomDeletion(stepRoomDeletion(restoreRoomDeletion(saved), event));
     if (!next.context.reply.ok) throw new RoomDeletionError(next.context.reply.code, roomId);
-    if (this.deletionLeases(roomId).length) throw new RoomDeletionError('DELETION_LEASE_UNSETTLED', roomId);
-    this.saveDeletion(roomId, next); this.removeRoomData(roomId); return structuredClone(next);
+    if (!saved.context.force && this.deletionLeases(roomId).length) throw new RoomDeletionError('DELETION_LEASE_UNSETTLED', roomId);
+    this.saveDeletion(roomId, next);
+    if (saved.context.force) {
+      const owners = ownedLeaseIds(saved, this.read(roomId));
+      for (const [key, owner] of this.leases) if (owners.has(owner)) this.leases.delete(key);
+      for (const [key, lease] of this.resources) if (owners.has(lease.owner)) this.resources.delete(key);
+    }
+    this.removeRoomData(roomId); return structuredClone(next);
   }
   verifyDeletionDataGone(roomId: string) {
     return !this.rooms.has(roomId) && ![...this.receipts.keys()].some(key => (JSON.parse(key) as string[])[0] === roomId)

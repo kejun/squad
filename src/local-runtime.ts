@@ -111,7 +111,18 @@ export class LocalRuntime {
   observeAcquisitions(work: Intent, op: LocalOperation, configuration?: HostAcquisition['configuration']): HostAcquisition[] {
     return observeCliAcquisitions(work, op, this.options.acquisitionReaders ?? [], digest, configuration);
   }
-  planRoomCleanup(input: RoomCleanupInput): Promise<RuntimeCleanupInventory> { return this.ownership.inventory(input); }
+  async planRoomCleanup(input: RoomCleanupInput): Promise<RuntimeCleanupInventory> {
+    const inventory = await this.ownership.inventory(input);
+    if (input.force) for (const owner of inventory.sessions) {
+      // Reuse the journal's PID/start-identity check; never signal a bare or reused PID.
+      await this.journal.reconcile(owner.operationId, owner.sessionId);
+      const session = await this.journal.review(owner.operationId, owner.sessionId);
+      if (session?.state === 'unconfirmed') inventory.blockers.push({ id: `process:${owner.sessionId}`, kind: 'execution',
+        human: false, reason: '已请求终止所属进程，等待退出', taskId: owner.taskId, operationId: owner.operationId });
+    }
+    inventory.executionsSettled = inventory.executionsSettled && !inventory.blockers.some(b => b.kind === 'execution');
+    return inventory;
+  }
   private trackPhysical<T>(roomId: string | undefined, job: Promise<T>): Promise<T> {
     let jobs = roomId ? this.physicalJobs.get(roomId) : this.legacyPhysicalJobs;
     if (!jobs) { jobs = new Set(); this.physicalJobs.set(roomId!, jobs); }
@@ -137,8 +148,8 @@ export class LocalRuntime {
     });
     return this.trackPhysical(claim.roomId, cleanup);
   }
-  async verifyRoomCleanup(inventory: RuntimeCleanupInventory): Promise<boolean> {
-    if (!await this.ownership.verify(inventory)) return false;
+  async verifyRoomCleanup(inventory: RuntimeCleanupInventory, force = false): Promise<boolean> {
+    if (!await this.ownership.verify(inventory, force)) return false;
     return ![...this.workspaces.keys()].some(key => inventory.tasks.some(task => key.startsWith(`${task.namespace}:`)));
   }
   workspaceId(work: Intent, namespace?: string): string {
