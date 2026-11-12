@@ -109,7 +109,7 @@ export function Workspace({
   const [stopping, setStopping] = useState(false);
   const [extraOrdinary, setExtraOrdinary] = useState('');
   const [continueOpen, setContinueOpen] = useState(false);
-  const [continueMinutes, setContinueMinutes] = useState('15');
+  const [continueMinutes, setContinueMinutes] = useState('180');
   const [showArchived, setShowArchived] = useState(false);
   const roomListInitialized = useRef(false);
   const [roomAction, setRoomAction] = useState<string | null>(null);

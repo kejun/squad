@@ -20,8 +20,8 @@ Given('已保存能力事实受到{string}约束', function (this: SpecWorld, bo
 When('为后续成员准备能力事实', function (this: SpecWorld) { const s = state(this); s.facts = s.oversized
   ? boundedFactsModelGate() : capabilityFactModelGate('宿主能力', s.boundary!).facts; });
 Then('不应提供该事实且不得启动额外发现或命令', function (this: SpecWorld) { assert.deepEqual(state(this).facts, []); });
-Given('同任务积累多份能力回执且一份目录超过共享容量', function (this: SpecWorld) { state(this).oversized = true; });
-Then('共享事实应保持有界且超大目录不得假装完整', function (this: SpecWorld) { assert.equal(state(this).facts!.length, 10); });
+Given('同任务积累多份能力回执且一份目录具有大量元信息', function (this: SpecWorld) { state(this).oversized = true; });
+Then('全部已结算能力事实和完整目录元信息应保留', function (this: SpecWorld) { assert.equal(state(this).facts!.length, 20); });
 Then('未查询的命令不得被推断为不存在', function () { const { facts } = capabilityFactModelGate(); assert(!JSON.stringify(facts).includes('missing-command')); });
 Given('八份独立来源的总分片容量为{int}且有四名空闲成员', function (this: SpecWorld, capacity: number) { fullPartitionModelGate(capacity); state(this).capacity = capacity; });
 When('理解模型按宿主指引提交完整计划并执行', async function (this: SpecWorld) { state(this).partitions = await fullPartitionAcceptance(state(this).capacity!); });

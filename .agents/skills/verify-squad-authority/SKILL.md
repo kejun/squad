@@ -39,7 +39,7 @@ python3 .agents/skills/verify-squad-authority/scripts/check.py --verify-evidence
 
 主许可模型的安全结论覆盖旧授权。补充 20 条公开入口双存储生命周期实例验证 queued/claimed × revoke/recover/goal/stop/continue：新审批可恢复、新 epoch 可启动而旧 permit 不可、旧 goal 结果拒绝、uncertain 正确/错误 session 回执隔离及结算后租约释放。这些是有界实例，不冒充全部组合历史的穷举。
 
-另执行 10 个真实 LocalRuntime.execute 参数/文件变体，验证审批 digest 绑定 args、requestHash、workId、epoch、goal、workspace 内容、可执行文件、环境及期限。正常对照到达启动回调后主动抛错阻止 spawn，所有变体都必须在回调前拒绝，实际命令启动数为零。不是 OS 命令执行或进程回收测试。
+另执行 13 个真实 LocalRuntime.execute 参数/文件变体，验证审批 digest 绑定 args、requestHash、workId、epoch、goal、workspace 内容、可执行文件、环境、期限和 stdin 路径及内容。两个不变对照到达启动回调后主动抛错阻止 spawn；改变后的调用在回调前被拒绝，实际命令启动数为零。不是 OS 命令执行或进程回收测试。
 
 取消类 intent、无限多轮、物理进程结束、跨主机锁、磁盘断电和永久故障不在本轮模型范围。工作区 lease 是 Store 的所有者互斥记录，不是带 TTL 的分布式租约。不要把拒绝后续启动说成已经执行的副作用被撤回。
 
@@ -129,3 +129,8 @@ LB07 第二阶段最终复验：冻结产品 `e1c29edbc080b4638b34b9406e4e81b057
 全量元信息、后台共享快照与直接宿主选择的源码对应审查见 [本轮审查](references/drift-review-unified-tool-context.json)。本轮保留原有限模型、性质、边界与公平性；元信息观察和仅省略模型输出中未使用的空技能标识，不替代原执行许可、按次审批、技能激活、租约、停止或恢复守卫。新增 BT_Y121–BT_Y130 的选择语义、实时目录及实际 UI/模型行为由独立验收承接；不能用旧有限图通过扩大这些保证。完整生产器、真实源码负对照、原版恢复和独立读回的实际状态以本轮审查为准，全部九入口通过前不推进同步提交。
 
 冻结产品 `d865873678688789dbf9399980b841caeed17946` 的九个 CI 形式化入口已完整通过正向、真实源码负对照、原版恢复及独立读回后同步对应基线。本次推进仅改变验证元数据，保留原始证明捕获的旧同步身份；同步后的再次独立读回及原始件未改核对见本轮审查引用的中央索引，不冒称又运行了一遍生产器。
+
+
+## 三小时处理窗口与工具经验维护
+
+修改窗口续办、自动目录、共享经验或 stdin 时，读取[本轮源码对应审查](references/drift-review-window-tool-experience.json)。该记录区分旧有限图与新增实际模型、进程和界面验收，列出原样漂移、候选源码指纹及完整验证状态。九入口全部通过并完成独立读回后，才推进同步提交。

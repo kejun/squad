@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { persistTask, restoreTask, startTaskExecution, taskPhase } from '../src/task.machine.js';
 import { processingWindow, taskHumanGate, effectiveWork } from '../src/task/resilience.js';
-import { ResilienceModel, resiliencePhaseGate, resilienceWindowGate, resilienceHumanGate, resilienceCleanupGate,
+import { ResilienceModel, stageModel, resiliencePhaseGate, resilienceWindowGate, resilienceHumanGate, resilienceCleanupGate,
   resilienceContinueGate, resilienceSavedResultGate, resilienceDirectResponseGate, resilienceSkippedCompletionGate, resilienceLegacyUnsafeGate, resilienceRetryGateBinding, resilienceRequiredFailureGate, resilienceNotStartedLifecycleGate, resilienceRepeatedPartialGate, resilienceClarificationGate, resilienceReceiptContinuationGate, resilienceDeadlineGate, resilienceLegacyGate } from './task-resilience-model-fixture.js';
 import { notStartedRecoveryModel, type RecoveryRole } from './execution-recovery-model-fixture.js';
 import { CapacityModel, capacityModelIntent } from './map-capacity-model-fixture.js';
@@ -37,13 +37,14 @@ function optionalPartition() {
 /** Scenario preparation is explicit data; the action uses only real public model events. */
 export async function runResilienceAcceptance(id: string, detail: string): Promise<ResilienceProof> {
   if (id === 'BT_Y01') return wrap(resilienceWindowGate(), detail);
-  if (id === 'BT_Y02') { const rows = resiliencePhaseGate(); const m = new ResilienceModel(); m.supervise(101); return wrap(m, detail, rows.find(row => row.phase === detail)); }
+  if (id === 'BT_Y02') { const rows = resiliencePhaseGate(); const m = stageModel(detail as Phase); m.supervise(101); return wrap(m, detail, rows.find(row => row.phase === detail)); }
   if (id === 'BT_Y03') {
     const run = notStartedRecoveryModel(roles[detail]!); const m = fromSnapshot(run.snapshot);
     if (m.c.outcome === null) {
       const next = effectiveWork(m.c, m.phase, run.result.role === '交付检查' ? 1 : m.c.lastActivityAt)[0];
       if (next?.status === 'pending') { m.at = m.c.lastActivityAt; const work = m.claim(next.kind); const permit = startTaskExecution(m.snapshot, work.id, work.attempt, m.at); assert(permit.allowed); m.snapshot = permit.snapshot; }
-      m.supervise(processingWindow(m.c).hardDeadline + 1);
+      const repairDeadline = processingWindow(m.c).repairDeadline!;
+      assert(repairDeadline < processingWindow(m.c).hardDeadline); m.supervise(repairDeadline);
     }
     return wrap(m, detail);
   }
@@ -77,8 +78,8 @@ export async function runResilienceAcceptance(id: string, detail: string): Promi
     assert(m.send({ type: 'HUMAN_GATE_DECISION', gateId: gate.id, decision: 'skip', text: '明确省略该内容' }).ok); return wrap(m, detail);
   }
   if (id === 'BT_Y07') { const m = optionalPartition(); assert(m.supervise().ok); return wrap(m, detail); }
-  if (id === 'BT_Y08') { const m = knownMaterials(); m.supervise(101); return wrap(m, detail); }
-  if (id === 'BT_Y09') { const m = new ResilienceModel(); m.claim(); m.supervise(101); return wrap(m, detail); }
+  if (id === 'BT_Y08') { const m = knownMaterials(); m.endWindow(101); return wrap(m, detail); }
+  if (id === 'BT_Y09') { const m = new ResilienceModel(); m.claim(); m.endWindow(101); return wrap(m, detail); }
   if (id === 'BT_Y111') return wrap(resilienceNotStartedLifecycleGate(detail as '已请求停止' | '已发布partial' | '已经complete'), detail);
   if (id === 'BT_Y113') return wrap(resilienceReceiptContinuationGate(), detail);
   if (id === 'BT_Y10') {
@@ -86,10 +87,10 @@ export async function runResilienceAcceptance(id: string, detail: string): Promi
     const m = new ResilienceModel(); m.artifact('old-goal');
     assert(m.send({ type: 'USER_INPUT', text: '新目标', goal: { text: '当前目标', constraints: [], criteria: [], requiredArtifacts: 0 } }).ok);
     m.artifact('current-selection'); const w = m.claim();
-    assert(m.send({ type: 'DELIVER', workId: w.id, fence: w, text: '当前草稿', artifactIds: ['current-selection'] }).ok); m.supervise(101); return wrap(m, detail);
+    assert(m.send({ type: 'DELIVER', workId: w.id, fence: w, text: '当前草稿', artifactIds: ['current-selection'] }).ok); m.endWindow(101); return wrap(m, detail);
   }
   if (id === 'BT_Y11' && detail.includes('没有CLI')) return wrap(resilienceLegacyUnsafeGate(detail.startsWith('已停止')), detail);
-  if (id === 'BT_Y11') { const m = new ResilienceModel(); m.artifact(); m.unknown(); if (detail.includes('取消')) assert(m.send({ type: 'STOP' }).ok); else m.supervise(101); return wrap(m, detail); }
+  if (id === 'BT_Y11') { const m = new ResilienceModel(); m.artifact(); m.unknown(); if (detail.includes('取消')) assert(m.send({ type: 'STOP' }).ok); else m.endWindow(101); return wrap(m, detail); }
   if (id === 'BT_Y12') {
     const m = resilienceCleanupGate(), frozen = structuredClone(m.c.resilience!.frozen);
     if (detail === '重启恢复') assert(m.send({ type: 'RECOVER', config: m.c.config }).ok);
@@ -123,23 +124,49 @@ export async function runResilienceAcceptance(id: string, detail: string): Promi
       if (detail === '没有有效执行许可') { saved.context.intents[0]!.status = 'done'; saved.value = 'coordinating'; }
       m.snapshot = restoreTask(saved);
     }
-    m.supervise(); m.supervise(101); return wrap(m, detail);
+    m.supervise(); m.supervise(processingWindow(m.c).repairDeadline ?? 101); return wrap(m, detail);
   }
   if (id === 'BT_Y19') {
     const m = new ResilienceModel(); m.artifact();
-    if (detail.includes('人类')) { const gate = m.waiting(); m.at = 101; assert(m.send({ type: 'HUMAN_GATE_DECISION', gateId: gate.id, decision: detail.includes('跳过') ? 'skip' : 'reply', text: '当前明确决定' }).ok); }
-    else if (detail === '新目标输入') { assert(m.send({ type: 'USER_INPUT', text: '当前新目标', goal: { text: '新目标', constraints: [], criteria: [], requiredArtifacts: 0 } }).ok); m.supervise(101); }
-    else { m.supervise(101); m.send({ type: 'CHECK_RESULT', workId: m.c.intents[0]!.id, resultId: 'old-check', candidateRevision: 'old', criteriaResults: [] }); }
-    const frozen = structuredClone(m.c.resilience!.frozen); const response = m.send({ type: 'USER_INPUT', text: '冻结后的新目标', goal: { text: '晚目标', constraints: [], criteria: [], requiredArtifacts: 0 } });
-    assert.equal(response.code, 'FROZEN_DELIVERY'); assert.deepEqual(m.c.resilience!.frozen, frozen); return wrap(m, detail);
+    if (detail.includes('人类')) {
+      const gate = m.waiting(); m.at = 101;
+      assert(m.send({ type: 'HUMAN_GATE_DECISION', gateId: gate.id, decision: detail.includes('跳过') ? 'skip' : 'reply', text: '当前明确决定' }).ok);
+    } else if (detail === '新目标输入') {
+      m.at = 99;
+      assert(m.send({ type: 'USER_INPUT', text: '当前新目标', goal: { text: '新目标', constraints: [], criteria: [], requiredArtifacts: 0 } }).ok);
+      m.supervise(101); assert.equal(m.c.goal.text, '新目标');
+    } else {
+      const owner = m.claim(); assert(m.send({ type: 'DELIVER', workId: owner.id, fence: owner, text: '待核验草稿', artifactIds: [] }).ok);
+      const check = m.claim('check'); assert(m.send({ type: 'CONSUME', intentId: check.id, fence: check }).ok);
+      m.supervise(101); const artifacts = structuredClone(m.c.artifacts);
+      const result = m.send({ type: 'CHECK_RESULT', workId: check.id, attempt: check.attempt, fence: check,
+        resultId: 'old-check', candidateRevision: m.c.candidate!.revision, criteriaResults: fixtureCheck(m.c.candidate!).criteriaResults });
+      assert.equal(result.ok, false); assert.deepEqual(m.c.artifacts, artifacts); assert.equal(m.c.outcome, null);
+    }
+    const deadline = processingWindow(m.c).hardDeadline;
+    if (m.c.resilience!.frozen) {
+      const frozen = structuredClone(m.c.resilience!.frozen);
+      const response = m.send({ type: 'USER_INPUT', text: '冻结后的新目标', goal: { text: '晚目标', constraints: [], criteria: [], requiredArtifacts: 0 } });
+      assert.equal(response.code, 'FROZEN_DELIVERY'); assert.deepEqual(m.c.resilience!.frozen, frozen);
+    } else {
+      const gate = taskHumanGate(m.c)!; assert.equal(gate.cause, 'windowExpired');
+      assert(m.send({ type: 'USER_INPUT', text: '补充保留在到期任务中' }).ok);
+      assert.equal(taskHumanGate(m.c)?.id, gate.id); assert(m.c.messages.some(message => message.text === '补充保留在到期任务中'));
+      assert.equal(m.phase, 'waitingHuman'); assert.equal(m.c.outcome, null);
+    }
+    assert.equal(processingWindow(m.c).hardDeadline, deadline); return wrap(m, detail);
   }
-  if (id === 'BT_Y20') { const m = resilienceLegacyGate(); m.artifact(); m.unknown(); m.supervise(101); return wrap(m, detail); }
+  if (id === 'BT_Y20') { const m = resilienceLegacyGate(); m.artifact(); m.unknown(); m.endWindow(101); return wrap(m, detail); }
   throw new Error(`Unimplemented resilience contract ${id}`);
 }
 export function assertResilienceConsequence(id: string, proof: ResilienceProof): void {
   const { model: m, detail } = proof;
   if (id === 'BT_Y113') { assert.equal(m.phase, 'running'); assert.equal(m.c.intents.filter(work => work.kind === 'owner').length, 1); assert(m.c.intents.find(work => work.kind === 'owner')!.localCheckpoint!.messages.some(message => message.content.includes('CLI_EFFECTS_RECONCILED'))); return; }
   if (id === 'BT_Y111') { assert.equal(m.phase, 'ended'); assert.equal(m.c.outcome, detail === '已请求停止' ? 'stopped' : detail === '已发布partial' ? 'partial' : 'complete'); assert.equal(m.pending('owner').length, 0); return; }
+  if (id === 'BT_Y01' || id === 'BT_Y02' && !['stopping', 'ended'].includes(detail) || id === 'BT_Y06' && !detail.includes('新的') || id === 'BT_Y19') {
+    assert.equal(m.phase, 'waitingHuman'); assert.equal(m.c.outcome, null); assert.equal(taskHumanGate(m.c)?.cause, 'windowExpired');
+    assert.equal(processingWindow(m.c).failure?.code, 'WINDOW_EXPIRED'); assert.equal(m.c.resilience!.frozen, undefined); return;
+  }
   if (id === 'BT_Y04') { assert.equal(m.phase, 'waitingHuman'); assert(taskHumanGate(m.c)); assert.equal(m.c.resilience!.nextSupervisionAt, null); return; }
   if (id === 'BT_Y05') {
     const gates = m.c.resilience!.gates; assert(gates.length > 0);
@@ -153,6 +180,7 @@ export function assertResilienceConsequence(id: string, proof: ResilienceProof):
     assert(m.c.resilience!.cleanup.some(item => item.state === 'pending')); assert(effectiveWork(m.c, m.phase, m.at).length > 0);
     assert(m.c.discussion!.mapReduce!.queue!.some(part => part.status === 'cancelled')); return;
   }
+  if (id === 'BT_Y18' && detail.includes('临时')) { assert.equal(m.phase, 'waitingHuman'); assert.equal(taskHumanGate(m.c)?.cause, 'windowExpired'); return; }
   if (id === 'BT_Y13') { assert(m.c.outcome !== null || effectiveWork(m.c, m.phase, m.c.lastActivityAt).length > 0 || taskHumanGate(m.c)); return; }
   if (id === 'BT_Y14' || id === 'BT_Y16') { assert.equal(m.phase, 'running'); assert.equal(m.c.outcome, null); assert(effectiveWork(m.c, m.phase, m.at).length > 0); return; }
   if (id === 'BT_Y17') { assert.equal(m.c.assists[0]!.status, 'timeout'); assert.equal(m.c.consumedResults.length, 1); assert(m.c.lateResults.length); return; }

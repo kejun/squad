@@ -11,7 +11,7 @@ interface ToolInterface {
 interface ToolPermissions { local: boolean; search: boolean; fetch: boolean; findSkills: boolean }
 const localInterfaces: ToolInterface[] = [
   { type: 'discoverHost', description: 'Inspect registered CLI metadata or resolve explicitly named commands without executing them.',
-    input: '{commands?: string[], query?: string, cursor?: string}', output: 'Platform, environment observations and paginated metadata.', environment: 'local_metadata' },
+    input: '{commands?: string[], query?: string, cursor?: string}', output: 'Platform, environment observations and complete matching metadata.', environment: 'local_metadata' },
   { type: 'listSkills', description: 'Inspect the local skill metadata catalog, optionally by query or page.',
     input: '{query?: string, cursor?: string}', output: 'Skill IDs, versions, descriptions, completeness and continuation cursor.', environment: 'local_metadata' },
   { type: 'loadSkill', description: 'Read and pin a local skill before following its instructions or using its resources.',
@@ -23,7 +23,7 @@ const localInterfaces: ToolInterface[] = [
   { type: 'readArtifact', description: 'Read a saved report visible to this work.',
     input: '{artifactId: string, cursor?: string}', output: 'Saved artifact content, version and continuation cursor.', environment: 'local_metadata' },
   { type: 'runCli', description: 'Execute structured argv in the explicitly selected sandbox or host environment. Host execution requires approval of the concrete call; no prior sandbox failure is required.',
-    input: '{executable: string, args: string[], execution: "sandbox"|"host", reason?: string, cwd?: string, timeoutMs?: number, skillId?: string}',
+    input: '{executable: string, args: string[], execution: "sandbox"|"host", reason?: string, cwd?: string, timeoutMs?: number, skillId?: string, stdin?: {path: string (relative to workspace root)}}',
     output: 'A persisted operation receipt, or a pending exact host approval before any process starts.', environment: 'selected' },
 ];
 const webInterfaces: ToolInterface[] = [

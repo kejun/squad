@@ -436,6 +436,14 @@ export class TeamEngine {
     const snapshot = decode(room.tasks[id]);
     return structuredClone({ phase: taskPhase(snapshot), context: snapshot.context });
   }
+  /** One consistent room read; storage decoding and snapshot recovery stay inside the trusted engine. */
+  viewTasks(roomId: string): TaskView[] {
+    const room = this.store.read(roomId);
+    return structuredClone(Object.values(room.tasks).map(value => {
+      const snapshot = decode(value);
+      return { phase: taskPhase(snapshot), context: snapshot.context };
+    }));
+  }
   timeline(roomId: string) {
     return Object.values(this.store.read(roomId).tasks).flatMap(value => decode(value).context.messages).sort((a, b) => a.at - b.at);
   }

@@ -1,6 +1,9 @@
+import { prepareCliStdin, type PreparedCliStdin } from './local-stdin.js';
+import { repeatedCliFailures } from './cli-failure.js';
 import { discoverHostCapabilities } from './host-capabilities.js';
 import { CliCatalogError, type CliCatalogEntry } from './cli-catalog.js';
 import { ToolInventoryStore, type ToolInventorySnapshot } from './tool-inventory.js';
+import type { CliDiscoveryOptions } from './automatic-cli-catalog.js';
 import { observeCliAcquisitions, type CliAcquisitionReader } from './acquisition-readers.js';
 import type { HostAcquisition } from './resource-acquisition.js';
 import { RuntimeOwnership, type ClaimedRuntimeCleanup, type RoomCleanupInput } from './runtime-ownership.js';
@@ -25,6 +28,7 @@ export interface LocalRuntimeOptions {
   /** Host-maintained usage metadata only; does not grant execution permission. */
   cliCatalog?: CliCatalogEntry[];
   cliCatalogFile?: string;
+  cliDiscovery?: CliDiscoveryOptions;
   /** Zero disables background file observation and periodic refresh for controlled embeddings. */
   catalogRefreshIntervalMs?: number;
   acquisitionReaders?: CliAcquisitionReader[];
@@ -229,6 +233,7 @@ export class LocalRuntime {
 
   private boundedResult(result: LocalToolResult): LocalToolResult {
     const cleaned = this.clean(result);
+    if (cleaned.ok && ['discoverHost', 'listSkills'].includes(cleaned.code)) return cleaned;
     if (JSON.stringify(cleaned).length <= 90_000) return cleaned;
     const data = cleaned.data;
     if ('exitCode' in data) {
@@ -305,6 +310,8 @@ export class LocalRuntime {
     await this.journal.write({ operationId: op.id, sessionId, phase: 'prepared' });
     let launched = false;
     let completion: LocalExecution;
+    let stdin: PreparedCliStdin | undefined;
+    let invocation: (Pick<HostCommandPlan, 'executable' | 'args' | 'cwd' | 'environmentHash' | 'stdin'> & { execution: 'sandbox' | 'host' }) | undefined;
     try {
       const host = action.execution === 'host';
       if (!host && !this.backend.available) throw new LocalToolError('CLI_SANDBOX_UNAVAILABLE');
@@ -335,10 +342,14 @@ export class LocalRuntime {
         : minimalCliEnvironment(workspace.path, this.options.commandEnv?.[action.executable]);
       const executable = await resolveExecutable(await expand(action.executable), env);
       const args = await Promise.all(action.args.map(expand));
+      const environmentHash = digest(JSON.stringify(Object.entries(env).sort(([a], [b]) => a.localeCompare(b))));
+      if (action.stdin) stdin = await prepareCliStdin(workspace.path, action.stdin, this.options.dataRoot, signal);
+      invocation = { executable, args, cwd, execution: host ? 'host' : 'sandbox', environmentHash, ...(stdin ? { stdin: stdin.plan } : {}) };
+      if (stdin && repeatedCliFailures(work, action, { ...stdin.plan, environmentHash }) >= 2) throw new LocalToolError('CLI_REPEAT_FAILURE_LIMIT');
       if (host) {
         const plan: HostCommandPlan = { executable, args, cwd, workspaceRevision: digest(JSON.stringify(await workspaceManifest(workspace.path))),
-          executableHash: await executableDigest(executable, signal), environmentHash: digest(JSON.stringify(Object.entries(env).sort(([a], [b]) => a.localeCompare(b)))),
-          ...hostIdentity(), reason: action.reason! };
+          executableHash: await executableDigest(executable, signal), environmentHash,
+          ...hostIdentity(), reason: action.reason!, ...(stdin ? { stdin: stdin.plan } : {}) };
         const commandDigest = digest(JSON.stringify({ plan, action, requestHash: op.requestHash, workId: work.id, epoch: work.epoch, goalVersion: work.goalVersion }));
         const now = (this.options.clock ?? Date.now)();
         if (!op.approval) {
@@ -366,22 +377,23 @@ export class LocalRuntime {
         markStarted(); return this.backend.execute(input, executionSignal, onSpawn);
       };
       finishPreparation();
-      const result = await execute({ executable, args, cwd, workspace: workspace.path, ...(skillPath ? { skillPath } : {}), env, timeoutMs, sessionId, redact: this.secrets(),
+      const result = await execute({ executable, args, cwd, ...(stdin ? { stdinFd: stdin.file.fd } : {}), workspace: workspace.path, ...(skillPath ? { skillPath } : {}), env, timeoutMs, sessionId, redact: this.secrets(),
         ...(observe ? { observeProcess: observe } : {}),
         ...(work.kind === 'check' ? { writeRoots: [...validationOutputs, '.home', '.tmp'].map(dir => join(workspace.path, dir)) } : {}),
         logPath: join(this.options.dataRoot, 'logs', `${digest(sessionId)}.log`) }, signal,
         async identity => { await this.journal.write({ operationId: op.id, sessionId, phase: 'spawned', identity }); }, markStarted);
       let outputFiles: Awaited<ReturnType<typeof workspaceManifest>> = [], outputFilesTruncated = false;
       try { const changed = (await workspaceManifest(workspace.path)).filter(file => baseline.get(file.path) !== file.hash); outputFiles = changed.slice(0, 100); outputFilesTruncated = changed.length > 100; } catch { outputFilesTruncated = true; }
-      const validationInputsChanged = work.kind === 'check' && sourceRevision(await workspaceManifest(workspace.path)) !== workspace.revision;
+      const validationInputsChanged = work.kind === 'check' ? sourceRevision(await workspaceManifest(workspace.path)) !== workspace.revision : null;
       // A terminated sandbox may have written files. Their bounded content fingerprint makes the effect
       // observable; it is still not a proof of arbitrary network effects (network is denied by default).
       completion = { ...result, result: attachCapturedEvidence(this.boundedResult({ ...result.result, ...(validationInputsChanged ? { ok: false, code: 'CHECK_INPUTS_CHANGED' } : {}), data: { ...result.result.data, workspaceRevision: workspace.revision, isolated: workspace.isolated,
-        outputFiles, outputFilesTruncated, validationInputsChanged, execution: host ? 'host' : 'sandbox' } })), workspaceRevision: workspace.revision, isolated: workspace.isolated };
+        outputFiles, outputFilesTruncated, validationInputsChanged, invocation, execution: host ? 'host' : 'sandbox' } })), workspaceRevision: workspace.revision, isolated: workspace.isolated };
     } catch (error) {
       finishPreparation();
-      completion = { result: { ok: false, code: signal.aborted ? 'cancelled' : error instanceof LocalToolError ? error.code : 'CLI_EXECUTION_FAILED', data: {} }, settled: !launched, effectsKnown: !launched };
-    }
+      completion = { result: this.boundedResult({ ok: false, code: signal.aborted ? 'cancelled' : error instanceof LocalToolError ? error.code : 'CLI_EXECUTION_FAILED',
+        data: launched && invocation ? { invocation } : {} }), settled: !launched, effectsKnown: !launched };
+    } finally { await stdin?.file.close(); }
     await this.journal.write({ operationId: op.id, sessionId, phase: 'settled', completion });
     return completion;
   }

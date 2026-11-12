@@ -63,7 +63,7 @@ export function hostCapabilityGuardAcceptance(constraint: string) {
   if (constraint === '未授权') delete (m.work.payload.capabilities as Record<string, unknown>).localTools;
   const invalid: Record<string, object> = {
     '非法命令路径': { commands: ['/usr/bin/node'] }, '相对路径穿越': { commands: ['../node'] }, '命令夹带参数': { commands: ['node --version'] },
-    '命令替换表达式': { commands: ['$(whoami)'] }, '过量命令': { commands: Array(21).fill('node') }, '空命令': { commands: [''] },
+    '命令替换表达式': { commands: ['$(whoami)'] }, '命令含空字符': { commands: ['no\0de'] }, '空命令': { commands: [''] },
     '发现请求指定宿主执行': { commands: ['node'], execution: 'host' }, '发现请求伪造批准': { commands: ['node'], approval: true },
   };
   const action = { type: 'discoverHost', ...(invalid[constraint] ?? { commands: ['node'] }) };

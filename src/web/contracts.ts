@@ -43,6 +43,7 @@ export interface WebBlocker {
   operation?: { workId: string; operationId: string; approvalId?: string };
   id: string; version: number; taskId: string; epoch: number; goalVersion: number;
   title: string; question: string; requiredHuman: boolean; status: 'open' | 'resolved' | 'skipped'; actions: WebBlockerAction[];
+  code?: 'WINDOW_EXPIRED';
 }
 export interface WebOperationReview {
   operationId: string; sessionId: string; action: unknown; processState: string;
@@ -79,7 +80,7 @@ export interface WebWork {
   epoch: number;
 }
 export interface WebTask {
-  supervision?: { status: 'running' | 'repairing' | 'waitingHuman' | 'waitingResources' | 'cleaning' | 'faulted' | 'settled'; reason: string; nextWakeAt: number | null; hardDeadlineAt: number | null };
+  supervision?: { status: 'running' | 'repairing' | 'waitingHuman' | 'waitingResources' | 'cleaning' | 'faulted' | 'settled'; reason: string; nextWakeAt: number | null; hardDeadlineAt: number | null; failureCode?: 'WINDOW_EXPIRED' };
   delivery?: { epoch: number; goalVersion: number; revision: string; status: 'complete' | 'incomplete'; currentArtifactIds: string[]; reportArtifactId?: string };
   id: string;
   goal: string;
@@ -131,4 +132,5 @@ export interface WebFailedSandboxCommand {
 export interface WebHostApproval {
   taskId: string; workId: string; operationId: string; approvalId: string; expiresAt: number;
   executable: string; args: string[]; cwd: string; host: string; account: string; reason: string;
+  stdin?: { path: string; sha256: string; bytes: number };
 }

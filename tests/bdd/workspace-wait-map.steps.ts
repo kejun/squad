@@ -25,3 +25,7 @@ Then('排队命令不得被当作有效执行或待批准且未取正文不得�
 Then('监督检查不得隐去此阻塞或派出重复读取来冒充进展', timeout, function (this: SpecWorld) {
   fixture(this).assertSupervisionKeepsVisibleWait();
 });
+
+Then('原窗口到期等待续窗期间仍应保留实际旧操作核对入口', timeout, function (this: SpecWorld) {
+  fixture(this).assertExpiredResourceRecovery();
+});

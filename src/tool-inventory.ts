@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { CliCatalog, type CliCatalogEntry, type CliCatalogConfiguration } from './cli-catalog.js';
+import { discoverCliCatalog, type CliDiscoveryOptions } from './automatic-cli-catalog.js';
 import { LocalToolError, SkillRegistry, type RegistryOptions, type SkillPage } from './local-skills.js';
 
 export interface ToolInventorySnapshot {
@@ -26,6 +27,8 @@ export interface ToolInventoryOptions {
   skillRoots?: string[];
   cliCatalog?: CliCatalogEntry[];
   cliCatalogFile?: string;
+  cliDiscovery?: CliDiscoveryOptions;
+  commandEnv?: Record<string, Record<string, string>>;
   catalogRefreshIntervalMs?: number;
   registryLimits?: Omit<RegistryOptions, 'roots' | 'snapshotRoot'>;
   clock?: () => number;
@@ -44,8 +47,7 @@ const canonical = (value: unknown): string => value === null || typeof value !==
 const hash = (value: unknown) => createHash('sha256').update(canonical(value)).digest('hex');
 /** Only declared metadata identifies a CLI entry; projections never change its identity. */
 export function cliEntryVersion(entry: CliCatalogEntry): string {
-  return hash({ command: entry.command, description: entry.description, domains: entry.domains,
-    helpArgs: entry.helpArgs, examples: entry.examples, execution: entry.execution, requirements: entry.requirements });
+  return hash(entry);
 }
 function freeze<T>(value: T): T {
   if (value && typeof value === 'object') {
@@ -99,13 +101,14 @@ export class ToolInventoryStore {
   }
   private now(): number { return (this.options.clock ?? Date.now)(); }
   private async readCatalog(): Promise<CliCatalog> {
-    if (!this.options.cliCatalogFile) return new CliCatalog(this.options.cliCatalog);
+    if (!this.options.cliCatalogFile) return this.options.cliCatalog === undefined
+      ? new CliCatalog(await discoverCliCatalog(this.options.cliDiscovery, this.options.commandEnv), 'automatic')
+      : new CliCatalog(this.options.cliCatalog, 'configured');
     let text: string;
     try { text = await readFile(this.options.cliCatalogFile, 'utf8'); }
     catch { throw new LocalToolError('CLI_CATALOG_UNAVAILABLE'); }
     try {
-      if (Buffer.byteLength(text) > 2_000_000) throw new Error('Oversized catalog');
-      return new CliCatalog(JSON.parse(text));
+      return new CliCatalog(JSON.parse(text), 'configured');
     } catch { throw new LocalToolError('CLI_CATALOG_INVALID'); }
   }
   private async build(): Promise<ToolInventorySnapshot> {
@@ -152,6 +155,8 @@ export class ToolInventoryStore {
     } catch { /* Periodic refresh also covers missing roots and unsupported native watching. */ }
   }
   private startWatching(): void {
+    if (this.options.cliCatalog === undefined && !this.options.cliCatalogFile)
+      for (const path of this.options.cliDiscovery?.paths ?? (process.env.PATH ?? '').split(':').filter(Boolean)) this.observe(path, false);
     if (this.options.cliCatalogFile) {
       const file = resolve(this.options.cliCatalogFile);
       this.observe(dirname(file), false, basename(file));

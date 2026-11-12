@@ -13,6 +13,7 @@ export interface CliReadiness {
   network: 'unknown';
   observedAt: number | null;
   sourceOperationIds: string[];
+  inventoryObservation?: { catalogVersion: string; observedAt: number; path?: string };
 }
 type Recommendations = ReturnType<LocalRuntime['recommendTools']>;
 const record = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value)
@@ -41,14 +42,23 @@ function readinessSources(c: TaskContext) {
     });
 }
 function readiness(c: TaskContext, target: Intent, candidate: CliCatalogEntry, catalogVersion: string,
-  execution: 'sandbox' | 'host', sources: ReturnType<typeof readinessSources>, entryVersion = cliEntryVersion(candidate)): CliReadiness {
+  execution: 'sandbox' | 'host', sources: ReturnType<typeof readinessSources>, entryVersion = cliEntryVersion(candidate), snapshot?: ToolInventorySnapshot): CliReadiness {
+  const automatic = snapshot?.cli.configuration.source === 'automatic';
+  const discovered = candidate.discovery?.find(entry => entry.execution === execution);
   const state: CliReadiness = { installation: 'unknown', authentication: 'unknown',
     authorization: execution === 'host' ? 'required' : 'unknown', authorizationScope: 'execution',
     network: 'unknown', observedAt: null, sourceOperationIds: [] };
+  if (automatic) {
+    state.installation = discovered ? 'found' : 'not_found'; state.observedAt = snapshot.observedAt;
+    state.inventoryObservation = { catalogVersion: snapshot.cli.catalogVersion, observedAt: snapshot.observedAt,
+      ...(discovered ? { path: discovered.path } : {}) };
+  }
   for (const { work, operation, discovery } of sources) {
     if (!operation.result) continue;
     let observed = false;
-    if (discovery && (discovery.catalogVersion === catalogVersion || discovery.entryVersions.get(candidate.command) === entryVersion)) {
+    const installationCurrent = !state.inventoryObservation || operation.finishedAt !== undefined
+      && operation.finishedAt >= state.inventoryObservation.observedAt;
+    if (installationCurrent && discovery && (discovery.catalogVersion === catalogVersion || discovery.entryVersions.get(candidate.command) === entryVersion)) {
       const command = discovery.commands.get(candidate.command);
       if (command && ['found', 'not_found'].includes(String(command[execution]))) {
         state.installation = command[execution] as 'found' | 'not_found'; observed = true;
@@ -56,9 +66,9 @@ function readiness(c: TaskContext, target: Intent, candidate: CliCatalogEntry, c
     }
     if (operation.action.type === 'runCli' && operation.action.executable === candidate.command
       && (operation.action.execution ?? 'sandbox') === execution) {
-      if (operation.result.code === 'CLI_NOT_FOUND') { state.installation = 'not_found'; observed = true; }
-      else if (typeof operation.result.data.exitCode === 'number') { state.installation = 'found'; observed = true; }
-      const registered = work.id === target.id && (operation.action.cwd ?? '.') === '.'
+      if (installationCurrent && operation.result.code === 'CLI_NOT_FOUND') { state.installation = 'not_found'; observed = true; }
+      else if (installationCurrent && typeof operation.result.data.exitCode === 'number') { state.installation = 'found'; observed = true; }
+      const registered = work.id === target.id && (operation.action.cwd ?? '.') === '.' && operation.action.stdin === undefined
         && [candidate.helpArgs, ...(candidate.examples ?? []).map(example => example.args)]
           .some(args => args && JSON.stringify(args) === JSON.stringify(operation.action.type === 'runCli' ? operation.action.args : []));
       if (registered && classifyCliFailure(operation) === 'authentication') { state.authentication = 'required'; observed = true; }
@@ -86,7 +96,7 @@ export function withToolInventoryReadiness(c: TaskContext, work: Intent, snapsho
     const entryVersion = cliEntryVersion(entry);
     return { ...entry, toolId: `cli:${entry.command}`, entryVersion,
     variants: (['sandbox', 'host'] as const).map(execution => ({ execution, approvalRequired: execution === 'host',
-      readiness: readiness(c, work, entry, snapshot.cli.catalogVersion, execution, sources, entryVersion) })),
+      readiness: readiness(c, work, entry, snapshot.cli.catalogVersion, execution, sources, entryVersion, snapshot) })),
   }; }) } };
 }
 

@@ -44,6 +44,8 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
   if (e.type === 'SETTLE' && c.resilience?.cleanup.some(item => item.kind === 'legacyWork' && item.workId === e.intentId && item.state === 'pending')) return 'LEGACY_EFFECT_REQUIRES_RECONCILIATION';
   if (e.type === 'RECONCILE' && c.intents.some(work => work.id === e.intentId && localPhysicalPending(work))) return 'LOCAL_OPERATION_PENDING';
   if (!fresh(c, e)) return 'STALE_FENCE';
+  if (['DELIVER', 'COORDINATE', 'HELP', 'WAIT_USER', 'BLOCKED', 'INTERPRETATION_RESULT', 'DISCUSSION_RESULT', 'DISCUSSION_PLAN', 'CHECK_RESULT'].includes(e.type)
+    && windowExpired(c, e.at)) return 'WINDOW_EXPIRED';
   if (e.workId) {
     const op = c.intents.find(i => i.id === e.workId);
     if (!op || op.status !== 'inflight') return 'UNKNOWN_OR_SETTLED_WORK';
@@ -52,8 +54,6 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     if (['DELIVER', 'COORDINATE', 'HELP', 'WAIT_USER', 'BLOCKED', 'INTERPRETATION_RESULT', 'DISCUSSION_RESULT', 'DISCUSSION_PLAN', 'CHECK_RESULT'].includes(e.type)
       && op.deadline !== null && e.at >= op.deadline) return 'WORK_EXPIRED';
   }
-  if (['DELIVER', 'COORDINATE', 'HELP', 'WAIT_USER', 'BLOCKED', 'INTERPRETATION_RESULT', 'DISCUSSION_RESULT', 'DISCUSSION_PLAN', 'CHECK_RESULT'].includes(e.type)
-    && windowExpired(c, e.at)) return 'PROCESSING_WINDOW_EXPIRED';
   if (c.stopped && !['STOP', 'SETTLE', 'HELP_RESULT', 'CONTINUE', 'RETRY_ASSISTANCE', 'RECOVER', 'CLAIM', 'WORK_FAILED', 'HUMAN_DECISION', 'RECONCILE'].includes(e.type)) return 'STOPPED';
   if (e.type === 'DELIVER' && !validPartitionRecoveries(e.partitionRecoveries)) return 'INVALID_REPORT';
   if ((e.type === 'DELIVER' || e.type === 'RECORD_RESULT') && (!validArtifactDrafts(e.artifacts) || !validSummary(e.summary))) return 'INVALID_REPORT';
@@ -120,8 +120,8 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (['owner', 'assistance', 'tool'].includes(i.kind) && !isBot(c, i.target)) return 'UNKNOWN_BOT';
       if (i.kind === 'assistance' && ((i.payload.requiredTools as string[] | undefined) ?? []).some(t => !c.config.bots.find(b => b.id === i.target)?.tools.includes(t))) return 'TOOL_PERMISSION';
       if (!workLaneAvailable(c, i)) return 'WORK_BUSY';
+      if (windowExpired(c, e.at)) return 'WINDOW_EXPIRED';
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
-      if (windowExpired(c, e.at)) return 'PROCESSING_WINDOW_EXPIRED';
       if (i.kind === 'tool' && !c.config.bots.find(b => b.id === i.target)?.tools.includes(String(i.payload.tool))) return 'TOOL_PERMISSION';
       if (i.kind === 'check' && !isBoundedCheck(i)) return 'CHECK_PROTOCOL_CHANGED';
       // Recovery can reuse the claim only until the batch has authorized its first model request.
@@ -140,7 +140,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       return requestBudgetProblem(c, i);
     }
     case 'CONSUME': {
-      if (windowExpired(c, e.at)) return 'PROCESSING_WINDOW_EXPIRED';
+      if (windowExpired(c, e.at)) return 'WINDOW_EXPIRED';
       const i = c.intents.find(i => i.id === e.intentId);
       if (!i || i.status !== 'inflight' || i.bucket === 'none') return 'WORK_NOT_INFLIGHT';
       if (i.epoch !== c.epoch || i.goalVersion !== c.goalVersion) return 'STALE_WORK';
@@ -172,7 +172,10 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     case 'HANDOFF': return !isBot(c, e.owner) ? 'UNKNOWN_BOT' : allInflight(c).length || discussionActive(c) ? 'WAIT_FOR_BOUNDARY' : null;
     case 'CONTINUE': {
       if (e.newWindowMs !== undefined && (!Number.isSafeInteger(e.newWindowMs) || e.newWindowMs <= 0 || !Number.isSafeInteger(e.at + e.newWindowMs))) return 'INVALID_PROCESSING_WINDOW';
-      if (windowExpired(c, e.at) && e.newWindowMs === undefined) return 'PROCESSING_WINDOW_EXPIRED';
+      if (windowExpired(c, e.at) && e.newWindowMs === undefined) return 'WINDOW_EXPIRED';
+      const gate = taskHumanGate(c);
+      if (e.newWindowMs !== undefined && c.outcome === null && gate && gate.cause !== 'windowExpired')
+        return gate.approvalId ? 'HOST_APPROVAL_DECISION_REQUIRED' : 'HUMAN_GATE_REQUIRED';
       const upgraded = legacyTerminalConfig(c, e.currentConfig);
       if (!upgraded && (incompatibleExecution(c) || e.currentConfig && taskProtocolChanged(c.config, e.currentConfig))) return 'INCOMPATIBLE_EXECUTION';
       if (allInflight(c).length || c.intents.some(i => i.status === 'uncertain' && !workInCleanup(c, i))) return 'UNRESOLVED_WORK';

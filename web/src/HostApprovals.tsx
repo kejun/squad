@@ -71,7 +71,13 @@ export function HostApprovals({ roomId, requests, sessions = [], connected }: { 
           {active && <>
             <Dialog.Description>本次将以 {active.account}@{active.host} 的权限执行，可访问工作区外的文件与网络。</Dialog.Description>
             <pre aria-label="请求执行的完整命令">{[active.executable, ...active.args].map(v => JSON.stringify(v)).join(' ')}</pre>
-            <dl><dt>工作目录</dt><dd>{active.cwd}</dd><dt>请求原因</dt><dd>{active.reason}</dd></dl>
+            <dl><dt>工作目录</dt><dd>{active.cwd}</dd><dt>请求原因</dt><dd>{active.reason}</dd>
+              {active.stdin && <>
+                <dt>标准输入文件</dt><dd>{active.stdin.path}</dd>
+                <dt>输入字节数</dt><dd>{active.stdin.bytes}</dd>
+                <dt>输入内容 SHA-256</dt><dd><code>{active.stdin.sha256}</code></dd>
+              </>}
+            </dl>
             <p className="host-session-explanation">选择“允许本次会话”后，当前任务的所有 Bot 可在同一宿主账号与执行环境中继续执行宿主命令，无需逐次确认。任务结束、停止或服务重启后失效，也可随时撤销。</p>
             {error && <p role="alert">{error}</p>}
             <div className="host-approval-actions">

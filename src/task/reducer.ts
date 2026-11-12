@@ -21,7 +21,7 @@ import { preserveSourceReference } from '../input-intent.js';
 import { resolveMapRecoveries } from './map-recovery.js';
 import { recordToolFailure } from './tool-recovery.js';
 import { ensureResilience, openHumanGate, decideHumanGate, executionNotStarted, freezeIncomplete, taskHumanGate, answerTaskGate, syncLocalApprovalGate, recordApprovalExplanation, requiredHumanFailure, authorizationFailure,
-  windowExpired, archiveFrozen, replaceProcessingWindow, adoptCleanup, settleCleanup, resiliencePolicy, processingWindow, safeFailureRetry, requeueSafeWork } from './resilience.js';
+  windowExpired, requestNewWindow, archiveFrozen, replaceProcessingWindow, adoptCleanup, settleCleanup, resiliencePolicy, processingWindow, safeFailureRetry, requeueSafeWork } from './resilience.js';
 import { recordAcquisition, resourceAcquisitionProblem } from '../resource-acquisition.js';
 
 function finishDelivery(c: TaskContext, e: TaskEvent, detail: string, code?: string) {
@@ -126,7 +126,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'HELP_RESULT': acceptHelpResult(c, e); break;
     case 'RETRY_ASSISTANCE': {
       const gate = answerTaskGate(c, e);
-      if (gate && windowExpired(c, e.at) && !taskHumanGate(c)) { message(c, e, 'user', e.text, 'user', { requestId: e.requestId }); freezeIncomplete(c, e, '人类已明确重试，原自动处理窗口已耗尽'); break; }
+      if (gate && windowExpired(c, e.at) && !taskHumanGate(c)) { message(c, e, 'user', e.text, 'user', { requestId: e.requestId }); requestNewWindow(c, e); break; }
       const h = c.assists.find(h => h.id === e.requestId)!;
       if (e.config) c.config.bots = structuredClone(e.config.bots);
       message(c, e, 'user', e.text, 'user', { requestId: h.id });
@@ -199,7 +199,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       }
       recordInput(c, e.id, e.text, e.reviewTargets?.length ? 'review' : e.decision ? 'decision' : 'supplement');
       if (e.reviewTargets) requestReview(c, e.id, e.text, e.reviewTargets);
-      if (gate && windowExpired(c, e.at) && !taskHumanGate(c)) freezeIncomplete(c, e, '人类已回复，原自动处理窗口已耗尽');
+      if (gate && windowExpired(c, e.at) && !taskHumanGate(c)) requestNewWindow(c, e);
       break;
     }
     case 'HUMAN_DECISION': {
@@ -217,7 +217,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         if (e.reviewTargets) requestReview(c, e.id, e.text, e.reviewTargets);
         recordInput(c, e.id, e.text, e.reviewTargets?.length ? 'review' : 'decision');
       }
-      if (gate && windowExpired(c, e.at) && !taskHumanGate(c)) freezeIncomplete(c, e, '人类已回复，原自动处理窗口已耗尽');
+      if (gate && windowExpired(c, e.at) && !taskHumanGate(c)) requestNewWindow(c, e);
       break;
     }
     case 'BOUNDARY':
@@ -322,6 +322,14 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     }
     case 'CONTINUE':
+      if (e.newWindowMs !== undefined && c.outcome === null && !c.stopped && windowExpired(c, e.at)) {
+        requestNewWindow(c, e);
+        const gate = taskHumanGate(c)!;
+        if (e.extraOrdinary) c.config.limits.ordinary += e.extraOrdinary;
+        decideHumanGate(c, { id: e.id, at: e.at, type: 'HUMAN_GATE_DECISION', gateId: gate.id,
+          decision: 'newWindow', newWindowMs: e.newWindowMs, ...(e.text ? { text: e.text } : {}) });
+        break;
+      }
       if (e.newWindowMs !== undefined) replaceProcessingWindow(c, e, e.newWindowMs); else archiveFrozen(c);
       if (c.discussion && !['cancelled', 'delivered'].includes(c.discussion.status)) {
         c.discussion.status = 'cancelled';
@@ -410,6 +418,9 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const work = c.intents.find(i => i.id === e.intentId);
       if (!work) { reject(c, 'UNKNOWN_WORK'); break; }
       saveCheckDiagnostic(c, work, e.checkDiagnostic);
+      if (!c.stopped && c.outcome === null && windowExpired(c, e.at)) {
+        release(c, work.id); requestNewWindow(c, e); break;
+      }
       if (work.discussionId) {
         if (discussionActive(c) && work.discussionId === c.discussion!.id) discussionFailed(c, e, work, e.reason);
         else release(c, work.id);
@@ -487,6 +498,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         openHumanGate(c, e, { kind: 'recovery', cause: 'incompatibleExecution', decisions: ['skip', 'stop'], question: '当前宿主不支持原执行协议。请跳过剩余业务并交付缺口，或停止；需要继续请建立当前配置的新任务。' });
         reject(c, 'INCOMPATIBLE_EXECUTION'); break;
       }
+      if (windowExpired(c, e.at)) requestNewWindow(c, e);
       if (taskHumanGate(c)) {
         for (const work of c.intents.filter(w => w.status === 'inflight' && w.replay === 'safe' && localAwaitingApproval(w) && !localPhysicalPending(w))) work.status = 'pending';
         c.reason = taskHumanGate(c)!.question; break;
@@ -508,7 +520,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     }
     case 'TOOL':
       cancelWork(c, e); intent(c, e.at, 'tool', c.owner, { tool: e.tool, ...e.payload }, e.replay); break;
-    case 'EXHAUSTED': if (!taskHumanGate(c)) freezeIncomplete(c, e, e.reason); else c.reason = e.reason; break;
+    case 'EXHAUSTED': if (windowExpired(c, e.at) && !c.stopped && c.outcome === null) requestNewWindow(c, e); else if (!taskHumanGate(c)) freezeIncomplete(c, e, e.reason); else c.reason = e.reason; break;
     case 'RECONCILE': {
       const work = c.intents.find(i => i.id === e.intentId)!;
       work.status = 'done';

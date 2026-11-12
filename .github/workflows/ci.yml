@@ -29,7 +29,7 @@ jobs:
       - name: Install sandbox dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes bubblewrap socat ripgrep fonts-noto-cjk python3
+          sudo apt-get install --yes bubblewrap socat ripgrep fonts-noto-cjk python3 tesseract-ocr
       - name: Install locked dependencies
         run: npm ci
       - name: Install pinned real browser runner
@@ -45,6 +45,9 @@ jobs:
       - name: Verify resilience and deletion state models
         run: |
           node --import tsx tests/task-resilience-model-fixture.ts
+          node --import tsx tests/window-expiry-model-fixture.ts
+          node --import tsx tests/cli-stdin-model-gate.ts
+          node --import tsx tests/cli-input-evidence-model-gate.ts
           node --import tsx tests/execution-receipts-model-fixture.ts
           node --import tsx tests/partition-resilience-model-fixture.ts
           node --import tsx tests/local-resource-policy-model-fixture.ts
@@ -69,7 +72,10 @@ jobs:
           node --expose-gc --import tsx tests/resilience-soak.ts
           node --import tsx tests/tool-bootstrap-acceptance.ts
       - name: Verify complete tool inventory and selection fault detection
-        run: node tests/tool-inventory-negative-controls.mjs
+        run: |
+          node tests/tool-inventory-negative-controls.mjs
+          node tests/tool-experience-negative-controls.mjs
+          node tests/cli-input-evidence-negative-controls.mjs
       - name: Verify original browser contracts detect faults
         run: node .agents/skills/verify-squad/scripts/negative.mjs
       - name: Verify composition fault detection and evidence

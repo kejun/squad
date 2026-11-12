@@ -26,7 +26,7 @@ export async function hostApprovalGateServiceAcceptance(boundary: string) {
     assert(!blocker.actions.some(action => action.id === 'newWindow'), 'An execution permission question cannot advertise a window grant as its approval');
     const current = fixture.service.engine.view(fixture.room.id, fixture.taskId)!;
     assert.equal(current.context.outcome, null); assert.equal(taskHumanGate(current.context)?.id, gate.id);
-    assert.deepEqual(processingWindow(current.context), before); assert.equal(fixture.operation()!.startedAt, undefined);
+    assert.deepEqual(processingWindow(current.context), { ...before, ...(boundary !== '原批准期限到期' ? { failure: { code: 'WINDOW_EXPIRED', at: before.hardDeadline + 1 } } : {}) }); assert.equal(fixture.operation()!.startedAt, undefined);
     assert.equal(await fixture.runs(), ''); assert.equal(fixture.operation()!.approval!.status, 'expired');
     return { boundary, requiredGateVisible: true, processStarts: 0, outcome: current.context.outcome, exactOperationPreserved: true };
   } finally { await fixture.close(); }

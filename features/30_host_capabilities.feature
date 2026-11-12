@@ -32,7 +32,7 @@
       | 解析阶段 | LOCAL_TOOLS_NOT_ALLOWED |
       | 未授权 | LOCAL_TOOLS_NOT_AUTHORIZED |
       | 非法命令路径 | INVALID_LOCAL_REQUEST |
-      | 过量命令 | INVALID_LOCAL_REQUEST |
+      | 命令含空字符 | INVALID_LOCAL_REQUEST |
       | 相对路径穿越 | INVALID_LOCAL_REQUEST |
       | 命令夹带参数 | INVALID_LOCAL_REQUEST |
       | 命令替换表达式 | INVALID_LOCAL_REQUEST |

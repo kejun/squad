@@ -10,7 +10,7 @@ import { LocalRuntime } from '../src/local-runtime.js';
 import { unconfinedEffectsKey } from '../src/local-resource-policy.js';
 import { CloudflareWebTools } from '../src/web-tools.js';
 import { WebService } from '../src/web/service.js';
-import { effectiveWork, processingWindow, supervisionDecision } from '../src/task/resilience.js';
+import { effectiveWork, processingWindow, supervisionDecision, taskHumanGate } from '../src/task/resilience.js';
 import { savedAcquisitions } from '../src/resource-acquisition.js';
 import type { InputIntentSpec, Intent, TaskEvent } from '../src/types.js';
 import type { WorkAdapter, WorkOutput, WorkScope } from '../src/runner.js';
@@ -212,11 +212,11 @@ export class WorkspaceWaitMapAcceptance {
     assert.deepEqual(this.context().discussion!.mapReduce!.assignments.map(assignment => assignment.workId), assignments);
     assert.deepEqual(processingWindow(this.context()), window);
     this.event(this.room.id, this.taskId, { type: 'SUPERVISE', trigger: 'timer' }, window.hardDeadline + 1);
-    // This fixture has acquired no body and produced no business draft. The
-    // existing contract therefore freezes it as failed, rather than inventing
-    // a draft merely to reproduce the field incident's partial label.
-    assert.equal(this.context().outcome, 'failed');
-    assert.equal(this.context().resilience!.frozen!.verification, 'incomplete');
+    assert.equal(this.context().outcome, null);
+    assert.equal(this.service.engine.view(this.room.id, this.taskId)!.phase, 'waitingHuman');
+    assert.equal(taskHumanGate(this.context())?.cause, 'windowExpired');
+    assert.deepEqual(processingWindow(this.context()).failure, { code: 'WINDOW_EXPIRED', at: window.hardDeadline + 1 });
+    assert.equal(this.context().resilience!.frozen, undefined);
     assert.equal(this.snapshot().blockers?.filter(blocker => blocker.source).length, 2, 'Window expiry must retain the original unresolved effect review entries');
     assert.equal(this.hostRuntimeEntries, 0); assert.equal(this.modelCalls.length, calls);
     this.supervisionSummary = { partitions: 8, concurrency: 4, webLoginObservations: 5, failedPartition: 'october-4',
@@ -225,6 +225,23 @@ export class WorkspaceWaitMapAcceptance {
       falseApprovals: 0, hostRuntimeEntries: this.hostRuntimeEntries, cliSessions: this.waitingOperations().filter(({ operation }) => operation.sessionId).length,
       extraModelCallsDuringSupervision: 0, outcomeAtOriginalDeadline: this.context().outcome,
       sourceBoundary: 'Real local HTTP/SDK/Runner/Engine/SQLite; controlled model and old-effects prefix; no private docs or real provider' };
+  }
+
+  assertExpiredResourceRecovery() {
+    const context = this.context();
+    assert.equal(context.outcome, null);
+    assert.equal(taskHumanGate(context)?.cause, 'windowExpired');
+    const blockers = this.snapshot().blockers?.filter(blocker => blocker.source) ?? [];
+    assert.deepEqual(blockers.map(blocker => blocker.source!.roomId).sort(), this.old.map(effect => effect.room.id).sort());
+    for (const effect of this.old) {
+      const blocker = blockers.find(blocker => blocker.source!.roomId === effect.room.id)!;
+      assert.equal(blocker.taskId, effect.taskId); assert.equal(blocker.operation?.workId, effect.work.id);
+      assert.equal(blocker.operation?.operationId, effect.operation.id); assert.equal(blocker.scope, 'cleanup');
+      const source = this.service.engine.view(effect.room.id, effect.taskId)!.context;
+      assert.equal(source.intents.find(work => work.id === effect.work.id)!.localOperations!.find(op => op.id === effect.operation.id)!.status, 'uncertain');
+    }
+    assert.equal(this.hostRuntimeEntries, 0);
+    assert.equal(this.snapshot().hostApprovals?.length ?? 0, 0);
   }
 
   async close() {
