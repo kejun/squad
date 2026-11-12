@@ -10,7 +10,8 @@ Before(time, function (this: SpecWorld, { pickle }) {
   if (id) cases.set(this, new ForceRoomDeletionCase(id));
 });
 After(time, async function (this: SpecWorld) { await cases.get(this)?.close(); });
-for (const step of ['归档会话有未决宿主操作和独占资源锁', '归档会话的运行文件暂时不能清理',
+Given('归档会话有状态为{string}的宿主操作和所属资源锁', time, async function (this: SpecWorld, status: string) { await cases.get(this)!.given(status); });
+for (const step of ['归档会话的运行文件暂时不能清理',
   '归档会话的旧删除作业正在等待核对', '归档会话的客户端版本已经过期', '强制删除请求的来源或目标不合法']) {
   Given(step, time, async function (this: SpecWorld) { await cases.get(this)!.given(); });
 }

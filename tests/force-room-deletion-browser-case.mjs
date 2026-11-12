@@ -24,7 +24,8 @@ export class ForceRoomDeletionBrowserCase {
     this.host = await new ResilientWorkspaceBrowserFixture(this.id, { config, localRuntime: this.runtime,
       reopenLocalRuntime: async () => this.runtime = await LocalRuntime.create(this.runtimeOptions) }).open();
     this.page = this.host.page;
-    this.other = await this.host.createRoom(); this.otherDraft = '另一会话保留的未发送草稿';
+    this.other = this.host.service.createRoom('保留的会话乙'); await this.page.reload(); await this.host.selectRoom(this.other);
+    this.otherDraft = '另一会话保留的未发送草稿';
     await this.page.getByRole('textbox', { name: '群聊消息输入框' }).fill(this.otherDraft);
     this.room = await this.host.createRoom();
     const engine = this.host.service.engine;
@@ -40,7 +41,10 @@ export class ForceRoomDeletionBrowserCase {
     assert(engine.send(this.room.id, this.taskId, { type: 'LOCAL_RESULT', id: randomUUID(), at: Date.now(),
       intentId: work.id, operationId: op.id, sessionId: op.sessionId, ...execution, effectsKnown: false }).ok);
     this.work = work;
+    assert(engine.send(this.room.id, this.taskId, { type: 'ARTIFACT', id: randomUUID(), at: Date.now(),
+      artifact: { id: 'target-material', name: 'target.md', content: '必须随目标清除的资料引用' } }).ok);
     await this.page.reload(); await this.page.keyboard.press('Escape');
+    if (this.number === 97) this.archiveResponse = await this.host.holdResponse('**/archive');
     await this.page.getByRole('button', { name: `归档群聊 ${this.room.title}`, exact: true }).click();
     await this.host.until(() => this.host.get('/rooms'), r => r.data.rooms.find(r => r.id === this.room.id)?.archived, 'target archived');
     await this.page.getByRole('button', { name: /^已归档/ }).click();
@@ -48,6 +52,15 @@ export class ForceRoomDeletionBrowserCase {
       await this.page.getByRole('navigation', { name: '归档群聊列表', exact: true }).getByRole('button', { name: this.room.title, exact: true }).click();
       await this.page.keyboard.press('Escape');
       await this.page.getByRole('textbox', { name: '群聊消息输入框' }).fill('即将删除会话的草稿');
+    }
+    if (this.number === 96) {
+      await this.page.locator('header').getByRole('button', { name: '查看任务详情', exact: true }).click();
+      await this.page.getByRole('button', { name: '查看 target.md', exact: true }).click();
+      await this.page.getByRole('button', { name: '引用到新任务', exact: true }).click();
+      await this.page.locator('header').getByRole('button', { name: '查看任务详情', exact: true }).click();
+      await this.page.getByRole('button', { name: '移除产物引用', exact: true }).waitFor();
+      await this.page.getByRole('button', { name: '打开状态机调试', exact: true }).click();
+      await this.page.getByRole('button', { name: '关闭状态机调试', exact: true }).waitFor();
     }
     if (this.number === 94) {
       const inventory = this.runtime.planRoomCleanup.bind(this.runtime); let first = true;
@@ -97,7 +110,7 @@ export class ForceRoomDeletionBrowserCase {
       await this.host.selectRoom(this.other); await this.heldDelete.release();
     }
     await this.host.until(() => button().count(), count => count === 0, 'deleted target removed from sidebar');
-    if (this.oldList) { await this.oldDetail.release(); await this.oldList.release(); }
+    if (this.oldList) { await this.oldDetail.release(); await this.oldList.release(); await this.archiveResponse.release(); }
     if (this.prepare) this.prepare.release();
     await this.host.capture('when');
   }
@@ -111,6 +124,14 @@ export class ForceRoomDeletionBrowserCase {
       assert(!(await this.host.get('/rooms')).data.rooms.some(r => r.id === this.room.id));
       assert.equal(await this.page.getByRole('button', { name: `删除归档群聊 ${this.room.title}`, exact: true }).count(), 0);
       assert.equal(this.host.posts.filter(p => p.path.endsWith('/operation-reconcile') || p.path.endsWith('/delete-retry')).length, 0);
+      if (this.number === 96) {
+        assert.equal(await this.page.getByRole('button', { name: '移除产物引用', exact: true }).count(), 0);
+        assert.equal(await this.page.getByRole('button', { name: '关闭状态机调试', exact: true }).count(), 0);
+      }
+      if (this.number === 99) {
+        const attempts = this.host.posts.filter(p => p.path.endsWith('/delete'));
+        assert.equal(attempts.length, 2); assert.equal(attempts[0].body.id, attempts[1].body.id);
+      }
       if (!this.refreshed) {
         // Draft belongs to the other room; target completion must not clear it.
         await this.page.getByRole('button', { name: '群聊', exact: true }).click();

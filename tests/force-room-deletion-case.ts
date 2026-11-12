@@ -12,22 +12,30 @@ export class ForceRoomDeletionCase {
   result?: Awaited<ReturnType<DeletionServiceFixture['request']>>;
   private source: Record<string, string> = {};
   private other = '';
+  private otherLease = false;
   private workId = '';
   private workspaceParent = '';
   constructor(readonly id: string) {}
-  async given() {
+  async given(status = 'uncertain') {
     verifyForceRoomDeletionModel();
     this.host = await new DeletionServiceFixture().open();
     const f = this.host;
-    await f.seedOperation('uncertain'); this.workId = f.context().intents[0]!.id;
+    await f.seedOperation(status); this.workId = f.context().intents[0]!.id;
     const otherTask = f.service.engine.submit(f.otherRoom, { id: 'same-message', text: '保留另一会话和同名任务' }).taskId!;
     const otherWork = f.service.engine.claim(f.otherRoom, otherTask, f.service.engine.pending(f.otherRoom, otherTask)[0]!.id)!;
     assert(f.service.engine.send(f.otherRoom, otherTask, { type: 'WAIT_USER', id: randomUUID(), at: Date.now(),
       workId: otherWork.id, fence: otherWork, question: '另一会话的独立等待' }).ok);
-    f.service.engine.store.transact(f.otherRoom, tx => { assert(tx.acquireWorkspace('other-room-exclusive', 'other-room-owner')); });
+    if (!['running', 'cancelling'].includes(status)) {
+      f.service.engine.store.transact(f.otherRoom, tx => { assert(tx.acquireWorkspace('other-room-exclusive', 'other-room-owner')); });
+      this.otherLease = true;
+    }
     this.source = await directorySnapshot(f.source);
     this.other = this.otherContent();
     await f.archive();
+    if (this.id === 'BT_Y162') {
+      const workspace = join(f.root, 'runtime', 'workspaces'); await mkdir(workspace, { recursive: true });
+      await symlink(f.source, join(workspace, f.service.engine.localNamespace(f.room, f.task)), 'dir');
+    }
     if (this.id === 'BT_Y163') {
       this.workspaceParent = join(f.root, 'runtime', 'workspaces');
       await mkdir(this.workspaceParent, { recursive: true });
@@ -50,7 +58,7 @@ export class ForceRoomDeletionCase {
     const f = this.host;
     if (this.id === 'BT_Y166') {
       const before = f.readRows();
-      for (const [target, origin] of [[f.room, 'https://outside.invalid'], [randomUUID(), f.url], [f.otherRoom, f.url]]) {
+      for (const [target, origin] of [[f.room, 'https://outside.invalid'], [randomUUID(), f.url], [f.otherRoom, f.url]] as const) {
         const response = await f.request(f.route(target) + '/delete', { id: randomUUID() }, { origin });
         assert([403, 404, 409].includes(response.status), JSON.stringify(response));
       }
@@ -102,7 +110,7 @@ export class ForceRoomDeletionCase {
     const f = this.host;
     assert.deepEqual(await directorySnapshot(f.source), this.source);
     assert.equal(this.otherContent(), this.other);
-    assert(f.readRows().leases.some(row => row.key === 'other-room-exclusive' && row.owner === 'other-room-owner'));
+    if (this.otherLease) assert(f.readRows().leases.some(row => row.key === 'other-room-exclusive' && row.owner === 'other-room-owner'));
   }
   async close() { await this.host?.close(); }
 }
