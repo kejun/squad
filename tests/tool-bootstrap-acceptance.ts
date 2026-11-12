@@ -95,9 +95,7 @@ function reader(version: string): CliAcquisitionReader {
 function expectedToolVersion(version: string) {
   const canonical = { acquisitionReaders: [{ argsPrefix: ['document'], command: 'document-reader', format: 'json-document',
     id: 'bootstrap-reader', resource: { index: 1, kind: 'document-argument', namespace: 'team/book', service: 'yuque' }, version }],
-    acquisitionReadersConfigured: true,
-    cliCatalog: [{ command: 'document-reader', description: '读取专用文档服务', domains: ['docs.example.com'], execution: 'sandbox' }],
-    cliCatalogConfigured: true };
+    acquisitionReadersConfigured: true };
   return `${currentToolVersion}:${createHash('sha256').update(JSON.stringify(canonical)).digest('hex')}`;
 }
 async function submitTask(worker: Worker, title: string) {
@@ -128,6 +126,15 @@ export async function verifyToolBootstrapAcceptance() {
     assert.equal(sqliteTask(directory, original.roomId, original.taskId).context.config.toolVersion, expectedToolVersion('1'));
     await stopWorker(first, directory);
 
+    // Catalog observations can change across a real restart without changing the execution contract.
+    writeFileSync(catalogFile, JSON.stringify([{ command: 'document-reader', description: '更新后的目录说明', domains: ['docs.example.com'], execution: 'host' }]));
+    const metadataOnly = await startWorker(directory, readersFile, catalogFile); workers.push(metadataOnly); await healthy(metadataOnly);
+    const metadataRecovered = await taskSnapshot(metadataOnly, original.roomId, original.taskId);
+    assert.equal(metadataRecovered.context.config.toolVersion, expectedToolVersion('1'));
+    assert(!metadataRecovered.context.resilience?.gates.some(gate => gate.cause === 'incompatibleExecution' && gate.status === 'open'),
+      'A directory-only change must not invalidate the saved task execution contract');
+    await stopWorker(metadataOnly, directory);
+
     // A real file edit and fresh process must not silently reuse the previous reader configuration.
     const changed = reader('2');
     writeFileSync(readersFile, JSON.stringify([{ resource: changed.resource, format: changed.format, argsPrefix: changed.argsPrefix,
@@ -157,9 +164,9 @@ export async function verifyToolBootstrapAcceptance() {
     assert(!invalid.logs().includes(syntheticSensitiveValue), 'Invalid reader diagnostics leaked a synthetic sensitive configuration value');
     assert.equal(existsSync(join(directory, 'runtime/service.lock')), false);
     assert.equal(readFileSync(catalogFile, 'utf8').includes(syntheticSensitiveValue), false);
-    return { bootstraps: 2, rejectedConfigurations: 1, canonicalToolVersions: [expectedToolVersion('1'), expectedToolVersion('2')],
+    return { bootstraps: 3, directoryOnlyRestartPreservesContract: true, rejectedConfigurations: 1, canonicalToolVersions: [expectedToolVersion('1'), expectedToolVersion('2')],
       changedConfiguration: { oldTaskPhase: recovered.value, requiredGate: gate.cause, originalProtocolPreserved: true },
-      gracefulSigterm: 2, serviceLocksRemoved: true, invalidConfigurationValueRedacted: true,
+      gracefulSigterm: 3, serviceLocksRemoved: true, invalidConfigurationValueRedacted: true,
       boundary: 'Real scripts/web.ts, administrator files, local HTTP, SQLite and process lifecycle; no model service, CLI execution, resource network read or OS isolation claim' };
   } finally {
     for (const worker of workers) if (worker.child.exitCode === null && worker.child.signalCode === null) {

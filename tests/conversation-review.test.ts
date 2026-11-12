@@ -1,4 +1,4 @@
-import { fixtureCheck, withFixtureAcceptance } from './delivery-protocol-fixture.js';
+import { fixtureCheck, fixtureWorkInput, withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -688,11 +688,11 @@ describe("bounded group review", () => {
       transport: async (_url, init) => {
         const body = JSON.parse(String(init?.body));
         const system = body.messages[0].content as string;
-        const context = JSON.parse(body.messages[1].content).context;
-        requests.push({ system, context });
         const work = engine
           .view("r", task)!
           .context.intents.find((work) => work.status === "inflight")!;
+        const context = fixtureWorkInput(body, work.id).context;
+        requests.push({ system, context });
         const output = await script([]).execute(
           work,
           new AbortController().signal,

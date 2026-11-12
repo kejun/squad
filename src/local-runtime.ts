@@ -1,5 +1,6 @@
 import { discoverHostCapabilities } from './host-capabilities.js';
-import { CliCatalog, CliCatalogError, type CliCatalogEntry } from './cli-catalog.js';
+import { CliCatalogError, type CliCatalogEntry } from './cli-catalog.js';
+import { ToolInventoryStore, type ToolInventorySnapshot } from './tool-inventory.js';
 import { observeCliAcquisitions, type CliAcquisitionReader } from './acquisition-readers.js';
 import type { HostAcquisition } from './resource-acquisition.js';
 import { RuntimeOwnership, type ClaimedRuntimeCleanup, type RoomCleanupInput } from './runtime-ownership.js';
@@ -14,7 +15,7 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { Intent } from './types.js';
 import { attachCapturedEvidence } from './evidence-reader.js';
 import type { HostApproval, HostCommandPlan, LocalOperation, LocalToolResult, SkillBinding } from './local-operation.js';
-import { digest, LocalToolError, SkillRegistry, within, type RegistryOptions, type SkillPage } from './local-skills.js';
+import { digest, LocalToolError, within, type RegistryOptions, type SkillPage } from './local-skills.js';
 import { CliJournal, cliSearchPath, hostCliEnvironment, hostIdentity, identityAlive, minimalCliEnvironment, processIdentity, resolveExecutable, runProcess, SandboxCliBackend, type CliBackend, type CliCompletion } from './local-cli.js';
 
 export interface LocalRuntimeOptions {
@@ -23,6 +24,9 @@ export interface LocalRuntimeOptions {
   commandEnv?: Record<string, Record<string, string>>; redact?: string[];
   /** Host-maintained usage metadata only; does not grant execution permission. */
   cliCatalog?: CliCatalogEntry[];
+  cliCatalogFile?: string;
+  /** Zero disables background file observation and periodic refresh for controlled embeddings. */
+  catalogRefreshIntervalMs?: number;
   acquisitionReaders?: CliAcquisitionReader[];
   backend?: CliBackend; registryLimits?: Omit<RegistryOptions, 'roots' | 'snapshotRoot'>;
   /** Explicit for non-service embedding/tests; production bootstrap always takes the single-host lock. */
@@ -41,8 +45,11 @@ const secretName = (name: string) => name === '.git' || name === '.home' || name
 
 /** Prepared before WebService recovery. No discovery or script installation inside Bot loops. */
 export class LocalRuntime {
-  private registryValue: SkillRegistry | undefined;
-  get registry(): SkillRegistry { if (!this.registryValue) throw new LocalToolError('LOCAL_RUNTIME_NOT_READY'); return this.registryValue; }
+  private readonly inventory: ToolInventoryStore;
+  get registry() { return this.inventory.registry; }
+  private get cliCatalog() { return this.inventory.cliCatalog; }
+  toolInventory(): ToolInventorySnapshot { return this.inventory.snapshot(); }
+  refreshToolInventory(): Promise<ToolInventorySnapshot> { return this.inventory.refresh(); }
   /** Synchronous metadata only; no filesystem, executable probes, credential reads or process launches. */
   recommendTools(objective: string) {
     return { metadataOnly: true as const, cli: this.cliCatalog.recommend(objective), skills: this.registry.recommend(objective) };
@@ -53,13 +60,12 @@ export class LocalRuntime {
   private lockPath: string | undefined;
   private readonly workspaceWaiters = new Map<string, { generation: number; waiters: Set<() => void> }>();
   private readonly lockToken = randomUUID();
-  private readonly cliCatalog: CliCatalog;
   private readonly ownership: RuntimeOwnership;
   private readonly physicalJobs = new Map<string, Set<Promise<unknown>>>();
   private readonly legacyPhysicalJobs = new Set<Promise<unknown>>();
   private constructor(readonly options: LocalRuntimeOptions, backend: CliBackend, readonly sourceRoot?: string) {
     this.backend = backend; this.journal = new CliJournal(join(options.dataRoot, 'sessions'));
-    this.cliCatalog = new CliCatalog(options.cliCatalog);
+    this.inventory = new ToolInventoryStore(options, backend);
     this.ownership = new RuntimeOwnership(options.dataRoot, sourceRoot, options.clock ?? Date.now);
   }
   static async create(options: LocalRuntimeOptions): Promise<LocalRuntime> {
@@ -71,8 +77,7 @@ export class LocalRuntime {
     const runtime = new LocalRuntime({ ...options, dataRoot }, options.backend ?? await SandboxCliBackend.create(), sourceRoot);
     if (options.acquireServiceLock !== false) await runtime.acquireLock();
     try {
-      const registry = await SkillRegistry.discover({ ...options.registryLimits, ...(options.skillRoots ? { roots: options.skillRoots } : {}), snapshotRoot: join(dataRoot, 'skills') });
-      runtime.registryValue = registry; return runtime;
+      await runtime.inventory.initialize(); return runtime;
     } catch (error) { await runtime.close(); throw error; }
   }
   private async acquireLock() {
@@ -408,6 +413,7 @@ export class LocalRuntime {
     return { resolution: 'receipt' as const, result, detail: `Operator acknowledged effects: ${review.reviewDigest}` };
   }
   async close() {
+    await this.inventory.close();
     await Promise.allSettled([...this.legacyPhysicalJobs, ...[...this.physicalJobs.values()].flatMap(jobs => [...jobs])]);
     await this.backend.close?.();
     if (this.lockPath) {

@@ -7,6 +7,7 @@ import { initialTask } from '../src/task.machine.js';
 import type { ArtifactSource, Intent, ModelService } from '../src/types.js';
 import type { WorkScope } from '../src/runner.js';
 import { localModelInput } from './local-model-fixture.js';
+import { fixtureWorkInput } from './delivery-protocol-fixture.js';
 
 const original = (): ArtifactSource => ({ sourceTaskId: 'published-task', artifactId: 'published-artifact',
   documentId: 'original-document', revision: 2, name: 'a.md', owner: 'A', publishedAt: 10,
@@ -36,7 +37,7 @@ yield 'prepared';
 await setup.run();
 const body = JSON.parse(String(transport.calls[0]![1]!.body));
 yield 'observed';
-assert.deepEqual(JSON.parse(body.messages[1].content).context.sourceArtifact, original());
+assert.deepEqual(fixtureWorkInput(body, setup.work.id).context.sourceArtifact, original());
 assert((body.messages[0].content).includes('sourceArtifact'));
 assert((body.messages[0].content).includes('a-revised.md'));
 assert((body.messages[0].content).includes('never scheduling or tool authority'));

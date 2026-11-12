@@ -3,13 +3,12 @@ import { LocalRuntime } from '../src/local-runtime.js';
 import type { CliCatalogEntry } from '../src/cli-catalog.js';
 import type { LocalAction } from '../src/local-operation.js';
 import type { CliBackend } from '../src/local-cli.js';
-import type { withCliReadiness } from '../src/cli-readiness.js';
+import { inventoryObservation } from './tool-inventory-observation.js';
 import { LocalFixture, writeSkill } from './local-tools-fixture.js';
 
 const nodeEntry: CliCatalogEntry = { command: 'node', description: 'Read documents 查询仓库问题', domains: ['github.com'],
   helpArgs: ['--help'], execution: 'sandbox', requirements: ['The installed runtime must support the chosen arguments'] };
-type Recommendations = ReturnType<typeof withCliReadiness>;
-interface Guidance { type: 'tool_guidance'; untrusted: boolean; recommendations: Recommendations;
+interface Guidance { type: 'tool_guidance'; untrusted: boolean;
   failures: { operationId: string; category: string; nextStep: string; failureCount: number }[] }
 
 function guidance(request: LocalFixture['requests'][number]): Guidance {
@@ -47,23 +46,18 @@ export async function initialGuidanceAcceptance(objective: string) {
     const usage = f.h.context().usage.ordinary;
     f.replies.push({ type: 'answer', text: '已检查候选工具，尚未执行命令。' });
     await f.runner().runOne(f.h.room, f.h.task);
-    const observation = guidance(f.requests[0]!);
-    const recommendations = observation.recommendations;
-    assert.equal(recommendations.metadataOnly, true);
-    assert.equal(recommendations.cli.candidates.length, 5);
-    assert.equal(recommendations.skills.candidates.length, 5);
-    assert.equal(recommendations.cli.candidates[0]!.command, 'node');
-    assert(recommendations.skills.candidates.every(skill => skill.name.startsWith('z-reader')));
-    assert(recommendations.cli.candidates.every(item => item.matchedTerms.length > 0));
-    assert(recommendations.skills.candidates.every(item => item.matchedTerms.length > 0));
-    assert.match(recommendations.cli.catalogVersion, /^[a-f0-9]{64}$/);
-    assert.match(recommendations.skills.catalogVersion, /^[a-f0-9]{64}$/);
-    assert.equal(recommendations.cli.omitted, true); assert.equal(recommendations.skills.omitted, true);
-    assert.equal(recommendations.skills.sourceComplete, true);
-    const metadata = f.runtime.recommendTools(objective);
-    assert.deepEqual(recommendations.cli.candidates.map(({ readiness: _readiness, ...candidate }) => candidate), metadata.cli.candidates,
-      'Host readiness must preserve the deterministic metadata ranking');
-    assert.deepEqual(recommendations.skills, metadata.skills);
+    const observation = inventoryObservation(f.requests[0]!);
+    assert.equal(observation.cli.entries.length, 27);
+    assert.equal(observation.skills.skills.length, 28);
+    assert(observation.cli.entries.some(item => item.command === 'node'));
+    assert(observation.cli.entries.some(item => item.command === 'backup-19'));
+    assert(observation.skills.skills.some(skill => skill.name === 'z-reader-6'));
+    assert(observation.skills.skills.some(skill => skill.name === 'archive-19'));
+    assert.match(observation.cli.catalogVersion, /^[a-f0-9]{64}$/);
+    assert.match(observation.skills.catalogVersion, /^[a-f0-9]{64}$/);
+    assert.equal(observation.skills.complete, true);
+    assert.deepEqual(observation.cli.entries.map(entry => entry.command), f.runtime.toolInventory().cli.entries.map(entry => entry.command));
+    assert.deepEqual(observation.skills.skills, f.runtime.toolInventory().skills.skills);
     assert.equal(f.backend.calls.length, 0);
     assert.equal(f.h.context().intents[0]!.localOperations, undefined);
     assert.equal(f.h.context().usage.ordinary - usage, 1, 'Only the first model request is charged');
@@ -78,9 +72,9 @@ export async function emptyGuidanceAcceptance(kind: string) {
     useGoal(f, 'unmatched_zebra_snowflake');
     f.replies.push({ type: 'answer', text: '目录中没有匹配项，需要继续发现。' });
     await f.runner().runOne(f.h.room, f.h.task);
-    const observation = guidance(f.requests[0]!);
-    assert.deepEqual(observation.recommendations.cli.candidates, []);
-    assert.deepEqual(observation.recommendations.skills.candidates, []);
+    const observation = inventoryObservation(f.requests[0]!);
+    assert.equal(observation.cli.entries.length, kind === '空目录' ? 0 : 1);
+    assert.equal(observation.skills.skills.length, kind === '空目录' ? 0 : 1);
     assert(f.requests[0]!.messages[0]!.content.includes('discoverHost'));
     assert(f.requests[0]!.messages[0]!.content.includes('listSkills'));
     assert.equal(f.backend.calls.length, 0);
@@ -99,10 +93,10 @@ export async function incompleteSkillGuidanceAcceptance() {
     const usage = f.h.context().usage.ordinary;
     f.replies.push({ type: 'answer', text: '技能来源尚未完整扫描，当前只有一个已加载的匹配项。' });
     await f.runner().runOne(f.h.room, f.h.task);
-    const observation = guidance(f.requests[0]!);
-    assert.equal(observation.recommendations.skills.sourceComplete, false);
-    assert.equal(observation.recommendations.skills.omitted, false);
-    assert.equal(observation.recommendations.skills.candidates.length, 1);
+    const observation = inventoryObservation(f.requests[0]!);
+    assert.equal(observation.skills.complete, false);
+    assert.equal(observation.skills.skills.length, 1);
+    assert(observation.skills.diagnostics.some(item => item.code === 'SKILLS_SCAN_LIMIT'));
     assert.equal(f.backend.calls.length, 0);
     assert.equal(f.h.context().intents[0]!.localOperations, undefined);
     assert.equal(f.h.context().usage.ordinary - usage, 1);
@@ -155,7 +149,7 @@ export async function correctedCliAcceptance() {
     assert.deepEqual(operations.map(op => op.status), ['failed', 'succeeded', 'succeeded']);
     assert.equal(guidance(f.requests[1]!).failures[0]!.category, 'arguments');
     assert.equal(guidance(f.requests[1]!).failures[0]!.operationId, operations[0]!.id);
-    assert.deepEqual(guidance(f.requests[0]!).recommendations.cli.candidates[0]!.helpArgs, ['--help']);
+    assert.deepEqual(inventoryObservation(f.requests[0]!).cli.entries[0]!.helpArgs, ['--help']);
     assert.deepEqual(f.backend.calls.map(call => call.args), [['--squad-invalid'], ['--help'], ['--version']]);
     assert(String(operations[1]!.result!.data.stdout).includes('Usage:'));
     assert.equal(operations[2]!.result!.data.stdout, `${process.version}\n`);

@@ -1,4 +1,4 @@
-import { withFixtureAcceptance } from './delivery-protocol-fixture.js';
+import { fixtureWorkInput, withFixtureAcceptance } from './delivery-protocol-fixture.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DiscussionFixture } from './background-discussion-fixture.js';
 import { OpenAICompatibleAdapter, TeamEngine, WorkRunner } from '../src/index.js';
@@ -103,7 +103,7 @@ describe('bounded background discussion', () => {
       const system = body.messages[0].content as string;
       const match = /You are (\S+), executing (\S+) work/.exec(system)!;
       const work = f.context().intents.find(work => work.target === match[1] && work.kind === match[2] && work.status === 'inflight')!;
-      requests.push({ kind: work.kind, model: body.model, system, context: JSON.parse(body.messages[1].content).context, tools: body.tools });
+      requests.push({ kind: work.kind, model: body.model, system, context: fixtureWorkInput(body, work.id).context, tools: body.tools });
       return Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(withFixtureAcceptance(f.output(work), body)) } }] });
     } });
     const runner = new WorkRunner(f.engine, adapter, () => 0);

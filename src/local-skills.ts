@@ -20,7 +20,7 @@ export interface SkillResource { skillId: string; skillVersion: string; path: st
 export interface RegistryOptions { roots?: string[]; snapshotRoot: string; maxSkills?: number; maxFiles?: number; maxFileBytes?: number; maxPackageBytes?: number; scanTimeoutMs?: number }
 const defaults = { maxSkills: 200, maxFiles: 1500, maxFileBytes: 2 * 1024 * 1024, maxPackageBytes: 32 * 1024 * 1024, scanTimeoutMs: 10_000 };
 
-/** One immutable startup catalog. Model context is progressive; content hashes bind the entire package. */
+/** Immutable catalog generation. Content hashes bind the entire package across refreshes. */
 export class SkillRegistry {
   readonly catalogVersion: string;
   readonly diagnostics: { source: string; code: string }[];
@@ -78,7 +78,7 @@ export class SkillRegistry {
         } catch { diagnostics.push({ source: file, code: 'SKILL_BINDING_INVALID' }); }
       }
     } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') diagnostics.push({ source: opts.snapshotRoot, code: 'SKILL_BINDINGS_UNREADABLE' }); }
-    return new SkillRegistry(entries, opts, diagnostics, complete, archived);
+    return new SkillRegistry(entries, opts, diagnostics, complete && diagnostics.length === 0, archived);
   }
   list({ query, cursor }: { query?: string; cursor?: string } = {}): SkillPage {
     const q = normalizeCatalogQuery(query);
@@ -87,6 +87,23 @@ export class SkillRegistry {
     const skills = page.entries.map(({ root: _root, files: _files, ...metadata }) => metadata);
     return { catalogVersion: this.catalogVersion, skills, nextCursor: page.nextCursor,
       diagnostics: this.diagnostics.slice(0, 50), complete: this.complete };
+  }
+  /** Full metadata only. Skill bodies and package resources remain explicitly loaded. */
+  all(): SkillPage {
+    return { catalogVersion: this.catalogVersion,
+      skills: this.entries.map(({ root: _root, files: _files, ...metadata }) => structuredClone(metadata)),
+      nextCursor: null, diagnostics: structuredClone(this.diagnostics), complete: this.complete };
+  }
+  retainPrevious(previous: SkillRegistry): this {
+    // Share in-flight publication promises so refresh cannot publish the same version twice.
+    this.snapshots = previous.snapshots;
+    const retained = [...previous.archived, ...previous.entries.filter(entry => this.snapshots.has(entry.skillVersion))];
+    const versions = new Set([...this.entries, ...this.archived].map(entry => `${entry.skillId}:${entry.skillVersion}`));
+    for (const entry of retained) {
+      const key = `${entry.skillId}:${entry.skillVersion}`;
+      if (!versions.has(key)) { this.archived.push(entry); versions.add(key); }
+    }
+    return this;
   }
   recommend(objective: string) {
     const metadata = this.entries.map(({ root: _root, files: _files, ...entry }) => entry);

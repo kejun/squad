@@ -37,10 +37,10 @@ Then('不得重新执行确定命令或为补观察额外计费', function (this
 });
 Then('恢复后应沿用原正文通过独立检查完成交付', function (this: SpecWorld) { assert.equal(state(this).receiptWindow!.outcome, 'complete'); });
 
-Given('任务已经保存相关工具候选和另一成员的真实工具发现记录', function (this: SpecWorld) { state(this); });
+Given('任务已经保存完整工具目录和另一成员的真实工具发现记录', function (this: SpecWorld) { state(this); });
 Given('当前执行身份为{string}且仍具有相应工具权限', function (this: SpecWorld, role: string) { state(this).role = role; });
 When('该成员通过网页执行并遇到可替代的已知网页读取失败', async function (this: SpecWorld) { state(this).scope = await webScopeRecoveryAcceptance(state(this).role!); });
-Then('实际模型输入应收到当前相关候选和可复用方法的来源标识', function (this: SpecWorld) { assert.equal(state(this).scope!.modelRequests, 5); });
+Then('实际模型输入应收到当前完整工具目录和可复用方法的来源标识', function (this: SpecWorld) { assert.equal(state(this).scope!.modelRequests, 5); });
 Then('该失败应被保存并回传为未取得目标资料', function (this: SpecWorld) { assert.equal(state(this).scope!.failureCount, 1); });
 Then('成员应能在原期限和预算内选择获准替代方法', function (this: SpecWorld) { assert.equal(state(this).scope!.cliCalls, 1); });
 Then('不应因网页执行记录包装丢失失败反馈或重复收取已授权请求费用', function (this: SpecWorld) { assert.equal(state(this).scope!.additionalOrdinary, 4); });
@@ -48,15 +48,15 @@ Then('不应因网页执行记录包装丢失失败反馈或重复收取已授�
 Given('当前读取入口的已知状态为{string}', function (this: SpecWorld, label: string) { state(this).configuration = label; });
 When('成员请求带配置诊断的当前工作工具建议', async function (this: SpecWorld) { state(this).configured = await configurationDiagnosticAcceptance(state(this).configuration!); });
 Then('应明确返回{string}并保留已有的可行发现或替代入口', function (this: SpecWorld, diagnostic: string) {
-  const result = state(this).configured!.recommendation;
-  const actual: Record<string, string | undefined> = { 目录未配置: result.configuration.state, 目录为空: result.configuration.state,
-    当前无匹配: result.matchState, 入口未安装: result.unavailableCandidates[0]?.readiness.installation,
-    当前未获授权: result.unavailableCandidates[0]?.readiness.authorization, 需要认证: result.unavailableCandidates[0]?.readiness.authentication };
-  const expected: Record<string, string> = { 目录未配置: 'unconfigured', 目录为空: 'empty', 当前无匹配: 'no_match',
+  const result = state(this).configured!;
+  const actual: Record<string, string | number | undefined> = { 目录未配置: result.inventory.cli.configuration.state, 目录为空: result.inventory.cli.configuration.state,
+    完整登记目录: result.inventory.cli.entries.length, 入口未安装: result.readiness?.installation,
+    当前未获授权: result.readiness?.authorization, 需要认证: result.readiness?.authentication };
+  const expected: Record<string, string | number> = { 目录未配置: 'unconfigured', 目录为空: 'empty', 完整登记目录: 1,
     入口未安装: 'not_found', 当前未获授权: 'denied', 需要认证: 'required' };
   assert.equal(actual[diagnostic], expected[diagnostic]);
 });
-Then('不应把未核实安装、认证或授权状态宣称为可用', function (this: SpecWorld) { assert.equal(state(this).configured!.recommendation.executionAuthority, false); });
+Then('不应把未核实安装、认证或授权状态宣称为可用', function (this: SpecWorld) { assert.equal(state(this).configured!.inventory.executionAuthority, false); });
 Then('不应为生成建议自动执行、安装、登录或收费', function (this: SpecWorld) {
   const result = state(this).configured!;
   assert.equal(result.cliCalls, state(this).configuration === '已核实相关账号需要认证' ? 1 : 0);
@@ -64,9 +64,9 @@ Then('不应为生成建议自动执行、安装、登录或收费', function (t
 
 Given('工具用途和调用入口已登记且宿主保存敏感配置', function (this: SpecWorld) { state(this); });
 When('成员收到工具建议并选择需要宿主权限的入口', async function (this: SpecWorld) { state(this).configured = await configurationDiagnosticAcceptance('已核实宿主授权被拒绝'); });
-Then('建议应提供非敏感配置状态和已知前提', function (this: SpecWorld) { assert.equal(state(this).configured!.recommendation.configuration.state, 'configured'); });
+Then('建议应提供非敏感配置状态和已知前提', function (this: SpecWorld) { assert.equal(state(this).configured!.inventory.cli.configuration.state, 'configured'); });
 Then('凭据值和账号文件内容不得进入模型输入或执行记录', function (this: SpecWorld) { assert.equal(state(this).configured!.credentialsLeaked, false); });
-Then('目录元数据和推荐不得代替当前用户的实际授权', function (this: SpecWorld) { assert.equal(state(this).configured!.recommendation.unavailableCandidates[0]!.readiness.authorization, 'denied'); });
+Then('目录元数据和推荐不得代替当前用户的实际授权', function (this: SpecWorld) { assert.equal(state(this).configured!.readiness!.authorization, 'denied'); });
 
 Given('读取工具进程退出成功或返回HTTP200', function (this: SpecWorld) { state(this); });
 Given('宿主校验的内容状态为{string}', function (this: SpecWorld, label: string) { state(this).content = label; });

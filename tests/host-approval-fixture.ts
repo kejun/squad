@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
-import { LocalRuntime } from '../src/local-runtime.js';
+import { LocalRuntime, type LocalRuntimeOptions } from '../src/local-runtime.js';
 import type { CliBackend } from '../src/local-cli.js';
 import { OpenAICompatibleAdapter } from '../src/model-adapter.js';
 import { WebService } from '../src/web/service.js';
@@ -27,6 +27,7 @@ export class HostApprovalFixture {
   requests: { messages: { role: string; content: string }[] }[] = [];
   action!: LocalAction;
   hostCommands = 1;
+  runtimeOptions: Partial<Pick<LocalRuntimeOptions, 'cliCatalog' | 'cliCatalogFile' | 'catalogRefreshIntervalMs' | 'commandEnv'>> = {};
   beforeOwnerResponse?: (request: HostApprovalFixture['requests'][number]) => Promise<Response | void>;
   sandboxBackend?: CliBackend;
   private previousToken = process.env.EXAMPLE_CLI_TOKEN;
@@ -50,7 +51,8 @@ setTimeout(() => { process.stdout.write(token.slice(9) + '\\n'); }, 5);
   }
   async start() {
     this.runtime = await LocalRuntime.create({ dataRoot: join(this.root, 'runtime'), workspaceRoot: this.source, skillRoots: [], redact: [this.modelKey],
-      backend: this.sandboxBackend ?? { available: false, async execute() { throw new Error('No automatic sandbox fallback'); } } });
+      backend: this.sandboxBackend ?? { available: false, async execute() { throw new Error('No automatic sandbox fallback'); } },
+      ...this.runtimeOptions });
     const config = localConfig(); config.limits.workTimeoutMs = 60_000; config.limits.progressIntervalMs = 60_000;
     const adapter = new OpenAICompatibleAdapter(config, { transport: async (_url, init) => {
       const request = JSON.parse(String(init?.body)) as typeof this.requests[number]; this.requests.push(request);
