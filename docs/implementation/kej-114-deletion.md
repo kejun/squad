@@ -1,5 +1,7 @@
 # KEJ-114：归档会话的安全删除
 
+> 2026-11-12 更新：新删除入口已改为[强制删除](force-archived-deletion.md)，不再要求确认或核对未决操作；下文安全删除门槛仅记录旧版持久作业的兼容恢复。当前界面契约以 BT_Y92–Y99、Y101、Y119 和 Y162–Y167 为准。模型服务错误弹层见[明确决定](model-service-error.md)。
+
 需求：[KEJ-114](https://linear.app/kejunz/issue/KEJ-114/安全干净地删除归档会话并清理关联数据与独占资源)。权威需求读回为 `work/linear-KEJ-114.json`。起始产品基线 `15d27144b05086b27ae6b02338c094a3df60fbd2`；实现分支 `codex/kej-113-114-resilience-and-deletion`。
 
 本文记录需求、独立删除状态模型及已经接入的 Store、Runtime、Engine 和网页服务边界。实现遵循模型先行；各验证层的实际执行状态分别记录在文末。

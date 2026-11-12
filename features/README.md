@@ -4,6 +4,8 @@
 
 当前尚不能自动验收的范围在 `acceptance-gaps.json` 中逐项登记原因及场景编号，并在对应场景或功能上添加同名标签。排除项也必须进入覆盖报告；不得为了让检查通过而删除场景或随意扩充排除标签。Pi Durable 的原始要求保持不变，本地 SQLite 回归不冒充其验收。
 
+当前归档删除入口由 `72_force_archived_deletion.feature` 及更新后的 BT_Y92–Y99、Y101、Y119 验收：直接强制删除，无二次确认或执行核对。`55_archived_room_deletion.feature` 保留旧版已持久安全删除协议的恢复与资源隔离检查；BT_X01 验收当前直接删除入口。`73_model_service_error.feature` 验收模型 HTTP 错误消息与“跳过/停止任务”决定。
+
 报告区分直接执行的 Gherkin、仅关联的回归断言和明确待验收项。更新功能遵循根目录 `AGENTS.md` 的顺序。
 
 BT_U01、BT_U02、BT_U03、BT_U09 使用 `@real_browser`，由默认 BDD 逐条驱动真实 Chromium；运行前须按[浏览器验收技能](../.agents/skills/verify-squad/SKILL.md)准备 Playwright、浏览器及中文字体。默认入口先构建并核对源码与产物，截图、trace、HTTP/SQLite 观察和清理记录保留在 `reports/verify-squad/`。这些编号已从待验收登记移除；下方 2026-10-30 数字保留为历史记录。

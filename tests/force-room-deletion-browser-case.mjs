@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createTeamConfig } from '../team.config.ts';
 import { LocalRuntime } from '../src/local-runtime.ts';
+import { passFixtureCheck } from './helpers.ts';
 import { runProcess } from '../src/local-cli.ts';
 import { ResilientWorkspaceBrowserFixture, barrier } from './resilient-workspace-browser-fixture.mjs';
 
@@ -31,19 +32,30 @@ export class ForceRoomDeletionBrowserCase {
     const engine = this.host.service.engine;
     this.taskId = engine.submit(this.room.id, { id: 'force-ui-prefix', text: '保留任务资料并执行受控命令' }).taskId;
     const work = engine.claim(this.room.id, this.taskId, engine.pending(this.room.id, this.taskId)[0].id);
-    const action = { type: 'runCli', executable: process.execPath, args: ['-e', 'console.log("已退出但外部效果未知")'] };
-    const request = engine.requestLocal(this.room.id, this.taskId, work.id, work.attempt, action, [],
-      this.runtime.workspaceId(work, engine.localNamespace(this.room.id, this.taskId)));
-    const claim = engine.claimLocal(this.room.id, this.taskId, work.id, request.id, work.attempt); assert(claim.response.ok);
-    const op = claim.operation;
-    const execution = await this.runtime.execute(work, op, new AbortController().signal, () => {}, undefined,
-      { roomId: this.room.id, taskId: this.taskId });
-    assert(engine.send(this.room.id, this.taskId, { type: 'LOCAL_RESULT', id: randomUUID(), at: Date.now(),
-      intentId: work.id, operationId: op.id, sessionId: op.sessionId, ...execution, effectsKnown: false }).ok);
-    this.work = work;
-    assert(engine.send(this.room.id, this.taskId, { type: 'ARTIFACT', id: randomUUID(), at: Date.now(),
-      artifact: { id: 'target-material', name: 'target.md', content: '必须随目标清除的资料引用' } }).ok);
+    if (this.number === 96) {
+      assert(engine.send(this.room.id, this.taskId, { type: 'DELIVER', id: randomUUID(), at: Date.now(), workId: work.id, fence: work,
+        text: '可引用的已完成成果', artifactIds: [], artifacts: [{ name: 'target.md', content: '必须随目标清除的资料引用' }] }).ok);
+      passFixtureCheck(engine, this.room.id, this.taskId, randomUUID(), Date.now());
+      assert.equal(engine.view(this.room.id, this.taskId).context.outcome, 'complete');
+      this.work = work;
+    } else {
+      const action = { type: 'runCli', executable: process.execPath, args: ['-e', 'console.log("已退出但外部效果未知")'] };
+      const request = engine.requestLocal(this.room.id, this.taskId, work.id, work.attempt, action, [],
+        this.runtime.workspaceId(work, engine.localNamespace(this.room.id, this.taskId)));
+      const claim = engine.claimLocal(this.room.id, this.taskId, work.id, request.id, work.attempt); assert(claim.response.ok);
+      const op = claim.operation;
+      const execution = await this.runtime.execute(work, op, new AbortController().signal, () => {}, undefined,
+        { roomId: this.room.id, taskId: this.taskId });
+      assert(engine.send(this.room.id, this.taskId, { type: 'LOCAL_RESULT', id: randomUUID(), at: Date.now(),
+        intentId: work.id, operationId: op.id, sessionId: op.sessionId, ...execution, effectsKnown: false }).ok);
+      this.work = work;
+      assert(engine.send(this.room.id, this.taskId, { type: 'ARTIFACT', id: randomUUID(), at: Date.now(),
+        artifact: { id: 'target-material', name: 'target.md', content: '必须随目标清除的资料引用' } }).ok);
+    }
     await this.page.reload(); await this.page.keyboard.press('Escape');
+    await this.host.selectRoom(this.other);
+    await this.page.getByRole('textbox', { name: '群聊消息输入框' }).fill(this.otherDraft);
+    await this.host.selectRoom(this.room); await this.page.keyboard.press('Escape');
     if (this.number === 97) this.archiveResponse = await this.host.holdResponse('**/archive');
     await this.page.getByRole('button', { name: `归档群聊 ${this.room.title}`, exact: true }).click();
     await this.host.until(() => this.host.get('/rooms'), r => r.data.rooms.find(r => r.id === this.room.id)?.archived, 'target archived');
@@ -150,7 +162,12 @@ export class ForceRoomDeletionBrowserCase {
     if (!this.host.completed.includes(this.id)) this.host.completed.push(this.id);
   }
   async verifyDeletionAfterServiceRestart() {
-    await this.host.restartService(); assert.equal((await this.host.get('/rooms/' + this.room.id)).status, 410);
+    // Stop this fixture's polling before closing its server, including held pre-delete responses.
+    await this.page.goto('about:blank');
+    await this.host.restartService();
+    assert.equal((await this.host.get('/rooms/' + this.room.id)).status, 410);
+    await this.page.goto(this.host.url);
+    await this.page.getByRole('heading', { name: this.other.title, exact: true }).waitFor();
   }
   markFailed(message) { if (this.host) { this.host.failed = true; this.host.failureReason = message; } }
   async close() { for (const gate of this.gates) gate.release(); await this.host?.close(); await this.runtime?.close(); if (this.outer) await rm(this.outer, { recursive: true, force: true }); }
