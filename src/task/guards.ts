@@ -25,7 +25,7 @@ export const taskGuards = {
       const gate = args.context.resilience?.gates.find(gate => gate.id === (args.event as Extract<TaskEvent, { type: 'HUMAN_GATE_DECISION' }>).gateId);
       return gate?.scope === 'task' && (args.event.decision === 'reply'
         || args.event.decision === 'skip' && gate.cause !== 'windowExpired' && gate.cause !== 'incompatibleExecution'
-          && (gate.cause !== 'modelServiceError' || args.context.discussion?.mapReduce?.queue?.some(p => p.workId === gate.workId)));
+          && (gate.cause !== 'modelServiceError' || !!args.context.discussion?.mapReduce?.queue?.some(p => p.workId === gate.workId)));
     },
     notStartedEnds: args => args.event.type === 'EXECUTION_NOT_STARTED' && valid(args) && executionNotStartedEnds(args.context, args.event),
     hasTaskHumanGate: ({ context }) => !!taskHumanGate(context),
