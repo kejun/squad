@@ -1,8 +1,8 @@
 {
   "change": "window-tool-experience",
-  "status": "reviewed-candidate-awaiting-complete-verification",
+  "status": "updated",
   "sourceHeadBeforeCommit": "20db2a0807ffc840c6c888be0f2259ea4c1b5991",
-  "sourceIdentity": "Frozen working-tree SHA-256, not a claim that the old HEAD contains uncommitted product changes",
+  "sourceIdentity": "All 113 covered source/dependency bytes match the C4 product Git blobs. Complete producers ran with only the documented README wakeup line dirty; later authorized changes are CI, documentation and verification metadata only.",
   "previousSyncCommit": "d865873678688789dbf9399980b841caeed17946",
   "reviewedSourceFiles": [
     {
@@ -181,11 +181,123 @@
   ],
   "originalDrift": "/workspace/work/squad-window-experience/formal/original-drift-final/index.json",
   "reviewedAt": "2026-11-12T05:17:49.644535+00:00",
-  "productCommit": null,
-  "syncCommitAdvanced": false,
+  "productCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+  "syncCommitAdvanced": true,
   "validation": {
-    "status": "pending",
-    "requires": "All nine full original producers, genuine source controls, restored original replays, independent readers and applicable reader tamper controls before synchronization"
+    "status": "verified",
+    "productCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+    "allNineEntryPointsVerified": true,
+    "completeEntryCount": 9,
+    "centralIndex": "/workspace/work/squad-window-experience/formal/nine-entry-index.json",
+    "independentIndex": "/workspace/work/squad-window-experience/formal/independent-c4/index.json",
+    "entryPoints": [
+      {
+        "entry": "delivery",
+        "status": "independently-verified",
+        "sourceCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+        "syncCommitCaptured": "d865873678688789dbf9399980b841caeed17946",
+        "proof": "/workspace/work/squad-window-experience/formal/verified-c4/delivery",
+        "rawProofIdentity": {
+          "run.json": "e0c50798c4c131a7d7d505e27fd08e60742c1482859470596063bb6171135982",
+          "artifacts.json": "d9409e3b7180511234d35c474edc752d03f4ee91820f6d71a772cef96809b555"
+        },
+        "independentReadback": {
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-delivery/scripts/check.py",
+            "--verify-evidence",
+            "/workspace/work/squad-window-experience/formal/verified-c4/delivery"
+          ],
+          "exitCode": 0,
+          "seconds": 0.088,
+          "log": "/workspace/work/squad-window-experience/formal/independent-c4/delivery.log"
+        },
+        "readerControls": [
+          {
+            "name": "delivery-detailed",
+            "command": [
+              "python3",
+              ".agents/skills/verify-squad-delivery/scripts/composition-evidence-controls.py",
+              "/workspace/work/squad-window-experience/formal/verified-c4/delivery",
+              "--output",
+              "/workspace/work/squad-window-experience/formal/independent-c4/delivery-detailed-controls.json"
+            ],
+            "exitCode": 0,
+            "seconds": 0.811,
+            "log": "/workspace/work/squad-window-experience/formal/independent-c4/delivery-detailed.log"
+          },
+          {
+            "name": "delivery-generic",
+            "command": [
+              "python3",
+              "tests/local-effects-formal-readback-controls.py",
+              "--checker",
+              ".agents/skills/verify-squad-delivery/scripts/check.py",
+              "--proof",
+              "/workspace/work/squad-window-experience/formal/verified-c4/delivery",
+              "--evidence",
+              "/workspace/work/squad-window-experience/formal/independent-c4/delivery-generic-controls"
+            ],
+            "exitCode": 0,
+            "seconds": 0.711,
+            "log": "/workspace/work/squad-window-experience/formal/independent-c4/delivery-generic.log"
+          }
+        ],
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "evidenceRetained": true,
+          "checkerInputsUnchanged": true
+        },
+        "manifestFiles": 291,
+        "detail": "/workspace/work/squad-window-experience/formal/independent-c4/delivery.json",
+        "detailSha256": "1eb8834a06a5390ad8a389f34d10b641fcd2e8b04bf9a1c6f908a1f7bee69e7c",
+        "rawProofUnchanged": true,
+        "completeProducerExecuted": true,
+        "producer": {
+          "entry": "delivery",
+          "sourceCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-delivery/scripts/check.py",
+            "--jar",
+            "/workspace/work/squad-e2e/workspace-fix/formal/tla2tools-1.7.4.jar",
+            "--evidence",
+            "/workspace/work/squad-window-experience/formal/verified-c4/delivery"
+          ],
+          "exitCode": 0,
+          "seconds": 126.749,
+          "log": "/workspace/work/squad-window-experience/formal/verified-c4/delivery-producer.log",
+          "evidence": "/workspace/work/squad-window-experience/formal/verified-c4/delivery"
+        },
+        "producerStatus": "verified",
+        "scope": "Original declared finite models and actual source controls/restored implementation; new window, catalog, CAR and stdin/OCR behavior retains its separately recorded actual model/process/browser/live-model acceptance."
+      }
+    ],
+    "rawProofIdentitiesUnchanged": true,
+    "cleanup": "All complete producers and independent readers reported cleanup and covered source unchanged; no timeout/import error counted as a source fault.",
+    "postSyncIndependentReadbacks": [
+      {
+        "entry": "delivery",
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-delivery/scripts/check.py",
+          "--verify-evidence",
+          "/workspace/work/squad-window-experience/formal/verified-c4/delivery"
+        ],
+        "exitCode": 0,
+        "seconds": 0.08,
+        "log": "/workspace/work/squad-window-experience/formal/post-sync-readback/delivery.log",
+        "sourceCommitCaptured": "d157faeb875ce582e043d3c1784f8485ed53d976",
+        "oldSyncCommitCaptured": "d865873678688789dbf9399980b841caeed17946",
+        "newSyncCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+        "rawProofIdentity": {
+          "run.json": "e0c50798c4c131a7d7d505e27fd08e60742c1482859470596063bb6171135982",
+          "artifacts.json": "d9409e3b7180511234d35c474edc752d03f4ee91820f6d71a772cef96809b555"
+        },
+        "rawProofUnchanged": true
+      }
+    ]
   },
   "scope": "Original finite properties, bounds, fairness and source controls remain. New processing-window/human-gate, catalog usage accuracy, CAR history, actual stdin bytes/OCR, current-session UI and their combinations retain separate actual taskMachine/BDD/real-process/browser/live-model evidence. No full-system or arbitrary-history claim.",
   "sliceCorrespondence": "Original Delivery resource snapshot remains; CLI invocation identity adds cliSnapshot without changing skill snapshot comparison. Verification exact argv now excludes stdin; old normal validation graph action already omits it. CLI identity/source fault coverage is supplementary, not additional TLC states.",
@@ -216,5 +328,17 @@
       "completeProducers": 0,
       "record": "/workspace/work/squad-window-experience/formal/c2-partial-cancellation.json"
     }
-  ]
+  ],
+  "verifiedAt": "2026-11-12T06:02:46.446539+00:00",
+  "syncAdvance": {
+    "previousSyncCommit": "d865873678688789dbf9399980b841caeed17946",
+    "syncCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+    "metadataOnly": true,
+    "producerReexecutedForSync": false,
+    "rawProofsRetainCapturedOldSync": true,
+    "postSyncReadbackStatus": "verified",
+    "postSyncIndex": "/workspace/work/squad-window-experience/formal/post-sync-index.json",
+    "rawProofIdentitiesUnchanged": true,
+    "coveredSourceBytesMatchProductCommit": true
+  }
 }

@@ -1,8 +1,8 @@
 {
   "change": "window-tool-experience",
-  "status": "reviewed-candidate-awaiting-complete-verification",
+  "status": "updated",
   "sourceHeadBeforeCommit": "20db2a0807ffc840c6c888be0f2259ea4c1b5991",
-  "sourceIdentity": "Frozen working-tree SHA-256, not a claim that the old HEAD contains uncommitted product changes",
+  "sourceIdentity": "All 113 covered source/dependency bytes match the C4 product Git blobs. Complete producers ran with only the documented README wakeup line dirty; later authorized changes are CI, documentation and verification metadata only.",
   "previousSyncCommit": "d865873678688789dbf9399980b841caeed17946",
   "reviewedSourceFiles": [
     {
@@ -181,11 +181,108 @@
   ],
   "originalDrift": "/workspace/work/squad-window-experience/formal/original-drift-final/index.json",
   "reviewedAt": "2026-11-12T05:17:49.644535+00:00",
-  "productCommit": null,
-  "syncCommitAdvanced": false,
+  "productCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+  "syncCommitAdvanced": true,
   "validation": {
-    "status": "pending",
-    "requires": "All nine full original producers, genuine source controls, restored original replays, independent readers and applicable reader tamper controls before synchronization"
+    "status": "verified",
+    "productCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+    "allNineEntryPointsVerified": true,
+    "completeEntryCount": 9,
+    "centralIndex": "/workspace/work/squad-window-experience/formal/nine-entry-index.json",
+    "independentIndex": "/workspace/work/squad-window-experience/formal/independent-c4/index.json",
+    "entryPoints": [
+      {
+        "entry": "local-effects",
+        "status": "independently-verified",
+        "sourceCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+        "syncCommitCaptured": "d865873678688789dbf9399980b841caeed17946",
+        "proof": "/workspace/work/squad-window-experience/formal/verified-c4/local-effects",
+        "rawProofIdentity": {
+          "run.json": "8cd3663f3ec561479325341ff9b7dfda7b350266f9dee38e856a86bc43d35bc8",
+          "artifacts.json": "97e3ca4b737a56236778154067497b70eb264237bb99c3f2794c1895b74e4efe"
+        },
+        "independentReadback": {
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-local-effects/scripts/check.py",
+            "--verify-evidence",
+            "/workspace/work/squad-window-experience/formal/verified-c4/local-effects"
+          ],
+          "exitCode": 0,
+          "seconds": 0.081,
+          "log": "/workspace/work/squad-window-experience/formal/independent-c4/local-effects.log"
+        },
+        "readerControls": [
+          {
+            "name": "local-effects-generic",
+            "command": [
+              "python3",
+              "tests/local-effects-formal-readback-controls.py",
+              "--checker",
+              ".agents/skills/verify-squad-local-effects/scripts/check.py",
+              "--proof",
+              "/workspace/work/squad-window-experience/formal/verified-c4/local-effects",
+              "--evidence",
+              "/workspace/work/squad-window-experience/formal/independent-c4/local-effects-generic-controls"
+            ],
+            "exitCode": 0,
+            "seconds": 0.521,
+            "log": "/workspace/work/squad-window-experience/formal/independent-c4/local-effects-generic.log"
+          }
+        ],
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true
+        },
+        "manifestFiles": 259,
+        "detail": "/workspace/work/squad-window-experience/formal/independent-c4/local-effects.json",
+        "detailSha256": "4b92c6ca922759a4a03ecc13bd54e70bd6eaa531a800d7b6411640a8257d2152",
+        "rawProofUnchanged": true,
+        "completeProducerExecuted": true,
+        "producer": {
+          "entry": "local-effects",
+          "sourceCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-local-effects/scripts/check.py",
+            "--jar",
+            "/workspace/work/squad-e2e/workspace-fix/formal/tla2tools-1.7.4.jar",
+            "--evidence",
+            "/workspace/work/squad-window-experience/formal/verified-c4/local-effects"
+          ],
+          "exitCode": 0,
+          "seconds": 59.56,
+          "log": "/workspace/work/squad-window-experience/formal/verified-c4/local-effects-producer.log",
+          "evidence": "/workspace/work/squad-window-experience/formal/verified-c4/local-effects"
+        },
+        "producerStatus": "verified",
+        "scope": "Original declared finite models and actual source controls/restored implementation; new window, catalog, CAR and stdin/OCR behavior retains its separately recorded actual model/process/browser/live-model acceptance."
+      }
+    ],
+    "rawProofIdentitiesUnchanged": true,
+    "cleanup": "All complete producers and independent readers reported cleanup and covered source unchanged; no timeout/import error counted as a source fault.",
+    "postSyncIndependentReadbacks": [
+      {
+        "entry": "local-effects",
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-local-effects/scripts/check.py",
+          "--verify-evidence",
+          "/workspace/work/squad-window-experience/formal/verified-c4/local-effects"
+        ],
+        "exitCode": 0,
+        "seconds": 0.09,
+        "log": "/workspace/work/squad-window-experience/formal/post-sync-readback/local-effects.log",
+        "sourceCommitCaptured": "d157faeb875ce582e043d3c1784f8485ed53d976",
+        "oldSyncCommitCaptured": "d865873678688789dbf9399980b841caeed17946",
+        "newSyncCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+        "rawProofIdentity": {
+          "run.json": "8cd3663f3ec561479325341ff9b7dfda7b350266f9dee38e856a86bc43d35bc8",
+          "artifacts.json": "97e3ca4b737a56236778154067497b70eb264237bb99c3f2794c1895b74e4efe"
+        },
+        "rawProofUnchanged": true
+      }
+    ]
   },
   "scope": "Original finite properties, bounds, fairness and source controls remain. New processing-window/human-gate, catalog usage accuracy, CAR history, actual stdin bytes/OCR, current-session UI and their combinations retain separate actual taskMachine/BDD/real-process/browser/live-model evidence. No full-system or arbitrary-history claim.",
   "sliceCorrespondence": "prepared/spawned/settled journal and atomic task checkpoint/custody boundaries stay; fd preparation does not prove notStarted and receipt unknown effects still retain custody. Old graph sends no stdin; real-process stdin bytes/cancel tests supplement rather than enlarge old one-command finite domain.",
@@ -216,5 +313,17 @@
       "completeProducers": 0,
       "record": "/workspace/work/squad-window-experience/formal/c2-partial-cancellation.json"
     }
-  ]
+  ],
+  "verifiedAt": "2026-11-12T06:02:46.446539+00:00",
+  "syncAdvance": {
+    "previousSyncCommit": "d865873678688789dbf9399980b841caeed17946",
+    "syncCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+    "metadataOnly": true,
+    "producerReexecutedForSync": false,
+    "rawProofsRetainCapturedOldSync": true,
+    "postSyncReadbackStatus": "verified",
+    "postSyncIndex": "/workspace/work/squad-window-experience/formal/post-sync-index.json",
+    "rawProofIdentitiesUnchanged": true,
+    "coveredSourceBytesMatchProductCommit": true
+  }
 }

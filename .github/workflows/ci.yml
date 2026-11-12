@@ -76,8 +76,6 @@ jobs:
           node tests/tool-inventory-negative-controls.mjs
           node tests/tool-experience-negative-controls.mjs
           node tests/cli-input-evidence-negative-controls.mjs
-      - name: Verify original browser contracts detect faults
-        run: node .agents/skills/verify-squad/scripts/negative.mjs
       - name: Verify composition fault detection and evidence
         run: |
           node tests/web-composition-negative.mjs
@@ -97,6 +95,44 @@ jobs:
             test-results/
             reports/
           if-no-files-found: warn
+          retention-days: 14
+
+  browser-controls:
+    name: Browser fault detection
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - name: Install sandbox dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes bubblewrap socat ripgrep fonts-noto-cjk python3 tesseract-ocr
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Install pinned real browser runner
+        run: |
+          npm install --prefix "$RUNNER_TEMP/squad-browser" --no-package-lock --no-save playwright@1.62.1
+          node "$RUNNER_TEMP/squad-browser/node_modules/playwright/cli.js" install --with-deps chromium
+          echo "SQUAD_PLAYWRIGHT_MODULE=$RUNNER_TEMP/squad-browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+          fc-match ":charset=4e2d"
+      - name: Verify real sandbox boundaries
+        run: npm run verify:local-sandbox
+      - name: Verify original browser contracts detect faults
+        # The checker builds every mutant and the restored source in its own worktree.
+        run: node .agents/skills/verify-squad/scripts/negative.mjs
+      - name: Retain browser fault detection reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-fault-detection-${{ github.sha }}
+          path: reports/verify-squad-negative/
+          if-no-files-found: error
           retention-days: 14
 
   formal:

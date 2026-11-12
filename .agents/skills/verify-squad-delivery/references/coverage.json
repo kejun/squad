@@ -1,5 +1,5 @@
 {
-  "syncCommit": "d865873678688789dbf9399980b841caeed17946",
+  "syncCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
   "bounds": {
     "tasks": 1,
     "candidates": 1,
@@ -1118,10 +1118,11 @@
     {
       "change": "window-tool-experience",
       "review": "references/drift-review-window-tool-experience.json",
-      "status": "reviewed-candidate-awaiting-complete-verification",
+      "status": "verified-and-synchronized-after-nine-entrypoints",
       "sourceIdentity": "Frozen working-tree hashes; final source commit to be recorded only after complete verification",
       "syncCommitPreserved": "d865873678688789dbf9399980b841caeed17946",
-      "stage": "C3: automatic Engine wake correction reviewed"
+      "stage": "C3: automatic Engine wake correction reviewed",
+      "syncedCommit": "d157faeb875ce582e043d3c1784f8485ed53d976"
     }
   ],
   "unifiedToolContextSyncAdvance": {
@@ -1135,5 +1136,17 @@
     "rawProofIdentitiesPreserved": true,
     "note": "Retained producer inputs keep their original captured sync identity. Post-sync independent readbacks are recorded in the central index; no producer is counted twice.",
     "previousSyncCommit": "e7c0952eae1bdd0c224b3d12207ed684541a7777"
+  },
+  "windowToolExperienceSyncAdvance": {
+    "change": "window-tool-experience",
+    "sourceEquivalentToCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+    "allNineEntryPointsVerified": true,
+    "centralIndex": "/workspace/work/squad-window-experience/formal/nine-entry-index.json",
+    "coveredBytesMatchCommitAndCurrentWorktree": true,
+    "metadataOnly": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "rawProofIdentitiesPreserved": true,
+    "previousSyncCommit": "d865873678688789dbf9399980b841caeed17946",
+    "note": "Original complete C4 producer proofs retain their captured old sync identity. Post-sync independent readers will be recorded separately without rewriting raw proof artifacts."
   }
 }

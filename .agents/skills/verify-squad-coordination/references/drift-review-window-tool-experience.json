@@ -1,8 +1,8 @@
 {
   "change": "window-tool-experience",
-  "status": "reviewed-candidate-awaiting-complete-verification",
+  "status": "updated",
   "sourceHeadBeforeCommit": "20db2a0807ffc840c6c888be0f2259ea4c1b5991",
-  "sourceIdentity": "Frozen working-tree SHA-256, not a claim that the old HEAD contains uncommitted product changes",
+  "sourceIdentity": "All 113 covered source/dependency bytes match the C4 product Git blobs. Complete producers ran with only the documented README wakeup line dirty; later authorized changes are CI, documentation and verification metadata only.",
   "previousSyncCommit": "d865873678688789dbf9399980b841caeed17946",
   "reviewedSourceFiles": [
     {
@@ -181,11 +181,163 @@
   ],
   "originalDrift": "/workspace/work/squad-window-experience/formal/original-drift-final/index.json",
   "reviewedAt": "2026-11-12T05:17:49.644535+00:00",
-  "productCommit": null,
-  "syncCommitAdvanced": false,
+  "productCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+  "syncCommitAdvanced": true,
   "validation": {
-    "status": "pending",
-    "requires": "All nine full original producers, genuine source controls, restored original replays, independent readers and applicable reader tamper controls before synchronization"
+    "status": "verified",
+    "productCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+    "allNineEntryPointsVerified": true,
+    "completeEntryCount": 9,
+    "centralIndex": "/workspace/work/squad-window-experience/formal/nine-entry-index.json",
+    "independentIndex": "/workspace/work/squad-window-experience/formal/independent-c4/index.json",
+    "entryPoints": [
+      {
+        "entry": "coordination",
+        "status": "independently-verified",
+        "sourceCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+        "syncCommitCaptured": "d865873678688789dbf9399980b841caeed17946",
+        "proof": "/workspace/work/squad-window-experience/formal/verified-c4/coordination",
+        "rawProofIdentity": {
+          "run.json": "970bb3fc4c76263ae41f7e616ef8c932a439fec700297bf0ab1349d1c47575ff",
+          "artifacts.json": "a70c5639072a8cf405f8ac76365ac0e9cf20e1d3c02d9246b937f5e79d556118"
+        },
+        "independentReadback": {
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-coordination/scripts/check.py",
+            "--verify-evidence",
+            "/workspace/work/squad-window-experience/formal/verified-c4/coordination"
+          ],
+          "exitCode": 0,
+          "seconds": 0.07,
+          "log": "/workspace/work/squad-window-experience/formal/independent-c4/coordination.log"
+        },
+        "readerControls": [],
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "checkerInputsUnchanged": true
+        },
+        "manifestFiles": 373,
+        "detail": "/workspace/work/squad-window-experience/formal/independent-c4/coordination.json",
+        "detailSha256": "9ffc38354ba9a199cd45b5a12e4fe7f13b71f89dfdef24097fd84bb3bfa6efd2",
+        "rawProofUnchanged": true,
+        "completeProducerExecuted": true,
+        "producer": {
+          "entry": "coordination",
+          "sourceCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-coordination/scripts/check.py",
+            "--jar",
+            "/workspace/work/squad-e2e/workspace-fix/formal/tla2tools-1.7.4.jar",
+            "--evidence",
+            "/workspace/work/squad-window-experience/formal/verified-c4/coordination"
+          ],
+          "exitCode": 0,
+          "seconds": 496.489,
+          "log": "/workspace/work/squad-window-experience/formal/verified-c4/coordination-producer.log",
+          "evidence": "/workspace/work/squad-window-experience/formal/verified-c4/coordination"
+        },
+        "producerStatus": "verified",
+        "scope": "Original declared finite models and actual source controls/restored implementation; new window, catalog, CAR and stdin/OCR behavior retains its separately recorded actual model/process/browser/live-model acceptance."
+      },
+      {
+        "entry": "coordination-extensions",
+        "status": "independently-verified",
+        "sourceCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+        "syncCommitCaptured": "d865873678688789dbf9399980b841caeed17946",
+        "proof": "/workspace/work/squad-window-experience/formal/verified-c4/coordination-extensions",
+        "rawProofIdentity": {
+          "run.json": "1bc1d70fe17335f50d4b0afb03b7df8d69ee1476ef39286e52b06d09724610ef",
+          "artifacts.json": "b9e58a861c7e63ce2380b39933e6089a9a46476cf2d977c5be5282135425f53d"
+        },
+        "independentReadback": {
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-coordination/scripts/check-extensions.py",
+            "--verify-evidence",
+            "/workspace/work/squad-window-experience/formal/verified-c4/coordination-extensions"
+          ],
+          "exitCode": 0,
+          "seconds": 0.978,
+          "log": "/workspace/work/squad-window-experience/formal/independent-c4/coordination-extensions.log"
+        },
+        "readerControls": [],
+        "cleanup": {
+          "scratchRemoved": true,
+          "coveredFilesUnchanged": true,
+          "checkerInputsUnchanged": true
+        },
+        "manifestFiles": 1129,
+        "detail": "/workspace/work/squad-window-experience/formal/independent-c4/coordination-extensions.json",
+        "detailSha256": "ecad068d98097b2d46714b7454463d7fd6c7b32417bb44c0a46e2774d5a7c5b2",
+        "rawProofUnchanged": true,
+        "completeProducerExecuted": true,
+        "producer": {
+          "entry": "coordination-extensions",
+          "sourceCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+          "command": [
+            "python3",
+            ".agents/skills/verify-squad-coordination/scripts/check-extensions.py",
+            "--jar",
+            "/workspace/work/squad-e2e/workspace-fix/formal/tla2tools-1.7.4.jar",
+            "--evidence",
+            "/workspace/work/squad-window-experience/formal/verified-c4/coordination-extensions"
+          ],
+          "exitCode": 0,
+          "seconds": 579.41,
+          "log": "/workspace/work/squad-window-experience/formal/verified-c4/coordination-extensions-producer.log",
+          "evidence": "/workspace/work/squad-window-experience/formal/verified-c4/coordination-extensions"
+        },
+        "producerStatus": "verified",
+        "scope": "Original declared finite models and actual source controls/restored implementation; new window, catalog, CAR and stdin/OCR behavior retains its separately recorded actual model/process/browser/live-model acceptance."
+      }
+    ],
+    "rawProofIdentitiesUnchanged": true,
+    "cleanup": "All complete producers and independent readers reported cleanup and covered source unchanged; no timeout/import error counted as a source fault.",
+    "postSyncIndependentReadbacks": [
+      {
+        "entry": "coordination",
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-coordination/scripts/check.py",
+          "--verify-evidence",
+          "/workspace/work/squad-window-experience/formal/verified-c4/coordination"
+        ],
+        "exitCode": 0,
+        "seconds": 0.058,
+        "log": "/workspace/work/squad-window-experience/formal/post-sync-readback/coordination.log",
+        "sourceCommitCaptured": "d157faeb875ce582e043d3c1784f8485ed53d976",
+        "oldSyncCommitCaptured": "d865873678688789dbf9399980b841caeed17946",
+        "newSyncCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+        "rawProofIdentity": {
+          "run.json": "970bb3fc4c76263ae41f7e616ef8c932a439fec700297bf0ab1349d1c47575ff",
+          "artifacts.json": "a70c5639072a8cf405f8ac76365ac0e9cf20e1d3c02d9246b937f5e79d556118"
+        },
+        "rawProofUnchanged": true
+      },
+      {
+        "entry": "coordination-extensions",
+        "command": [
+          "python3",
+          ".agents/skills/verify-squad-coordination/scripts/check-extensions.py",
+          "--verify-evidence",
+          "/workspace/work/squad-window-experience/formal/verified-c4/coordination-extensions"
+        ],
+        "exitCode": 0,
+        "seconds": 0.932,
+        "log": "/workspace/work/squad-window-experience/formal/post-sync-readback/coordination-extensions.log",
+        "sourceCommitCaptured": "d157faeb875ce582e043d3c1784f8485ed53d976",
+        "oldSyncCommitCaptured": "d865873678688789dbf9399980b841caeed17946",
+        "newSyncCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+        "rawProofIdentity": {
+          "run.json": "1bc1d70fe17335f50d4b0afb03b7df8d69ee1476ef39286e52b06d09724610ef",
+          "artifacts.json": "b9e58a861c7e63ce2380b39933e6089a9a46476cf2d977c5be5282135425f53d"
+        },
+        "rawProofUnchanged": true
+      }
+    ]
   },
   "scope": "Original finite properties, bounds, fairness and source controls remain. New processing-window/human-gate, catalog usage accuracy, CAR history, actual stdin bytes/OCR, current-session UI and their combinations retain separate actual taskMachine/BDD/real-process/browser/live-model evidence. No full-system or arbitrary-history claim.",
   "sliceCorrespondence": "Original Budget/CheckBudget/Shards and 23 extension configurations retain bounds/properties; short work/retry deadline expiry is distinct from the 3h task hardDeadline. New expiry map/help/input retirement and six-phase renewal paths are covered by dedicated actual XState/BDD, not these old event alphabets.",
@@ -216,5 +368,17 @@
       "completeProducers": 0,
       "record": "/workspace/work/squad-window-experience/formal/c2-partial-cancellation.json"
     }
-  ]
+  ],
+  "verifiedAt": "2026-11-12T06:02:46.446539+00:00",
+  "syncAdvance": {
+    "previousSyncCommit": "d865873678688789dbf9399980b841caeed17946",
+    "syncCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+    "metadataOnly": true,
+    "producerReexecutedForSync": false,
+    "rawProofsRetainCapturedOldSync": true,
+    "postSyncReadbackStatus": "verified",
+    "postSyncIndex": "/workspace/work/squad-window-experience/formal/post-sync-index.json",
+    "rawProofIdentitiesUnchanged": true,
+    "coveredSourceBytesMatchProductCommit": true
+  }
 }
