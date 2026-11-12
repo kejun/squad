@@ -106,7 +106,9 @@ describe('validated input interpretation', () => {
   });
 
   it('[BT_I08] the machine rejects an expired result even before the timer runs', () => {
-    const f = setup(); f.submit(); const work = f.claim(); f.now = work.deadline!;
+    const f = setup(intentConfig({ workTimeoutMs: 1000 })); f.submit(); const work = f.claim();
+    expect(work.deadline!).toBeLessThan(f.context().resilience!.window.hardDeadline);
+    f.now = work.deadline!;
     expect(f.result(work).code).toBe('WORK_EXPIRED'); expect(f.view().phase).toBe('waitingHuman');
     expect(f.context().inputAnalyses![0]!.status).toBe('failed'); expect(f.engine.pending(f.room, f.task)).toHaveLength(0);
   });

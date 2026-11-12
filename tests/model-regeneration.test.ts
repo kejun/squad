@@ -48,7 +48,8 @@ describe('model output regeneration', () => {
   });
 
   it('[BT_M14] does not renew the deadline or send an expired check retry', async () => {
-    const f = fixture(), originalDeadline = f.work.deadline;
+    const f = fixture('check', { workTimeoutMs: 1000 }), originalDeadline = f.work.deadline;
+    expect(originalDeadline!).toBeLessThan(f.h.context().resilience!.window.hardDeadline);
     f.replies = [{ type: 'check' }, goodModelOutput('check')];
     await f.run();
 
