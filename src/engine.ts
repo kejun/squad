@@ -18,6 +18,7 @@ import type { HostAcquisition } from './resource-acquisition.js';
 import { processingWindow, taskHumanGate } from './task/resilience.js';
 import { permissionProblem } from './task/policy.js';
 import type { DeletionIntent, SavedRoomDeletion } from './room-deletion.machine.js';
+import { runtimeCleanupPlan } from './runtime-ownership.js';
 import { unconfinedEffectsKey, type LocalResourcePolicy } from './local-resource-policy.js';
 
 interface StoredTask { version: 1 | 2 | 3; snapshot: unknown }
@@ -109,12 +110,22 @@ export class TeamEngine {
     if (deletion && deletion.value !== 'idle') return { ok: false, code: deletion.value === 'deleted' ? 'ROOM_DELETED' : 'ROOM_DELETING', detail: '会话正在删除或已删除，不能再提交业务操作。' };
     return undefined;
   }
-  requestRoomDeletion(roomId: string, id: string, expectedArchiveVersion: number): SavedRoomDeletion {
-    const room = this.store.read(roomId), archive = this.roomArchive(roomId);
+  requestRoomDeletion(roomId: string, id: string, expectedArchiveVersion: number, force = false, includeRuntimeFiles = true): SavedRoomDeletion {
+    const room = this.store.read(roomId), previous = this.roomDeletion(roomId);
+    const archive = previous?.context.dataErased
+      ? { archived: true, archiveVersion: previous.context.archiveVersion! } : this.roomArchive(roomId);
+    const inventory = previous?.context.dataErased
+      ? { tasks: previous.context.tasks, sessions: previous.context.sessions, assets: previous.context.assets,
+        complete: true, executionsSettled: false, blockers: [] }
+      : runtimeCleanupPlan(roomId, Object.values(room.tasks).map(stored => {
+        const snapshot = decode(stored); return { phase: taskPhase(snapshot), context: snapshot.context };
+      }));
+    if (!includeRuntimeFiles && !previous?.context.assets.length) { inventory.assets = []; inventory.sessions = []; }
     return deletionStore(this.store).stepDeletion(roomId, { type: 'REQUEST', id, at: this.clock(), roomId,
       deletionId: `deletion:${fingerprint({ roomId, id })}`, requestDigest: fingerprint({ roomId, id, expectedArchiveVersion }),
       confirmed: true, authorized: true, archived: archive.archived, archiveVersion: archive.archiveVersion, expectedArchiveVersion,
-      allTasks: Object.keys(room.tasks).map(taskId => ({ taskId, namespace: this.localNamespace(roomId, taskId) })) });
+      allTasks: inventory.tasks.map(({ taskId, namespace }) => ({ taskId, namespace })),
+      ...(force ? { force: true, inventory } : {}) });
   }
   prepareRoomDeletion(roomId: string, deletionId: string, intent: DeletionIntent, afterQuiescence = false): void {
     // Verification retries retain the deletion manifest after business data is erased.

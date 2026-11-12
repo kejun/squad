@@ -53,7 +53,7 @@ export class DeletionServiceFixture {
     await writeFile(join(this.source, '.home', 'account.txt'), 'shared account must remain');
     await writeFile(join(this.source, '.tmp', 'user.txt'), 'shared temporary source');
     if (withSkill) await writeSkill(join(this.root, 'skills'));
-    this.runtime = await LocalRuntime.create({ dataRoot: join(this.root, 'runtime'), ...(sharedSource ? { workspaceRoot: this.source } : {}), skillRoots: withSkill ? [join(this.root, 'skills')] : [], backend: this.backend });
+    this.runtime = await LocalRuntime.create({ dataRoot: join(this.root, 'runtime'), ...(sharedSource ? { workspaceRoot: this.source } : {}), skillRoots: withSkill ? [join(this.root, 'skills')] : [], cliCatalog: [], backend: this.backend });
     this.config.limits.workTimeoutMs = 60_000; this.config.limits.progressIntervalMs = 60_000;
     this.config.resilience = { automaticTimeoutMs: 60_000, repairTimeoutMs: 10_000, cancelGraceMs: 1000 };
     await this.start(); this.room = this.service.createRoom('删除目标').id; this.otherRoom = this.service.createRoom('保留目标').id;
@@ -154,9 +154,13 @@ export class DeletionServiceFixture {
     assert.equal(this.context().intents.flatMap(value => value.localOperations ?? []).find(value => value.id === op.id)!.status, status);
   }
   async archive() { return this.service.setRoomArchived(this.room, 'archive:' + randomUUID(), true); }
-  async delete() {
-    const room = this.service.rooms().find(room => room.id === this.room)!;
-    return this.request(this.route() + '/delete', { id: 'delete:' + randomUUID(), expectedArchiveVersion: room.archiveVersion });
+  async resumeLegacyDeletion() {
+    const room = this.service.rooms().find(room => room.id === this.room);
+    if (!room) return this.request(this.route() + '/delete', { id: randomUUID() });
+    // Explicit compatibility fixture for pre-force persisted jobs, never the current user delete entry.
+    const saved = this.service.engine.requestRoomDeletion(this.room, 'legacy:' + randomUUID(), room.archiveVersion!);
+    return this.request(this.route() + '/delete-retry', { id: randomUUID(), deletionId: saved.context.deletionId,
+      expectedDeletionVersion: saved.context.revision });
   }
   async state() { return this.service.engine.roomDeletion(this.room); }
   async complete() { return deletionUntil(() => this.service.engine.roomDeletion(this.room), saved => saved?.value === 'deleted', 'deleted'); }
@@ -341,7 +345,7 @@ export async function deletionPhaseAcceptance(phase: Phase, outcome: Outcome | n
   const fixture = await new DeletionServiceFixture().open();
   try {
     await fixture.seedPhase(phase, outcome); const source = await directorySnapshot(fixture.source);
-    await fixture.archive(); assert.equal((await fixture.delete()).status, 202);
+    await fixture.archive(); assert.equal((await fixture.resumeLegacyDeletion()).status, 202);
     await fixture.assertGone(); assert.deepEqual(await directorySnapshot(fixture.source), source);
     await fixture.restart(); await fixture.assertGone();
     return { phase, outcome, deleted: true, sharedSourcePreserved: true };
@@ -350,7 +354,7 @@ export async function deletionPhaseAcceptance(phase: Phase, outcome: Outcome | n
 export async function deletionOperationAcceptance(status: string) {
   const fixture = await new DeletionServiceFixture().open();
   try {
-    await fixture.seedOperation(status); await fixture.archive(); assert.equal((await fixture.delete()).status, 202);
+    await fixture.seedOperation(status); await fixture.archive(); assert.equal((await fixture.resumeLegacyDeletion()).status, 202);
     const saved = await deletionUntil(() => fixture.service.engine.roomDeletion(fixture.room), saved => ['waiting', 'paused', 'deleted'].includes(saved?.value ?? ''), 'settled deletion preparation');
     if (['uncertain', 'running', 'cancelling'].includes(status)) {
       assert.equal(saved!.value, 'waiting', JSON.stringify(saved)); assert(saved!.context.blockers.length);
@@ -408,7 +412,7 @@ export async function deletionHistoricalRuntimeAcceptance() {
     const otherHash = createHash('sha256').update(otherOp.sessionId!).digest('hex');
     const protectedJournal = await readFile(join(dataRoot, 'sessions', otherHash + '.json'), 'utf8');
     const source = await directorySnapshot(fixture.source);
-    await fixture.archive(); assert.equal((await fixture.delete()).status, 202); await fixture.assertGone();
+    await fixture.archive(); assert.equal((await fixture.resumeLegacyDeletion()).status, 202); await fixture.assertGone();
     assert.deepEqual(await directorySnapshot(otherWorkspace), otherFiles);
     assert.equal(await readFile(join(dataRoot, 'sessions', otherHash + '.json'), 'utf8'), protectedJournal);
     assert.deepEqual(fixture.service.snapshot(fixture.otherRoom).messages, otherSnapshot.messages);
@@ -504,7 +508,7 @@ export async function deletionOwnedFilesAcceptance(resource: string, half = fals
       assert((await lstat(join(fixture.root, 'runtime', asset.path, '.tmp'))).isDirectory());
     }
     if (resource === '检查输出和部分完成产物') assert.equal(await readFile(join(fixture.root, 'runtime', asset.path, 'dist', 'partial.txt'), 'utf8'), 'real partial result');
-    await fixture.archive(); assert.equal((await fixture.delete()).status, 202); await fixture.assertGone();
+    await fixture.archive(); assert.equal((await fixture.resumeLegacyDeletion()).status, 202); await fixture.assertGone();
     assert(await fixture.runtime.verifyRoomCleanup(inventory));
     return { resource, deleted: true, assets: inventory.assets.length, actualCliExecutions: fixture.backend.calls.length };
   } finally { await fixture.close(); }
@@ -519,7 +523,7 @@ export async function deletionRuntimeProjectionAcceptance() {
     await seedDeletionCopy(fixture);
     fixture.room = other; const otherInventory = await seedDeletionCopy(fixture); fixture.room = target;
     const source = await directorySnapshot(fixture.source);
-    await fixture.archive(); assert.equal((await fixture.delete()).status, 202); await fixture.assertGone();
+    await fixture.archive(); assert.equal((await fixture.resumeLegacyDeletion()).status, 202); await fixture.assertGone();
     const firstTombstone = fixture.service.engine.roomDeletion(target)!;
 
     // Missing-cache-purge fault: perform the same validated physical removals through the owned
@@ -527,7 +531,7 @@ export async function deletionRuntimeProjectionAcceptance() {
     const filesOnly = new RuntimeOwnership(join(fixture.root, 'runtime'), fixture.source);
     fixture.runtime.cleanupRoom = (claim, signal) => filesOnly.remove(claim, signal);
     fixture.room = other; fixture.otherRoom = target;
-    await fixture.archive(); assert.equal((await fixture.delete()).status, 202);
+    await fixture.archive(); assert.equal((await fixture.resumeLegacyDeletion()).status, 202);
     const blocked = await deletionUntil(() => fixture.service.engine.roomDeletion(other),
       saved => ['paused', 'deleted'].includes(saved?.value ?? ''), 'independent runtime cache verification');
     assert.equal(blocked!.value, 'paused', 'Files alone cannot prove runtime projection removal, and deleting the first room cannot clear the second room cache');
@@ -568,7 +572,7 @@ export async function deletionPhysicalPreparationAcceptance() {
     const task = fixture.service.submit(fixture.room, { id: 'pending-preparation', text: '在准备过程中请求删除' }).taskId!; fixture.task = task;
     await deletionUntil(() => entered, Boolean, 'physical preparation entered');
     assert.equal(fixture.runtime.roomQuiescent(fixture.room), false);
-    await fixture.archive(); assert.equal((await fixture.delete()).status, 202);
+    await fixture.archive(); assert.equal((await fixture.resumeLegacyDeletion()).status, 202);
     const waiting = await deletionUntil(() => fixture.service.engine.roomDeletion(fixture.room), saved => saved?.value === 'waiting', 'physical preparation held deletion');
     assert(waiting!.context.blockers.some(blocker => blocker.kind === 'execution'));
     assert.equal(fixture.runtime.roomQuiescent(fixture.room), false);

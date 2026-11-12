@@ -20,7 +20,7 @@ import { deliveryVerificationPlan } from './verification.js';
 import { preserveSourceReference } from '../input-intent.js';
 import { resolveMapRecoveries } from './map-recovery.js';
 import { recordToolFailure } from './tool-recovery.js';
-import { ensureResilience, openHumanGate, decideHumanGate, executionNotStarted, freezeIncomplete, taskHumanGate, answerTaskGate, syncLocalApprovalGate, recordApprovalExplanation, requiredHumanFailure, authorizationFailure,
+import { ensureResilience, openHumanGate, decideHumanGate, executionNotStarted, freezeIncomplete, taskHumanGate, answerTaskGate, syncLocalApprovalGate, recordApprovalExplanation, requiredHumanFailure, modelServiceFailureCode, authorizationFailure,
   windowExpired, requestNewWindow, archiveFrozen, replaceProcessingWindow, adoptCleanup, settleCleanup, resiliencePolicy, processingWindow, safeFailureRetry, requeueSafeWork } from './resilience.js';
 import { recordAcquisition, resourceAcquisitionProblem } from '../resource-acquisition.js';
 
@@ -420,6 +420,22 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       saveCheckDiagnostic(c, work, e.checkDiagnostic);
       if (!c.stopped && c.outcome === null && windowExpired(c, e.at)) {
         release(c, work.id); requestNewWindow(c, e); break;
+      }
+      const modelFailure = modelServiceFailureCode(e);
+      if (modelFailure && requiredHumanFailure(c, e)) {
+        release(c, work.id); c.reason = e.reason;
+        if (work.kind === 'interpretation') {
+          const input = c.inputAnalyses!.find(input => input.workId === work.id)!;
+          input.status = 'failed'; input.error = e.reason;
+        }
+        if (work.kind === 'assistance' && !work.discussionId) {
+          const help = c.assists.find(help => help.id === work.payload.requestId)!;
+          help.status = 'failed'; help.answer = e.reason; help.consumed = true;
+        }
+        openHumanGate(c, e, { kind: 'authorization', cause: 'modelServiceError', code: modelFailure,
+          decisions: ['skip', 'stop'], workId: work.id, question: `模型服务调用失败（${work.target}）：${e.reason}` });
+        message(c, e, work.target, c.reason, 'notice');
+        break;
       }
       if (work.discussionId) {
         if (discussionActive(c) && work.discussionId === c.discussion!.id) discussionFailed(c, e, work, e.reason);

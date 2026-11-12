@@ -18,7 +18,7 @@ export interface RuntimeAssetOwner extends DeletionTaskIdentity {
 export type RuntimeAssetKind = 'workspace' | 'copy' | 'copyMarker' | 'journal' | 'journalPending' | 'log' | 'ownership';
 export interface RuntimeCleanupAsset {
   id: string; kind: RuntimeAssetKind; path: string; owner: RuntimeAssetOwner;
-  /** Hash of the server-observed file identity; absent only for a proven missing path. */
+  /** Hash of the server-observed file identity; null for missing paths or an unobserved force-delete plan. */
   identity: string | null;
   status: 'pending' | 'removed';
 }
@@ -45,6 +45,7 @@ export interface RoomDeletionContext {
   archiveVersion: number | null; requestDigest: string | null; requestedAt: number | null; completedAt: number | null;
   allTasks: DeletionTaskIdentity[]; tasks: DeletionTaskFacts[]; sessions: RuntimeOperationOwner[];
   assets: RuntimeCleanupAsset[]; blockers: DeletionBlocker[]; intents: DeletionIntent[];
+  force?: boolean;
   dataErased: boolean; nextSequence: number; nextWake: number | null; reason: string; reply: Reply;
 }
 interface DeletionEnvelope { id: string; at: number }
@@ -52,10 +53,10 @@ interface ClaimedDeletionEvent extends DeletionEnvelope { deletionId: string; in
 export type RoomDeletionEvent =
   | (DeletionEnvelope & { type: 'REQUEST'; roomId: string; deletionId: string; requestDigest: string;
       confirmed: boolean; authorized: boolean; archived: boolean; archiveVersion: number; expectedArchiveVersion: number;
-      allTasks: DeletionTaskIdentity[] })
+      allTasks: DeletionTaskIdentity[]; force?: boolean; inventory?: RuntimeCleanupInventory })
   | (DeletionEnvelope & { type: 'CLAIM'; deletionId: string; intentId: string })
   | (ClaimedDeletionEvent & { type: 'PREPARED'; inventory: RuntimeCleanupInventory; nextWake?: number })
-  | (ClaimedDeletionEvent & { type: 'ASSET_REMOVED'; assetId: string; identityVerified: boolean; result: 'deleted' | 'absent' })
+  | (ClaimedDeletionEvent & { type: 'ASSET_REMOVED'; assetId: string; identityVerified: boolean; forceRemoved?: boolean; result: 'deleted' | 'absent' })
   | (ClaimedDeletionEvent & { type: 'DATA_ERASED' })
   | (ClaimedDeletionEvent & { type: 'VERIFIED'; checks: DeletionVerification })
   | (ClaimedDeletionEvent & { type: 'FAILED'; reason: string; retryAt?: number })
@@ -132,11 +133,12 @@ export function deletionEventProblem(c: RoomDeletionContext, event: RoomDeletion
   if (!text(event.id) || !time(event.at)) return 'INVALID_DELETION_EVENT';
   if (event.type === 'REQUEST') {
     if (event.roomId !== c.roomId) return 'DELETION_TARGET_MISMATCH';
-    if (!event.confirmed || !event.authorized) return 'DELETION_CONFIRMATION_REQUIRED';
+    if ((!event.force && !event.confirmed) || !event.authorized) return 'DELETION_CONFIRMATION_REQUIRED';
     if (!event.archived) return 'ROOM_NOT_ARCHIVED';
-    if (!time(event.archiveVersion) || event.archiveVersion !== event.expectedArchiveVersion) return 'ARCHIVE_VERSION_CONFLICT';
+    if (!time(event.archiveVersion) || !event.force && event.archiveVersion !== event.expectedArchiveVersion) return 'ARCHIVE_VERSION_CONFLICT';
     if (!text(event.deletionId) || !hash(event.requestDigest) || !Array.isArray(event.allTasks)
       || !event.allTasks.every(task => text(task.taskId) && hash(task.namespace)) || !unique(event.allTasks.map(task => task.taskId))) return 'INVALID_DELETION_REQUEST';
+    if (event.force && (!event.inventory || !validInventory({ ...c, allTasks: event.allTasks, assets: [] }, event.inventory))) return 'INVALID_DELETION_INVENTORY';
     return null;
   }
   if (event.deletionId !== c.deletionId || !c.deletionId) return 'STALE_DELETION';
@@ -150,12 +152,12 @@ export function deletionEventProblem(c: RoomDeletionContext, event: RoomDeletion
   const intent = currentIntent(c, event, kind);
   if (!intent) return 'STALE_DELETION_RESULT';
   if (event.type === 'PREPARED') return validInventory(c, event.inventory) ? null : 'INVALID_DELETION_INVENTORY';
-  if (event.type === 'ASSET_REMOVED') return event.assetId === intent.assetId && event.identityVerified
+  if (event.type === 'ASSET_REMOVED') return event.assetId === intent.assetId && (event.identityVerified || c.force && event.forceRemoved === true)
     && ['deleted', 'absent'].includes(event.result) ? null : 'DELETION_ASSET_NOT_VERIFIED';
   if (event.type === 'FAILED') return text(event.reason) ? null : 'INVALID_DELETION_FAILURE';
   if (event.type === 'VERIFIED') return c.dataErased && c.assets.every(asset => asset.status === 'removed')
     && !!event.checks && ['inventoryComplete', 'filesGone', 'databaseGone', 'executionsSettled', 'projectionsCleared', 'dependenciesPreserved']
-      .every(key => (event.checks as unknown as Record<string, unknown>)[key] === true) ? null : 'DELETION_VERIFICATION_INCOMPLETE';
+      .every(key => key === 'executionsSettled' && c.force || (event.checks as unknown as Record<string, unknown>)[key] === true) ? null : 'DELETION_VERIFICATION_INCOMPLETE';
   return null;
 }
 function queue(c: RoomDeletionContext, kind: DeletionIntentKind, at: number, assetId?: string) {
@@ -183,7 +185,12 @@ function reduceDeletion(context: RoomDeletionContext, event: RoomDeletionEvent):
   switch (event.type) {
     case 'REQUEST':
       c.deletionId = event.deletionId; c.archiveVersion = event.archiveVersion; c.requestDigest = event.requestDigest;
-      c.requestedAt = event.at; c.allTasks = structuredClone(event.allTasks); queue(c, 'prepare', event.at); break;
+      c.requestedAt = event.at; c.allTasks = structuredClone(event.allTasks);
+      if (event.force) {
+        c.force = true; c.tasks = structuredClone(event.inventory!.tasks); c.sessions = structuredClone(event.inventory!.sessions);
+        c.assets = structuredClone(event.inventory!.assets); c.blockers = []; c.intents = []; c.reason = '';
+      }
+      queue(c, event.force ? 'eraseData' : 'prepare', event.at); break;
     case 'CLAIM': {
       const intent = c.intents.find(item => item.id === event.intentId)!;
       intent.status = 'claimed'; intent.attempt++; intent.claimedAt = event.at; c.nextWake = null; break;
@@ -193,10 +200,10 @@ function reduceDeletion(context: RoomDeletionContext, event: RoomDeletionEvent):
       c.tasks = structuredClone(event.inventory.tasks); c.sessions = structuredClone(event.inventory.sessions);
       c.assets = event.inventory.assets.map(asset => ({ ...structuredClone(asset),
         status: asset.identity === null && c.assets.some(old => old.id === asset.id && old.status === 'removed') ? 'removed' : 'pending' }));
-      c.blockers = structuredClone(event.inventory.blockers);
+      c.blockers = event.inventory.blockers.map(blocker => ({ ...structuredClone(blocker), human: c.force ? false : blocker.human }));
       if (!event.inventory.complete && !c.blockers.some(blocker => blocker.kind === 'ownership'))
-        c.blockers.push({ id: 'inventory-incomplete', kind: 'ownership', reason: '完整所有权清单尚未确认', human: true });
-      if (!event.inventory.executionsSettled && !c.blockers.some(blocker => ['execution', 'effects'].includes(blocker.kind)))
+        c.blockers.push({ id: 'inventory-incomplete', kind: 'ownership', reason: '运行文件清单暂不可用', human: !c.force });
+      if (!c.force && !event.inventory.executionsSettled && !c.blockers.some(blocker => ['execution', 'effects'].includes(blocker.kind)))
         c.blockers.push({ id: 'executions-unsettled', kind: 'execution', reason: '实际执行或物理效果尚未结算', human: false });
       if (c.blockers.length) {
         c.reason = c.blockers.map(blocker => blocker.reason).join('；');
@@ -208,11 +215,12 @@ function reduceDeletion(context: RoomDeletionContext, event: RoomDeletionEvent):
     case 'ASSET_REMOVED':
       finishIntent(c, event); c.assets.find(asset => asset.id === event.assetId)!.status = 'removed'; advance(c, event.at); break;
     case 'DATA_ERASED':
-      finishIntent(c, event); c.dataErased = true; advance(c, event.at); break;
+      finishIntent(c, event); c.dataErased = true;
+      if (c.force) queue(c, 'prepare', event.at); else advance(c, event.at); break;
     case 'VERIFIED': {
       const tombstone = initialContext(c.roomId);
       return { ...tombstone, deletionId: c.deletionId, revision: c.revision, archiveVersion: c.archiveVersion,
-        requestDigest: c.requestDigest, requestedAt: c.requestedAt, completedAt: event.at, dataErased: true,
+        force: c.force === true, requestDigest: c.requestDigest, requestedAt: c.requestedAt, completedAt: event.at, dataErased: true,
         reply: { ok: true, code: 'ROOM_DELETED', detail: c.deletionId! } };
     }
     case 'FAILED': {
@@ -230,12 +238,14 @@ function reduceDeletion(context: RoomDeletionContext, event: RoomDeletionEvent):
 const valid = ({ context, event }: { context: RoomDeletionContext; event: RoomDeletionEvent }) => !deletionEventProblem(context, event);
 const prepared = ({ context, event }: { context: RoomDeletionContext; event: RoomDeletionEvent }) => event.type === 'PREPARED' && !!currentIntent(context, event, 'prepare');
 const blocked = ({ context, event }: { context: RoomDeletionContext; event: RoomDeletionEvent }) => event.type === 'PREPARED'
-  && !deletionEventProblem(context, event) && (!event.inventory.complete || !event.inventory.executionsSettled || !!event.inventory.blockers.length);
+  && !deletionEventProblem(context, event) && (!event.inventory.complete || !context.force && !event.inventory.executionsSettled || !!event.inventory.blockers.length);
 
 export const roomDeletionMachine = setup({
   types: { context: {} as RoomDeletionContext, events: {} as RoomDeletionEvent, input: {} as { roomId: string } },
   guards: {
     valid, prepared, blocked,
+    forceRequest: args => args.event.type === 'REQUEST' && args.event.force === true && !args.context.force && valid(args),
+    forceErasure: args => args.context.force === true && valid(args),
     ready: args => prepared(args) && valid(args) && !blocked(args),
     due: ({ context, event }) => valid({ context, event }) && context.nextWake !== null && event.at >= context.nextWake,
     claimed: ({ context, event }) => valid({ context, event }) && !!currentIntent(context, event),
@@ -258,14 +268,15 @@ export const roomDeletionMachine = setup({
 }).createMachine({
   id: 'room-deletion', initial: 'idle', context: ({ input }) => initialContext(input.roomId),
   on: {
-    REQUEST: [{ guard: 'valid', actions: 'existing' }, { actions: 'reject' }],
+    REQUEST: [{ guard: 'forceRequest', target: '.deleting', actions: 'apply' }, { guard: 'valid', actions: 'existing' }, { actions: 'reject' }],
     CLAIM: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     FAILED: [{ guard: 'claimed', target: '.paused', actions: 'apply' }, { actions: 'reject' }],
     '*': { actions: 'reject' },
   },
   states: {
-    idle: { on: { REQUEST: [{ guard: 'valid', target: 'preparing', actions: 'apply' }, { actions: 'reject' }] } },
+    idle: { on: { REQUEST: [{ guard: 'forceRequest', target: 'deleting', actions: 'apply' }, { guard: 'valid', target: 'preparing', actions: 'apply' }, { actions: 'reject' }] } },
     preparing: { on: {
+      RETRY: [{ guard: 'valid', actions: 'existing' }, { actions: 'reject' }],
       PREPARED: [{ guard: 'blocked', target: 'waiting', actions: 'apply' }, { guard: 'ready', target: 'deleting', actions: 'apply' },
         { guard: 'prepared', target: 'paused', actions: 'invalidResult' }, { actions: 'reject' }],
       RECOVER: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
@@ -276,8 +287,9 @@ export const roomDeletionMachine = setup({
       RECOVER: [{ guard: 'due', target: 'preparing', actions: 'retry' }, { guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     } },
     deleting: { on: {
+      RETRY: [{ guard: 'valid', actions: 'existing' }, { actions: 'reject' }],
       ASSET_REMOVED: [{ guard: 'valid', actions: 'apply' }, { guard: 'currentAsset', target: 'paused', actions: 'invalidResult' }, { actions: 'reject' }],
-      DATA_ERASED: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+      DATA_ERASED: [{ guard: 'forceErasure', target: 'preparing', actions: 'apply' }, { guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
       VERIFIED: [{ guard: 'valid', target: 'deleted', actions: 'apply' }, { guard: 'currentVerification', target: 'paused', actions: 'invalidResult' }, { actions: 'reject' }],
       RECOVER: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
     } },

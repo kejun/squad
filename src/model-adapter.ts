@@ -421,7 +421,8 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
       if (!response.ok) {
         let diagnostic: Awaited<ReturnType<typeof providerDiagnostic>>;
         try { diagnostic = await providerDiagnostic(response); } finally { responseBody(); }
-        if (fixedInput && (diagnostic.contextLimit || response.status === 413)) throw contextFailure();
+        if (fixedInput && (diagnostic.contextLimit || response.status === 413))
+          throw new WorkFailure(contextFailure().message, false, false, undefined, 'MODEL_CONTEXT_LIMIT');
         if (diagnostic.contextLimit || response.status === 413)
           throw new WorkFailure('MODEL_CONTEXT_LIMIT: 模型输入和输出预算超过提供方上下文容量；本次请求未完成', false, false, undefined, 'MODEL_CONTEXT_LIMIT');
         let { code } = diagnostic;
@@ -430,7 +431,7 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
           if (secret) code = code.replaceAll(secret, '[redacted]');
         }
         const hint = /^MissingSessionID(?:\s|$)/.test(code) ? ' — OpenCode requires x-opencode-session' : '';
-        throw new WorkFailure(`Model HTTP ${response.status} (${serviceId})${code ? `: ${code}${hint}` : ''}`, response.status === 408 || response.status === 429 || response.status >= 500);
+        throw new WorkFailure(`Model HTTP ${response.status} (${serviceId})${code ? `: ${code}${hint}` : ''}`, response.status === 408 || response.status === 429 || response.status >= 500, false, undefined, `MODEL_HTTP_${response.status}`);
       }
       let data: unknown;
       try { data = await readSuccessBody(response, service.maxResponseBytes ?? 8 * 1024 * 1024, requestSignal); } catch (error) {

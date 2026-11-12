@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { ForceRoomDeletionBrowserCase } from './force-room-deletion-browser-case.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -14,7 +15,9 @@ import { workspaceWaitAdapter, prepareWorkspaceWait, actWorkspaceWait, verifyWor
 /** Browser assertions use committed public Engine prefixes as Given data;
  * every decision, confirmation, retry, navigation and download is a real UI action. */
 export class ResilientWorkspaceUICase {
-  constructor(id) { this.id = id; this.number = Number(/Y(\d+)$/.exec(id)[1]); this.sequence = 0; this.facts = {}; }
+  constructor(id) {
+    if (/^BT_Y(?:9[2-9]|101|119)$/.test(id)) return new ForceRoomDeletionBrowserCase(id);
+    this.id = id; this.number = Number(/Y(\d+)$/.exec(id)[1]); this.sequence = 0; this.facts = {}; }
   event(body) {
     const reply = this.host.service.engine.send(this.room.id, this.taskId,
       { id: `ui-host:${++this.sequence}`, at: Date.now(), ...body });

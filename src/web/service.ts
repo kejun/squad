@@ -138,8 +138,9 @@ export class WebService {
         if (!this.localRuntime) throw new Error('CLEANUP_RUNTIME_UNAVAILABLE');
         return this.localRuntime.cleanupRoom(claim, signal);
       },
-      filesGone: inventory => this.localRuntime ? this.localRuntime.verifyRoomCleanup(inventory) : Promise.resolve(inventory.assets.length === 0 && inventory.sessions.length === 0),
-      retire: roomId => { this.retiredRooms.add(roomId); this.debugJournal?.removeRoom(roomId); this.runners.get(roomId)?.detachExecutions(); this.runners.delete(roomId); this.failedRooms.delete(roomId); },
+      filesGone: (inventory, force) => this.localRuntime ? this.localRuntime.verifyRoomCleanup(inventory, force) : Promise.resolve(inventory.assets.length === 0 && inventory.sessions.length === 0),
+      retire: roomId => { this.runners.get(roomId)?.abortExecutions(roomId); this.retiredRooms.add(roomId); this.debugJournal?.removeRoom(roomId); this.runners.get(roomId)?.detachExecutions(); this.runners.delete(roomId); this.failedRooms.delete(roomId); },
+      erased: (_roomId, keys) => { for (const key of new Set(['resources', ...keys])) this.localRuntime?.notifyWorkspace(key); },
       projectionsGone: roomId => !this.runners.has(roomId) && !this.failedRooms.has(roomId) && !(this.debugJournal?.read(roomId).records.length),
       failed: roomId => { this.hostFault = true; this.hostError(roomId, new Error('DELETION_STORAGE_FAULT')); },
     });
@@ -230,7 +231,7 @@ export class WebService {
     for (const saved of this.store.listDeletions()) {
       if (saved.value === 'idle') continue;
       const index = all.findIndex(room => room.id === saved.context.roomId);
-      if (saved.value === 'deleted') { if (index >= 0) all.splice(index, 1); continue; }
+      if ((saved.value === 'deleted' || saved.context.force && saved.context.dataErased)) { if (index >= 0) all.splice(index, 1); continue; }
       const deletion = { id: saved.context.deletionId!, version: saved.context.revision, status: saved.value as 'preparing' | 'waiting' | 'deleting' | 'paused',
         reason: saved.context.reason, remaining: [...saved.context.blockers.map(b => b.reason),
           ...saved.context.assets.filter(a => a.status !== 'removed').map(a => `${a.kind}: ${a.id}`)], canRetry: ['waiting', 'paused'].includes(saved.value) };
@@ -240,20 +241,22 @@ export class WebService {
     }
     return all;
   }
-  deletedRooms(): DeletedRoom[] { return this.store.listDeletions().filter(saved => saved.value === 'deleted').map(saved => ({ roomId: saved.context.roomId, deletionVersion: saved.context.revision, status: 'deleted' })); }
-  async deleteRoom(roomId: string, data: { id: string; expectedArchiveVersion: number; expectedDeletionVersion?: number }): Promise<WebRoom | DeletedRoom> {
+  deletedRooms(): DeletedRoom[] { return this.store.listDeletions().filter(saved => (saved.value === 'deleted' || saved.context.force && saved.context.dataErased)).map(saved => ({ roomId: saved.context.roomId, deletionVersion: saved.context.revision, status: 'deleted' })); }
+  async deleteRoom(roomId: string, data: { id: string; expectedArchiveVersion?: number; expectedDeletionVersion?: number }): Promise<WebRoom | DeletedRoom> {
     const before = this.engine.roomDeletion(roomId);
-    if (before?.value === 'deleted') return { roomId, deletionVersion: before.context.revision, status: 'deleted' };
+    if (before && (before.value === 'deleted' || before.context.force && before.context.dataErased)) return { roomId, deletionVersion: before.context.revision, status: 'deleted' };
     this.room(roomId);
-    if (data.expectedDeletionVersion !== undefined && before?.context.revision !== data.expectedDeletionVersion) throw new WebError(409, '删除状态已更新，请重新确认。');
-    const saved = this.engine.requestRoomDeletion(roomId, data.id, data.expectedArchiveVersion);
+    const saved = this.engine.requestRoomDeletion(roomId, data.id, data.expectedArchiveVersion ?? this.engine.roomArchive(roomId).archiveVersion, true, !!this.localRuntime);
     if (!saved.context.reply.ok) throw new WebError(409, saved.context.reply.detail, saved.context.reply);
-    this.deletions.kick(roomId); return this.room(roomId);
+    this.deletions.kick(roomId);
+    const erased = this.engine.roomDeletion(roomId)!;
+    if (!erased.context.dataErased) throw new WebError(503, '删除未提交，请重试。');
+    return { roomId, deletionVersion: erased.context.revision, status: 'deleted' };
   }
   async retryRoomDeletion(roomId: string, data: { id: string; deletionId: string; expectedDeletionVersion: number }): Promise<WebRoom | DeletedRoom> {
     const saved = this.engine.roomDeletion(roomId);
     if (!saved || saved.context.deletionId !== data.deletionId || saved.context.revision !== data.expectedDeletionVersion) throw new WebError(409, '删除请求已失效，请查看最新状态。');
-    if (saved.value === 'deleted') return { roomId, deletionVersion: saved.context.revision, status: 'deleted' };
+    if ((saved.value === 'deleted' || saved.context.force && saved.context.dataErased)) return { roomId, deletionVersion: saved.context.revision, status: 'deleted' };
     const next = this.store.stepDeletion(roomId, { type: 'RETRY', id: data.id, at: Date.now(), deletionId: data.deletionId });
     if (!next.context.reply.ok) throw new WebError(409, next.context.reply.detail);
     this.deletions.kick(roomId); return this.room(roomId);
@@ -262,7 +265,9 @@ export class WebService {
     const tasks = Object.keys(this.store.read(roomId).tasks).map(taskId => this.engine.view(roomId, taskId)!);
     const previous: RuntimeCleanupInventory = { tasks: saved.context.tasks, sessions: saved.context.sessions, assets: saved.context.assets,
       complete: saved.context.tasks.length === saved.context.allTasks.length, executionsSettled: saved.context.blockers.length === 0, blockers: saved.context.blockers };
-    if (this.localRuntime) return this.localRuntime.planRoomCleanup({ roomId, tasks, previous, databaseErased: saved.context.dataErased, quiescent: this.localRuntime.roomQuiescent(roomId) });
+    if (this.localRuntime) return this.localRuntime.planRoomCleanup({ roomId, tasks, previous, databaseErased: saved.context.dataErased, force: saved.context.force === true, quiescent: this.localRuntime.roomQuiescent(roomId) });
+    if (saved.context.force && saved.context.dataErased) return { ...previous, assets: [], sessions: [], complete: true,
+      executionsSettled: false, blockers: [] };
     const local = tasks.some(t => t.context.intents.some(w => w.localOperations?.length)) || previous.assets.length > 0 || previous.sessions.length > 0;
     const unknown = tasks.some(t => t.context.intents.some(w => w.status === 'uncertain' && w.replay === 'unsafe'));
     return { tasks: tasks.map(t => ({ taskId: t.context.taskId, namespace: this.engine.localNamespace(roomId, t.context.taskId), phase: t.phase,
@@ -285,7 +290,7 @@ export class WebService {
   }
   private room(id: string): WebRoom {
     const deletion = this.engine.roomDeletion(id);
-    if (deletion?.value === 'deleted') throw new WebError(410, '这个群聊已删除。', { ok: false, code: 'ROOM_DELETED', detail: '这个群聊已删除。', roomId: id, deletionVersion: deletion.context.revision });
+    if (deletion && (deletion.value === 'deleted' || deletion.context.force && deletion.context.dataErased)) throw new WebError(410, '这个群聊已删除。', { ok: false, code: 'ROOM_DELETED', detail: '这个群聊已删除。', roomId: id, deletionVersion: deletion.context.revision });
     const room = this.rooms().find((room) => room.id === id);
     if (!room) throw new WebError(404, "找不到这个群聊。");
     return room;
@@ -384,6 +389,8 @@ export class WebService {
       for (const gate of c.resilience?.gates ?? []) if (['open', 'skipped'].includes(gate.status) && (gate.scope === 'cleanup' || gate.epoch === c.epoch && gate.goalVersion === c.goalVersion)) {
         const actions: WebBlocker['actions'] = gate.scope === 'cleanup' || gate.status === 'skipped' ? [] : gate.approvalId
           ? [{ id: 'skip', label: '跳过此命令' }, { id: 'stop', label: '停止任务' }]
+          : gate.cause === 'modelServiceError'
+            ? [{ id: 'skip', label: '跳过' }, { id: 'stop', label: '停止任务' }]
           : gate.cause === 'windowExpired'
             ? [{ id: 'newWindow', label: '授权新窗口', requiresText: true, allowsNewWindowMs: true },
               { id: 'skip', label: '结束并保留成果' }, { id: 'stop', label: '停止任务' }]
@@ -393,7 +400,7 @@ export class WebService {
           scope: gate.scope, ...(gate.code ? { code: gate.code } : {}), ...(gate.workId && gate.operationId ? { operation: { workId: gate.workId, operationId: gate.operationId,
             ...(gate.approvalId ? { approvalId: gate.approvalId } : {}) } } : {}),
           title: gate.scope === 'cleanup' ? '执行效果等待核对' : gate.status === 'skipped' ? '内容已明确跳过'
-            : gate.cause === 'windowExpired' ? '处理窗口已到期' : gate.cause === 'incompatibleExecution' ? '执行配置需要重新核对' : '需要你的回复', question: gate.question, requiredHuman: gate.required, status: gate.status === 'skipped' ? 'skipped' : 'open',
+            : gate.cause === 'modelServiceError' ? '模型服务调用失败' : gate.cause === 'windowExpired' ? '处理窗口已到期' : gate.cause === 'incompatibleExecution' ? '执行配置需要重新核对' : '需要你的回复', question: gate.question, requiredHuman: gate.required, status: gate.status === 'skipped' ? 'skipped' : 'open',
           actions: gate.decisions ? actions.filter(action => gate.decisions!.includes(action.id)) : actions });
       }
       const frozen = c.resilience?.frozen;

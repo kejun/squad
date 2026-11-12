@@ -29,7 +29,7 @@ export class ArchivedRoomDeletionCase {
       if (!this.browser) {
         this.browser = new ResilientWorkspaceUICase(this.id === 'BT_X01' ? 'BT_Y92' : this.id === 'BT_X15' ? 'BT_Y96' : 'BT_Y97');
         await this.browser.open();
-        if (this.id === 'BT_X01') await this.browser.prepareDeletionConfirmation();
+
       }
     }
   }
@@ -44,7 +44,7 @@ export class ArchivedRoomDeletionCase {
     if (argument && !this.argument) this.argument = argument;
     this.actions++;
     if (this.browser) {
-      if (this.id === 'BT_X01') await this.browser.cancelDeletionConfirmation();
+      if (this.id === 'BT_X01') await this.browser.act();
       else if (this.actions === 1) await this.browser.act();
       return;
     }
@@ -97,7 +97,7 @@ export class ArchivedRoomDeletionCase {
       this.result.sharedLease = true;
       this.result.lock = await readFile(join(host.root, 'runtime', 'service.lock'), 'utf8');
     }
-    await host.archive(); assert.equal((await host.delete()).status, 202);
+    await host.archive(); assert.equal((await host.resumeLegacyDeletion()).status, 202);
     if (this.id === 'BT_X18' && this.argument === '非active任务仍有未完成操作') {
       const waiting = await deletionUntil(() => host.service.engine.roomDeletion(host.room), saved => saved?.value === 'waiting', 'historical unknown held');
       assert(waiting!.context.blockers.length); await host.reviewUnknown();
@@ -147,7 +147,7 @@ export class ArchivedRoomDeletionCase {
     const hold = barrier(), entered = barrier(); this.release = hold.release;
     const plan = host.runtime.planRoomCleanup.bind(host.runtime);
     host.runtime.planRoomCleanup = async input => { entered.release(); await hold.promise; return plan(input); };
-    assert.equal((await host.delete()).status, 202); await entered.promise;
+    assert.equal((await host.resumeLegacyDeletion()).status, 202); await entered.promise;
     const path = this.argument === '恢复归档' || this.argument === '旧恢复请求' ? '/restore'
       : this.argument === '批准旧宿主命令' || this.argument === '批准会话授权' || this.argument === '旧审批' ? '/host-approval'
         : this.argument === '申请宿主重试' ? '/host-retry' : '/messages';
@@ -158,7 +158,7 @@ export class ArchivedRoomDeletionCase {
           : { type: 'CLAIM', intentId: current.id });
       assert.equal(result.code, 'ROOM_DELETING');
     } else if (this.argument === '原删除命令重放' || this.argument === '不同命令重复删除') {
-      assert.equal((await host.delete()).status, 202);
+      assert.equal((await host.resumeLegacyDeletion()).status, 202);
     } else if (this.argument === '旧列表轮询' || this.argument === '旧详情响应') {
       const response = await host.request(this.argument === '旧列表轮询' ? '/api/rooms' : host.route()); assert.equal(response.status, 200);
       assert(JSON.stringify(response.data).includes('deletion'));
@@ -184,7 +184,7 @@ export class ArchivedRoomDeletionCase {
       assert.equal(response.status, 409); assert.equal(host.service.rooms().find(room => room.id === host.room)!.archived, false);
       assert.equal(host.service.engine.roomDeletion(host.room), undefined);
     } else {
-      assert.equal((await host.delete()).status, 202);
+      assert.equal((await host.resumeLegacyDeletion()).status, 202);
       const restore = await host.request(host.route() + '/restore', { id: 'restore-after-barrier' });
       assert([409, 410].includes(restore.status)); await this.finish(host);
     }
@@ -204,7 +204,7 @@ export class ArchivedRoomDeletionCase {
   private async recovery() {
     const host = await this.open();
     if (this.argument === '取消正在执行') {
-      await host.seedOperation('uncertain'); await host.archive(); await host.delete();
+      await host.seedOperation('uncertain'); await host.archive(); await host.resumeLegacyDeletion();
       await deletionUntil(() => host.service.engine.roomDeletion(host.room), saved => saved?.value === 'waiting', 'unknown retained across restart');
       await host.restart(); await host.reviewUnknown(); await this.finish(host); this.result.resumed = true; return;
     }
@@ -269,7 +269,7 @@ export class ArchivedRoomDeletionCase {
         return value;
       };
     }
-    await host.archive(); await host.delete();
+    await host.archive(); await host.resumeLegacyDeletion();
     const saved = await deletionUntil(() => host.service.engine.roomDeletion(host.room), saved => ['waiting', 'paused'].includes(saved?.value ?? ''), 'visible incomplete deletion');
     assert.equal(await readFile(path, 'utf8'), original); assert(saved!.context.reason); assert.equal(saved!.context.completedAt, null);
     assert.equal((await host.request(host.route())).status, 200); this.result.retainedBeforeReview = true;
@@ -291,7 +291,7 @@ export class ArchivedRoomDeletionCase {
         assert(host.event({ type: 'EXHAUSTED', reason: '逻辑窗口结束，保留原操作的物理责任' }).ok);
         assert.equal(host.service.snapshot(host.room).activeTaskId, null);
         const leases = host.readRows().leases; assert(leases.length > 0);
-        await host.archive(); await host.delete();
+        await host.archive(); await host.resumeLegacyDeletion();
         const saved = await deletionUntil(() => host.service.engine.roomDeletion(host.room), saved => saved?.value === 'waiting', 'non-active operation lease retained');
         assert(saved!.context.blockers.some(blocker => blocker.kind === 'effects'));
         assert.deepEqual(host.readRows().leases, leases); this.result.retainedBeforeReview = true;
@@ -305,7 +305,7 @@ export class ArchivedRoomDeletionCase {
       await host.runtime.journal.write({ operationId: op.id, sessionId, phase: 'settled', completion: { result: { ok: false, code: 'historical-failure', data: {} }, settled: true, effectsKnown: true } });
       await writeFile(join(host.root, 'runtime', 'logs', createHash('sha256').update(sessionId).digest('hex') + '.log'), 'legacy evidence retained');
       this.result.legacySession = sessionId; this.result.work = work;
-      await host.archive(); await host.delete();
+      await host.archive(); await host.resumeLegacyDeletion();
       const saved = await deletionUntil(() => host.service.engine.roomDeletion(host.room), saved => saved?.value === 'waiting', 'orphan ownership blocked');
       assert(saved!.context.blockers.some(blocker => blocker.kind === 'ownership')); this.result.retainedBeforeReview = true;
       if (this.argument === '删除中断留下清理记录') {
@@ -325,7 +325,7 @@ export class ArchivedRoomDeletionCase {
   }
   async verify() {
     if (this.browser) {
-      if (this.id === 'BT_X01' && this.actions === 0) await this.browser.verifyDeletionConfirmation();
+      if (this.id === 'BT_X01' && this.actions === 0) assert.fail('Deletion must be triggered before verification');
       else {
         await this.browser.verify();
         if (this.id === 'BT_X24' && !this.browserRestartVerified) {

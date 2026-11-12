@@ -14,7 +14,7 @@ After(timeout, async function (this: SpecWorld, { result }) {
 });
 // A finite binding list: a new contract sentence remains undefined until it has a reviewed fixture action.
 const givenSteps = [
-  "用户查看一个已归档会话的删除确认",
+  "用户准备直接删除一个归档会话",
   "删除指定会话的请求存在{string}",
   "已归档会话的任务合法处于{string}",
   "待删会话包含状态为{string}的历史操作",
@@ -47,7 +47,7 @@ const givenSteps = [
   "真实SQLite内存服务已保存两个会话及任务回执和网页执行记录"
 ];
 const whenSteps = [
-  "用户取消删除确认",
+  "用户点击直接删除入口",
   "服务器核对删除确认",
   "用户明确确认删除该会话",
   "全部在途执行和未决效果已经可靠结算",
@@ -81,6 +81,7 @@ const whenSteps = [
   "用户通过HTTP归档并明确删除其中一个内存会话"
 ];
 const thenSteps = [
+  "会话应立即移除且不出现二次确认",
   "应能辨认目标会话、删除范围、不可恢复性和未完成工作的处理方式",
   "会话内容、归档状态、执行和独占文件应保持不变",
   "应明确拒绝请求且不冻结、停止或删除任何会话资源",

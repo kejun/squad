@@ -9,10 +9,10 @@ import { validRuntimeAsset, validRuntimeOwner, type DeletionBlocker, type Runtim
 
 export interface RoomCleanupInput {
   roomId: string; tasks: { phase: Phase; context: TaskContext }[];
-  previous?: RuntimeCleanupInventory; databaseErased?: boolean; quiescent: boolean;
+  previous?: RuntimeCleanupInventory; databaseErased?: boolean; force?: boolean; quiescent: boolean;
 }
 export interface ClaimedRuntimeCleanup {
-  roomId: string; deletionId: string; intentId: string; attempt: number; asset: RuntimeCleanupAsset;
+  roomId: string; deletionId: string; intentId: string; attempt: number; asset: RuntimeCleanupAsset; force?: boolean;
 }
 interface OwnershipRecord {
   version: 1; owner: RuntimeOperationOwner; isolated: boolean; taskWorkspace: boolean; createdAt: number;
@@ -50,6 +50,30 @@ function planned(record: OwnershipRecord): Omit<RuntimeCleanupAsset, 'identity' 
     { kind: 'ownership', path: `ownership/${session}.json`, owner },
     { kind: 'ownership', path: `ownership/${session}.json.pending`, owner });
   return assets.map(asset => ({ ...asset, id: assetId(asset.path) }));
+}
+/** Metadata-only manifest committed before erasing room data. No external-effect claims. */
+export function runtimeCleanupPlan(roomId: string, snapshots: { phase: Phase; context: TaskContext }[]): RuntimeCleanupInventory {
+  const sessions: RuntimeOperationOwner[] = [], assets = new Map<string, RuntimeCleanupAsset>();
+  const add = (asset: Omit<RuntimeCleanupAsset, 'identity' | 'status'>) => assets.set(asset.path, { ...asset, identity: null, status: 'pending' });
+  const tasks = snapshots.map(({ phase, context }) => {
+    const namespace = runtimeNamespace(roomId, context.taskId), owner = { roomId, taskId: context.taskId, namespace };
+    add({ id: assetId(`workspaces/${namespace}`), kind: 'workspace', path: `workspaces/${namespace}`, owner });
+    for (const work of context.intents) {
+      if (work.kind === 'check' || work.discussionId) {
+        const copy = digest(`${namespace}:${work.id}`);
+        add({ id: assetId(`copies/${copy}`), kind: 'copy', path: `copies/${copy}`, owner: { ...owner, workId: work.id } });
+        add({ id: assetId(`copies/${copy}.json`), kind: 'copyMarker', path: `copies/${copy}.json`, owner: { ...owner, workId: work.id } });
+      }
+      for (const op of work.localOperations ?? []) if (op.sessionId && op.action.type === 'runCli') {
+        const session = { ...owner, workId: work.id, operationId: op.id, parentAttempt: op.parentAttempt, attempt: op.attempt, sessionId: op.sessionId };
+        sessions.push(session);
+        for (const asset of planned({ version: 1, owner: session, isolated: false, taskWorkspace: false, createdAt: 0 })) add(asset);
+      }
+    }
+    return { taskId: context.taskId, namespace, phase, outcome: context.outcome,
+      workIds: context.intents.map(work => work.id), operationIds: context.intents.flatMap(work => work.localOperations?.map(op => op.id) ?? []) };
+  });
+  return { tasks, sessions, assets: [...assets.values()], complete: true, executionsSettled: false, blockers: [] };
 }
 function validRecord(value: unknown): value is OwnershipRecord {
   if (!value || typeof value !== 'object') return false;
@@ -111,7 +135,7 @@ export class RuntimeOwnership {
     const tasks = input.tasks.map(({ phase, context }) => ({ taskId: context.taskId, namespace: runtimeNamespace(input.roomId, context.taskId),
       phase, outcome: context.outcome, workIds: context.intents.map(work => work.id),
       operationIds: context.intents.flatMap(work => work.localOperations?.map(op => op.id) ?? []) }));
-    if (!tasks.length && input.databaseErased && input.previous?.complete && input.previous.executionsSettled)
+    if (!tasks.length && input.databaseErased && input.previous?.complete && (input.force || input.previous.executionsSettled))
       tasks.push(...structuredClone(input.previous.tasks));
     const sessions = new Map<string, RuntimeOperationOwner>();
     const records = new Map<string, OwnershipRecord>();
@@ -153,13 +177,16 @@ export class RuntimeOwnership {
     for (const asset of input.previous?.assets ?? []) if (validRuntimeAsset(asset) && asset.owner.roomId === input.roomId) add(asset);
 
     for (const name of await this.names('ownership')) {
+      if (input.force && !/^[a-f0-9]{64}\.json(?:\.pending)?$/.test(name)) continue;
       if (!/^[a-f0-9]{64}\.json(?:\.pending)?$/.test(name)) { this.blocker(blockers, `owner-name:${digest(name)}`, '运行时存在不能识别归属的所有权文件'); continue; }
       const path = join(this.root, 'ownership', name), stat = await optionalStat(path);
       if (!stat) continue;
+      if (input.force && (!stat.isFile() || stat.isSymbolicLink() || stat.size > 256_000)) continue;
       if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 256_000) { this.blocker(blockers, `owner-file:${digest(name)}`, '所有权记录类型或大小无效'); continue; }
       let record: unknown;
       try { record = JSON.parse(await readFile(path, 'utf8')); } catch { record = undefined; }
       if (!validRecord(record) || name.slice(0, 64) !== digest(record.owner.sessionId)) {
+        if (input.force) continue;
         if (![...sessions.keys()].some(session => digest(session) === name.slice(0, 64)))
           this.blocker(blockers, `owner-record:${digest(name)}`, '历史所有权记录未能可靠归属');
         continue;
@@ -168,7 +195,7 @@ export class RuntimeOwnership {
     }
     const knownSessionHashes = new Set([...sessions.keys()].map(session => digest(session)));
     const operations = new Set(tasks.flatMap(task => task.operationIds));
-    for (const name of await this.names('sessions')) {
+    for (const name of input.force ? [] : await this.names('sessions')) {
       if (!/^[a-f0-9]{64}\.json(?:\.pending)?$/.test(name)) { this.blocker(blockers, `session-name:${digest(name)}`, '会话日志存在未知归属项'); continue; }
       const key = name.slice(0, 64);
       if (knownSessionHashes.has(key) || globalRecords.has(key)) continue;
@@ -182,7 +209,7 @@ export class RuntimeOwnership {
           this.blocker(blockers, `legacy-session:${key}`, '旧会话日志缺少唯一的room和session所有权');
       } catch { this.blocker(blockers, `legacy-session:${key}`, '旧会话日志内容无效且归属不明'); }
     }
-    for (const name of await this.names('logs')) if (/^[a-f0-9]{64}\.log$/.test(name)) {
+    for (const name of input.force ? [] : await this.names('logs')) if (/^[a-f0-9]{64}\.log$/.test(name)) {
       const key = name.slice(0, 64);
       if (!knownSessionHashes.has(key) && !globalRecords.has(key)) this.blocker(blockers, `legacy-log:${key}`, '历史执行日志缺少可验证的会话所有权');
     } else this.blocker(blockers, `log-name:${digest(name)}`, '运行时存在未知归属日志');
@@ -195,9 +222,9 @@ export class RuntimeOwnership {
       try {
         await this.parent(asset.path); await this.parent('cleanup/x');
         const direct = await optionalStat(join(this.root, asset.path)), staged = await optionalStat(this.staged(asset.path));
-        if (direct && staged) { this.blocker(blockers, `staged:${asset.id}`, '原资源与清理暂存项同时存在，需核对'); continue; }
+        if (!input.force && direct && staged) { this.blocker(blockers, `staged:${asset.id}`, '原资源与清理暂存项同时存在，需核对'); continue; }
         const stat = direct ?? staged;
-        if (stat?.isSymbolicLink()) { this.blocker(blockers, `link:${asset.id}`, '清理目标是符号链接，未删除'); continue; }
+        if (!input.force && stat?.isSymbolicLink()) { this.blocker(blockers, `link:${asset.id}`, '清理目标是符号链接，未删除'); continue; }
         assets.push({ ...asset, identity: stat ? identity(stat) : null, status: 'pending' });
       } catch (error) { this.blocker(blockers, `boundary:${asset.id}`, error instanceof LocalToolError ? error.code : '清理路径核对失败'); }
     }
@@ -215,6 +242,13 @@ export class RuntimeOwnership {
     await this.parent(asset.path); await this.parent('cleanup/x');
     const path = join(this.root, asset.path), stage = this.staged(asset.path);
     let direct = await optionalStat(path), staged = await optionalStat(stage);
+    if (claim.force) {
+      // Both paths are derived from the target's persisted ownership manifest; rm never follows a symlink.
+      await rm(path, { recursive: true, force: true });
+      signal.throwIfAborted();
+      await rm(stage, { recursive: true, force: true });
+      return { assetId: asset.id, identityVerified: false, forceRemoved: true, result: direct || staged ? 'deleted' as const : 'absent' as const };
+    }
     if (direct && staged) throw new LocalToolError('RUNTIME_CLEANUP_CONFLICT');
     if (!direct && !staged) return { assetId: asset.id, identityVerified: true as const, result: 'absent' as const };
     const observed = direct ?? staged!;
@@ -229,8 +263,8 @@ export class RuntimeOwnership {
     await rm(stage, { recursive: true, force: true }); await syncDirectory(dirname(stage));
     return { assetId: asset.id, identityVerified: true as const, result: 'deleted' as const };
   }
-  async verify(inventory: RuntimeCleanupInventory) {
-    if (!inventory.complete || !inventory.executionsSettled || inventory.blockers.length) return false;
+  async verify(inventory: RuntimeCleanupInventory, force = false) {
+    if (!inventory.complete || !force && !inventory.executionsSettled || inventory.blockers.length) return false;
     for (const asset of inventory.assets) {
       if (!ownedAsset(asset)
         || !inventory.tasks.some(task => task.taskId === asset.owner.taskId && task.namespace === asset.owner.namespace)

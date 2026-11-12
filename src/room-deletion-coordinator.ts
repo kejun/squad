@@ -7,14 +7,15 @@ import { restoreRoomDeletion, deletionStatus, type DeletionIntent, type RoomDele
 export interface DeletionHost {
   prepare(roomId: string): Promise<void>;
   inventory(roomId: string, previous: SavedRoomDeletion): Promise<RuntimeCleanupInventory>;
-  remove(claim: { roomId: string; deletionId: string; intentId: string; attempt: number; asset: RuntimeCleanupAsset }, signal: AbortSignal): Promise<{ assetId: string; identityVerified: true; result: 'deleted' | 'absent' }>;
-  filesGone(inventory: RuntimeCleanupInventory): Promise<boolean>;
+  remove(claim: { roomId: string; deletionId: string; intentId: string; attempt: number; asset: RuntimeCleanupAsset; force?: boolean }, signal: AbortSignal): Promise<{ assetId: string; identityVerified: boolean; forceRemoved?: boolean; result: 'deleted' | 'absent' }>;
+  filesGone(inventory: RuntimeCleanupInventory, force?: boolean): Promise<boolean>;
   retire(roomId: string): void;
+  erased?(roomId: string, resourceKeys: string[]): void;
   projectionsGone(roomId: string): boolean;
   failed(roomId: string): void;
 }
 const inventoryOf = (saved: SavedRoomDeletion): RuntimeCleanupInventory => ({ tasks: saved.context.tasks, sessions: saved.context.sessions,
-  assets: saved.context.assets, complete: true, executionsSettled: saved.context.blockers.length === 0, blockers: saved.context.blockers });
+  assets: saved.context.assets, complete: true, executionsSettled: !saved.context.force && saved.context.blockers.length === 0, blockers: saved.context.blockers });
 
 /** Runs only committed, claimed deletion intents. The job survives outside the room being erased. */
 export class RoomDeletionCoordinator {
@@ -36,7 +37,20 @@ export class RoomDeletionCoordinator {
     }
   }
   kick(roomId: string) {
-    if (this.controller.signal.aborted || this.jobs.has(roomId)) return;
+    if (this.controller.signal.aborted) return;
+    let saved = this.store.readDeletion(roomId);
+    if (saved?.context.force && !saved.context.dataErased && saved.context.intents.some(i => i.kind === 'eraseData' && i.status === 'claimed')) {
+      saved = this.store.stepDeletion(roomId, { type: 'RECOVER', id: randomUUID(), at: Date.now(), deletionId: saved.context.deletionId! });
+    }
+    const erase = saved?.context.force && !saved.context.dataErased
+      ? saved.context.intents.find(intent => intent.kind === 'eraseData' && intent.status === 'pending') : undefined;
+    if (erase) {
+      const claimed = this.store.stepDeletion(roomId, { type: 'CLAIM', id: randomUUID(), at: Date.now(),
+        deletionId: saved!.context.deletionId!, intentId: erase.id });
+      if (!claimed.context.reply.ok) throw new Error(claimed.context.reply.code);
+      this.erase(roomId, claimed.context.intents.find(intent => intent.id === erase.id)!);
+    }
+    if (this.jobs.has(roomId)) return;
     const job = Promise.resolve().then(() => this.pump(roomId)).catch(() => this.host.failed(roomId)).finally(() => { this.jobs.delete(roomId); });
     this.jobs.set(roomId, job);
   }
@@ -44,6 +58,12 @@ export class RoomDeletionCoordinator {
     const saved = this.store.readDeletion(roomId)!;
     return this.store.stepDeletion(roomId, { id: randomUUID(), at: Date.now(), deletionId: saved.context.deletionId!, intentId: intent.id,
       attempt: intent.attempt, ...event } as RoomDeletionEvent);
+  }
+  private erase(roomId: string, intent: DeletionIntent) {
+    const keys = this.store.deletionLeases(roomId).map(lease => lease.key);
+    this.host.retire(roomId);
+    this.event(roomId, intent, { type: 'DATA_ERASED' });
+    this.host.erased?.(roomId, keys);
   }
   private async pump(roomId: string) {
     while (!this.controller.signal.aborted) {
@@ -64,19 +84,18 @@ export class RoomDeletionCoordinator {
           this.event(roomId, intent, { type: 'PREPARED', inventory, nextWake: Date.now() + 5000 });
         } else if (intent.kind === 'removeAsset') {
           const asset = saved.context.assets.find(asset => asset.id === intent.assetId); if (!asset) throw new Error('DELETION_ASSET_MISSING');
-          const result = await this.host.remove({ roomId, deletionId: saved.context.deletionId!, intentId: intent.id, attempt: intent.attempt, asset }, this.controller.signal);
+          const result = await this.host.remove({ roomId, deletionId: saved.context.deletionId!, intentId: intent.id, attempt: intent.attempt, asset, force: saved.context.force === true }, this.controller.signal);
           if (this.controller.signal.aborted) return;
           this.event(roomId, intent, { type: 'ASSET_REMOVED', ...result });
         } else if (intent.kind === 'eraseData') {
-          this.host.retire(roomId);
-          this.event(roomId, intent, { type: 'DATA_ERASED' });
+          this.erase(roomId, intent);
         } else {
-          const filesGone = await this.host.filesGone(inventoryOf(saved));
+          const filesGone = await this.host.filesGone(inventoryOf(saved), saved.context.force === true);
           if (this.controller.signal.aborted) return;
           const checks = { inventoryComplete: saved.context.blockers.length === 0, filesGone,
-            databaseGone: this.store.verifyDeletionDataGone(roomId), executionsSettled: this.store.deletionLeases(roomId).length === 0,
+            databaseGone: this.store.verifyDeletionDataGone(roomId), executionsSettled: !saved.context.force && this.store.deletionLeases(roomId).length === 0,
             projectionsCleared: this.host.projectionsGone(roomId), dependenciesPreserved: filesGone };
-          if (!Object.values(checks).every(Boolean)) throw new Error('DELETION_VERIFICATION_INCOMPLETE');
+          if (!Object.entries(checks).every(([key, value]) => value || key === 'executionsSettled' && saved.context.force)) throw new Error('DELETION_VERIFICATION_INCOMPLETE');
           this.event(roomId, intent, { type: 'VERIFIED', checks });
         }
       } catch (error) {

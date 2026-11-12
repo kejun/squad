@@ -117,8 +117,8 @@ export function createWebServer(
           }
           if (match[2] === 'delete') {
             if (Object.keys(data).some(k => !['id', 'expectedArchiveVersion', 'expectedDeletionVersion'].includes(k))
-              || !Number.isSafeInteger(data.expectedArchiveVersion) || Number(data.expectedArchiveVersion) < 0
-              || data.expectedDeletionVersion !== undefined && (!Number.isSafeInteger(data.expectedDeletionVersion) || Number(data.expectedDeletionVersion) < 0)) throw new WebError(400, '删除确认版本不正确。');
+              || data.expectedArchiveVersion !== undefined && (!Number.isSafeInteger(data.expectedArchiveVersion) || Number(data.expectedArchiveVersion) < 0)
+              || data.expectedDeletionVersion !== undefined && (!Number.isSafeInteger(data.expectedDeletionVersion) || Number(data.expectedDeletionVersion) < 0)) throw new WebError(400, '删除请求版本不正确。');
             return json(res, await service.deleteRoom(roomId, data as unknown as Parameters<WebService['deleteRoom']>[1]), 202);
           }
           if (match[2] === 'delete-retry') {

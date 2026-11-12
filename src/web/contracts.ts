@@ -43,7 +43,7 @@ export interface WebBlocker {
   operation?: { workId: string; operationId: string; approvalId?: string };
   id: string; version: number; taskId: string; epoch: number; goalVersion: number;
   title: string; question: string; requiredHuman: boolean; status: 'open' | 'resolved' | 'skipped'; actions: WebBlockerAction[];
-  code?: 'WINDOW_EXPIRED';
+  code?: string;
 }
 export interface WebOperationReview {
   operationId: string; sessionId: string; action: unknown; processState: string;

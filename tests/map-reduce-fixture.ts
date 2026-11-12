@@ -26,7 +26,7 @@ export class MapReduceFixture extends InputIntentFixture {
     if (request.kind === 'interpretation') return modelResponse({ type: 'interpretation', spec: mapIntent() });
     if (request.kind === 'check') return modelResponse(fixtureJudgments(request.context.requirements as AcceptanceCriterion[]));
     const part = request.context.partition as { id: string } | undefined;
-    if (part?.id === 'alpha' && this.failure === '失败') return new Response('service unavailable', { status: 401 });
+    if (part?.id === 'alpha' && this.failure === '失败') return modelResponse({ type: 'answer', text: 'alpha来源读取失败，没有取得正文', status: 'failed' });
     const status = part?.id === 'alpha' && this.failure === '部分完成' ? 'partial' : 'success';
     return modelResponse({ type: 'answer', text: part ? `${part.id} 原始证据，来源 https://example.com/${part.id}`
       : request.kind === 'discussionSummary' ? '归并认为已经全部完成' : '合并甲乙两份公开来源证据的报告', status });
