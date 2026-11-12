@@ -23,9 +23,9 @@ CONTROLS = {
                     'if (recorded) recorded.consumed = true;',
                     'if (recorded) recorded.consumed = false;'),
     'double-resume': ('AtMostOnce', 'src/task/assistance.ts',
-                     '    owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer: e.answer, artifactIds, requiresAssessment: true });',
-                     '    owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer: e.answer, artifactIds, requiresAssessment: true });\n'
-                     '    owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer: e.answer, artifactIds, requiresAssessment: true });'),
+                     '    owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer, artifactIds, ...(h.reason ? { reason: h.reason } : {}) });',
+                     '    owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer, artifactIds, ...(h.reason ? { reason: h.reason } : {}) });\n'
+                     '    owner(c, e, { requestId: h.id, resultId: e.resultId, status: e.status, answer, artifactIds, ...(h.reason ? { reason: h.reason } : {}) });'),
     'skip-cancel': ('StopCancelsResume', 'src/task/operations.ts',
                    "if (item.status === 'pending') item.status = 'cancelled';",
                    "if (item.status === 'pending' && item.kind !== 'owner') item.status = 'cancelled';"),

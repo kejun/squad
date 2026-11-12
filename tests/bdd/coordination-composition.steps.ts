@@ -11,7 +11,7 @@ Then('额外请求应在保留边界被拒绝且所有成员和负责人仍能�
   assert.partialDeepStrictEqual(run(this).final, { member1: 2, member2: 2, summary: 3, handoff: true, successor: true, used: 7, reserve: 0 });
 });
 When(/^已领取的「(.+)」请求尝试重复取得外部请求授权$/, async function (this: SpecWorld, name: string) {
-  const variants: Record<string, string> = { 成员评审: 'review', 协助重试: 'retry', 宿主续办并行讨论: 'host', 工程验证修订: 'verification' };
+  const variants: Record<string, string> = { 成员评审: 'review', 协助重试: 'retry', 宿主续办并行讨论: 'host' };
   assert(variants[name]); runs.set(this, await runCompositionScenario('ReservedRequests', variants[name], ['FirstRequest', 'AdditionalRequest', 'DeniedRequest']));
 });
 Then('首次请求使用已付额度且后续请求不得耗尽保留费用', function (this: SpecWorld) {

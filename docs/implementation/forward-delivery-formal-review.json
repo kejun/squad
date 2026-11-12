@@ -1,0 +1,339 @@
+{
+  "userRequest": "按新流程检查并更新形式化验证",
+  "status": "candidate-reviewed-not-yet-verified",
+  "fromCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+  "productCommit": "8085c81e46ab0285540d6a896180585e408358ca",
+  "readCommits": [
+    "8085c81e46ab0285540d6a896180585e408358ca 修复下游补救稿未延续原文档修订链 [skip ci]",
+    "ceaacf13970cf6a961d7dbb6e2d2209517a7da8c 清除自动修订遗留分支并迁移旧交付阶段 [skip ci]",
+    "f226da136d6f7736865510226aaeff9418d6a385 对齐固定原文与跳过内容的单向交付契约 [skip ci]",
+    "81421232c05763d8057508dc7d95080913848670 交付改为下游直接补救，移除重复审核回环 [skip ci]",
+    "e0d50578db5f6f71371e07ac19abfa55682f27d3 强制删除归档会话，并为模型服务错误提供跳过和停止 (#59)",
+    "5865ed30383feb3328f080b794cb091c1a31f838 放大执行预算并无损压缩工具上下文 (#58)",
+    "2c378f089fff15a7305ed6e280fe0d31a48b4858 三小时续窗、自动 CLI 目录与可信 stdin 经验 (#57)"
+  ],
+  "baseline": "/workspace/work/squad-formal-forward/baseline-index.json",
+  "files": [
+    {
+      "path": "src/budget-defaults.ts",
+      "beforeSha256": null,
+      "afterSha256": "47cb319318d1bb534bc8d75a06523588846a7316f546c1934b934839cea9fa39",
+      "classification": "new-dependency",
+      "reason": "New shared MAX constants imported by runtime/budget; include in conservative pin maps."
+    },
+    {
+      "path": "src/delivery-acceptance.ts",
+      "beforeSha256": "4cc0389a027e13631058b52ba911e0b99e487160a898510168e47e44fe117dc4",
+      "afterSha256": "ca51136db49470612f54a08361eb892fa0c5c5498dadd073a759cec20f360efb",
+      "classification": "promise-changed",
+      "reason": "Remove per-partition/source/quote vetoes; keep criterion protocol, declare missing files, latest valid verdict wins. ForwardDelivery and latest snapshot probes."
+    },
+    {
+      "path": "src/delivery-check-delta.ts",
+      "beforeSha256": "676f1a53878cf893a1073b6e599a038b099fc26bffc5d7a6e9cc8ee00602c4d1",
+      "afterSha256": "abe811e2095620b6a238f8adbb6640a28eddabc89868bc0a212e1990270a17b6",
+      "classification": "promise-changed",
+      "reason": "Full current material and original frozen sources plus own checker observations replace incremental review; immutable source binding retained."
+    },
+    {
+      "path": "src/engine.ts",
+      "beforeSha256": "614da08a66eaef32df8885476e0afab81ad57d9e706a8196aa474614595f3f5e",
+      "afterSha256": "b2ef5012711e800a3ebffe1f94b6604ccfec9beb6efa6bf0a8a56b1994fc3b35",
+      "classification": "no-effect-in-retained-domain",
+      "reason": "Force archive deletion is outside these prefixes; normal task transaction, source freeze, handoff and execution entries retained."
+    },
+    {
+      "path": "src/local-operation.ts",
+      "beforeSha256": "112e132b05b6d23d60f46f7becf80fb2bc12809bdca7ed36df7d355173787f9d",
+      "afterSha256": "37096b82063e8ffea67659e5429b57accf8c7b48dbccbb00df0cb2bb32c7703e",
+      "classification": "shape-change",
+      "reason": "Larger explicit timeout range, repeated CLI failure guard includes check work. Authority uses fixed deadlines and LocalEffects no repeated checker failures."
+    },
+    {
+      "path": "src/local-runtime.ts",
+      "beforeSha256": "2058ebc6f59c4b5c70174b06c1db88dde49bc8c4f113277ad3e5c27d32208706",
+      "afterSha256": "ee04711c2a4e59f47286a6b8e4d54a444c2b721c8d177897e550159476fc4c4f",
+      "classification": "no-effect-in-retained-domain",
+      "reason": "Force cleanup never called by normal authority/local-effect prefixes; explicit command identity, approval digest and deadlines retained."
+    },
+    {
+      "path": "src/measurement.ts",
+      "beforeSha256": "0ceeba39fe20ece308c1a0ed1df3b1438e40052af651f9a0037592f2af1cc773",
+      "afterSha256": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
+      "classification": "shape-change",
+      "reason": "Retired recovery output field removed; no graph relies on output observation field enumeration."
+    },
+    {
+      "path": "src/model-adapter.ts",
+      "beforeSha256": "f9aab0be53077678578df8b0e63e766cdafd0e801d7428bb170623596a831289",
+      "afterSha256": "c9eb7005eb25cc7823ea9d45579eb82eb60871591bed36202c0c370194ffde50",
+      "classification": "promise-changed",
+      "reason": "Checker can call authorized tools and return repair; invalid check transport bodies are protocol failures. Native adapter scenarios cover this; TLC uses controlled results."
+    },
+    {
+      "path": "src/model-env.ts",
+      "beforeSha256": "7f8bb277dab42d749c82dab229d66cbb508e1af83b78986895da41956a9e6cf0",
+      "afterSha256": "ecee3cac5d0355cb6c470c75cab93d687de7228111abce0b55bf65643fbd8f54",
+      "classification": "no-effect-in-retained-domain",
+      "reason": "Provider/context defaults overridden by explicit formal configs; no tokenizer or provider quality claim."
+    },
+    {
+      "path": "src/model-inventory-format.ts",
+      "beforeSha256": null,
+      "afterSha256": "6f22e2ef4319c1b7a1cbb7a5f7995277f7022cb2eeac4d4cd7298a0128744b23",
+      "classification": "new-dependency",
+      "reason": "New adapter transitive serializer; capture bytes without claiming semantic tool selection proof."
+    },
+    {
+      "path": "src/resource-acquisition.ts",
+      "beforeSha256": "adc62f7be3cca22ded73bb7e42cebb893da98b5b1a7c68097ca12bc5f39cca02",
+      "afterSha256": "7ef76d5e90aa17fc79d4c405a5f5194d260ba3c7a47609b37abeaff14f126221",
+      "classification": "promise-changed",
+      "reason": "Latest verdict and actual test/version receipt determine verified badge; historical acquisition quality no longer vetoes delivery. Verification and latest-input probes updated."
+    },
+    {
+      "path": "src/room-deletion-coordinator.ts",
+      "beforeSha256": "62399fe89fe47ffce3ed690e65bd16064caff598c09654422e83eed553cb6c9a",
+      "afterSha256": "e085cc19a2063ed3c1188a1ee533f06c2844b8452fdbfe9124edb5e623e2d7bc",
+      "classification": "no-effect-in-retained-domain",
+      "reason": "Separate forced-deletion lifecycle is not called by any finite task prefix."
+    },
+    {
+      "path": "src/room-deletion.machine.ts",
+      "beforeSha256": "61320dc8213a9d546cb706349a8fa786c9acd244461608e6e3422487a8b7d4f4",
+      "afterSha256": "67efe4453025d87b570e7ef1c6142ce147c03ee3af6dbc59970df518b62f33d9",
+      "classification": "no-effect-in-retained-domain",
+      "reason": "Force deletion acceptance not covered; explicit finite scopes do not include this machine."
+    },
+    {
+      "path": "src/runner.ts",
+      "beforeSha256": "f3bc1e3424fe655142d63e8eb94815f93e7483e640ed385cd8ffa2a938d07538",
+      "afterSha256": "e5e0508e6d12f4cf68812e583c8d303b085740c06af13ec5668db59e8fc2e570",
+      "classification": "promise-changed",
+      "reason": "Checker tools/direct repair, failed-empty output, separate diagnostic, no recovery declaration. Saved-result flush and actual local-effect bridge retained."
+    },
+    {
+      "path": "src/runtime-ownership.ts",
+      "beforeSha256": "210e8d0108df16149d9a3fc3c5e1d3e417f9ccdb1c54040042dec89494aafc60",
+      "afterSha256": "efd65d030f7d9a13ea767e217f1413c1ee30a23fddd6dc7965ff020e38f9ed58",
+      "classification": "no-effect-in-retained-domain",
+      "reason": "New force cleanup branches are not executed; normal effect custody, journal and identity remain."
+    },
+    {
+      "path": "src/source-claims.ts",
+      "beforeSha256": "ed1d86ae9c38e8c850da5b0c9d695f5fd4ab1091f9212759fa573d7981dc52c3",
+      "afterSha256": null,
+      "classification": "retired",
+      "reason": "Explicit user removal of mechanical source-item preflight. Raw source metadata goes downstream; removed file no longer pinned."
+    },
+    {
+      "path": "src/store.ts",
+      "beforeSha256": "2e4ba48a4ab3da7b6098c9dd7e4d89763663da17430bc1ff5aa44036c2a36a11",
+      "afterSha256": "6c9543ccf67cad77379c9e1f3bd0ede7f4cdbab6a276374244c40339589aed77",
+      "classification": "no-effect-in-retained-domain",
+      "reason": "Forced room deletion state changes are outside model prefixes; normal task writes, rollback, workspace acquisition retained."
+    },
+    {
+      "path": "src/task-debug-view.ts",
+      "beforeSha256": "07d9f35a00ddb51307d58a70e2a75fba31d60ebc5e151f1fb1fb26d7a80720a3",
+      "afterSha256": "978c74852fafaa14fae662e819d7fd8468d543b594d3f34c6c32df0530ba9c1b",
+      "classification": "no-effect-in-retained-domain",
+      "reason": "Read-only projection; no scheduling write or finite projected field changed."
+    },
+    {
+      "path": "src/task.machine.ts",
+      "beforeSha256": "a147ecce5aa608c858150da78ccdb3d84a6a39737cf69f33f33b62744b3aec6c",
+      "afterSha256": "240ac7e3c34de40809a77c28771b84b14e4002430eb3863d6f57d03dc46dced6",
+      "classification": "shape-change",
+      "reason": "Legacy map fields stripped on restore/step; task/goal/attempt guards retained. ForwardDelivery sends ignored legacy claims."
+    },
+    {
+      "path": "src/task/assistance.ts",
+      "beforeSha256": "a8628937aad37ca19bfa210b288e537f406b4323c1b191ab86e6333438cd1950",
+      "afterSha256": "856122bed034158ebf512a39135f97a321ce396a4c35e8f19cc81ab31b9eae7d",
+      "classification": "promise-changed",
+      "reason": "Failed result empty, reason separate; refresh current review failures. Original success handoff/pre-delivery retry scope retained; post-complete user retry separately covered by H215."
+    },
+    {
+      "path": "src/task/budget.ts",
+      "beforeSha256": "8f9385831f84f948e278645b72b57f658db4e26578197af57a0a1722ff5a6c09",
+      "afterSha256": "6c53c32ea4f9836375b1f179457eca0adc75784fe0e7e23f7c9edfdb3a1338d5",
+      "classification": "promise-changed",
+      "reason": "No author-revision reserve. MAX network retries and one protocol retry are distinct. CheckBudget rewritten; review/retry/host shared reserves retained."
+    },
+    {
+      "path": "src/task/delivery-cycle.ts",
+      "beforeSha256": "b2e027c05c8a5b4762dbfb05b3f159f11e0c8f37356b381542d5657d6d9e0994",
+      "afterSha256": "963625046b3d7bc02076353c91fc8750eeab57ef27f0e3eae0af8f192c50aa07",
+      "classification": "promise-changed",
+      "reason": "Remove revising state/counters, migrate old stage to current work; preserve actual request/retry usage."
+    },
+    {
+      "path": "src/task/delivery.ts",
+      "beforeSha256": "e6879a729d525d3e699e0c2a5be63b318c66f90e60b10d6d67dfd186642560ed",
+      "afterSha256": "ba0a51101f349546ffc4c86c6e863b299433be7d2489a01fecc68b99b0124e5d",
+      "classification": "promise-changed",
+      "reason": "Valid failed/unverified judgments complete with declared gaps; no automatic owner revision. Keep candidate/attempt identity and frozen receipt binding. Verification/Cycles/ForwardDelivery updated."
+    },
+    {
+      "path": "src/task/discussion.ts",
+      "beforeSha256": "6090f36fce08f19d19cff4dcd38344c20c249493b45b767a1993dd676d4cb39b",
+      "afterSha256": "3fdb3b5040672853459e1c76170b8a32ced8edabe30581183aa86d3004f4d0ff",
+      "classification": "promise-changed",
+      "reason": "Failed child body/files empty with diagnostic, success/partial raw results retained. Shards retains status facts; ForwardDelivery asserts no rerun and immutable history."
+    },
+    {
+      "path": "src/task/evidence.ts",
+      "beforeSha256": "363394d8fe86fb8a7b8b72e6e6ee57c5f798dfbb2faf361b0fb171498874a0da",
+      "afterSha256": "0fcd68bdfea1012c7d717f8fddba40cf2e4ec5d5cf14e51b9f8adc0890913f93",
+      "classification": "shape-change",
+      "reason": "Checker may use its own settled sources; exact original frozen receipt identity and snapshot comparison stay enforced."
+    },
+    {
+      "path": "src/task/facts.ts",
+      "beforeSha256": "ee7161ab136bb54191c5af11ce3bbdd508260f75c583a16bb6ff7a0b4f916d2b",
+      "afterSha256": "ff41d312c7216bbe18e488573a05286b9d68d1e52170a7b8fcc4db8599dc2062",
+      "classification": "promise-changed",
+      "reason": "Remove semantic completeness/file-count vetoes; pending inputs, active assistance/discussion and current candidate still guard handoff."
+    },
+    {
+      "path": "src/task/guards.ts",
+      "beforeSha256": "687d8560df96c7279453718f65249ee7cbe856493d9c17e6db5771e6c14b34cd",
+      "afterSha256": "c09998b8ad895c6739c2806a22a432efdf22f792016f4419b25af94a50d87970",
+      "classification": "promise-changed",
+      "reason": "Remove author-revision guards and add model-4xx gates. Retained models use non-4xx synthetic failures; new one-way completion modeled explicitly."
+    },
+    {
+      "path": "src/task/lifecycle.ts",
+      "beforeSha256": "e644f0ca7f31d35ed151da24ce53b303208ad87bf801f89f74ce99dab6753422",
+      "afterSha256": "3c355f42d3e95ed78ad0bcba49634806346651a03d9f88db9197e15fa4d878b8",
+      "classification": "promise-changed",
+      "reason": "DELIVER/CHECK_RESULT no longer return to author for review. Existing blocking, stop and technical failure states retained."
+    },
+    {
+      "path": "src/task/map-queue.ts",
+      "beforeSha256": "79b0c55b825bd31e78c818064ea2ced205edb2724f0b254c31d9ae981199c5da",
+      "afterSha256": "7be9d490087031e36bca6d5de56362e474cf4bfd9439369037c6a51e4045e309",
+      "classification": "shape-change",
+      "reason": "Restore removes legacy claims/resolutions, failed body empty but status/reason kept. Existing settlement and safe recovery models remain."
+    },
+    {
+      "path": "src/task/map-recovery.ts",
+      "beforeSha256": "cf4e6ac76482d0765b6d7d523f77173ee70e160ce00ac4e4a257d2a3e84dc7b7",
+      "afterSha256": null,
+      "classification": "retired",
+      "reason": "Explicitly removed declaration/acceptance system. Retire MapRecovery and replace it with ForwardDelivery."
+    },
+    {
+      "path": "src/task/operations.ts",
+      "beforeSha256": "b997ec9f15f59a4e8d3eacfc73ebf189e0d0d996dde42b3409331f45ffbd0621",
+      "afterSha256": "fac9e01dce00959c122f62382ebc3f8fe9f6291ae6dce66621ee756fb7e3fe25",
+      "classification": "promise-changed",
+      "reason": "Historical skip cannot veto latest delivery; physical cleanup still prevents false settlement. Preserve immutable file save path."
+    },
+    {
+      "path": "src/task/policy.ts",
+      "beforeSha256": "e36d57d067af5a03d92db8e24b4845bdc0d5ee0adedd4244d8f0ce71557964c3",
+      "afterSha256": "77919000486b79ce5f05074742b47443e580e439006da34e4b296f3c2d2eea3c",
+      "classification": "promise-changed",
+      "reason": "Checker can make multiple authorized requests charged to configured check budget; remove one-use review permit. Protocol and execution identity boundaries retained."
+    },
+    {
+      "path": "src/task/reducer.ts",
+      "beforeSha256": "e933a9fa0db8f12db3b227f78ff4c94638330876b57a51f6e13db55f2ccc369b",
+      "afterSha256": "2b0070498caca7e9ccaa87af3d29e7fb0a820715a41164e16d3d376eb8268b36",
+      "classification": "promise-changed",
+      "reason": "Atomically persist direct repair, findings, latest result and publication. No author resubmission. Cycles exposed missing same-document revision; fixed separately in 8085c81."
+    },
+    {
+      "path": "src/task/resilience.ts",
+      "beforeSha256": "4839aefb59ad6f430b23083a272f68b161458827908c49d34caf95a07fb959a1",
+      "afterSha256": "6b8029d2da6b7a5062bbc28fabc71fde1bb01938ee89ebde86b67c33b11b310d",
+      "classification": "shape-change",
+      "reason": "Model HTTP 4xx has explicit skip/stop gate; finite prefixes do not send model 4xx. Required user decision and physical custody boundaries remain."
+    },
+    {
+      "path": "src/task/tool-recovery.ts",
+      "beforeSha256": "225859aa5e025691ec323b8399579aed9d46168ea0002ce4d8cdf6500eb4ef8c",
+      "afterSha256": "8d2aac45bfd8633fce45f236fc3ef880be8810c5592059d26a294fbb012b9468",
+      "classification": "shape-change",
+      "reason": "Feedback includes checker; existing ToolRecovery scope is paid owner only; native direct-check tools are separate evidence."
+    },
+    {
+      "path": "src/task/verification.ts",
+      "beforeSha256": "bb44299da5f1e7264b5a903489ac75ca14b0d9180086a819a2a02d6a2ad94efe",
+      "afterSha256": "ee7a1959bac2573cc2f0dc07a19f233cf7b575b31cdbfb6d965ee180d6bd699c",
+      "classification": "promise-changed",
+      "reason": "Missing/failed/version-changed verification becomes declared content gap; exact workspace/receipt identity still controls validation authority and verified badge."
+    },
+    {
+      "path": "src/types.ts",
+      "beforeSha256": "9601322fb8a5f16f8f33ee42a838d1a07a93bbe74d83b3cf3fd9c6c75e231150",
+      "afterSha256": "b1d1e132ab8d05cf30d16a3e93a26913635bd75016cd40bb0d399e8039a61c73",
+      "classification": "shape-change",
+      "reason": "Retire recovery and revising fields, add checker repair and separate failed reason; update finite projections while preserving identity/usage."
+    },
+    {
+      "path": "src/web/contracts.ts",
+      "beforeSha256": "fcb4e748a0be8ede3795f5a67c5349aac4c594cbeac9c41fa4e6244a7bd9e83a",
+      "afterSha256": "68fbf0a6c2ee88d1267e2cd20d5be05c1c478a8ea349c9e8dde95ec68d97fa97",
+      "classification": "no-effect-in-retained-domain",
+      "reason": "Web response contracts are outside finite Engine graph execution; no UI formal claim."
+    },
+    {
+      "path": "src/web/http.ts",
+      "beforeSha256": "b1d122e4a840ad722ee4ca6b43a73187b31ec8ed92be232f495c1716cdcccbfc",
+      "afterSha256": "ed024288de2ef242f4028514344ed6d67b9211d1a16e7b7723eb2dc2ff156fea",
+      "classification": "no-effect-in-retained-domain",
+      "reason": "Force deletion route is not called by finite proof drivers."
+    },
+    {
+      "path": "src/web/service.ts",
+      "beforeSha256": "43797c11d870eed9449010a2a0f0e7b7cd419980e8b64a65f55e1efdccf995f5",
+      "afterSha256": "7e371e8247fb650e9a650f481be9bfc715bb5693ca0f0a6a663654ac3654cc64",
+      "classification": "no-effect-in-retained-domain",
+      "reason": "Force deletion and gate UI projection are separate from finite task prefixes."
+    },
+    {
+      "path": "team.config.ts",
+      "beforeSha256": "ec0284dbb5486497c79a96fe55c74066235445fb5051315b2a72515998c1eedb",
+      "afterSha256": "35cdc732de46c7d93d4c9df77666f9d2261ba40ca69a06d98b1efe750997f9de",
+      "classification": "shape-change",
+      "reason": "Maximum default budgets/windows; formal drivers set explicit finite limits. CheckBudget uses actual MAX retries with check cap5."
+    },
+    {
+      "path": "tests/helpers.ts",
+      "beforeSha256": "436d74fa88d5862a03a74d67be7796366526a07058f7acb8b7779cca8be5994d",
+      "afterSha256": "764bce9d1bb239c91e24a3e76213662cd39dc01dc16df64232119c0e70c2aedd",
+      "classification": "shape-change",
+      "reason": "Fixture budget defaults changed; formal drivers pin relevant limits, no provider calls."
+    }
+  ],
+  "retiredProperties": [
+    "MapRecovery per-partition acceptance and mandatory source quotation",
+    "automatic author revision budgets and reserve",
+    "validation success prerequisite for model request"
+  ],
+  "newProperties": [
+    "NoReviewBackflow",
+    "DeclaredGaps",
+    "CurrentVerdict",
+    "HistoryImmutable",
+    "HonestVerification",
+    "ProtocolRetryOnce",
+    "CheckAccounting",
+    "RetryAccounting"
+  ],
+  "bug": {
+    "introducedBy": "81421232c05763d8057508dc7d95080913848670",
+    "fixedBy": "8085c81e46ab0285540d6a896180585e408358ca",
+    "property": "DirectRepairRevision",
+    "counterexample": "Cycle2 downstream replacement saved as independent revision1; route through existing DELIVER immutable save path."
+  },
+  "syncAdvance": false,
+  "limits": [
+    "Finite models plus one representative concrete prefix per edge, not TypeScript equivalence proof",
+    "Latest verdict historical snapshots are bounded input probes",
+    "No force-archive-deletion or provider semantic guarantee"
+  ]
+}

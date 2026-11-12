@@ -1425,13 +1425,12 @@ stateDiagram-v2
   running --> running: HELP与回传 [合法工作] / 传递只读原文与现有作用域
   running --> running: DELIVER [缺少本任务非空Markdown或引用旧ID] / 有界修订或失败
   running --> checking: DELIVER [机械门禁通过] / 固定候选和同版本来源原文
-  checking --> ended: CHECK_RESULT [新增要求与保留内容全部通过] / 仅发布本任务文档
-  checking --> running: CHECK_RESULT [可修订] / 沿现有有界修订
+  checking --> ended: CHECK_RESULT [当前绑定有效] / 下游直接修正或声明缺口并交付本任务文档
   running --> stopping: STOP / 取消工作和拒绝迟到结果
   stopping --> ended: 既有结算 / 保留固定来源
 ```
 
-sourceArtifact 为可选只读输入，旧快照缺字段维持原行为；规则和模型解析均使用同一来源，模型不能覆盖来源。UTF-8 原文上限32768字节，角色输入完整传递，历史排除同份原文；上下文超限明确失败，不截断摘要或依赖宿主CLI。独立检查固定本轮原始要求、同份来源和候选，正文作为数据而非指令。旧来源 ID 不能成为本轮候选、背景或 replacesArtifactId；产物由本任务保存并生成新 artifactId/documentId，至少一份非空Markdown通过既有检查才能发布。停止、失败、重试、重启、迟到结果、epoch/goalVersion 与执行意图提交领取回传均沿既有边界。源任务的快照、历史、发布指针和下载内容不修改。
+sourceArtifact 为可选只读输入，旧快照缺字段维持原行为；规则和模型解析均使用同一来源，模型不能覆盖来源。UTF-8 原文上限32768字节，角色输入完整传递，历史排除同份原文；上下文超限明确失败，不截断摘要或依赖宿主CLI。独立检查固定本轮原始要求、同份来源和候选，正文作为数据而非指令。旧来源 ID 不能用作本任务修订基底或伪造新文件；缺失的候选引用只声明缺口，不生成旧文件下载链接。产物由本任务保存；未生成非空 Markdown 或未保留原文要求时，下游应补救或在正文声明后正常交付。停止、失败、重试、重启、迟到结果、epoch/goalVersion 与执行意图提交领取回传均沿既有边界。源任务的快照、历史、发布指针和下载内容不修改。
 
 
 ## MapReduce 分片容量（KEJ-99）
@@ -1526,22 +1525,22 @@ flowchart LR
 
 ### 工程验证与发布
 
-类型：任务上下文与执行器流程；所有者：`task/verification`、`WorkRunner.prepareCheckVerification/finishCheckVerification` 与检查处置。验收 BT_F50–F51。判断暂存是执行器本地输出，不是新增任务节点。
+类型：执行器和任务上下文处理流程；所有者 `task/verification.ts`、WorkRunner 与 CHECK_RESULT reducer。验收 BT_F50–F51；有限 Verification 模型还比较实际文件 verified 状态。下图不是新增 XState 状态。
 
 ```mermaid
-stateDiagram-v2
-    [*] --> validationRequired
-    validationRequired --> validationRequired: CONSUME [没有成功隔离回执] / 拒绝且不扣检查请求
-    validationRequired --> validationReady: LOCAL_RESULT [当前隔离CLI成功] / 保存工程版本
-    validationReady --> checking: CONSUME [回执绑定当前检查] / 请求独立模型检查
-    checking --> heldJudgment: 模型返回 / 暂存判断
-    heldJudgment --> versionChecked: LOCAL_RESULT [verifyWorkspace成功] / 保存复核版本
-    heldJudgment --> incomplete: CHECK_RESULT [缺少最终复核] / 保留未完成原因
-    versionChecked --> published: CHECK_RESULT [版本相同且逐项通过] / 原子发布
-    versionChecked --> incomplete: CHECK_RESULT [工作区版本变化] / 拒绝发布
+flowchart TD
+    current[已领取当前检查] --> request[CONSUME / 按检查预算授权模型请求]
+    current --> validation[LOCAL 请求/领取/启动/结果 / 保存实际验证回执]
+    request --> remedy[同一检查工作 / 读取资料并直接补救]
+    validation --> remedy
+    remedy --> version[有合法成功验证回执时 / 请求同工程版本复核]
+    remedy --> result[CHECK_RESULT / 当前候选与必要协议有效]
+    version --> result
+    result --> published[原子保存修正稿、最新结论、发布记录和 final]
+    published --> gap[缺失/失败/版本不同 / 正文声明缺口且文件保持未验证]
 ```
 
-外部版本变化用一个不相等值代表。验证回执、请求许可、模型返回、版本复核与发布是不同步骤，不把它们合成一个事务。真实回放使用公开本地操作 API 的受控回执，不执行CLI或证明文件系统散列；调用真实工程的接线沿用原验收。
+没有验证成功回执也可调用检查和提交带缺口的内容；verifyWorkspace 的请求身份仍要求绑定实际验证工程和版本。工具请求、领取、启动、回执、模型结果与发布各自通过真实事务，不合并成不存在的原子动作。TLC 外部版本变化用一个不相等值代表；本回放不证明真实文件系统散列或供应商语义。
 
 ### 连续交付周期
 

@@ -1,136 +1,42 @@
 ---
 name: verify-squad-authority
-description: "验证 Squad 的一次性执行许可与按次宿主审批、工作区租约、停止和恢复后的旧授权拒绝。更改 beginExecution、执行子状态机、LOCAL_* 守卫、事务存储时运行；不证明宿主 OS 副作用撤销。"
+description: "执行许可、LOCAL_* 宿主审批、工作区占用、停止/恢复或授权作用域改动时，运行有限 TLC、双存储回放及真实许可负对照。"
 ---
 
 # Verify Squad authority
 
-保护用户承诺：外部执行前必须取得一次性已提交许可；宿主命令必须持有对应、未过期审批和工作区独占权，停止或恢复后的旧许可不能启动命令。违反承诺可能重复执行或在授权撤销后启动命令。
+先读 AGENTS.md、[当前实现对应](references/correspondence.md)和[单向交付维护](../../../docs/implementation/forward-delivery-formal.md)。精确覆盖文件、候选/已同步提交以 references/*coverage.json 为准；历史审查保留在 references/drift-review-*.json。本轮以新流程替代旧审核承诺，不沿用旧证明宣称新流程通过。
 
-先读 AGENTS.md 和 [实现对应](references/correspondence.md)。本技能只运行验证，不启动真实宿主命令，不改产品、凭据或用户数据库。
+## 运行
 
-## 一条命令
+使用本 checkout 的锁定依赖（缺少依赖时才运行 npm ci）、受支持的 Node、Python3.10+ 与 Java11+。设置 TLA2TOOLS_JAR 指向官方 TLA+ Tools1.7.4 / TLC2.19；SHA256 必须为 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`。命令支持 --jar 和 --evidence（全新目录）。
 
-仓库 Node 22.18+/24.11+、npm ci、Python 3.10+、Java 11+。准备官方 TLA+ Tools v1.7.4（TLC 2.19）的 tla2tools.jar，SHA256 必须为 936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88：
-
-```sh
-TLA2TOOLS_JAR=/absolute/path/tla2tools.jar python3 .agents/skills/verify-squad-authority/scripts/check.py
-```
-
-默认使用 ~/.cache/squad-formal/tla2tools-1.7.4.jar（尊重 XDG_CACHE_HOME），首次从官方固定发行下载并校验 SHA，下载上限 50 秒。可用 TLA2TOOLS_JAR 或 --jar 指定已有 JAR。单子进程上限 90 秒，TLC 一个 worker、512 MiB 堆。有限范围通常数十秒完成。超时、缺依赖、漂移或不完整探索均失败。输出 reports/verify-squad-authority 下新证据目录；--evidence 可选择新目录，不能覆盖已有结果。
-
-随后对输出的实际目录独立读回：
+为避免导入本机模型配置，当前进程先使用 `env -u MODEL_API_KEY MODEL_BASE_URL=http://127.0.0.1:1/v1 MODEL_NAME=formal-fixture MODEL_NO_AUTH=true` 前缀；实际回放用显式固定配置，不调用该端点、不改用户 .env。
 
 ```sh
-python3 .agents/skills/verify-squad-authority/scripts/check.py --verify-evidence reports/verify-squad-authority/实际运行目录
+python3 .agents/skills/verify-squad-authority/scripts/check.py
+python3 .agents/skills/verify-squad-authority/scripts/composition-check.py
 ```
 
-完整退出零且 run.json.status=verified、cleanup=true、coveredFilesUnchanged=true 才通过。核对两份 TLC 日志的完整完成消息和最终队列为零；不把反例的非零退出与基线失败混淆。artifacts.json 校验保留日志与数据；不能用一份总结替代原始日志。篡改、缺文件与运行不完整会拒绝读回。
+- Execution：一个已领取 owner、固定 attempt1；一次重开、停止与重复/旧 permit，保留一次性已提交执行许可。
+- Host：单操作、固定旧 approval 与 parent attempt、四个授权阶段；领取/启动/审批到期/停止/恢复/其他工程持有者交错，检查 NoUnauthorizedStart。
+- SessionScope：八个二值作用域、revoked 共 512 个有限输入；这是输入域对应，不是 512 条事务历史。
+- ApprovalComposition：撤销、重新审批及 parent attempt 更新后的旧授权不能启动；精确域见 composition-spec.json。
+- 原有双存储生命周期、commandDigest 文件/参数输入探针保留；不启动真实宿主命令，也不证明已发生的副作用被撤回。
 
-## 精确范围
+## 完成条件
 
-三个独立有限抽象：
-- Execution：一个已经成功领取的 owner intent，固定 attempt=1。启动、停止和一次重开恢复可任意交错；检查旧 permit 至多一次、停止/恢复拒绝重用、事务失败不提交许可。
-- Host：一个已经准备好按次审批的 runCli 操作，固定旧 approval ID 和 parent attempt，四个授权阶段。审批、领取、启动、一次到期、停止、恢复、另一个所有者占据工作区可交错。每个可达状态还以真实公开入口尝试 Start/Claim/Approve/错误 ID，逐项核对允许或拒绝。
+源码漂移先按[维护流程](references/maintenance.md)审查；不能只更新指纹。完整流程应包括 TLC 全有限图及适用的独立活性、MemoryStore/SQLite 每条标记边的代表前缀回放、独立可达见证、隔离真实源码负对照、移除变体后的原版复验和独立读回。源码变异必须由对应行为断言检出，导入/依赖/超时/哈希错误不算检出。
 
-- SessionScope：namespace、workspace、host、account、environment、epoch、goal、stopped 八个二值输入，256 个组合加 revoked 投影共 512 状态。它是对真实 hostSessionMatches 的有限输入域对应检查，不是 512 条事务可达历史证明。输入由已成功持久化会话快照克隆，分别扰动作用域字段。
+仅完整退出0、run.json.status=verified、清理全真且读回成功算通过。原始 TLC 日志须有完整探索、零剩余队列和适用的 temporal checking 完成；不得把缩小范围、模拟、部分输出或过期证据当成通过。记录实际命令、性质、边界、源码与 checker 输入哈希和反例，不照抄历史统计。
 
-实际 TLC 规模由日志报告，不预填成功数字。每条抽象边重放一条最短前缀，再从每个可达状态重放许可探针；MemoryStore/SQLite 分别执行。SQLite 实际关闭并重开。固定时间从 1 到 900（审批到期，工作 deadline=1001），不调用真实外部适配器。
-
-主许可模型的安全结论覆盖旧授权。补充 20 条公开入口双存储生命周期实例验证 queued/claimed × revoke/recover/goal/stop/continue：新审批可恢复、新 epoch 可启动而旧 permit 不可、旧 goal 结果拒绝、uncertain 正确/错误 session 回执隔离及结算后租约释放。这些是有界实例，不冒充全部组合历史的穷举。
-
-另执行 13 个真实 LocalRuntime.execute 参数/文件变体，验证审批 digest 绑定 args、requestHash、workId、epoch、goal、workspace 内容、可执行文件、环境、期限和 stdin 路径及内容。两个不变对照到达启动回调后主动抛错阻止 spawn；改变后的调用在回调前被拒绝，实际命令启动数为零。不是 OS 命令执行或进程回收测试。
-
-取消类 intent、无限多轮、物理进程结束、跨主机锁、磁盘断电和永久故障不在本轮模型范围。工作区 lease 是 Store 的所有者互斥记录，不是带 TTL 的分布式租约。不要把拒绝后续启动说成已经执行的副作用被撤回。
-
-这是有限抽象穷举 + 代表前缀真实代码对应检查，不是 TypeScript 机器证明；不同具体历史可能有未投影的差异。模型以既有事务原子性和可信 runner 为假设。Started/Usable 的可达性见证与恢复实例证明授权满足时存在可推进路径，但不声称自动活性：用户未批准、其他工作区持有者未释放或效果未核清时，永久等待是允许的安全结果。正路径由 StartedReachable 反例见证，不代替公平性证明。
-
-## 故障检出
-
-在独立临时源码副本中删除以下真实检查，分别在两种存储上要求 Authority 行为断言失败，而不是导入错误：
-1. startTaskExecution 的 authorized 一次性前置检查，重复 Start 必须被检出。
-2. approval ID 精确匹配，错误审批不能被接受。
-3. LOCAL_CLAIM 的 leaseAvailable 检查，另一所有者占据时不能领取。
-4. LOCAL_STARTED 的审批到期检查，已经领取但审批过期后不能启动。
-5. hostSessionMatches 的 namespace 限制，跨作用域输入必须拒绝。
-6. LocalRuntime 的 commandDigest 比较，批准后参数变化必须在启动边界前拒绝。前五项双存储分别执行，第六项是实际文件/运行时入口测试，不伪称存储依赖。
-
-所有副本退出时删除；随后重跑原实现，并核对全部覆盖源文件未被修改。模型另有移除失效守卫的变体，必须违反 NoUnauthorizedStart。模型本身不感知 TypeScript 修改，故真正检出依赖回放而不是源文件哈希。一个负对照不证明对所有缺陷敏感。
-
-## 维护
-
-本轮 KEJ-102–105 对应审查及完整检查已通过，该轮同步产品/包基线为 `32c26b376b46ae1a03718a6820683b59b802b413`。逐文件分类、原样漂移、受控环境、真实负对照、恢复后复验及独立读回见 [本轮审查](references/drift-review-kej-102-105.json)。原模型、性质、公平性和边界保持；成功响应字节限制与真实进程/SQLite 崩溃验收不扩大本技能的有限保证。成功后仅推进同步元数据并复核指纹、读回原证据，不冒称又完整运行一次。
-
-KEJ-106 历史对应审查基线为 `3d81b0792d9c00c16bbc59fa4f2914bcccc0189b`。原样检查因 facts/reducer 指纹漂移而 blocked；逐项审查后，新增无 discussion 及无 discussionId 的可执行切片断言，候选完整检查和独立读回通过后才推进同步基线。模型、性质、边界及事务假设不变；最终运行、真实代码负对照与读回状态见 [KEJ-106 审查](references/drift-review-kej-106.json)。随后 engine 的 ended 恢复入口也经逐项审查，并在新产品源上完整运行及独立读回；成功后只推进同步元数据并复核指纹，不为元数据更新重复完整运行。前轮 b6ea 的候选/最终证据仅作历史，该轮最终证据为 `kej-106-final-engine`。本切片不证明 BT_Q19–Q24 的取消分片恢复、成员占用或已结束任务续办；以下保留历史审查记录。
-
-BT_F31 历史审查基线为 `3ee6c875bbde0f802eae954d9017ffe5663a3cfc`（BT_M37 检查协议说明、BT_F31 冻结输入引用）。完整检查及独立读回已通过，逐文件对应、额外真实代码负对照与保证边界见[引用链审查](references/drift-review-raw-input-citation.json)和[协议说明审查](references/drift-review-check-envelope.json)；当前指纹见 coverage.json。
-
-KEJ-100 历史依赖审查基线为 `c1f380da1527b8c22a8aaaaf7aef10cd2695146e`；仅 `package.json` 的空单测集合处理变化，产品源码、模型、性质、边界和回放均沿用原审查。当前指纹及运行状态见 [KEJ-100 审查记录](references/drift-review-kej-100.json) 与 [coverage.json](references/coverage.json)。下列 PR40 基线为产品源码对应审查的历史记录。
-
-PR40 产品源码对应审查基线为 21ee46039f594d9b93d400bf703e14d42fab2b0e；逐文件判定与验证结果见 [PR40 漂移审查](references/drift-review-pr40.json)。保守记录全部 src TypeScript、依赖锁与夹具哈希；哈希仅为漂移门禁，不是对应证明。文件变化先审查模型原子边界、权限守卫和新写入口，不能直接刷新哈希。模型/回放通过并完成真实负对照后才能推进对应基线。
-
-请求 `$create-formal-verification-skill 维护 kejun/squad 的 verify-squad-authority`，按 [维护过程](references/maintenance.md) 执行。发现真实违约保留反例，区分模型缺陷和产品缺陷；不能放宽性质让它通过。
-
-## KEJ-108 授权组合扩展
-
-除原三种切片外，运行新增的小组合图：
+对每个生产器输出的实际证据目录分别设置 SQUAD_FORMAL_EVIDENCE 后，只运行对应入口的读回命令：
 
 ```sh
-TLA2TOOLS_JAR=/absolute/path/tla2tools-1.7.4.jar python3 .agents/skills/verify-squad-authority/scripts/composition-check.py
-python3 .agents/skills/verify-squad-authority/scripts/composition-check.py --verify-evidence reports/verify-squad-authority-composition/实际目录
+python3 .agents/skills/verify-squad-authority/scripts/check.py --verify-evidence "$SQUAD_FORMAL_EVIDENCE"
+python3 .agents/skills/verify-squad-authority/scripts/composition-check.py --verify-evidence "$SQUAD_FORMAL_EVIDENCE"
 ```
 
-对应 BT_N30–BT_N32，详细状态、事务映射与公平性见 [授权组合说明](../../../docs/authority-composition.md)（仓库 `docs/authority-composition.md`）。界限为一个owner、两个parent attempt、一个宿主操作、最多三代审批ID、一次未领取撤销和一次物理领取前重开。真实TLC图把新审批、重新领取父工作、一次性许可、旧审批/旧attempt/旧session/旧permit以及旧成功command ID回执重放组合起来。旧command ID可返回保存的成功，但工作、授权、许可、额度和候选不能变化；不把幂等成功误判成未拒绝的新操作。
+每条抽象边只比较一个具体前缀，加上代码对应审查，不是任意 TypeScript 历史的等价证明。数据库事务原子性、可信执行器及各切片明确列出的公平性是前提；模型内容正确性、供应商可用性、强制归档删除、任意规模/无限故障和 UI 不在本证明中。快照探针与真实进程实例单独报告，不扩张成 TLC 域。
 
-所有标记边按公共可达前缀在两种存储分别回放，旧20实例不代替新图；四类真实源码负对照也分别跑Memory与SQLite，然后完整重跑原模型与原实现。`Progress`以当前用户批准和可信调度动作持续可用时的弱公平为条件，不证明用户一直不批准仍会执行，也不覆盖命令已领取后的未知物理效果。独立读回额外核对两种存储的负对照、四项可达性和活性完成；缺失或导入失败不能冒充性质检出。
-
-本轮原authority检查曾因KEJ-108准备期修复的两个文件哈希变化而blocked。修复只补既有技能目录只读准备和隔离副本临时目录准备；原runtime-binding使用无skill的非隔离owner，二者不改变原许可/审批状态、守卫、事务、界限或控制。逐项对应及原样阻塞见 `references/drift-review-kej-108-preparation.json`；不能将本轮准备恢复证据扩大为OS权限或命令副作用证明。
-
-**完整运行必须同时完成旧 `scripts/check.py` 与新 `scripts/composition-check.py`，并分别独立读回；只运行默认旧检查不能声称新增授权组合已验证。** KEJ-108 原authority完整复验及读回已经通过，随后才推进覆盖元数据。当前受测源码为 `64322436c87b216f9dd9ba1a137738e5cd923497` 加已审查的准备期修复工作区差异；精确差异、源哈希及未创建最终提交的说明保存在维护记录，不能把HEAD本身说成包含尚未提交的修复。新增组合图及其夹具有独立coverage门禁；任何新写入口、事务拆分、身份维度或轮次上限变化都须先重审对应再更新哈希。
-
-e77 最终维护：当前受测产品提交 `e77f052acacd208fd8eb8587ac6901ba19003220`。服务启动仅增加 closing 检查的无影响对应审查见 `references/drift-review-kej-108-service.json`；随后仍完整重跑原检查到 `reports/verify-squad-authority/e77-final-current`，34步骤和单独读回通过。最终新增组合完整运行位于 `reports/verify-squad-authority-composition/e77-final-inputs-complete`，冻结后的工具强制必需invariants/Progress、捕获全部covered实现和fixture正文、保存实际退出码并要求每个负控正常exit1且绑定AssertionError与目标性质，175件独立读回通过。较早的110/111件证明只作各自工具版本的历史，不能补拷新inputs冒充最新完整运行。
-
-KEJ-109 元数据与引用诊断维护：当前同步产品为 `8f4a1acb31f1aa9d73996e60dbb9aa3becce0596`。十个变化文件及三个新增传递依赖逐项审查后，原授权与授权组合均完整运行并独立读回通过；模型、性质、公平性和事务边界保持。受测运行始于较早 HEAD 加已审查工作区差异，随后逐文件证明与该同步提交字节一致；详情见 [原授权审查](references/drift-review-kej-109.json) 与 [组合审查](references/drift-review-kej-109-composition.json)。CLI 检索、共享方法和检查诊断仍由独立 BDD 承担，不扩大本有限证明。
-
-KEJ-110 当前受审产品为 `615b18f2cf66d46b63fa3bc2c3a7c86fc10779c9`；本轮逐文件审查、明确改变的预算承诺（如适用）、完整正向/真实负对照/原版复验与独立读回见[KEJ-110审查](references/drift-review-kej-110.json)。仅在全部九个CI形式化入口成功后推进同步元数据；此同步操作不是额外完整复跑，新功能的语义与真实模型供应商行为仍由独立验收负责。
-
-KEJ-111 维护：受审冻结产品 `c239dd39d86f143a2f435f48590c648b20745b8b`。保留原有限图、性质、界限和负对照；逐文件分类、驱动与实际进程接线边界、最终完整运行和独立读回状态见 [KEJ-111审查](references/drift-review-kej-111.json)。全部九入口完成前保持旧syncCommit；新增ToolRecovery/MapRecovery由coordination扩展单独承接。
-
-KEJ-112 维护：冻结产品 `7e5b3426d0909e133fd6329a06e08288ea4c5c62` 新增纯元数据推荐、CLI 诊断和第三次相同失败请求守卫。原授权域没有两次先前失败，新增守卫在既有图域恒不触发；元数据 getter/模型提示未被驱动执行。完整审查、原样 blocked、旧新指纹、全部正负复验及独立读回见 [KEJ-112 审查](references/drift-review-kej-112.json) 和 [对应边界](references/correspondence.md#kej-112任务工具引导与-cli-重复失败守卫的切片审查)。原授权与授权组合均完整通过，分别保留于 `reports/kej-112-final-authority` 和 `reports/kej-112-final-authority-composition`，另行独立读回通过；真实代码负对照与未改坏原版复验全部完成。新帮助/推荐语义由独立产品场景承接；全部九入口通过前保留旧同步提交。
-
-KEJ-112 最终同步：全部九个 CI 形式化入口在冻结产品 `7e5b3426d0909e133fd6329a06e08288ea4c5c62` 完整通过，真实源码负对照、原版复验及中央独立读回完成后，统一推进覆盖元数据。原始证明中捕获的旧同步值保留；本次同步不表示额外完整复跑，也不扩大原有限保证。见本轮审查的 `syncAdvance`。
-
-## KEJ-113/114 维护
-
-恢复、cleanup、资源计划或删除入口变化时，先读[旧授权切片对应](references/correspondence.md#kej-113114恢复与资源责任的旧授权切片审查)及[逐文件审查和验证状态](references/drift-review-kej-113-114.json)。原授权与审批组合性质、范围和负对照保持，两个入口均须完整运行并独立读回。新RW资源、物理取消、网页恢复和删除由独立验收承担；源码门禁扩展不扩大旧图保证。pending不算成功，不推进sync。
-
-
-KEJ-113/114 最终复验：冻结产品 `36916b5c6e974c11f8e51720189c64facef9269e`，本技能两个完整入口均完成真实源码负对照、原版复验和各自独立读回，结果为 updated。最终原始证据分别为 `reports/kej-113-114-four-formal-36916b5-final-2/authority`、`reports/kej-113-114-four-formal-36916b5-final-2/authority-composition`；汇总与最新独立读回位于 `reports/kej-113-114-four-formal-36916b5-final-3`。精确计数、首轮冗余负控失败与维护理由见[逐文件审查](references/drift-review-kej-113-114.json)。同步元数据不表示额外完整运行；本技能有限域不证明新宿主、网页、人类门或删除行为的全部组合。
-
-
-## 共享 Agent 行为规范维护
-
-冻结产品 `4032d88341b75c3b419215b73a63c0830f6f137a` 只新增静态共享提示模块，并在默认适配器的固定检查和普通模型工作 system 消息中各注入一次，替换原 owner/facilitator 短段。逐文件来源、归档依赖和实际运行状态见[本轮审查](references/drift-review-shared-agent-behavior.json)。旧有限模型、性质、夹具、真实源码负对照和超时保持；九入口全部完整验证和独立读回成功前保留旧 sync。LocalEffects 的真实适配器桥仍使用受控 transport，其通过不代表真实模型服从自然语言规范；新增上下文占用和六角色请求由独立适配器场景验证。
-
-
-共享规范最终复验：冻结产品 `4032d88341b75c3b419215b73a63c0830f6f137a` 的九入口均完整通过正向、真实源码负对照、原版复验和独立读回，结果为 updated。本技能精确证据路径和保证边界见[本轮审查](references/drift-review-shared-agent-behavior.json)；仅同步元数据，不冒称额外完整运行。
-
-
-## LB07 固定核查引用提示的第二阶段审查
-
-冻结产品 `e1c29edbc080b4638b34b9406e4e81b057e20940` 只在 checkMessages 增加一条既有来源目录和可选引用省略规则说明；共享规范、宿主校验和旧有限性质均未改。`4032d883` 的完整证明仅保留为第一阶段历史；本阶段须以新源码重新完成九入口全部正向、真实源码负对照、原版复验和独立读回。逐项差分及阶段状态见[共享规范审查](references/drift-review-shared-agent-behavior.json)。
-
-
-LB07 第二阶段最终复验：冻结产品 `e1c29edbc080b4638b34b9406e4e81b057e20940` 的九入口均完整通过正向、真实源码负对照、原版复验和独立读回，结果为 updated。本技能精确证据路径和保证边界见[本轮审查](references/drift-review-shared-agent-behavior.json)；仅同步元数据，不冒称额外完整运行。
-
-
-## 统一工具上下文维护
-
-全量元信息、后台共享快照与直接宿主选择的源码对应审查见 [本轮审查](references/drift-review-unified-tool-context.json)。本轮保留原有限模型、性质、边界与公平性；元信息观察和仅省略模型输出中未使用的空技能标识，不替代原执行许可、按次审批、技能激活、租约、停止或恢复守卫。新增 BT_Y121–BT_Y130 的选择语义、实时目录及实际 UI/模型行为由独立验收承接；不能用旧有限图通过扩大这些保证。完整生产器、真实源码负对照、原版恢复和独立读回的实际状态以本轮审查为准，全部九入口通过前不推进同步提交。
-
-冻结产品 `d865873678688789dbf9399980b841caeed17946` 的九个 CI 形式化入口已完整通过正向、真实源码负对照、原版恢复及独立读回后同步对应基线。本次推进仅改变验证元数据，保留原始证明捕获的旧同步身份；同步后的再次独立读回及原始件未改核对见本轮审查引用的中央索引，不冒称又运行了一遍生产器。
-
-
-## 三小时处理窗口与工具经验维护
-
-修改窗口续办、自动目录、共享经验或 stdin 时，读取[本轮源码对应审查](references/drift-review-window-tool-experience.json)。该记录区分旧有限图与新增实际模型、进程和界面验收，列出原样漂移、候选源码指纹及完整验证状态。九入口全部通过并完成独立读回后，才推进同步提交。
+维护时请求 `$create-formal-verification-skill 维护 squad 的 verify-squad-authority`。只有对应审查、全部受影响正负检查及独立读回通过后才推进 syncCommit；产品真实违约保留为 bug，按用户既有修复授权另提产品提交。TLC 模型看不到任意源码改动，真实变异和回放证明对列出的故障敏感，不保证检出全部缺陷。

@@ -20,7 +20,7 @@ JAR_SHA = '936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88'
 WITNESSES = {
     'Budget': ['NeverRetry', 'NeverRecoveryCharge', 'NeverContinuation', 'NeverBudgetExhausted', 'NeverUncertain'],
     'Shards': ['NeverSecondFirst', 'NeverPartial', 'NeverFailure', 'NeverHandoff', 'NeverStoppedInflight', 'NeverStaleInflight', 'NeverReopenedSaved', 'NeverInterruptedRecovery'],
-    'CheckBudget': ['NeverThreeRequests', 'NeverFiveRequests', 'NeverSecondRevision', 'NeverThirdRevision', 'NeverExpandedLimit', 'NeverTechnicalRetry', 'NeverRevised', 'NeverRepeatedRecovery', 'NeverBeforeRequestFailure', 'NeverUncertain'],
+    'CheckBudget': ['NeverFiveRequests', 'NeverMultipleNetworkRetries', 'NeverTechnicalRetry', 'NeverDeclaredDelivery', 'NeverRepeatedRecovery', 'NeverBeforeRequestFailure', 'NeverUncertain', 'NeverProtocolExhaustion'],
 }
 CONTROLS = {
     'skip-ended-discussion-recovery': ('Shards', 'EndedDiscussionRecovery', 'src/engine.ts',
@@ -65,7 +65,7 @@ CONTROLS = {
         'part.resultRef = id; summarizeDiscussion(c, e);'),
     'erase-partial-evidence': ('Shards', 'PreserveIncomplete', 'src/task/map-queue.ts',
         'round.incomplete = `部分分片未完整完成：${part.partitionId}（${part.status}）`;',
-        '/* faulty omission of terminal map failure evidence */'),
+        'delete round.incomplete; /* faulty erasure after the incoming result recorded failure */'),
     'duplicate-owner-handoff': ('Shards', 'UniqueHandoff', 'src/task/reducer.ts',
         "owner(c, e, { reason: '吸收协调员汇总和全部成员原始意见，在已有草稿上继续完善；区分共识、分歧、依据和未完成项。', previousBlocker: c.reason });",
         "owner(c, e, { reason: '吸收协调员汇总和全部成员原始意见，在已有草稿上继续完善；区分共识、分歧、依据和未完成项。', previousBlocker: c.reason });\n      owner(c, e, { reason: 'faulty duplicate handoff' });"),
@@ -77,19 +77,10 @@ CONTROLS = {
         "if (!queue.some(part => active(part) || part.status === 'queued')) return false;"),
     'omit-check-charge': ('CheckBudget', 'CheckAccounting', 'src/task/reducer.ts',
         'c.usage.checks++;', '/* faulty uncharged check request */'),
-    'reuse-check-request-permit': ('CheckBudget', 'BoundedChecks', 'src/task/policy.ts',
-        "if (i.requestCount > 0 && !hasDeliveryRetryPermit(c, i)) return 'CHECK_REQUEST_NOT_AUTHORIZED';",
-        '/* faulty reuse of one request permit */'),
-    'omit-technical-retry-charge': ('CheckBudget', 'OneTechnicalRetry', 'src/task/budget.ts',
+    'ignore-check-budget': ('CheckBudget', 'BoundedChecks', 'src/task/delivery.ts',
+        "return c.usage.checks >= c.config.limits.checks ? 'CHECK_BUDGET_EXHAUSTED' : null;", 'return null;'),
+    'omit-technical-retry-charge': ('CheckBudget', 'RetryAccounting', 'src/task/budget.ts',
         'c.usage.retries++;', '/* faulty uncharged retry reservation */'),
-    'omit-revision-counter': ('CheckBudget', 'BoundedRevisions', 'src/task/delivery-cycle.ts',
-        'used: budget.used + 1,', 'used: budget.used, /* faulty missing revision charge */'),
-    'expand-revision-limit': ('CheckBudget', 'BoundedRevisions', 'src/task/delivery-cycle.ts',
-        'limit: cycle.revisions?.limit ?? (cycle.revisionUsed ? 1 : Math.min(3, Math.max(2, gaps)))',
-        'limit: 4 /* faulty adaptive ceiling */'),
-    'omit-revision-marker': ('CheckBudget', 'BoundedRevisions', 'src/task/delivery-cycle.ts',
-        'cycle.revisionUsed = true;',
-        '/* faulty revision marker omission */'),
 }
 
 

@@ -35,7 +35,8 @@ function session(backend, directory, kind) {
   const config = createTeamConfig({});
   config.inputAnalysis = { enabled: kind === 'Shards' };
   config.limits.ordinary = kind === 'Budget' ? 3 : 20;
-  config.limits.retries = 1;
+  config.limits.retries = kind === 'CheckBudget' ? Number.MAX_SAFE_INTEGER : 1;
+  if (kind === 'CheckBudget') config.limits.checks = 5;
   if (kind === 'Shards') config.models = { default: 'test', services: { test: { baseUrl: 'https://invalid.example/v1', model: 'test' } } };
   const path = join(directory, 'store.sqlite');
   let store = backend === 'memory' ? new MemoryStore() : new SqliteStore(path);
@@ -164,19 +165,13 @@ function checkBudget(backend, directory) {
   assert(s.send({ type: 'DELIVER', workId: first.id, attempt: first.attempt, fence: first, text: '完整可检查方案', artifactIds: [] }).ok);
   let recoveries = 0;
   const check = () => s.context().intents.filter(w => w.kind === 'check').at(-1);
-  const revisionWork = () => s.context().intents.filter(w => w.kind === 'owner' && w.payload.deliveryRevision).at(-1);
   const observe = () => {
-    const c = s.context(), w = check(), rw = revisionWork(), d = c.deliveryCycle;
-    let stage;
-    if (c.outcome !== null) stage = 4;
-    else if (w.status === 'uncertain') stage = 5;
-    else if (w.status === 'pending') stage = 0;
-    else if (w.status === 'inflight') stage = 1;
-    else stage = rw?.status === 'pending' ? 2 : rw?.status === 'inflight' ? 3 : -1;
+    const c = s.context(), w = check(), d = c.deliveryCycle;
+    const stage = c.outcome !== null ? 4 : w.status === 'uncertain' ? 5 : w.status === 'pending' ? 0 : w.status === 'inflight' ? 1 : -1;
+    assert.equal(c.intents.filter(work => work.kind === 'owner').length, 1, 'NoReviewBackflow: judgments cannot create upstream work');
     return { stage, requests: d.requests, currentRequests: w.requestCount, retry: d.retry ? (d.retry.status === 'reserved' ? 1 : 2) : 0,
-      revision: d.revisionUsed, revisions: c.intents.filter(i => i.kind === 'owner' && i.payload.deliveryRevision).length,
-      recoveries, checks: c.usage.checks, retries: c.usage.retries,
-      revisionLimit: d.revisions?.limit ?? 2, recordedRevisions: d.revisions?.used ?? 0 };
+      recoveries, checks: c.usage.checks, retries: c.usage.retries, protocolErrors: w.checkDiagnostics?.length ?? 0,
+      completed: c.outcome === 'complete', gapsDeclared: c.candidate?.text.includes('synthetic criterion judgment') ?? false };
   };
   const judgment = (w, status, gaps = 1) => ({ type: 'CHECK_RESULT', workId: w.id, attempt: w.attempt, fence: w,
     candidateRevision: w.payload.candidate.revision, resultId: `check-result:${w.id}:${w.attempt}:${status}`,
@@ -186,15 +181,13 @@ function checkBudget(backend, directory) {
     switch (action) {
       case 'ClaimCheck': assert(s.engine().claim(s.room, s.task, w.id)); break;
       case 'Consume': assert(s.send({ type: 'CONSUME', intentId: w.id, attempt: w.attempt, fence: w }).ok); break;
-      case 'DeniedConsume': assert.equal(s.send({ type: 'CONSUME', intentId: w.id, attempt: w.attempt, fence: w }).ok, false, 'BoundedChecks: unreserved second request must be denied'); break;
+      case 'DeniedConsume': assert.equal(s.send({ type: 'CONSUME', intentId: w.id, attempt: w.attempt, fence: w }).ok, false, 'BoundedChecks: exhausted configured budget must be denied'); break;
       case 'Failure': assert(s.send({ type: 'WORK_FAILED', intentId: w.id, attempt: w.attempt, fence: w, transient: true, reason: 'synthetic transient' }).ok); break;
       case 'Uncertain': assert(s.send({ type: 'WORK_FAILED', intentId: w.id, attempt: w.attempt, fence: w, transient: true, resultUncertain: true, reason: 'unknown request outcome' }).ok); break;
       case 'BadProtocol': assert(s.send(judgment(w, 'bad')).ok); break;
       case 'FailedJudgment': assert(s.send(judgment(w, 'failed')).ok); break;
       case 'FailedManyJudgment': assert(s.send(judgment(w, 'failed', 3)).ok); break;
       case 'PassedJudgment': assert(s.send(judgment(w, 'passed')).ok); break;
-      case 'ClaimRevision': assert(s.engine().claim(s.room, s.task, revisionWork().id)); break;
-      case 'DeliverRevision': { const rw = revisionWork(); assert(s.send({ type: 'DELIVER', workId: rw.id, attempt: rw.attempt, fence: rw, text: '修订后的完整可检查方案', artifactIds: [] }).ok); break; }
       case 'Recover': s.reopen(); recoveries++; break;
       case 'DuplicateResult': assert.equal(s.send(judgment(w, 'passed')).ok, false); break;
       default: throw new Error(`Unknown check-budget action ${action}`);
@@ -211,9 +204,10 @@ function properties(s) {
     assert(s.retries <= 1, 'RetryBound: automatic retry limit exceeded');
   } else if (model === 'CheckBudget') {
     assert.equal(s.checks, s.requests, 'CheckAccounting: cycle requests and persistent charges diverge');
-    assert(s.requests <= s.revisionLimit + 2 && s.requests - Number(s.retry === 2) <= s.revisionLimit + 1, 'BoundedChecks: adaptive ordinary or total request allowance exceeded');
-    assert.equal(s.retries, Number(s.retry > 0), 'OneTechnicalRetry: repeated reservation spends retry more than once');
-    assert(s.revisionLimit >= 2 && s.revisionLimit <= 3 && s.revisions <= s.revisionLimit && s.revision === (s.revisions > 0) && s.recordedRevisions === s.revisions, 'BoundedRevisions: adaptive revision count, limit or marker lost');
+    assert(s.requests <= 5, 'BoundedChecks: configured check request budget exceeded');
+    assert(s.retries <= s.requests && (s.retry === 0) === (s.retries === 0), 'RetryAccounting: retry reservation is charged once');
+    assert(s.protocolErrors < 2 || s.stage === 4, 'ProtocolRetryOnce: repeated invalid protocol must terminate');
+    assert(!s.completed || s.stage === 4, 'DeclaredDelivery: valid final judgment must finish the delivery');
   } else {
     assert(!s.summary || s.r1 > 0 && s.r2 > 0, 'AllSettledBeforeReduce: reducer scheduled before all shards settled');
     assert(s.handoffs <= 1, 'UniqueHandoff: multiple owner resumptions');
