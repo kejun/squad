@@ -77,7 +77,7 @@ When('评审邀请来自{string}', function (this: SpecWorld, source: string) { 
 Then('不应创建全员评审队列', function (this: SpecWorld) { assert.equal(this.h.context().review, undefined); assert.equal(this.h.context().assists.length, 0); });
 Given('群内没有待评审方案', function (this: SpecWorld) { fresh(this, false); });
 When('用户要求全员评审且促进者请求补充方案', async function (this: SpecWorld) { s(this).decision = 'askUser'; request(this); await drain(this); });
-Then('应等待用户且不应通过定时检查反复询问', function (this: SpecWorld) { this.h.now = processingWindow(this.h.context()).hardDeadline - 1; this.h.engine.tick(this.h.room); assert.equal(this.h.view().phase, 'waitingHuman'); assert.equal(s(this).calls.length, 1); assert.equal(this.h.engine.nextWake(this.h.room), null); });
+Then('应等待用户且仅保留固定窗口到期观察而不反复询问', function (this: SpecWorld) { this.h.now = processingWindow(this.h.context()).hardDeadline - 1; this.h.engine.tick(this.h.room); assert.equal(this.h.view().phase, 'waitingHuman'); assert.equal(s(this).calls.length, 1); assert.equal(this.h.engine.nextWake(this.h.room), processingWindow(this.h.context()).hardDeadline); assert.equal(this.h.engine.pending(this.h.room, this.h.task).length, 0); });
 When('用户提交缺失方案', function (this: SpecWorld) { s(this).decision = 'review'; this.h.engine.submit(this.h.room, { id: 'material', text: proposal, intent: 'decision' }); });
 Then('应重新组织评审并向促进者提供该方案', function (this: SpecWorld) { const work = this.h.engine.pending(this.h.room, this.h.task)[0]!; assert.equal(work.kind, 'facilitator'); assert(JSON.stringify(work.payload).includes(proposal)); });
 When('用户要求全员评审但促进者返回{string}', async function (this: SpecWorld, decision: string) { s(this).decision = decision; request(this); await drain(this); });

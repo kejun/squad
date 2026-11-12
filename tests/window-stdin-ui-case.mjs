@@ -124,13 +124,20 @@ export class WindowStdinUICase {
   }
   async rejectInput() {
     const dialog = this.page.getByRole('dialog', { name: '请求在宿主执行命令', exact: true });
+    const responsePending = this.page.waitForResponse(response => response.request().method() === 'POST'
+      && new URL(response.url()).pathname.endsWith('/host-approval')
+      && response.request().postDataJSON()?.approvalId === this.approval.id);
     await dialog.getByRole('button', { name: '拒绝', exact: true }).click();
+    const response = await responsePending;
+    assert.equal(response.status(), 200); assert.equal((await response.json()).ok, true);
+    await dialog.waitFor({ state: 'hidden' });
     await this.browser.until(() => this.context().intents.flatMap(work => work.localOperations ?? []).find(operation => operation.id === this.operationId),
       operation => operation.approval.status === 'denied', 'persisted stdin rejection');
     assert.equal(this.hostStarts, 0); assert(!existsSync(this.marker));
     const posts = this.browser.posts.filter(post => post.path.endsWith('/host-approval'));
     assert.equal(posts.length, 1); assert.equal(posts[0].body.decision, 'deny');
     assert.equal(posts[0].body.approvalId, this.approval.id);
+    await this.browser.capture('stdin-host-denied');
     this.browser.completed.push(this.id);
   }
   markFailed(message) { if (this.browser) { this.browser.failed = true; this.browser.failureReason = message; } }

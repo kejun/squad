@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createActor } from 'xstate';
 import { MemoryStore, TeamEngine, taskMachine, WorkRunner, validateConfig, type Decision, type Goal, type WorkAdapter } from '../src/index.js';
 import { Harness, configuration } from './helpers.js';
+import { processingWindow, taskHumanGate } from '../src/task/resilience.js';
 
 describe('routing and ownership', () => {
   it('[BT_R01][BT_R02] directly routes explicit and default requests', () => {
@@ -129,7 +130,11 @@ describe('supervision and shared record', () => {
   });
   it('[BT_O03] human waits and healthy long tools do not trigger semantic polling', () => {
     const h = new Harness(); h.event({ type: 'WAIT_USER', question: 'choose' }); h.now = 100000;
-    h.engine.tick(h.room); expect(h.view().phase).toBe('waitingHuman'); expect(h.engine.nextWake(h.room)).toBeNull();
+    const gate = taskHumanGate(h.context())!.id;
+    h.engine.tick(h.room); expect(h.view().phase).toBe('waitingHuman');
+    expect(h.engine.nextWake(h.room)).toBe(processingWindow(h.context()).hardDeadline);
+    expect(taskHumanGate(h.context())?.id).toBe(gate); expect(taskHumanGate(h.context())?.status).toBe('open');
+    expect(h.engine.pending(h.room, h.task)).toEqual([]);
     const g = new Harness(); g.event({ type: 'TOOL', tool: 'read', replay: 'safe', payload: {} }); g.claim('tool');
     g.now = g.config.limits.progressIntervalMs; g.engine.tick(g.room);
     expect(g.view().phase).toBe('running'); expect(g.context().intents.some(i => i.kind === 'facilitator')).toBe(false);
