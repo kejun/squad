@@ -108,6 +108,10 @@ export function repairedHandoffModel() {
     criteriaResults: m.c.candidate!.acceptance!.criteria.map(c => ({ criterionId: c.id, status: 'passed' })) }).ok);
   assert.equal(m.c.outcome, 'complete'); assert.equal(m.c.candidate!.text, '检查员已直接补齐正文');
   assert(m.c.artifacts.some(a => a.id === oldId)); assert.equal(m.c.intents.filter(w => w.kind === 'owner').length, 1);
+  assert.equal(m.c.artifacts[1]!.documentId, m.c.artifacts[0]!.documentId, 'DirectRepairRevision: preserve document identity');
+  assert.equal(m.c.artifacts[1]!.revision, 2, 'DirectRepairRevision: create next immutable revision');
+  assert.equal(m.c.artifacts[1]!.replacesArtifactId, oldId);
+  assert.deepEqual(m.c.publishedDelivery!.artifactIds, [m.c.artifacts[1]!.id]);
   assert.equal(m.c.intents.filter(w => w.kind === 'check').length, 1); return m;
 }
 export function gapsHandoffModel() {

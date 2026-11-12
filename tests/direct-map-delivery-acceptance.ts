@@ -52,7 +52,7 @@ export class DirectMapProvider {
         assert(context.requirements.every((r: { id: string }) => !r.id.startsWith('map-recovery:')));
         output = { type: 'check', criteriaResults: context.requirements.map((r: { id: string }) => ({ criterionId: r.id, status: 'passed',
           source: { id: 'optional-unlisted-source', quote: '下游检查的非逐字说明' } })),
-          ...(this.checkRepair ? { repair: { text: '检查员已直接补充真实网页资料并交付。', artifacts: [{ name: '修正汇总.md', content: 'doc-7 可用；已补充新取得的普通网页正文；其他资料缺口已声明。' }] } } : {}) };
+          ...(this.checkRepair ? { repair: { text: '检查员已直接补充真实网页资料并交付。', artifacts: [{ name: '修正汇总.md', content: 'doc-7 可用；已补充新取得的普通网页正文；其他资料缺口已声明。', replacesArtifactId: context.artifacts[0].id }] } } : {}) };
       } else if (context.input) {
         output = { type: 'interpretation', spec: parsedIntent('request', { objective: '汇总可用资料并列出失败项',
           constraints: [], expectedOutputs: ['汇总.md'], acceptanceCriteria: ['保留可用结果并列出失败项'],
@@ -137,6 +137,11 @@ export async function directMapEngineAcceptance(legacyAnswer = false, webSource 
     if (checkRepair) {
       assert.equal(provider.checkToolRequests, 1); assert.equal(provider.webReads, 1);
       assert(c.candidate!.text.includes('检查员已直接补充'));
+      const current = c.artifacts.find(a => c.candidate!.artifactIds.includes(a.id))!;
+      const previous = c.artifacts.find(a => a.id === current.replacesArtifactId)!;
+      assert(previous && previous.content.includes('doc-7 已保存的可用正文'));
+      assert.equal(current.documentId, previous.documentId, 'DirectRepairRevision: native Runner retains document identity');
+      assert.equal(current.revision, previous.revision! + 1, 'DirectRepairRevision: native Runner publishes next revision');
       assert(c.artifacts.some(a => c.candidate!.artifactIds.includes(a.id) && a.content.includes('新取得的普通网页正文')));
       assert.equal(c.intents.filter(w => w.kind === 'check').length, 1);
       assert(!c.intents.some(w => w.payload.deliveryRevision));

@@ -292,7 +292,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
           const delivery = { ...e, type: 'DELIVER' as const, text: e.repair.text, artifactIds: [], artifacts: e.repair.artifacts };
           const issue = deliveryVersionProblem(c, delivery);
           if (issue) { delete work.criteriaResults; finishDelivery(c, e, issue, issue); break; }
-          const artifactIds = saveReports(c, e, c.sourceArtifact && !e.repair.artifacts.length ? '' : e.repair.text, work.target, e.repair.artifacts);
+          const artifactIds = saveReports(c, delivery, c.sourceArtifact && !e.repair.artifacts.length ? '' : e.repair.text, work.target, e.repair.artifacts);
           const revision = `${c.candidate!.revision}:checked:${e.id}`;
           const gaps = deliveryPreflight(c, delivery).gaps;
           c.candidate = { ...c.candidate!, workId: work.id, text: e.repair.text + (gaps.length ? '\n\n交付时尚缺少：\n' + gaps.map(g => `- ${deliveryGapMessage(g.reason)}`).join('\n') : ''), artifactIds, revision,

@@ -1552,8 +1552,8 @@ stateDiagram-v2
     published --> working: CONTINUE [原工作已结算] / 新epoch和交付周期，保留原发布
     working --> checking: DELIVER [当前版本有效] / 固定新候选和检查
     checking --> checking: 旧检查或candidateRevision不符 / 拒绝且保留原发布
-    checking --> working: CHECK_RESULT [可修正] / 保留旧文档和final
-    checking --> published: CHECK_RESULT [当前绑定全部通过] / 新发布和新final
+    checking --> published: CHECK_RESULT [当前绑定有效且有修正稿] / 保留旧稿并保存同文档下一修订与新final
+    checking --> published: CHECK_RESULT [当前绑定有效] / 采用最新结论并声明缺口后交付
     published --> published: 重复或迟到回执 / 不改历史选择
 ```
 
