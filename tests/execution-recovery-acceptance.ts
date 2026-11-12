@@ -119,7 +119,8 @@ export async function configurationDiagnosticAcceptance(label: string) {
       helpArgs: label === '已核实相关账号需要认证' ? ['-e', 'console.error("authentication required");process.exit(1)'] : ['--help'],
       ...(label === '已核实宿主授权被拒绝' ? { execution: 'host' as const } : {}) };
     f.runtime = await LocalRuntime.create({ ...options, commandEnv: { ...options.commandEnv, node: { PRIVATE_TOKEN: 'sensitive-tool-configuration' } },
-      redact: [...(options.redact ?? []), 'sensitive-tool-configuration'], ...(label === '未配置CLI目录' ? {}
+      redact: [...(options.redact ?? []), 'sensitive-tool-configuration'], ...(label === '自动发现CLI目录为空' ? {
+        cliDiscovery: { paths: [join(f.root, 'empty-path')], manRoots: [], systemPackageRoot: join(f.root, 'no-packages') } }
       : { cliCatalog: label === '已配置空CLI目录' ? [] : [entry] }) });
     if (label === '已核实相关命令未安装') f.replies.push({ type: 'discoverHost', commands: [command] });
     if (label === '已核实相关账号需要认证') f.replies.push({ type: 'runCli', executable: 'node',
@@ -138,7 +139,8 @@ export async function configurationDiagnosticAcceptance(label: string) {
     await running;
     const request = f.requests.at(-1)!;
     const inventory = inventoryObservation(request);
-    const state = label === '未配置CLI目录' ? 'unconfigured' : label === '已配置空CLI目录' ? 'empty' : 'configured';
+    const state = label === '自动发现CLI目录为空' || label === '已配置空CLI目录' ? 'empty' : 'configured';
+    if (label === '自动发现CLI目录为空') assert.equal(inventory.cli.configuration.source, 'automatic');
     assert.equal(inventory.cli.configuration.state, state);
     assert.equal(inventory.cli.entries.length, state === 'configured' ? 1 : 0);
     const chosen = inventory.cli.entries[0];

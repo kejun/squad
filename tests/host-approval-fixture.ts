@@ -50,7 +50,8 @@ setTimeout(() => { process.stdout.write(token.slice(9) + '\\n'); }, 5);
     await this.start(); this.room = this.service.createRoom('宿主授权验证');
   }
   async start() {
-    this.runtime = await LocalRuntime.create({ dataRoot: join(this.root, 'runtime'), workspaceRoot: this.source, skillRoots: [], redact: [this.modelKey],
+    // Scripted approval and recovery calls do not depend on the machine's installed tool catalog.
+    this.runtime = await LocalRuntime.create({ dataRoot: join(this.root, 'runtime'), workspaceRoot: this.source, skillRoots: [], cliCatalog: [], redact: [this.modelKey],
       backend: this.sandboxBackend ?? { available: false, async execute() { throw new Error('No automatic sandbox fallback'); } },
       ...this.runtimeOptions });
     const config = localConfig(); config.limits.workTimeoutMs = 60_000; config.limits.progressIntervalMs = 60_000;

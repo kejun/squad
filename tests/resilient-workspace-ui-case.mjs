@@ -472,7 +472,7 @@ export class ResilientWorkspaceUICase {
       await this.page.getByRole('button', { name: '沿用原窗口继续', exact: true }).click();
       await this.host.until(() => this.host.posts.filter(post => post.body.intent === 'continue').length, count => count === 1, 'ordinary continue submitted');
       this.facts.expiredRejection = await this.page.getByRole('dialog').getByRole('alert').textContent();
-      assert(this.facts.expiredRejection.includes('PROCESSING_WINDOW_EXPIRED'));
+      assert(this.facts.expiredRejection.includes('WINDOW_EXPIRED'));
       assert.deepEqual(this.context().resilience.window, this.facts.oldWindow);
       await this.page.getByRole('spinbutton', { name: '新处理时长（分钟）', exact: true }).fill('15');
       await this.page.getByRole('button', { name: '授权新窗口并继续', exact: true }).click();
@@ -513,6 +513,7 @@ export class ResilientWorkspaceUICase {
       assert(this.snapshot().blockers.some(gate => gate.status === 'open' && gate.requiredHuman));
       assert.equal(this.host.posts.filter(post => post.path.endsWith('blocker-decision')).length, 0);
       if (n === 84) {
+        assert.equal(this.context().resilience.window.failure.code, 'WINDOW_EXPIRED');
         assert(this.context().resilience.window.hardDeadline <= this.context().resilience.lastSupervisedAt);
         await this.page.getByRole('dialog').getByText('自动处理窗口已耗尽，仍等待你的明确回复。', { exact: true }).waitFor();
       }

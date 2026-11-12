@@ -20,6 +20,7 @@ import {
   conversationHistory,
 } from "../src/conversation.js";
 import { configuration, passFixtureCheck } from "./helpers.js";
+import { processingWindow } from "../src/task/resilience.js";
 
 const plan =
   "ESP32 墨水屏同步方案：代理服务读取飞书文档，按块计算增量，设备局部刷新。";
@@ -460,7 +461,7 @@ describe("bounded group review", () => {
     });
     expect(calls).toBe(1);
     expect(engine.view("r", task)?.phase).toBe("waitingHuman");
-    expect(engine.nextWake("r")).toBeNull();
+    expect(engine.nextWake("r")).toBe(processingWindow(engine.view("r", task)!.context).hardDeadline);
     engine.submit("r", { id: "material", text: plan, intent: "decision" });
     expect(engine.pending("r", task)[0]?.kind).toBe("facilitator");
     expect(

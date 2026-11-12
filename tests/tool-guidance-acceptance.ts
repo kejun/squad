@@ -34,8 +34,8 @@ async function largeCatalog(f: LocalFixture) {
   for (let i = 0; i < 20; i++) await writeSkill(f.skills, `archive-${String(i).padStart(2, '0')}`, 'Archive scheduled backup files');
   for (let i = 0; i < 7; i++) await writeSkill(f.skills, `z-reader-${i}`, 'Read documents 查询仓库问题 github.com');
   await configureRuntime(f, [...unrelated, nodeEntry, ...related]);
-  assert.equal(f.runtime.catalog().skills.some(skill => skill.name.startsWith('z-reader')), false,
-    'Relevant skills must lie outside the initial metadata page');
+  assert.equal(f.runtime.catalog().skills.some(skill => skill.name.startsWith('z-reader')), true,
+    'Complete metadata must retain relevant skills beyond the former first page');
 }
 
 /** Real registry/Runner/Adapter wiring. The scripted model chooses no command in this scenario. */

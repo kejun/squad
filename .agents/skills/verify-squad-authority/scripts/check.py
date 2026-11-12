@@ -37,7 +37,14 @@ def verify(path):
   assert replay['edges']>0 and replay['states']>0 and {o['backend'] for o in replay['observations']}=={'memory','sqlite'}
  session_log=(path/'session/tlc.log').read_text();assert 'Model checking completed. No error has been found.' in session_log and '0 states left on queue' in session_log
  session=json.loads((path/'session/replay.json').read_text());assert session['scopeStates']==512 and len(session['records'])==1044
- runtime=json.loads((path/'runtime-binding.json').read_text());assert runtime['status']=='passed' and len(runtime['records'])==10
+ variants={'unchanged','args','requestHash','workId','epoch','goalVersion','workspace','executable','environment','expiry','stdin-unchanged','stdin-content','stdin-path'}
+ for binding in ['runtime-binding.json','runtime-binding-restored.json']:
+  runtime=json.loads((path/binding).read_text());assert runtime['status']=='passed' and len(runtime['records'])==13
+  assert {record['variant'] for record in runtime['records']}==variants,'Incomplete input binding cases'
+  for record in runtime['records']:
+   unchanged=record['variant'] in {'unchanged','stdin-unchanged'}
+   assert record['reachedLaunch']==(1 if unchanged else 0),'Changed command reached the launch boundary'
+   assert record['result']==('CLI_EXECUTION_FAILED' if unchanged else 'HOST_APPROVAL_EXPIRED' if record['variant']=='expiry' else 'HOST_APPROVAL_STALE'),'Wrong input binding rejection'
  print('Evidence verified:',path)
 def main():
  ap=argparse.ArgumentParser();ap.add_argument('--jar',default=os.environ.get('TLA2TOOLS_JAR',str(pathlib.Path(os.environ.get('XDG_CACHE_HOME',pathlib.Path.home()/'.cache'))/'squad-formal/tla2tools-1.7.4.jar')));ap.add_argument('--evidence');ap.add_argument('--verify-evidence');a=ap.parse_args()

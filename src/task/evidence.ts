@@ -82,6 +82,30 @@ function capturedStream(result: Record<string, unknown>, stream: EvidenceStream)
     && Number.isSafeInteger(value.chars) && value.chars >= 0 ? value : null;
 }
 
+interface CapturedCliInvocation {
+  executable: string; args: string[]; cwd: string; execution: 'sandbox' | 'host'; environmentHash: string;
+  stdin?: { path: string; sha256: string; bytes: number };
+}
+/** Only the runtime's already-redacted receipt can describe an actual invocation. Raw actions are never projected. */
+function capturedInvocation(data: Record<string, unknown>): CapturedCliInvocation | null {
+  const value = data.invocation;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const item = value as Record<string, unknown>;
+  if (Object.keys(item).some(key => !['executable', 'args', 'cwd', 'execution', 'environmentHash', 'stdin'].includes(key))
+    || typeof item.executable !== 'string' || !item.executable || typeof item.cwd !== 'string' || !item.cwd
+    || !Array.isArray(item.args) || !item.args.every(arg => typeof arg === 'string')
+    || !['sandbox', 'host'].includes(String(item.execution)) || typeof item.environmentHash !== 'string'
+    || !/^[a-f0-9]{64}$/.test(item.environmentHash)) return null;
+  if (item.stdin !== undefined) {
+    if (!item.stdin || typeof item.stdin !== 'object' || Array.isArray(item.stdin)) return null;
+    const input = item.stdin as Record<string, unknown>;
+    if (Object.keys(input).some(key => !['path', 'sha256', 'bytes'].includes(key)) || typeof input.path !== 'string'
+      || typeof input.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(input.sha256)
+      || !Number.isSafeInteger(input.bytes) || Number(input.bytes) < 0) return null;
+  }
+  return structuredClone(value) as CapturedCliInvocation;
+}
+
 export function evidenceMetadata(c: TaskContext, source: EvidenceSource) {
   const { work, operation } = source;
   const data = capturedData(operation);
@@ -96,7 +120,10 @@ export function evidenceMetadata(c: TaskContext, source: EvidenceSource) {
     evidenceId: operation.id, taskId: c.taskId, goalVersion: work.goalVersion, sourceWorkId: work.id,
     sourceOperationId: source.acquisition?.operationId ?? operation.id, epoch: work.epoch, sourceRole: work.kind, sourceMember: work.target,
     historicalObservation: work.epoch !== c.epoch, status: sourceStatus, completeness,
-    command: { type: operation.action.type, requestHash: operation.requestHash },
+    command: { type: operation.action.type, requestHash: operation.requestHash,
+      ...(operation.action.type === 'runCli' ? { invocation: capturedInvocation(data) } : {}) },
+    validationInputsChanged: operation.action.type === 'runCli' && work.kind === 'check' && typeof data.validationInputsChanged === 'boolean'
+      ? data.validationInputsChanged : null,
     execution: operation.action.type === 'runCli' ? operation.action.execution ?? 'sandbox' : null,
     workspaceId: operation.workspaceId ?? null, workspaceRevision: operation.workspaceRevision ?? null,
     exitCode: typeof data.exitCode === 'number' ? data.exitCode : null,
@@ -118,7 +145,7 @@ export function evidenceIndex(c: TaskContext, work: Intent) {
   return settledSources(c).filter(source => canSeeEvidence(c, work, source.operation.id)).map(source => evidenceMetadata(c, source));
 }
 
-export interface DeliveryEvidenceRef { id: string; stdoutHash: string | null; stderrHash: string | null; resourceSnapshot?: string }
+export interface DeliveryEvidenceRef { id: string; stdoutHash: string | null; stderrHash: string | null; resourceSnapshot?: string; cliSnapshot?: string }
 export interface DeliveryEvidenceSource {
   id: string;
   metadata: ReturnType<typeof evidenceMetadata>;
@@ -143,11 +170,16 @@ export function deliveryEvidence(c: TaskContext, work: Intent, refs?: readonly D
     const metadata = evidenceMetadata(c, source);
     const data = capturedData(source.operation);
     const snapshot = source.acquisition?.snapshot ?? resourceSnapshot(source.operation);
+    // Compare-only private identity stays in task context, never in DeliveryEvidenceSource/model materials.
+    const cliSnapshot = source.operation.action.type === 'runCli' ? JSON.stringify({ action: source.operation.action,
+      requestHash: source.operation.requestHash, invocation: data.invocation ?? null,
+      validationInputsChanged: data.validationInputsChanged ?? null }) : undefined;
     const saved = { id, stdoutHash: metadata.capturedContentHash, stderrHash: metadata.stderrContentHash,
-      ...(snapshot === undefined ? {} : { resourceSnapshot: snapshot }) };
+      ...(snapshot === undefined ? {} : { resourceSnapshot: snapshot }), ...(cliSnapshot === undefined ? {} : { cliSnapshot }) };
     const expected = refs?.[savedRefs.length];
     if (expected && (expected.stdoutHash !== saved.stdoutHash || expected.stderrHash !== saved.stderrHash)) return undefined;
     if (expected && snapshot !== undefined && expected.resourceSnapshot !== snapshot) return undefined;
+    if (expected && expected.cliSnapshot !== saved.cliSnapshot) return undefined;
     const stdout = completeCapturedText(metadata, saved.stdoutHash, data.stdout);
     const stderr = completeCapturedText(metadata, saved.stderrHash, data.stderr);
     sources.push({ id, metadata, ...(stdout === undefined ? {} : { stdout }), ...(stderr === undefined ? {} : { stderr }) });

@@ -53,9 +53,11 @@ export function boundedFactsModelGate() {
   oversized.result!.data = { ...structuredClone(capabilityData), skills: { ...capabilityData.skills,
     skills: Array.from({ length: 20 }, (_, index) => ({ skillId: `skill-${index}`, name: `skill-${index}`, skillVersion: 'v1', description: '说明'.repeat(1000) })) } };
   const facts = sharedToolKnowledge(model.c, peer);
-  assert.equal(facts.length, 10); assert(JSON.stringify(facts).length <= 170_000);
-  const last = facts.at(-1) as unknown as { metadataComplete: boolean; observation: { cli: { sandbox: { available: boolean } } } };
-  assert.equal(last.metadataComplete, false); assert.equal(last.observation.cli.sandbox.available, false);
+  assert.equal(facts.length, 20);
+  const last = facts.at(-1) as unknown as { metadataComplete: boolean; observation: { skills: { skills: { description: string }[] }; cli: { sandbox: { available: boolean } } } };
+  assert.equal(last.metadataComplete, true); assert.equal(last.observation.cli.sandbox.available, false);
+  assert.equal(last.observation.skills.skills.length, 20);
+  assert.equal(last.observation.skills.skills[19]!.description, '说明'.repeat(1000));
   assert(!JSON.stringify(facts).includes('"missing-command"')); return facts;
 }
 

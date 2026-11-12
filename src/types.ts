@@ -254,7 +254,7 @@ export type TaskEvent = Envelope & (
   | { type: 'EXECUTION_START'; intentId: string; attempt: number }
   | { type: 'EXECUTION_RECONCILE' }
   | { type: 'CONSUME'; intentId: string; capability?: 'web_search' | 'web_fetch' }
-  | { type: 'WORK_FAILED'; intentId: string; reason: string; transient: boolean; resultUncertain?: boolean; checkDiagnostic?: CheckDiagnostic }
+  | { type: 'WORK_FAILED'; intentId: string; reason: string; transient: boolean; code?: string; resultUncertain?: boolean; checkDiagnostic?: CheckDiagnostic }
   | { type: 'RECOVER'; config: TeamConfig }
   | { type: 'EXHAUSTED'; reason: string }
   | { type: 'RECONCILE'; intentId: string; resolution: 'confirmed' | 'notExecuted'; detail: string }

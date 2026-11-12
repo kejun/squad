@@ -58,7 +58,7 @@ export function HumanBlockers({ roomId, blockers, connected, expiredTaskIds = []
   const [acknowledged, setAcknowledged] = useState<string[]>([]);
   const [text, setText] = useState('');
   const [extra, setExtra] = useState('');
-  const [minutes, setMinutes] = useState('15');
+  const [minutes, setMinutes] = useState('180');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const seen = useRef(new Set<string>());
@@ -113,6 +113,7 @@ export function HumanBlockers({ roomId, blockers, connected, expiredTaskIds = []
             <Dialog.Close aria-label="暂时关闭处理提示"><X size={18} /></Dialog.Close></div>
           {active && <>
             <Dialog.Description>{active.question}</Dialog.Description>
+            {active.code && <p role="status">失败码：<code>{active.code}</code></p>}
             {active.source && <p>来源会话：{active.source.roomTitle}</p>}
             {active.scope !== 'cleanup' && expiredTaskIds.includes(active.taskId)
               && <p role="status">自动处理窗口已耗尽，仍等待你的明确回复。</p>}

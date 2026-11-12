@@ -27,6 +27,12 @@ export class ResilienceModel {
   }
   artifact(id = 'current-artifact') { assert(this.send({ type: 'ARTIFACT', artifact: { id, name: `${id}.md`, content: '已保存但未核验的业务材料' } }).ok); }
   supervise(at = this.at) { this.at = at; return this.send({ type: 'SUPERVISE', trigger: 'timer' }); }
+  endWindow(at = processingWindow(this.c).hardDeadline) {
+    assert(this.supervise(at).ok);
+    const gate = taskHumanGate(this.c); assert.equal(gate?.cause, 'windowExpired');
+    assert(this.send({ type: 'HUMAN_GATE_DECISION', gateId: gate!.id, decision: 'skip', text: '明确结束到期窗口并保留已有成果' }).ok);
+    return this.c.reply;
+  }
   waiting() { const work = this.claim(); assert(this.send({ type: 'WAIT_USER', workId: work.id, fence: work, question: '请选择方案' }).ok); return taskHumanGate(this.c)!; }
   unknown() {
     const work = this.claim();
@@ -38,7 +44,7 @@ export class ResilienceModel {
     return work;
   }
 }
-function stageModel(phase: Phase): ResilienceModel {
+export function stageModel(phase: Phase): ResilienceModel {
   const m = new ResilienceModel(input => { if (phase === 'waitingHuman') input.config.limits.retries = 0; });
   if (phase === 'interpreting') {
     const c = new CapacityModel(input => { input.config.resilience = { automaticTimeoutMs: 100, repairTimeoutMs: 20, repairLimit: 2 }; });
@@ -57,9 +63,13 @@ function stageModel(phase: Phase): ResilienceModel {
 export function resiliencePhaseGate() {
   return (['interpreting', 'running', 'waitingAssistance', 'coordinating', 'waitingHuman', 'checking', 'stopping', 'ended'] as Phase[]).map(phase => {
     const m = stageModel(phase); assert(m.supervise(101).ok);
-    assert.equal(m.phase, 'ended', `${phase} must converge without a required gate`); assert(m.c.outcome !== null);
-    const frozen = structuredClone(m.c.resilience!.frozen); assert(m.send({ type: 'RECOVER', config: m.c.config }).ok); assert(m.supervise(1000).ok);
-    assert.deepEqual(m.c.resilience!.frozen, frozen); return { phase, outcome: m.c.outcome };
+    const terminal = ['stopping', 'ended'].includes(phase);
+    assert.equal(m.phase, terminal ? 'ended' : 'waitingHuman', `${phase} must retain a visible supervision exit`);
+    assert.equal(m.c.outcome !== null, terminal);
+    const frozen = structuredClone(m.c.resilience!.frozen), gateId = taskHumanGate(m.c)?.id;
+    if (!terminal) { assert.equal(taskHumanGate(m.c)?.cause, 'windowExpired'); assert.equal(processingWindow(m.c).failure?.code, 'WINDOW_EXPIRED'); }
+    assert(m.send({ type: 'RECOVER', config: m.c.config }).ok); assert(m.supervise(1000).ok);
+    assert.deepEqual(m.c.resilience!.frozen, frozen); assert.equal(taskHumanGate(m.c)?.id, gateId); return { phase, outcome: m.c.outcome };
   });
 }
 export function resilienceWindowGate() {
@@ -68,8 +78,10 @@ export function resilienceWindowGate() {
   assert(m.send({ type: 'PROGRESS', detail: '保存材料', refs: ['new-evidence'] }).ok);
   assert(m.send({ type: 'ACTIVITY', text: '仍在处理' }).ok); assert(m.send({ type: 'RECOVER', config: m.c.config }).ok);
   assert(m.send({ type: 'USER_INPUT', text: '增加一段结论' }).ok);
-  assert.deepEqual(processingWindow(m.c), original); m.supervise(101); assert.equal(m.c.outcome, 'partial');
-  assert.equal(m.c.resilience!.frozen!.verification, 'incomplete'); return m;
+  assert.deepEqual(processingWindow(m.c), original); m.supervise(101);
+  assert.equal(m.phase, 'waitingHuman'); assert.equal(m.c.outcome, null); assert.equal(taskHumanGate(m.c)?.cause, 'windowExpired');
+  assert.equal(processingWindow(m.c).hardDeadline, original.hardDeadline); assert.equal(processingWindow(m.c).repairUsed, original.repairUsed);
+  assert.equal(m.c.resilience!.frozen, undefined); return m;
 }
 export function resilienceHumanGate(newWindow = false) {
   const m = new ResilienceModel(); m.artifact(); const gate = m.waiting();
@@ -78,12 +90,12 @@ export function resilienceHumanGate(newWindow = false) {
   const reply = { type: 'HUMAN_GATE_DECISION', gateId: gate.id, decision: newWindow ? 'newWindow' : 'reply', text: '选择甲', ...(newWindow ? { newWindowMs: 50 } : {}) };
   assert(m.send(reply).ok);
   if (newWindow) { assert.equal(processingWindow(m.c).hardDeadline, 151); assert.equal(m.phase, 'running'); assert(effectiveWork(m.c, m.phase, m.at).length > 0); }
-  else { assert.equal(m.c.outcome, 'partial'); assert.equal(processingWindow(m.c).hardDeadline, 100); }
+  else { assert.equal(m.c.outcome, null); assert.equal(m.phase, 'waitingHuman'); assert.equal(taskHumanGate(m.c)?.cause, 'windowExpired'); assert.equal(processingWindow(m.c).hardDeadline, 100); }
   return m;
 }
 export function resilienceCleanupGate() {
   const m = new ResilienceModel(); m.artifact(); const work = m.unknown(); assert(!taskHumanGate(m.c));
-  m.supervise(101); assert.equal(m.phase, 'ended'); assert.equal(m.c.outcome, 'partial'); assert.equal(m.c.resilience!.cleanup[0]!.state, 'pending');
+  m.endWindow(101); assert.equal(m.phase, 'ended'); assert.equal(m.c.outcome, 'partial'); assert.equal(m.c.resilience!.cleanup[0]!.state, 'pending');
   assert(m.c.resilience!.gates.some(g => g.scope === 'cleanup' && g.status === 'open')); const frozen = structuredClone(m.c.resilience!.frozen);
   assert(m.send({ type: 'LOCAL_RESULT', intentId: work.id, operationId: 'unknown-op', sessionId: 'unknown-session', settled: true, effectsKnown: true, result: { ok: true, code: 'succeeded', data: { stdout: 'receipt' } } }).ok);
   assert.equal(m.c.resilience!.cleanup[0]!.state, 'settled'); assert.equal(m.c.intents.find(w => w.id === work.id)!.status, 'done');
@@ -251,8 +263,9 @@ export function resilienceDirectResponseGate(kind: 'input' | 'retry', expired = 
   if (expired) m.at = deadline;
   assert(m.send(kind === 'input' ? { type: 'USER_INPUT', text: '方案甲' } : { type: 'RETRY_ASSISTANCE', requestId: 'blocked-help', text: '明确重试B', config: m.c.config }).ok);
   assert.equal(m.c.resilience!.gates.find(g => g.id === gate.id)!.status, 'answered');
-  assert.equal(processingWindow(m.c).hardDeadline, deadline); assert(!taskHumanGate(m.c));
-  if (expired) { assert.equal(m.phase, 'ended'); assert(m.c.outcome !== null); return m; }
+  assert.equal(processingWindow(m.c).hardDeadline, deadline);
+  if (expired) { assert.equal(m.phase, 'waitingHuman'); assert.equal(m.c.outcome, null); assert.equal(taskHumanGate(m.c)?.cause, 'windowExpired'); return m; }
+  assert(!taskHumanGate(m.c));
   assert.equal(m.phase, kind === 'input' ? 'interpreting' : 'waitingAssistance');
   assert(effectiveWork(m.c, m.phase, m.at).some(w => w.kind === (kind === 'input' ? 'interpretation' : 'assistance')));
   if (kind === 'retry') {
@@ -297,7 +310,7 @@ export function resilienceLegacyUnsafeGate(stopped = false) {
   const m = new ResilienceModel(); m.artifact(); const owner = m.claim();
   assert(m.send({ type: 'TOOL', workId: owner.id, fence: owner, tool: 'read', replay: 'unsafe', payload: { effect: 'legacy-provider' } }).ok);
   const tool = m.claim('tool'); assert(m.send({ type: 'RECOVER', config: m.c.config }).ok);
-  if (stopped) assert(m.send({ type: 'STOP' }).ok); else m.supervise(101);
+  if (stopped) assert(m.send({ type: 'STOP' }).ok); else m.endWindow(101);
   assert.equal(m.phase, 'ended'); assert.equal(m.c.outcome, stopped ? 'stopped' : 'partial');
   const custody = m.c.resilience!.cleanup.find(item => item.kind === 'legacyWork')!;
   assert(custody); assert.equal(custody.workId, tool.id); assert.equal(custody.operationId, tool.id);
@@ -353,7 +366,7 @@ export function resilienceRequiredFailureGate(role: 'owner' | 'interpretation' |
   const usage = structuredClone(m.c.usage); if (expired) m.at = work.deadline!;
   assert(m.send({ type: 'WORK_FAILED', intentId: work.id, attempt: work.attempt, reason: 'Model HTTP 401', transient }).ok);
   assert.equal(m.c.usage.retries, usage.retries, 'Permission failure cannot become an automatic retry');
-  if (expired) { assert(!taskHumanGate(m.c)); m.supervise(101); assert.equal(m.phase, 'ended'); assert(m.c.outcome !== null); return m; }
+  if (expired) { assert.equal(taskHumanGate(m.c)?.cause, 'windowExpired'); m.supervise(101); assert.equal(m.phase, 'waitingHuman'); assert.equal(m.c.outcome, null); return m; }
   const gate = taskHumanGate(m.c)!; assert(gate); assert.equal(gate.kind, 'authorization');
   assert.equal(m.phase, 'waitingHuman'); assert.equal(m.c.outcome, null);
   m.supervise(101); assert(m.send({ type: 'RECOVER', config: m.c.config }).ok);

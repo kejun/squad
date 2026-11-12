@@ -16,7 +16,7 @@ export type LocalAction =
   | { type: 'listSkills'; query?: string; cursor?: string }
   | { type: 'loadSkill'; skillId: string }
   | { type: 'readSkillResource'; skillId: string; path: string; offset?: number }
-  | { type: 'runCli'; executable: string; args: string[]; cwd?: string; timeoutMs?: number; skillId?: string; execution?: 'sandbox' | 'host'; reason?: string };
+  | { type: 'runCli'; executable: string; args: string[]; cwd?: string; timeoutMs?: number; skillId?: string; execution?: 'sandbox' | 'host'; reason?: string; stdin?: { path: string } };
 export interface LocalMessage { role: 'user' | 'assistant'; content: string }
 export interface LocalToolResult { ok: boolean; code: string; data: Record<string, unknown> }
 export interface LocalCheckpoint { messages: LocalMessage[]; nextOperation: number; pendingOperationId?: string }
@@ -24,6 +24,7 @@ export interface SkillBinding { skillId: string; skillVersion: string }
 export interface HostCommandPlan {
   executable: string; args: string[]; cwd: string; workspaceRevision: string;
   executableHash: string; environmentHash: string; host: string; account: string; reason: string;
+  stdin?: { path: string; sha256: string; bytes: number };
 }
 export interface HostApproval {
   id: string; digest: string; plan: HostCommandPlan; expiresAt: number; sessionGrantId?: string;
@@ -65,11 +66,11 @@ export function validLocalAction(value: unknown): value is LocalAction {
   const a = value as Record<string, unknown>;
   const text = (v: unknown, max = 4096) => typeof v === 'string' && !!v.trim() && v.length <= max && !v.includes('\0');
   const optional = (key: string) => a[key] === undefined || text(a[key]);
-  const keys: Record<string, string[]> = { discoverHost: ['commands', 'query', 'cursor'], verifyWorkspace: ['expectedRevision'], listSkills: ['query', 'cursor'], loadSkill: ['skillId'], readSkillResource: ['skillId', 'path', 'offset'], readEvidence: ['sourceOperationId', 'stream', 'cursor'], readArtifact: ['artifactId', 'cursor'], runCli: ['executable', 'args', 'cwd', 'timeoutMs', 'skillId', 'execution', 'reason'] };
+  const keys: Record<string, string[]> = { discoverHost: ['commands', 'query', 'cursor'], verifyWorkspace: ['expectedRevision'], listSkills: ['query', 'cursor'], loadSkill: ['skillId'], readSkillResource: ['skillId', 'path', 'offset'], readEvidence: ['sourceOperationId', 'stream', 'cursor'], readArtifact: ['artifactId', 'cursor'], runCli: ['executable', 'args', 'cwd', 'timeoutMs', 'skillId', 'execution', 'reason', 'stdin'] };
   if (typeof a.type !== 'string' || !keys[a.type] || Object.keys(a).some(k => k !== 'type' && !keys[a.type as string]!.includes(k))) return false;
   switch (a.type) {
     case 'verifyWorkspace': return typeof a.expectedRevision === 'string' && /^[a-f0-9]{64}$/.test(a.expectedRevision);
-    case 'discoverHost': return optional('query') && optional('cursor') && (a.commands === undefined || Array.isArray(a.commands) && a.commands.length <= 20
+    case 'discoverHost': return optional('query') && optional('cursor') && (a.commands === undefined || Array.isArray(a.commands)
       && a.commands.every(command => typeof command === 'string' && /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/.test(command)));
     case 'listSkills': return optional('query') && optional('cursor');
     case 'loadSkill': return text(a.skillId);
@@ -79,11 +80,35 @@ export function validLocalAction(value: unknown): value is LocalAction {
       && (a.cursor === undefined || typeof a.cursor === 'string' && /^[a-f0-9]{64}:[1-9][0-9]{0,5}$/.test(a.cursor));
     case 'readSkillResource': return text(a.skillId) && text(a.path) && (a.offset === undefined || Number.isSafeInteger(a.offset) && Number(a.offset) >= 0);
     case 'runCli': return text(a.executable) && Array.isArray(a.args) && a.args.length <= 128 && a.args.every(v => typeof v === 'string' && v.length <= 8192 && !v.includes('\0'))
-      && optional('cwd') && optional('skillId') && optional('reason') && (a.execution === undefined || a.execution === 'sandbox' || a.execution === 'host')
+      && optional('cwd') && optional('skillId') && optional('reason')
+      && (a.stdin === undefined || validCliStdin(a.stdin)) && (a.execution === undefined || a.execution === 'sandbox' || a.execution === 'host')
       && (a.execution !== 'host' || text(a.reason, 1000))
       && (a.timeoutMs === undefined || Number.isSafeInteger(a.timeoutMs) && Number(a.timeoutMs) > 0 && Number(a.timeoutMs) <= 10_800_000);
     default: return false;
   }
+}
+export function validCliStdin(value: unknown): value is { path: string } {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => key !== 'path')) return false;
+  const path = (value as { path?: unknown }).path;
+  return typeof path === 'string' && !!path.trim() && path.length <= 4096 && !path.includes('\0')
+    && !path.startsWith('/') && !path.includes('\\') && !path.split('/').includes('..');
+}
+/** Full host-generated catalog receipts do not consume the conversational payload limit. */
+function checkpointWithinLimit(work: Intent, messages: LocalMessage[]): boolean {
+  const bounded = messages.map(message => {
+    if (message.role !== 'user') return message;
+    try {
+      const receipt = JSON.parse(message.content) as Record<string, unknown>;
+      if (receipt.type !== 'local_tool_result' || receipt.untrusted !== true
+        || Object.keys(receipt).some(key => !['type', 'operationId', 'untrusted', 'ok', 'code', 'data'].includes(key))) return message;
+      const source = work.localOperations?.find(operation => operation.id === receipt.operationId
+        && ['discoverHost', 'listSkills'].includes(operation.action.type) && operation.status === 'succeeded' && operation.result?.ok && operation.result.code === operation.action.type);
+      if (!source?.result || receipt.ok !== source.result.ok || receipt.code !== source.result.code
+        || JSON.stringify(receipt.data) !== JSON.stringify(source.result.data)) return message;
+      return { ...message, content: JSON.stringify({ ...receipt, data: { persistedMetadataOperationId: source.id } }) };
+    } catch { return message; }
+  });
+  return JSON.stringify(bounded).length <= 1_900_000;
 }
 export const localAwaitingApproval = (work: Intent) => work.localOperations?.some(op => op.status === 'awaitingApproval') ?? false;
 export const localUnsettled = (work: Intent) => localAwaitingApproval(work) || (work.localOperations?.some(op => ['queued', 'claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false);
@@ -149,7 +174,7 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
     case 'LOCAL_REQUEST':
       if (!validLocalAction(event.action) || !/^[a-f0-9]{64}$/.test(event.namespace) || !event.operationId || !/^[a-f0-9]{64}$/.test(event.requestHash)
         || !Array.isArray(event.messages) || !event.messages.every(m => m && ['user', 'assistant'].includes(m.role) && typeof m.content === 'string')
-        || JSON.stringify(event.messages).length > 1_900_000) return 'INVALID_LOCAL_REQUEST';
+        || !checkpointWithinLimit(work, event.messages)) return 'INVALID_LOCAL_REQUEST';
       if (op) return op.requestHash === event.requestHash ? 'LOCAL_ALREADY_REQUESTED' : 'LOCAL_REQUEST_CONFLICT';
       if (localUnsettled(work)) return 'LOCAL_OPERATION_PENDING';
       if (work.kind !== 'check' && event.action.type === 'runCli' && repeatedCliFailures(work, event.action) >= 2) return 'CLI_REPEAT_FAILURE_LIMIT';
@@ -185,6 +210,9 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
       if (!a || a.sessionGrantId !== undefined || a.status !== 'pending' || typeof a.id !== 'string' || !a.id || a.id.length > 512 || !/^[a-f0-9]{64}$/.test(a.digest)
         || !Number.isSafeInteger(a.expiresAt) || a.expiresAt <= e.at || a.expiresAt > e.at + 600_000 || work.deadline !== null && a.expiresAt > work.deadline || op.deadline !== undefined && a.expiresAt > op.deadline
         || !p || !validLocalAction({ type: 'runCli', executable: p.executable, args: p.args, cwd: p.cwd })
+        || (op.action.stdin === undefined ? p.stdin !== undefined : !p.stdin || p.stdin.path !== op.action.stdin.path
+          || Object.keys(p.stdin).some(key => !['path', 'sha256', 'bytes'].includes(key))
+          || !/^[a-f0-9]{64}$/.test(p.stdin.sha256) || !Number.isSafeInteger(p.stdin.bytes) || p.stdin.bytes < 0)
         || p.reason !== op.action.reason || ![p.workspaceRevision, p.executableHash, p.environmentHash].every(v => typeof v === 'string' && /^[a-f0-9]{64}$/.test(v))
         || ![p.host, p.account].every(v => typeof v === 'string' && !!v && v.length <= 256)) return 'INVALID_HOST_APPROVAL';
       return null;
@@ -233,11 +261,11 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
       return null;
     case 'LOCAL_RESULT':
       if (!op || op.sessionId !== event.sessionId || !['claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) return 'LOCAL_SESSION_MISMATCH';
-      if (!event.result || typeof event.result.ok !== 'boolean' || typeof event.result.code !== 'string' || !event.result.data || JSON.stringify(event.result).length > 96_000) return 'INVALID_LOCAL_RESULT';
+      if (!event.result || typeof event.result.ok !== 'boolean' || typeof event.result.code !== 'string' || !event.result.data || JSON.stringify(event.result).length > 96_000 && !(event.result.ok && event.result.code === op.action.type && ['discoverHost', 'listSkills'].includes(op.action.type))) return 'INVALID_LOCAL_RESULT';
       return null;
     case 'LOCAL_RECONCILE':
       if (!op || op.status !== 'uncertain' || op.sessionId !== event.sessionId || !event.detail.trim()) return 'LOCAL_NOT_UNCERTAIN';
-      if (event.resolution === 'receipt' && (!event.result || typeof event.result.ok !== 'boolean' || JSON.stringify(event.result).length > 96_000)) return 'INVALID_LOCAL_RESULT';
+      if (event.resolution === 'receipt' && (!event.result || typeof event.result.ok !== 'boolean' || JSON.stringify(event.result).length > 96_000 && !(event.result.ok && event.result.code === op.action.type && ['discoverHost', 'listSkills'].includes(op.action.type)))) return 'INVALID_LOCAL_RESULT';
       return ['receipt', 'notStarted'].includes(event.resolution) ? null : 'INVALID_LOCAL_RESOLUTION';
   }
 }

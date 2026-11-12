@@ -56,7 +56,7 @@ const planFor = (work: Intent) => work.payload.verification as DeliveryVerificat
 function matchesCommand(action: LocalAction, plan: ValidationCommand): boolean {
   return action.type === 'runCli' && action.executable === plan.executable && action.execution === 'sandbox'
     && action.args.length === plan.args.length && action.args.every((arg, index) => arg === plan.args[index])
-    && action.cwd === undefined && action.timeoutMs === undefined && action.skillId === undefined && action.reason === undefined;
+    && action.cwd === undefined && action.timeoutMs === undefined && action.skillId === undefined && action.reason === undefined && action.stdin === undefined;
 }
 
 export function deliveryValidationOperation(work: Intent): LocalOperation | undefined {

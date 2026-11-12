@@ -3,6 +3,7 @@ import { Before, Given, When, Then } from '@cucumber/cucumber';
 import { persistTask, restoreTask } from '../../src/task.machine.js';
 import { resourceAcquisitionProblem, requiredResources, savedResourceAcquisitions, type HostAcquisition } from '../../src/resource-acquisition.js';
 import { sharedToolKnowledge } from '../../src/task/tool-knowledge.js';
+import { taskHumanGate } from '../../src/task/resilience.js';
 import { publicationIds } from '../../src/task/delivery.js';
 import { receiptModel, recordCliObservation, recordWebObservation, currentReceiptWork, submitReceiptCandidate,
   finishReceiptCheck, assertReceiptBlocked, documentFive, documentUrl, receiptSemantics } from '../execution-receipts-model-fixture.js';
@@ -58,6 +59,8 @@ function richReportPreparation(m: LocalModel) {
 function freeze(m: LocalModel) {
   m.at = m.c.resilience!.window.hardDeadline;
   assert(m.send({ type: 'SUPERVISE', trigger: 'timer' }).ok);
+  const gate = taskHumanGate(m.c); assert.equal(gate?.cause, 'windowExpired');
+  assert(m.send({ type: 'HUMAN_GATE_DECISION', gateId: gate!.id, decision: 'skip', text: '明确结束并保留已有成果与缺口' }).ok);
 }
 
 function prepare(id: string, labels: string[]): Run {

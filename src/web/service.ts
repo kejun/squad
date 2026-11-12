@@ -384,13 +384,16 @@ export class WebService {
       for (const gate of c.resilience?.gates ?? []) if (['open', 'skipped'].includes(gate.status) && (gate.scope === 'cleanup' || gate.epoch === c.epoch && gate.goalVersion === c.goalVersion)) {
         const actions: WebBlocker['actions'] = gate.scope === 'cleanup' || gate.status === 'skipped' ? [] : gate.approvalId
           ? [{ id: 'skip', label: '跳过此命令' }, { id: 'stop', label: '停止任务' }]
+          : gate.cause === 'windowExpired'
+            ? [{ id: 'newWindow', label: '授权新窗口', requiresText: true, allowsNewWindowMs: true },
+              { id: 'skip', label: '结束并保留成果' }, { id: 'stop', label: '停止任务' }]
           : [{ id: 'reply', label: '回复', requiresText: true }, { id: 'skip', label: '跳过' },
             { id: 'stop', label: '停止任务' }, { id: 'newWindow', label: '授权新窗口', requiresText: true, allowsNewWindowMs: true }];
         blockers.push({ id: gate.id, version: gate.createdAt, taskId, epoch: gate.epoch, goalVersion: gate.goalVersion,
-          scope: gate.scope, ...(gate.workId && gate.operationId ? { operation: { workId: gate.workId, operationId: gate.operationId,
+          scope: gate.scope, ...(gate.code ? { code: gate.code } : {}), ...(gate.workId && gate.operationId ? { operation: { workId: gate.workId, operationId: gate.operationId,
             ...(gate.approvalId ? { approvalId: gate.approvalId } : {}) } } : {}),
           title: gate.scope === 'cleanup' ? '执行效果等待核对' : gate.status === 'skipped' ? '内容已明确跳过'
-            : gate.cause === 'incompatibleExecution' ? '执行配置需要重新核对' : '需要你的回复', question: gate.question, requiredHuman: gate.required, status: gate.status === 'skipped' ? 'skipped' : 'open',
+            : gate.cause === 'windowExpired' ? '处理窗口已到期' : gate.cause === 'incompatibleExecution' ? '执行配置需要重新核对' : '需要你的回复', question: gate.question, requiredHuman: gate.required, status: gate.status === 'skipped' ? 'skipped' : 'open',
           actions: gate.decisions ? actions.filter(action => gate.decisions!.includes(action.id)) : actions });
       }
       const frozen = c.resilience?.frozen;
@@ -402,7 +405,8 @@ export class WebService {
           : c.outcome !== null ? 'settled' : resourceOnly ? 'waitingResources' : c.resilience?.window.repairUsed ? 'repairing' : 'running',
           reason: this.failedRooms.has(roomId) ? '执行服务发生错误，正在自动核查与恢复。'
             : resourceWaiting ? resourceOnly ? '命令正在等待其他执行释放资源。' : '部分命令正在等待执行资源，其他工作仍可推进。' : c.reason,
-          nextWakeAt: c.resilience?.nextSupervisionAt ?? null, hardDeadlineAt: processingWindow(c).hardDeadline },
+          nextWakeAt: c.resilience?.nextSupervisionAt ?? null, hardDeadlineAt: processingWindow(c).hardDeadline,
+          ...(c.resilience?.window.failure ? { failureCode: c.resilience.window.failure.code } : {}) },
         ...(frozen ? { delivery: { epoch: frozen.epoch, goalVersion: frozen.goalVersion, revision: frozen.id, status: frozen.verification,
           currentArtifactIds: [...frozen.artifactIds], reportArtifactId: frozen.reportArtifactId } } : {}),
         id: taskId,
@@ -464,8 +468,9 @@ export class WebService {
           for (const op of i.localOperations ?? []) {
             const a = op.approval;
             if (op.status !== 'awaitingApproval' || !a || a.status !== 'pending' || a.expiresAt <= Date.now()) continue;
-            const { executable, args, cwd, host, account, reason } = a.plan;
-            const visible = { taskId, workId: i.id, operationId: op.id, approvalId: a.id, expiresAt: a.expiresAt, executable, args, cwd, host, account, reason };
+            const { executable, args, cwd, host, account, reason, stdin } = a.plan;
+            const visible = { taskId, workId: i.id, operationId: op.id, approvalId: a.id, expiresAt: a.expiresAt, executable, args, cwd, host, account, reason,
+              ...(stdin ? { stdin: structuredClone(stdin) } : {}) };
             hostApprovals.push(this.localRuntime ? this.localRuntime.clean(visible) : visible);
           }
         works.push({
@@ -523,12 +528,15 @@ export class WebService {
     const stored = this.store.read(roomId), taskId = stored.activeTaskId ?? Object.keys(stored.tasks).at(-1);
     if (!taskId) return [];
     const c = this.engine.view(roomId, taskId)!.context;
+    const expiredWindowWaiting = c.resilience?.window.failure?.code === 'WINDOW_EXPIRED'
+      && c.resilience.gates.some(gate => gate.scope === 'task' && gate.status === 'open'
+        && gate.windowId === c.resilience!.window.id && gate.epoch === c.epoch && gate.goalVersion === c.goalVersion);
     const owners = new Set<string>();
     for (const work of c.intents) for (const op of work.localOperations ?? []) {
-      // Preserve the recovery route when the original bounded wait has ended.
+      // Cancelling the wait at expiry does not settle its conflicting lease owners.
       if (!op.workspaceWait || !op.workspaceId || !['queued', 'cancelled'].includes(op.status)) continue;
-      if (!c.stopped && c.outcome === null && (op.status !== 'queued' || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion
-        || !['pending', 'inflight'].includes(work.status))) continue;
+      if (!c.stopped && c.outcome === null && (work.epoch !== c.epoch || work.goalVersion !== c.goalVersion
+        || !expiredWindowWaiting && (op.status !== 'queued' || !['pending', 'inflight'].includes(work.status)))) continue;
       for (const owner of this.store.resourceBlockers(op.workspaceId, operationLeaseOwner(roomId, taskId, op.id),
         op.resourceLeases?.length ? heldLocalResourceLeases(op) : undefined)) owners.add(owner);
     }
@@ -757,6 +765,7 @@ export class WebService {
             get catalog() { return scope.localTools!.catalog; },
             get checkpoint() { return scope.localTools!.checkpoint; },
             get sharedToolKnowledge() { return scope.localTools!.sharedToolKnowledge; },
+            get toolExperiences() { return scope.localTools!.toolExperiences; },
             get toolInventory() { return scope.localTools!.toolInventory; },
             get toolGuidance() { return scope.localTools!.toolGuidance; },
             invoke: async (action, messages, toolSignal, requested) => {

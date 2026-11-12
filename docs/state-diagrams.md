@@ -6,7 +6,7 @@ BT_Y120 为协调者的全局只读执行投影：WebService 按持久状态读�
 
 BT_Y119 的归档删除反馈使用既有 `roomDeletionMachine` 的 preparing / waiting / paused / deleted 状态，不改变业务转移。界面确认提交后，HTTP 返回 WebRoom [尚未 deleted] / 保持确认弹窗并展示真实进度；返回 DeletedRoom [已持久确认] / 关闭弹窗并移除精确目标；主动关闭 [仍未完成] / 列表保留可重新打开的删除状态。刷新按持久状态恢复，切群不能使另一会话被目标响应覆盖。
 
-BT_Y118 组合验收八份登录资料、四成员读取失败后的四条 CLI 等待；只有实际正文回执可满足资料获取。所有成员都资源等待时，监督仍识别资源阻塞，UI 在当前会话显示原操作核对；原窗口有界且不能把后续 partial 当作已满足及时提示。
+BT_Y118 组合验收八份登录资料、四成员读取失败后的四条 CLI 等待；只有实际正文回执可满足资料获取。所有成员都资源等待时，监督仍识别资源阻塞，UI 在当前会话显示原操作核对；原窗口有界；窗口到期后等待明确续窗时，取消排队操作不会结算原冲突租约，当前会话仍保留实际旧操作核对入口，不能把等待续窗或后续 partial 当作已满足及时提示。
 
 BT_Y117 的释放还覆盖归档删除准备中的 `LOCAL_RECONCILE`；与人类确认、后台核对共用通知。跨会话投影只观察当前目标的实际等待依赖；旧依赖被目标修改取消后不继续弹到新目标，停止/到期的最近任务保留原未决效果核对入口。
 
@@ -22,10 +22,10 @@ stateDiagram-v2
     claimed --> awaitingApproval: LOCAL_APPROVAL_REQUIRED [host 且需明确批准] / 保存精确计划并释放准备锁
     awaitingApproval --> queued: LOCAL_APPROVAL_DECISION [精确批准] / 原流程重新领取
     resourceWaiting --> cancelled: STOP / 取消尚未启动操作，旧未知效果与其锁保留
-    resourceWaiting --> cancelled: SUPERVISE [原窗口耗尽] / 不完整交付，禁止偷偷续期
+    resourceWaiting --> cancelled: SUPERVISE [原窗口耗尽] / 保存WINDOW_EXPIRED并请求newWindow；保留真实旧效果核对入口
 ```
 
-`resourceWaiting` 为 queued 操作的持久等待事实，不是新 XState 节点。当前会话按真实冲突租约显示旧操作的来源会话/任务/工作/操作及核对入口；兼容读和无关资源不展示。界面只读租约，不能授权或解锁。原操作经精确摘要核对或可信后台回执结算后才释放其租约，并通知 workspace 及 typed resources 等待者。多个阻塞者须全部结算，新 host 命令随后提出自己的授权，批准前不启动。普通资源竞争只显示等待，不能伪造待核对事项；重启按持久操作及现存租约重建。
+`resourceWaiting` 为 queued 操作的持久等待事实，不是新 XState 节点。当前会话按真实冲突租约显示旧操作的来源会话/任务/工作/操作及核对入口；兼容读和无关资源不展示。界面只读租约，不能授权或解锁。等待续窗时，同一窗口与当前目标的已取消等待仍可解释实际冲突；明确续窗后不把旧取消项当成新的排队命令，目标变更也不能沿用旧等待。原操作经精确摘要核对或可信后台回执结算后才释放其租约，并通知 workspace 及 typed resources 等待者。多个阻塞者须全部结算，新 host 命令随后提出自己的授权，批准前不启动。普通资源竞争只显示等待，不能伪造待核对事项；重启按持久操作及现存租约重建。
 
 设计依据见 [XState 八条原则](xstate-design.md)，真实任务主阶段见 [README](../README.md#状态模型)。任务阶段与执行子 actor 的组合见[多 actor 设计](task-actors.md)，外部执行继续遵守持久意图、领取和启动许可边界。
 
@@ -1218,7 +1218,7 @@ stateDiagram-v2
     cancelling --> cancelled: LOCAL_RESULT [取消已确认] / 只结算旧操作
 ```
 
-执行器在领取后只做有界元数据检查：平台、技能目录完整性、沙箱状态，以及最多 20 个指定裸命令名在沙箱和宿主命令环境中的可执行文件存在性。它不执行版本命令，不扫描整个 PATH，不读 MCP 配置或密钥，不自动安装；未查询的命令不能判定不存在。相对/绝对路径和 shell 片段都不是发现参数。存在性只是当次观察，不能证明 CLI 可正常运行、已授权或已执行；实际 `runCli` 继续重新解析并遵循原沙箱/宿主审批、额度与工作区边界。MCP 明确为当前服务未接入，不能据此推断整台机器没有 MCP。
+执行器在领取后读取平台、技能目录完整性、沙箱状态和已发布的完整工具目录，并核对所有显式指定裸命令在各环境中的存在性，不再限制20个。服务启动与后台刷新会静态枚举有效 PATH 及本机用途资料；决策读取不会重新扫描或启动命令。它不执行版本命令，不读 MCP 配置或密钥，不自动安装；目录之外未查询的命令不能判定不存在。相对/绝对路径和 shell 片段都不是发现参数。存在性只是当次观察，不能证明 CLI 可正常运行、已授权或已执行；实际 `runCli` 继续重新解析并遵循原沙箱/宿主审批、额度与工作区边界。MCP 明确为当前服务未接入，不能据此推断整台机器没有 MCP。
 
 发现回执是资料，不改变调度权限。停止、过期、旧目标、禁用成员及恢复兼容性均由已有模型守卫处理；重启后无启动日志可按既有只读操作恢复规则重新领取。发现无需工作区租约，且与 listSkills 相同不消耗执行额度。模型层先以真实 taskMachine 的持久化往返验证以上边界，再接入文件系统和提示词。
 ## 并行分片生命周期
@@ -1829,9 +1829,9 @@ stateDiagram-v2
     succeeded --> queued: LOCAL_REQUEST [下一页游标与原查询和目录版本匹配] / 保存新查询意图
 ```
 
-CLI 目录按命令、用途、域名与要求进行多词检索；技能按名称、用途、来源及兼容要求检索，全部词均须命中。每页最多 20 条，游标绑定原归一化查询和目录版本，错误、伪造或跨版本游标明确拒绝，不静默返回空页。每页 CLI 目录最多核实 20 个命令，显式命令查询另按既有 20 个上限，重复命令合并探测。不执行 `--help`、安装或读取账号凭据；未登记命令仍可显式查询，未查询能力未知。目录所写执行环境是使用要求，存在性不能证明已授权、认证或可联网。
+CLI 目录按命令、用途、域名与要求进行多词检索；技能按名称、用途、来源及兼容要求检索，全部词均须命中。全部匹配元数据一次返回，不再固定20条分页；旧游标仍绑定原归一化查询和目录版本，错误、伪造或跨版本游标明确拒绝。目录与显式命令查询均取消数量上限，重复命令合并核对。不执行 `--help`、安装或读取账号凭据；未登记命令仍可显式查询，未查询能力未知。目录所写执行环境是使用要求，存在性不能证明已授权、认证或可联网。
 
-模型层门槛复验查询在真实 taskMachine 的持久化往返、免费领取、停止、旧目标、撤权和非法参数路径；目录过滤和分页属于无业务转移的有界读取，随后通过真实注册表、运行时和模型接线验收。恢复与迟到结果沿用现有本地操作规则；没有新外部效果需要另建恢复状态。
+模型层门槛复验查询在真实 taskMachine 的持久化往返、免费领取、停止、旧目标、撤权和非法参数路径；目录过滤和旧游标兼容属于无业务转移的元数据读取，随后通过真实注册表、运行时和模型接线验收。恢复与迟到结果沿用现有本地操作规则；没有新外部效果需要另建恢复状态。
 
 ### 显式服务生命周期（BT_K08、BT_K09）
 
@@ -1901,6 +1901,8 @@ stateDiagram-v2
 
 ### 独立分片队列（BT_Q27–BT_Q33）
 
+BT_Q32 保留单次分片期限早于任务总窗口的边界：到期队列取消且不再执行；任务总窗口到期另走 WINDOW_EXPIRED 人类续窗门，不把两种期限混为一谈。
+
 类型：taskMachine 同事务上下文生命周期，所有者 `src/task/map-queue.ts`。总分片上限仍为八且须预留全部首轮分片、归并和负责人额度；并发上限单独固定为启动时可用非负责人成员数。先持久化意图，再由原 runner 领取和取得执行许可。
 
 ```mermaid
@@ -1911,7 +1913,7 @@ stateDiagram-v2
     failed --> queued: 瞬时技术失败 [每片首次且共享重试和预留允许] / 新尝试
     running --> uncertain: 未知效果 / 保留占用与屏障
     uncertain --> running: 可信核对 [原执行器允许恢复] / 重新领取原工作
-    queued --> cancelled: 停止、目标变化、期限或额度耗尽 / 保存未执行原因
+    queued --> cancelled: 停止、目标变化、单次分片期限或额度耗尽 / 保存未执行原因
 ```
 
 成功、部分完成、失败、超时和取消分别保留。确定终止的失败立即标记本轮不完整，尚可技术重试的失败仅保留尝试记录；后续归并不得抹掉未完成标记。只对确定无未知效果的瞬时技术失败自动重试一次；语义失败和部分完成不自动重跑。旧尝试按工作 ID、attempt 和 fence 拒绝。归并等待全部分片结算，收到各分片及各尝试原始结果；一位成员执行多片时，证据必须用 partitionId 关联，不能再只用成员查找。目标变更、停止与不兼容恢复不得继续派发旧轮次；物理效果未核清仍保留占用。
@@ -2058,7 +2060,7 @@ BT_Q48 为同一恢复声明的模型协议边界：`answer` 等非 `deliver` �
 | taskMachine权限门context：宿主批准期限与固定任务窗口独立，沉默不代答 | [宿主授权门](implementation/host-approval-gates.md)，BT_Y102–Y106 |
 | 配置恢复门context：不兼容执行配置只接受可执行的跳过/停止，内容包与独立清理保留 | [配置恢复门](implementation/configuration-recovery-gate.md)，BT_Y108–Y110 |
 
-类型：任务拥有的上下文生命周期；所有者 `taskMachine` / `src/task/resilience.ts`。窗口由初次授权固定，普通恢复、重试、心跳不能续期。`SUPERVISE` 由可信宿主提交，模型不能自行生成授权。
+类型：任务拥有的上下文生命周期；所有者 `taskMachine` / `src/task/resilience.ts`。默认三小时窗口由初次授权固定，普通恢复、重试、心跳不能续期。`SUPERVISE` 由可信宿主提交，模型不能自行生成授权。到期码 `WINDOW_EXPIRED` 绑定原窗口，独立于网络 transient；任务沿用真实 `waitingHuman`。可信宿主即使在原必需门待答期间，也必须为尚未记录到期的窗口保留一次硬期限唤醒；到期保存后不再把旧硬期限或被冻结业务工作期限作为唤醒来源，只保留独立清理和技术补试所需监督。配置不兼容的宿主早返回路径同样记录首次到期，恢复不得重复唤醒。BT_Y154通过真实Engine/Memory/SQLite验证该接线，沿用现有XState SUPERVISE转移。到期时取消新增业务、保存取消意图和独立清理责任；旧必需门优先保留，明确答复后再请求续窗。仅明确 `newWindow` 更新期限，不能批准宿主命令或释放未知效果。活动任务的 `CONTINUE(newWindowMs)` 复用同一个人类门决定，保留 epoch 与原分片身份；原必需问题尚未答复时拒绝该通用续窗入口。原命令门的skip只省略该命令并转续窗待答；只有到期窗口门skip代表结束。未完成协助取消业务等待但保留问题和答复，已保存结果沿原HELP_RESULT唯一消费，不因续窗重放提供方。过期的安全输入解析回到待解析事实；分片保留成功与旧执行身份，未开工或未完成的安全分片标为 `timeout/WINDOW_EXPIRED`。讨论的已有材料转为 `ready`，续窗后通过原 `DISCUSSION_HANDOFF` 交给负责人，原 `partitionRecoveries` 加独立检查证明补齐；物理未决仍独立清理，不能重放。对应 [WIN-01–WIN-04](requirements/window-expiry.md)、BT_Y131–Y134。
 
 ```mermaid
 stateDiagram-v2
@@ -2068,10 +2070,12 @@ stateDiagram-v2
     automatic --> human: 阻塞事件 [必须直接回复] / 保存有版本人类门
     repairing --> human: 阻塞事件 [必须直接回复] / 保存有版本人类门
     human --> automatic: HUMAN_GATE_DECISION [当前门且reply或明确newWindow] / 记录回复及授权
-    human --> frozen: HUMAN_GATE_DECISION [明确skip或stop] / 记录缺失或停止
-    automatic --> frozen: SUPERVISE [原自动窗口耗尽且无必需任务门] / 无模型冻结partial或failed
-    repairing --> frozen: SUPERVISE [修复或原窗口耗尽且无必需任务门] / 冻结缺失清单
-    human --> human: SUPERVISE [必需任务门未回复] / 保留门与UI入口
+    human --> frozen: HUMAN_GATE_DECISION [到期窗口门明确skip或任务stop] / 记录缺失或停止
+    automatic --> human: SUPERVISE [原自动窗口耗尽且无必需任务门] / 保存WINDOW_EXPIRED及newWindow门
+    repairing --> human: SUPERVISE [原自动窗口耗尽且无必需任务门] / 保存WINDOW_EXPIRED及newWindow门
+    repairing --> frozen: SUPERVISE [仅修复耗尽且原自动窗口有效且无必需任务门] / 冻结缺失清单
+    human --> human: SUPERVISE [原门未回复且首次固定到期或清理到期] / 保存到期码且保留原门与UI入口
+    human --> human: 明确回复原问题 [原窗口已耗尽且非明确结束] / 保存答复并请求newWindow
     frozen --> frozen: 迟到结果 [原操作身份有效] / 只结算历史及cleanup
 ```
 
@@ -2117,3 +2121,108 @@ stateDiagram-v2
 需求核查、六工作类型/协议映射、细图和验证范围见[共享行为规范](implementation/shared-agent-behavior.md)。本入口不把提示词文本存在、脚本化模型选择或旧状态机通过扩大成真实模型服从率。
 
 BT_S13细化固定check的现有来源目录：候选及当前产物可见不等于它们的ID可用于source；未知引用仍由原守卫拒绝。没有可选支持来源时可省略source并保留unverified原因，直接内容判定不额外要求工具凭证；带requiredSourceIds的条件沿用原必需引用守卫。该补充来自真实回放的协议失败，不修改原实验结果，也不引入新状态或权限。
+
+## 自动 CLI 目录观察
+
+类型：静态元数据观察流程，源码所有者 ToolInventoryStore；验收 BT_Y135–BT_Y139。没有新增 XState 状态或外部执行调度；复用真实 taskMachine 的 LOCAL_REQUEST、LOCAL_CLAIM、LOCAL_RESULT、停止和授权守卫，先行复验 host-model-gate。
+
+```mermaid
+flowchart LR
+  A[启动或后台变化] --> B[读取有效 PATH 与本机静态说明]
+  B -->|扫描成功| C[原子发布完整目录快照]
+  B -->|读取失败| D[保留最后有效快照与诊断]
+  C --> E[模型读取已发布目录并选择工具]
+  E --> F[既有持久化操作意图]
+  F -->|宿主执行| G[具体调用批准]
+  G -->|明确批准且仍有效| H[既有执行器启动]
+  G -->|拒绝到期停止| I[既有失败与停止路径]
+```
+
+目录条目可见不等于已登录、可联网或已授权；说明未知保留未知。资料读取不调用 --help 或其他工具。已读取快照保持不可变，后续请求才看到新代；元数据变化不改变任务执行契约。完整结果不再按 20 条分页，兼容旧游标仍验证原查询与版本，普通命令输出限制继续有效。
+
+
+## 标准输入与精确审批
+
+类型：操作上下文与 I/O 流程；所有者：`taskMachine` 的现有本地操作生命周期，`LocalRuntime` 领取后准备输入，`runProcess` 消费原始字节。范围：Y145–Y148。输入不是独立 actor，不改变现有任务状态。
+
+```mermaid
+stateDiagram-v2
+    queued --> claimed: LOCAL_CLAIM [父工作/版本/权限/租约有效]
+    claimed --> awaitingApproval: LOCAL_APPROVAL_REQUIRED [宿主] / 保存命令与输入路径/大小/哈希
+    awaitingApproval --> queued: LOCAL_APPROVAL_DECISION [可信批准] / 保存精确批准
+    claimed --> running: LOCAL_STARTED [沙盒或精确批准匹配] / 执行已准备输入快照
+    running --> succeeded: LOCAL_RESULT [已收口且成功] / 保存回执
+    running --> failed: LOCAL_RESULT [已收口且失败] / 保存回执
+    running --> uncertain: LOCAL_RESULT [效果不明] / 保留核对责任
+    claimed --> failed: LOCAL_RESULT [路径越界或输入哈希改变] / 零次启动
+```
+
+真实文件读取、输入快照和进程调用都在持久化领取后执行；输入原始字节不进入模型上下文。停止、超时、旧目标、权限撤回和恢复沿用已有守卫；取消收口输入资源并终止进程，迟到回执不能重开工作。模型门槛先复验真实 `taskMachine` 的 stdin action、审批、停止及旧版本路径，再接入文件与进程 I/O。
+
+## 共享工具经验观察流
+
+类型：只读观察投影；所有者 `sharedToolExperiences`、`WorkRunner`。验收 BT_Y140–Y144，需求见[工具经验](requirements/tool-experience.md)。不新增 XState 状态或执行授权，复用真实 LOCAL_REQUEST → LOCAL_CLAIM → LOCAL_STARTED → LOCAL_RESULT 及失败、效果不明、停止和旧版本拒绝路径，先通过纯模型门槛再接入请求。
+
+```mermaid
+flowchart LR
+  recipes[有版本的已验证配方] --> projection[条件 + 行动 + 预期结果 + 证据级别]
+  current[同任务合法已结算回执] --> projection
+  history[同会话持久化历史能力回执] --> match{配置和当前能力仍匹配}
+  match -->|匹配| projection
+  match -->|变化或失败或未结算| omitted[不复用]
+  projection --> model[模型决策观察]
+  model --> intent[原持久化执行意图]
+  intent --> approval[原领取校验与宿主审批]
+  approval --> receipt[独立执行与本次验证]
+```
+
+历史能力不是历史正文；经验不能把一次成功、原资源验证、旧授权或模型自报变成当前资源已获取的证明。工作区配方不要求先失败再选择宿主；OCR 模板只有在所选工具明确支持 stdin 且工作区文件存在时适用。停止、权限关闭、迟到结果和重启恢复仍归原模型所有。删除会话删除持久历史来源，没有绕过删除语义的全局学习文件。
+
+观察合并不改变状态：全目录在当前 `tool_inventory` 出现一次，其余观察引用目录版本并明确是否匹配；相同历史快照合并且保留全部来源标识，不裁切不同事实。BT_L116 的旧固定共享容量由此替换，沿用并复验原成功、失败、停止及版本路径。
+
+历史观察从 `TeamEngine` 一次批量读取的同会话快照派生；快照解码与恢复仍归可信引擎所有，不在执行器复制私有存储协议。历史任务增长只增加单批恢复的任务数，不增加每次模型请求的整会话读取次数。此调整复用 EXP-03 / BT_Y142 的观察路径及原停止、权限和版本门槛，不增加任务状态或调度。
+
+### 窗口与标准输入的网页决定投影
+
+类型：UI 投影；所有者 `WebService.snapshot`、`HumanBlockers`、`HostApprovals`。BT_Y149–Y150；不新增真实 XState 状态，复用原 taskMachine 的 `waitingHuman` 与 `LOCAL_APPROVAL_REQUIRED` 生命周期。浏览器没有业务调度权。
+
+```mermaid
+stateDiagram-v2
+    [*] --> waitingWindow: 快照 [已保存WINDOW_EXPIRED门] / 自动显示续窗操作
+    waitingWindow --> waitingWindow: 关闭或重新载入 [未明确决定] / 保留原门及截止时间
+    waitingWindow --> observing: newWindow [当前门及明确正时长授权] / HTTP提交原门决定
+    [*] --> waitingHost: 快照 [awaitingApproval且计划含stdin] / 显示命令目录输入路径字节数及hash
+    waitingHost --> waitingHost: 关闭或等待 [尚未明确批准] / 不启动命令
+    waitingHost --> observing: 批准或拒绝 [当前精确计划身份] / HTTP提交原宿主批准决定
+```
+
+`observing` 只表示读取后续快照，不代表任务新业务状态。服务仍校验门版本、期限、预算、停止、目标与批准身份，文件输入变化仍由执行器拒绝过时计划；续窗不批准宿主命令。模型 gate 先验证上述真实路径后再接投影；浏览器验收覆盖真实 HTTP 和持久提交。
+
+自动 CLI 观察按 host/sandbox 有效 PATH 分别保存已发现路径和该路径的静态说明。模型 readiness 直接引用同代目录版本、观察时间和路径陈述安装存在性；同名不同二进制保持各自说明，认证及网络不由 PATH 存在性推断，宿主批准要求保持。
+
+自动目录的 man 说明只关联实际二进制所属安装位置（真实路径下的 share/man）或由包元数据证明同属一个包的资料。全局同名 man 不是任意 PATH wrapper 的能力证据；找不到所属说明时发布 unknown，同名的另一安装位置仍可独立使用自己的说明。
+
+
+### 标准输入证据的冻结与复核
+
+类型：现有交付与本地操作上下文生命周期；所有者：taskMachine (`task/evidence.ts`)，实际调用与输入测量由 LocalRuntime 执行；范围：Y151–Y153。无需新增顶层状态，先复验真实模型。
+
+```mermaid
+flowchart LR
+    claim[已保存并领取的runCli] --> measure[运行器准备实际argv与输入快照]
+    measure --> repeat{当前输入和环境与两次失败相同?}
+    repeat -->|是| reject[零次启动的重复失败回执]
+    repeat -->|否或未知| execute[原权限与审批守卫通过后执行]
+    execute --> receipt[LOCAL_RESULT / 保存已脱敏实际调用和输入指纹]
+    receipt --> candidate[DELIVER / 冻结内部调用身份与回执快照]
+    candidate --> check[固定检查只投影可信脱敏回执]
+    check --> verify{CHECK_RESULT / 调用身份及输出仍匹配?}
+    verify -->|否或身份丢失| changed[CHECK_EVIDENCE_CHANGED]
+    verify -->|是| existing[继续现有验收判断]
+```
+
+DELIVER 的正文可以描述执行结果，但不能成为输入指纹来源。旧执行回执没有调用字段时显示未知，不从 owner 文本或 raw action 补造实际路径、字节或哈希；旧冻结引用缺少调用身份时拒绝原检查，重新提交候选才建立新冻结边界。原始 action 只用于内部身份比较，不发送给检查模型；实际回执经运行器脱敏后才可投影。停止、旧目标、迟到结果与恢复沿用现有守卫。
+
+自动目录的安装存在性投影比较静态目录 observedAt 与已结算工具回执 finishedAt；采用较新的事实，同一时刻以实际执行回执为准。旧 NOT_FOUND 不覆盖后续安装扫描，较新的执行 NOT_FOUND 也不能被旧库存的 found 掩盖；认证和网络状态不从安装存在性推断。
+
+目录示例目前只声明 argv，没有声明 stdin。实际调用额外带 stdin 时，安装存在性仍可按实际执行回执观察，但其认证或拒绝结果不标记无 stdin 的目录示例；原始结果完整保留。只有完整匹配已登记输入的调用才能形成该示例的认证/拒绝投影。

@@ -83,6 +83,8 @@ export class LocalFixture {
         decision: { action: 'review', question: '验证', expected: '证据', reason: '直接邀请' } });
     }
     f.runtime = await LocalRuntime.create({ dataRoot: join(f.root, 'runtime'), skillRoots: [f.skills], workspaceRoot: f.source,
+      // Unrelated process fixtures intentionally hold catalog metadata outside their slice.
+      cliCatalog: [],
       commandEnv: localFixtureCommandEnv,
       backend: options.backend ?? f.backend, clock: () => f.h.now, redact: ['host-model-secret'], ...options.runtimeOptions });
     f.skillId = f.runtime.catalog().skills[0]!.skillId;

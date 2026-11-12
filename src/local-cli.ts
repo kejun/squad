@@ -14,6 +14,7 @@ import { publishObservation } from './measurement.js';
 
 export interface CliInvocation {
   executable: string; args: string[]; cwd: string; workspace: string; skillPath?: string; writeRoots?: string[];
+  stdinFd?: number;
   env: Record<string, string>; timeoutMs: number; sessionId: string; logPath: string; redact?: string[];
   observeProcess?: (phase: 'local.processStarted' | 'local.processFinished') => void;
 }
@@ -211,7 +212,7 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
   signal.addEventListener('abort', cancel, { once: true });
   try {
     signal.throwIfAborted(); beforeSpawn?.();
-    child = spawn(input.executable, input.args, { cwd: input.cwd, env: input.env, shell: false, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    child = spawn(input.executable, input.args, { cwd: input.cwd, env: input.env, shell: false, detached: true, stdio: [input.stdinFd ?? 'ignore', 'pipe', 'pipe'] });
     let spawned = false;
     child.once('spawn', () => {
       spawned = true;

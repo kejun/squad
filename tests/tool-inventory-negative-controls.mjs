@@ -1,4 +1,4 @@
-/** Two targeted source faults checked by unchanged public acceptance functions. */
+/** Targeted source faults checked by unchanged public acceptance functions. */
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -37,6 +37,30 @@ const controls = [
     mutate: text => replaceOnce(text,
       'return !!original && !!current && original.entryVersion !== current.cli.entries.find(entry => entry.command === executable)?.entryVersion;',
       'return false;') },
+  { id: 'restore-catalog-entry-cap', scenario: 'BT_Y137', file: 'src/cli-catalog.ts', acceptance: 'tests/automatic-cli-catalog-acceptance.ts',
+    entry: "await import('./tests/automatic-cli-catalog-acceptance.ts').then(m => m.unlimitedCatalogAcceptance());",
+    marker: 'Valid complete catalogs must accept more than 200 entries', oracle: 'unlimitedCatalogAcceptance',
+    mutate: text => replaceOnce(text, 'if (!Array.isArray(value)) throw new CliCatalogError',
+      'if (!Array.isArray(value) || value.length > 200) throw new CliCatalogError') },
+  { id: 'hide-automatic-static-documentation', scenario: 'BT_Y135', file: 'src/automatic-cli-catalog.ts', acceptance: 'tests/automatic-cli-catalog-acceptance.ts',
+    entry: "await import('./tests/automatic-cli-catalog-acceptance.ts').then(m => m.automaticCatalogAcceptance(true));",
+    marker: 'Installed static documentation must remain visible as documented usage', oracle: 'automaticCatalogAcceptance',
+    mutate: text => replaceOnce(text, 'return documentation ? { description: documentation.description,',
+      'return false ? { description: documentation.description,') },
+  { id: 'borrow-unrelated-same-name-manual', scenario: 'BT_Y136', file: 'src/automatic-cli-catalog.ts', acceptance: 'tests/automatic-cli-catalog-acceptance.ts',
+    entry: "await import('./tests/automatic-cli-catalog-acceptance.ts').then(m => m.automaticCatalogAcceptance(false, true));",
+    marker: 'A PATH wrapper must not borrow another installation’s same-name manual', oracle: 'automaticCatalogAcceptance',
+    mutate: text => replaceOnce(text, 'if (!await belongs(path)) continue;', 'if (false) continue;') },
+  { id: 'reuse-stale-installation-receipt', scenario: 'BT_Y139', file: 'src/cli-readiness.ts', acceptance: 'tests/automatic-cli-catalog-acceptance.ts',
+    entry: "await import('./tests/automatic-cli-catalog-acceptance.ts').then(m => m.automaticCatalogRefreshAcceptance());",
+    marker: 'A newer inventory observation must supersede a settled old NOT_FOUND receipt', oracle: 'automaticCatalogRefreshAcceptance',
+    mutate: text => replaceOnce(text, 'const installationCurrent = !state.inventoryObservation || operation.finishedAt !== undefined\n      && operation.finishedAt >= state.inventoryObservation.observedAt;',
+      'const installationCurrent = true;') },
+  { id: 'generalize-stdin-authentication-to-registered-argv', scenario: 'BT_Y126', file: 'src/cli-readiness.ts',
+    entry: "await import('./tests/unified-tool-context-acceptance.ts').then(m => m.sharedInventoryObservationAcceptance());",
+    marker: 'An invocation with extra stdin must not establish authentication for a no-stdin catalog example', oracle: 'registeredInputReadinessAcceptance',
+    mutate: text => replaceOnce(text, "const registered = work.id === target.id && (operation.action.cwd ?? '.') === '.' && operation.action.stdin === undefined",
+      "const registered = work.id === target.id && (operation.action.cwd ?? '.') === '.'") },
 ];
 const before = fingerprints(root);
 const scratch = mkdtempSync(join(tmpdir(), 'squad-tool-inventory-controls-'));
@@ -46,7 +70,7 @@ const env = { ...process.env, NODE_DISABLE_COLORS: '1' }; delete env.MODEL_API_K
 const report = { status: 'running', controls: [], source: before, sourceUnchanged: false, cleanup: false,
   sourceCommit: revision.status === 0 ? revision.stdout.trim() : null,
   workingTreeDirty: status.status === 0 ? status.stdout.length > 0 : null,
-  scope: 'Two targeted production faults; controlled model transport, no model-accuracy or exhaustive mutation claim' };
+  scope: 'Targeted production faults; controlled model transport, no model-accuracy or exhaustive mutation claim' };
 function run(folder, phase, entry) {
   const result = spawnSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', entry],
     { cwd: scratch, env, encoding: 'utf8', timeout: 30_000, maxBuffer: 8_000_000 });
@@ -64,7 +88,7 @@ try {
   for (const control of controls) {
     const folder = join(evidence, control.id); mkdirSync(folder);
     const path = join(scratch, control.file), original = readFileSync(path, 'utf8');
-    const acceptance = join(scratch, 'tests/unified-tool-context-acceptance.ts');
+    const acceptance = join(scratch, control.acceptance ?? 'tests/unified-tool-context-acceptance.ts');
     const oracleHash = sha(readFileSync(acceptance));
     const baseline = run(folder, 'baseline', control.entry);
     assert.equal(baseline.status, 0, `${control.id} baseline must pass: ${baseline.output}`);

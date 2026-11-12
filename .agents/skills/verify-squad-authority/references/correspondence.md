@@ -29,7 +29,7 @@ PR40 的 sourceArtifact 和 MapReduce 容量新增分支不改变上述许可事
 
 扩展 SessionScope 通过真实引擎准备、approveSession、领取、回执，再克隆已保存上下文做 256 输入组合×撤销位的纯函数对应。20 条生命周期实例使用真实引擎与双存储：明确撤销、恢复、目标变化、停止、新轮次，分别在 queued 和 claimed 点触发；检查新审批恢复、旧授权拒绝、迟到结果和租约释放。它们不是 SessionScope 全事务图回放。
 
-真实 LocalRuntime.execute 的 10 个输入/文件变体验证 commandDigest（plan/action/requestHash/workId/epoch/goalVersion）的绑定。回调在 spawn 之前主动中止正常对照，无 fixture 命令运行；变体必须在回调前被拒绝。覆盖 runtime 的校验接线，不证明 host OS 进程的外部效果。
+真实 LocalRuntime.execute 的 13 个输入/文件变体验证 commandDigest（plan/action/requestHash/workId/epoch/goalVersion）的绑定。其中三个 stdin 实例分别保持输入不变、改变同尺寸内容和选择同字节的另一路径；输入位于工作区清单不计入的 `.tmp`，使内容变化由输入摘要单独保护。回调在 spawn 之前主动中止两个不变对照，无 fixture 命令运行；改变后的调用必须在回调前被拒绝。覆盖 runtime 的校验接线，不证明 host OS 进程的外部效果。
 
 本轮限制：没有模拟两条真实 CLI 同时运行。MemoryStore/SQLite 对外部租约占用的相同结果仅证明此 Store 契约及接线，不证明 OS 文件锁或底层数据库抗断电实现。
 

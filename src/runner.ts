@@ -3,6 +3,8 @@ import { deliveryObservations, initialModelRequestId, publishObservation, type E
 import { readSavedArtifact, readSavedEvidence } from './evidence-reader.js';
 import { deliveryEvidence, evidenceIndex } from './task/evidence.js';
 import { sharedToolKnowledge } from './task/tool-knowledge.js';
+import { windowExpired } from './task/resilience.js';
+import { sharedToolExperiences, type ToolExperience } from './task/tool-experience.js';
 import { cliFailureGuidance, toolGuidanceAllowed } from './task/tool-guidance.js';
 import { withToolInventoryReadiness, type ToolInventoryView } from './cli-readiness.js';
 import { hostEvidenceReference, observeResourceAcquisition, resourceIdentity } from './resource-acquisition.js';
@@ -40,6 +42,7 @@ export interface LocalWorkTools {
   readonly catalog: SkillPage;
   readonly toolInventory?: ToolInventoryView | undefined;
   readonly sharedToolKnowledge?: ReturnType<typeof sharedToolKnowledge> | undefined;
+  readonly toolExperiences?: ToolExperience[] | undefined;
   readonly toolGuidance?: { failures: ReturnType<typeof cliFailureGuidance> } | undefined;
   readonly checkpoint: LocalCheckpoint | undefined;
   invoke(action: LocalAction, messages: LocalMessage[], signal: AbortSignal, requested?: (operationId: string) => void): Promise<LocalToolResult>;
@@ -65,7 +68,8 @@ export interface WorkScope {
 }
 
 export class WorkFailure extends Error {
-  constructor(message: string, readonly transient = false, readonly resultUncertain = false, readonly checkDiagnostic?: CheckDiagnostic) { super(message); }
+  constructor(message: string, readonly transient = false, readonly resultUncertain = false, readonly checkDiagnostic?: CheckDiagnostic,
+    readonly code?: string) { super(message); }
 }
 class ApprovalSuspended extends Error {}
 class ExecutionDetached extends Error {}
@@ -224,7 +228,7 @@ export class WorkRunner {
       const response = send(event);
       report({ phase: 'work.result', requestId: modelRequestId, eventId: event.id, eventType: event.type,
         accepted: response.ok && event.type !== 'WORK_FAILED' && event.type !== 'SETTLE',
-        code: response.ok && event.type === 'WORK_FAILED' ? 'WORKER_REJECTED_OUTPUT' : response.code });
+        code: response.ok && event.type === 'WORK_FAILED' ? event.code ?? 'WORKER_REJECTED_OUTPUT' : response.code });
       if (before && response.ok) {
         try {
           const after = this.engine.view(roomId, taskId)?.context;
@@ -333,7 +337,15 @@ export class WorkRunner {
     const toolKnowledge = () => {
       this.assertAttached();
       const current = this.engine.view(roomId, taskId)!.context;
-      return this.localRuntime!.clean(sharedToolKnowledge(current, currentWork()));
+      return this.localRuntime!.clean(sharedToolKnowledge(current, currentWork(), this.localRuntime!.toolInventory()));
+    };
+    const toolExperiences = () => {
+      this.assertAttached();
+      const tasks = this.engine.viewTasks(roomId).map(view => view.context);
+      const current = tasks.find(task => task.taskId === taskId)!;
+      const currentIntent = current.intents.find(intent => intent.id === work.id)!;
+      const history = tasks.filter(task => task.taskId !== taskId);
+      return this.localRuntime!.clean(sharedToolExperiences(current, currentIntent, history, this.localRuntime!.toolInventory()));
     };
     const retryBatch = this.engine.view(roomId, taskId)?.context.hostRetryBatch;
     const hostRetry = retryBatch?.workId === work.id;
@@ -517,6 +529,7 @@ export class WorkRunner {
         get catalog() { return runtime.catalog(); }, get checkpoint() { return currentWork().localCheckpoint; },
         get toolInventory() { return toolInventory(); },
         get sharedToolKnowledge() { return toolKnowledge(); },
+        get toolExperiences() { return toolExperiences(); },
         get toolGuidance() { return toolGuidance(); },
         invoke: async (action: LocalAction, messages: LocalMessage[], signal: AbortSignal, requested?: (operationId: string) => void) => {
           signal.throwIfAborted(); controller.signal.throwIfAborted();
@@ -595,8 +608,12 @@ export class WorkRunner {
       if (controller.signal.aborted && !this.engine.view(roomId, taskId)!.context.intents.some(i => i.id === work.id && localPhysicalPending(i))) {
         submitResult({ id: `${work.id}:cancelled:${work.attempt}`, at: this.clock(), type: 'SETTLE', intentId: work.id });
       } else {
-        submitResult({ id: `${work.id}:failed:${work.attempt}`, at: this.clock(), type: 'WORK_FAILED', intentId: work.id,
-          reason: String(error), transient: error instanceof WorkFailure && error.transient,
+        const failedAt = this.clock();
+        const current = this.engine.view(roomId, taskId)!.context;
+        const expired = !current.stopped && current.outcome === null && windowExpired(current, failedAt);
+        const code = expired ? 'WINDOW_EXPIRED' : error instanceof WorkFailure ? error.code : undefined;
+        submitResult({ id: `${work.id}:failed:${work.attempt}`, at: failedAt, type: 'WORK_FAILED', intentId: work.id,
+          reason: String(error), ...(code ? { code } : {}), transient: code !== 'WINDOW_EXPIRED' && error instanceof WorkFailure && error.transient,
           ...(error instanceof WorkFailure && error.checkDiagnostic ? { checkDiagnostic: error.checkDiagnostic } : {}),
           resultUncertain: work.replay === 'unsafe' || (error instanceof WorkFailure && error.resultUncertain), fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
       }

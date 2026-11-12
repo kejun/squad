@@ -55,6 +55,8 @@ function storeTask(tx: Transaction, snapshot: TaskSnapshot, activate = false) {
   else if (activate && !tx.room.activeTaskId) tx.room.activeTaskId = id;
 }
 
+const windowExpiryUnobserved = (c: TaskContext) => c.outcome === null && !processingWindow(c).failure;
+
 /** All public commands cross the same transaction seam; no effect is executed here. */
 export class TeamEngine {
   private storageFault = false;
@@ -436,6 +438,14 @@ export class TeamEngine {
     const snapshot = decode(room.tasks[id]);
     return structuredClone({ phase: taskPhase(snapshot), context: snapshot.context });
   }
+  /** One consistent room read; storage decoding and snapshot recovery stay inside the trusted engine. */
+  viewTasks(roomId: string): TaskView[] {
+    const room = this.store.read(roomId);
+    return structuredClone(Object.values(room.tasks).map(value => {
+      const snapshot = decode(value);
+      return { phase: taskPhase(snapshot), context: snapshot.context };
+    }));
+  }
   timeline(roomId: string) {
     return Object.values(this.store.read(roomId).tasks).flatMap(value => decode(value).context.messages).sort((a, b) => a.at - b.at);
   }
@@ -528,7 +538,9 @@ export class TeamEngine {
       && !view.context.intents.some(work => localPhysicalPending(work) || work.replay === 'unsafe' && ['inflight', 'uncertain'].includes(work.status))) return;
     if (taskProtocolChanged(view.context.config, this.config)) {
       if (!taskHumanGate(view.context)) this.send(roomId, view.context.taskId, { type: 'RECOVER', id: `incompatible:${this.instanceId}:${view.context.taskId}`, at: this.clock(), config: this.config });
-      if (view.context.resilience?.cleanup.some(item => item.state === 'pending' && item.nextCheckAt <= this.clock()))
+      const recovered = this.view(roomId, view.context.taskId)!.context;
+      if (windowExpiryUnobserved(recovered) && processingWindow(recovered).hardDeadline <= this.clock()
+        || recovered.resilience?.cleanup.some(item => item.state === 'pending' && item.nextCheckAt <= this.clock()))
         this.send(roomId, view.context.taskId, { type: 'SUPERVISE', id: `incompatible-cleanup:${view.context.taskId}:${this.clock()}`, at: this.clock(), trigger: 'recover' });
       return;
     }
@@ -556,7 +568,7 @@ export class TeamEngine {
       && latest.context.nextCheckAt <= at) this.send(roomId, c.taskId, { type: 'TICK', id: `progress:${c.taskId}:${latest.context.epoch}:${latest.context.nextCheckAt}`, at });
     const supervised = this.view(roomId, c.taskId)!.context;
     const due = supervised.resilience?.nextSupervisionAt;
-    if (due !== null && (due === undefined || due <= at) || supervised.outcome === null && !taskHumanGate(supervised) && processingWindow(supervised).hardDeadline <= at)
+    if (due !== null && (due === undefined || due <= at) || windowExpiryUnobserved(supervised) && processingWindow(supervised).hardDeadline <= at)
       this.send(roomId, c.taskId, { type: 'SUPERVISE', id: `supervise:${c.taskId}:${supervised.epoch}:${at}`, at, trigger: 'timer' });
   }
   nextWake(roomId: string): number | null {
@@ -572,7 +584,7 @@ export class TeamEngine {
     const r = view.context.resilience;
     const supervision = [taskHumanGate(view.context) && !r?.cleanup.some(item => item.state === 'pending') ? null : r?.nextSupervisionAt,
       ...(r?.cleanup.filter(item => item.state === 'pending').map(item => item.nextCheckAt) ?? []),
-      ...(view.context.outcome === null && !taskHumanGate(view.context) ? [processingWindow(view.context).hardDeadline] : [])]
+      ...(windowExpiryUnobserved(view.context) ? [processingWindow(view.context).hardDeadline] : [])]
       .filter((n): n is number => typeof n === 'number');
     const earliest = (values: number[]) => [...values, ...supervision].length ? Math.min(...values, ...supervision) : null;
     if (view.phase === 'ended') return earliest([]);

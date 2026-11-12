@@ -20,13 +20,21 @@ export function classifyCliFailure(operation: LocalOperation): CliFailureCategor
 
 /** Defaults are semantic protocol values; real filesystem aliases are not guessed here. */
 export function cliInvocationKey(action: CliAction): string {
-  return JSON.stringify([action.executable, action.args, action.cwd ?? '.', action.skillId ?? null, action.execution ?? 'sandbox']);
+  return JSON.stringify([action.executable, action.args, action.cwd ?? '.', action.skillId ?? null, action.execution ?? 'sandbox', action.stdin?.path ?? null]);
 }
 
-export function repeatedCliFailures(work: Intent, action: CliAction): number {
+export interface MeasuredCliInput { path: string; sha256: string; bytes: number; environmentHash: string }
+export function repeatedCliFailures(work: Intent, action: CliAction, input?: MeasuredCliInput): number {
+  // The same path can now contain repaired input. Pure request guards have not measured its bytes.
+  if (action.stdin && !input) return 0;
   const key = cliInvocationKey(action);
   return (work.localOperations ?? []).filter(operation => {
     if (operation.action.type !== 'runCli' || cliInvocationKey(operation.action) !== key) return false;
+    if (action.stdin) {
+      const invocation = operation.result?.data.invocation as { environmentHash?: unknown; stdin?: Partial<MeasuredCliInput> } | undefined;
+      if (!input || invocation?.environmentHash !== input.environmentHash || invocation.stdin?.path !== input.path
+        || invocation.stdin.sha256 !== input.sha256 || invocation.stdin.bytes !== input.bytes) return false;
+    }
     const category = classifyCliFailure(operation);
     return category !== undefined && category !== 'unknown';
   }).length;

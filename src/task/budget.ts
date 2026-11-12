@@ -29,7 +29,7 @@ export function requestBudgetProblem(c: TaskContext, work: Intent): string | nul
 }
 
 export function canRetryWork(c: TaskContext, e: TaskEvent): boolean {
-  if (e.type !== 'WORK_FAILED') return false;
+  if (e.type !== 'WORK_FAILED' || e.code === 'WINDOW_EXPIRED') return false;
   const work = c.intents.find(i => i.id === e.intentId);
   if (isBoundedCheck(work)) return e.transient && !e.resultUncertain && canRetryDeliveryCheck(c, work, e.at);
   return !!work && e.transient && !e.resultUncertain && work.replay !== 'unsafe' && !c.stopped

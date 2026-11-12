@@ -11,6 +11,7 @@ import { requestBudgetProblem } from './budget.js';
 import { artifactVerification, savedResourceAcquisitions } from '../resource-acquisition.js';
 import { unconfinedEffectsKey } from '../local-resource-policy.js';
 import { advanceMapQueue, skipCurrentPartition } from './map-queue.js';
+import { revokeHostSession } from '../host-session.js';
 
 export interface ResiliencePolicy {
   automaticTimeoutMs?: number;
@@ -26,6 +27,7 @@ export interface ProcessingWindow {
   repairUsed: number;
   repairLimit: number;
   repairDeadline?: number;
+  failure?: { code: 'WINDOW_EXPIRED'; at: number };
   /** The user command that explicitly authorized a replacement window. */
   authorizationId?: string;
 }
@@ -41,7 +43,8 @@ export interface HumanGate extends Fence {
   workId?: string;
   operationId?: string;
   approvalId?: string;
-  cause?: 'incompatibleExecution';
+  cause?: 'incompatibleExecution' | 'windowExpired';
+  code?: 'WINDOW_EXPIRED';
   decisions?: ('reply' | 'skip' | 'stop' | 'newWindow')[];
   resolvedAt?: number;
   responseId?: string;
@@ -100,7 +103,7 @@ export type ResilienceEvent =
   | { type: 'EXECUTION_NOT_STARTED'; intentId: string; reason: string }
   | { type: 'HUMAN_GATE_DECISION'; gateId: string; decision: 'reply' | 'skip' | 'stop' | 'newWindow'; text?: string; newWindowMs?: number };
 
-export const defaultResiliencePolicy = { automaticTimeoutMs: 15 * 60_000, repairTimeoutMs: 30_000,
+export const defaultResiliencePolicy = { automaticTimeoutMs: 3 * 60 * 60_000, repairTimeoutMs: 30_000,
   repairLimit: 2, cancelGraceMs: 5_000, allowMissingContent: true } as const;
 export const resiliencePolicy = (c: Pick<TaskContext, 'config'>) => ({ ...defaultResiliencePolicy, ...c.config.resilience });
 export function initialResilience(c: Pick<TaskContext, 'taskId' | 'config' | 'messages' | 'lastActivityAt'>): TaskResilience {
@@ -141,7 +144,7 @@ export function answerTaskGate(c: TaskContext, e: TaskEvent): HumanGate | undefi
 }
 
 export function openHumanGate(c: TaskContext, e: Pick<TaskEvent, 'id' | 'at'>, options: {
-  question: string; scope?: HumanGate['scope']; kind?: HumanGate['kind']; workId?: string; operationId?: string; approvalId?: string; cause?: HumanGate['cause']; decisions?: HumanGate['decisions'];
+  question: string; scope?: HumanGate['scope']; kind?: HumanGate['kind']; workId?: string; operationId?: string; approvalId?: string; cause?: HumanGate['cause']; code?: HumanGate['code']; decisions?: HumanGate['decisions'];
 }): HumanGate {
   const r = ensureResilience(c), scope = options.scope ?? 'task';
   const existing = r.gates.find(g => g.scope === scope && g.status === 'open' && g.epoch === c.epoch && g.goalVersion === c.goalVersion
@@ -156,8 +159,36 @@ export function openHumanGate(c: TaskContext, e: Pick<TaskEvent, 'id' | 'at'>, o
     epoch: c.epoch, goalVersion: c.goalVersion,
     ...(options.workId ? { workId: options.workId } : {}), ...(options.operationId ? { operationId: options.operationId } : {}),
     ...(options.approvalId ? { approvalId: options.approvalId } : {}),
-    ...(options.cause ? { cause: options.cause } : {}), ...(options.decisions ? { decisions: [...options.decisions] } : {}) };
+    ...(options.cause ? { cause: options.cause } : {}), ...(options.code ? { code: options.code } : {}), ...(options.decisions ? { decisions: [...options.decisions] } : {}) };
   r.gates.push(gate); if (scope === 'task') r.nextSupervisionAt = null; return gate;
+}
+/** Expiry records a budget failure, never consent or a network retry. Existing required questions retain their identity. */
+export function requestNewWindow(c: TaskContext, e: Pick<TaskEvent, 'id' | 'at'>): void {
+  if (c.stopped || c.outcome !== null || c.resilience?.frozen || !windowExpired(c, e.at)) return;
+  const r = ensureResilience(c);
+  if (!r.window.failure) {
+    r.window.failure = { code: 'WINDOW_EXPIRED', at: e.at };
+    c.trace.push({ event: 'WINDOW_EXPIRED', detail: r.window.id, at: e.at });
+  }
+  revokeHostSession(c, e.id); adoptCleanup(c, e.at);
+  if (taskHumanGate(c)) { r.nextSupervisionAt = r.cleanup.some(item => item.state === 'pending') ? e.at + resiliencePolicy(c).cancelGraceMs : null; return; }
+  const round = c.discussion;
+  const map = round?.mapReduce?.queue && round.epoch === c.epoch && round.goalVersion === c.goalVersion ? round : undefined;
+  if (map) for (const part of map.mapReduce!.queue!) if (['queued', 'running'].includes(part.status)) {
+    const work = c.intents.find(work => work.id === part.workId);
+    part.status = work && localPhysicalPending(work) ? 'uncertain' : 'timeout';
+    part.reason = 'WINDOW_EXPIRED';
+  }
+  cancelWork(c, { ...e, type: 'SUPERVISE' }, true);
+  for (const input of c.inputAnalyses ?? []) if (input.status === 'inflight') input.status = 'pending';
+  for (const help of c.assists) if (help.epoch === c.epoch && help.goalVersion === c.goalVersion
+    && ['pending', 'running'].includes(help.status)) help.status = 'cancelled';
+  if (map) { map.status = 'ready'; map.incomplete = 'WINDOW_EXPIRED：处理窗口到期，保留原分片结果与未完成缺口等待明确续窗。'; }
+  cancelHostRetries(c, 'WINDOW_EXPIRED');
+  c.reason = 'WINDOW_EXPIRED：自动处理窗口已到期。请明确授权新窗口，或结束并保留已有成果。';
+  openHumanGate(c, e, { kind: 'recovery', cause: 'windowExpired', code: 'WINDOW_EXPIRED',
+    decisions: ['newWindow', 'skip', 'stop'], question: c.reason });
+  if (r.cleanup.some(item => item.state === 'pending')) r.nextSupervisionAt = e.at + resiliencePolicy(c).cancelGraceMs;
 }
 export function workInCleanup(c: TaskContext, work: Intent): boolean {
   const pending = work.localOperations?.filter(op => ['claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? [];
@@ -224,7 +255,7 @@ export function syncLocalApprovalGate(c: TaskContext, e: TaskEvent): void {
     gate.status = 'answered'; gate.responseId = e.id; gate.response = e.decision; gate.resolvedAt = e.at;
   }
   if (taskHumanGate(c)) { ensureResilience(c).nextSupervisionAt = null; return; }
-  if (windowExpired(c, e.at)) freezeIncomplete(c, e, '人类已明确答复宿主授权，原自动处理窗口已耗尽');
+  if (windowExpired(c, e.at)) requestNewWindow(c, e);
   else ensureResilience(c).nextSupervisionAt = Math.min(processingWindow(c).hardDeadline, e.at + resiliencePolicy(c).repairTimeoutMs);
 }
 export function recordApprovalExplanation(c: TaskContext, e: TaskEvent): boolean {
@@ -308,6 +339,7 @@ export function executionNotStarted(c: TaskContext, e: Extract<TaskEvent, { type
   c.trace.push({ event: 'EXECUTION_NOT_STARTED_CONFIRMED', detail: `${work.id}:${work.attempt}:${e.reason}`, at: e.at });
   if (c.outcome !== null || c.resilience?.frozen) { release(c, work.id); return; }
   if (c.stopped) { release(c, work.id); freezeIncomplete(c, e, '已停止尝试经可信宿主确认从未启动', 'stopped'); return; }
+  if (windowExpired(c, e.at)) { release(c, work.id); requestNewWindow(c, e); return; }
   if (executionNotStartedEnds(c, e)) { work.status = 'done'; freezeIncomplete(c, e, `执行未启动：${e.reason}`); return; }
   requeueSafeWork(c, work, e.at);
 }
@@ -320,7 +352,7 @@ export function requiredHumanFailure(c: TaskContext, e: TaskEvent): boolean {
   return authorizationFailure(e.reason);
 }
 export function safeFailureRetry(c: TaskContext, e: TaskEvent): boolean {
-  if (e.type === 'WORK_FAILED' && authorizationFailure(e.reason)) return false;
+  if (e.type === 'WORK_FAILED' && (e.code === 'WINDOW_EXPIRED' || authorizationFailure(e.reason))) return false;
   if (e.type !== 'WORK_FAILED' || !/SKILL_SEARCH_HTTP_5|HTTP[_ ]50[234]|ECONNRESET|ETIMEDOUT|temporary|暂时|网络/.test(e.reason) || e.resultUncertain || c.stopped || c.outcome !== null) return false;
   const work = c.intents.find(w => w.id === e.intentId), window = processingWindow(c);
   return !!work && !work.discussionId && !['cancel', 'check'].includes(work.kind) && work.replay !== 'unsafe'
@@ -393,7 +425,11 @@ export function decideHumanGate(c: TaskContext, e: Extract<TaskEvent, { type: 'H
     c.trace.push({ event: 'HUMAN_CLARIFICATION_INPUT', at: e.at, detail: JSON.stringify({ gateId: gate.id, inputId: e.id, supersededHelpIds: superseded.map(h => h.id) }) });
   }
   if (taskHumanGate(c)) { r.nextSupervisionAt = null; return; }
-  if (windowExpired(c, e.at)) { freezeIncomplete(c, e, '人类已回复，原自动处理窗口已耗尽'); return; }
+  if (windowExpired(c, e.at)) {
+    if (e.decision === 'skip' && gate.cause === 'windowExpired') freezeIncomplete(c, e, '用户明确结束到期窗口并保留已有成果');
+    else requestNewWindow(c, e);
+    return;
+  }
   c.reason = ''; c.stopped = false; c.outcome = null;
   r.nextSupervisionAt = Math.min(r.window.hardDeadline, e.at + resiliencePolicy(c).repairTimeoutMs);
   if (gate.kind === 'clarification' && (e.decision !== 'skip' || activeHelp(c))) return;
@@ -407,14 +443,15 @@ export function effectiveWork(c: TaskContext, phase: Phase, at: number): Intent[
     && (w.status === 'inflight' && w.deadline !== null && at < w.deadline && !workInCleanup(c, w)
       || w.status === 'pending' && !permissionProblem(c, { type: 'CLAIM', id: 'supervisor-probe', at, intentId: w.id })));
 }
-export type SupervisionDecision = 'none' | 'human' | 'resources' | 'repair' | 'freeze' | 'stopped' | 'settled';
+export type SupervisionDecision = 'none' | 'human' | 'windowExpired' | 'resources' | 'repair' | 'freeze' | 'stopped' | 'settled';
 export function supervisionDecision(c: TaskContext, phase: Phase, at: number): SupervisionDecision {
   if (c.outcome !== null || c.resilience?.frozen) return phase === 'ended' ? 'none' : 'settled';
   if (c.stopped || phase === 'stopping') return 'stopped';
   if (taskHumanGate(c)) return 'human';
   if (phase === 'ended') return 'freeze';
   const window = processingWindow(c);
-  if (at >= window.hardDeadline || window.repairDeadline !== undefined && at >= window.repairDeadline) return 'freeze';
+  if (at >= window.hardDeadline) return 'windowExpired';
+  if (window.repairDeadline !== undefined && at >= window.repairDeadline) return 'freeze';
   if (phase === 'checking' && c.intents.some(w => w.kind === 'check' && ['pending', 'inflight'].includes(w.status)
     && w.epoch === c.epoch && w.goalVersion === c.goalVersion && w.deadline !== null && at >= w.deadline)) return 'freeze';
   if (effectiveWork(c, phase, at).length || c.results.some(result => !result.consumed)) return 'none';
@@ -433,6 +470,8 @@ export function applySupervision(c: TaskContext, e: TaskEvent, phase: Phase): vo
   settleCleanup(c, e.at);
   skipOptionalStalls(c, e);
   const decision = supervisionDecision(c, phase, e.at);
+  if (decision === 'windowExpired' || decision === 'human' && windowExpired(c, e.at)) requestNewWindow(c, e);
+  if (decision === 'windowExpired') return;
   if (decision === 'human') {
     for (const work of c.intents.filter(w => w.status === 'uncertain')) adoptCleanup(c, e.at, work.id);
     for (const item of r.cleanup.filter(i => i.state === 'pending')) item.nextCheckAt = e.at + resiliencePolicy(c).cancelGraceMs;

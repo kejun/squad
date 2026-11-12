@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -49,8 +50,8 @@ export function catalogInvalidConfigAcceptance(problem: string) {
     命令路径: [{ ...entry, command: '/bin/node' }],
     重复命令: [entry, entry],
     额外凭据字段: [{ ...entry, token: 'must-never-be-exposed' }],
-    超出目录上限: Array.from({ length: 201 }, (_, i) => ({ command: `cmd-${i}`, description: 'reader' })),
-    说明超出单条上限: [{ ...entry, helpArgs: ['x'.repeat(8192)] }],
+    目录格式错误: { entries: [entry] },
+    说明含空字符: [{ ...entry, description: 'read\0documents' }],
   };
   assert.throws(() => parseCliCatalog(values[problem]), /CLI_CATALOG_INVALID/);
 }
@@ -80,35 +81,37 @@ function cliPages() {
   return { entries, catalog: new CliCatalog(entries) };
 }
 export async function catalogPaginationAcceptance(kind: string) {
+  const legacyCursor = (version: string) => `${createHash('sha256').update(JSON.stringify([version, 'documents'])).digest('hex')}:20`;
   if (kind === '宿主命令目录') {
     const { catalog, entries } = cliPages();
-    const first = catalog.list({ query: 'documents' }); assert.equal(first.entries.length, 20); assert(first.nextCursor);
-    const second = catalog.list({ query: 'documents', cursor: first.nextCursor }); assert.equal(second.entries.length, 5); assert.equal(second.nextCursor, null);
-    assert.deepEqual([...first.entries, ...second.entries], entries);
-    assert.throws(() => catalog.list({ query: 'reader', cursor: first.nextCursor! }), /CLI_CATALOG_CURSOR_INVALID/);
+    const first = catalog.list({ query: 'documents' }); assert.deepEqual(first.entries, entries); assert.equal(first.nextCursor, null);
+    const cursor = legacyCursor(catalog.catalogVersion);
+    const second = catalog.list({ query: 'documents', cursor }); assert.equal(second.entries.length, 5); assert.equal(second.nextCursor, null);
+    assert.deepEqual(second.entries, entries.slice(20));
+    assert.throws(() => catalog.list({ query: 'reader', cursor }), /CLI_CATALOG_CURSOR_INVALID/);
     const updated = new CliCatalog([...entries, { command: 'reader-new', description: 'read documents' }]);
-    assert.throws(() => updated.list({ query: 'documents', cursor: first.nextCursor! }), /CLI_CATALOG_CURSOR_INVALID/);
+    assert.throws(() => updated.list({ query: 'documents', cursor }), /CLI_CATALOG_CURSOR_INVALID/);
     await withCatalog(async f => {
-      f.replies.push({ type: 'discoverHost', query: 'documents' }, { type: 'discoverHost', query: 'documents', cursor: first.nextCursor },
-        { type: 'answer', text: '已完整取得命令目录两页。' });
+      f.replies.push({ type: 'discoverHost', query: 'documents' }, { type: 'answer', text: '已一次完整取得命令目录。' });
       await f.runner().runOne(f.h.room, f.h.task);
       const operations = f.h.context().intents[0]!.localOperations!;
-      assert.equal(operations.length, 2); assert(operations.every(op => op.result?.ok && op.result.code === 'discoverHost'));
+      assert.equal(operations.length, 1); assert(operations.every(op => op.result?.ok && op.result.code === 'discoverHost'));
       const pages = operations.map(op => (op.result!.data as unknown as Report).cli.catalog!);
       assert.deepEqual(pages.flatMap(page => page.entries), entries);
-      assert.equal(pages[0]!.nextCursor, first.nextCursor); assert.equal(pages[1]!.nextCursor, null);
+      assert.equal(pages[0]!.nextCursor, null);
     }, entries);
     return;
   }
   await withSkills(async (registry, root) => {
-    const first = registry.list({ query: 'documents' }); assert.equal(first.skills.length, 20); assert(first.nextCursor);
-    const second = registry.list({ query: 'documents', cursor: first.nextCursor }); assert.equal(second.skills.length, 5); assert.equal(second.nextCursor, null);
-    const ids = [...first.skills, ...second.skills].map(skill => skill.skillId);
-    assert.equal(new Set(ids).size, 25); assert.deepEqual(ids, [...first.skills, ...second.skills].map(skill => registry.resolveId(skill.name)));
-    assert.throws(() => registry.list({ query: 'reader', cursor: first.nextCursor! }), /SKILL_CURSOR_INVALID/);
+    const first = registry.list({ query: 'documents' }); assert.equal(first.skills.length, 25); assert.equal(first.nextCursor, null);
+    const cursor = legacyCursor(registry.catalogVersion);
+    const second = registry.list({ query: 'documents', cursor }); assert.equal(second.skills.length, 5); assert.equal(second.nextCursor, null);
+    const ids = first.skills.map(skill => skill.skillId);
+    assert.equal(new Set(ids).size, 25); assert.deepEqual(ids, first.skills.map(skill => registry.resolveId(skill.name)));
+    assert.throws(() => registry.list({ query: 'reader', cursor }), /SKILL_CURSOR_INVALID/);
     await writeFile(join(root, 'source-bank', 'reader-00', 'references', 'guide.md'), 'Updated version');
     const updated = await SkillRegistry.discover({ roots: [join(root, 'source-bank')], snapshotRoot: join(root, 'snapshots') });
-    assert.throws(() => updated.list({ query: 'documents', cursor: first.nextCursor! }), /SKILL_CURSOR_INVALID/);
+    assert.throws(() => updated.list({ query: 'documents', cursor }), /SKILL_CURSOR_INVALID/);
   }, 25);
 }
 export async function catalogForgedCursorAcceptance(kind: string) {

@@ -49,10 +49,10 @@ Given('当前读取入口的已知状态为{string}', function (this: SpecWorld,
 When('成员请求带配置诊断的当前工作工具建议', async function (this: SpecWorld) { state(this).configured = await configurationDiagnosticAcceptance(state(this).configuration!); });
 Then('应明确返回{string}并保留已有的可行发现或替代入口', function (this: SpecWorld, diagnostic: string) {
   const result = state(this).configured!;
-  const actual: Record<string, string | number | undefined> = { 目录未配置: result.inventory.cli.configuration.state, 目录为空: result.inventory.cli.configuration.state,
+  const actual: Record<string, string | number | undefined> = { 自动目录为空: result.inventory.cli.configuration.state, 目录为空: result.inventory.cli.configuration.state,
     完整登记目录: result.inventory.cli.entries.length, 入口未安装: result.readiness?.installation,
     当前未获授权: result.readiness?.authorization, 需要认证: result.readiness?.authentication };
-  const expected: Record<string, string | number> = { 目录未配置: 'unconfigured', 目录为空: 'empty', 完整登记目录: 1,
+  const expected: Record<string, string | number> = { 自动目录为空: 'empty', 目录为空: 'empty', 完整登记目录: 1,
     入口未安装: 'not_found', 当前未获授权: 'denied', 需要认证: 'required' };
   assert.equal(actual[diagnostic], expected[diagnostic]);
 });

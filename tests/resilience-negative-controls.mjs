@@ -15,8 +15,10 @@ function replaceFunction(text, name, next, replacement) {
   assert(start >= 0 && end > start, 'Mutation function boundaries missing'); return text.slice(0, start) + replacement + '\n' + text.slice(end);
 }
 const controls = [
-  { id: 'deadline-without-freeze', file: 'src/task/resilience.ts', args: ['tests/task-resilience-model-fixture.ts'],
+  { id: 'deadline-without-freeze', file: 'src/task/resilience.ts', args: ['tests/window-expiry-model-fixture.ts'],
     mutate: text => replaceOnce(text, "if (decision === 'freeze' || decision === 'stopped')", "if (decision === 'stopped')") },
+  { id: 'window-expiry-without-human-gate', file: 'src/task/resilience.ts', args: ['tests/window-expiry-model-fixture.ts'],
+    mutate: text => replaceOnce(text, "if (at >= window.hardDeadline) return 'windowExpired';", "if (at >= window.hardDeadline) return 'freeze';") },
   { id: 'resource-fact-without-proof', file: 'src/resource-acquisition.ts', args: ['tests/execution-receipts-model-fixture.ts'],
     mutate: text => replaceFunction(text, 'missingResourceAcquisitions', 'resourceAcquisitionProblem', 'export function missingResourceAcquisitions(_c, _work) { return []; }') },
   { id: 'deleted-room-resurrection', file: 'src/store.ts',
@@ -62,6 +64,6 @@ try {
     results.push({ id: control.id, baseline: 'passed', detectedBy: 'behavioral assertion', mutantExit: mutant.status, restored: 'passed',
       file: control.file, originalSha256: sha(original), mutantLogSha256: sha(output) });
   }
-  writeFileSync(join(evidence, 'result.json'), JSON.stringify({ status: 'passed', controls: results, scope: 'Seven targeted source faults; no mutation score or exhaustive guarantee', scratchRemoved: true }, null, 2));
+  writeFileSync(join(evidence, 'result.json'), JSON.stringify({ status: 'passed', controls: results, scope: 'Eight targeted source faults; no mutation score or exhaustive guarantee', scratchRemoved: true }, null, 2));
   console.log(JSON.stringify({ status: 'passed', controls: results.length, evidence }));
 } finally { rmSync(scratch, { recursive: true, force: true }); assert(!existsSync(scratch)); }

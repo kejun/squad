@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { MemoryStore, SqliteStore, TeamEngine } from '../src/index.js';
 import { configuration, Harness } from './helpers.js';
+import { processingWindow, taskHumanGate } from '../src/task/resilience.js';
 import { crashEvidenceDirectory, crashWriterArguments, verifyAtomicityNegativeControl } from './sqlite-transaction-crash.js';
 
 const dirs: string[] = []; const stores: SqliteStore[] = [];
@@ -54,8 +55,11 @@ describe('durable transaction contracts', () => {
     expect(e.view(h.room)?.phase).toBe('waitingAssistance'); expect(e.timeline(h.room)).toHaveLength(2);
   });
   it('[BT_D08] restores deadlines and preserves human waits', () => {
-    const h = new Harness(); h.event({ type: 'WAIT_USER', question: 'choose' }); h.reopen();
-    expect(h.view().phase).toBe('waitingHuman'); expect(h.engine.nextWake(h.room)).toBeNull();
+    const h = new Harness(); h.event({ type: 'WAIT_USER', question: 'choose' });
+    const window = structuredClone(processingWindow(h.context())), gate = taskHumanGate(h.context())!.id; h.reopen();
+    expect(h.view().phase).toBe('waitingHuman'); expect(h.engine.nextWake(h.room)).toBe(window.hardDeadline);
+    expect(processingWindow(h.context())).toEqual(window); expect(taskHumanGate(h.context())?.id).toBe(gate);
+    expect(taskHumanGate(h.context())?.status).toBe('open'); expect(h.engine.pending(h.room, h.task)).toEqual([]);
     const g = new Harness(); const wake = g.engine.nextWake(g.room); g.reopen(); expect(g.engine.nextWake(g.room)).toBe(wake);
   });
   it('[BT_D09] uncertain external operations require reconciliation rather than replay', () => {

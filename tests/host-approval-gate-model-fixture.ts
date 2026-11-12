@@ -28,7 +28,7 @@ export function approvalGateDeadline(boundary: string) {
   }
   assert.equal(taskHumanGate(m.c)?.id, gate.id); assert.equal(taskHumanGate(m.c)?.status, 'open');
   assert.equal(taskPhase(m.snapshot), 'waitingHuman'); assert.equal(m.c.outcome, null);
-  assert.deepEqual(processingWindow(m.c), original); assert.equal(m.op!.startedAt, undefined);
+  assert.deepEqual(processingWindow(m.c), { ...original, ...(m.at >= original.hardDeadline ? { failure: { code: 'WINDOW_EXPIRED', at: m.at } } : {}) }); assert.equal(m.op!.startedAt, undefined);
   assert.notEqual(m.op!.approval!.status, 'approved');
   return { boundary, gateOpen: true, unstarted: true, outcome: m.c.outcome };
 }
@@ -102,12 +102,14 @@ export function approvalGateSkip(timing: string) {
     m.at = window.hardDeadline + 1; assert(m.send({ type: 'SUPERVISE', trigger: 'timer' }).ok);
   }
   assert(m.send({ type: 'HUMAN_GATE_DECISION', gateId: gate.id, decision: 'skip', text: '明确跳过此项需要宿主授权的内容' }).ok);
-  assert.equal(m.c.resilience!.gates.find(item => item.id === gate.id)!.status, 'skipped'); assert.equal(taskHumanGate(m.c), undefined);
+  assert.equal(m.c.resilience!.gates.find(item => item.id === gate.id)!.status, 'skipped');
+  if (timing === '自动窗口到期以后') assert.equal(taskHumanGate(m.c)?.cause, 'windowExpired');
+  else assert.equal(taskHumanGate(m.c), undefined);
   assert.equal(m.op!.status, 'cancelled'); assert.equal(m.op!.startedAt, undefined); assert.notEqual(m.op!.approval!.status, 'approved');
   assert(['done', 'cancelled'].includes(m.c.intents.find(work => work.id === m.work.id)!.status));
   assert(m.c.resilience!.skips.some(item => item.gateId === gate.id && item.authorization === 'human'));
-  assert.deepEqual(processingWindow(m.c), window); assert.notEqual(m.c.outcome, 'complete');
-  if (timing === '自动窗口到期以后') assert.equal(taskPhase(m.snapshot), 'ended');
+  assert.deepEqual(processingWindow(m.c), { ...window, ...(timing === '自动窗口到期以后' ? { failure: { code: 'WINDOW_EXPIRED', at: m.at } } : {}) }); assert.notEqual(m.c.outcome, 'complete');
+  if (timing === '自动窗口到期以后') { assert.equal(taskPhase(m.snapshot), 'waitingHuman'); assert.equal(m.c.outcome, null); }
   else assert(m.c.intents.some(work => work.id !== m.work.id && work.kind === 'owner' && work.status === 'pending'));
   return { timing, cancelled: true, unstarted: true, outcome: m.c.outcome };
 }

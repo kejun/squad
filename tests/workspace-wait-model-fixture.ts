@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import type { LocalOperation } from '../src/local-operation.js';
-import { effectiveWork, processingWindow, supervisionDecision } from '../src/task/resilience.js';
+import { effectiveWork, processingWindow, supervisionDecision, taskHumanGate } from '../src/task/resilience.js';
 import type { Intent } from '../src/types.js';
 import { ResilienceModel } from './task-resilience-model-fixture.js';
 
@@ -102,7 +102,12 @@ export function assertWorkspaceWaitBoundary(proof: WorkspaceWaitModel) {
     assert.equal(operation.status, 'cancelled');
     assert.equal(effectiveWork(model.c, model.phase, model.at).some(work => work.id === proof.work.id), false);
     if (boundary === '用户停止') assert.equal(model.c.outcome, 'stopped');
-    if (boundary === '自动窗口到期') assert.equal(model.c.outcome, 'failed');
+    if (boundary === '自动窗口到期') {
+      assert.equal(model.c.outcome, null); assert.equal(model.phase, 'waitingHuman');
+      assert.equal(taskHumanGate(model.c)?.cause, 'windowExpired');
+      assert.deepEqual(processingWindow(model.c).failure, { code: 'WINDOW_EXPIRED', at: proof.window.hardDeadline });
+      assert.equal(model.c.resilience!.frozen, undefined);
+    }
     if (boundary === '旧轮次领取') {
       assert.deepEqual(proof.invalidClaims, [
         { code: 'STALE_FENCE', createdWait: false },

@@ -117,8 +117,13 @@ Then('随后恢复有效配置应发布新目录并清除本次刷新失败状�
 });
 
 Given('多名成员需要连续判断工具且已保存部分工具的存在性观测', function (this: SpecWorld) { state(this).premise = 'shared'; });
+Given('目录示例没有声明标准输入而额外调用携带标准输入', function(this: SpecWorld) { assert.equal(state(this).premise, 'shared'); });
 When('成员在目录未变化时发起首次及后续模型请求', { timeout: 30_000 }, async function (this: SpecWorld) {
   assert.equal(state(this).premise, 'shared'); state(this).shared = await sharedInventoryObservationAcceptance();
+});
+Then('带标准输入的额外调用不得充当原目录示例的认证观测', function(this: SpecWorld) {
+  const proof = state(this).shared; assert(proof); assert.equal(proof.stdinAuthentication.withStdin, 'unknown');
+  assert.equal(proof.stdinAuthentication.withoutStdin, 'required');
 });
 Then('各请求应取得完整一致目录及带来源时间的已有观测', function (this: SpecWorld) {
   const proof = state(this).shared; assert(proof);
@@ -164,9 +169,9 @@ Given('工具目录来源处于{string}', function (this: SpecWorld, kind: strin
 When('成员读取统一工具上下文', { timeout: 30_000 }, async function (this: SpecWorld) {
   const kind = state(this).label; assert(kind); state(this).incomplete = await incompleteInventoryAcceptance(kind);
 });
-Then('系统应如实给出已接入内容与未配置不完整或未知的来源状态', function (this: SpecWorld) {
+Then('系统应如实给出已接入内容与自动发现显式配置不完整或未知的来源状态', function (this: SpecWorld) {
   const proof = state(this).incomplete; assert(proof);
-  assert.equal(proof.inventory.cli.configuration.state, proof.kind === 'CLI目录明确为空' ? 'empty' : 'unconfigured');
+  assert.equal(proof.inventory.cli.configuration.state, 'empty');
   if (proof.kind === '技能源扫描达到边界') assert.equal(proof.inventory.skills.complete, false);
 });
 Then('不得虚构目录外工具已安装已登录可联网或已获授权', function (this: SpecWorld) {

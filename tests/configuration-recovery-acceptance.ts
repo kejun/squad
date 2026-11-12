@@ -35,7 +35,7 @@ export function configurationEngineAcceptance(response?: string, materials = '�
         assert.equal(reply.ok, response !== '继续命令');
       } else assert.equal(send({ type: 'HUMAN_GATE_DECISION', gateId: gate.id, decision: response.includes('新窗口') ? 'newWindow' : 'reply', text: '继续', newWindowMs: 100 }).code, 'HUMAN_GATE_DECISION_NOT_ALLOWED');
       if (backend === 'sqlite') { store.close(); store = new SqliteStore(join(directory, 'state.sqlite')); engine = new TeamEngine(store, changed, () => at); }
-      const after = engine.view(room, task)!; assert.deepEqual(processingWindow(after.context), window);
+      const after = engine.view(room, task)!; assert.deepEqual(processingWindow(after.context), { ...window, ...(keepCleanup ? { failure: { code: 'WINDOW_EXPIRED', at: window.hardDeadline + 1 } } : {}) });
       if (!response && !keepCleanup) { assert.equal(after.phase, 'ended'); assert.equal(after.context.outcome, materials === '没有可用成果' ? 'failed' : 'partial'); }
       else { assert.equal(after.phase, 'waitingHuman'); assert.equal(taskHumanGate(after.context)?.id, gate.id); assert.equal(after.context.outcome, null); }
       return { backend, phase: after.phase, outcome: after.context.outcome, gate: taskHumanGate(after.context)?.id ?? null, cleanup: after.context.resilience!.cleanup.length };

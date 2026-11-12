@@ -12,7 +12,7 @@ export function catalogWindow<T>(entries: T[], catalogVersion: string, query: st
   const key = createHash('sha256').update(JSON.stringify([catalogVersion, query])).digest('hex');
   const offset = cursor === undefined ? 0 : Number(cursor.split(':')[1]);
   if (cursor !== undefined && (cursor !== `${key}:${offset}` || !Number.isSafeInteger(offset)
-    || offset <= 0 || offset % 20 !== 0 || offset >= entries.length)) throw invalidCursor();
-  const end = offset + 20;
-  return { entries: entries.slice(offset, end), nextCursor: end < entries.length ? `${key}:${end}` : null };
+    || offset <= 0 || offset >= entries.length)) throw invalidCursor();
+  // Old version-bound cursors remain readable, but complete metadata no longer has a page-size cap.
+  return { entries: entries.slice(offset), nextCursor: null };
 }

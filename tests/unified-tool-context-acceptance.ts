@@ -188,7 +188,27 @@ export async function inventoryRefreshFailureAcceptance(failure: string) {
   } finally { await fixture.close(); }
 }
 
+async function registeredInputReadinessAcceptance() {
+  const args = ['-e', 'console.error("authentication required");process.exit(1)'];
+  const fixture = await LocalFixture.create('方案师', true, false, { runtimeOptions: { cliCatalog: [{ command: 'node',
+    description: 'Read a registered authentication diagnostic', examples: [{ description: 'Authentication diagnostic without standard input', args }] }] } });
+  try {
+    fixture.replies.push({ type: 'runCli', executable: 'node', args, execution: 'sandbox', stdin: { path: 'source.txt' } },
+      { type: 'runCli', executable: 'node', args, execution: 'sandbox' }, { type: 'answer', text: '仅按实际调用范围保留认证观测。' });
+    await fixture.runner().runOne(fixture.h.room, fixture.h.task);
+    const withStdin = inventoryObservation(fixture.requests[1]!).cli.entries[0]!.variants.find(variant => variant.execution === 'sandbox')!.readiness;
+    const withoutStdin = inventoryObservation(fixture.requests[2]!).cli.entries[0]!.variants.find(variant => variant.execution === 'sandbox')!.readiness;
+    assert.equal(withStdin.authentication, 'unknown', 'An invocation with extra stdin must not establish authentication for a no-stdin catalog example');
+    assert.equal(withoutStdin.authentication, 'required', 'An exact no-stdin invocation must retain its own authentication observation');
+    assert.equal(withStdin.installation, 'found'); assert.equal(withoutStdin.installation, 'found');
+    assert.equal(withStdin.network, 'unknown'); assert.equal(withoutStdin.network, 'unknown');
+    assert.equal(fixture.backend.calls.length, 2);
+    return { withStdin: withStdin.authentication, withoutStdin: withoutStdin.authentication };
+  } finally { await fixture.close(); }
+}
+
 export async function sharedInventoryObservationAcceptance() {
+  const stdinAuthentication = await registeredInputReadinessAcceptance();
   const { fixture, catalogFile } = await fileInventoryFixture([{ ...hostReader, execution: 'sandbox' }]);
   try {
     const published = fixture.runtime.toolInventory();
@@ -216,7 +236,7 @@ export async function sharedInventoryObservationAcceptance() {
     assert.deepEqual(memberOperations.map(operation => operation.action.type), ['runCli']);
     assert.equal(fixture.backend.calls.length, 1);
     assert.equal(fixture.runtime.toolInventory().refresh.status, 'current');
-    return { views, memberViews, executions: fixture.backend.calls.length, discoveryOperations: 1, extraDiscoveryOperations: 0 };
+    return { views, memberViews, executions: fixture.backend.calls.length, discoveryOperations: 1, extraDiscoveryOperations: 0, stdinAuthentication };
   } finally { await fixture.close(); }
 }
 
@@ -293,6 +313,7 @@ export async function incompleteInventoryAcceptance(kind: string) {
     const { cliCatalog: _catalog, ...options } = fixture.runtime.options;
     if (kind === '技能源扫描达到边界') await writeSkill(fixture.skills, 'second-reader', '第二个读取工具');
     fixture.runtime = await LocalRuntime.create({ ...options, catalogRefreshIntervalMs: 0,
+      cliDiscovery: { paths: [join(fixture.root, 'empty-path')], manRoots: [], systemPackageRoot: join(fixture.root, 'no-packages') },
       ...(kind === 'CLI目录明确为空' ? { cliCatalog: [] } : {}),
       ...(kind === '技能源缺失' ? { skillRoots: [join(fixture.root, 'missing-skills')] } : {}),
       ...(kind === '技能源扫描达到边界' ? { registryLimits: { maxSkills: 1 } } : {}) });
@@ -301,14 +322,17 @@ export async function incompleteInventoryAcceptance(kind: string) {
       { type: 'answer', text: '显式核对同代公开目录，只报告已接入内容，不把未知状态当成能力。' });
     await fixture.runner().runOne(fixture.h.room, fixture.h.task);
     const inventory = inventoryObservation(fixture.requests[0]!);
-    assert.equal(inventory.cli.configuration.state, kind === 'CLI目录明确为空' ? 'empty' : 'unconfigured');
+    assert.equal(inventory.cli.configuration.state, 'empty');
+    assert.equal(inventory.cli.configuration.source, kind === 'CLI目录明确为空' ? 'configured' : 'automatic');
     assert.equal(inventory.cli.entries.length, 0); assert.equal(inventory.executionAuthority, false);
-    if (kind === 'CLI目录未配置' || kind === 'CLI目录明确为空') {
+    if (kind === 'CLI目录自动发现为空' || kind === 'CLI目录明确为空') {
       const counterpart = await LocalRuntime.create({ ...options, dataRoot: join(fixture.root, 'comparison-runtime'),
-        catalogRefreshIntervalMs: 0, ...(kind === 'CLI目录未配置' ? { cliCatalog: [] } : {}) });
+        catalogRefreshIntervalMs: 0, cliDiscovery: { paths: [join(fixture.root, 'empty-path')], manRoots: [], systemPackageRoot: join(fixture.root, 'no-packages') },
+        ...(kind === 'CLI目录自动发现为空' ? { cliCatalog: [] } : {}) });
       try {
         const alternate = counterpart.toolInventory();
-        assert.equal(alternate.cli.configuration.state, kind === 'CLI目录未配置' ? 'empty' : 'unconfigured');
+        assert.equal(alternate.cli.configuration.state, 'empty');
+        assert.equal(alternate.cli.configuration.source, kind === 'CLI目录自动发现为空' ? 'configured' : 'automatic');
         assert.deepEqual(alternate.cli.entries, inventory.cli.entries);
         assert.equal(alternate.cli.catalogVersion, inventory.cli.catalogVersion,
           'The existing entry-only catalog and cursor identity may remain equal for two empty entry sets');

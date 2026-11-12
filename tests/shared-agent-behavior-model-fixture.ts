@@ -136,7 +136,7 @@ function unknownEffectDoesNotBecomeAFailedAttempt() {
     action: { type: 'runCli', executable: 'another-tool', args: ['same-effect'] }, messages: [] });
   assert.equal(alternative.code, 'WORK_NOT_INFLIGHT');
   assert.deepEqual(currentWork(model, work).localOperations, [original]);
-  model.supervise(101);
+  model.endWindow(101);
   assert.equal(model.c.outcome, 'partial'); assert.equal(model.c.resilience!.cleanup[0]!.state, 'pending');
   assert.equal(currentWork(model, work).localOperations![0]!.status, 'uncertain');
   return { unknownStatus: original.status, noReplacementOperation: true, outcome: model.c.outcome, custody: 'pending' };

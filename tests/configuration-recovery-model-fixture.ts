@@ -34,7 +34,7 @@ export function configurationCleanupWakeGate(m = configurationRecoveryModel(true
   assert(m.supervise(101).ok); const first = m.c.resilience!.nextSupervisionAt!;
   assert.equal(taskHumanGate(m.c)?.id, gate.id); assert(m.c.resilience!.cleanup.some(item => item.state === 'pending'));
   assert(first > m.at); assert(m.supervise(first).ok); assert(m.c.resilience!.nextSupervisionAt! > first);
-  assert.deepEqual(processingWindow(m.c), before); assert.equal(m.phase, 'waitingHuman'); assert.equal(m.c.outcome, null); return m;
+  assert.deepEqual(processingWindow(m.c), { ...before, failure: { code: 'WINDOW_EXPIRED', at: 101 } }); assert.equal(m.phase, 'waitingHuman'); assert.equal(m.c.outcome, null); return m;
 }
 export function verifyConfigurationRecovery() {
   const responses = ['普通补充', '普通人类决定', '继续命令', '门的普通答复', '门的新窗口请求'].map(response => { const m = configurationResponseGate(response); return { response, phase: m.phase, decisions: taskHumanGate(m.c)!.decisions }; });

@@ -35,8 +35,8 @@ Then('应明确拒绝该配置而不执行任何命令', function (this: SpecWor
 Given('本地技能目录包含名称用途和兼容要求不同的技能', function (this: SpecWorld) { state(this); });
 When('成员用跨字段关键词检索本地技能', async function (this: SpecWorld) { await skillSearchAcceptance(); state(this).verified = true; });
 Then('应返回同时符合全部关键词的技能而不受词序限制', function (this: SpecWorld) { assert(state(this).verified); });
-Given('{string}的搜索结果超过一页', function (this: SpecWorld, kind: string) { state(this).kind = kind; });
-When('成员使用返回的游标读取后续结果', async function (this: SpecWorld) { await catalogPaginationAcceptance(state(this).kind!); state(this).verified = true; });
+Given('{string}的搜索结果超过原20条分页', function (this: SpecWorld, kind: string) { state(this).kind = kind; });
+When('成员一次读取完整匹配结果并核对旧游标', async function (this: SpecWorld) { await catalogPaginationAcceptance(state(this).kind!); state(this).verified = true; });
 Then('应无遗漏且无重复地读完匹配条目', function (this: SpecWorld) { assert(state(this).verified); });
 Then('修改查询或目录版本后不得复用旧游标', function (this: SpecWorld) { assert(state(this).verified); });
 Given('模型只知道需要读取文档而不知道宿主命令名', function (this: SpecWorld) { state(this); });
