@@ -1,3 +1,4 @@
+import { maximumCount } from '../budget-defaults.js';
 import { hostRetryReservation } from '../host-retry.js';
 import { type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { discussionActive, hasOrdinary } from './facts.js';
@@ -37,7 +38,7 @@ export function canRetryWork(c: TaskContext, e: TaskEvent): boolean {
 }
 
 export function canRetryDeliveryCheck(c: TaskContext, work: Intent, at: number): boolean {
-  return !!c.deliveryCycle && !c.deliveryCycle.retry && !c.stopped && work.requestCount > 0
+  return !!c.deliveryCycle && (!c.deliveryCycle.retry || c.config.limits.retries === maximumCount && c.deliveryCycle.retry.status === 'used') && !c.stopped && work.requestCount > 0
     && c.usage.retries < c.config.limits.retries && !deliveryCheckBudgetProblem(c, true)
     && (work.deadline === null || at < work.deadline);
 }

@@ -12,7 +12,7 @@ const state = (world: object) => { const value = cases.get(world); assert(value,
 Before({ tags: '@BT_Y131 or @BT_Y132 or @BT_Y133 or @BT_Y134' }, function ({ pickle }) {
   const id = pickle.tags.map(tag => tag.name.slice(1)).find(tag => /^BT_Y13[1-4]$/.test(tag)); assert(id); cases.set(this, { id });
 });
-Given('新任务没有显式配置处理窗口时长', function () {
+Given('旧配置未指定窗口且沿用三小时兼容策略', function () {
   const c = state(this); assert.equal(c.id, 'BT_Y131'); c.model = new ResilienceModel(input => { delete input.config.resilience; }); assert.equal(c.model.c.config.resilience, undefined);
 });
 When('任务建立并经历恢复', function () { state(this).model = defaultWindowModel(state(this).model!); });

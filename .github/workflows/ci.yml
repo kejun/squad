@@ -11,6 +11,11 @@ on:
         required: false
         type: string
         default: ''
+      bdd_tags:
+        description: 'Cucumber tags for affected backend contracts; empty skips targeted BDD'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -21,8 +26,8 @@ concurrency:
 
 jobs:
   targeted-vitest:
-    name: Targeted Vitest verification
-    if: github.event_name == 'workflow_dispatch' && inputs.vitest_files != ''
+    name: Targeted verification
+    if: github.event_name == 'workflow_dispatch' && (inputs.vitest_files != '' || inputs.bdd_tags != '')
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -40,6 +45,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
       - name: Run only the requested Vitest files
+        if: inputs.vitest_files != ''
         env:
           VITEST_FILES: ${{ inputs.vitest_files }}
         run: |
@@ -60,18 +66,30 @@ jobs:
           done
           mkdir -p test-results
           node node_modules/vitest/vitest.mjs run "${test_files[@]}" --maxWorkers=1 --reporter=default --reporter=json --outputFile=test-results/vitest-targeted.json
+      - name: Run only the requested backend Gherkin contracts
+        if: inputs.bdd_tags != ''
+        env:
+          BDD_TAGS: ${{ inputs.bdd_tags }}
+          TSX_TSCONFIG_PATH: tests/bdd/tsconfig.json
+        run: |
+          set -euo pipefail
+          mkdir -p test-results
+          node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js features --import 'tests/bdd/*.ts' --tags "$BDD_TAGS" --format progress --format json:test-results/cucumber-targeted.json
+          node --input-type=module -e 'import fs from "node:fs"; import assert from "node:assert/strict"; const cases=JSON.parse(fs.readFileSync("test-results/cucumber-targeted.json","utf8")).flatMap(feature=>feature.elements).filter(item=>item.type==="scenario"); assert(cases.length>0,"Targeted Gherkin must execute a nonempty scope");'
       - name: Retain targeted Vitest report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: targeted-vitest-${{ github.sha }}
-          path: test-results/vitest-targeted.json
+          path: |
+            test-results/vitest-targeted.json
+            test-results/cucumber-targeted.json
           if-no-files-found: warn
           retention-days: 14
 
   verify:
     name: Complete verification
-    if: github.event_name != 'workflow_dispatch' || inputs.vitest_files == ''
+    if: github.event_name != 'workflow_dispatch' || (inputs.vitest_files == '' && inputs.bdd_tags == '')
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
@@ -133,7 +151,7 @@ jobs:
 
   browser-controls:
     name: Browser fault detection
-    if: github.event_name != 'workflow_dispatch' || inputs.vitest_files == ''
+    if: github.event_name != 'workflow_dispatch' || (inputs.vitest_files == '' && inputs.bdd_tags == '')
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -207,7 +225,7 @@ jobs:
 
   formal:
     name: Formal verification
-    if: github.event_name != 'workflow_dispatch' || inputs.vitest_files == ''
+    if: github.event_name != 'workflow_dispatch' || (inputs.vitest_files == '' && inputs.bdd_tags == '')
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -256,7 +274,7 @@ jobs:
 
   formal-composition:
     name: Formal composition (${{ matrix.slice }})
-    if: github.event_name != 'workflow_dispatch' || inputs.vitest_files == ''
+    if: github.event_name != 'workflow_dispatch' || (inputs.vitest_files == '' && inputs.bdd_tags == '')
     runs-on: ubuntu-22.04
     timeout-minutes: 25
     strategy:

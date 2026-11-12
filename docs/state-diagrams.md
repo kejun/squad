@@ -2226,3 +2226,23 @@ DELIVER 的正文可以描述执行结果，但不能成为输入指纹来源。
 自动目录的安装存在性投影比较静态目录 observedAt 与已结算工具回执 finishedAt；采用较新的事实，同一时刻以实际执行回执为准。旧 NOT_FOUND 不覆盖后续安装扫描，较新的执行 NOT_FOUND 也不能被旧库存的 found 掩盖；认证和网络状态不从安装存在性推断。
 
 目录示例目前只声明 argv，没有声明 stdin。实际调用额外带 stdin 时，安装存在性仍可按实际执行回执观察，但其认证或拒绝结果不标记无 stdin 的目录示例；原始结果完整保留。只有完整匹配已登记输入的调用才能形成该示例的认证/拒绝投影。
+
+### 最大预算与共享元数据（MAX-01–05）
+
+类型：配置和模型输入投影流程；所有者`model-env.ts`、`model-inventory-format.ts`、`model-adapter.ts`。复用真实taskMachine的CLAIM → CONSUME → 结果/WORK_FAILED路径，状态、授权和结算守卫不变；高额度不授予宿主权限。
+
+```mermaid
+flowchart LR
+  Config[环境配置与最大默认预算] --> Claim[原领取与消费守卫]
+  Claim --> Snapshot[完整工具快照]
+  Snapshot --> Shared[共享重复用途与观测 全部条目保留]
+  Shared --> Provider[提供方真实tokenizer与输出上限]
+  Provider -->|成功| Result[原结果校验与提交]
+  Provider -->|上下文溢出| Failed[MODEL_CONTEXT_LIMIT 非网络重试]
+```
+
+停止、过期、旧版本及迟到结果继续由原状态机拒绝。显式固定来源/检查内容不得删减；环境生成配置不再按字节估计token，手工既有配置保留原可选保守预检。Y155–159的实际适配器与真实模型门槛承接本轮边界。
+
+MAX-06的最大命令时限先经真实模型的LOCAL_REQUEST/LOCAL_CLAIM/LOCAL_STARTED/STOP路径核对；纯动作校验通过后才修改实际执行器默认时限，原审批守卫不变。
+
+MAX-07复用真实checking → revising → checking及技术retry领取路径。新最大配额创建最大revision预算，已保存cycle不回填；仅该最大配额允许多次技术重试，各次仍须原领取/消费和固定证据，网络失败无权越过停止或未知效果。Y161先验四次修订、三次重试的持久化轨迹。

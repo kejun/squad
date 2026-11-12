@@ -83,7 +83,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       adoptLegacyTerminalConfig(c, e.currentConfig);
       retainLegacyPublication(c, e.at);
       applyHostRetry(c, e);
-      if (!c.deliveryCycle && c.outcome === null) c.deliveryCycle = newDeliveryCycle();
+      if (!c.deliveryCycle && c.outcome === null) c.deliveryCycle = newDeliveryCycle(c.config);
       break;
     case 'HOST_RETRY_EXPIRE': expireHostRetry(c, e.at); break;
     case 'HOST_RETRY_RECONCILE': break; // The automatic batch transition reads the saved work and operation states.
@@ -133,7 +133,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const saved = savedHelpResult(c, h.id);
       if (saved) {
         c.stopped = false; c.outcome = null; c.reason = ''; archiveFrozen(c);
-        c.deliveryCycle = newDeliveryCycle();
+        c.deliveryCycle = newDeliveryCycle(c.config);
         acceptHelpResult(c, { ...e, ...saved, type: 'HELP_RESULT' }); break;
       }
       if (c.stopped || c.outcome !== null) c.epoch++;
@@ -342,7 +342,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (e.extraOrdinary) c.config.limits.ordinary += e.extraOrdinary;
       retainLegacyPublication(c, e.at);
       c.epoch++; c.stopped = false; c.outcome = null; c.reason = '';
-      c.deliveryCycle = newDeliveryCycle();
+      c.deliveryCycle = newDeliveryCycle(c.config);
       for (const input of c.inputAnalyses ?? []) if (input.source === 'model' && input.goalVersion === c.goalVersion
         && ['failed', 'clarification', 'cancelled'].includes(input.status) && input.error !== 'SUPERSEDED_INPUT') {
         input.epoch = c.epoch; input.status = 'pending'; delete input.workId; delete input.error;

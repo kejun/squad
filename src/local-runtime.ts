@@ -1,3 +1,4 @@
+import { maximumTimeoutMs } from './budget-defaults.js';
 import { prepareCliStdin, type PreparedCliStdin } from './local-stdin.js';
 import { repeatedCliFailures } from './cli-failure.js';
 import { discoverHostCapabilities } from './host-capabilities.js';
@@ -364,8 +365,8 @@ export class LocalRuntime {
         if (op.approval.digest !== commandDigest) throw new LocalToolError('HOST_APPROVAL_STALE');
       }
       const deadline = Math.min(work.deadline ?? Infinity, op.deadline ?? Infinity);
-      const remaining = deadline === Infinity ? 120_000 : deadline - (this.options.clock ?? Date.now)();
-      const timeoutMs = Math.min(action.timeoutMs ?? this.options.commandTimeoutMs ?? 120_000, Math.max(1, remaining));
+      const remaining = deadline === Infinity ? maximumTimeoutMs : deadline - (this.options.clock ?? Date.now)();
+      const timeoutMs = Math.min(action.timeoutMs ?? this.options.commandTimeoutMs ?? maximumTimeoutMs, Math.max(1, remaining));
       if (work.kind === 'check') for (const dir of validationOutputs) await mkdir(join(workspace.path, dir), { recursive: true });
       const baseline = new Map((await workspaceManifest(workspace.path)).map(file => [file.path, file.hash]));
       const markStarted = () => {
