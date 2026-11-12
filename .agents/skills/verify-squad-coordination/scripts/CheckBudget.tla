@@ -48,7 +48,7 @@ TypeOK == /\ stage \in {0,1,4,5} /\ requests \in 0..5 /\ currentRequests \in 0..
           /\ retry \in 0..2 /\ recoveries \in 0..2 /\ checks \in 0..5 /\ retries \in 0..4
           /\ protocolErrors \in 0..2 /\ completed \in BOOLEAN /\ gapsDeclared \in BOOLEAN
 CheckAccounting == checks = requests /\ requests = currentRequests
-BoundedChecks == requests <= 5
+BoundedChecks == requests <= 5 /\ ~(requests = 5 /\ retry = 1)
 RetryAccounting == retries <= requests /\ (retry = 0 <=> retries = 0)
 ProtocolRetryOnce == protocolErrors = 2 => stage = 4
 DeclaredDelivery == completed => stage = 4

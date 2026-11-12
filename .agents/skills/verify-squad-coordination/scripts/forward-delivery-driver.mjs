@@ -24,6 +24,11 @@ export async function createForwardDeliveryDriver(root, _variant, backend, direc
     const work = s.claim(child);
     assert(s.send({ type: 'DISCUSSION_RESULT', ...identity(work), discussionId: round,
       status: index === 0 ? 'success' : 'failed', text: index === 0 ? '甲正文' : '失败诊断不作为交付正文' }).ok);
+    if (index === 1) {
+      const persisted = s.store.read(s.room).tasks[s.task].snapshot.context.discussion.results.find(result => result.target === work.target);
+      assert(persisted?.status === 'failed' && persisted.answer === '' && persisted.artifactIds.length === 0 && persisted.reason,
+        'FailedOutputEmpty: committed child payload must be empty at the actual persistence boundary');
+    }
   }
   const summary = s.claim(s.find('discussionSummary'));
   assert(s.send({ type: 'DISCUSSION_RESULT', ...identity(summary), discussionId: round, status: 'partial', text: '乙资料暂缺' }).ok);

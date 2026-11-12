@@ -204,7 +204,7 @@ function properties(s) {
     assert(s.retries <= 1, 'RetryBound: automatic retry limit exceeded');
   } else if (model === 'CheckBudget') {
     assert.equal(s.checks, s.requests, 'CheckAccounting: cycle requests and persistent charges diverge');
-    assert(s.requests <= 5, 'BoundedChecks: configured check request budget exceeded');
+    assert(s.requests <= 5 && !(s.requests === 5 && s.retry === 1), 'BoundedChecks: exhausted configured budget cannot authorize another request or reserve an unfunded retry');
     assert(s.retries <= s.requests && (s.retry === 0) === (s.retries === 0), 'RetryAccounting: retry reservation is charged once');
     assert(s.protocolErrors < 2 || s.stage === 4, 'ProtocolRetryOnce: repeated invalid protocol must terminate');
     assert(!s.completed || s.stage === 4, 'DeclaredDelivery: valid final judgment must finish the delivery');
