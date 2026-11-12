@@ -1,5 +1,5 @@
 {
-  "syncCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+  "syncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
   "bounds": {
     "Budget": "one current ordinary owner intent, 2 user epochs, ordinary limits 3 then 5, automatic retry limit 1, one safe inflight recovery; request/claim count bounded by total paid budget 5",
     "Shards": "one round with exactly 2 shards, 3 result outcomes per shard, one reducer, stop or one goal change, one reopen including active safe inflight recovery; no recovery of cancelled inflight or second round",
@@ -642,11 +642,15 @@
   "forwardDeliveryReview": {
     "productCommit": "8085c81e46ab0285540d6a896180585e408358ca",
     "review": "docs/implementation/forward-delivery-formal-review.json",
-    "status": "candidate",
-    "syncAdvanced": false,
+    "status": "verified",
+    "syncAdvanced": true,
     "removedRetiredModules": [
       "src/source-claims.ts",
       "src/task/map-recovery.ts"
-    ]
+    ],
+    "previousSyncCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
+    "verifiedAtCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+    "results": "docs/implementation/forward-delivery-formal-results.json",
+    "producerReexecutedForMetadataAdvance": false
   }
 }

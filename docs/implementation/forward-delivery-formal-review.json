@@ -1,6 +1,6 @@
 {
   "userRequest": "按新流程检查并更新形式化验证",
-  "status": "candidate-reviewed-not-yet-verified",
+  "status": "updated",
   "fromCommit": "d157faeb875ce582e043d3c1784f8485ed53d976",
   "productCommit": "8085c81e46ab0285540d6a896180585e408358ca",
   "readCommits": [
@@ -330,10 +330,23 @@
     "property": "DirectRepairRevision",
     "counterexample": "Cycle2 downstream replacement saved as independent revision1; route through existing DELIVER immutable save path."
   },
-  "syncAdvance": false,
+  "syncAdvance": {
+    "toCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+    "allNineVerified": true,
+    "independentReadbacks": true,
+    "sevenPreservedProducerCommit": "278622352722a9f1c33674a71ce4d1c1b5b5baa8",
+    "rawProofIdentitiesPreserved": true,
+    "producerReexecutedForMetadataAdvance": false,
+    "results": "docs/implementation/forward-delivery-formal-results.json"
+  },
   "limits": [
     "Finite models plus one representative concrete prefix per edge, not TypeScript equivalence proof",
     "Latest verdict historical snapshots are bounded input probes",
     "No force-archive-deletion or provider semantic guarantee"
+  ],
+  "verificationCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+  "verificationHarnessRefinements": [
+    "Budget exhaustion also forbids reserving an unfunded retry; negative must fail named BoundedChecks instead of generic conformance",
+    "Failed payload mutation targets last normalization writer; removing only redundant pre-cleanup did not violate observable promise. Check both committed Store payload and final projection."
   ]
 }
