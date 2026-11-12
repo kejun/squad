@@ -147,7 +147,7 @@ export function verifyConfigurationContract(rule: string, expected: string) {
     }
     case '换模型不继承窗口': {
       const c = createTeamConfig({ ...defaults, MODEL_CONTEXT_WINDOW_TOKENS: '64000', CHECK_MODEL_NAME: 'checker' });
-      assert.equal(resolveModel(c, 'check', 'facilitator')?.service.contextWindowTokens, undefined); break;
+      assert.equal(resolveModel(c, 'check', 'facilitator')?.service.contextWindowTokens, 1_048_571); break;
     }
     case '配置解析不改原对象': {
       const base = createTeamConfig({}); const before = structuredClone(base);

@@ -1,3 +1,4 @@
+import { maximumTimeoutMs } from './budget-defaults.js';
 import { artifactForWork } from './task/delivery.js';
 import { hostSessionMatches } from './host-session.js';
 import { evidenceSource, type EvidenceStream } from './task/evidence.js';
@@ -83,7 +84,7 @@ export function validLocalAction(value: unknown): value is LocalAction {
       && optional('cwd') && optional('skillId') && optional('reason')
       && (a.stdin === undefined || validCliStdin(a.stdin)) && (a.execution === undefined || a.execution === 'sandbox' || a.execution === 'host')
       && (a.execution !== 'host' || text(a.reason, 1000))
-      && (a.timeoutMs === undefined || Number.isSafeInteger(a.timeoutMs) && Number(a.timeoutMs) > 0 && Number(a.timeoutMs) <= 10_800_000);
+      && (a.timeoutMs === undefined || Number.isSafeInteger(a.timeoutMs) && Number(a.timeoutMs) > 0 && Number(a.timeoutMs) <= maximumTimeoutMs);
     default: return false;
   }
 }

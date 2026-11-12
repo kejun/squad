@@ -1,7 +1,9 @@
-import type { DeliveryCycle, DeliveryStage, Intent, TaskContext } from '../types.js';
+import { maximumCount } from '../budget-defaults.js';
+import type { DeliveryCycle, DeliveryStage, Intent, TaskContext, TeamConfig } from '../types.js';
 import { deliveryJudgments } from '../delivery-acceptance.js';
 
-export const newDeliveryCycle = (): DeliveryCycle => ({ stage: { kind: 'drafting' }, requests: 0, revisionUsed: false });
+export const newDeliveryCycle = (config?: Pick<TeamConfig, 'limits'>): DeliveryCycle => ({ stage: { kind: 'drafting' }, requests: 0, revisionUsed: false,
+  ...(config?.limits.replans === maximumCount ? { revisions: { used: 0, limit: maximumCount } } : {}) });
 
 export function deliveryRevisionBudget(cycle: DeliveryCycle): { used: number; limit: number } {
   return cycle.revisions ?? { used: Number(cycle.revisionUsed), limit: cycle.revisionUsed ? 1 : 2 };

@@ -448,3 +448,5 @@ BT_I23–I24 要求解释和检查保留用户措辞的强度：“无需工具�
 窗口到期与文件标准输入的网页投影沿用真实 `waitingHuman` / 宿主批准状态，见 [网页验收契约](docs/requirements/window-stdin-ui.md) 与 [决定投影图](docs/state-diagrams.md#窗口与标准输入的网页决定投影)；BT_Y149–Y150 覆盖关闭、恢复、三小时续窗和批准前输入计划可见性。
 
 标准输入执行回执还固定实际调用、已测输入指纹及校验事实；交付检查重核身份并拒绝丢失的旧快照，见 [标准输入证据冻结](docs/state-diagrams.md#标准输入证据的冻结与复核) 与 Y151–Y153。
+
+最大预算与模型输入共享仍复用上述真实任务状态和权限边界，见[预算要求](docs/requirements/maximum-budgets.md)及[流程说明](docs/state-diagrams.md#最大预算与共享元数据max-0105)。新默认模型上下文为1,048,571 token，DeepSeek V4.1 Flash默认输出384,000 token；配置的容量不代表提供方硬上限能够扩大。

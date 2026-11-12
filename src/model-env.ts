@@ -1,3 +1,4 @@
+import { defaultContextWindowTokens, deepseekFlashMaximumOutputTokens, maximumCount } from './budget-defaults.js';
 import { readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { validateConfig, type ModelService, type TeamConfig } from './types.js';
@@ -61,10 +62,11 @@ export function configureModelsFromEnv(base: TeamConfig, env: ModelEnvironment):
     if (!Number.isFinite(result)) throw new Error(`Invalid numeric environment variable: ${key}`);
     return result;
   };
+  const automaticOutputDefaults = new WeakSet<ModelService>();
   const profile = (prefix: string, fallback?: ModelService): ModelService => {
     const baseUrl = value(`${prefix}_BASE_URL`) ?? fallback!.baseUrl;
     const model = value(`${prefix}_NAME`) ?? fallback!.model;
-    const service: ModelService = { baseUrl, model, jsonMode: bool(`${prefix}_JSON_MODE`, fallback?.jsonMode ?? true) };
+    const service: ModelService = { baseUrl, model, contextWindowGuard: 'provider', jsonMode: bool(`${prefix}_JSON_MODE`, fallback?.jsonMode ?? true) };
     const ownKey = value(`${prefix}_API_KEY`) !== undefined;
     const differentEndpoint = fallback && baseUrl.replace(/\/+$/, '') !== fallback.baseUrl.replace(/\/+$/, '');
     const noAuth = bool(`${prefix}_NO_AUTH`, ownKey || differentEndpoint ? false : fallback ? fallback.apiKeyEnv === undefined : false);
@@ -73,10 +75,12 @@ export function configureModelsFromEnv(base: TeamConfig, env: ModelEnvironment):
       service.apiKeyEnv = !fallback || ownKey || differentEndpoint ? `${prefix}_API_KEY` : fallback.apiKeyEnv ?? `${prefix}_API_KEY`;
     }
     const temperature = number(`${prefix}_TEMPERATURE`, fallback?.temperature);
-    const maxTokens = number(`${prefix}_MAX_TOKENS`, fallback?.maxTokens);
-    const maxResponseBytes = number(`${prefix}_MAX_RESPONSE_BYTES`, fallback?.maxResponseBytes);
+    const inheritedOutput = fallback && (!automaticOutputDefaults.has(fallback) || fallback.model === model) ? fallback.maxTokens : undefined;
+    const maxTokens = number(`${prefix}_MAX_TOKENS`, inheritedOutput ?? (model === 'deepseek-v4.1-flash' ? deepseekFlashMaximumOutputTokens : undefined));
+    if (!value(`${prefix}_MAX_TOKENS`) && (inheritedOutput === undefined || fallback && automaticOutputDefaults.has(fallback))) automaticOutputDefaults.add(service);
+    const maxResponseBytes = number(`${prefix}_MAX_RESPONSE_BYTES`, fallback?.maxResponseBytes ?? maximumCount);
     const inheritedContext = !differentEndpoint && model === fallback?.model ? fallback.contextWindowTokens : undefined;
-    const contextWindowTokens = number(`${prefix}_CONTEXT_WINDOW_TOKENS`, inheritedContext);
+    const contextWindowTokens = number(`${prefix}_CONTEXT_WINDOW_TOKENS`, inheritedContext ?? defaultContextWindowTokens);
     if (temperature !== undefined) service.temperature = temperature;
     if (maxTokens !== undefined) service.maxTokens = maxTokens;
     if (maxResponseBytes !== undefined) service.maxResponseBytes = maxResponseBytes;
@@ -85,6 +89,11 @@ export function configureModelsFromEnv(base: TeamConfig, env: ModelEnvironment):
     if (body !== undefined) {
       try { service.extraBody = JSON.parse(body); } catch { throw new Error(`Invalid JSON environment variable: ${prefix}_EXTRA_BODY`); }
     } else if (fallback?.extraBody !== undefined) service.extraBody = structuredClone(fallback.extraBody);
+    if (automaticOutputDefaults.has(service) && service.extraBody
+      && ['max_tokens', 'max_completion_tokens'].some(key => Object.hasOwn(service.extraBody!, key))) {
+      delete service.maxTokens;
+      automaticOutputDefaults.delete(service);
+    }
     return service;
   };
   const primary = profile('MODEL');

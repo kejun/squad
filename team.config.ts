@@ -1,4 +1,5 @@
 import type { TeamConfig } from './src/types.js';
+import { maximumCount, maximumTimeoutMs } from './src/budget-defaults.js';
 import { currentExecutionVersion, currentToolVersion } from './src/task/protocol.js';
 import { configureModelsFromEnv, loadModelEnvFile, type ModelEnvironment } from './src/model-env.js';
 
@@ -24,7 +25,9 @@ export function createTeamConfig(env: ModelEnvironment = process.env): TeamConfi
     { id: 'builder-2', name: 'Builder 2', instructions: '负责具体实现、修改与验证，按任务目标交付可检查的结果；遇到阻塞及时说明原因。', tools: ['read', 'writeArtifact'] },
     { id: 'builder-3', name: 'Builder 3', instructions: '负责具体实现、修改与验证，按任务目标交付可检查的结果；遇到阻塞及时说明原因。', tools: ['read', 'writeArtifact'] },
   ],
-  limits: { ordinary: 300, checks: 30, assists: 20, replans: 10, retries: 10, workTimeoutMs: 10_800_000, progressIntervalMs: 600_000, repeatThreshold: 20 },
+  resilience: { automaticTimeoutMs: maximumTimeoutMs, repairLimit: maximumCount },
+  limits: { ordinary: maximumCount, checks: maximumCount, assists: maximumCount, replans: maximumCount, retries: maximumCount,
+    workTimeoutMs: maximumTimeoutMs, progressIntervalMs: 600_000, repeatThreshold: maximumCount },
   }, env);
 }
 

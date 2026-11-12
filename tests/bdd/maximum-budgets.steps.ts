@@ -1,0 +1,30 @@
+import { maximumDeliveryBudgetsModel } from '../maximum-budget-model-gate.js';
+import { Given, When, Then } from '@cucumber/cucumber';
+import assert from 'node:assert/strict';
+import { maximumModelRequests, maximumDefaultTask, compactMaximumInventory, providerContextMaximum, maximumResponseBody, maximumCommandBudget } from '../maximum-budgets-acceptance.js';
+const observations = new WeakMap<object, { condition: string; report?: unknown }>();
+const record = (world: object, report: unknown) => { const value = observations.get(world); assert(value); value.report = report; };
+const verified = (world: object) => { assert(observations.get(world)?.report); };
+Given('服务使用DeepSeek V4.1 Flash且没有设置较小额度', function () { observations.set(this, { condition: '服务使用DeepSeek V4.1 Flash且没有设置较小额度' }); });
+When('各成员通过真实适配器请求模型', async function () { record(this, await maximumModelRequests()); });
+Then('上下文应为DeepSeek上游实测最大值且实际输出请求应为三十八万四千token', function () { verified(this); });
+Given('默认配置启用了最大安全运行预算', function () { observations.set(this, { condition: '默认配置启用了最大安全运行预算' }); });
+When('真实任务模型领取并消费一次工作', function () { record(this, maximumDefaultTask()); });
+Then('大额度和最大计时窗口应保留且没有获得额外宿主权限', function () { verified(this); });
+Given('目录包含1806个未知工具与670个有用途的工具', function () { observations.set(this, { condition: '目录包含1806个未知工具与670个有用途的工具' }); });
+When('模型通过真实适配器取得完整目录并继续读取工具结果', async function () { record(this, await compactMaximumInventory()); });
+Then('全部命令用途路径版本和权限应可完整恢复且重复占位信息只保存一次', function () { verified(this); });
+Given('环境模型配置采用提供方token计数', function () { observations.set(this, { condition: '环境模型配置采用提供方token计数' }); });
+When('请求正文的字节数大于声明token数而提供方返回上下文溢出', async function () { record(this, await providerContextMaximum()); });
+Then('请求应实际发出并返回MODEL_CONTEXT_LIMIT且不泄漏提供方正文', function () { verified(this); });
+Given('模型返回超过旧八兆限制的完整正常响应', function () { observations.set(this, { condition: '模型返回超过旧八兆限制的完整正常响应' }); });
+When('真实任务适配器读取该响应', async function () { record(this, await maximumResponseBody()); });
+Then('默认大响应应完整处理且明确设置的小限制仍会拒绝', function () { verified(this); });
+
+Given('命令执行采用最大可计时预算', function () { observations.set(this, { condition: '最大命令预算' }); });
+When('真实任务执行显式和默认超时的命令', async function () { record(this, await maximumCommandBudget()); });
+Then('两次实际进程调用都应使用最大计时预算', function () { verified(this); });
+
+Given('任务采用最大交付修订和检查重试额度', function () { observations.set(this, { condition: '最大交付预算' }); });
+When('真实状态模型经历四次修订和三次检查网络重试', function () { record(this, maximumDeliveryBudgetsModel()); });
+Then('交付周期应继续等待实际结果而不被旧隐含配额结束', function () { verified(this); });

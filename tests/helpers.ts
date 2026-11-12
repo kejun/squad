@@ -5,6 +5,10 @@ import type { CriterionJudgment } from '../src/delivery-acceptance.js';
 import type { Candidate } from '../src/types.js';
 import { createTeamConfig } from '../team.config.js';
 const baseline = createTeamConfig({});
+// Scripted protocols require finite, explicit fixtures independent of production budget defaults.
+baseline.limits = { ordinary: 300, checks: 30, assists: 20, replans: 10, retries: 10,
+  workTimeoutMs: 10_800_000, progressIntervalMs: 600_000, repeatThreshold: 20 };
+delete baseline.resilience;
 
 export type EventBody = TaskEvent extends infer E ? E extends TaskEvent ? Omit<E, 'id' | 'at'> & { id?: string; at?: number } : never : never;
 export const configuration = (change?: Partial<TeamConfig['limits']>): TeamConfig => ({ ...structuredClone(baseline), limits: { ...baseline.limits, ...change } });

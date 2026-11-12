@@ -1,3 +1,4 @@
+import { maximumCount } from '../budget-defaults.js';
 import type { Artifact, Candidate, InputReference, Intent, TaskContext, TaskEvent } from '../types.js';
 import { checkCitationSources, deliveryPreflight, judgmentsDiagnostic, type CheckDiagnostic, type CheckMaterials, type CheckReferenceSource, type CheckReviewSource } from '../delivery-acceptance.js';
 import { hostRetryReservation, pendingHostRetry } from '../host-retry.js';
@@ -31,8 +32,8 @@ export function hasDeliveryRetryPermit(c: TaskContext, work: Intent): boolean {
 export function deliveryCheckBudgetProblem(c: TaskContext, technical = false): string | null {
   const cycle = c.deliveryCycle;
   if (!cycle) return 'CHECK_PROTOCOL_CHANGED';
-  const ordinaryLimit = deliveryRevisionBudget(cycle).limit + 1;
-  if (cycle.requests >= ordinaryLimit + 1 || c.usage.checks >= c.config.limits.checks) return 'CHECK_BUDGET_EXHAUSTED';
+  const ordinaryLimit = Math.min(maximumCount, deliveryRevisionBudget(cycle).limit + 1);
+  if (cycle.requests >= Math.min(maximumCount, ordinaryLimit + 1) || c.usage.checks >= c.config.limits.checks) return 'CHECK_BUDGET_EXHAUSTED';
   const ordinary = cycle.requests - Number(cycle.retry?.status === 'used');
   if (!technical && ordinary >= ordinaryLimit) return 'CHECK_BUDGET_EXHAUSTED';
   return null;

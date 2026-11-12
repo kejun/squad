@@ -4,6 +4,14 @@
 
 当用户在代码项目语境提到「审计验证怎么做的」「验证层成熟度」「代码验证审计」「哪些验证做了、还缺什么」「测试是否充分」，或显式使用 `$audit-verification-maturity` 时，先读取并使用 [.agents/skills/audit-verification-maturity/SKILL.md](.agents/skills/audit-verification-maturity/SKILL.md)。按实际仓库、CI和执行证据检查缺口，给出适用性、执行状态、成熟度画像和风险优先建议；不要把测试总数、规格覆盖或旧模型通过扩大成完整验证。单纯解释概念、运行指定测试，以及验证码/身份验证问题不自动扩展成全面审计。此路由作用于本仓库，不表示技能已全局注册或Squad服务已自动扫描该目录。
 
+## 复杂度契约（必需遵守）
+
+- Don't design for hypothetical future requirements — do the simplest thing that works well. Avoid premature abstraction. Avoid half-finished implementations.
+- 校验只在信任边界做一次（用户输入、外部 API）；内部代码与框架保证互信。
+- 写新代码前先找现成的：代码库已有的 helper/组件 → 标准库或平台原生能力 → 已安装的依赖。都不成立，才写能跑的最小实现。禁止为几行代码加依赖。
+- 绝不削减：信任边界校验、防数据丢失的错误处理、安全、可访问性、用户明确要求的东西。
+- 回复末尾一行：跳过了什么、未检查什么、风险是什么。
+
 ## 开始代码变更前
 
 任何代码变更开始前，必须先完整阅读并遵循 [Uncle Bob Mode](https://github.com/unclebob/ub-mode/blob/master/SKILL.md)。同时遵守下文规定的场景、状态模型与验证顺序。
