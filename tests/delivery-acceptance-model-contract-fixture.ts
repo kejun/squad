@@ -142,7 +142,7 @@ assert.equal(report(model, check, accept(model).slice(0, 1)).ok, true);
 yield 'observed';
 assert.equal(model.snapshot.value, 'checking');
 assert.equal(model.c.intents.find(item => item.id === check.id)?.status, 'pending');
-assert.partialDeepStrictEqual(model.c.deliveryCycle, { requests: 1, retry: { status: 'reserved' }, revisionUsed: false });
+assert.partialDeepStrictEqual(model.c.deliveryCycle, { requests: 1, retry: { status: 'reserved' } });
 assert.deepEqual(pendingOwner(model), []);
 }
 

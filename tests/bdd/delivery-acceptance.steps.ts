@@ -78,7 +78,6 @@ Then('应记录当前候选的具体缺口', function (this: SpecWorld) {
 Then('应保留已有成果并直接交给下游而不安排负责人补交', function (this: SpecWorld) {
   assert(this.h.context().candidate!.text.startsWith(text));
   assert.deepEqual(pending(this), ['check']);
-  assert.equal(this.h.context().deliveryCycle?.revisionUsed,false);
 });
 Then('下游应收到缺少实际文件的说明且不生成虚假文件链接', function (this: SpecWorld) {
   assert.equal(this.h.context().usage.checks, 0);
@@ -188,14 +187,14 @@ Then('不得静默截断材料或安排作者重写', function (this: SpecWorld)
   assertUnpublished(this);
 });
 
-Given('当前交付周期已授权一次检查技术补试及一次作者修订',function(this:SpecWorld){
+Given('当前交付周期已执行一次检查技术补试及下游直接修正',function(this:SpecWorld){
  this.h=new Harness();submit(this);const first=this.h.authorizeCheck();assert(this.h.event({type:'WORK_FAILED',intentId:first.id,attempt:first.attempt,fence:first,reason:'瞬态网络故障',transient:true}).ok);
  const check=this.h.authorizeCheck();test(this).oldCheck=check;
  const event={type:'CHECK_RESULT' as const,id:'direct-repair',workId:check.id,fence:check,attempt:check.attempt,resultId:'direct-repair',candidateRevision:this.h.context().candidate!.revision!,criteriaResults:candidateJudgments(this.h.context().candidate),repair:{text:'检查员直接纠正报告内容',artifacts:[]}};
  test(this).repeated=event;assert(this.h.event(event).ok);
 });
 When('服务重启且重复收到候选提交通知',function(this:SpecWorld){this.h.reopen();this.h.event(test(this).repeated!);});
-Then('应保留已使用的修订和技术补试次数',function(this:SpecWorld){assert.equal(this.h.context().deliveryCycle?.revisionUsed,false);assert.equal(this.h.context().deliveryCycle?.retry?.status,'used');assert.deepEqual(pending(this),[]);});
+Then('应保留已使用的检查和技术补试次数',function(this:SpecWorld){assert.equal(this.h.context().deliveryCycle?.retry?.status,'used');assert.deepEqual(pending(this),[]);});
 Then('不得重复扣费或发布旧结果对应的新候选',function(this:SpecWorld){assert.equal(this.h.context().usage.checks,2);assert.equal(this.h.context().usage.retries,1);assert.equal(this.h.context().outcome,'complete');assert(this.h.context().candidate!.text.includes('检查员直接纠正'));});
 
 Given('候选声称已取得必需资料但只有{string}', function (this: SpecWorld, evidence: string) {

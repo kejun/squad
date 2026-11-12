@@ -72,17 +72,11 @@ export function deliverySubmissionProblem(c: TaskContext, e: Delivery): { code: 
   if (problem) return { code: problem, mechanical: true };
   const budget = deliveryCheckBudgetProblem(c);
   if (budget) return { code: budget, mechanical: false };
-  const verification = deliveryVerificationPlan(c);
   return null;
 }
 
 export function deliveryInterruptionPending(c: TaskContext, settlingWorkId?: string): boolean {
   return deliveryHandoffPending(c) || pendingHostRetry(c) || c.intents.some(work => work.id !== settlingWorkId && localPhysicalPending(work));
-}
-
-export function automaticRevisionActive(c: TaskContext): boolean {
-  return c.intents.some(work => work.payload.deliveryRevision === true && work.epoch === c.epoch && work.goalVersion === c.goalVersion
-    && ['pending', 'inflight'].includes(work.status));
 }
 
 type CheckDisposition = { kind: 'handoff' | 'complete' | 'finish' | 'retry'; code?: string; detail?: string; checked?: true; diagnostic?: CheckDiagnostic };

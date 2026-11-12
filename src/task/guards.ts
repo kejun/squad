@@ -6,7 +6,7 @@ import { localResumeKind, permissionProblem, valid } from './policy.js';
 import { activeHelp, allInflight, d, discussionActive, fresh, incompatibleExecution, inflight, isBot, pendingInput, recoveryIssue, remainingInflight, unresolvedInput } from './facts.js';
 import { localAwaitingApproval, localPhysicalPending } from '../local-operation.js';
 import { helpResultContinuesReview, nextReviewer, reviewCanDispatch, savedHelpResult } from './assistance.js';
-import { automaticRevisionActive, checkDisposition, deliveryInterruptionPending, deliverySubmissionProblem, hasDeliveryRetryPermit, isBoundedCheck, recoveryCheckExhausted, settlingDeliveryCheck } from './delivery.js';
+import { checkDisposition, deliveryInterruptionPending, deliverySubmissionProblem, hasDeliveryRetryPermit, isBoundedCheck, recoveryCheckExhausted, settlingDeliveryCheck } from './delivery.js';
 import { canRetryDeliveryCheck, canRetryWork } from './budget.js';
 
 type TaskGuardArgs = { context: TaskContext; event: TaskEvent };
@@ -122,9 +122,9 @@ export const taskGuards = {
       && context.intents.some(work => work.id === event.intentId && isBoundedCheck(work))
       && ['CHECK_BUDGET_EXHAUSTED', 'WORK_EXPIRED'].includes(permissionProblem(context, event) ?? ''),
     claimCancel: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'cancel',
-    shouldTick: ({ context, event }) => valid({ context, event }) && !automaticRevisionActive(context) && !discussionActive(context) && event.at >= context.nextCheckAt && inflight(context).length === 0 && !context.intents.some(work => localPhysicalPending(work) || localAwaitingApproval(work)) && !context.processedSignals.includes(event.id),
+    shouldTick: ({ context, event }) => valid({ context, event }) && !discussionActive(context) && event.at >= context.nextCheckAt && inflight(context).length === 0 && !context.intents.some(work => localPhysicalPending(work) || localAwaitingApproval(work)) && !context.processedSignals.includes(event.id),
     repeated: ({ context, event }) => {
-      if (event.type !== 'FAILURE_SIGNAL' || !valid({ context, event }) || automaticRevisionActive(context) || discussionActive(context) || remainingInflight(context, event).length) return false;
+      if (event.type !== 'FAILURE_SIGNAL' || !valid({ context, event }) || discussionActive(context) || remainingInflight(context, event).length) return false;
       const f = JSON.stringify([event.operation, event.parameters, event.resource, event.error, event.result]).normalize('NFKC');
       return (f === context.repeat.fingerprint ? context.repeat.count + 1 : 1) >= context.config.limits.repeatThreshold;
     },
@@ -141,10 +141,6 @@ export const taskGuards = {
       && isBoundedCheck(context.intents.find(work => work.id === event.intentId)) && deliveryInterruptionPending(context),
     checkFailed: ({ context, event }) => event.type === 'WORK_FAILED' && !event.resultUncertain && valid({ context, event })
       && isBoundedCheck(context.intents.find(work => work.id === event.intentId)),
-    revisionFailed: ({ context, event }) => {
-      const id = event.type === 'WORK_FAILED' && !event.resultUncertain ? event.intentId : event.type === 'BLOCKED' ? event.workId : undefined;
-      return !!id && valid({ context, event }) && !deliveryInterruptionPending(context) && context.intents.some(work => work.id === id && work.payload.deliveryRevision === true);
-    },
     retryable: args => valid(args) && !(args.event.type === 'WORK_FAILED' && authorizationFailure(args.event.reason)) && canRetryWork(args.context, args.event),
     failedAssistance: args => valid(args) && args.event.type === 'WORK_FAILED' && !args.event.resultUncertain && args.context.intents.find(i => i.id === (args.event as Extract<TaskEvent, { type: 'WORK_FAILED' }>).intentId)?.kind === 'assistance',
     recoveredSafe: ({ context, event }) => event.type === 'RECOVER' && !recoveryIssue(context, event.config) && !context.intents.some(i => localPhysicalPending(i) || i.status === 'uncertain' || i.status === 'inflight' && i.replay === 'unsafe'),

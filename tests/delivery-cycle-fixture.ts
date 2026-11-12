@@ -16,7 +16,6 @@ export function retryThenRevise(run: ReturnType<typeof fixedCandidate>) {
   assert.equal(retry.id, check.id); assert.deepEqual(retry.payload, run.original);
   assert.equal(m.c.deliveryCycle?.stage.kind, 'checking');
   run.check = retry;
-  assert.equal(m.c.deliveryCycle?.revisionUsed, false);
 }
 export function revisedDelivery(run: ReturnType<typeof fixedCandidate>) {
  const {m,check}=run;

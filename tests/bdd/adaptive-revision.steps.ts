@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {Given,When,Then} from '@cucumber/cucumber';
-import {forwardDelivery,finishForward,restoreForward,type ForwardRun} from '../adaptive-revision-fixture.js';
+import {forwardDelivery,finishForward,restoreForward,legacyRevisionForward,type ForwardRun} from '../adaptive-revision-fixture.js';
 import {repairedHandoffModel} from '../downstream-handoff-model-fixture.js';
 import {verifyDirectRepairRunner} from '../adaptive-revision-integration.js';
 import type {SpecWorld} from './steps.js';
@@ -17,6 +17,6 @@ Then('应声明限制并交付且不派发上游修订',function(this:SpecWorld)
 Given('下游已经声明缺口并发布最终交付',function(this:SpecWorld){const run=forwardDelivery();finishForward(run);runs.set(this,run);});
 When('重启后再次提交同一检查回执',function(this:SpecWorld){restoreForward(runs.get(this)!);});
 Then('应保留一次交付且没有待执行修订',function(this:SpecWorld){assert.equal(runs.get(this)!.m.c.messages.filter(m=>m.kind==='final').length,1);});
-Given('当前检查工作仍携带旧修订额度记录',function(this:SpecWorld){const run=forwardDelivery();run.m.c.deliveryCycle!.revisionUsed=true;run.m.c.deliveryCycle!.revisions={used:2,limit:2};runs.set(this,run);});
+Given('当前检查工作恢复时仍携带旧修订阶段和额度记录',function(this:SpecWorld){runs.set(this,legacyRevisionForward());});
 When('检查员给出带缺口的最终结论',function(this:SpecWorld){finishForward(runs.get(this)!);});
-Then('应正常交付且不重新解释旧修订额度',function(this:SpecWorld){assert.deepEqual(runs.get(this)!.m.c.deliveryCycle!.revisions,{used:2,limit:2});});
+Then('应正常交付且不重新解释旧修订额度',function(this:SpecWorld){assert.deepEqual(Reflect.get(runs.get(this)!.m.c.deliveryCycle!,'revisions'),{used:2,limit:2});});

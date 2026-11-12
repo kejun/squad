@@ -1905,7 +1905,7 @@ stateDiagram-v2
 
 ### 显式交付周期（BT_F63、BT_F64）
 
-类型：taskMachine 的持久化上下文生命周期；所有者 `task/delivery-cycle.ts`。当前业务阶段为 drafting → candidate → checking → published；网络/协议补试在同一检查工作内，不返回负责人。用户明确补充新要求可开启新的业务处理，属于新输入。旧快照的 revising 和额度记录只为读兼容保留，不再创建自动修订；恢复不清零已使用预算。BT_F63 验证技术补试后由原检查员直接修正和发布，BT_F64 保留候选身份隔离。
+类型：taskMachine 的持久化上下文生命周期；所有者 `task/delivery-cycle.ts`。当前业务阶段为 drafting → candidate → checking → published；网络/协议补试在同一检查工作内，不返回负责人。用户明确补充新要求可开启新的业务处理，属于新输入。恢复时旧 revising 阶段依据当前工作重建；旧私有额度只保留为历史字段，不参与判断，新周期不再创建修订计数。已使用的普通/检查/重试预算保持不变。BT_F63 验证技术补试后由原检查员直接修正和发布，BT_F64 保留候选身份隔离，BT_F81 验证旧阶段迁移。
 
 ### 独立分片队列（BT_Q27–BT_Q33）
 
@@ -1952,25 +1952,23 @@ stateDiagram-v2
 
 自动退回作者、按缺口分配 2–3 轮修订及再次复核已删除。BT_F77–F81 沿用编号验证单向替代行为：当前检查员直接补救，多项缺口声明后正常交付，恢复/旧额度/重复回执不能创建上游修订队列。原有限配置仍限制实际请求；最大网络预算也不重新启用内容审核环。
 
-### 文档工作项来源预检（KEJ-110）
+### 文档工作项来源交接（BT_F71–BT_F76、BT_F82）
 
-类型：真实 taskMachine `DELIVER` 的处理流程与守卫；所有者 `src/source-claims.ts`、`src/task/delivery.ts`、`src/task/operations.ts`。验收 BT_F71–BT_F76、BT_F82。沿用 drafting/candidate/revising/checking，不新增业务阶段。
+类型：真实 taskMachine `DELIVER` 与检查交接流程；所有者 `src/task/reducer.ts`、`src/task/delivery.ts`、`src/task/operations.ts`。沿用 drafting/candidate/checking，不新增业务阶段。
 
 ```mermaid
 flowchart TD
   A[DELIVER] --> B{结构化工作项协议有效}
   B -->|否| R[INVALID_REPORT 拒绝且不建立候选]
-  B -->|是| C{本目标本轮完整成功的保存回执}
-  C -->|否| G[保存来源缺口并按有界修订处理]
-  C -->|是| D{唯一精确文档ID或slug且状态在该文档正文}
-  D -->|否| G
-  D -->|是| E[保存工作项来源并由宿主渲染D编号]
-  E --> F[绑定当前候选的独立检查意图]
+  B -->|是| E[保存原始工作项与实际来源材料]
+  E --> F[绑定当前候选的检查意图]
+  F --> G[检查员在同一工作内直接补救]
+  G --> H[发布修正稿并声明剩余缺口]
 ```
 
-工作项结构为 `sourceItems: [{text,status,sourceDocId,sourceEvidenceId}]`；每项必须显式给出原文档ID与保存回执ID，不能引用展示用D编号。来源只接受当前目标和epoch、成功且完整的捕获JSON stdout；按原始文档对象的 `id` 或 `slug` 精确匹配，状态只在该对象直接的 `body`、`body_markdown`、`body_html`、`content` 字符串内匹配。`description`、`title` 不作为默认正文；自定义字段依照[可信读取配置](implementation/kej-113-evidence.md)中的宿主提供方契约。批量回执的邻居文档、缺失或重复身份不得补作依据。普通报告继续支持原协议。工作项文本不允许自填D编号，文档编号按来源首次出现顺序生成。
+工作项结构仍为 `sourceItems: [{text,status,sourceDocId,sourceEvidenceId}]`，原始结构随报告持久化并传给检查员。宿主渲染来源编号，不再逐条匹配文档身份、状态词和回执正文来驳回交付；模型结合实际材料自行判断与补救，无法解决的内容声明后正常交付。
 
-预检还检查提交引用的已有报告；工作项结构随报告持久化，重启不改变绑定。状态词逐字出现只是机械前置条件，不证明语义、时间有效性或整份交付通过，之后仍须独立检查。来源缺口进入既有修订/不足额结束路径；没有检查额度不安排改稿。停止、旧fence、迟到结果和恢复沿用真实任务守卫。此投影不发外部I/O，实际检查仅由保存且领取的意图发起。
+保留来源原文隔离、实际回执身份、报告版本、停止与迟到结果的必要边界。实际工具 I/O 仍由保存且领取的意图发起，原有授权不会因文字来源声明改变。
 
 ### 增量交付复核（BT_F65–BT_F70）
 
@@ -2201,4 +2199,4 @@ flowchart LR
 
 MAX-06的最大命令时限先经真实模型的LOCAL_REQUEST/LOCAL_CLAIM/LOCAL_STARTED/STOP路径核对；纯动作校验通过后才修改实际执行器默认时限，原审批守卫不变。
 
-MAX-07复用真实checking → revising → checking及技术retry领取路径。新最大配额创建最大revision预算，已保存cycle不回填；仅该最大配额允许多次技术重试，各次仍须原领取/消费和固定证据，网络失败无权越过停止或未知效果。Y161先验四次修订、三次重试的持久化轨迹。
+MAX-07 中的 checking → revising → checking 和修订预算已随审核环移除。Y161 改验同一下游直接修正及三次网络补试；最大网络预算保持原配置，协议错误仍一次补试后明确结算。每次调用须经原领取/消费守卫，网络失败无权越过停止或未知效果。

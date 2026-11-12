@@ -342,7 +342,6 @@ function assertFrame(snapshot: TaskSnapshot, expected: Frame, label: string, own
   assert(cycle, label);
   assert.equal(cycle.requests, expected.usage.checks, label);
   assert.equal(cycle.retry, undefined, label);
-  assert.equal(cycle.revisionUsed, false, label);
   delete context.deliveryCycle;
   context.trace = context.trace.filter(entry => entry.event !== 'CONSUME' || !entry.detail.startsWith(replayRequestPrefix));
   for (const work of context.intents.filter(item => item.kind === 'check')) {

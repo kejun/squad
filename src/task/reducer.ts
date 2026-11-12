@@ -10,7 +10,7 @@ import { applyLocalEvent, cancelLocalOperations, localEnabled, localPhysicalPend
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
 import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requestReview, resetReviewAtBoundary, savedHelpResult, startHelp } from './assistance.js';
 import { recordInput } from './input.js';
-import { automaticRevisionActive, checkDisposition, checkReferenceSources, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication, saveCheckDiagnostic, settlingDeliveryCheck } from './delivery.js';
+import { checkDisposition, checkReferenceSources, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication, saveCheckDiagnostic, settlingDeliveryCheck } from './delivery.js';
 import { canRetryDeliveryCheck, canRetryWork, reserveDeliveryRetry } from './budget.js';
 import { checkReviewSources, deliveryJudgments, deliveryPreflight, deliveryGapMessage } from '../delivery-acceptance.js';
 import { adoptLegacyTerminalConfig } from './protocol.js';
@@ -77,7 +77,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       adoptLegacyTerminalConfig(c, e.currentConfig);
       retainLegacyPublication(c, e.at);
       applyHostRetry(c, e);
-      if (!c.deliveryCycle && c.outcome === null) c.deliveryCycle = newDeliveryCycle(c.config);
+      if (!c.deliveryCycle && c.outcome === null) c.deliveryCycle = newDeliveryCycle();
       break;
     case 'HOST_RETRY_EXPIRE': expireHostRetry(c, e.at); break;
     case 'HOST_RETRY_RECONCILE': break; // The automatic batch transition reads the saved work and operation states.
@@ -123,7 +123,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const saved = savedHelpResult(c, h.id);
       if (saved) {
         c.stopped = false; c.outcome = null; c.reason = ''; archiveFrozen(c);
-        c.deliveryCycle = newDeliveryCycle(c.config);
+        c.deliveryCycle = newDeliveryCycle();
         acceptHelpResult(c, { ...e, ...saved, type: 'HELP_RESULT' }); break;
       }
       if (c.stopped || c.outcome !== null) c.epoch++;
@@ -141,9 +141,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     }
     case 'BLOCKED':
-      if (c.intents.some(work => work.id === e.workId && work.payload.deliveryRevision === true) && !deliveryInterruptionPending(c)) {
-        finishDelivery(c, e, e.reason, 'DELIVERY_REVISION_FAILED');
-      } else if (inflight(c).length || discussionActive(c)) { c.deferredCoordination = true; c.reason = e.reason; }
+      if (inflight(c).length || discussionActive(c)) { c.deferredCoordination = true; c.reason = e.reason; }
       else coordinate(c, e, e.reason);
       break;
     case 'COORDINATE': {
@@ -350,7 +348,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (e.extraOrdinary) c.config.limits.ordinary += e.extraOrdinary;
       retainLegacyPublication(c, e.at);
       c.epoch++; c.stopped = false; c.outcome = null; c.reason = '';
-      c.deliveryCycle = newDeliveryCycle(c.config);
+      c.deliveryCycle = newDeliveryCycle();
       for (const input of c.inputAnalyses ?? []) if (input.source === 'model' && input.goalVersion === c.goalVersion
         && ['failed', 'clarification', 'cancelled'].includes(input.status) && input.error !== 'SUPERSEDED_INPUT') {
         input.epoch = c.epoch; input.status = 'pending'; delete input.workId; delete input.error;
@@ -366,7 +364,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'FAILURE_SIGNAL': {
       const fingerprint = JSON.stringify([e.operation, e.parameters, e.resource, e.error, e.result]).normalize('NFKC');
       c.repeat = { fingerprint, count: c.repeat.fingerprint === fingerprint ? c.repeat.count + 1 : 1 };
-      if (c.repeat.count >= c.config.limits.repeatThreshold && !automaticRevisionActive(c)) {
+      if (c.repeat.count >= c.config.limits.repeatThreshold) {
         if (inflight(c).length || discussionActive(c)) { c.deferredCoordination = true; c.reason = 'Repeated failure without progress'; }
         else coordinate(c, e, 'Repeated failure without progress');
       }
@@ -471,7 +469,6 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
           openHumanGate(c, e, { kind: 'authorization', workId: work.id, question: `需要处理权限或配置：${failureReason}` });
         if (!c.stopped && !deliveryInterruptionPending(c)) {
           if (isBoundedCheck(work)) finishDelivery(c, e, `检查未完成（${failureReason}）`, 'DELIVERY_CHECK_FAILED');
-          if (work.payload.deliveryRevision === true) finishDelivery(c, e, failureReason, 'DELIVERY_REVISION_FAILED');
         }
         if (work.kind === 'facilitator') {
           c.reason = `协调工作未能完成：${failureReason}。请重试或补充处理方式。`;

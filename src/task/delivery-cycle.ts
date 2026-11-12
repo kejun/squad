@@ -1,8 +1,6 @@
-import { maximumCount } from '../budget-defaults.js';
-import type { DeliveryCycle, DeliveryStage, Intent, TaskContext, TeamConfig } from '../types.js';
+import type { DeliveryCycle, DeliveryStage, Intent, TaskContext } from '../types.js';
 
-export const newDeliveryCycle = (config?: Pick<TeamConfig, 'limits'>): DeliveryCycle => ({ stage: { kind: 'drafting' }, requests: 0, revisionUsed: false,
-  ...(config?.limits.replans === maximumCount ? { revisions: { used: 0, limit: maximumCount } } : {}) });
+export const newDeliveryCycle = (): DeliveryCycle => ({ stage: { kind: 'drafting' }, requests: 0 });
 
 export function deliveryCandidate(c: TaskContext): void {
   if (c.deliveryCycle) c.deliveryCycle.stage = c.candidate?.revision
@@ -29,17 +27,16 @@ export function settleDeliveryCycle(c: TaskContext, outcome: TaskContext['outcom
 
 /** Read migration only: retain the original work, budgets and frozen materials. */
 export function restoreDeliveryStage(c: TaskContext): void {
-  if (!c.deliveryCycle || c.deliveryCycle.stage) return;
+  const savedStage = c.deliveryCycle?.stage as { kind: string } | undefined;
+  if (!c.deliveryCycle || savedStage && savedStage.kind !== 'revising') return;
   let stage: DeliveryStage = { kind: 'drafting' };
   const revision = c.candidate?.revision;
   const current = c.intents.filter(work => work.epoch === c.epoch && work.goalVersion === c.goalVersion
     && ['pending', 'inflight', 'uncertain'].includes(work.status));
   const check = current.find(work => work.kind === 'check' && work.payload.deliveryProtocol === 'bounded');
-  const owner = current.find(work => work.payload.deliveryRevision === true);
   if (c.outcome === 'complete' && revision) stage = { kind: 'published', candidateRevision: revision };
   else if (c.stopped || c.outcome !== null) stage = { kind: 'incomplete', candidateRevision: revision ?? null, reason: c.reason };
   else if (check && revision) stage = { kind: 'checking', candidateRevision: revision, checkWorkId: check.id };
-  else if (owner) stage = { kind: 'revising', baseRevision: revision ?? null, ownerWorkId: owner.id };
   else if (revision) stage = { kind: 'candidate', candidateRevision: revision };
   c.deliveryCycle.stage = stage;
 }
