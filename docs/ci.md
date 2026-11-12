@@ -18,6 +18,12 @@
 
 首次拆分依据是完整本地链实测1269.633秒，浏览器故障对照占341.651秒。C5远程结果随后量得check为921.97秒、此前步骤72.62秒、Browser job为376秒；其余独立故障命令再串行运行会挤压20分钟上限。因此再把14条互不依赖完整BDD的命令移入Browser job，本地合计222.323秒；Complete保留的4条组合命令与构建合计36.18秒。按该远程测量，Complete约17.2分钟；Browser即使迁移部分为本地2倍，合计约13.7分钟。这是预算估计，实际以最新head为准。正常浏览器BDD仍属于Complete；全部命令、原断言、清理及20/15分钟上限均保留。
 
+## 定向复验
+
+手动`workflow_dispatch`可提供空格分隔的`vitest_files`，只执行所列测试文件，其他完整作业不运行；输入为空时仍执行原完整流程。路径经校验后作为独立参数传给Vitest，不改变默认5秒用例限制。此入口用于已定位的夹具修订，不能表述为完整CI全部通过。普通PR/push的默认完整行为保持。
+
+本轮C7只调整HostApprovalFixture的非目录前提，按用户要求复用未改部分已有结果。提交使用`[skip ci]`防止自动重跑全套，再手动定向运行宿主批准、会话、重试及UI四个文件；不借skip为未运行检查背书，PR保持草稿、未合并。
+
 ## 形式化集合
 
 `Formal verification`安装Node24.22.1和Java21，15分钟内顺序运行handoff、delivery、authority、coordination原入口，再独立读回实际证据。delivery主入口包含原Delivery及Verification、Cycles、SourceLineage三个新域。

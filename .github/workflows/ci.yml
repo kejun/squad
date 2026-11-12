@@ -5,6 +5,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      vitest_files:
+        description: 'Space-separated tests/*.test.ts paths; empty runs full CI'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -14,8 +20,58 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  targeted-vitest:
+    name: Targeted Vitest verification
+    if: github.event_name == 'workflow_dispatch' && inputs.vitest_files != ''
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - name: Install sandbox dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes bubblewrap socat ripgrep python3
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Run only the requested Vitest files
+        env:
+          VITEST_FILES: ${{ inputs.vitest_files }}
+        run: |
+          set -euo pipefail
+          requested="${VITEST_FILES//$'\n'/ }"
+          requested="${requested//$'\r'/ }"
+          test_files=()
+          read -r -a test_files <<< "$requested"
+          if ((${#test_files[@]} == 0)); then
+            printf 'Supply at least one tests/*.test.ts path.\n' >&2
+            exit 2
+          fi
+          for test_file in "${test_files[@]}"; do
+            if [[ ! "$test_file" =~ ^tests/[A-Za-z0-9][A-Za-z0-9_.-]*\.test\.ts$ ]] || [[ ! -f "$test_file" ]]; then
+              printf 'Invalid Vitest file: %s\n' "$test_file" >&2
+              exit 2
+            fi
+          done
+          mkdir -p test-results
+          node node_modules/vitest/vitest.mjs run "${test_files[@]}" --maxWorkers=1 --reporter=default --reporter=json --outputFile=test-results/vitest-targeted.json
+      - name: Retain targeted Vitest report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: targeted-vitest-${{ github.sha }}
+          path: test-results/vitest-targeted.json
+          if-no-files-found: warn
+          retention-days: 14
+
   verify:
     name: Complete verification
+    if: github.event_name != 'workflow_dispatch' || inputs.vitest_files == ''
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
@@ -77,6 +133,7 @@ jobs:
 
   browser-controls:
     name: Browser fault detection
+    if: github.event_name != 'workflow_dispatch' || inputs.vitest_files == ''
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -150,6 +207,7 @@ jobs:
 
   formal:
     name: Formal verification
+    if: github.event_name != 'workflow_dispatch' || inputs.vitest_files == ''
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -198,6 +256,7 @@ jobs:
 
   formal-composition:
     name: Formal composition (${{ matrix.slice }})
+    if: github.event_name != 'workflow_dispatch' || inputs.vitest_files == ''
     runs-on: ubuntu-22.04
     timeout-minutes: 25
     strategy:
