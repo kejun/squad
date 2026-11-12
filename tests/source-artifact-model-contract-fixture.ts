@@ -32,6 +32,14 @@ function deliver(model: LocalModel, fields: Record<string, unknown> = {}) {
     text: '已生成修订文档', artifactIds: [], artifacts: [{ name: 'b.md', content: source().content + '\n部署说明' }], ...fields });
 }
 
+function finishRevisionCheck(model: LocalModel) {
+  const work = claim(model, 'check');
+  assert.equal(model.send({ type: 'CONSUME', intentId: work.id, fence: work, attempt: work.attempt }).ok, true);
+  assert.equal(model.send({ type: 'CHECK_RESULT', workId: work.id, fence: work, attempt: work.attempt,
+    resultId: 'checked-revision', candidateRevision: model.c.candidate!.revision,
+    criteriaResults: model.c.candidate!.acceptance!.criteria.map(item => ({ criterionId: item.id, status: 'passed' })) }).ok, true);
+}
+
 export async function* preservesADetachedSourceAndKeepsItOutsideHistoryAndCurrentArtifacts() {
 const input = localModelInput();
 const original = source();
@@ -88,30 +96,30 @@ assert.partialDeepStrictEqual(model.c.artifacts[0], { name: 'b.md', revision: 1 
 assert.notEqual(model.c.artifacts[0]!.documentId, source().documentId);
 }
 
-export async function* rejectsConclusionWithoutRevisionDocument() {
-const row: [string, Record<string, unknown>, string] = ['只有结论', { artifacts: undefined, text: '结论'.repeat(400) }, 'MISSING_ARTIFACTS'];
-const [_name, fields, code] = row;
+export async function* deliversConclusionWithMissingRevisionDeclared() {
 const model = revisionModel();
 yield 'prepared';
-deliver(model, fields);
+assert.equal(deliver(model, { artifacts: undefined, text: '结论'.repeat(400) }).ok, true);
+finishRevisionCheck(model);
 yield 'observed';
-assert.notEqual(model.c.outcome, 'complete');
-assert.equal(model.c.publishedDelivery, undefined);
-assert.equal(model.c.intents.some((item: any) => item.kind === 'check'), false);
-assert.equal(model.c.reply.code === code || model.c.candidate?.deliveryIssue?.code === code || model.c.reason.startsWith(code), true);
+assert.equal(model.c.outcome, 'complete');
+assert.deepEqual(model.c.publishedDelivery!.artifactIds, []);
+assert.deepEqual(model.c.artifacts, []);
+assert(model.c.messages.at(-1)!.detailText!.includes('尚未生成本轮要求的 Markdown 修订稿'));
+assert.equal(model.c.intents.filter(work => work.kind === 'owner').length, 1);
 }
 
-export async function* rejectsSourceIdentityAsCandidate() {
-const row: [string, Record<string, unknown>, string] = ['旧ID列入候选', { artifactIds: [source().artifactId], artifacts: [] }, 'MISSING_ARTIFACTS'];
-const [_name, fields, code] = row;
+export async function* deliversWithoutPublishingSourceIdentity() {
 const model = revisionModel();
 yield 'prepared';
-deliver(model, fields);
+assert.equal(deliver(model, { artifactIds: [source().artifactId], artifacts: [] }).ok, true);
+finishRevisionCheck(model);
 yield 'observed';
-assert.notEqual(model.c.outcome, 'complete');
-assert.equal(model.c.publishedDelivery, undefined);
-assert.equal(model.c.intents.some((item: any) => item.kind === 'check'), false);
-assert.equal(model.c.reply.code === code || model.c.candidate?.deliveryIssue?.code === code || model.c.reason.startsWith(code), true);
+assert.equal(model.c.outcome, 'complete');
+assert.deepEqual(model.c.publishedDelivery!.artifactIds, []);
+assert.deepEqual(model.c.artifacts, []);
+assert((model.c.messages.at(-1)!.detailText ?? model.c.messages.at(-1)!.text).includes('引用的文件不存在或不属于当前目标'));
+assert.deepEqual(model.c.sourceArtifact, source());
 }
 
 export async function* rejectsSourceIdentityAsBackground() {
@@ -140,17 +148,16 @@ assert.equal(model.c.intents.some((item: any) => item.kind === 'check'), false);
 assert.equal(model.c.reply.code === code || model.c.candidate?.deliveryIssue?.code === code || model.c.reason.startsWith(code), true);
 }
 
-export async function* rejectsNonMarkdownRevision() {
-const row: [string, Record<string, unknown>, string] = ['非Markdown文档', { artifacts: [{ name: 'b.txt', content: 'new' }] }, 'MISSING_MARKDOWN_REVISION'];
-const [_name, fields, code] = row;
+export async function* deliversNonMarkdownRevisionWithGapDeclared() {
 const model = revisionModel();
 yield 'prepared';
-deliver(model, fields);
+assert.equal(deliver(model, { artifacts: [{ name: 'b.txt', content: 'new' }] }).ok, true);
+finishRevisionCheck(model);
 yield 'observed';
-assert.notEqual(model.c.outcome, 'complete');
-assert.equal(model.c.publishedDelivery, undefined);
-assert.equal(model.c.intents.some((item: any) => item.kind === 'check'), false);
-assert.equal(model.c.reply.code === code || model.c.candidate?.deliveryIssue?.code === code || model.c.reason.startsWith(code), true);
+assert.equal(model.c.outcome, 'complete');
+assert.deepEqual(model.c.publishedDelivery!.artifactIds, [model.c.artifacts[0]!.id]);
+assert.equal(model.c.artifacts[0]!.name, 'b.txt');
+assert((model.c.messages.at(-1)!.detailText ?? model.c.messages.at(-1)!.text).includes('尚未生成本轮要求的 Markdown 修订稿'));
 }
 
 export async function* rejectsEmptyMarkdownRevision() {
@@ -189,7 +196,7 @@ assert.deepEqual(model.c.publishedDelivery!.artifactIds, [model.c.artifacts[0]!.
 assert.deepEqual(model.c.sourceArtifact, source());
 }
 
-export async function* retainsAnIndependentPreservationFailureAndDoesNotPublishTheCandidate() {
+export async function* deliversPreservationFailureWithoutReturningToOwner() {
 const model = revisionModel();
 assert.equal(deliver(model, { artifacts: [{ name: 'b.md', content: 'only deployment, original requirements lost' }] }).ok, true);
 const work = claim(model, 'check');
@@ -202,9 +209,12 @@ yield 'prepared';
 assert.equal(model.send({ type: 'CHECK_RESULT', workId: work.id, fence: work, attempt: work.attempt, resultId: 'failed-preservation',
       candidateRevision: model.c.candidate!.revision, criteriaResults: results }).ok, true);
 yield 'observed';
-assert.equal(model.c.publishedDelivery, undefined);
-assert.notEqual(model.c.outcome, 'complete');
-assert((model.c.intents.find(item => item.kind === 'owner' && item.status === 'pending')!.payload.priorFindings as Record<string, unknown>[]).some((item: any) => hasFields(item, { status: 'failed', reason: '原要求已被删除' })));
+assert.equal(model.c.outcome, 'complete');
+assert.deepEqual(model.c.publishedDelivery!.artifactIds, [model.c.artifacts[0]!.id]);
+assert((model.c.messages.at(-1)!.detailText ?? model.c.messages.at(-1)!.text).includes('原要求已被删除'));
+assert.equal(model.c.intents.filter(work => work.kind === 'owner').length, 1);
+assert.equal(model.c.intents.filter(work => work.kind === 'check').length, 1);
+assert(model.c.intents.find(item => item.id === work.id)!.criteriaResults?.some(result => result.status === 'failed'));
 }
 
 export async function* preservesTheFixedSourceOnStopStaleCompletionAndPersistedRecovery() {

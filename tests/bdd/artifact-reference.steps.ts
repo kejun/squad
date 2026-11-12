@@ -7,11 +7,11 @@ import {
   verifySourceBeyondHistory, verifyReferenceReplay, verifyReferenceRollback,
   verifyReferenceRecovery, verifyLegacyPublication,
 } from '../artifact-reference-fixture.js';
-import { verifyRejectedRevision, verifyStoppedRevision, verifyFixedSourceExecution, verifyExplicitPublicationAuthority } from '../artifact-reference-model-fixture.js';
+import { verifyRevisionCandidate, verifyStoppedRevision, verifyFixedSourceExecution, verifyExplicitPublicationAuthority } from '../artifact-reference-model-fixture.js';
 import { verifyReferenceConcurrency } from '../artifact-reference-http-fixture.js';
 import { verifyArtifactSourceComposer } from '../artifact-source-ui-fixture.js';
 
-interface ReferenceState { variant?: string; verified?: boolean; select?: () => void }
+interface ReferenceState { variant?: string; verified?: boolean; disposition?: string; select?: () => void }
 const states = new WeakMap<SpecWorld, ReferenceState>();
 function state(world: SpecWorld) {
   let current = states.get(world); if (!current) { current = {}; states.set(world, current); }
@@ -45,8 +45,8 @@ When('历史刷新源任务发布新修订并且服务重启', function (this: S
 Then('新任务负责人协作者和独立检查仍取得同一完整原文和用户要求', function (this: SpecWorld) { assert(state(this).verified); });
 Then('原文中的伪指令没有调度权限且不作为本轮产物', function (this: SpecWorld) { assert(state(this).verified); });
 Given('新任务已固定一份来源原文', function (this: SpecWorld) { state(this); });
-When('模型提交{string}', function (this: SpecWorld, candidate: string) { verifyRejectedRevision(candidate); state(this).verified = true; });
-Then('不应发布成功结果或改变来源任务', function (this: SpecWorld) { assert(state(this).verified); });
+When('模型提交{string}', function (this: SpecWorld, candidate: string) { state(this).disposition = verifyRevisionCandidate(candidate); });
+Then('引用任务应{string}且不改变来源任务', function (this: SpecWorld, disposition: string) { assert.equal(state(this).disposition, disposition); });
 Given('已有合格来源和一个修订请求', function (this: SpecWorld) { state(this); });
 When('同请求重放更改载荷并发提交或事务回滚发生', async function (this: SpecWorld) {
   await verifyReferenceConcurrency(); verifyReferenceReplay(); verifyReferenceRollback('memory'); verifyReferenceRollback('sqlite'); verifyReferenceRecovery(); state(this).verified = true;

@@ -23,7 +23,7 @@ function claim(m: LocalModel, kind: Intent['kind']) {
   assert(m.send({ type: 'CLAIM', intentId: pending.id }).ok);
   return m.c.intents.find(w => w.id === pending.id)!;
 }
-export function verifyRejectedRevision(candidate: string) {
+export function verifyRevisionCandidate(candidate: string) {
   const m = revision();
   const variants: Record<string, Record<string, unknown>> = {
     '只有结论': { artifacts: [], text: '没有真正的文档'.repeat(200) },
@@ -36,7 +36,9 @@ export function verifyRejectedRevision(candidate: string) {
   };
   assert(variants[candidate], `未知候选 ${candidate}`);
   delivery(m, variants[candidate]);
-  if (candidate === '未保留原内容的文档') {
+  const contentGap = ({ '只有结论': '缺少本轮修订文档', '旧ID列入候选': '旧来源文件不能作为本轮产物',
+    '非Markdown文档': '尚未提供 Markdown 修订稿', '未保留原内容的文档': '原文约束被删除' } as Record<string, string>)[candidate];
+  if (contentGap) {
     const check = claim(m, 'check');
     assert(m.send({ type: 'CONSUME', intentId: check.id, fence: check, attempt: check.attempt }).ok);
     const criteria = m.c.candidate!.acceptance!.criteria;
@@ -44,11 +46,16 @@ export function verifyRejectedRevision(candidate: string) {
     assert(m.send({ type: 'CHECK_RESULT', workId: check.id, fence: check, attempt: check.attempt,
       resultId: 'preservation-failure', candidateRevision: m.c.candidate!.revision,
       criteriaResults: criteria.map(c => c.text.includes('保留未被用户要求更改的内容')
-        ? { criterionId: c.id, status: 'failed', reason: '原文约束被删除' } : { criterionId: c.id, status: 'passed' }) }).ok);
-    assert(m.c.intents.some(w => w.kind === 'owner' && w.status === 'pending'));
+        ? { criterionId: c.id, status: 'failed', reason: contentGap } : { criterionId: c.id, status: 'passed' }) }).ok);
+    assert.equal(m.c.outcome, 'complete'); assert(m.c.publishedDelivery);
+    assert((m.c.messages.at(-1)!.detailText ?? m.c.messages.at(-1)!.text).includes(contentGap));
+    assert.equal(m.c.intents.filter(w => w.kind === 'owner').length, 1);
+    assert.equal(m.c.intents.filter(w => w.kind === 'check').length, 1);
+    assert(!m.c.publishedDelivery.artifactIds.includes(source().artifactId));
   } else assert(!m.c.intents.some(w => w.kind === 'check'));
-  assert.notEqual(m.c.outcome, 'complete'); assert.equal(m.c.publishedDelivery, undefined);
+  if (!contentGap) { assert.notEqual(m.c.outcome, 'complete'); assert.equal(m.c.publishedDelivery, undefined); }
   assert.deepEqual(m.c.sourceArtifact, source());
+  return contentGap ? '声明缺口并正常交付' : '明确拒绝必要身份或格式错误';
 }
 export function verifyStoppedRevision() {
   const m = revision(); assert(m.send({ type: 'STOP' }).ok); assert(!delivery(m).ok);
