@@ -18,6 +18,8 @@ export async function runBdd() {
     '--import', 'tsx', 'node_modules/@cucumber/cucumber/bin/cucumber.js',
     'features', '--import', 'tests/bdd/*.ts', ...tagArgs,
     '--format', 'progress', '--format', 'json:test-results/cucumber.json',
+    // Preserve exact failing case identities even when a run is interrupted before the final JSON flush.
+    '--format', 'message:test-results/cucumber.ndjson',
   ], {
     // The complete suite includes real browsers and process crash recovery.
     // Keep the idle/per-step stall guards; bound the entire growing suite separately.

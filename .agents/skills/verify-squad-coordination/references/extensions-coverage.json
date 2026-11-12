@@ -26,7 +26,7 @@
     "src/darwin-process.ts": "c41012475695f68f54eb62fba152203a82ee153a20c8c9089b7982e4e884424b",
     "src/delivery-acceptance.ts": "4cc0389a027e13631058b52ba911e0b99e487160a898510168e47e44fe117dc4",
     "src/delivery-check-delta.ts": "676f1a53878cf893a1073b6e599a038b099fc26bffc5d7a6e9cc8ee00602c4d1",
-    "src/engine.ts": "a7b1209b39fad62f7f8985ebaf59d67c42a088ec5198bea1b2ba033669693970",
+    "src/engine.ts": "614da08a66eaef32df8885476e0afab81ad57d9e706a8196aa474614595f3f5e",
     "src/evidence-reader.ts": "65970def1aa926e95377ca47fe450a53a88c763098192c1764266968562f3f6e",
     "src/host-capabilities.ts": "887050d6c668a648c8e61f21503aa4322870e6139c10b9b05b8be2a804625414",
     "src/host-retry.ts": "912367bbab70879c8a67e60e324a31aa46aa1dda76de27f694fc4249ae743f4a",
@@ -559,7 +559,8 @@
       "review": "references/drift-review-window-tool-experience.json",
       "status": "reviewed-candidate-awaiting-complete-verification",
       "sourceIdentity": "Frozen working-tree hashes; final source commit to be recorded only after complete verification",
-      "syncCommitPreserved": "d865873678688789dbf9399980b841caeed17946"
+      "syncCommitPreserved": "d865873678688789dbf9399980b841caeed17946",
+      "stage": "C3: automatic Engine wake correction reviewed"
     }
   ],
   "workspaceWaitCorrespondence": {

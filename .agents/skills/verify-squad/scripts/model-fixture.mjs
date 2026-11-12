@@ -18,9 +18,11 @@ export async function startFixture(log) {
     try {
       if (req.method !== 'POST' || req.url !== '/v1/chat/completions') throw new Error('Unexpected fixture route');
       if (req.headers.authorization) throw new Error('Fixture must receive no credentials');
-      let raw = '';
-      for await (const chunk of req) { raw += chunk; if (raw.length > 2_000_000) throw new Error('Request too large'); }
-      const request = JSON.parse(raw);
+      // Complete tool metadata is part of a valid production request. This
+      // loopback provider must not add a separate aggregate body limit.
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const request = JSON.parse(Buffer.concat(chunks).toString('utf8'));
       // Host tool observations may precede the fixed task envelope. Match the
       // envelope itself rather than mistaking an untrusted observation for it.
       const inputs = request.messages.filter(m => m.role === 'user').flatMap(message => {

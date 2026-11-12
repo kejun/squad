@@ -8,8 +8,9 @@ import { modelResponse } from '../model-regeneration-fixture.js';
 
 class QueueFixture extends MapCapacityFixture {
   old?: Intent;
-  constructor() {
+  constructor(workTimeoutMs?: number) {
     super(undefined, true);
+    if (workTimeoutMs !== undefined) this.config.limits.workTimeoutMs = workTimeoutMs;
     this.config.limits.retries = 4;
     this.response = request => request.kind === 'interpretation'
       ? modelResponse({ type: 'interpretation', spec: groupedIntent(8) }) : this.reply(request);
@@ -23,8 +24,8 @@ class QueueFixture extends MapCapacityFixture {
 }
 const states = new WeakMap<SpecWorld, QueueFixture>();
 const fixture = (world: SpecWorld) => { const value = states.get(world); assert(value); return value; };
-async function prepare(world: SpecWorld) {
-  const value = new QueueFixture(); states.set(world, value); await value.recognize();
+async function prepare(world: SpecWorld, workTimeoutMs?: number) {
+  const value = new QueueFixture(workTimeoutMs); states.set(world, value); await value.recognize();
   assert.equal(value.queue.length, 8); assert.equal(value.pending('assistance').length, 4); return value;
 }
 After(async function (this: SpecWorld) {
@@ -105,8 +106,10 @@ Then('应保留明确未执行状态且不得把部分结果发布为完整交�
   assert.notEqual(value.context().outcome, 'complete'); assert.equal(value.pending('discussionSummary').length, 0);
 });
 
-Given('分片队列仍有未派发分片且已到截止时间', async function (this: SpecWorld) {
-  const value = await prepare(this); value.old = value.claimMap(); value.now = value.queue[0]!.deadline;
+Given('分片队列仍有未派发分片且已到单次工作截止时间而任务窗口仍有效', async function (this: SpecWorld) {
+  const value = await prepare(this, 1000); value.old = value.claimMap();
+  assert(value.queue[0]!.deadline < value.context().resilience!.window.hardDeadline);
+  value.now = value.queue[0]!.deadline;
 });
 When('服务恢复并核对队列期限', function (this: SpecWorld) { const value = fixture(this); value.fail(value.old!); value.reopen(); });
 Then('截止时的失败不得再消耗重试额度', function (this: SpecWorld) { assert.equal(fixture(this).context().usage.retries, 0); });

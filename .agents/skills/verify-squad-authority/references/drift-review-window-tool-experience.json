@@ -1,7 +1,7 @@
 {
   "change": "window-tool-experience",
   "status": "reviewed-candidate-awaiting-complete-verification",
-  "sourceHeadBeforeCommit": "596d63af3c3b8b57b0227126df1a208c2b40798c",
+  "sourceHeadBeforeCommit": "20db2a0807ffc840c6c888be0f2259ea4c1b5991",
   "sourceIdentity": "Frozen working-tree SHA-256, not a claim that the old HEAD contains uncommitted product changes",
   "previousSyncCommit": "d865873678688789dbf9399980b841caeed17946",
   "reviewedSourceFiles": [
@@ -38,8 +38,8 @@
     {
       "path": "src/engine.ts",
       "previousSha256": "ea4fc1ba23f93b9591a8201ad7e71ce2a438c1b3ba0214513b89808922264d0f",
-      "sha256": "a7b1209b39fad62f7f8985ebaf59d67c42a088ec5198bea1b2ba033669693970",
-      "classification": "viewTasks decodes/clones one room snapshot in one store read for history projection; no transaction, mutation, scheduler or cross-room read added."
+      "sha256": "614da08a66eaef32df8885476e0afab81ad57d9e706a8196aa474614595f3f5e",
+      "classification": "viewTasks remains a read-only single-room snapshot decode. windowExpiryUnobserved now keeps exactly one hardDeadline wake even while a required human gate is open; normal tick and the incompatible-protocol early-return route emit existing SUPERVISE when due. The persisted WINDOW_EXPIRED failure suppresses old past-deadline wakes and newWindow restores a new future deadline. This intentionally corrects the observed Engine wiring omission; existing short-clock finite domains do not reach the hardDeadline branch. No transaction is split, no new I/O is introduced, and required questions/usage/host authority remain model-owned."
     },
     {
       "path": "src/local-cli.ts",
@@ -180,7 +180,7 @@
     "src/task/tool-experience.ts"
   ],
   "originalDrift": "/workspace/work/squad-window-experience/formal/original-drift-final/index.json",
-  "reviewedAt": "2026-11-12T04:44:36.667256+00:00",
+  "reviewedAt": "2026-11-12T05:17:49.644535+00:00",
   "productCommit": null,
   "syncCommitAdvanced": false,
   "validation": {
@@ -188,5 +188,33 @@
     "requires": "All nine full original producers, genuine source controls, restored original replays, independent readers and applicable reader tamper controls before synchronization"
   },
   "scope": "Original finite properties, bounds, fairness and source controls remain. New processing-window/human-gate, catalog usage accuracy, CAR history, actual stdin bytes/OCR, current-session UI and their combinations retain separate actual taskMachine/BDD/real-process/browser/live-model evidence. No full-system or arbitrary-history claim.",
-  "sliceCorrespondence": "Execution/Host/SessionScope/ApprovalComposition keep original opaque approval ID/permit/lease states. Runtime binding expands 10 to 13 inputs: stdin unchanged, same-size changed bytes outside workspaceManifest, same bytes different path. Two unchanged callbacks stop before spawn; altered inputs must reject. User-gate renewals do not grant command authority."
+  "sliceCorrespondence": "Execution/Host/SessionScope/ApprovalComposition keep original opaque approval ID/permit/lease states. Runtime binding expands 10 to 13 inputs: stdin unchanged, same-size changed bytes outside workspaceManifest, same bytes different path. Two unchanged callbacks stop before spawn; altered inputs must reject. User-gate renewals do not grant command authority.",
+  "followUpReviews": [
+    {
+      "file": "src/engine.ts",
+      "previousSha256": "a7b1209b39fad62f7f8985ebaf59d67c42a088ec5198bea1b2ba033669693970",
+      "sha256": "614da08a66eaef32df8885476e0afab81ad57d9e706a8196aa474614595f3f5e",
+      "classification": "verification describes a newly reachable scheduler branch; actual taskMachine transitions remain those already validated for window expiry",
+      "change": "viewTasks remains a read-only single-room snapshot decode. windowExpiryUnobserved now keeps exactly one hardDeadline wake even while a required human gate is open; normal tick and the incompatible-protocol early-return route emit existing SUPERVISE when due. The persisted WINDOW_EXPIRED failure suppresses old past-deadline wakes and newWindow restores a new future deadline. This intentionally corrects the observed Engine wiring omission; existing short-clock finite domains do not reach the hardDeadline branch. No transaction is split, no new I/O is introduced, and required questions/usage/host authority remain model-owned.",
+      "evidence": {
+        "red": "/workspace/work/squad-window-experience/window/automatic-expiry-red.log",
+        "restoredAndSourceControls": "/workspace/work/squad-window-experience/window/automatic-expiry-negative/",
+        "acceptance": "BT_Y154: real Engine nextWake/tick with Memory/SQLite and clarification, one/parallel host approvals, incompatible protocol; exactly-once deadline observation, restart, no busy loop and renewed deadline"
+      },
+      "scope": "Supplementary bounded actual Engine routing evidence, not new states or liveness assumptions in the original nine finite TLC entry points"
+    }
+  ],
+  "originalDriftC3": "/workspace/work/squad-window-experience/formal/original-drift-c3/index.json",
+  "interruptedRuns": [
+    {
+      "stage": "C1",
+      "completeProducers": 0,
+      "record": "/workspace/work/squad-window-experience/formal/c1-partial-cancellation.json"
+    },
+    {
+      "stage": "C2",
+      "completeProducers": 0,
+      "record": "/workspace/work/squad-window-experience/formal/c2-partial-cancellation.json"
+    }
+  ]
 }

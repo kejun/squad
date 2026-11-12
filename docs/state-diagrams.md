@@ -1901,6 +1901,8 @@ stateDiagram-v2
 
 ### 独立分片队列（BT_Q27–BT_Q33）
 
+BT_Q32 保留单次分片期限早于任务总窗口的边界：到期队列取消且不再执行；任务总窗口到期另走 WINDOW_EXPIRED 人类续窗门，不把两种期限混为一谈。
+
 类型：taskMachine 同事务上下文生命周期，所有者 `src/task/map-queue.ts`。总分片上限仍为八且须预留全部首轮分片、归并和负责人额度；并发上限单独固定为启动时可用非负责人成员数。先持久化意图，再由原 runner 领取和取得执行许可。
 
 ```mermaid
@@ -1911,7 +1913,7 @@ stateDiagram-v2
     failed --> queued: 瞬时技术失败 [每片首次且共享重试和预留允许] / 新尝试
     running --> uncertain: 未知效果 / 保留占用与屏障
     uncertain --> running: 可信核对 [原执行器允许恢复] / 重新领取原工作
-    queued --> cancelled: 停止、目标变化、期限或额度耗尽 / 保存未执行原因
+    queued --> cancelled: 停止、目标变化、单次分片期限或额度耗尽 / 保存未执行原因
 ```
 
 成功、部分完成、失败、超时和取消分别保留。确定终止的失败立即标记本轮不完整，尚可技术重试的失败仅保留尝试记录；后续归并不得抹掉未完成标记。只对确定无未知效果的瞬时技术失败自动重试一次；语义失败和部分完成不自动重跑。旧尝试按工作 ID、attempt 和 fence 拒绝。归并等待全部分片结算，收到各分片及各尝试原始结果；一位成员执行多片时，证据必须用 partitionId 关联，不能再只用成员查找。目标变更、停止与不兼容恢复不得继续派发旧轮次；物理效果未核清仍保留占用。
@@ -2058,7 +2060,7 @@ BT_Q48 为同一恢复声明的模型协议边界：`answer` 等非 `deliver` �
 | taskMachine权限门context：宿主批准期限与固定任务窗口独立，沉默不代答 | [宿主授权门](implementation/host-approval-gates.md)，BT_Y102–Y106 |
 | 配置恢复门context：不兼容执行配置只接受可执行的跳过/停止，内容包与独立清理保留 | [配置恢复门](implementation/configuration-recovery-gate.md)，BT_Y108–Y110 |
 
-类型：任务拥有的上下文生命周期；所有者 `taskMachine` / `src/task/resilience.ts`。默认三小时窗口由初次授权固定，普通恢复、重试、心跳不能续期。`SUPERVISE` 由可信宿主提交，模型不能自行生成授权。到期码 `WINDOW_EXPIRED` 绑定原窗口，独立于网络 transient；任务沿用真实 `waitingHuman`。到期时取消新增业务、保存取消意图和独立清理责任；旧必需门优先保留，明确答复后再请求续窗。仅明确 `newWindow` 更新期限，不能批准宿主命令或释放未知效果。活动任务的 `CONTINUE(newWindowMs)` 复用同一个人类门决定，保留 epoch 与原分片身份；原必需问题尚未答复时拒绝该通用续窗入口。原命令门的skip只省略该命令并转续窗待答；只有到期窗口门skip代表结束。未完成协助取消业务等待但保留问题和答复，已保存结果沿原HELP_RESULT唯一消费，不因续窗重放提供方。过期的安全输入解析回到待解析事实；分片保留成功与旧执行身份，未开工或未完成的安全分片标为 `timeout/WINDOW_EXPIRED`。讨论的已有材料转为 `ready`，续窗后通过原 `DISCUSSION_HANDOFF` 交给负责人，原 `partitionRecoveries` 加独立检查证明补齐；物理未决仍独立清理，不能重放。对应 [WIN-01–WIN-04](requirements/window-expiry.md)、BT_Y131–Y134。
+类型：任务拥有的上下文生命周期；所有者 `taskMachine` / `src/task/resilience.ts`。默认三小时窗口由初次授权固定，普通恢复、重试、心跳不能续期。`SUPERVISE` 由可信宿主提交，模型不能自行生成授权。到期码 `WINDOW_EXPIRED` 绑定原窗口，独立于网络 transient；任务沿用真实 `waitingHuman`。可信宿主即使在原必需门待答期间，也必须为尚未记录到期的窗口保留一次硬期限唤醒；到期保存后不再把旧硬期限或被冻结业务工作期限作为唤醒来源，只保留独立清理和技术补试所需监督。配置不兼容的宿主早返回路径同样记录首次到期，恢复不得重复唤醒。BT_Y154通过真实Engine/Memory/SQLite验证该接线，沿用现有XState SUPERVISE转移。到期时取消新增业务、保存取消意图和独立清理责任；旧必需门优先保留，明确答复后再请求续窗。仅明确 `newWindow` 更新期限，不能批准宿主命令或释放未知效果。活动任务的 `CONTINUE(newWindowMs)` 复用同一个人类门决定，保留 epoch 与原分片身份；原必需问题尚未答复时拒绝该通用续窗入口。原命令门的skip只省略该命令并转续窗待答；只有到期窗口门skip代表结束。未完成协助取消业务等待但保留问题和答复，已保存结果沿原HELP_RESULT唯一消费，不因续窗重放提供方。过期的安全输入解析回到待解析事实；分片保留成功与旧执行身份，未开工或未完成的安全分片标为 `timeout/WINDOW_EXPIRED`。讨论的已有材料转为 `ready`，续窗后通过原 `DISCUSSION_HANDOFF` 交给负责人，原 `partitionRecoveries` 加独立检查证明补齐；物理未决仍独立清理，不能重放。对应 [WIN-01–WIN-04](requirements/window-expiry.md)、BT_Y131–Y134。
 
 ```mermaid
 stateDiagram-v2
@@ -2072,7 +2074,7 @@ stateDiagram-v2
     automatic --> human: SUPERVISE [原自动窗口耗尽且无必需任务门] / 保存WINDOW_EXPIRED及newWindow门
     repairing --> human: SUPERVISE [原自动窗口耗尽且无必需任务门] / 保存WINDOW_EXPIRED及newWindow门
     repairing --> frozen: SUPERVISE [仅修复耗尽且原自动窗口有效且无必需任务门] / 冻结缺失清单
-    human --> human: SUPERVISE [必需任务门未回复] / 保存到期码且保留原门与UI入口
+    human --> human: SUPERVISE [原门未回复且首次固定到期或清理到期] / 保存到期码且保留原门与UI入口
     human --> human: 明确回复原问题 [原窗口已耗尽且非明确结束] / 保存答复并请求newWindow
     frozen --> frozen: 迟到结果 [原操作身份有效] / 只结算历史及cleanup
 ```

@@ -15,7 +15,7 @@ import { resourceAcquisitionProblem, savedResourceAcquisitions } from '../src/re
 
 /** Actual engine/SQLite, adapter, runner and Node process; only model HTTP is controlled. */
 async function runMapRecoveryIntegration(wrongDocument: boolean, wrongOutput = false, wrongSource = false) {
-  const config = intentConfig({ ordinary: 100, checks: 5, assists: 20, workTimeoutMs: 1000 });
+  const config = intentConfig({ ordinary: 100, checks: 5, assists: 20, workTimeoutMs: 5000 });
   config.resilience = { automaticTimeoutMs: 100_000 };
   config.inputAnalysis = { enabled: true };
   const fixture = new InputIntentFixture(config, true);
@@ -45,7 +45,7 @@ async function runMapRecoveryIntegration(wrongDocument: boolean, wrongOutput = f
         const partition = request.context.partition as { id: string };
         if (partition.id === 'group-2' && !request.messages.some(message => message.role === 'user' && message.content.includes('\"type\":\"web_fetch_result\"')))
           return modelResponse({ type: 'web_fetch', url: documentUrls[1] });
-        if (partition.id === 'group-8') fixture.now = 1050;
+        if (partition.id === 'group-8') fixture.now = 5050;
         return modelResponse({ type: 'answer', status: partition.id === 'group-2' ? 'success' : 'failed',
           text: partition.id === 'group-2' ? `${documentUrls[1]} DOC_2_FACT` : '未能取到正文，保留该片未完成' });
       }
@@ -115,9 +115,11 @@ async function runMapRecoveryIntegration(wrongDocument: boolean, wrongOutput = f
     assert(await runner.runOne(fixture.room, fixture.task));
     assert.equal(fixture.context().discussion!.status, 'delivered');
     const failureHistory = structuredClone(fixture.context().discussion!.results.filter(result => result.status === 'failed'));
+    // BT_Y60 checks source identity, not one-second process latency. Keep the virtual
+    // order: last partition result at deadline - 50; owner continuation at deadline + 100.
     // The old partition window has ended; the owner still has its own bounded continuation window.
     // This preserves KEJ-111 recovery semantics without asking KEJ-113 to re-execute expired partitions.
-    fixture.now = 1200;
+    fixture.now = 5200;
     assert(await runner.runOne(fixture.room, fixture.task));
     const rejected = wrongDocument || wrongSource;
     const expectedIssue = 'MAP_RECOVERY_RESOURCE_UNVERIFIED';

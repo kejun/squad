@@ -146,6 +146,13 @@ Then('不应保存格式修正记录且仅瞬时供应商故障可自动重试',
     assert.equal(f.h.context().resilience!.gates.find(item => item.id === gate.id)!.status, 'open');
     assert.equal(f.requests.length, 1); assert.equal(f.h.context().usage.retries, 0);
     assert(f.h.event({ type: 'HUMAN_GATE_DECISION', gateId: gate.id, decision: 'skip', fence: f.h.context() }).ok);
+    assert.equal(f.h.view().phase, 'waitingHuman'); assert.equal(f.h.context().outcome, null);
+    const windowGate = f.h.context().resilience!.gates.find(item => item.status === 'open' && item.cause === 'windowExpired');
+    assert(windowGate); assert.equal(windowGate.code, 'WINDOW_EXPIRED');
+    assert.equal(windowGate.windowId, c.resilience!.window.id);
+    assert.equal(f.requests.length, 1); assert.equal(f.h.context().usage.retries, 0);
+    assert.equal(f.h.context().resilience!.gates.find(item => item.id === gate.id)!.status, 'skipped');
+    assert(f.h.event({ type: 'HUMAN_GATE_DECISION', gateId: windowGate.id, decision: 'skip', text: '明确结束到期窗口并保留候选' }).ok);
     assert.equal(f.h.view().phase, 'ended'); assert.equal(f.h.context().outcome, 'partial');
     assert.equal(f.h.context().resilience!.gates.find(item => item.id === gate.id)!.status, 'skipped');
   } else {
