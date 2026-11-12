@@ -29,7 +29,8 @@ async function runMapRecoveryIntegration(wrongDocument: boolean, wrongOutput = f
     await mkdir(sourceRoot);
     await writeFile(join(sourceRoot, 'read-docs.mjs'), `console.log(${JSON.stringify(JSON.stringify(returnedDocuments))});\n`);
     if (wrongSource) await writeFile(join(sourceRoot, 'echo.mjs'), 'console.log("foo");\n');
-    runtime = await LocalRuntime.create({ dataRoot: runtimeRoot, workspaceRoot: sourceRoot, skillRoots: [],
+    // Scripted tool choices test frozen source/recovery evidence; the CI host's installed CLI inventory is unrelated input.
+    runtime = await LocalRuntime.create({ dataRoot: runtimeRoot, workspaceRoot: sourceRoot, skillRoots: [], cliCatalog: [],
       commandEnv: localFixtureCommandEnv, backend, clock: () => fixture.now,
       acquisitionReaders: [{ id: 'map-recovery-batch', version: '1', command: 'node', argsPrefix: ['read-docs.mjs'],
         format: 'json-document', resource: { kind: 'document-batch', documents: documents.map(document => ({ id: document.id,

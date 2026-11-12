@@ -88,7 +88,8 @@ async function workspace() {
     observed.complete = missing.length === 0; observed.missing = missing;
     return { result: { ok: observed.complete, code: observed.complete ? 'PREPARATION_COMPLETE' : 'PREPARATION_INCOMPLETE', data: { missing, noProcessSpawned: true } }, settled: true, effectsKnown: true };
   } };
-  const runtime = await LocalRuntime.create({ dataRoot: join(root!, 'runtime'), skillRoots: [], workspaceRoot: join(root!, 'source'), backend, clock: () => 0 });
+  // The controlled preparation backend does not need machine-dependent tool discovery.
+  const runtime = await LocalRuntime.create({ dataRoot: join(root!, 'runtime'), skillRoots: [], cliCatalog: [], workspaceRoot: join(root!, 'source'), backend, clock: () => 0 });
   try {
     const execute = async (suffix: string) => {
       const plan = work.payload.verification as { status: string; action: LocalAction } | undefined;
