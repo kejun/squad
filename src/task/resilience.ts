@@ -43,8 +43,8 @@ export interface HumanGate extends Fence {
   workId?: string;
   operationId?: string;
   approvalId?: string;
-  cause?: 'incompatibleExecution' | 'windowExpired';
-  code?: 'WINDOW_EXPIRED';
+  cause?: 'incompatibleExecution' | 'windowExpired' | 'modelServiceError';
+  code?: string;
   decisions?: ('reply' | 'skip' | 'stop' | 'newWindow')[];
   resolvedAt?: number;
   responseId?: string;
@@ -151,7 +151,8 @@ export function openHumanGate(c: TaskContext, e: Pick<TaskEvent, 'id' | 'at'>, o
     && g.question === options.question && g.workId === options.workId && g.operationId === options.operationId && g.approvalId === options.approvalId);
   if (existing) return existing;
   if (scope === 'task') for (const gate of r.gates.filter(g => g.scope === 'task' && g.status === 'open'
-    && (options.approvalId ? g.workId === options.workId && g.operationId === options.operationId : !g.approvalId))) {
+    && (options.approvalId || options.cause === 'modelServiceError'
+      ? g.workId === options.workId && g.operationId === options.operationId : !g.approvalId && g.cause !== 'modelServiceError'))) {
     gate.status = 'cancelled'; gate.resolvedAt = e.at;
   }
   const gate: HumanGate = { id: `${c.taskId}:gate:${e.id}:${scope}`, windowId: r.window.id, scope,
@@ -344,9 +345,16 @@ export function executionNotStarted(c: TaskContext, e: Extract<TaskEvent, { type
   requeueSafeWork(c, work, e.at);
 }
 export const authorizationFailure = (reason: string) => /HTTP[_ ](?:401|403)|Unauthorized|Forbidden|api.?key|not configured|未配置|权限.*(?:拒绝|关闭)|配置模型|SKILL_SEARCH_DISABLED|LOCAL_TOOLS_DISABLED|WEB_TOOLS_DISABLED/i.test(reason);
+export function modelServiceFailureCode(e: TaskEvent): string | undefined {
+  if (e.type !== 'WORK_FAILED') return undefined;
+  if (e.code === 'MODEL_CONTEXT_LIMIT') return e.code;
+  const status = Number(/^MODEL_HTTP_(\d{3})$/.exec(e.code ?? '')?.[1] ?? /Model HTTP (\d{3})/.exec(e.reason)?.[1]);
+  return status >= 400 && status < 500 && status !== 408 && status !== 429 ? `MODEL_HTTP_${status}` : undefined;
+}
 export function requiredHumanFailure(c: TaskContext, e: TaskEvent): boolean {
   if (e.type !== 'WORK_FAILED' || c.stopped || c.outcome !== null || c.resilience?.frozen || e.at >= processingWindow(c).hardDeadline) return false;
   const work = c.intents.find(item => item.id === e.intentId);
+  if (work && work.kind !== 'cancel' && modelServiceFailureCode(e)) return true;
   if (!work || work.kind === 'cancel' || work.discussionId || work.replay === 'unsafe'
     || work.deadline !== null && e.at >= work.deadline) return false;
   return authorizationFailure(e.reason);
@@ -384,6 +392,17 @@ export function decideHumanGate(c: TaskContext, e: Extract<TaskEvent, { type: 'H
     freezeIncomplete(c, e, '当前宿主不能继续旧执行协议；用户明确跳过剩余业务，保留已有成果与缺口'); return;
   }
   if (e.decision === 'stop') { freezeIncomplete(c, e, '用户明确停止', 'stopped'); return; }
+  if (gate.cause === 'modelServiceError' && e.decision === 'skip') {
+    r.skips.push({ id: `${gate.id}:skip`, windowId: r.window.id, targetKind: 'work', targetId: gate.workId!,
+      reason: `用户跳过模型失败：${gate.question}`, at: e.at, authorization: 'human', gateId: gate.id, epoch: c.epoch, goalVersion: c.goalVersion });
+    if (skipCurrentPartition(c, gate.workId!, gate.question)) {
+      if (!taskHumanGate(c)) {
+        if (windowExpired(c, e.at)) requestNewWindow(c, e);
+        else { c.reason = ''; advanceMapQueue(c, e); }
+      }
+    } else if (!taskHumanGate(c)) freezeIncomplete(c, e, `用户跳过模型失败，保留已有成果：${gate.question}`);
+    return;
+  }
   if (e.decision === 'skip') {
     if (gate.kind === 'clarification') {
       for (const input of c.inputAnalyses ?? []) if (input.workId === gate.workId && input.status === 'clarification') {

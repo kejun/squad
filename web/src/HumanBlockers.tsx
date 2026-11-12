@@ -118,6 +118,7 @@ export function HumanBlockers({ roomId, blockers, connected, expiredTaskIds = []
             {active.scope !== 'cleanup' && expiredTaskIds.includes(active.taskId)
               && <p role="status">自动处理窗口已耗尽，仍等待你的明确回复。</p>}
             <p>{active.scope === 'cleanup' ? '原执行效果尚未结算；关闭提示不会释放资源，也不会批准新命令。'
+              : !active.actions.some(action => action.requiresText) ? '请选择跳过或停止任务；关闭提示不会替你决定。'
               : active.requiredHuman ? '需要你明确回复；关闭提示或等待不会代替你的决定。' : '请明确选择处理方式，跳过只省略指定内容。'}</p>
             {active.operation && !active.operation.approvalId
               ? <OperationReviewPanel key={key(active)} roomId={active.source?.roomId ?? roomId} blocker={active} connected={connected} />
@@ -128,7 +129,7 @@ export function HumanBlockers({ roomId, blockers, connected, expiredTaskIds = []
                   ? <Button disabled={busy} onClick={() => setActiveKey(null)}>查看宿主授权卡片</Button>
                   : <p>原授权当前不可用。你可以明确跳过此命令或停止任务；关闭提示仍会保留待处理状态。</p>}
               </> : <>
-                <label>明确回复<textarea aria-label="决定回复" value={text} onChange={event => setText(event.target.value)} disabled={busy} /></label>
+                {active.actions.some(action => action.requiresText) && <label>明确回复<textarea aria-label="决定回复" value={text} onChange={event => setText(event.target.value)} disabled={busy} /></label>}
                 {active.actions.some(action => action.allowsExtraOrdinary) && <label>追加执行额度<input aria-label="追加执行额度" type="number" min="1" step="1" value={extra} onChange={event => setExtra(event.target.value)} disabled={busy} /></label>}
                 {active.actions.some(action => action.allowsNewWindowMs) && <label>新处理时长（分钟）<input aria-label="新处理时长（分钟）" type="number" min="1" value={minutes} onChange={event => setMinutes(event.target.value)} disabled={busy} /></label>}
               </>}

@@ -75,7 +75,8 @@ describe('validated input interpretation', () => {
   });
 
   it('[BT_I05] a short clarification answer still uses the model after a failed interpretation', async () => {
-    const f = setup(); f.submit(); f.replies = [new Response('private', { status: 401 })]; await f.run();
+    // Generic failed interpretation, distinct from the explicit skip/stop model-auth gate.
+    const f = setup(intentConfig({ retries: 0 })); f.submit(); f.replies = [new Response('private', { status: 500 })]; await f.run();
     expect(f.submit('方案甲', { id: 'short-answer' }).ok).toBe(true); expect(f.view().phase).toBe('interpreting');
     await f.run(); expect(f.context().inputAnalyses!.at(-1)!.spec?.action).toBe('supplement');
     expect(f.context().inputAnalyses![0]!.status).toBe('cancelled'); expect(f.view().phase).toBe('running');

@@ -389,6 +389,8 @@ export class WebService {
       for (const gate of c.resilience?.gates ?? []) if (['open', 'skipped'].includes(gate.status) && (gate.scope === 'cleanup' || gate.epoch === c.epoch && gate.goalVersion === c.goalVersion)) {
         const actions: WebBlocker['actions'] = gate.scope === 'cleanup' || gate.status === 'skipped' ? [] : gate.approvalId
           ? [{ id: 'skip', label: '跳过此命令' }, { id: 'stop', label: '停止任务' }]
+          : gate.cause === 'modelServiceError'
+            ? [{ id: 'skip', label: '跳过' }, { id: 'stop', label: '停止任务' }]
           : gate.cause === 'windowExpired'
             ? [{ id: 'newWindow', label: '授权新窗口', requiresText: true, allowsNewWindowMs: true },
               { id: 'skip', label: '结束并保留成果' }, { id: 'stop', label: '停止任务' }]
@@ -398,7 +400,7 @@ export class WebService {
           scope: gate.scope, ...(gate.code ? { code: gate.code } : {}), ...(gate.workId && gate.operationId ? { operation: { workId: gate.workId, operationId: gate.operationId,
             ...(gate.approvalId ? { approvalId: gate.approvalId } : {}) } } : {}),
           title: gate.scope === 'cleanup' ? '执行效果等待核对' : gate.status === 'skipped' ? '内容已明确跳过'
-            : gate.cause === 'windowExpired' ? '处理窗口已到期' : gate.cause === 'incompatibleExecution' ? '执行配置需要重新核对' : '需要你的回复', question: gate.question, requiredHuman: gate.required, status: gate.status === 'skipped' ? 'skipped' : 'open',
+            : gate.cause === 'modelServiceError' ? '模型服务调用失败' : gate.cause === 'windowExpired' ? '处理窗口已到期' : gate.cause === 'incompatibleExecution' ? '执行配置需要重新核对' : '需要你的回复', question: gate.question, requiredHuman: gate.required, status: gate.status === 'skipped' ? 'skipped' : 'open',
           actions: gate.decisions ? actions.filter(action => gate.decisions!.includes(action.id)) : actions });
       }
       const frozen = c.resilience?.frozen;

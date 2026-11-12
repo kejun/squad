@@ -1,5 +1,22 @@
 # 分层状态图
 
+## 模型服务错误的明确决定
+
+类型：真实 `taskMachine` 及其既有人类门上下文；所有者 `task/resilience.ts`，BT_Y168–Y172。模型 I/O 由已领取工作发起，拒绝响应经脱敏后回传 `WORK_FAILED`，不增加执行器或父状态。
+
+```mermaid
+stateDiagram-v2
+    running --> waitingHuman: WORK_FAILED [不可重试的模型4xx] / 释放失败工作、保存错误及skip/stop门
+    coordinating --> waitingHuman: WORK_FAILED [分片模型4xx] / 保存原分片错误门、不自动重试
+    checking --> waitingHuman: WORK_FAILED [检查模型4xx] / 保留未核验成果及错误门
+    waitingHuman --> waitingHuman: RECOVER或关闭浮层或其他分片失败 / 保留每项明确决定
+    waitingHuman --> running: HUMAN_GATE_DECISION [skip且有剩余分片且无其他门] / 省略指定分片、继续剩余工作
+    waitingHuman --> ended: HUMAN_GATE_DECISION [skip且无可继续工作] / 冻结不完整成果
+    waitingHuman --> ended: HUMAN_GATE_DECISION [stop] / 停止整个任务并保留成果
+```
+
+400、401、403、404、422 及上下文越界沿用这一决定流程。408、429、5xx 保持原网络重试语义；窗口到期仍走续窗门。错误浮层只投影已保存的错误消息和两项操作，不要求输入文本。多个并发错误分别保留门，跳过一项不取消其他未答门；迟到、旧轮次、已停止或已删除任务沿用现有事件守卫。
+
 ## 归档会话强制删除
 
 类型：真实 XState 独立删除生命周期；所有者 `roomDeletionMachine`，验收 BT_Y162–Y167。`force && dataErased` 是 HTTP/列表的已删除事实，`deleted` 表示后台运行文件也清理完毕。新请求无需二次确认或核对旧操作，旧作业可直接升级。
@@ -23,7 +40,7 @@ stateDiagram-v2
 
 BT_Y120 为协调者的全局只读执行投影：WebService 按持久状态读取所有会话/任务/成员、真实操作启动、租约持有与等待依赖、待授权与未决核对、原窗口；WorkRunner 提供实时观察 getter，模型适配器在每次实际协调请求前重新读取。沿用已有协调意图的领取和协议，观察不产生新事件、授权或 I/O 调度；复验 BT_Y114 既有模型路径作为接线前门槛，不新增虚构 XState 状态。
 
-BT_Y119 的归档删除反馈使用既有 `roomDeletionMachine` 的 preparing / waiting / paused / deleted 状态，不改变业务转移。界面确认提交后，HTTP 返回 WebRoom [尚未 deleted] / 保持确认弹窗并展示真实进度；返回 DeletedRoom [已持久确认] / 关闭弹窗并移除精确目标；主动关闭 [仍未完成] / 列表保留可重新打开的删除状态。刷新按持久状态恢复，切群不能使另一会话被目标响应覆盖。
+BT_Y119 的非当前归档会话删除采用强制删除流程：HTTP 在数据删除事务提交后返回 DeletedRoom，立即移除目标；后台文件清理不弹核对框，切群及迟到响应不能清除另一会话的草稿。旧安全删除图仅供已持久作业兼容恢复。
 
 BT_Y118 组合验收八份登录资料、四成员读取失败后的四条 CLI 等待；只有实际正文回执可满足资料获取。所有成员都资源等待时，监督仍识别资源阻塞，UI 在当前会话显示原操作核对；原窗口有界；窗口到期后等待明确续窗时，取消排队操作不会结算原冲突租约，当前会话仍保留实际旧操作核对入口，不能把等待续窗或后续 partial 当作已满足及时提示。
 

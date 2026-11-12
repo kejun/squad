@@ -24,7 +24,8 @@ export const taskGuards = {
         || !windowExpired(args.context, args.event.at)) return false;
       const gate = args.context.resilience?.gates.find(gate => gate.id === (args.event as Extract<TaskEvent, { type: 'HUMAN_GATE_DECISION' }>).gateId);
       return gate?.scope === 'task' && (args.event.decision === 'reply'
-        || args.event.decision === 'skip' && gate.cause !== 'windowExpired' && gate.cause !== 'incompatibleExecution');
+        || args.event.decision === 'skip' && gate.cause !== 'windowExpired' && gate.cause !== 'incompatibleExecution'
+          && (gate.cause !== 'modelServiceError' || args.context.discussion?.mapReduce?.queue?.some(p => p.workId === gate.workId)));
     },
     notStartedEnds: args => args.event.type === 'EXECUTION_NOT_STARTED' && valid(args) && executionNotStartedEnds(args.context, args.event),
     hasTaskHumanGate: ({ context }) => !!taskHumanGate(context),
@@ -36,15 +37,23 @@ export const taskGuards = {
       && !taskHumanGates(args.context).some(g => g.approvalId !== (args.event as Extract<TaskEvent, { type: 'LOCAL_APPROVAL_DECISION' }>).approvalId
         || g.operationId !== (args.event as Extract<TaskEvent, { type: 'LOCAL_APPROVAL_DECISION' }>).operationId || g.workId !== (args.event as Extract<TaskEvent, { type: 'LOCAL_APPROVAL_DECISION' }>).intentId),
     humanDecisionExpired: ({ context, event }) => event.type === 'HUMAN_DECISION' && !!directTaskGate(context, event) && windowExpired(context, event.at) && !otherTaskHumanGate(context, directTaskGate(context, event)!.id),
-    gateDecisionEnds: ({ context, event }) => event.type === 'HUMAN_GATE_DECISION' && valid({ context, event })
-      && context.resilience?.gates.find(g => g.id === event.gateId)?.scope === 'task'
-      && (event.decision === 'stop' || event.decision === 'skip' && context.resilience?.gates.find(g => g.id === event.gateId)?.cause === 'incompatibleExecution' || event.decision === 'skip' && context.resilience?.gates.find(g => g.id === event.gateId)?.cause === 'windowExpired' && windowExpired(context, event.at)
-        && !otherTaskHumanGate(context, event.gateId)),
+    gateDecisionEnds: ({ context, event }) => {
+      if (event.type !== 'HUMAN_GATE_DECISION' || !valid({ context, event })) return false;
+      const gate = context.resilience?.gates.find(g => g.id === event.gateId);
+      if (gate?.scope !== 'task') return false;
+      if (event.decision === 'stop') return true;
+      if (event.decision !== 'skip') return false;
+      if (gate.cause === 'incompatibleExecution') return true;
+      if (otherTaskHumanGate(context, gate.id)) return false;
+      return gate.cause === 'windowExpired' && windowExpired(context, event.at)
+        || gate.cause === 'modelServiceError' && !context.discussion?.mapReduce?.queue?.some(p => p.workId === gate.workId);
+    },
     gateDecisionHelp: args => args.event.type === 'HUMAN_GATE_DECISION' && valid(args) && args.event.decision === 'skip'
       && args.context.resilience?.gates.find(g => g.id === (args.event as Extract<TaskEvent, { type: 'HUMAN_GATE_DECISION' }>).gateId)?.kind === 'clarification'
       && !!activeHelp(args.context),
     gateDecisionTask: ({ context, event }) => event.type === 'HUMAN_GATE_DECISION' && valid({ context, event }) && context.resilience?.gates.find(g => g.id === event.gateId)?.scope === 'task'
-      && !(context.resilience.gates.find(g => g.id === event.gateId)?.approvalId && event.decision === 'reply'),
+      && !(context.resilience.gates.find(g => g.id === event.gateId)?.approvalId && event.decision === 'reply')
+      && !(context.resilience.gates.find(g => g.id === event.gateId)?.cause === 'modelServiceError' && otherTaskHumanGate(context, event.gateId)),
     recoverIncompatible: ({ context, event }) => event.type === 'RECOVER' && !!recoveryIssue(context, event.config),
     recoverStopped: ({ context }) => context.stopped,
     logicalStopped: ({ context }) => context.stopped && context.outcome === 'stopped',

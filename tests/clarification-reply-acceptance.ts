@@ -10,7 +10,7 @@ export async function clarificationReplyEngineAcceptance(mode: 'reply' | 'skip' 
     const f = new InputIntentFixture(config, sqlite);
     try {
       if (mode.endsWith('Help')) {
-        assert(f.submit('简单任务').ok); f.prepare('assistance'); f.replies = [new Response('temporary dependency unavailable', { status: 400 })]; assert(await f.run());
+        assert(f.submit('简单任务').ok); f.prepare('assistance'); f.replies = [new Response('malformed provider response', { status: 200 })]; assert(await f.run());
         assert.equal(f.context().assists[0]!.status, 'failed');
         assert(f.submit('必须选择一个方案，再组织后续工作', { id: 'clarification-input' }).ok);
       } else assert(f.submit('必须选择一个方案，再组织后续工作').ok);
