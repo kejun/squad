@@ -195,6 +195,14 @@
       "formal-composition"
     ],
     "include-hidden-files": true,
-    "scope": "Only formal report directories; retain all manifest-referenced checker input snapshots."
+    "scope": "Only formal report directories; retain all manifest-referenced checker input snapshots.",
+    "uploadDownloadVerification": {
+      "runId": 43357235627,
+      "url": "https://github.com/kejun/squad/actions/runs/43357235627",
+      "headSha": "c27686ea2b8278c8115f04f1374b3feedb159008",
+      "conclusion": "success",
+      "scope": "Both formal report path patterns use upload-artifact@v4 include-hidden-files=true; download-artifact@v4 fetches both actual archives and compares the hidden input bytes. No model producers rerun.",
+      "temporaryWorkflowRemoved": true
+    }
   }
 }
