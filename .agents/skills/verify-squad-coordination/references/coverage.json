@@ -1,5 +1,5 @@
 {
-  "syncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+  "syncCommit": "1a59690ea2220650a70a0d8002ae960a807c31d1",
   "bounds": {
     "Budget": "one current ordinary owner intent, 2 user epochs, ordinary limits 3 then 5, automatic retry limit 1, one safe inflight recovery; request/claim count bounded by total paid budget 5",
     "Shards": "one round with exactly 2 shards, 3 result outcomes per shard, one reducer, stop or one goal change, one reopen including active safe inflight recovery; no recovery of cancelled inflight or second round",
@@ -287,9 +287,10 @@
       "changedCoveredFiles": [
         "src/model-env.ts"
       ],
-      "outcome": "reviewed-candidate",
+      "outcome": "updated",
       "reason": "Budget values and all request charging, retry/partition transitions and downstream verdict rules remain unchanged; aliases select the existing 384000 output default.",
-      "verification": "Formal-only CI, including unchanged real-code negative controls and independent evidence readback; syncCommit is retained until success."
+      "verification": "https://github.com/kejun/squad/actions/runs/43355211869",
+      "verifiedCommit": "1a59690ea2220650a70a0d8002ae960a807c31d1"
     }
   ],
   "mapReduceLiveReview": "references/drift-review-map-reduce-live.json",
@@ -663,5 +664,12 @@
     "verifiedAtCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
     "results": "docs/implementation/forward-delivery-formal-results.json",
     "producerReexecutedForMetadataAdvance": false
+  },
+  "providerModelIdReview": {
+    "status": "verified",
+    "review": "docs/implementation/deepseek-provider-model-id-formal.json",
+    "verifiedCommit": "1a59690ea2220650a70a0d8002ae960a807c31d1",
+    "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+    "ciRunId": 43355211869
   }
 }
