@@ -1,0 +1,82 @@
+{
+  "status": "reviewed-candidate",
+  "productCommit": "92db683af662054140056d75eed4ffe729d945a4",
+  "source": "src/model-env.ts",
+  "beforeSha256": "ecee3cac5d0355cb6c470c75cab93d687de7228111abce0b55bf65643fbd8f54",
+  "afterSha256": "bcc3f5eb29b33bfd45302f8d3fb151229420d3574474480c1535f421a2976765",
+  "originalChecks": "All nine entry points blocked on source correspondence drift before TLC; reports/provider-model-id-*",
+  "semanticChange": "Provider-prefixed and mixed-case IDs select the existing automatic output-token default. Original request model ID and explicit settings retain their behavior.",
+  "modelsChanged": false,
+  "propertiesChanged": false,
+  "boundsChanged": false,
+  "implementationCorrespondence": "Review the one-line model-env.ts diff against unchanged model transition inputs and replay fixtures; BT_Y155 exercises real configuration, Engine/Runner and outbound adapter requests for three IDs. The stale exact-match code failed two alias scenarios before the fix. TLC does not prove raw model ID parsing.",
+  "localEvidence": {
+    "bddScenarios": 24,
+    "bddSteps": 1704,
+    "existingRegressionTests": 30,
+    "productAndBddTypes": true,
+    "realStateModelGate": true
+  },
+  "entries": [
+    {
+      "coverage": ".agents/skills/verify-squad-authority/references/composition-coverage.json",
+      "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+      "classification": "no-change-to-model-semantics",
+      "reason": "Model ID recognition neither changes role authorization nor host credential isolation, execution identity or physical-effect custody."
+    },
+    {
+      "coverage": ".agents/skills/verify-squad-authority/references/coverage.json",
+      "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+      "classification": "no-change-to-model-semantics",
+      "reason": "Model ID recognition neither changes role authorization nor host credential isolation, execution identity or physical-effect custody."
+    },
+    {
+      "coverage": ".agents/skills/verify-squad-coordination/references/coverage.json",
+      "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+      "classification": "no-change-to-model-semantics",
+      "reason": "Budget values and all request charging, retry/partition transitions and downstream verdict rules remain unchanged; aliases select the existing 384000 output default."
+    },
+    {
+      "coverage": ".agents/skills/verify-squad-coordination/references/extensions-coverage.json",
+      "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+      "classification": "no-change-to-model-semantics",
+      "reason": "Budget values and all request charging, retry/partition transitions and downstream verdict rules remain unchanged; aliases select the existing 384000 output default."
+    },
+    {
+      "coverage": ".agents/skills/verify-squad-delivery/references/coverage.json",
+      "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+      "classification": "no-change-to-model-semantics",
+      "reason": "Output-token defaults do not change immutable candidate identity, publication, honest verification or direct repair revisions; explicit output limits still take priority."
+    },
+    {
+      "coverage": ".agents/skills/verify-squad-handoff/references/composition-coverage.json",
+      "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+      "classification": "no-change-to-model-semantics",
+      "reason": "Configuration changes which raw model ID gets an existing numeric default; result saving, owner handoff, epoch/goal identity and transaction boundaries are unchanged."
+    },
+    {
+      "coverage": ".agents/skills/verify-squad-handoff/references/coverage.json",
+      "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+      "classification": "no-change-to-model-semantics",
+      "reason": "Configuration changes which raw model ID gets an existing numeric default; result saving, owner handoff, epoch/goal identity and transaction boundaries are unchanged."
+    },
+    {
+      "coverage": ".agents/skills/verify-squad-host-retry/references/coverage.json",
+      "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+      "classification": "no-change-to-model-semantics",
+      "reason": "Host retry identity, credential/authorization gates, stop and unknown-effect retention do not depend on raw provider model ID spelling."
+    },
+    {
+      "coverage": ".agents/skills/verify-squad-local-effects/references/coverage.json",
+      "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+      "classification": "no-change-to-model-semantics",
+      "reason": "Configuration selection introduces no process start, effect, cancellation, reconciliation or replay transition."
+    }
+  ],
+  "syncAdvanced": false,
+  "limits": [
+    "Finite models and existing fairness assumptions are unchanged.",
+    "Provider reasoning and timing are not verified by controlled model responses.",
+    "Original proof manifests and source identities remain immutable."
+  ]
+}

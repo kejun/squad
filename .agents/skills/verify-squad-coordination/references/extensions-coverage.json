@@ -45,7 +45,7 @@
     "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
     "src/model-adapter.ts": "c9eb7005eb25cc7823ea9d45579eb82eb60871591bed36202c0c370194ffde50",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
-    "src/model-env.ts": "ecee3cac5d0355cb6c470c75cab93d687de7228111abce0b55bf65643fbd8f54",
+    "src/model-env.ts": "bcc3f5eb29b33bfd45302f8d3fb151229420d3574474480c1535f421a2976765",
     "src/model-inventory-format.ts": "6f22e2ef4319c1b7a1cbb7a5f7995277f7022cb2eeac4d4cd7298a0128744b23",
     "src/model-tool-inventory.ts": "f5ac649373fd49881eda8fd7ffdffbaed16648c189a784a7044a3014333d3f14",
     "src/presentation.ts": "1ffa66657884dffe98cceb1166485df99541aee762a53cfaa3a57de69af896d8",
@@ -457,6 +457,17 @@
       "validation": "/workspace/work/squad-tool-context/formal/verified/coordination-extensions",
       "outcome": "updated",
       "scope": "Original finite models/properties/bounds unchanged; metadata and model-only optional-field compatibility are separate BT_Y121–BT_Y130 acceptance."
+    },
+    {
+      "scope": "DMI-01–03 provider model ID recognition",
+      "review": "docs/implementation/deepseek-provider-model-id-formal.json",
+      "reviewedCommit": "92db683af662054140056d75eed4ffe729d945a4",
+      "changedCoveredFiles": [
+        "src/model-env.ts"
+      ],
+      "outcome": "reviewed-candidate",
+      "reason": "Budget values and all request charging, retry/partition transitions and downstream verdict rules remain unchanged; aliases select the existing 384000 output default.",
+      "verification": "Formal-only CI, including unchanged real-code negative controls and independent evidence readback; syncCommit is retained until success."
     }
   ],
   "mapReduceLiveReview": "references/drift-review-map-reduce-live.json",

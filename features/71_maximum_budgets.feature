@@ -2,10 +2,15 @@
 @maximum_budgets
 功能: 尽量使用模型和运行时允许的最大预算
   @BT_Y155
-  场景: 默认模型额度进入每个成员的实际请求
-    假如 服务使用DeepSeek V4.1 Flash且没有设置较小额度
+  场景大纲: 默认模型额度进入每个成员的实际请求
+    假如 服务使用DeepSeek模型"<模型ID>"且没有设置较小额度
     当 各成员通过真实适配器请求模型
     那么 上下文应为DeepSeek上游实测最大值且实际输出请求应为三十八万四千token
+    例子:
+      | 模型ID |
+      | deepseek-v4.1-flash |
+      | deepseek-ai/DeepSeek-V4.1-Flash |
+      | DEEPSEEK-AI/DEEPSEEK-V4.1-FLASH |
 
   @BT_Y156
   场景: 新默认任务不被小额度提前终止

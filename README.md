@@ -337,6 +337,10 @@ CHECK_MODEL_NAME=YOUR_CHECK_MODEL
 
 空白的成员配置继承默认值；完成检查未单独配置时，继承促进者的模型选择。同一地址可以共用默认密钥，修改为另一地址后必须设置对应角色的密钥，或明确设置该角色的 `NO_AUTH=true`，不会把默认服务的密钥转发到新地址。布尔项使用 `true` 或 `false`。
 
+DeepSeek V4.1 Flash 的默认输出额度为 384000，识别模型 ID 最后一段时忽略大小写，兼容 `deepseek-v4.1-flash` 和硅基流动的 `deepseek-ai/DeepSeek-V4.1-Flash`；实际请求保留原始 ID。显式 `MAX_TOKENS` 或 `EXTRA_BODY` 中的输出额度沿用现有优先级，其他模型不套用这个自动默认值。
+
+希望减少思考带来的延迟时，可显式设置 `MODEL_EXTRA_BODY={"enable_thinking":false}`，也支持各角色的同名后缀。默认不添加该参数；是否降低延迟、是否仍返回 reasoning 由提供商实现决定，不能据此保证完全关闭思考。
+
 上下文容量只在同一地址和模型间继承。预检按 UTF-8 字节估算输入上界并预留输出空间，供应商仍按自身分词器执行实际容量限制。自建兼容网关需要关闭提示词自动截断。OpenRouter 检查使用具体模型 ID，并关闭上下文压缩。[OpenRouter 消息变换文档](https://openrouter.ai/docs/guides/features/message-transforms)
 
 已有进程环境变量优先于 `.env`。修改文件后重启生效，不会热切换正在执行的任务。`.env` 和 `.env.*` 已被 Git 忽略，仓库仅提交 `.env.example`；任务快照仅保留密钥变量名，不保存密钥值。完全不配置模型时，离线测试和受控演示仍可运行。

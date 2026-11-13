@@ -2186,7 +2186,8 @@ DELIVER 的正文可以描述执行结果，但不能成为输入指纹来源。
 
 ```mermaid
 flowchart LR
-  Config[环境配置与最大默认预算] --> Claim[原领取与消费守卫]
+  Config[环境配置与最大默认预算] --> ModelId[按模型ID末段忽略大小写选择默认额度 原ID保留]
+  ModelId --> Claim[原领取与消费守卫]
   Claim --> Snapshot[完整工具快照]
   Snapshot --> Shared[共享重复用途与观测 全部条目保留]
   Shared --> Provider[提供方真实tokenizer与输出上限]
@@ -2195,6 +2196,8 @@ flowchart LR
 ```
 
 停止、过期、旧版本及迟到结果继续由原状态机拒绝。显式固定来源/检查内容不得删减；环境生成配置不再按字节估计token，手工既有配置保留原可选保守预检。Y155–159的实际适配器与真实模型门槛承接本轮边界。
+
+DMI-01–03 仅修正环境配置投影：DeepSeek V4.1 Flash 的提供商前缀与大小写不影响 384000 自动输出额度，原模型 ID 发给供应商；显式额度优先，其他模型不套用该默认值。思考开关沿用 EXTRA_BODY，未配置时不增加参数。无需新增 XState 转移；修改配置加载器前复验 maximumBudgetModelGate 的真实 CLAIM/CONSUME、宿主授权与 STOP 路径。BT_Y155 直接执行三种 ID 的适配器请求。
 
 MAX-06的最大命令时限先经真实模型的LOCAL_REQUEST/LOCAL_CLAIM/LOCAL_STARTED/STOP路径核对；纯动作校验通过后才修改实际执行器默认时限，原审批守卫不变。
 
