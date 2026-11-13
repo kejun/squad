@@ -63,7 +63,7 @@ export function modelRecoveryRestart({ m, first } = preparedRecoveryFeedback()) 
 const boundaryCodes: Record<string, string> = {
   '已停止': 'STOPPED', '旧目标': 'STALE_FENCE', '旧尝试': 'STALE_ATTEMPT', '截止时间已到': 'WORK_EXPIRED',
   '网页权限撤销': 'WEB_TOOLS_DISABLED', '普通额度耗尽': 'BUDGET_EXHAUSTED',
-  '本地物理效果不明': 'WORK_NOT_INFLIGHT', '独立检查角色': 'TOOL_RECOVERY_NOT_ALLOWED',
+  '本地物理效果不明': 'WORK_NOT_INFLIGHT', '检查角色网页权限撤销': 'WEB_TOOLS_NOT_ALLOWED',
 };
 export function modelRecoveryBoundary(boundary: string) {
   const m = recoveryModel(), id = consumeWeb(m, 1), work = structuredClone(m.work);
@@ -76,7 +76,10 @@ export function modelRecoveryBoundary(boundary: string) {
   if (boundary === '本地物理效果不明') {
     assert(m.request().ok); assert(m.claim().ok); assert(m.result({ effectsKnown: false }).ok);
   }
-  if (boundary === '独立检查角色') m.c.intents[0]!.kind = 'check';
+  if (boundary === '检查角色网页权限撤销') {
+    m.c.intents[0]!.kind = 'check';
+    (m.c.intents[0]!.payload.capabilities as Record<string, unknown>).webFetch = false;
+  }
   const before = structuredClone(m.c.usage);
   const reply = m.send({ type: 'RECORD_TOOL_FAILURE', intentId: work.id, requestId: id, tool: 'web_fetch',
     code: 'WEB_TOOL_UNSUPPORTED_RESOURCE', fence: work, attempt: work.attempt });

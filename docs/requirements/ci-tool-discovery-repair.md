@@ -33,3 +33,15 @@ BT_M10 的引文样本改为拒绝空来源标识，避免重建 BT_H203 已取�
 4. 定向验证完整退出 0：讨论 Vitest 32/32；BT_T05/BT_T06 直接执行 7/7 场景；讨论纯模型仿真 195/195、144 种返回顺序、8/8 状态；模型再生 Vitest 11/11；模型再生 feature 直接执行 68/68 场景；shared-agent-behavior 3 种突变全部被 HTTP 业务断言检出，9 个子进程自然退出且清理完成。
 
 定向命令分别为 `env -u MODEL_API_KEY node node_modules/vitest/vitest.mjs run tests/background-discussion.test.ts tests/discussion-simulation.test.ts tests/model-regeneration.test.ts --maxWorkers=1`、`npm run simulate:discussion`、设置 `TSX_TSCONFIG_PATH=tests/bdd/tsconfig.json` 后通过 Cucumber 运行 `features/20_model_regeneration.feature` 及讨论标签，以及 `node tests/shared-agent-behavior-negative.mjs`。这些开发阶段结果对应未提交工作区；最终提交的完整检查及远端 CI 另行读回核对。
+
+5. 完整检查首先通过 44 个 Vitest 文件、440 项测试；BDD 暴露合法 unverified 被提前结算的模型回归及其他旧夹具。修复期间旧构建指纹失效，已停止该轮；该轮不作为完整通过证据。
+6. 既有纯模型 `settlesAnUnverifiedFindingWithoutAutomaticallyRewritingTheCandidate` 在修复前明确报 `partial != complete`。更新原场景范围和状态图后移除该例外，交付纯模型 21 项及资源回执模型 30 项全部通过。资源门禁、旧产物排除、历史结果保存、续办后的发布身份仍验证。实际受测模型提交为 `e45444891dabb62746634e4f9f9e05ceba50e7c7`。
+7. 模型修复后重新完整执行 Vitest，440/440 通过；BT_S05/S08/S13/F15/F21/F27 集成 37/37 场景通过。其余旧检查工具禁令、历史回环、冻结与删除夹具按已有 #59/#60 行为同步：需要新工作时显式用户续办，需要冻结时真实到期，需要资源时保留可信回执，不把合法未核实内容判断当作物理失败。每组先复现再定向验收，完整检查将在源码稳定后重跑。
+8. 更新九份形式化 coverage 中 `src/task/delivery.ts` 的受测源码摘要，模型、不变量、有限域和负对照不变；`syncCommit` 保留此前已验证同步标识，实际执行版本由本次证据另行记录。
+
+本地依赖使用原 checkout 的锁定安装；真实浏览器补齐与 CI 相同的 Playwright 1.62.1 / Chromium 151。环境没有 sudo 或系统包安装助手，缺少的 socat 从官方发行包解到临时目录供检查使用，不修改沙箱或权限规则。最终远端 CI 仍使用工作流原有系统依赖安装步骤。
+
+9. 稳定前的分组验收全部通过：网页/消息 71 场景，版本/输入/原证据/分片四 feature 161 场景，工具发现/恢复 68 场景，任务模型/观测 68 场景，资源回执及等待 11 场景，本地工具 12 场景和原生沙箱 2 场景。交付完整形式化入口及独立读回通过，329 件证据、12 项真实源码负对照及恢复均通过；九份覆盖清单 hash 全部一致。其他完整形式化矩阵仍交远端验证。
+10. 独立审查未发现以放宽资源、权限、版本或物理效果边界使检查变绿的修改。受控检查员夹具验证接线及缺口保存，不证明真实模型必然识别内容问题。
+
+剩余已知限制：本地 L121 有界重复执行第 9 轮曾出现进程已返回但 `processRecorded=false`、操作进入 uncertain；之后原定向完整检查通过。未放宽原断言或超时，也未据此推断根因。并发运行中的一次 OCR 超时及运行期间 HEAD 改变的 Web 负控来源核对失败均保留原失败记录，不当作通过；最终稳定提交由完整检查重新验收。

@@ -114,11 +114,14 @@ Then('当前交付应包含两份内容可分别查看的文档', function (this
   assert.deepEqual(projected(test).current.map(item => item.content), ['Original report', 'Independent report']);
 });
 
-Given('第一份候选检查失败后负责人提交了同一报告的新修订', function (this: SpecWorld) {
+Given('第一份候选声明检查缺口后用户要求继续修订同一报告', function (this: SpecWorld) {
   const test = create(this);
   assert(delivery(test, report).ok);
   test.first = context(test).artifacts[0]!.id;
   test.priorCheck = review(test, false);
+  assert.equal(context(test).outcome, 'complete');
+  assert(context(test).candidate!.text.includes('未完成或未核实事项：\n- Revise the report'));
+  assert(event(test, { type: 'CONTINUE' }).ok);
   assert(delivery(test, { ...report, content: 'Revised report', replacesArtifactId: test.first }).ok);
   test.second = context(test).artifacts[1]!.id;
   test.replacementCandidate = structuredClone(context(test));
@@ -131,11 +134,8 @@ When('基于原报告的另一份修订和第一份候选的检查结论分别�
   test.lateCheck = { result, context: structuredClone(context(test)), phase: test.service.engine.view(test.room, test.task)!.phase };
   review(test, false);
 });
-When('当前周期剩余的自动修订仍不能通过检查', function (this: SpecWorld) {
+When('当前修订声明检查缺口后用户继续提交了陈旧修订', function (this: SpecWorld) {
   const test = tests.get(this)!;
-  assert(event(test, { type: 'DELIVER', workId: claim(test, 'owner').id, text: 'Retain the revision', artifactIds: [test.second!] }).ok);
-  test.replacementCandidate = structuredClone(context(test));
-  review(test, false);
   test.failedCheck = structuredClone(context(test));
   assert(event(test, { type: 'CONTINUE' }).ok);
   test.beforeStale = structuredClone(context(test));
@@ -144,31 +144,35 @@ When('当前周期剩余的自动修订仍不能通过检查', function (this: S
 Then('陈旧修订应被拒绝并保留已有候选', function (this: SpecWorld) {
   const test = tests.get(this)!;
   assert.equal(test.staleResult!.ok, false);
-  assert.equal(test.failedCheck!.outcome, 'partial');
+  assert.equal(test.staleResult!.code, 'INVALID_ARTIFACT_REVISION_BASE');
+  assert.equal(test.failedCheck!.outcome, 'complete');
+  assert(test.failedCheck!.candidate!.text.includes('未完成或未核实事项：\n- Revise the report'));
   assert.equal(context(test).candidate?.revision, test.replacementCandidate!.candidate?.revision);
-  assert.deepEqual(context(test).candidate, test.beforeStale!.candidate);
+  assert.equal(context(test).candidate?.text, test.beforeStale!.candidate?.text);
+  assert.equal(context(test).candidate?.deliveryIssue?.code, 'INVALID_ARTIFACT_REVISION_BASE:' + test.first);
   assert.deepEqual(context(test).candidate?.artifactIds, [test.second]);
-  assert.deepEqual(context(test).artifacts, test.beforeStale!.artifacts);
+  assert.deepEqual(context(test).publishedDelivery?.artifactIds, [test.second]);
   const existing = new Set(test.replacementCandidate!.artifacts.map(artifact => artifact.id));
   assert.deepEqual(context(test).artifacts.filter(artifact => existing.has(artifact.id)), test.replacementCandidate!.artifacts);
-  const frozen = test.beforeStale!.resilience!.frozenHistory!.at(-1)!;
+  const frozen = context(test).resilience!.frozen!;
   const added = context(test).artifacts.filter(artifact => !existing.has(artifact.id));
   assert.equal(added.length, 2);
   const hostReport = added.find(artifact => artifact.id === frozen.reportArtifactId)!;
   const draft = added.find(artifact => artifact.id !== frozen.reportArtifactId)!;
   assert.equal(hostReport.name, 'task-report.md'); assert.equal(hostReport.content, frozen.text);
-  assert.equal(draft.name, 'unverified-draft.md'); assert.equal(draft.content, test.replacementCandidate!.candidate!.text);
+  assert.equal(draft.name, 'unverified-draft.md'); assert.equal(draft.content, test.beforeStale!.candidate!.text);
   assert.deepEqual(frozen.artifactIds, [frozen.reportArtifactId, test.second, draft.id]);
 });
 Then('第一份检查结论不应发布任何新修订', function (this: SpecWorld) {
   const test = tests.get(this)!;
   assert.equal(test.lateCheck!.result.ok, false);
   assert.equal(test.lateCheck!.phase, 'checking');
-  assert.equal(test.lateCheck!.context.publishedDelivery, undefined);
-  assert.equal(context(test).publishedDelivery, undefined);
+  assert.deepEqual(test.lateCheck!.context.publishedDelivery?.artifactIds, [test.first]);
+  assert.deepEqual(test.lateCheck!.context.candidate, test.replacementCandidate!.candidate);
 });
-When('负责人保留新修订并通过本轮独立检查', function (this: SpecWorld) {
+When('用户明确继续后负责人保留新修订并通过独立检查', function (this: SpecWorld) {
   const test = tests.get(this)!;
+  assert(event(test, { type: 'CONTINUE' }).ok);
   assert(event(test, { type: 'DELIVER', workId: claim(test, 'owner').id, text: 'Retain the revision', artifactIds: [test.second!] }).ok);
   review(test);
 });
@@ -219,8 +223,12 @@ Then('修订只与用户此次修订所指的报告建立关系', function (this
   assert.deepEqual(context(test).publishedDelivery?.artifactIds, [revision!.id]);
 });
 
-Given('第一份候选检查失败且第二份候选尚在检查中', function (this: SpecWorld) {
+Given('第一份候选声明检查缺口且用户续办的第二份候选尚在检查中', function (this: SpecWorld) {
   const test = create(this); assert(delivery(test, report).ok); review(test, false);
+  test.first = context(test).artifacts[0]!.id;
+  assert.equal(context(test).outcome, 'complete');
+  assert(context(test).candidate!.text.includes('未完成或未核实事项：\n- Revise the report'));
+  assert(event(test, { type: 'CONTINUE' }).ok);
   assert(delivery(test, { ...report, content: 'New independent draft' }).ok);
 });
 When('没有绑定检查工作的旧判断到达', function (this: SpecWorld) {
@@ -231,7 +239,7 @@ Then('应拒绝该判断且第二份候选继续检查并保持未发布', funct
   const test = tests.get(this)!, c = context(test);
   assert.equal(test.unboundResult!.code, 'CHECK_WORK_REQUIRED');
   assert.equal(c.reply.ok, false);
-  assert.equal(c.publishedDelivery, undefined);
+  assert.deepEqual(c.publishedDelivery?.artifactIds, [test.first]);
   assert.equal(c.candidate!.text, 'Prepared the report');
   assert.equal(test.service.engine.view(test.room, test.task)!.phase, 'checking');
 });

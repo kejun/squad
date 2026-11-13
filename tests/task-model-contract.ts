@@ -57,9 +57,9 @@ const localResumeRules: [string | null, string | null][] = [
 const localEndRules: [string | null, string | null, string?][] = [['valid', null], [null, null, 'reject']];
 const checkSettleRules = rules('checking', 'SETTLE', [['settlingCheckHandoff', 'running'], ['settlingCheck', 'ended'], ['valid', null]]);
 const boundedTransitions = [
-  rules('running', 'DELIVER', [['holdingDelivery', null], ['deliveryReady', 'checking'], ['deliveryCanRevise', null], ['valid', 'ended']]),
-  rules('running', 'BLOCKED', [['revisionFailed', 'ended'], ['canCoordinate', 'coordinating'], ['valid', null]]),
-  rules('running', 'WORK_FAILED', [['failedDiscussion', null], ['retryable', null], ['revisionFailed', 'ended'], ['valid', 'waitingHuman']]),
+  rules('running', 'DELIVER', [['holdingDelivery', null], ['deliveryReady', 'checking'], ['valid', 'ended']]),
+  rules('running', 'BLOCKED', [['canCoordinate', 'coordinating'], ['valid', null]]),
+  rules('running', 'WORK_FAILED', [['failedDiscussion', null], ['retryable', null], ['valid', 'waitingHuman']]),
   rules('checking', 'CLAIM', [['claimCheckUnavailable', 'ended', 'failCheckClaim'], ['claimCheck', null]]),
   rules('checking', 'CHECK_RESULT', [['checkCanRetry', null], ['checkContinues', 'running'], ['valid', 'ended']]),
   rules('checking', 'WORK_FAILED', [['failedDiscussion', null], ['checkFailureHandoff', 'running'], ['retryable', null], ['checkFailed', 'ended'], ['valid', 'waitingHuman']]),
@@ -178,13 +178,14 @@ function assertLegacyEvidence(actualRaw: DebugEvidence, expected: DebugEvidence,
       const order = Number(evaluation.ruleId.split(':').at(-1));
       if (evaluation.event === 'DELIVER') {
         if (order === 0) return [observe(0, evaluation.passed)];
-        return evaluation.passed ? [observe(1, true)] : [observe(1, false), observe(2, false), observe(3, false)];
+        return evaluation.passed ? [observe(1, true)] : [observe(1, false), observe(2, false)];
       }
       if (evaluation.event === 'CHECK_RESULT') return order === 0 ? [observe(0, false), observe(1, false), observe(2, true)] : [];
       if (evaluation.event === 'LOCAL_RESULT' || evaluation.event === 'LOCAL_RECONCILE') {
         if (order < 3) return [evaluation];
         return order === 3 ? [observe(3, false), observe(4, evaluation.passed)] : [observe(order + 1, evaluation.passed)];
       }
+      if (evaluation.source === 'running' && ['BLOCKED', 'WORK_FAILED'].includes(evaluation.event)) return [evaluation];
       if (evaluation.event === 'WORK_FAILED') return order < 2 ? [evaluation] : [observe(2, false), observe(3, evaluation.passed)];
       return order === 0 ? [observe(0, false), observe(1, evaluation.passed)] : [observe(order + 1, evaluation.passed)];
     }
@@ -388,6 +389,12 @@ function assertFrame(snapshot: TaskSnapshot, expected: Frame, label: string, own
   // KEJ-99 adds a host planning hint, not a change to these frozen business traces.
   // Validate only that explicit extension; every other payload field remains in the full digest.
   for (const work of context.intents) {
+    // #60 retired the extra assessment declaration. Validate its absence in the
+    // current handoff, then restore only that historical field for the frozen digest.
+    if (work.kind === 'owner' && work.payload.requestId && work.payload.resultId) {
+      assert(!Object.hasOwn(work.payload, 'requiresAssessment'), `${label}: handoffs must not request a second assessment`);
+      work.payload.requiresAssessment = true;
+    }
     if (work.kind === 'interpretation') {
       const capacity = work.payload.maxPartitions;
       assert(typeof capacity === 'number' && Number.isSafeInteger(capacity) && capacity >= 0 && capacity <= 8,

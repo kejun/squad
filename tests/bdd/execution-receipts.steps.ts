@@ -34,7 +34,7 @@ const changeGoal = (m: LocalModel) => {
     resourceRequirements: [{ resource: documentFive, freshness: 'current' }] } }).ok);
   assert(m.send({ type: 'SETTLE', intentId: m.work.id }).ok); lastOwner(m);
 };
-function preparePartial(m: LocalModel) { assert(submitReceiptCandidate(m).ok); finishReceiptCheck(m, 'unverified'); }
+function preparePartial(m: LocalModel) { assert(submitReceiptCandidate(m).ok); freeze(m); }
 function richReportPreparation(m: LocalModel) {
   assert(recordCliObservation(m).reply.ok);
   assert(m.send({ type: 'ARTIFACT', artifact: { id: 'unverified', name: 'draft.md', content: '未核实的生成材料' } }).ok);
@@ -191,7 +191,15 @@ function prepare(id: string, labels: string[]): Run {
         assert(m.send({ type: 'WORK_FAILED', intentId: pending.id, reason: '检查服务失败', transient: false }).ok);
       }
     };
-    run.verify = () => { assert.equal(m.c.outcome, 'partial'); assert(m.c.artifacts.some(a => a.name === 'report.md')); };
+    run.verify = () => {
+      assert.equal(m.c.outcome, label === '全部要求尚未核实' ? 'complete' : 'partial');
+      assert(m.c.artifacts.some(a => a.name === 'report.md'));
+      if (label === '全部要求尚未核实') {
+        const judgments = m.c.intents.find(work => work.kind === 'check')!.criteriaResults!;
+        assert(judgments.every(item => item.status === 'unverified' && item.reason === '尚未核实'));
+        assert.equal(m.c.intents.filter(work => work.kind === 'owner').length, 1, 'A valid gap judgment must not restart its author');
+      }
+    };
   }
   if (id === 'E114' || id === 'E115') {
     assert(m.send({ type: 'ARTIFACT', artifact: { id: 'earlier', name: 'earlier.md', content: '先前草稿' } }).ok);
@@ -203,7 +211,7 @@ function prepare(id: string, labels: string[]): Run {
     }
     assert(submitReceiptCandidate(m, '当前目标报告').ok);
     run.prepared = () => { assert(m.c.artifacts.some(a => a.id === 'earlier')); assert(m.c.candidate?.revision); };
-    run.act = () => { finishReceiptCheck(m, 'unverified'); };
+    run.act = () => freeze(m);
     run.verify = () => { assert.equal(m.c.outcome, 'partial'); assert(!publicationIds(m.c)?.includes('earlier'));
       assert(m.c.artifacts.some(a => a.id === 'earlier')); assert(publicationIds(m.c)?.length); };
   }
@@ -219,9 +227,9 @@ function prepare(id: string, labels: string[]): Run {
     };
   }
   if (id === 'E117') {
-    assert(submitReceiptCandidate(m, '全部资料均已处理完成').ok);
-    run.prepared = () => { assert(m.c.candidate?.text.includes('全部资料均已处理完成')); assert(resourceAcquisitionProblem(m.c)); };
-    run.act = () => freeze(m);
+    assert(m.send({ type: 'ARTIFACT', artifact: { id: 'unverified-completion-draft', name: 'draft.md', content: '全部资料均已处理完成' } }).ok);
+    run.prepared = () => { assert(m.c.artifacts.some(artifact => artifact.content === '全部资料均已处理完成')); assert(resourceAcquisitionProblem(m.c)); };
+    run.act = () => { assert.equal(m.c.outcome, 'partial'); };
     run.verify = () => { assert.equal(m.c.outcome, 'partial'); assert(m.c.artifacts.some(a => a.content === '全部资料均已处理完成'));
       const report = m.c.artifacts.find(a => a.id === m.c.resilience?.frozen?.reportArtifactId)!;
       assert(report.content.includes('partial')); assert(report.content.includes('未核验')); assert(!report.content.includes('全部资料均已处理完成')); };
@@ -322,12 +330,13 @@ for (const expression of givens) {
   if (expression.includes('{string}')) Given(expression, function (this: SpecWorld, _label: string) { runs.get(this)!.prepared(); });
   else Given(expression, function (this: SpecWorld) { runs.get(this)!.prepared(); });
 }
+Given('原执行窗口已经到期且用户明确结束任务', function (this: SpecWorld) { freeze(runs.get(this)!.m); });
 const whens = [
   '成员声称已收到HTTP200和242字符并报告分片完成', '成员引用该凭证报告完成读取', '成员使用该凭证声称文档五已取得正文',
   '成员声称该凭证证明本次执行已经读取', '系统结算该资源的读取结果', '成员基于已有输入提交推理结果', '系统接受成员答复',
   '成员引用已有内容交回结果', '负责人引用该原文完善报告', '恢复后该凭证的{string}与冻结记录不一致',
   '系统投影后续执行可用的读取经验', '成员只取得配置建议而没有执行资源读取', '汇总和最终检查声称全部分片已经完成',
-  '最终检查遇到{string}', '新目标因检查未核实而形成部分交付', '负责人只选择当前修订报告形成部分交付',
+  '最终检查遇到{string}', '新目标的检查尚未返回且窗口到期后用户明确结束', '负责人只选择当前修订报告且窗口到期后用户明确结束',
   '系统冻结部分交付并导出宿主报告', '用户导出该任务的部分交付', '服务恢复后收到原尝试迟到的读取结果', '原读取尝试回传资源正文凭证',
   '系统恢复并安全重试同一目标的模型请求',
   '本片保存匹配自身资源的完整正文凭证',
@@ -351,7 +360,7 @@ const thens = [
   '应阻止使用变化后的凭证发布该候选', '不应靠相同长度或自报指纹掩盖变化', '不应将该方法标为已验证适用于本次资源',
   '原观察仍应保留其资源范围和验证前提', '工具建议应只表达已核实的非敏感前提', '不应产生正文读取成功事实或暴露凭据值',
   '应保留文档五的读取缺口', '不应发布完整交付或把文档四凭证移给文档五', '应保留候选及未核实的检查缺口',
-  '只能形成部分交付而不能发布完整交付', '当前文件应只包含新目标明确选择的交付文件', '旧目标文件应可作为历史查阅且不能列为当前交付',
+  '合法的未核实结论应声明缺口后正常交付而技术失败保留部分交付', '当前文件应只包含新目标明确选择的交付文件', '旧目标文件应可作为历史查阅且不能列为当前交付',
   '应冻结该报告的当前文件选择', '其他草稿和未选择原文应保留在历史或依据中', '文件本身应包含任务目标与交付版本及部分完成状态',
   '应分别列出已核实、未核实、失败、跳过和未决效果', '已核实内容应保留可追溯资源和凭证引用', '宿主报告应明确部分完成及未核实草稿身份',
   '原始草稿应原样保留且不能冒充已证实终稿', '应保留冻结的正文和当前文件选择不变', '迟到结果只能追加原身份的历史或结算原资源',
@@ -361,7 +370,7 @@ const thens = [
   '应拒绝无效配置且不能把该配置提升为资源取得事实', '应由同一个宿主凭证门禁核对原资源及原操作',
   '未登记命令和返回其他文档的操作应保持尚未取得正文',
   '只有标题或简介的元数据应保留正文为空缺口',
-  '自定义正文协议应沿用同一凭证验证来源工作项',
+  '自定义正文协议应将真实凭证和原始来源工作项交给下游核对',
   '每份取得状态应只取决于自己编号对应的唯一正文', '缺失文档不能借用相邻正文也不应重复执行该批命令',
   '应沿用原正文完成独立检查且不重复执行CLI或退回额度', '补录应保留原操作尝试和采集时间且事件时间不得倒退',
   '来源工作项应绑定原网页操作和完整冻结正文', '独立检查应完成且不能把执行操作标识当成凭证引用',

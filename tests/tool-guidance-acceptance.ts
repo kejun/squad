@@ -49,7 +49,7 @@ export async function initialGuidanceAcceptance(objective: string) {
     const observation = inventoryObservation(f.requests[0]!);
     assert.equal(observation.catalogProjection, 'progressive');
     assert.equal(observation.cli.entryCount, 27);
-    assert.equal(observation.cli.entries.length, 0);
+    assert.equal(observation.cli.entries.length, 27, 'The explicitly configured small catalog remains complete');
     assert.equal(observation.skills.skillCount, 28);
     assert.equal(observation.skills.skills.length, 0);
     assert.match(observation.cli.catalogVersion, /^[a-f0-9]{64}$/);
@@ -96,6 +96,7 @@ export async function incompleteSkillGuidanceAcceptance() {
     assert.equal(observation.skills.complete, false);
     assert.equal(observation.skills.skills.length, 0);
     assert.equal(observation.skills.skillCount, 1);
+    assert(observation.interfaces.some(item => item.type === 'listSkills'));
     assert(observation.skills.diagnostics.some(item => item.code === 'SKILLS_SCAN_LIMIT'));
     assert.equal(f.backend.calls.length, 0);
     assert.equal(f.h.context().intents[0]!.localOperations, undefined);

@@ -39,7 +39,7 @@ export async function completeToolInventoryAcceptance() {
     assert.equal(inventory.catalogProjection, 'progressive');
     assert.equal(inventory.cli.entryCount, entries.length);
     assert.equal(inventory.cli.entries.length, 0);
-    assert.equal(inventory.skills.skillCount, 29);
+    assert.equal(inventory.skills.skillCount, 29, 'Complete inventory must retain every installed skill');
     assert.equal(inventory.skills.skills.length, 0);
     assert(inventory.interfaces.some(tool => tool.type === 'web_fetch'));
     assert(inventory.interfaces.some(tool => tool.type === 'web_search'));

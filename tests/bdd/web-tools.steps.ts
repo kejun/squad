@@ -201,13 +201,16 @@ When('为负责人、协助成员和促进者生成工作意图', function (this
 Then('每种工作都应携带默认网页搜索和抓取能力', function (this: SpecWorld) {
   for (const work of this.h.context().intents.filter(i => ['owner', 'assistance', 'facilitator'].includes(i.kind))) assert.deepEqual(work.payload.capabilities, { localTools: true, findSkills: true, webSearch: true, webFetch: true });
 });
-Then('最终检查仍只使用原有检查额度', async function (this: SpecWorld) {
+Then('最终检查的模型请求与联网工具应共同使用检查额度', async function (this: SpecWorld) {
   this.h = new Harness(); this.h.event({ type: 'DELIVER', text: '结果', artifactIds: [] });
   await driver(this, { execute: async (work, signal, scope) => {
-    await assert.rejects(scope.webSearch({ query: 'SDK' }, signal), /WEB_TOOLS_NOT_ALLOWED/);
+    const result = await scope.webSearch({ query: 'SDK' }, signal);
+    assert(result.text.includes(sourceUrl));
     return fixtureCheck(work.payload.candidate);
   } }).runOne(this.h.room, this.h.task);
-  assert.equal(this.h.context().usage.checks, 1); assert.equal(this.h.context().usage.ordinary, 0); assert.equal(s(this).fixture.calls.length, 0);
+  assert.equal(this.h.context().usage.checks, 2); assert.equal(this.h.context().usage.ordinary, 0); assert.equal(s(this).fixture.calls.length, 1);
+  assert.equal(this.h.context().usage.retries, 0); assert.equal(this.h.context().outcome, 'complete');
+  assert(this.h.context().intents.find(work => work.kind === 'check')!.criteriaResults!.every(item => item.status === 'passed'));
 });
 
 Given('从群聊服务发起一个需要联网的任务', function (this: SpecWorld) {

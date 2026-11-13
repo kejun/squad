@@ -35,10 +35,20 @@ export class ArtifactReadContract {
     assert(this.reply);
     assert.equal(this.reply.code, code === 'ARTIFACT_PAGE' ? 'OK' : code);
     assert.equal(this.model.c.usage.ordinary, this.ordinary + cost);
+    const operations = this.model.c.intents.find(work => work.id === this.model.work.id)!.localOperations ?? [];
     if (code === 'ARTIFACT_PAGE') {
-      const operation = this.model.c.intents.find(work => work.id === this.model.work.id)!.localOperations![0]!;
+      assert.equal(operations.length, 1);
+      const operation = operations[0]!;
+      assert.equal(operation.status, 'succeeded');
+      assert.deepEqual(operation.action, { type: 'readArtifact', artifactId: 'original' });
       assert.equal(operation.result?.code, 'ARTIFACT_PAGE');
       assert.equal(operation.result?.data.text, 'original report');
+    } else {
+      assert.equal(operations.length, 1);
+      assert.equal(operations[0]!.status, 'queued');
+      assert.equal(operations[0]!.attempt, 0);
+      assert.equal(operations[0]!.sessionId, undefined);
+      assert.equal(operations[0]!.result, undefined);
     }
   }
   verifyUnchanged() {

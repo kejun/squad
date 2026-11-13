@@ -55,7 +55,7 @@ export const deliveryScenarios: DeliveryScenario[] = [
   { label: "技能资源检查证据", condition: "候选已冻结技能资源哈希", operation: "随后修改回执哈希再生成证据", result: "拒绝变化后的冻结证据", create: skill_resource_evidence_model.rejectsChangedFrozenHash },
   { label: "技能资源检查证据", condition: "候选已冻结技能版本", operation: "随后修改技能版本再生成证据", result: "拒绝变化后的冻结证据", create: skill_resource_evidence_model.rejectsChangedFrozenSkillVersion },
   { label: "技能资源检查证据", condition: "候选已冻结资源读取位置", operation: "随后修改下一分页位置再生成证据", result: "拒绝变化后的冻结证据", create: skill_resource_evidence_model.rejectsChangedFrozenNextOffset },
-  { label: "本地回执证据", condition: "当前候选有完整本地回执", operation: "投影固定检查证据并尝试分页读取", result: "检查收到原文及来源且分页读取被拒绝并不扣额外费用", create: task_evidence_model.givesTheCheckerOneFixedSourceWithItsOriginalTextAndDeniesPagedReads },
+  { label: "本地回执证据", condition: "当前候选有完整本地回执", operation: "投影固定检查证据并领取分页读取", result: "检查收到原文及来源且获准分页读取按普通额度计费", create: task_evidence_model.givesTheCheckerOneFixedSourceAndAllowsAuthorizedPagedReads },
   { label: "本地回执证据", condition: "当前候选的本地回执已截断", operation: "投影固定检查证据", result: "只保留截断元数据且不提供可引用正文", create: task_evidence_model.keepsATruncatedCheckSourceAsMetadataWithoutPresentingAUsableQuotation },
   { label: "本地回执证据", condition: "已有一次成功CLI回执", operation: "使用相同行为和哈希请求新CLI操作", result: "保留旧成功回执并建立独立的新排队操作", create: task_evidence_model.retainsADistinctCLIOperationEvenWhenItsActionAndHashMatchTheOriginal },
   { label: "本地回执证据", condition: "本地回执正文已截断", operation: "列出可用证据", result: "完整性为truncated且不虚构完整字符数", create: task_evidence_model.projectsTruncatedReceipt },
