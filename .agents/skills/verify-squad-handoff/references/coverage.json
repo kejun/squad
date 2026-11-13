@@ -67,7 +67,7 @@
     "src/task/budget.ts": "6c53c32ea4f9836375b1f179457eca0adc75784fe0e7e23f7c9edfdb3a1338d5",
     "src/task/context.ts": "ae96dd7dd487b3776758fe5f0c452c64c52ca0e454f766818b7f5bc268f16092",
     "src/task/delivery-cycle.ts": "963625046b3d7bc02076353c91fc8750eeab57ef27f0e3eae0af8f192c50aa07",
-    "src/task/delivery.ts": "974be32916a34b1e71cf65b548fff9c0ab609f9fc94bcd92c162e465958f4162",
+    "src/task/delivery.ts": "5cf075d7559e8c5895dffee2484f1a2fa4fa54bff81c1a18355ef040e924f8c0",
     "src/task/discussion.ts": "3fdb3b5040672853459e1c76170b8a32ced8edabe30581183aa86d3004f4d0ff",
     "src/task/evidence.ts": "0fcd68bdfea1012c7d717f8fddba40cf2e4ec5d5cf14e51b9f8adc0890913f93",
     "src/task/execution.machine.ts": "7ed6793adbd8413de0c53161ea8adbe6bdcb29eae910864ccd01e29baf68fcff",

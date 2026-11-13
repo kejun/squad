@@ -110,7 +110,9 @@ function checkedDelivery(c: TaskContext, e: CheckResult, work: Intent): CheckDis
     return { kind: 'complete', checked: true, ...(verification ? { detail: `实际验证未完成：${verification}` } : {}) };
   }
   const detail = findings.map(item => item.reason).join('；');
-  if (findings.every(item => item.status === 'unverified')) return { kind: 'finish', detail, checked: true };
+  if (findings.every(item => item.status === 'unverified') && !c.discussion?.mapReduce) {
+    return { kind: 'finish', detail, checked: true };
+  }
   return { kind: 'complete', checked: true, detail };
 }
 
