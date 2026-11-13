@@ -22,4 +22,6 @@
 
 ## 验收
 
-见 `features/69_tool_discovery_planning.feature` 与修订后的统一工具上下文场景；真实任务 token A/B 另册记录。
+见 `features/69_tool_discovery_planning.feature` 的 BT_Y173、BT_Y174、BT_Y175 与修订后的统一工具上下文场景；真实任务 token A/B 另册记录。
+
+原 PR 为本功能误用了已由 `features/69_cli_stdin.feature` 占用的 BT_Y145、BT_Y146、BT_Y147。完整枚举当前全部 feature 后，确认仅这三组编号重复，Y 组既有最大编号为 BT_Y172。本功能依次更正为 BT_Y173（首次渐进上下文）、BT_Y174（合并发现召回）、BT_Y175（后续请求保留已召回条目）；既有标准输入功能的编号和验证器引用保持原值。更正只消除身份冲突，不删除场景或改变验收行为。
