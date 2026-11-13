@@ -149,7 +149,17 @@ export async function inventoryRefreshAcceptance(kind: string) {
     assert.equal(views[2]!.catalogVersion, views[1]!.catalogVersion);
     if (kind === '技能源变化后刷新') {
       assert(!views[0]!.skills.skills.some(skill => skill.name === 'new-source-reader'));
-      assert(views[1]!.skills.skills.some(skill => skill.name === 'new-source-reader'));
+      assert(!original.skills.skills.some(skill => skill.name === 'new-source-reader'));
+      const published = fixture.runtime.toolInventory();
+      const added = published.skills.skills.find(skill => skill.name === 'new-source-reader');
+      assert(added, 'The refreshed host catalog must include the newly scanned skill');
+      assert(fixture.runtime.catalog().skills.some(skill => skill.skillId === added.skillId),
+        'The public skill catalog must expose the newly scanned skill for discovery');
+      assert.equal(views[1]!.skills.skillCount, original.skills.skills.length + 1);
+      assert.equal(views[2]!.skills.skillCount, views[1]!.skills.skillCount);
+      assert.equal(views[1]!.skills.catalogVersion, published.skills.catalogVersion);
+      assert(!views[1]!.skills.skills.some(skill => skill.skillId === added.skillId),
+        'An unactivated skill remains discoverable without being attached to every model request');
     } else {
       assert.equal(views[0]!.cli.entries.length, 1); assert.equal(views[1]!.cli.entries.length, 2);
     }
@@ -279,7 +289,7 @@ export async function pinnedSkillInventoryAcceptance() {
 
 export async function inventoryBoundaryAcceptance(boundary: string) {
   const model = unifiedToolBoundaryModel(boundary);
-  if (boundary !== '最终固定材料检查') {
+  if (boundary !== '最终检查本地工具撤权') {
     if (boundary === '已停止' || boundary === '本地工具撤权') {
       const { fixture } = await fileInventoryFixture([hostReader]);
       try {
@@ -293,19 +303,25 @@ export async function inventoryBoundaryAcceptance(boundary: string) {
         assert.equal(fixture.backend.calls.length, 0);
         assert.equal(fixture.requests.length, 1, 'A hidden inventory caused by revocation must not create metadata-change model loops');
         assert.equal(fixture.h.context().intents.flatMap(work => work.localOperations ?? []).length, 0);
-        return { boundary, modelAllowed: false, checkInventoryMessages: 0, dynamicSelectionRequests: fixture.requests.length };
+        return { boundary, modelAllowed: false, checkLocalOperations: 0, dynamicSelectionRequests: fixture.requests.length };
       } finally { await fixture.close(); }
     }
-    return { boundary, modelAllowed: false, checkInventoryMessages: 0 };
+    return { boundary, modelAllowed: false, checkLocalOperations: 0 };
   }
   const fixture = await LocalFixture.create('最终检查', true);
   try {
-    fixture.replies.push({ type: 'check', passed: true, gaps: [] });
+    fixture.h.config.localTools = { enabled: false };
+    fixture.replies.push({ type: 'runCli', executable: 'node', args: ['--version'] });
     await fixture.runner().runOne(fixture.h.room, fixture.h.task);
-    assert.equal(fixture.requests.length, 1);
-    assert(!fixture.requests[0]!.messages.some(message => message.content.includes('"type":"tool_inventory"')));
-    assert(!fixture.requests[0]!.messages.some(message => message.content.includes('"type":"tool_guidance"')));
-    return { boundary, modelAllowed: false, checkInventoryMessages: 0, outcome: fixture.h.context().outcome };
+    assert.equal(fixture.requests.length, 0, 'Revocation must stop the check before another model or tool request');
+    assert.equal(fixture.replies.length, 1, 'The scripted command must never reach the model');
+    const operations = fixture.h.context().intents.flatMap(work => work.localOperations ?? []);
+    assert.equal(operations.length, 0);
+    assert.equal(fixture.backend.calls.length, 0);
+    assert.equal(fixture.h.view().phase, 'waitingHuman');
+    assert.equal(fixture.h.context().outcome, null);
+    assert(fixture.h.context().reason.includes('LOCAL_TOOLS_DISABLED'));
+    return { boundary, modelAllowed: false, checkLocalOperations: operations.length, outcome: fixture.h.context().outcome };
   } finally { await fixture.close(); }
 }
 

@@ -20,7 +20,7 @@ Given('已接入超过旧展示边界的 CLI 与技能目录', async function (t
 Given('成员尚未通过发现动作召回任何 CLI 元信息', function (this: SpecWorld) {
   assert(state(this).progressive);
 });
-When('获准成员首次选择完成当前任务所需的工具', function (this: SpecWorld) {
+When('尚未召回目录的成员首次选择当前任务工具', function (this: SpecWorld) {
   assert(state(this).progressive);
 });
 Then('模型应收到内置接口目录规模与观察版本', function (this: SpecWorld) {
