@@ -56,10 +56,17 @@ Then('明确禁令和必须提供的审计证据应保留在冻结要求中', fu
     assert(prompt.includes('explicitly requested audit evidence'));
   }
 });
-Then('缺少用户明确要求的审计证据时不得完整交付', function (this: SpecWorld) {
-  const context = runs.get(this)!.context();
-  assert.equal(context.outcome, 'partial');
-  assert.equal(context.publishedDelivery, undefined);
-  assert(context.reason.includes('没有所要求的审计证据'));
+Then('缺少用户明确要求的审计证据时应保留未核实结论并声明交付缺口', function (this: SpecWorld) {
+  const f = runs.get(this)!, context = f.context();
+  const requirement = (f.requests.find(request => request.kind === 'check')!.context.requirements as AcceptanceCriterion[])
+    .find(item => item.text === '必须提供执行审计证据')!;
+  const check = context.intents.find(work => work.kind === 'check')!;
+  assert.deepEqual(check.criteriaResults?.find(item => item.criterionId === requirement.id),
+    { criterionId: requirement.id, status: 'unverified', reason: '没有所要求的审计证据' });
+  assert.equal(context.outcome, 'complete');
+  assert.equal(f.view().phase, 'ended');
+  assert(context.candidate!.text.includes('未完成或未核实事项：\n- 没有所要求的审计证据'));
+  assert.equal(context.messages.at(-1)?.text, context.candidate!.text);
+  assert.deepEqual(f.engine.pending(f.room, f.task), []);
 });
 After(function (this: SpecWorld) { runs.get(this)?.close(); runs.delete(this); });

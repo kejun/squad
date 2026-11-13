@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { createTeamConfig } from '../team.config.ts';
 import { LocalRuntime } from '../src/local-runtime.ts';
 import { runProcess } from '../src/local-cli.ts';
+import { taskHumanGate } from '../src/task/resilience.ts';
 import { ResilientWorkspaceBrowserFixture, barrier } from './resilient-workspace-browser-fixture.mjs';
 import { prepareArchiveDeleteFeedback, actArchiveDeleteFeedback, verifyArchiveDeleteFeedback } from './archive-delete-feedback-browser-case.mjs';
 import { workspaceWaitAdapter, prepareWorkspaceWait, actWorkspaceWait, verifyWorkspaceWait } from './workspace-wait-browser-case.mjs';
@@ -96,10 +97,22 @@ export class ResilientWorkspaceUICase {
         this.event({ type: 'LOCAL_RESULT', intentId: work.id, operationId: revisionRequest.id, sessionId: revisionClaim.operation.sessionId, ...verified });
       }
       if (this.number !== 92) this.event({ type: 'CONSUME', intentId: this.check.id, fence: this.check, attempt: this.check.attempt });
-      this.event({ type: 'CHECK_RESULT', workId: this.check.id, fence: this.check, attempt: this.check.attempt,
-        candidateRevision: this.context().candidate.revision, resultId: 'unverified-check',
-        criteriaResults: this.context().candidate.acceptance.criteria.map(item => ({ criterionId: item.id,
-          status: this.number === 96 ? 'passed' : 'unverified', reason: '保留明确核验结果' })) });
+      if ([87, 88, 89, 100].includes(this.number)) {
+        const at = this.context().resilience.window.hardDeadline;
+        this.event({ type: 'SUPERVISE', at, trigger: 'timer' });
+        const gate = taskHumanGate(this.context()); assert.equal(gate?.cause, 'windowExpired');
+        this.event({ type: 'HUMAN_GATE_DECISION', at, gateId: gate.id, decision: 'skip', text: '明确结束到期窗口并保留已有成果与缺口' });
+        assert(this.context().resilience.frozen);
+        assert.equal(this.context().intents.find(work => work.id === this.check.id).localOperations, undefined);
+        // This controlled check never issued model or tool I/O; settle its
+        // cancelled claim before exercising explicit continuation in the UI.
+        this.event({ type: 'SETTLE', at, intentId: this.check.id, attempt: this.check.attempt });
+      } else {
+        this.event({ type: 'CHECK_RESULT', workId: this.check.id, fence: this.check, attempt: this.check.attempt,
+          candidateRevision: this.context().candidate.revision, resultId: 'unverified-check',
+          criteriaResults: this.context().candidate.acceptance.criteria.map(item => ({ criterionId: item.id,
+            status: this.number === 96 ? 'passed' : 'unverified', reason: '保留明确核验结果' })) });
+      }
     }
     assert.equal(this.context().outcome, this.number === 96 ? 'complete' : 'partial');
     if (this.number === 92) {

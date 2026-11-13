@@ -15,11 +15,11 @@ const runtimeRoot = join(scratch, 'owned-runtime'); mkdirSync(runtimeRoot);
 const before = captureSource(root), sha = value => createHash('sha256').update(value).digest('hex');
 const env = { ...process.env, TMPDIR: runtimeRoot, TSX_DISABLE_CACHE: '1' }; delete env.MODEL_API_KEY;
 const normal = "        sharedAgentBehavior,\n        work.kind === 'interpretation'";
-const checker = '      sharedAgentBehavior,\n      materials.delta';
-const request = '      const requestMessages = observations.length ? [messages[0]!, ...observations, ...messages.slice(1)] : messages;';
+const checker = "      sharedAgentBehavior,\n      'Judge explicit requirements";
+const request = '      if (fixedInput) enforceFixedContext(service, requestMessages, contextFailure);';
 const cases = [
   { id: 'ordinary-work-loses-shared-policy', role: 'owner', mode: 'normal', from: normal, to: "        '',\n        work.kind === 'interpretation'" },
-  { id: 'fixed-check-loses-shared-policy', role: 'check', mode: 'normal', from: checker, to: "      '',\n      materials.delta" },
+  { id: 'fixed-check-loses-shared-policy', role: 'check', mode: 'normal', from: checker, to: "      '',\n      'Judge explicit requirements" },
   { id: 'follow-up-loses-shared-policy', role: 'owner', mode: 'repair', from: request,
     to: request + "\n      if (turn > 0) requestMessages[0] = { ...requestMessages[0]!, content: requestMessages[0]!.content.replace(sharedAgentBehavior, '') };" },
 ];

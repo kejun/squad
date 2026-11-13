@@ -91,7 +91,9 @@ Then('风格约定只作用于可读文本且保留当前工作类型的 JSON �
     assert.match(system(request), /Return exactly one JSON object/);
     assert.match(system(request), /"type":"check","criteriaResults":/);
     assert.match(system(request), /Do not return an overall verdict or separate gap list/);
-    assert.doesNotMatch(system(request), /"type":"(?:answer|deliver|runCli)"/);
+    assert.doesNotMatch(system(request), /"type":"(?:answer|deliver)"/);
+    assert.match(system(request), /Tool requests are intermediate actions; after remediation return one final check object/);
+    assert.match(system(request), /Never expand tool permissions/);
     assert.deepEqual(request.response_format, { type: 'json_object' });
     return;
   }

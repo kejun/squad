@@ -230,9 +230,25 @@ jobs:
 
   formal:
     name: Formal verification
+    needs: formal-checks
+    if: always() && (github.event_name != 'workflow_dispatch' || inputs.formal_only || (inputs.vitest_files == '' && inputs.bdd_tags == ''))
+    runs-on: ubuntu-22.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every formal verification slice
+        env:
+          FORMAL_RESULT: ${{ needs.formal-checks.result }}
+        run: test "$FORMAL_RESULT" = success
+
+  formal-checks:
+    name: Formal checks (${{ matrix.slice }})
     if: github.event_name != 'workflow_dispatch' || inputs.formal_only || (inputs.vitest_files == '' && inputs.bdd_tags == '')
     runs-on: ubuntu-22.04
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        slice: [handoff, delivery, authority, coordination]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -247,22 +263,15 @@ jobs:
           java-version: '21'
       - name: Install locked dependencies
         run: npm ci
-      - name: Check handoff correspondence
-        run: python3 .agents/skills/verify-squad-handoff/scripts/check.py
-      - name: Check delivery evidence and publication
-        run: python3 .agents/skills/verify-squad-delivery/scripts/check.py
-      - name: Check execution and host authority
-        run: python3 .agents/skills/verify-squad-authority/scripts/check.py
-      - name: Check budgets and shard convergence
-        run: python3 .agents/skills/verify-squad-coordination/scripts/check.py
+      - name: Check complete formal slice
+        run: python3 .agents/skills/verify-squad-${{ matrix.slice }}/scripts/check.py
       - name: Independently read back formal evidence
         run: |
-          for skill in handoff delivery authority coordination; do
-            for evidence in reports/verify-squad-$skill/*/; do
-              python3 .agents/skills/verify-squad-$skill/scripts/check.py --verify-evidence "$evidence"
-            done
+          for evidence in reports/verify-squad-${{ matrix.slice }}/*/; do
+            python3 .agents/skills/verify-squad-${{ matrix.slice }}/scripts/check.py --verify-evidence "$evidence"
           done
       - name: Verify delivery evidence rejects self-consistent omissions
+        if: matrix.slice == 'delivery'
         run: |
           for evidence in reports/verify-squad-delivery/*/; do
             python3 .agents/skills/verify-squad-delivery/scripts/composition-evidence-controls.py "$evidence" --output reports/verify-squad-delivery-reader-controls/detailed.json
@@ -272,7 +281,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: formal-verification-${{ github.sha }}
+          name: formal-verification-${{ matrix.slice }}-${{ github.sha }}
           include-hidden-files: true
           path: reports/verify-squad-*/
           if-no-files-found: error

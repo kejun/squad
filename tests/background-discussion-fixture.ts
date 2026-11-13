@@ -44,7 +44,9 @@ export class DiscussionFixture {
     if (work.kind === 'discussionSummary') return { type: 'answer', text: '协调员汇总：保留各成员依据、共识、分歧及未完成项。' };
     if (work.kind === 'check') return fixtureCheck(work.payload.candidate);
     assert.equal(work.kind, 'owner');
-    return { type: 'deliver', text: '方案师已结合草稿、协调员汇总和完整成员意见完善方案。', artifactIds: [] };
+    const incomplete = (work.payload.discussion as { incomplete?: string } | undefined)?.incomplete;
+    return { type: 'deliver', text: '方案师已结合草稿、协调员汇总和完整成员意见完善方案。'
+      + (incomplete ? `\n\n讨论缺口：${incomplete}` : ''), artifactIds: [] };
   }
   adapter(): WorkAdapter { return { execute: async work => { this.calls.push(work); return this.output(work); } }; }
   async one(id?: string) { return new WorkRunner(this.engine, this.adapter(), () => this.now).runOne(this.room, this.task, id); }

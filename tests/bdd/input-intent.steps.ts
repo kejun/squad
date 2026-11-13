@@ -380,6 +380,12 @@ Then('全部角色仍应收到原始目标硬约束并据此检查交付', funct
   assert.deepEqual(f.requests.find(request => request.kind === 'owner')?.context.goal, f.context().goal);
   const requirements = (request.context.requirements as AcceptanceCriterion[]).map(criterion => criterion.text);
   assert(requirements.includes('不得改用私有资料')); assert(requirements.includes('包含恢复风险'));
-  assert.equal(f.context().goal.requiredArtifacts, 1); assert.notEqual(f.context().outcome, 'complete'); assert.equal(f.view().phase, 'running');
+  assert.equal(f.context().goal.requiredArtifacts, 1); assert.equal(f.context().outcome, 'complete'); assert.equal(f.view().phase, 'ended');
   assert.equal(currentDeliveryIssues(f.context()).length, 2);
+  const check = f.context().intents.find(work => work.kind === 'check')!;
+  assert.deepEqual(check.criteriaResults?.filter(result => result.status === 'failed').map(result => result.criterionId),
+    (request.context.requirements as AcceptanceCriterion[]).filter(criterion => criterion.text === '不得改用私有资料' || criterion.text === '包含恢复风险').map(criterion => criterion.id));
+  assert(f.context().candidate!.text.includes('未完成或未核实事项：\n- 报告内容与原始硬约束不符'));
+  assert.equal(f.context().messages.at(-1)?.text, f.context().candidate!.text);
+  assert.deepEqual(f.engine.pending(f.room, f.task), []);
 });

@@ -40,8 +40,8 @@ export async function hostCapabilityAcceptance(useTools = false, observe?: (data
     assert.equal(f.backend.calls.length, useTools ? 1 : 0);
     assert.equal(f.h.context().usage.ordinary, useTools ? 8 : 2); // Model continuation is charged; discovery itself is free.
     const instructions = f.requests[0]!.messages[0]!.content;
-    assert(instructions.includes('Before choosing an unfamiliar host tool'));
-    assert(instructions.includes('Only queried commands are checked; absence from the result means unknown'));
+    assert(instructions.includes('Otherwise use discoverHost once with task purpose words, synonyms and candidate command names together'));
+    assert(instructions.includes('Only queried commands are checked for installation; absence from the result means unknown'));
     assert(instructions.includes('The service has no native MCP transport: do not invent MCP tool calls'));
     assert(f.requests[1]!.messages.some(message => message.content.includes('squad-probe') && message.content.includes('not_connected')));
     if (useTools) {

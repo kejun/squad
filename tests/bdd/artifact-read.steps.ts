@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { After, Given, Then, When } from '@cucumber/cucumber';
 import { LocalFixture } from '../local-tools-fixture.js';
 import { candidateJudgments } from '../helpers.js';
+import { fixtureWorkInput } from '../delivery-protocol-fixture.js';
 import type { SpecWorld } from './steps.js';
 
 type ReadFixture = { local: LocalFixture; original: string; revision: string; ordinary: number };
@@ -19,7 +20,8 @@ Given('当前候选修订了同目标的报告且原报告仍保留在任务历�
     artifacts: [{ name: 'report.md', content: originalBody }] }).ok);
   const original = h.context().candidate!.artifactIds[0]!;
   const check = h.authorizeCheck();
-  assert(h.checkResult(check, candidateJudgments(h.context().candidate, { index: 0, status: 'failed', reason: 'Revise the report' })).ok);
+  assert(h.event({ type: 'USER_INPUT', text: '请修订这份报告并保留原稿供对照' }).ok);
+  assert(h.checkResult(check, candidateJudgments(h.context().candidate)).ok);
   const revisionWork = h.claim('owner');
   assert(h.event({ type: 'DELIVER', workId: revisionWork.id, text: 'Revised', artifactIds: [],
     artifacts: [{ name: 'report.md', content: 'Revised saved report', replacesArtifactId: original }] }).ok);
@@ -38,9 +40,13 @@ When('系统为独立检查准备修订和原报告的对照材料', async funct
 Then('应提供一次原报告正文并保留当前候选版本', function (this: SpecWorld) {
   const { local, original, revision } = fixtures.get(this)!;
   const c = local.h.context();
-  const context = JSON.parse(local.requests[0]!.messages[1]!.content).context;
-  const originalReport = context.artifacts.filter((item: { id: string; content: string }) => item.id === original && item.content === originalBody);
+  const context = fixtureWorkInput(local.requests[0]).context;
+  const originalReport = (context.artifacts as { id: string; content: string }[]).filter(item => item.id === original && item.content === originalBody);
   assert.equal(originalReport.length, 1);
+  const current = c.artifacts.find(item => c.candidate!.artifactIds.includes(item.id))!;
+  assert.equal(current.content, 'Revised saved report');
+  assert.equal(current.replacesArtifactId, original);
+  assert.equal(c.artifacts.find(item => item.id === original)?.content, originalBody);
   assert.equal(c.publishedDelivery?.revision, revision);
 });
 Then('材料不应包含其他任务的产物，且不产生模型发起的读取或读取额度消耗', function (this: SpecWorld) {

@@ -25,30 +25,33 @@ function submitGoal(fixture: LocalFixture, text: string) {
 export async function completeToolInventoryAcceptance() {
   const fixture = await LocalFixture.create('方案师', true);
   try {
-    const entries = [hostReader, ...Array.from({ length: 26 }, (_, index) => ({ command: `archive-${index}`,
+    const entries = [hostReader, ...Array.from({ length: 70 }, (_, index) => ({ command: `archive-${index}`,
       description: 'Archive historical files without matching the current Chinese task' }))];
-    for (let index = 0; index < 27; index++) await writeSkill(fixture.skills, `archive-skill-${index}`, 'Unrelated archived engineering workflow');
+    for (let index = 0; index < 28; index++) await writeSkill(fixture.skills, `archive-skill-${index}`, 'Unrelated archived engineering workflow');
     await fixture.runtime.close();
     fixture.runtime = await LocalRuntime.create({ ...fixture.runtime.options, cliCatalog: entries, catalogRefreshIntervalMs: 0 });
     submitGoal(fixture, '根据语雀私有文档整理十月团队工作');
     const usage = fixture.h.context().usage.ordinary;
-    fixture.replies.push({ type: 'answer', text: '已读取完整工具元信息，尚未执行命令或取得文档。' });
+    fixture.replies.push({ type: 'discoverHost', query: '语雀私有文档', commands: ['node'] },
+      { type: 'answer', text: '已读取渐进式工具上下文与召回元信息，尚未执行命令或取得文档。' });
     await fixture.runner().runOne(fixture.h.room, fixture.h.task);
     const inventory = inventoryObservation(fixture.requests[0]!);
-    assert.deepEqual(inventory.cli.entries.map(entry => entry.command), entries.map(entry => entry.command));
-    assert.equal(inventory.skills.skills.length, 28);
-    assert(inventory.skills.skills.some(skill => skill.name === 'archive-skill-26'));
+    assert.equal(inventory.catalogProjection, 'progressive');
+    assert.equal(inventory.cli.entryCount, entries.length);
+    assert.equal(inventory.cli.entries.length, 0);
+    assert.equal(inventory.skills.skillCount, 29, 'Complete inventory must retain every installed skill');
+    assert.equal(inventory.skills.skills.length, 0);
     assert(inventory.interfaces.some(tool => tool.type === 'web_fetch'));
     assert(inventory.interfaces.some(tool => tool.type === 'web_search'));
-    const reader = inventory.cli.entries.find(entry => entry.command === 'node')!;
+    assert.equal(fixture.backend.calls.length, 0);
+    const discovered = inventoryObservation(fixture.requests[1]!);
+    const reader = discovered.cli.entries.find(entry => entry.command === 'node')!;
     assert.deepEqual(reader.examples, hostReader.examples);
     assert.deepEqual(reader.variants.map(variant => variant.execution), ['sandbox', 'host']);
     assert.equal(reader.variants.find(variant => variant.execution === 'host')!.approvalRequired, true);
-    assert(reader.variants.every(variant => variant.readiness.installation === 'unknown'
-      && variant.readiness.authentication === 'unknown' && variant.readiness.network === 'unknown'));
-    assert.equal(fixture.backend.calls.length, 0);
-    assert.equal(fixture.h.context().intents[0]!.localOperations, undefined);
-    assert.equal(fixture.h.context().usage.ordinary - usage, 1);
+    assert(reader.variants.every(variant => variant.readiness.authentication === 'unknown' && variant.readiness.network === 'unknown'));
+    assert.equal(fixture.h.context().intents[0]!.localOperations?.length, 1);
+    assert.equal(fixture.h.context().usage.ordinary - usage, 2);
     return { inventory, modelRequests: fixture.requests.length, executions: fixture.backend.calls.length,
       ordinaryUsed: fixture.h.context().usage.ordinary - usage };
   } finally { await fixture.close(); }
@@ -146,7 +149,17 @@ export async function inventoryRefreshAcceptance(kind: string) {
     assert.equal(views[2]!.catalogVersion, views[1]!.catalogVersion);
     if (kind === '技能源变化后刷新') {
       assert(!views[0]!.skills.skills.some(skill => skill.name === 'new-source-reader'));
-      assert(views[1]!.skills.skills.some(skill => skill.name === 'new-source-reader'));
+      assert(!original.skills.skills.some(skill => skill.name === 'new-source-reader'));
+      const published = fixture.runtime.toolInventory();
+      const added = published.skills.skills.find(skill => skill.name === 'new-source-reader');
+      assert(added, 'The refreshed host catalog must include the newly scanned skill');
+      assert(fixture.runtime.catalog().skills.some(skill => skill.skillId === added.skillId),
+        'The public skill catalog must expose the newly scanned skill for discovery');
+      assert.equal(views[1]!.skills.skillCount, original.skills.skills.length + 1);
+      assert.equal(views[2]!.skills.skillCount, views[1]!.skills.skillCount);
+      assert.equal(views[1]!.skills.catalogVersion, published.skills.catalogVersion);
+      assert(!views[1]!.skills.skills.some(skill => skill.skillId === added.skillId),
+        'An unactivated skill remains discoverable without being attached to every model request');
     } else {
       assert.equal(views[0]!.cli.entries.length, 1); assert.equal(views[1]!.cli.entries.length, 2);
     }
@@ -276,7 +289,7 @@ export async function pinnedSkillInventoryAcceptance() {
 
 export async function inventoryBoundaryAcceptance(boundary: string) {
   const model = unifiedToolBoundaryModel(boundary);
-  if (boundary !== '最终固定材料检查') {
+  if (boundary !== '最终检查本地工具撤权') {
     if (boundary === '已停止' || boundary === '本地工具撤权') {
       const { fixture } = await fileInventoryFixture([hostReader]);
       try {
@@ -290,19 +303,25 @@ export async function inventoryBoundaryAcceptance(boundary: string) {
         assert.equal(fixture.backend.calls.length, 0);
         assert.equal(fixture.requests.length, 1, 'A hidden inventory caused by revocation must not create metadata-change model loops');
         assert.equal(fixture.h.context().intents.flatMap(work => work.localOperations ?? []).length, 0);
-        return { boundary, modelAllowed: false, checkInventoryMessages: 0, dynamicSelectionRequests: fixture.requests.length };
+        return { boundary, modelAllowed: false, checkLocalOperations: 0, dynamicSelectionRequests: fixture.requests.length };
       } finally { await fixture.close(); }
     }
-    return { boundary, modelAllowed: false, checkInventoryMessages: 0 };
+    return { boundary, modelAllowed: false, checkLocalOperations: 0 };
   }
   const fixture = await LocalFixture.create('最终检查', true);
   try {
-    fixture.replies.push({ type: 'check', passed: true, gaps: [] });
+    fixture.h.config.localTools = { enabled: false };
+    fixture.replies.push({ type: 'runCli', executable: 'node', args: ['--version'] });
     await fixture.runner().runOne(fixture.h.room, fixture.h.task);
-    assert.equal(fixture.requests.length, 1);
-    assert(!fixture.requests[0]!.messages.some(message => message.content.includes('"type":"tool_inventory"')));
-    assert(!fixture.requests[0]!.messages.some(message => message.content.includes('"type":"tool_guidance"')));
-    return { boundary, modelAllowed: false, checkInventoryMessages: 0, outcome: fixture.h.context().outcome };
+    assert.equal(fixture.requests.length, 0, 'Revocation must stop the check before another model or tool request');
+    assert.equal(fixture.replies.length, 1, 'The scripted command must never reach the model');
+    const operations = fixture.h.context().intents.flatMap(work => work.localOperations ?? []);
+    assert.equal(operations.length, 0);
+    assert.equal(fixture.backend.calls.length, 0);
+    assert.equal(fixture.h.view().phase, 'waitingHuman');
+    assert.equal(fixture.h.context().outcome, null);
+    assert(fixture.h.context().reason.includes('LOCAL_TOOLS_DISABLED'));
+    return { boundary, modelAllowed: false, checkLocalOperations: operations.length, outcome: fixture.h.context().outcome };
   } finally { await fixture.close(); }
 }
 
@@ -343,7 +362,8 @@ export async function incompleteInventoryAcceptance(kind: string) {
       } finally { await counterpart.close(); }
     }
     if (kind === '技能源扫描达到边界') {
-      assert.equal(inventory.skills.complete, false); assert.equal(inventory.skills.skills.length, 1);
+      assert.equal(inventory.skills.complete, false); assert.equal(inventory.skills.skillCount, 1);
+      assert.equal(inventory.skills.skills.length, 0);
       assert(inventory.skills.diagnostics.some(diagnostic => diagnostic.code === 'SKILLS_SCAN_LIMIT'));
     }
     const localCatalog = fixture.runtime.catalog(), allSkills = fixture.runtime.registry.all();
@@ -362,8 +382,10 @@ export async function incompleteInventoryAcceptance(kind: string) {
       'The same skill generation must report consistent completeness through the full skill registry');
     assert.equal(discoveredSkills.complete, inventory.skills.complete,
       'The same skill generation must report consistent completeness through host discovery');
-    assert.deepEqual(localCatalog.skills, inventory.skills.skills); assert.deepEqual(allSkills.skills, inventory.skills.skills);
-    assert.deepEqual(discoveredSkills.skills, inventory.skills.skills);
+    assert.equal(inventory.skills.skillCount ?? inventory.skills.skills.length, localCatalog.skills.length);
+    assert.deepEqual(localCatalog.skills, allSkills.skills);
+    assert.deepEqual(discoveredSkills.skills, allSkills.skills);
+    if (inventory.skills.skills.length) assert.deepEqual(localCatalog.skills, inventory.skills.skills);
     assert.deepEqual(localCatalog.diagnostics, inventory.skills.diagnostics); assert.deepEqual(allSkills.diagnostics, inventory.skills.diagnostics);
     assert.deepEqual(discoveredSkills.diagnostics, inventory.skills.diagnostics);
     if (kind === '宿主MCP未接入本服务') {
@@ -405,7 +427,11 @@ export async function inventoryReadPerformanceAcceptance() {
     }
     const projectionAndSerializationMs = performance.now() - projectionStart;
     const observed = inventoryObservation(fixture.requests.at(-1)!);
-    assert.equal(observed.cli.entries.length, 200); assert.equal(observed.skills.skills.length, 200);
+    assert.equal(observed.catalogProjection, 'progressive');
+    assert.equal(observed.cli.entryCount, 200);
+    assert.equal(observed.cli.entries.length, 1);
+    assert.equal(observed.skills.skillCount, 200);
+    assert.equal(observed.skills.skills.length, 0);
     const node = observed.cli.entries.find(entry => entry.command === 'node')!;
     assert(node.variants.every(variant => variant.readiness.sourceOperationIds.length === 1));
     assert.equal(fixture.backend.calls.length, 0);

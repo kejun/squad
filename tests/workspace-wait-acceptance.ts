@@ -165,24 +165,17 @@ export class WorkspaceWaitAcceptance {
     assert.equal(this.waiting.get('resources'), 1, 'An actual typed-resource waiter must exist before settlement');
     if (mode === '人类执行核对') await this.confirmOld(old);
     else {
-      assert(['后台回执恢复', '归档删除核对'].includes(mode));
-      let deletionReconciliations = 0;
-      if (mode === '归档删除核对') {
+      assert(['后台回执恢复', '归档强制删除'].includes(mode));
+      if (mode === '归档强制删除') {
         const reconcile = this.fixture.runtime.reconcile.bind(this.fixture.runtime);
         this.fixture.runtime.reconcile = async op => {
-          // Hold this provider result until the actual deletion barrier has
-          // been committed. Ordinary periodic cleanup cannot win this test.
+          // Keep periodic reconciliation from releasing the lease before
+          // explicit deletion commits its own resource removal.
           if (op.id === old.op.id && !this.fixture.service.engine.roomDeletion(old.room.id)?.context.deletionId) return null;
-          if (op.id === old.op.id) deletionReconciliations++;
           return reconcile(op);
         };
       }
-      // The controlled provider finishes its uncertainty check after the real
-      // child has exited. Only its durable journal changes; the production
-      // cleanup scheduler must read it and commit LOCAL_RECONCILE itself.
-      await this.fixture.runtime.journal.write({ operationId: old.op.id, sessionId: old.op.sessionId!, phase: 'settled',
-        completion: { ...old.execution, effectsKnown: true } });
-      if (mode === '归档删除核对') {
+      if (mode === '归档强制删除') {
         const sourceRoom = this.fixture.service.snapshot(old.room.id).room; assert.equal(sourceRoom.archived, true);
         const deletion = await fetch(this.fixture.url + `/api/rooms/${old.room.id}/delete`, { method: 'POST',
           headers: { origin: this.fixture.url, 'content-type': 'application/json' },
@@ -190,7 +183,17 @@ export class WorkspaceWaitAcceptance {
         assert.equal(deletion.status, 202, await deletion.text());
         await hostUntil(async () => (await fetch(this.fixture.url + `/api/rooms/${old.room.id}`)).status, status => status === 410);
         assert(this.fixture.service.deletedRooms().some(room => room.roomId === old.room.id));
-        assert(deletionReconciliations > 0, 'The deletion preparation must perform the actual trusted reconciliation');
+        const deletionState = this.fixture.service.engine.roomDeletion(old.room.id)!.context;
+        assert.equal(deletionState.force, true); assert.equal(deletionState.dataErased, true);
+        const observer = new SqliteStore(join(this.fixture.root, 'team.sqlite'));
+        try { assert.equal(observer.verifyDeletionDataGone(old.room.id), true,
+          'Explicit deletion must erase the old room and release its actual resource leases'); }
+        finally { observer.close(); }
+      } else {
+        // Only the durable journal changes. The production cleanup scheduler
+        // must read this trusted receipt and commit LOCAL_RECONCILE itself.
+        await this.fixture.runtime.journal.write({ operationId: old.op.id, sessionId: old.op.sessionId!, phase: 'settled',
+          completion: { ...old.execution, effectsKnown: true } });
       }
     }
     const approval = await this.fixture.approval();
@@ -202,7 +205,7 @@ export class WorkspaceWaitAcceptance {
     assert.equal(accepted.status, 200); await this.fixture.assertSuccessfulRun();
     assert.equal(this.oldStarts.length, 1, 'The old completed process must never be replayed');
     this.result = { mode, currentApprovalVisible: true, approvedStarts: 1, oldProcessStarts: 1, originalTypedWaiterWoken: true,
-      ...(mode === '归档删除核对' ? { sourceDeleted: true } : {}) };
+      ...(mode === '归档强制删除' ? { sourceDeleted: true } : {}) };
   }
 
   async close() { await this.fixture.close(); }
@@ -240,7 +243,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   try {
     await scenario.wait();
     if (mode === 'projection') { await scenario.verifySources(); await workspaceWaitConflictMatrix(); await scenario.verifyPartialSettlement(); }
-    else await scenario.settleLast(mode === 'human' ? '人类执行核对' : mode === 'deletion' ? '归档删除核对' : '后台回执恢复');
+    else await scenario.settleLast(mode === 'human' ? '人类执行核对' : mode === 'deletion' ? '归档强制删除' : '后台回执恢复');
     console.log(JSON.stringify({ mode, result: scenario.result }));
   } finally { await scenario.close(); }
 }

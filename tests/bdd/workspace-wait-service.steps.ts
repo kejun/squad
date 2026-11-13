@@ -18,7 +18,7 @@ Then('任一旧操作未结算时新命令仍不得启动或获得伪造授权',
 Given('当前会话的宿主命令正在等待其他会话的未决资源', timeout, async function (this: SpecWorld) {
   const fixture = new WorkspaceWaitAcceptance(); cases.set(this, fixture); await fixture.open(1); await fixture.wait();
 });
-When('最后一个阻塞操作经{string}可信结算', timeout, async function (this: SpecWorld, mode: string) { await current(this).settleLast(mode); });
+When('最后一个阻塞操作经{string}解除资源占用', timeout, async function (this: SpecWorld, mode: string) { await current(this).settleLast(mode); });
 Then('原排队命令应获得实际唤醒并提出自己的精确宿主授权', function (this: SpecWorld) {
   assert.equal(current(this).result?.originalTypedWaiterWoken, true); assert.equal(current(this).result?.currentApprovalVisible, true);
 });

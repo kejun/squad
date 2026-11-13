@@ -8,7 +8,7 @@ import { WebService } from '../../src/web/service.js';
 import { badModelOutput, goodModelOutput, modelResponse, RegenerationFixture, regenerationConfig, type ModelKind } from '../model-regeneration-fixture.js';
 import { candidateJudgments, type EventBody } from '../helpers.js';
 import type { SpecWorld } from './steps.js';
-import { withFixtureAcceptance } from '../delivery-protocol-fixture.js';
+import { fixtureWorkInput, withFixtureAcceptance } from '../delivery-protocol-fixture.js';
 
 interface RepairState { fixture: RegenerationFixture; directory?: string; web?: WebService; room?: string; failure?: unknown; expectFailure?: boolean; failureEvent?: Extract<EventBody, { type: 'WORK_FAILED' }>; expectedRequests?: number;
   providerFault?: string; originalCandidate?: { text: string; artifactIds: string[]; revision: string | undefined; artifacts: { id: string; content: string }[] } }
@@ -23,13 +23,13 @@ After(async function (this: SpecWorld) {
 });
 
 Given('检查模型先返回{string}再返回合法检查结果', function (this: SpecWorld, issue: string) {
-  const f = setup(this, 'check', {}, false, issue === '引文不属于所指来源' ? ['原始第一份资料', '来自第二份资料的短引文'] : []);
+  const f = setup(this, 'check', {}, false, issue === '引文来源字段为空' ? ['原始资料的短引文'] : []);
   const results = candidateJudgments(f.h.context().candidate);
   if (issue === 'type缺失') f.replies = [{ criteriaResults: results }, goodModelOutput('check')];
   else if (issue === '验收项ID重复') f.replies = [{ type: 'check', criteriaResults: [...results, results[0]] }, goodModelOutput('check')];
   else if (issue === '验收项ID未知') f.replies = [{ type: 'check', criteriaResults: [{ criterionId: 'foreign', status: 'passed' }, ...results] }, goodModelOutput('check')];
-  else if (issue === '引文不属于所指来源') f.replies = [{ type: 'check', criteriaResults: [
-    { ...results[0], status: 'failed', reason: '内容争议', source: { id: f.sources[0], quote: '来自第二份资料的短引文' } }, ...results.slice(1),
+  else if (issue === '引文来源字段为空') f.replies = [{ type: 'check', criteriaResults: [
+    { ...results[0], status: 'failed', reason: '内容争议', source: { id: '', quote: '原始资料的短引文' } }, ...results.slice(1),
   ] }, goodModelOutput('check')];
   else f.replies = [badModelOutput(issue), goodModelOutput('check')];
 });
@@ -58,7 +58,14 @@ Then('首检与补试的协议应明确要求检查标识和逐项结果两个�
   assert.equal(requests.length, 2);
   assert.match(requests[0]!.messages[0]!.content,
     /Required top-level fields: "type" \(exactly "check"\) and "criteriaResults" \(array\)\. Neither field may be omitted\./);
-  assert.deepEqual(requests[1]!.messages, requests[0]!.messages);
+  assert.match(requests[1]!.messages[0]!.content,
+    /Required top-level fields: "type" \(exactly "check"\) and "criteriaResults" \(array\)\. Neither field may be omitted\./);
+  const original = fixtureWorkInput(requests[0]);
+  const retried = fixtureWorkInput(requests[1]);
+  const { retryDiagnostic, ...materials } = retried.context;
+  assert.equal(retried.workId, original.workId);
+  assert.deepEqual(retryDiagnostic, { code: 'CHECK_INVALID_RESULT' });
+  assert.deepEqual(materials, original.context);
 });
 
 Given('{string}模型先返回{string}再返回该角色合法结果', function (this: SpecWorld, kind: string, issue: string) {
@@ -238,8 +245,11 @@ Given('模型返回有效的逐项结果并给出有依据的内容错误', func
 });
 Then('应应用不通过判断且不消耗格式修正次数', function (this: SpecWorld) {
   const f = state(this).fixture; assert.equal(f.requests.length, 1); assert.equal(f.repairs.length, 0);
-  assert.equal(f.h.context().usage.retries, 0); assert.equal(f.h.view().phase, 'running');
-  assert(f.h.context().trace.some(t => t.event === 'CHECK_RESULT')); assert.equal(f.h.context().outcome, null);
+  assert.equal(f.h.context().usage.retries, 0); assert.equal(f.h.view().phase, 'ended');
+  assert(f.h.context().trace.some(t => t.event === 'CHECK_RESULT')); assert.equal(f.h.context().outcome, 'complete');
+  assert.deepEqual(f.work.criteriaResults, (f.fallback as { criteriaResults: unknown }).criteriaResults);
+  assert(f.h.context().candidate?.text.includes('未完成或未核实事项：\n- 报告正文将计划写成已完成'));
+  assert.deepEqual(f.h.engine.pending(f.h.room, f.h.task), []);
 });
 
 Given('{string}在保存模型输出修正时失败', function (this: SpecWorld, store: string) {
@@ -252,30 +262,33 @@ Then('不得发出第二次请求且修正计数不应提交', function (this: S
   assert.equal(f.h.context().usage.retries, 0); assert.equal(f.work.outputRepair, undefined);
 });
 
-Given('首检已在一次技术补试后返回内容错误并触发了作者修订', async function (this: SpecWorld) {
+Given('首检已在一次技术补试后返回合法的内容错误', async function (this: SpecWorld) {
   const f = setup(this, 'check', { retries: 5, checks: 5 });
   f.replies = [badModelOutput('criteriaResults缺失'), { type: 'check',
     criteriaResults: candidateJudgments(f.h.context().candidate, { index: 0, status: 'failed', reason: '计划尚未完成' }) }];
   assert(await f.run());
   assert(await f.run());
-  const owner = f.h.claim('owner');
-  assert(f.h.event({ type: 'DELIVER', text: '明确说明计划尚未完成', artifactIds: [], workId: owner.id, fence: owner }).ok);
 });
-When('复核请求再次遇到协议错误或瞬态故障', async function (this: SpecWorld) {
+When('下游检查工作已结束后再次尝试派发工作', async function (this: SpecWorld) {
   const f = state(this).fixture;
   f.fallback = badModelOutput('criteriaResults为null');
-  assert(await f.run());
+  assert.equal(await f.run(), false);
 });
-Then('该周期合计只授权三次检查模型请求', function (this: SpecWorld) {
+Then('该周期应保留两次检查模型请求且不得安排作者修订或复核', function (this: SpecWorld) {
   const f = state(this).fixture;
-  assert.equal(f.requests.length, 3);
-  assert.equal(f.h.context().usage.checks, 3);
+  assert.equal(f.requests.length, 2);
+  assert.equal(f.h.context().usage.checks, 2);
   assert.equal(f.h.context().usage.retries, 1);
+  assert.equal(f.h.context().intents.filter(work => work.kind === 'owner').length, 1);
+  assert.equal(f.h.context().intents.filter(work => work.kind === 'check').length, 1);
+  assert.deepEqual(f.h.engine.pending(f.h.room, f.h.task), []);
 });
-Then('应以已有成果和未核实范围明确结束', function (this: SpecWorld) {
+Then('应正常交付已有成果并明确保留最终缺口', function (this: SpecWorld) {
   const { h } = state(this).fixture;
   assert.equal(h.view().phase, 'ended');
-  assert.equal(h.context().outcome, 'partial');
-  assert.equal(h.context().candidate?.text, '明确说明计划尚未完成');
-  assert(h.context().candidate?.deliveryIssue);
+  assert.equal(h.context().outcome, 'complete');
+  assert.equal(h.context().candidate?.text, '完整方案，依据 https://example.com\n\n未完成或未核实事项：\n- 计划尚未完成');
+  assert.equal(h.context().messages.at(-1)?.text, h.context().candidate?.text);
+  assert.equal(state(this).fixture.work.criteriaResults?.[0]?.status, 'failed');
+  assert.equal(state(this).fixture.work.criteriaResults?.[0]?.reason, '计划尚未完成');
 });
