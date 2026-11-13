@@ -98,7 +98,7 @@
     "src/task/tool-guidance.ts": "6c1487d82bdf94d5aca7c659a56f7342dc13bde2169619abbe5dcd49fbc0f6e4",
     "src/task/tool-knowledge.ts": "4820a97520febf9c9d98debbc72a99dc6d62ff1306ae3d6f6718728f6d758dd8",
     "src/task/tool-recovery.ts": "8d2aac45bfd8633fce45f236fc3ef880be8810c5592059d26a294fbb012b9468",
-    "src/task/verification.ts": "908bed1b0211b852c450379274ee215cb28eb04c7e974c542005ad008e06d922",
+    "src/task/verification.ts": "ee7a1959bac2573cc2f0dc07a19f233cf7b575b31cdbfb6d965ee180d6bd699c",
     "src/tool-inventory.ts": "6614e54f2c9c17dd0a2ec66fd79586054141894d7f48fb7c51793562d57ccdb8",
     "src/tool-recommendation.ts": "8f3ec269c241a6eeeab9f9727b9fbd34208f262feb8bc8a73127540cc89f80e3",
     "src/types.ts": "b1d1e132ab8d05cf30d16a3e93a26913635bd75016cd40bb0d399e8039a61c73",
