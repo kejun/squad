@@ -43,7 +43,7 @@
     "src/local-skills.ts": "ee63e411cc932479195a90199a2b961899b93e28093bfa1e53a6b013ee24d09a",
     "src/local-stdin.ts": "3ba3b53ee6583598f78edc2abb1e164897e0fc0b5523cb6344ebffb7e1faaf6d",
     "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
-    "src/model-adapter.ts": "52bb9d8824e4cbff2a74ac8e256f168fa58289d58a205da11d94c4793b5769b1",
+    "src/model-adapter.ts": "b79eac76c443670ea15f69ea47660d1717f289cbe2e4eda78bd1997f8f3aab88",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
     "src/model-env.ts": "bcc3f5eb29b33bfd45302f8d3fb151229420d3574474480c1535f421a2976765",
     "src/model-inventory-format.ts": "6f22e2ef4319c1b7a1cbb7a5f7995277f7022cb2eeac4d4cd7298a0128744b23",

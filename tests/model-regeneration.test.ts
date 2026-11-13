@@ -68,8 +68,7 @@ describe('model output regeneration', () => {
   it('[BT_M10] never executes malformed tool arguments suggested by a checking response', async () => {
     const f = fixture(); f.replies = [badModelOutput('网页工具参数错误'), goodModelOutput('check')];
     await f.run(); await f.run();
-    expect(f.requests.length).toBeGreaterThanOrEqual(1);
-    expect(f.webCalls).toBe(0); expect(f.searches).toBe(0);
+    expect(f.requests).toHaveLength(2); expect(f.webCalls).toBe(0); expect(f.searches).toBe(0);
     expect(f.h.context().outcome).toBe('complete');
   });
 

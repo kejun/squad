@@ -473,9 +473,6 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
             typeof work.payload.maxPartitions === 'number' ? work.payload.maxPartitions : undefined))) {
           throw new OutputValidationError('invalid_input_intent');
         }
-        if (work.kind === 'check' && output.type !== 'check') {
-          throw new OutputValidationError('invalid_type');
-        }
         if (['discoverHost', 'listSkills', 'loadSkill', 'readSkillResource', 'readEvidence', 'readArtifact', 'runCli'].includes(String(output.type))) {
           if (!canUseLocal) throw new WorkFailure('LOCAL_TOOLS_NOT_ALLOWED');
           if (!scope.localTools) throw new WorkFailure('LOCAL_RUNTIME_NOT_CONFIGURED');
