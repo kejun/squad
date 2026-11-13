@@ -10,12 +10,18 @@ import type { CliCatalogEntry } from '../src/cli-catalog.js';
 
 const environment = { MODEL_BASE_URL: 'https://budget-model.example/v1', MODEL_NAME: 'deepseek-v4.1-flash', MODEL_NO_AUTH: 'true' };
 
-export async function maximumModelRequests() {
-  const config = createTeamConfig(environment); config.inputAnalysis = { enabled: false };
+export async function maximumModelRequests(modelName = environment.MODEL_NAME) {
+  const selectedEnvironment = { ...environment, MODEL_NAME: modelName };
+  const config = createTeamConfig(selectedEnvironment); config.inputAnalysis = { enabled: false };
   assert.equal(config.models!.services.primary!.contextWindowTokens, 1_048_571);
-  const other = createTeamConfig({ ...environment, BUILDER_2_MODEL_NAME: 'different-model' });
+  const other = createTeamConfig({ ...selectedEnvironment, BUILDER_2_MODEL_NAME: 'different-model', BUILDER_3_MODEL_NAME: 'deepseek-v4.1-flash-preview' });
   assert.equal(other.models!.services['builder-2']!.maxTokens, undefined, 'A different model must not inherit a DeepSeek-specific automatic output maximum');
-  const completionOverride = createTeamConfig({ ...environment, MODEL_EXTRA_BODY: '{"max_completion_tokens":8192}' });
+  assert.equal(other.models!.services['builder-3']!.maxTokens, undefined, 'Similar model IDs must not acquire this version-specific default');
+  const roleOverride = createTeamConfig({ ...environment, MODEL_NAME: 'different-model', BUILDER_2_MODEL_NAME: modelName });
+  assert.equal(roleOverride.models!.services['builder-2']!.maxTokens, 384_000, 'A role must recognize the provider ID independently of the primary model');
+  const explicitOverride = createTeamConfig({ ...selectedEnvironment, MODEL_MAX_TOKENS: '8192' });
+  assert.equal(explicitOverride.models!.services.primary!.maxTokens, 8192, 'Explicit output settings must retain priority');
+  const completionOverride = createTeamConfig({ ...selectedEnvironment, MODEL_EXTRA_BODY: '{"max_completion_tokens":8192}' });
   assert.equal(completionOverride.models!.services.primary!.maxTokens, undefined, 'An explicit completion limit must not be combined with an automatic max_tokens default');
   assert.equal(completionOverride.models!.services.primary!.extraBody!.max_completion_tokens, 8192);
   for (const member of config.bots) {
@@ -23,7 +29,9 @@ export async function maximumModelRequests() {
     let requests = 0;
     const adapter = new OpenAICompatibleAdapter(config, { clock: () => h.now, transport: async (_url, init) => {
       requests++; const body = JSON.parse(String(init?.body));
+      assert.equal(body.model, modelName, 'ID matching must preserve the provider model ID in actual requests');
       assert.equal(body.max_tokens, 384_000, 'Every actual member request must use the provider maximum output default');
+      assert.equal(Object.hasOwn(body, 'enable_thinking'), false, 'Thinking mode must remain provider-controlled unless explicitly configured');
       return modelResponse({ type: 'answer', text: 'maximum budget request accepted' });
     } });
     assert(await new WorkRunner(h.engine, adapter, () => h.now).runOne(h.room, h.task)); assert.equal(requests, 1);

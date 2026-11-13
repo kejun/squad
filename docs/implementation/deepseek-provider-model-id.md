@@ -1,0 +1,29 @@
+# DeepSeek 提供商模型 ID 兼容
+
+用户报告：`deepseek-ai/DeepSeek-V4.1-Flash` 未命中 `deepseek-v4.1-flash` 精确比较，默认输出额度落到提供商默认；另观察 V4.1 Flash 长输出约 95 秒，V4 Flash 约 25 秒。后者是用户现场观测，本轮不重复付费测速，也不将 `enable_thinking=false` 等同于完全关闭思考。
+
+## EARS 与核查
+
+- DMI-01：当模型 ID 最后一段忽略大小写等于 `deepseek-v4.1-flash` 且没有显式输出额度时，配置应采用既有默认输出额度 384000，并在请求中保留原始模型 ID。
+- DMI-02：如果用户显式提供 MAX_TOKENS 或 EXTRA_BODY 中的输出额度，则配置应沿用现有优先级；其他模型不得继承 DeepSeek 专属自动输出额度。
+- DMI-03：当用户提供 `MODEL_EXTRA_BODY={"enable_thinking":false}` 时，系统应沿用既有透传；未配置时不新增该参数，也不改变任务计时和调度。
+
+核查：DMI-01 修复已复现的命名空间及大小写兼容缺陷，不增加其他 DeepSeek 版本别名。DMI-02 保留既有用户配置优先级。DMI-03 复用已有能力，不默认更改模型行为；供应商是否完全停止 reasoning 不在本地受控响应的证明范围内。最大输出数沿用仓库现有值，不声称重新核实了每家提供商的限制。
+
+## 验收与状态模型
+
+复用 BT_Y155 的场景大纲，覆盖原 ID、提供商前缀和大小写差异。真实适配器逐成员核对出站 model/max_tokens；另核对角色独立选择、其他模型、显式额度与 completion 额度优先级。既有 BT_M40 和适配器接线检查承接思考开关透传。
+
+状态图位于 `docs/state-diagrams.md` 的“最大预算与共享元数据”。本变更只有配置投影，没有新 XState 转移；复验真实 taskMachine 的 maximumBudgetModelGate 后再修改加载器。保留 CLAIM/CONSUME、宿主授权、STOP 路径，不虚构配置状态。
+
+## 原样复现与验证范围
+
+公开 `createTeamConfig` 入口使用硅基流动 ID：`maxTokens=undefined`，断言预期 384000 失败。未输出或使用真实凭据。
+
+修复前 BT_Y155 为 1 例通过、2 例因默认额度 undefined 失败；修复后 BT_Y155 与 BT_M40 共 24 例、1704 步通过。模型环境和适配器的既有 30 项回归通过，产品和 BDD 类型检查通过。最大预算真实状态模型门槛也通过，原始公开配置复现恢复为 maxTokens=384000 且模型 ID 原样保留。
+
+定向入口为 Cucumber 的 `@BT_Y155 or @BT_M40`、Vitest 的 `tests/model-env.test.ts tests/model-adapter.test.ts`，以及 `tests/maximum-budget-model-gate.ts`；使用本机无认证占位配置和受控返回，不调用真实模型。未增加重复单元测试。
+
+九个形式化入口均固定该配置模块；原样运行全部因来源漂移阻断，没有执行 TLC。审查确认唯一变化是默认输出额度的模型名选择条件，原有数值范围、事件、原子事务、身份、授权和停止边界不变。因此不修改 TLA+ 模型、有限域、性质或故障对照；配置 ID 识别由上述真实入口场景验收，不能声称 TLC 证明了所有模型 ID。
+
+来源审查和候选指纹单独提交，再通过形式化专用 CI 运行全部九个受影响入口及独立读回。旧 syncCommit 与原始证明保留各自版本，成功后才推进同步记录。不重跑未改动的网页与工具套件。
