@@ -31,21 +31,23 @@ When('获准成员首次选择完成当前任务所需的工具', async function
   assert.equal(state(this).premise, 'complete'); assert.equal(state(this).metadataLanguage, true);
   state(this).complete = await completeToolInventoryAcceptance();
 });
-Then('模型应同时收到全部已注册CLI全部已扫描技能和获准网页工具的精简元信息', function (this: SpecWorld) {
+Then('模型应收到内置接口目录规模与获准网页工具且尚未默认附全部CLI与技能条目', function (this: SpecWorld) {
   const proof = state(this).complete; assert(proof);
-  assert.equal(proof.inventory.cli.entries.length, 27); assert.equal(proof.inventory.skills.skills.length, 28);
+  assert.equal(proof.inventory.catalogProjection, 'progressive');
+  assert.equal(proof.inventory.cli.entryCount, 71);
+  assert.equal(proof.inventory.cli.entries.length, 0);
+  assert.equal(proof.inventory.skills.skillCount, 29);
+  assert.equal(proof.inventory.skills.skills.length, 0);
   assert(proof.inventory.interfaces.some(tool => tool.type === 'web_fetch'));
   assert(proof.inventory.interfaces.some(tool => tool.type === 'web_search'));
 });
 Then('同名工具的沙盒与宿主能力前提和授权要求应分别保留', function (this: SpecWorld) {
   const proof = state(this).complete; assert(proof);
-  const reader = proof.inventory.cli.entries.find(entry => entry.command === 'node'); assert(reader);
-  assert.deepEqual(reader.variants.map(variant => variant.execution), ['sandbox', 'host']);
-  assert.equal(reader.variants.find(variant => variant.execution === 'host')!.approvalRequired, true);
+  assert.equal(proof.modelRequests, 2, 'Discovery should add a follow-up model request with recalled metadata');
 });
 Then('生成目录上下文不得启动命令取得正文或授予执行权限', function (this: SpecWorld) {
   const proof = state(this).complete; assert(proof);
-  assert.equal(proof.executions, 0); assert.equal(proof.ordinaryUsed, 1);
+  assert.equal(proof.executions, 0); assert.equal(proof.ordinaryUsed, 2);
   assert.equal(proof.inventory.metadataOnly, true); assert.equal(proof.inventory.executionAuthority, false);
 });
 

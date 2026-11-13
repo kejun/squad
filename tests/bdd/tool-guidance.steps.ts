@@ -15,12 +15,19 @@ const state = (world: SpecWorld) => { let value = states.get(world); if (!value)
 
 Given('宿主已加载超过一页的可信工具目录和技能', function (this: SpecWorld) { state(this); });
 When('成员首次处理包含{string}的工作', async function (this: SpecWorld, objective: string) { state(this).initial = await initialGuidanceAcceptance(objective); });
-Then('模型应收到全部已注册工具元信息及来源版本而不因匹配或排名隐藏工具', function (this: SpecWorld) { assert.equal(state(this).initial!.observation.cli.entries.length, 27); });
+Then('模型应收到全部已注册工具元信息及来源版本而不因匹配或排名隐藏工具', function (this: SpecWorld) {
+  assert.equal(state(this).initial!.observation.cli.entryCount, 27);
+  assert.equal(state(this).initial!.observation.catalogProjection, 'progressive');
+});
 Then('完整目录应保持精简且不执行命令或扣除工具额度', function (this: SpecWorld) { assert.equal(state(this).initial!.executions, 0); assert.equal(state(this).initial!.ordinaryUsed, 1); });
 
 Given('宿主工具推荐面对{string}', function (this: SpecWorld, label: string) { state(this).label = label; });
 When('成员请求当前工作的工具建议', async function (this: SpecWorld) { state(this).empty = await emptyGuidanceAcceptance(state(this).label!); });
-Then('应如实区分空目录与无词项匹配并保留已注册元信息和继续发现的入口', function (this: SpecWorld) { const result = state(this).empty!; assert.equal(result.cli.entries.length, state(this).label === '空目录' ? 0 : 1); assert.equal(result.skills.skills.length, state(this).label === '空目录' ? 0 : 1); });
+Then('应如实区分空目录与无词项匹配并保留已注册元信息和继续发现的入口', function (this: SpecWorld) {
+  const result = state(this).empty!;
+  assert.equal(result.cli.entries.length, state(this).label === '空目录' ? 0 : 1);
+  assert.equal(result.skills.skills.length, 0);
+});
 
 Given('当前CLI的真实回执表现为{string}', function (this: SpecWorld, label: string) { state(this).label = label; });
 When('系统向原成员提供下一次模型输入', async function (this: SpecWorld) { state(this).failure = await failureGuidanceAcceptance(state(this).label!); });

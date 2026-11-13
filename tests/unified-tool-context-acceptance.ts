@@ -25,30 +25,33 @@ function submitGoal(fixture: LocalFixture, text: string) {
 export async function completeToolInventoryAcceptance() {
   const fixture = await LocalFixture.create('方案师', true);
   try {
-    const entries = [hostReader, ...Array.from({ length: 26 }, (_, index) => ({ command: `archive-${index}`,
+    const entries = [hostReader, ...Array.from({ length: 70 }, (_, index) => ({ command: `archive-${index}`,
       description: 'Archive historical files without matching the current Chinese task' }))];
-    for (let index = 0; index < 27; index++) await writeSkill(fixture.skills, `archive-skill-${index}`, 'Unrelated archived engineering workflow');
+    for (let index = 0; index < 28; index++) await writeSkill(fixture.skills, `archive-skill-${index}`, 'Unrelated archived engineering workflow');
     await fixture.runtime.close();
     fixture.runtime = await LocalRuntime.create({ ...fixture.runtime.options, cliCatalog: entries, catalogRefreshIntervalMs: 0 });
     submitGoal(fixture, '根据语雀私有文档整理十月团队工作');
     const usage = fixture.h.context().usage.ordinary;
-    fixture.replies.push({ type: 'answer', text: '已读取完整工具元信息，尚未执行命令或取得文档。' });
+    fixture.replies.push({ type: 'discoverHost', query: '语雀私有文档', commands: ['node'] },
+      { type: 'answer', text: '已读取渐进式工具上下文与召回元信息，尚未执行命令或取得文档。' });
     await fixture.runner().runOne(fixture.h.room, fixture.h.task);
     const inventory = inventoryObservation(fixture.requests[0]!);
-    assert.deepEqual(inventory.cli.entries.map(entry => entry.command), entries.map(entry => entry.command));
-    assert.equal(inventory.skills.skills.length, 28);
-    assert(inventory.skills.skills.some(skill => skill.name === 'archive-skill-26'));
+    assert.equal(inventory.catalogProjection, 'progressive');
+    assert.equal(inventory.cli.entryCount, entries.length);
+    assert.equal(inventory.cli.entries.length, 0);
+    assert.equal(inventory.skills.skillCount, 29);
+    assert.equal(inventory.skills.skills.length, 0);
     assert(inventory.interfaces.some(tool => tool.type === 'web_fetch'));
     assert(inventory.interfaces.some(tool => tool.type === 'web_search'));
-    const reader = inventory.cli.entries.find(entry => entry.command === 'node')!;
+    assert.equal(fixture.backend.calls.length, 0);
+    const discovered = inventoryObservation(fixture.requests[1]!);
+    const reader = discovered.cli.entries.find(entry => entry.command === 'node')!;
     assert.deepEqual(reader.examples, hostReader.examples);
     assert.deepEqual(reader.variants.map(variant => variant.execution), ['sandbox', 'host']);
     assert.equal(reader.variants.find(variant => variant.execution === 'host')!.approvalRequired, true);
-    assert(reader.variants.every(variant => variant.readiness.installation === 'unknown'
-      && variant.readiness.authentication === 'unknown' && variant.readiness.network === 'unknown'));
-    assert.equal(fixture.backend.calls.length, 0);
-    assert.equal(fixture.h.context().intents[0]!.localOperations, undefined);
-    assert.equal(fixture.h.context().usage.ordinary - usage, 1);
+    assert(reader.variants.every(variant => variant.readiness.authentication === 'unknown' && variant.readiness.network === 'unknown'));
+    assert.equal(fixture.h.context().intents[0]!.localOperations?.length, 1);
+    assert.equal(fixture.h.context().usage.ordinary - usage, 2);
     return { inventory, modelRequests: fixture.requests.length, executions: fixture.backend.calls.length,
       ordinaryUsed: fixture.h.context().usage.ordinary - usage };
   } finally { await fixture.close(); }
@@ -405,7 +408,11 @@ export async function inventoryReadPerformanceAcceptance() {
     }
     const projectionAndSerializationMs = performance.now() - projectionStart;
     const observed = inventoryObservation(fixture.requests.at(-1)!);
-    assert.equal(observed.cli.entries.length, 200); assert.equal(observed.skills.skills.length, 200);
+    assert.equal(observed.catalogProjection, 'progressive');
+    assert.equal(observed.cli.entryCount, 200);
+    assert.equal(observed.cli.entries.length, 1);
+    assert.equal(observed.skills.skillCount, 200);
+    assert.equal(observed.skills.skills.length, 0);
     const node = observed.cli.entries.find(entry => entry.command === 'node')!;
     assert(node.variants.every(variant => variant.readiness.sourceOperationIds.length === 1));
     assert.equal(fixture.backend.calls.length, 0);
