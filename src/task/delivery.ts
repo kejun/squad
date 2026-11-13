@@ -6,6 +6,7 @@ import { canRetryDeliveryCheck } from './budget.js';
 import { deliveryEvidence } from './evidence.js';
 import { completeProblem, deliveryHandoffPending } from './facts.js';
 import { deliveryVerificationEvidence, deliveryVerificationPlan, deliveryVerificationProblem } from './verification.js';
+import { resourceAcquisitionProblem } from '../resource-acquisition.js';
 
 type Delivery = Extract<TaskEvent, { type: 'DELIVER' }>;
 type CheckResult = Extract<TaskEvent, { type: 'CHECK_RESULT' }>;
@@ -70,6 +71,8 @@ export function checkReferenceSources(c: TaskContext): CheckReferenceSource[] {
 export function deliverySubmissionProblem(c: TaskContext, e: Delivery): { code: string; mechanical: boolean } | null {
   const problem = deliveryVersionProblem(c, e);
   if (problem) return { code: problem, mechanical: true };
+  const acquisition = resourceAcquisitionProblem(c);
+  if (acquisition) return { code: acquisition, mechanical: false };
   const budget = deliveryCheckBudgetProblem(c);
   if (budget) return { code: budget, mechanical: false };
   return null;
@@ -97,6 +100,8 @@ function beforeCheckResult(c: TaskContext, e: CheckResult, work: Intent): CheckD
 }
 
 function checkedDelivery(c: TaskContext, e: CheckResult, work: Intent): CheckDisposition {
+  const resourceProblem = resourceAcquisitionProblem(c);
+  if (resourceProblem) return { kind: 'finish', code: resourceProblem, checked: true };
   const mechanical = completeProblem(c);
   if (mechanical) return { kind: 'finish', code: mechanical, checked: true };
   const findings = e.criteriaResults!.filter(item => item.status !== 'passed');
@@ -104,7 +109,9 @@ function checkedDelivery(c: TaskContext, e: CheckResult, work: Intent): CheckDis
     const verification = deliveryVerificationProblem(work, true);
     return { kind: 'complete', checked: true, ...(verification ? { detail: `实际验证未完成：${verification}` } : {}) };
   }
-  return { kind: 'complete', checked: true, detail: findings.map(item => item.reason).join('；') };
+  const detail = findings.map(item => item.reason).join('；');
+  if (findings.every(item => item.status === 'unverified')) return { kind: 'finish', detail, checked: true };
+  return { kind: 'complete', checked: true, detail };
 }
 
 export function checkDisposition(c: TaskContext, e: CheckResult, work: Intent): CheckDisposition {

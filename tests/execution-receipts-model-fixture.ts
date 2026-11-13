@@ -142,8 +142,9 @@ export function webHostEvidenceModel(wrongReference = false) {
       sourceItems: [{ text: '安排评审', status: '进行中', sourceDocId: 'five',
         sourceEvidenceId: wrongReference ? ref.sourceOperationId : ref.evidenceId }] }] }).ok);
   if (wrongReference) {
-    assert.equal(m.c.candidate?.deliveryIssue?.code, 'SOURCE_EVIDENCE_UNAVAILABLE');
-    assert.equal(m.c.intents.filter(work => work.kind === 'check').length, 0); assert.notEqual(m.c.outcome, 'complete');
+    assert.equal(m.c.candidate?.deliveryIssue, undefined);
+    assert.equal(m.c.intents.filter(work => work.kind === 'check').length, 1);
+    assert.notEqual(m.c.outcome, 'complete');
   } else {
     const check = m.c.intents.find(work => work.kind === 'check')!;
     const source = deliveryEvidence(m.c, check, m.c.deliveryCycle!.evidence)!.sources.find(source => source.id === ref.evidenceId)!;
