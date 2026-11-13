@@ -35,10 +35,23 @@ Then('应将草稿和完整讨论结果交给原方案师续办一次', async fu
 Then('应保存协调员汇总且不并发重开方案师', function (this: SpecWorld) { assert.equal(f(this).context().discussion?.status, 'ready'); assert(!f(this).pending().some(work => work.kind === 'owner')); });
 When('方案师交回当前草稿', function (this: SpecWorld) { f(this).draft(); });
 When('讨论的{string}发生{string}', async function (this: SpecWorld, stage: string, mode: string) { const state = f(this); state.failStage = stage; state.failMode = mode; await state.discuss(); });
-Then('已有意见与故障原因应交给方案师且不得声称全员完成', async function (this: SpecWorld) { const state = f(this); const round = state.pending()[0]!.payload.discussion as { incomplete: string; summary: string }; assert(round.incomplete); assert(round.summary); await state.drain(); assert.equal(state.context().outcome, 'partial'); });
+Then('已有意见与故障原因应交给方案师且不得声称全员完成', async function (this: SpecWorld) {
+  const state = f(this); const round = state.pending()[0]!.payload.discussion as { incomplete: string; summary: string };
+  assert(round.incomplete); assert(round.summary); await state.drain();
+  assert.equal(state.context().discussion?.incomplete, round.incomplete);
+  assert((state.calls.find(work => work.kind === 'check')!.payload.executionNotes as string[]).includes(round.incomplete));
+  assert(state.context().messages.find(message => message.kind === 'final')!.text.includes(round.incomplete));
+  assert.equal(state.context().outcome, 'complete');
+});
 Given('本轮普通额度上限为{int}', function (this: SpecWorld, limit: number) { f(this).close(); fixtures.set(this, new DiscussionFixture(limit)); });
 When('所有可执行的讨论工作结算', async function (this: SpecWorld) { const state = f(this); await state.discuss(); state.draft(); await state.drain(); });
-Then('应说明未参与原因且不透支普通或协助额度', function (this: SpecWorld) { const state = f(this); assert(state.context().usage.ordinary <= state.config.limits.ordinary); assert(state.context().usage.assists <= state.config.limits.assists); assert(state.context().messages.some(message => /额度|未参与/.test(message.detailText ?? message.text))); assert.equal(state.context().outcome, 'partial'); });
+Then('应说明未参与原因且不透支普通或协助额度', function (this: SpecWorld) {
+  const state = f(this); assert(state.context().usage.ordinary <= state.config.limits.ordinary); assert(state.context().usage.assists <= state.config.limits.assists);
+  assert(state.context().messages.some(message => /额度|未参与/.test(message.detailText ?? message.text)));
+  const incomplete = state.context().discussion?.incomplete; assert(incomplete);
+  assert((state.calls.find(work => work.kind === 'check')!.payload.executionNotes as string[]).includes(incomplete));
+  assert.equal(state.context().outcome, 'complete');
+});
 When('用户再次发出同样的邀请', function (this: SpecWorld) { f(this).invite(); });
 When('已完成的讨论结果重复送达', async function (this: SpecWorld) { await f(this).duplicateResult(); });
 Then('本轮讨论应只安排一次且成员结果只发布一次', async function (this: SpecWorld) { const state = f(this); assert.equal(state.context().messages.filter(message => message.text === 'B 的唯一意见').length, 1); await state.discuss(); state.draft(); await state.drain(); assert.equal(state.calls.filter(work => work.kind === 'facilitator').length, 1); assert.equal(state.calls.filter(work => work.kind === 'owner').length, 1); });

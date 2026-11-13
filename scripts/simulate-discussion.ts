@@ -83,21 +83,31 @@ class Simulation {
   result(work: Intent) { this.send({ type: 'DISCUSSION_RESULT', ...this.envelope(work), text: `${work.target} 的完整意见与依据`, status: 'success' }); }
   draft() { const work = this.work('owner', undefined, false, 'inflight'); this.send({ type: 'DELIVER', ...this.envelope(work), text: '已保存的方案师草稿', artifactIds: [] }); }
   summary() { const work = this.claim(this.work('discussionSummary', undefined, true)); this.result(work); }
-  finish(expected: 'complete' | 'partial' = 'complete') {
+  finish(expectIncompleteDiscussion = false) {
     for (let n = 0; n < 24 && this.c.outcome === null; n++) {
       const available = this.c.intents.find(work => work.status === 'pending' && work.kind !== 'cancel' && workLaneAvailable(this.c, work));
       assert(available, `任务无法继续：${this.phase}/${this.c.discussion?.status}`);
       if (available.discussionId && available.kind === 'facilitator') { this.plan(); continue; }
       const work = this.claim(available);
       if (work.discussionId) this.result(work);
-      else if (work.kind === 'owner') this.send({ type: 'DELIVER', ...this.envelope(work), text: '吸收讨论并完善后的方案', artifactIds: [] });
+      else if (work.kind === 'owner') {
+        const incomplete = (work.payload.discussion as TaskContext['discussion'])?.incomplete;
+        if (this.c.discussion?.incomplete && this.c.discussion.status === 'delivered') {
+          assert.equal(incomplete, this.c.discussion.incomplete, '负责人续办必须保留讨论缺口');
+        }
+        this.send({ type: 'DELIVER', ...this.envelope(work), text: '吸收讨论并完善后的方案' + (incomplete ? `\n\n讨论缺口：${incomplete}` : ''), artifactIds: [] });
+      }
       else if (work.kind === 'check') {
+        if (this.c.discussion?.incomplete && this.c.discussion.status === 'delivered') {
+          assert((work.payload.executionNotes as string[]).includes(this.c.discussion.incomplete), '下游检查必须接收原始讨论缺口');
+        }
         this.send({ type: 'CONSUME', intentId: work.id });
         this.send({ ...debugEventTemplate(this.current, 'CHECK_RESULT'), type: 'CHECK_RESULT' });
       }
       else assert.fail('意外的主工作：' + work.kind);
     }
-    assert.equal(this.c.outcome, expected);
+    if (expectIncompleteDiscussion) assert(this.c.discussion?.incomplete, '故障或预算不足必须留下讨论缺口');
+    assert.equal(this.c.outcome, 'complete', '有效的下游通过结论决定交付，历史讨论缺口不强制降级');
     assert.equal(this.c.messages.filter(message => message.kind === 'final').length, 1);
   }
   prepare(stage: string) {
@@ -192,13 +202,13 @@ export function runDiscussionSimulations(responseOrdersOnly = false): Simulation
         else { members.forEach(item => s.result(item)); work = s.claim(s.work(stage, undefined, true)); }
       }
       s.send({ type: 'WORK_FAILED', intentId: work.id, reason: '模拟服务故障', transient: false });
-      s.draft(); s.finish('partial'); assert(s.c.discussion?.incomplete);
+      s.draft(); s.finish(true); assert(s.c.discussion?.incomplete);
     });
     for (const limit of [2, 3, 4, 5, 6, 7, 8, 9]) run(`普通预算 ${limit}`, '预算边界', s => {
-      s.start(); s.invite(); s.draft(); s.finish(limit < 8 ? 'partial' : 'complete');
+      s.start(); s.invite(); s.draft(); s.finish(limit < 8);
     }, limit);
     for (const limit of [0, 1, 2, 3, 4]) run(`协助预算 ${limit}`, '预算边界', s => {
-      s.start(); s.invite(); s.draft(); s.finish(limit < 4 ? 'partial' : 'complete');
+      s.start(); s.invite(); s.draft(); s.finish(limit < 4);
     }, 30, limit);
     for (const kind of ['facilitator', 'assistance', 'discussionSummary'] as const) run(`额外请求不能使用汇总预留：${kind}`, '预算边界', s => {
       let work: Intent;
@@ -213,13 +223,13 @@ export function runDiscussionSimulations(responseOrdersOnly = false): Simulation
       assert.equal(s.c.usage.ordinary, used);
       s.send({ type: 'WORK_FAILED', intentId: work.id, reason: 'DISCUSSION_BUDGET_RESERVED', transient: false });
       if (kind === 'assistance') s.c.intents.filter(item => item.discussionId && item.kind === 'assistance' && item.status === 'inflight').forEach(item => s.result(item));
-      s.draft(); s.finish('partial');
+      s.draft(); s.finish(true);
     }, kind === 'facilitator' ? 5 : 8);
     run('主工作追加请求后重新计算参与人数', '预算边界', s => {
       const owner = s.start(); s.send({ type: 'CONSUME', intentId: owner.id }); s.invite();
       s.send({ type: 'CONSUME', intentId: owner.id }); s.plan();
       const members = s.members(); assert.equal(members.length, 3); members.forEach(work => s.result(work));
-      s.draft(); s.finish('partial'); assert.equal(s.c.usage.ordinary, 8);
+      s.draft(); s.finish(true); assert.equal(s.c.usage.ordinary, 8);
     }, 8);
     run('协调员格式修正使用有限重试并保留交接', '格式修正', s => {
       s.start(); s.invite(); const work = s.claim(s.work('facilitator', undefined, true));
@@ -241,7 +251,7 @@ export function runDiscussionSimulations(responseOrdersOnly = false): Simulation
       const members = s.c.intents.filter(work => work.discussionId && work.kind === 'assistance' && work.status === 'inflight');
       s.at = Math.max(...members.map(work => work.deadline!));
       for (const work of members) s.send({ type: 'WORK_FAILED', intentId: work.id, fence: { epoch: work.epoch, goalVersion: work.goalVersion }, reason: 'Tool or model deadline exceeded', transient: false });
-      assert(s.c.discussion?.results.every(result => result.status === 'timeout')); s.finish('partial');
+      assert(s.c.discussion?.results.every(result => result.status === 'timeout')); s.finish(true);
     });
     run('讨论期间不空转监督', '超时与监督', s => {
       s.prepare('collecting'); s.send({ type: 'TICK', at: s.c.nextCheckAt }, 'INVALID_STATE');
@@ -273,7 +283,7 @@ export function runDiscussionSimulations(responseOrdersOnly = false): Simulation
     run('协调员返回无效安排', '部分失败', s => {
       s.start(); s.invite(); const work = s.claim(s.work('facilitator', undefined, true));
       s.send({ type: 'DISCUSSION_PLAN', ...s.envelope(work), decision: { action: 'continue', reason: '试图绕过讨论' } }, 'INVALID_DISCUSSION_PLAN');
-      s.draft(); s.finish('partial');
+      s.draft(); s.finish(true);
     });
     run('核查员正在主流程协助时只邀请三位空闲成员', '成员占用与交接', s => {
       const owner = s.start();
@@ -283,7 +293,7 @@ export function runDiscussionSimulations(responseOrdersOnly = false): Simulation
       s.plan(); const members = s.members(); assert.equal(members.length, 3); members.forEach(work => s.result(work)); s.summary();
       assert.equal(s.phase, 'waitingAssistance');
       s.send({ type: 'HELP_RESULT', ...s.envelope(busy), requestId: 'busy-B', resultId: 'busy-B-result', status: 'success', answer: '主流程核查依据' });
-      s.finish('partial');
+      s.finish(true);
     });
     run('原监督与继续执行流程', '主流程兼容', s => {
       const owner = s.start(); s.send({ type: 'BLOCKED', ...s.envelope(owner), reason: '需要调整方法' });
