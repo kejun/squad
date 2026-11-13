@@ -178,8 +178,10 @@ export function partialSelectionModel(oldGoal = false) {
     const pending = m.c.intents.find(work => work.kind === 'owner' && work.status === 'pending')!;
     assert(m.send({ type: 'CLAIM', intentId: pending.id }).ok); m.work = m.c.intents.find(work => work.id === pending.id)!;
   }
-  assert(submitReceiptCandidate(m, '当前目标报告').ok); finishReceiptCheck(m, 'unverified');
-  assert.equal(m.c.outcome, 'partial'); assert(!publicationIds(m.c)?.includes('earlier'));
+  assert(submitReceiptCandidate(m, '当前目标报告').ok); const check = finishReceiptCheck(m, 'unverified');
+  assert.equal(m.c.outcome, 'complete'); assert(!publicationIds(m.c)?.includes('earlier'));
+  assert(m.c.intents.find(item => item.id === check.id)!.criteriaResults?.every(item => item.status === 'unverified'));
+  assert(m.c.candidate!.text.includes('未完成或未核实事项：\n- 尚未核实'));
   assert(m.c.artifacts.some(item => item.id === 'earlier'));
   return m;
 }
@@ -286,9 +288,11 @@ export function verifyExecutionReceiptModels() {
   assert.equal(resourceAcquisitionProblem(saved.c), null);
   partialSelectionModel(false); partialSelectionModel(true);
   const partial = partialSelectionModel(false);
+  const published = structuredClone(partial.c.publishedDelivery);
+  assert(published);
   assert(partial.send({ type: 'CONTINUE' }).ok);
-  assert.equal(partial.c.publishedDelivery, undefined);
-  assert.equal(partial.c.resilience?.frozenHistory?.length, 1);
+  assert.deepEqual(partial.c.publishedDelivery, published);
+  assert(!publicationIds(partial.c)?.includes('earlier'));
   assert(partial.c.artifacts.some(artifact => artifact.content === '当前目标报告'));
   typedPartitionResourcesModel('服务文档'); typedPartitionResourcesModel('工作区文件'); typedPartitionResourcesModel('URL');
   receiptBackfillWindowModel('saved'); receiptBackfillWindowModel('current');
