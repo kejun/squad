@@ -114,7 +114,7 @@ export class ResilientWorkspaceUICase {
             status: this.number === 96 ? 'passed' : 'unverified', reason: '保留明确核验结果' })) });
       }
     }
-    assert.equal(this.context().outcome, this.number === 96 ? 'complete' : 'partial');
+    assert.equal(this.context().outcome, 'complete');
     if (this.number === 92) {
       const inventory = await this.runtime.planRoomCleanup({ roomId: this.room.id, tasks: [this.engine.view(this.room.id, this.taskId)], quiescent: true });
       assert(inventory.complete && inventory.executionsSettled);
@@ -572,7 +572,7 @@ export class ResilientWorkspaceUICase {
       await this.page.getByText(/原始产物或历史资料；核验结论以最终宿主报告为准/).waitFor();
       assert.equal(this.context().artifacts.find(artifact => artifact.name === 'new-goal.md').content, '全部资料均已处理完成');
     }
-    if (n === 89) { assert.equal(this.facts.download, this.facts.secondDownload); assert.equal(this.context().outcome, 'partial'); }
+    if (n === 89) { assert.equal(this.facts.download, this.facts.secondDownload); assert.equal(this.context().outcome, 'complete'); }
     if (n === 90) {
       assert(this.facts.held); await this.page.getByRole('heading', { name: this.other.title, exact: true, includeHidden: true }).waitFor();
       assert(this.context().resilience.gates.some(gate => gate.status === 'answered'));

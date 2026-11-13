@@ -120,7 +120,6 @@ function versionActionAllowed(work: Intent, action: Extract<LocalAction, { type:
 
 export function verificationActionProblem(work: Intent, action: LocalAction, workspaceId: string | undefined, currentId?: string): string | null {
   if (work.kind !== 'check') return null;
-  if (action.type !== 'verifyWorkspace') return null;
   if (action.type === 'verifyWorkspace' && versionActionAllowed(work, action, workspaceId, currentId)) return null;
   return 'CHECK_LOCAL_TOOLS_NOT_ALLOWED';
 }
