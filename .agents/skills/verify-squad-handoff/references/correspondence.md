@@ -1,3 +1,15 @@
+# 当前单向交付对应（2026-11-12）
+
+当前维护范围、逐文件分类、退休性质及版本链真实反例见 [本轮审查](../../../../docs/implementation/forward-delivery-formal.md) 与 [逐文件记录](../../../../docs/implementation/forward-delivery-formal-review.json)。精确源码和同步状态见 coverage.json。以下旧章节中的自动作者修订、MapRecovery、验证失败不交付等描述仅保留为历史；与当前流程冲突时采用本节及实际模型/配置。
+
+- Handoff：一个任务、A/B 两名角色、一个已保存 R1；epoch/goal 各 1..2，一次崩溃、一次回滚。AtomicHandoff、AtMostOnce、StopCancelsResume 和独立 Progress 保留。
+- RetryComposition：分开检查 saved/failed 公共前缀、两个命令、一个显式重试后继、一次恢复及权限/负责人变化。消费和新尝试互斥，不将用户明确重试解释为自动审核回边。
+- 进度依赖恢复与可执行 flush 的弱公平、有限故障；不证明供应商最终返回。原成功结果模型不扩张成所有失败载荷或交付内容证明。
+
+实现连接仍是 TLC 全图与真实 TeamEngine 公开事务的一边一代表前缀对照；冻结原文、版本、授权、停止和未决效果保护分别保留。CHECK_RESULT 中直接修正、结论保存及 finish 是同一事务；工具请求/领取/启动/结果各自是独立事务。验证输出为信息，不能让 failed/unverified 自动变为 verified。
+
+## 历史对应与原始证据
+
 # 实现对应、投影和边界
 
 KEJ-100 依赖审查：`c1f380da1527b8c22a8aaaaf7aef10cd2695146e`，仅空单测集合的 CLI 处理变化；无产品转移、守卫、事务或模型变更。当前审查及完整复跑证据见 [drift-review-kej-100.json](drift-review-kej-100.json)。以下保留 PR40 的产品源码审查。

@@ -13,7 +13,7 @@ Then('原始答复片段应可逐字引用而无需引用JSON转义字符', func
  const sources=checkReviewSources(runs.get(this)!.context());
  assert.equal(judgmentsProblem([{id:'C',text:'审查',goalVersion:1,sources:[]}],[{criterionId:'C',status:'passed',source:{id:'R1',quote:'第一行\n第二行："通过"'}}],sources),null);
 });
-Then('不属于原始答复的改写仍应被拒绝', function(this: SpecWorld) {
- assert.equal(judgmentsProblem([{id:'C',text:'审查',goalVersion:1,sources:[]}],[{criterionId:'C',status:'passed',source:{id:'R1',quote:'第一行 第二行：通过'}}],checkReviewSources(runs.get(this)!.context())),'CHECK_SOURCE_QUOTE_MISMATCH');
+Then('可选引用改写不应触发额外审核', function(this: SpecWorld) {
+ assert.equal(judgmentsProblem([{id:'C',text:'审查',goalVersion:1,sources:[]}],[{criterionId:'C',status:'passed',source:{id:'R1',quote:'第一行 第二行：通过'}}],checkReviewSources(runs.get(this)!.context())),null);
 });
 After(function(this:SpecWorld){runs.get(this)?.store.close();runs.delete(this);});

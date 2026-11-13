@@ -148,8 +148,8 @@ export function resilienceReviewRetryGate() {
   assert(m.send({ type: 'HELP_RESULT', requestId, resultId: 'other-review', status: 'success', answer: '其他成员的意见' }).ok);
   const owner = m.claim(); assert(m.send({ type: 'DELIVER', workId: owner.id, fence: owner, text: '评审暂未完成', artifactIds: [] }).ok);
   const check = m.claim('check'), candidate = m.c.candidate!; assert(m.send({ type: 'CONSUME', intentId: check.id, fence: check }).ok);
-  assert(m.send({ type: 'CHECK_RESULT', workId: check.id, fence: check, attempt: check.attempt, candidateRevision: candidate.revision,
-    resultId: 'partial-review', criteriaResults: fixtureCheck(candidate).criteriaResults }).ok);
+  assert(m.send({ type: 'WORK_FAILED', intentId: check.id, fence: check, attempt: check.attempt,
+    transient: false, reason: '旧检查执行中断，已有材料保留为未核验结果' }).ok);
   assert.equal(m.c.outcome, 'partial'); const frozen = structuredClone(m.c.resilience!.frozen), deadline = processingWindow(m.c).hardDeadline;
   assert(m.send({ type: 'RETRY_ASSISTANCE', requestId: String(failed.payload.requestId), text: '明确重试B', config: m.c.config }).ok);
   assert.equal(m.c.resilience!.frozen, undefined); assert.deepEqual(m.c.resilience!.frozenHistory!.at(-1), frozen);
@@ -252,7 +252,7 @@ export function resilienceDirectResponseGate(kind: 'input' | 'retry', expired = 
   if (kind === 'input') {
     const seed = new CapacityModel(input => { input.config.resilience = { automaticTimeoutMs: 100, repairTimeoutMs: 20, repairLimit: 2 }; });
     m.snapshot = seed.snapshot; const work = m.claim('interpretation');
-    assert(m.send({ type: 'WORK_FAILED', intentId: work.id, reason: 'Model HTTP 401', transient: false, attempt: work.attempt }).ok);
+    assert(m.send({ type: 'WORK_FAILED', intentId: work.id, reason: 'Model not configured', transient: false, attempt: work.attempt }).ok);
   } else {
     const owner = m.claim(); assert(m.send({ type: 'HELP', workId: owner.id, fence: owner, requestId: 'blocked-help', caller: 'A', target: 'B', question: '核对材料', expected: '依据' }).ok);
     const help = m.claim('assistance'); assert(m.send({ type: 'WORK_FAILED', intentId: help.id, attempt: help.attempt, reason: '核查中断', transient: false }).ok);
@@ -287,8 +287,10 @@ export function resilienceSkippedCompletionGate() {
   const check = m.claim('check'); assert(m.send({ type: 'CONSUME', intentId: check.id, fence: check }).ok);
   const candidate = check.payload.candidate as import('../src/types.js').Candidate;
   assert(m.send({ type: 'CHECK_RESULT', workId: check.id, fence: check, attempt: check.attempt, candidateRevision: candidate.revision, resultId: 'checked-skipped', criteriaResults: fixtureCheck(candidate).criteriaResults }).ok);
-  assert.equal(m.phase, 'ended'); assert.equal(m.c.outcome, 'partial'); assert(m.c.resilience!.frozen!.skippedIds.includes(m.c.resilience!.skips[0]!.id));
-  assert(m.c.resilience!.frozen!.text.includes('跳过')); return m;
+  assert.equal(m.phase, 'ended'); assert.equal(m.c.outcome, 'complete'); assert.equal(m.c.resilience!.frozen, undefined);
+  assert.equal(m.c.resilience!.skips[0]!.reason, '明确允许缺少这部分内容');
+  assert((check.payload.executionNotes as string[]).some(note => note.includes('明确允许缺少这部分内容')));
+  assert(m.c.publishedDelivery); return m;
 }
 /** Actual resource identity is independent of the task workspace and preparation lifetime. */
 export function resilienceCleanupResourceGate(prepared: boolean) {
@@ -336,7 +338,7 @@ export function resilienceRetryGateBinding(unrelated: boolean) {
     input.config.models = { default: 'fixture', services: { fixture: { baseUrl: 'https://example.test/v1', model: 'fixture' } } };
   });
   const owner = m.claim(); assert(m.send({ type: 'HELP', workId: owner.id, fence: owner, requestId: 'auth-help', caller: 'A', target: 'B', question: '核对材料', expected: '依据' }).ok);
-  const help = m.claim('assistance'); assert(m.send({ type: 'WORK_FAILED', intentId: help.id, reason: unrelated ? '核查中断' : 'Model HTTP 401', transient: false }).ok);
+  const help = m.claim('assistance'); assert(m.send({ type: 'WORK_FAILED', intentId: help.id, reason: unrelated ? '核查中断' : 'Model not configured', transient: false }).ok);
   if (unrelated) {
     assert(m.send({ type: 'USER_INPUT', text: '必须选择一个方案，请先解释目标取舍' }).ok);
     assert.equal(m.phase, 'interpreting'); const parse = m.claim('interpretation');

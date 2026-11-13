@@ -43,19 +43,10 @@ export function maximumDeliveryBudgetsModel() {
     assert(m.send({ type: 'CLAIM', intentId: check.id }).ok);
     assert(m.send({ type: 'CONSUME', intentId: check.id }).ok); return m.c.intents.find(work => work.id === check.id)!;
   };
-  const revisions = configured();
-  for (let round = 0; round < 4; round++) {
-    deliver(revisions); const check = claimCheck(revisions);
-    const requirements = revisions.c.candidate!.acceptance!.criteria;
-    assert(revisions.send({ type: 'CHECK_RESULT', workId: check.id, attempt: check.attempt, fence: check,
-      resultId: `failed-check-${round}`, candidateRevision: revisions.c.candidate!.revision,
-      criteriaResults: requirements.map(requirement => ({ criterionId: requirement.id, status: 'failed', reason: 'model revision required' })) }).ok);
-    const next = revisions.c.intents.find(work => work.kind === 'owner' && work.status === 'pending');
-    assert(next, 'Maximum quotas must not stop after the old two or three revisions');
-    assert(revisions.send({ type: 'CLAIM', intentId: next.id }).ok);
-  }
-  assert.equal(revisions.c.outcome, null);
-  assert(revisions.send({ type: 'STOP' }).ok);
+  const revisions=configured();deliver(revisions);const check=claimCheck(revisions);
+  assert(revisions.send({type:'CHECK_RESULT',workId:check.id,attempt:check.attempt,fence:check,resultId:'self-remedy',candidateRevision:revisions.c.candidate!.revision,
+   repair:{text:'检查员自行补齐最终报告',artifacts:[]},criteriaResults:revisions.c.candidate!.acceptance!.criteria.map(c=>({criterionId:c.id,status:'passed'}))}).ok);
+  assert.equal(revisions.c.outcome,'complete');assert.equal(revisions.c.intents.filter(w=>w.kind==='owner').length,1);
   const retries = configured(); deliver(retries);
   for (let round = 0; round < 3; round++) {
     const check = claimCheck(retries);
@@ -63,7 +54,7 @@ export function maximumDeliveryBudgetsModel() {
     assert.equal(retries.c.intents.find(work => work.id === check.id)!.status, 'pending', 'Maximum retry quota must permit more than one technical retry');
   }
   assert.equal(retries.c.usage.retries, 3); assert.equal(retries.c.outcome, null); assert(retries.send({ type: 'STOP' }).ok);
-  return { revisions: 4, technicalRetries: 3, stopped: true };
+  return { directRepair: true, upstreamRevisions: 0, technicalRetries: 3, stopped: true };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) console.log(JSON.stringify({ basic: maximumBudgetModelGate(), delivery: maximumDeliveryBudgetsModel() }));

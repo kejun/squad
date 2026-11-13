@@ -1,3 +1,16 @@
+# 当前单向交付对应（2026-11-12）
+
+当前维护范围、逐文件分类、退休性质及版本链真实反例见 [本轮审查](../../../../docs/implementation/forward-delivery-formal.md) 与 [逐文件记录](../../../../docs/implementation/forward-delivery-formal-review.json)。精确源码和同步状态见 coverage.json。以下旧章节中的自动作者修订、MapRecovery、验证失败不交付等描述仅保留为历史；与当前流程冲突时采用本节及实际模型/配置。
+
+- 两个任务竞争一个工程，一项原操作、一个竞争者；一次逻辑启动、一次宿主丢失、一次提交失败。prepared 包括可能已启动但未结算的窗口。
+- UnconfirmedKeepsLease、AtomicCheckpoint、CompetitorAfterSettlement、OneStart、NoUnsafeReplay、SessionBound、NoFalseNotStarted 保留。
+- SettledProgress 只要求已保存确定回执最终进入检查点；依赖 Reopen/Commit 弱公平和有限故障，不要求未知效果一定获得核清。
+- 每边一条真实公共前缀，另有三条 CLI/SIGKILL 和四条 SQLite 写进程窗口；后者是有界接线证据，不是 TLC 穷举或断电证明。
+
+实现连接仍是 TLC 全图与真实 TeamEngine 公开事务的一边一代表前缀对照；冻结原文、版本、授权、停止和未决效果保护分别保留。CHECK_RESULT 中直接修正、结论保存及 finish 是同一事务；工具请求/领取/启动/结果各自是独立事务。验证输出为信息，不能让 failed/unverified 自动变为 verified。
+
+## 历史对应与原始证据
+
 # 本地效果组合：实现对应与审计边界
 
 本次只新增验证。现有真实 XState 和行为契约保持；中文场景为 features/37_local_effects_composition.feature 的 BT_L90–BT_L93。

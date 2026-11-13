@@ -28,16 +28,6 @@ Given('交付检查需要引用用户原始输入且引文为{string}', function
 When('检查器提交带用户输入引用的失败结论', async function (this: SpecWorld) {
   await fixtures.get(this)!.run();
 });
-Then('输入引用应{string}且不得直接发布候选', function (this: SpecWorld, expected: string) {
-  const f = fixtures.get(this)!, c = f.h.context();
-  assert.equal(f.requests.length, 1); assert.equal(c.usage.checks, 1);
-  assert.equal(c.publishedDelivery, undefined);
-  if (expected === '接受并安排一次语义修订') {
-    assert.equal(c.deliveryCycle?.revisionUsed, true); assert.equal(c.usage.retries, 0);
-    assert(c.intents.some(work => work.kind === 'owner' && work.status === 'pending' && work.payload.deliveryRevision));
-  } else {
-    assert.equal(c.deliveryCycle?.retry?.status, 'reserved'); assert.equal(c.usage.retries, 1);
-    assert.equal(c.deliveryCycle?.revisionUsed, false);
-    assert(failures.get(f)!.some(error => error.includes(expected === '拒绝并保留来源不存在原因' ? 'CHECK_SOURCE_NOT_FOUND' : 'CHECK_SOURCE_QUOTE_MISMATCH')));
-  }
+Then('输入引用应{string}并在最终正文保留问题',function(this:SpecWorld,expected:string){
+ const f=fixtures.get(this)!,c=f.h.context();assert.equal(f.requests.length,1);assert.equal(c.usage.checks,1);assert.equal(c.usage.retries,0);assert.equal(c.outcome,'complete');assert(c.candidate!.text.includes('候选未遵守原始输入'));assert(!c.intents.some(w=>w.status==='pending'));assert(expected);
 });

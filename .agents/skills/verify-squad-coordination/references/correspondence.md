@@ -1,3 +1,18 @@
+# 当前单向交付对应（2026-11-12）
+
+当前维护范围、逐文件分类、退休性质及版本链真实反例见 [本轮审查](../../../../docs/implementation/forward-delivery-formal.md) 与 [逐文件记录](../../../../docs/implementation/forward-delivery-formal-review.json)。精确源码和同步状态见 coverage.json。以下旧章节中的自动作者修订、MapRecovery、验证失败不交付等描述仅保留为历史；与当前流程冲突时采用本节及实际模型/配置。
+
+- Budget：单普通工作、两个用户 epoch，额度3后明确追加到5，重试1、一次安全恢复；PaidBudget、RetryBound 保留。
+- CheckBudget：一个检查工作、已配置 checks5、真实 MAX_SAFE_INTEGER 重试配置、两次恢复；覆盖五次请求与多次网络补试。CheckAccounting、BoundedChecks、RetryAccounting、ProtocolRetryOnce、DeclaredDelivery；有效失败判断结束交付，不创建作者修订。
+- Shards：两分片，各 success/partial/failed，一次归并及 owner 交接，停止/一次目标变化/一次重开；保留原结果状态，Progress 依赖可执行动作弱公平。
+- ForwardDelivery：两分片已结算（成功/失败）的公共前缀；一 owner/check、三种结论、一次直接修正、旧候选、停止、换目标、一次重开及回滚。NoReviewBackflow、DeclaredGaps、CurrentVerdict、HistoryImmutable 和 Progress。新历史结论的两种快照输入独立列为探针，不混作 TLC 可达历史。
+- 其余组合：DiscussionBudget、review/retry/host 三种 ReservedRequests、help/check 两种 InputBoundary、ReviewQueue、DeferredCoordination、ToolRecovery、12 种 CancelledDiscussion，保持各自有限域及真实效果保护。
+- MapRecovery 逐片补救验收、自动作者修订计数和 verification 作者预留切片已因用户明确删除该机制而退休；其原保护由上述新性质按新承诺替代，旧证据仍是历史。
+
+实现连接仍是 TLC 全图与真实 TeamEngine 公开事务的一边一代表前缀对照；冻结原文、版本、授权、停止和未决效果保护分别保留。CHECK_RESULT 中直接修正、结论保存及 finish 是同一事务；工具请求/领取/启动/结果各自是独立事务。验证输出为信息，不能让 failed/unverified 自动变为 verified。
+
+## 历史对应与原始证据
+
 BT_F31冻结原始输入引用的来源链修复见[对应审查](drift-review-raw-input-citation.json)；保留精确ID/逐字引用、原子边界和预算性质。
 
 # Code/model correspondence

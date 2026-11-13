@@ -86,7 +86,12 @@ export function evaluateTask(machine: typeof taskMachine, seed: { input: TaskInp
   } finally { actor.stop(); }
 }
 export function initialTask(input: TaskInput): TaskSnapshot { return evaluateTask(taskMachine, { input }); }
-export function stepTask(snapshot: TaskSnapshot, event: TaskEvent): TaskSnapshot { return evaluateTask(taskMachine, { snapshot: persistTask(snapshot), event }); }
+export function stepTask(snapshot: TaskSnapshot, event: TaskEvent): TaskSnapshot {
+  // A check already in flight before removal may still include retired per-partition judgments.
+  const current = event.type === 'CHECK_RESULT' && Array.isArray(event.criteriaResults)
+    ? { ...event, criteriaResults: event.criteriaResults.filter(item => typeof item?.criterionId !== 'string' || !item.criterionId.startsWith('map-recovery:')) } : event;
+  return evaluateTask(taskMachine, { snapshot: persistTask(snapshot), event: current });
+}
 export function executionState(snapshot: TaskSnapshot, intentId: string, attempt: number) {
   return snapshot.children[executionId(intentId, attempt)]?.getSnapshot().value;
 }

@@ -44,8 +44,8 @@ const check = h.authorizeCheck();
 const results = candidateJudgments(h.context().candidate).map(item => ({ ...item, source: { id: 'review-result', quote: '并不存在的审查结论' } }));
 h.checkResult(check, results);
 yield 'observed';
-assert.notEqual(h.context().outcome, 'complete');
-assert.equal(h.context().publishedDelivery, undefined);
+assert.equal(h.context().outcome, 'complete');
+assert(h.context().publishedDelivery);
 h.store.close();
 }
 

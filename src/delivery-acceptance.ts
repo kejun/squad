@@ -1,18 +1,17 @@
 import { z } from 'zod';
 import { isLongResult } from './presentation.js';
-import { mapRecoveryCriteria } from './task/map-recovery.js';
 import type { DeliveryEvidenceSource } from './task/evidence.js';
 import type { ArtifactSourceMetadata, Candidate, InputAnalysis, InputReference, TaskContext, TaskEvent } from './types.js';
-import { missingResourceAcquisitions } from './resource-acquisition.js';
+import type { SourceItem } from './source-items.js';
 
 export type CriterionSource = { kind: 'goal' | 'input'; id: string };
-export type AcceptanceCriterion = { id: string; text: string; goalVersion: number; sources: CriterionSource[]; requiredSourceIds?: string[] };
+export type AcceptanceCriterion = { id: string; text: string; goalVersion: number; sources: CriterionSource[] };
 export type CriterionJudgment = { criterionId: string; source?: { id: string; quote: string } } & (
   | { status: 'passed'; reason?: string }
   | { status: 'failed' | 'unverified'; reason: string }
 );
 export type DeliveryAcceptance = { revision: string; criteria: AcceptanceCriterion[] };
-export type CheckReferenceSource = { id: string; taskId: string; kind: InputReference['kind']; content: string };
+export type CheckReferenceSource = { id: string; taskId: string; kind: InputReference['kind']; content: string; unavailable?: true };
 export interface CheckReviewSource { id: string; content: string; stdout?: string }
 
 /** Host-generated location only: never retain rejected model text or unknown IDs. */
@@ -40,7 +39,7 @@ function mapReviewSources(c: TaskContext): CheckReviewSource[] {
         ...artifacts.flatMap(item => ['Artifact:', item.name, item.content])].join('\n'),
       content: JSON.stringify({ discussionId: round.id, member: result.target, status: result.status,
         goalVersion: round.goalVersion, epoch: round.epoch, partition, question: partition.objective,
-        expected: partition.expectedOutput, answer: result.answer, artifacts }),
+        expected: partition.expectedOutput, answer: result.answer, reason: result.reason, artifacts }),
     }];
   });
 }
@@ -53,7 +52,7 @@ export function checkReviewSources(c: TaskContext): CheckReviewSource[] {
       ...c.artifacts.filter(artifact => review.artifactIds?.includes(artifact.id) && artifact.goalVersion === c.goalVersion)
         .flatMap(artifact => ['Artifact:', artifact.name, artifact.content])].join('\n'), content: JSON.stringify({ requestId: review.id, member: review.target,
       status: review.status, goalVersion: review.goalVersion, epoch: review.epoch, question: review.question,
-      expected: review.expected, answer: review.answer,
+      expected: review.expected, answer: review.answer, reason: review.reason,
       artifacts: c.artifacts.filter(artifact => review.artifactIds?.includes(artifact.id) && artifact.goalVersion === c.goalVersion)
         .map(({ id, name, content }) => ({ id, name, content })),
     }) }));
@@ -61,18 +60,18 @@ export function checkReviewSources(c: TaskContext): CheckReviewSource[] {
 }
 
 export interface CheckMaterials {
-  delta?: import('./delivery-check-delta.js').DeliveryCheckDelta;
+  executionNotes?: string[];
   sourceArtifact?: ArtifactSourceMetadata;
   requirements: AcceptanceCriterion[];
   candidate: { revision: string; text: string };
-  artifacts: { id: string; name: string; content: string; background?: boolean }[];
+  artifacts: { id: string; name: string; content: string; sourceItems?: SourceItem[]; background?: boolean }[];
   evidence: DeliveryEvidenceSource[];
   references?: CheckReferenceSource[];
   reviewRecords?: CheckReviewSource[];
   rawInputs: { id: string; text: string }[];
   previousResults: CriterionJudgment[];
   revisionNotes?: string;
-  verification?: { id: string; stdout?: string; stderr?: string; workspaceRevision: string };
+  verification?: { id: string; stdout?: string; stderr?: string; workspaceRevision?: string; status?: 'passed' | 'failed'; code?: string };
   retryDiagnostic?: CheckDiagnostic;
 }
 
@@ -85,6 +84,10 @@ export function checkCitationSources({ evidence, references, reviewRecords, veri
 export type DeliveryReference = { kind: 'candidateText' } | { kind: 'draft'; index: number } | { kind: 'artifact' | 'evidence'; id: string };
 export type DeliveryGapKind = 'missing_evidence' | 'missing_source' | 'refresh_required' | 'version_conflict' | 'content_error' | 'missing_requirement';
 export type DeliveryGap = { criterionId: string | null; candidateRevision: string; kind: DeliveryGapKind; reason: string; refs: DeliveryReference[] };
+export function deliveryGapMessage(reason: string): string {
+  return ({ MISSING_ARTIFACTS: '尚未提供要求的全部文件', MISSING_OR_STALE_ARTIFACT: '引用的文件不存在或不属于当前目标',
+    MISSING_MARKDOWN_REVISION: '尚未生成本轮要求的 Markdown 修订稿' } as Record<string, string>)[reason] ?? reason;
+}
 export type DeliveryAssessment = { candidateRevision: string; judgments: { criterionId: string; status: 'passed' | 'gap' | 'unknown' }[]; gaps: DeliveryGap[] };
 
 type Delivery = Extract<TaskEvent, { type: 'DELIVER' }>;
@@ -149,43 +152,12 @@ export function judgmentsProblem(criteria: readonly AcceptanceCriterion[], resul
 
 type CitationSource = { id: string; stdout?: string; stderr?: string; content?: string };
 
-function quoteLocation(source: CitationSource, quote: string): CheckDiagnostic['location'] {
-  let best: CheckDiagnostic['location'];
-  for (const field of ['stdout', 'stderr', 'content'] as const) {
-    const text = source[field];
-    if (text === undefined) continue;
-    let low = 0, high = quote.length;
-    while (low < high) {
-      const length = Math.ceil((low + high) / 2);
-      if (text.includes(quote.slice(0, length))) low = length;
-      else high = length - 1;
-    }
-    if (!best || low > best.matchedPrefixLength)
-      best = { field, offset: low ? text.indexOf(quote.slice(0, low)) : 0, matchedPrefixLength: low };
-  }
-  return best;
-}
-
 export function judgmentsDiagnostic(criteria: readonly AcceptanceCriterion[], results: unknown,
-  sources: readonly CitationSource[]): CheckDiagnostic | null {
+  _sources: readonly CitationSource[]): CheckDiagnostic | null {
   if (!validCriterionJudgments(results)) return { code: 'CHECK_INVALID_CRITERIA_RESULTS' };
   const remaining = new Set(criteria.map(item => item.id));
   for (const item of results) {
     if (!remaining.delete(item.criterionId)) return { code: 'CHECK_UNKNOWN_OR_DUPLICATE_CRITERION' };
-    const criterion = criteria.find(criterion => criterion.id === item.criterionId)!;
-    if (item.status === 'passed' && criterion.requiredSourceIds?.length
-      && (!item.source || !criterion.requiredSourceIds.includes(item.source.id)))
-      return { code: 'CHECK_RECOVERY_SOURCE_REQUIRED', criterionId: item.criterionId };
-    if (item.source) {
-      const { id, quote } = item.source;
-      const source = sources.find(entry => entry.id === id);
-      if (!source) return { code: 'CHECK_SOURCE_NOT_FOUND', criterionId: item.criterionId };
-      if (!source.stdout?.includes(quote) && !source.stderr?.includes(quote) && !source.content?.includes(quote)) {
-        const location = quoteLocation(source, quote);
-        return { code: 'CHECK_SOURCE_QUOTE_MISMATCH', criterionId: item.criterionId, sourceId: source.id,
-          quoteLength: quote.length, ...(location ? { location } : {}) };
-      }
-    }
   }
   return remaining.size ? { code: 'CHECK_MISSING_CRITERION' } : null;
 }
@@ -198,8 +170,6 @@ export function deliveryPreflight(c: TaskContext, e: Delivery) {
   const drafts = e.artifacts?.length ? e.artifacts : !c.sourceArtifact && isLongResult(e.text) ? [{ name: 'result.md', content: e.text }] : [];
   const listed = [...new Set(e.artifactIds)];
   const gaps: DeliveryGap[] = [];
-  for (const requirement of missingResourceAcquisitions(c)) gaps.push(gap(revision, 'missing_evidence',
-    `RESOURCE_ACQUISITION_UNVERIFIED:${JSON.stringify(requirement.resource)}`));
   const available = listed.filter(id => c.artifacts.some(artifact => artifact.id === id && artifact.goalVersion === c.goalVersion && !!artifact.content.trim()));
   if (available.length + drafts.filter(draft => !!draft.content.trim()).length < c.goal.requiredArtifacts)
     gaps.push(gap(revision, 'missing_requirement', 'MISSING_ARTIFACTS'));
@@ -210,7 +180,7 @@ export function deliveryPreflight(c: TaskContext, e: Delivery) {
     ...drafts,
     ...c.artifacts.filter(artifact => available.includes(artifact.id) && artifact.id !== c.sourceArtifact!.artifactId),
   ].some(isMarkdownRevision)) gaps.push(gap(revision, 'missing_requirement', 'MISSING_MARKDOWN_REVISION'));
-  return { gaps, acceptance: { revision, criteria: [...acceptanceCriteria(c), ...mapRecoveryCriteria(c, e.partitionRecoveries)] } satisfies DeliveryAcceptance };
+  return { gaps, acceptance: { revision, criteria: acceptanceCriteria(c) } satisfies DeliveryAcceptance };
 }
 
 export function isMarkdownRevision(artifact: { name: string; content: string }): boolean {
@@ -219,7 +189,8 @@ export function isMarkdownRevision(artifact: { name: string; content: string }):
 
 export function deliveryJudgments(c: TaskContext, revision: string | undefined): readonly CriterionJudgment[] {
   if (!revision) return [];
-  return c.intents.find(work => work.kind === 'check' && work.criteriaResults
+  return [...c.intents].reverse().find(work => work.kind === 'check' && work.criteriaResults
+    && work.goalVersion === c.goalVersion
     && (work.payload.candidate as Candidate | undefined)?.revision === revision)?.criteriaResults ?? [];
 }
 

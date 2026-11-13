@@ -95,7 +95,7 @@ export function conversationInput(c: TaskContext) {
     conversation: { artifacts: (c.history?.artifacts ?? []).filter(artifact =>
       artifact.taskId !== c.sourceArtifact?.sourceTaskId || artifact.id !== c.sourceArtifact.artifactId),
       board: c.history?.board ?? [], tasks: c.history?.tasks ?? [], truncated: c.history?.truncated ?? false },
-    ...(c.review ? { review: { ...c.review, results: c.assists.filter(h => h.reviewId === c.review!.id).map(h => ({ target: h.target, requestId: h.id, status: h.status, answer: h.answer, artifactIds: h.artifactIds })) } } : {}),
+    ...(c.review ? { review: { ...c.review, results: c.assists.filter(h => h.reviewId === c.review!.id).map(h => ({ target: h.target, requestId: h.id, status: h.status, answer: h.answer, artifactIds: h.artifactIds, ...(h.reason ? { reason: h.reason } : {}) })) } } : {}),
     ...(c.discussion ? { discussion: structuredClone(c.discussion) } : {}) };
 }
 
@@ -143,9 +143,6 @@ export function coordinate(c: TaskContext, e: TaskEvent, reason: string) {
 export function finish(c: TaskContext, e: TaskEvent, outcome: TaskContext['outcome'], reason: string) {
   if (taskHumanGate(c) && outcome !== 'stopped') return;
   if (outcome !== 'complete') { freezeIncomplete(c, e, reason, outcome === 'stopped' ? 'stopped' : undefined); return; }
-  if (c.resilience?.skips.some(skip => skip.epoch === c.epoch && skip.goalVersion === c.goalVersion)) {
-    freezeIncomplete(c, e, '当前目标存在明确跳过的内容，独立检查通过仍仅能交付不完整结果'); return;
-  }
   adoptCleanup(c, e.at);
   if (c.resilience?.cleanup.some(item => item.state === 'pending')) { freezeIncomplete(c, e, '存在未决物理效果，不能完整完成'); return; }
   c.hostSession = undefined;

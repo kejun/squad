@@ -73,7 +73,7 @@ export function artifactSourceMetadata(source: ArtifactSource): ArtifactSourceMe
 export interface Assistance extends Fence {
   id: string; target: string; question: string; expected: string; refs: string[];
   status: 'pending' | 'running' | 'answered' | 'success' | 'partial' | 'failed' | 'timeout' | 'cancelled';
-  resultId?: string; answer?: string; consumed: boolean;
+  resultId?: string; answer?: string; reason?: string; consumed: boolean;
   summary?: string; artifactIds?: string[];
   reviewId?: string;
   requestedBy?: string; requiredTools?: string[]; retryOf?: string;
@@ -120,30 +120,21 @@ export interface InputAnalysis extends Fence {
   spec?: InputIntentSpec; workId?: string; error?: string; decompositionApplied?: boolean;
 }
 export interface RecordedResult extends Fence { requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; consumed: boolean; summary?: string; artifactIds?: string[]; workId?: string }
-export interface PartitionRecovery { discussionId: string; partitionId: string; sourceOperationIds: string[] }
-export interface PartitionResolution extends PartitionRecovery, Fence {
-  candidateRevision: string; checkWorkId: string; criterionId: string; owner: string; at: number;
-}
 export interface Candidate {
   text: string; artifactIds: string[]; goalVersion: number; summary?: string; workId?: string;
   revision?: string; requiresBoundCheck?: boolean; backgroundArtifactIds?: string[]; acceptance?: DeliveryAcceptance;
   deliveryIssue?: { code: string; detail?: string };
-  partitionRecoveries?: PartitionRecovery[];
 }
 export interface DeliveryCycle {
   stage: DeliveryStage;
   requests: number;
   retry?: { workId: string; status: 'reserved' | 'used' };
-  revisionUsed: boolean;
-  /** Missing on legacy snapshots, whose spent single revision stays spent. */
-  revisions?: { used: number; limit: number };
   evidence?: DeliveryEvidenceRef[];
 }
 export type DeliveryStage =
   | { kind: 'drafting' }
   | { kind: 'candidate'; candidateRevision: string }
   | { kind: 'checking'; candidateRevision: string; checkWorkId: string }
-  | { kind: 'revising'; baseRevision: string | null; ownerWorkId: string }
   | { kind: 'published'; candidateRevision: string }
   | { kind: 'incomplete'; candidateRevision: string | null; reason: string };
 export interface PublishedDelivery { revision?: string; goalVersion: number; artifactIds: string[]; at: number }
@@ -167,8 +158,7 @@ export interface DiscussionRound extends Fence {
   status: 'planning' | 'collecting' | 'summarizing' | 'ready' | 'delivered' | 'cancelled';
   skipped: { target: string; reason: string }[];
   results: { target: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; artifactIds: string[];
-    reportedStatus?: 'success' | 'partial' | 'failed' | 'timeout'; missingResources?: ResourceIdentity[]; sourceOperationIds?: string[];
-    resourceSources?: { acquisitionId: string; operationId: string; workId: string; attempt: number; at: number; reused: boolean }[];
+    reason?: string;
     id?: string; partitionId?: string; attempt?: number; workId?: string }[];
   question?: string; expected?: string; summary?: string; incomplete?: string;
 }
@@ -176,8 +166,6 @@ export interface MapPartitionRun {
   partitionId: string; attempt: number; deadline: number;
   status: 'queued' | 'running' | 'uncertain' | 'succeeded' | 'partial' | 'failed' | 'timeout' | 'cancelled';
   workId?: string; target?: string; resultRef?: string; reason?: string;
-  /** A later, independently checked recovery; the original attempt status stays unchanged. */
-  resolution?: PartitionResolution;
 }
 export interface TaskContext extends Fence {
   /** Persisted supervision; absent only on pre-supervision snapshots. */
@@ -240,8 +228,8 @@ export type TaskEvent = Envelope & (
   | { type: 'BOUNDARY' }
   | { type: 'HANDOFF'; owner: string }
   | { type: 'WAIT_USER'; question: string }
-  | { type: 'DELIVER'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[]; partitionRecoveries?: PartitionRecovery[] }
-  | { type: 'CHECK_RESULT'; resultId: string; candidateRevision?: string; criteriaResults?: CriterionJudgment[]; passed?: boolean; gaps?: string[] }
+  | { type: 'DELIVER'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[] }
+  | { type: 'CHECK_RESULT'; resultId: string; candidateRevision?: string; criteriaResults?: CriterionJudgment[]; repair?: { text: string; artifacts: ArtifactDraft[] }; passed?: boolean; gaps?: string[] }
   | { type: 'STOP'; text?: string }
   | { type: 'SETTLE'; intentId: string }
   | { type: 'CONTINUE'; extraOrdinary?: number; text?: string; currentConfig?: TeamConfig; newWindowMs?: number }

@@ -2,6 +2,12 @@
 
 验证检查容易被单条实例遗漏的事件顺序，并将抽象迁移回放到真实实现。TLC、真实代码对应、产品场景和宿主接线是不同证据；它们不构成整个 TypeScript 程序、外部服务、操作系统、SQLite 或文件系统的机器证明。
 
+## 当前单向交付维护
+
+新流程的完整映射、退休性质、源码审查及真实版本链反例见 [维护说明](implementation/forward-delivery-formal.md) 与 [逐文件审查](implementation/forward-delivery-formal-review.json)。MapRecovery 及自动作者修订已退休；ForwardDelivery 保护单向交接、缺口交付与历史结果，Verification 保护验证声明和文件验证状态，CheckBudget 保护实际请求计费与协议退出。授权、停止、来源冻结及未决效果性质保留。结果仅按当前原始日志、负对照及独立读回判断，旧证明不自动覆盖新流程。
+
+CI 可通过 workflow_dispatch 的 `formal_only=true` 运行既有九入口及读回/证据反控，跳过无关产品套件；正常 PR CI 默认范围保持。
+
 ## 六个技能与完整入口
 
 先安装锁定依赖 `npm ci`。需要受支持的 Node（建议 24.11+）、Python 3.10+、Java 11+；需要下载 JAR 的入口还需 curl。所有模型使用固定 TLA+ Tools v1.7.4，JAR SHA-256 为 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`。可设置 `TLA2TOOLS_JAR` 指向已校验文件；下载与缺依赖处理以各入口说明为准。
@@ -41,7 +47,7 @@ Delivery 的独立 `scripts/composition-check.py` 供开发时单跑新增域，
 | --- | --- | --- |
 | KEJ-107 #1 本地效果恢复 | 未知效果不重做、不释放工程；确定回执与检查点、租约原子结算 | local-effects；BT_L90–L93；另复用 KEJ-103/104 真实进程窗口 |
 | KEJ-107 #2 宿主续办批次 | 未知效果保留阻挡，已知旧批次退休且下一来源唯一推进 | host-retry；两个来源、两批、四种公开前缀 |
-| KEJ-107 #3 工程验证两阶段 | 隔离工程成功后才可请求模型检查；最终发布前复核相同版本 | delivery Verification；BT_F50–F51 |
+| KEJ-107 #3 工程验证两阶段 | 允许下游提前补救；验证缺失、失败或版本变化声明在正文，文件保持未验证 | delivery Verification；BT_F50–F51 |
 | KEJ-107 #4 共享预算 | 额外请求不能侵占已承诺的成员、汇总、负责人及检查费用 | coordination DiscussionBudget/ReservedRequests；BT_J01–J02 |
 | KEJ-107 #5 输入安全边界 | 旧交接结算后再解释补充，旧候选检查不能发布新要求 | coordination InputBoundary；BT_J03 |
 | KEJ-107 #6 取消讨论恢复 | 已知旧成员工作退休；未知物理效果保留占用且不能推进废弃轮次 | coordination CancelledDiscussion；BT_J04 |

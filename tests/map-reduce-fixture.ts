@@ -24,7 +24,11 @@ export class MapReduceFixture extends InputIntentFixture {
   }
   reply(request: IntentRequest): Response {
     if (request.kind === 'interpretation') return modelResponse({ type: 'interpretation', spec: mapIntent() });
-    if (request.kind === 'check') return modelResponse(fixtureJudgments(request.context.requirements as AcceptanceCriterion[]));
+    if (request.kind === 'check') {
+      const requirements = request.context.requirements as AcceptanceCriterion[];
+      return modelResponse(this.failure ? { type: 'check', criteriaResults: requirements.map(item => ({ criterionId: item.id,
+        status: 'unverified', reason: '原任务需要的alpha正文仍未取得' })) } : fixtureJudgments(requirements));
+    }
     const part = request.context.partition as { id: string } | undefined;
     if (part?.id === 'alpha' && this.failure === '失败') return modelResponse({ type: 'answer', text: 'alpha来源读取失败，没有取得正文', status: 'failed' });
     const status = part?.id === 'alpha' && this.failure === '部分完成' ? 'partial' : 'success';

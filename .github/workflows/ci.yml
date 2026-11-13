@@ -16,6 +16,11 @@ on:
         required: false
         type: string
         default: ''
+      formal_only:
+        description: 'Run formal verification and composition jobs without unrelated product suites'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,7 +32,7 @@ concurrency:
 jobs:
   targeted-vitest:
     name: Targeted verification
-    if: github.event_name == 'workflow_dispatch' && (inputs.vitest_files != '' || inputs.bdd_tags != '')
+    if: github.event_name == 'workflow_dispatch' && !inputs.formal_only && (inputs.vitest_files != '' || inputs.bdd_tags != '')
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -89,7 +94,7 @@ jobs:
 
   verify:
     name: Complete verification
-    if: github.event_name != 'workflow_dispatch' || (inputs.vitest_files == '' && inputs.bdd_tags == '')
+    if: github.event_name != 'workflow_dispatch' || (!inputs.formal_only && inputs.vitest_files == '' && inputs.bdd_tags == '')
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
@@ -151,7 +156,7 @@ jobs:
 
   browser-controls:
     name: Browser fault detection
-    if: github.event_name != 'workflow_dispatch' || (inputs.vitest_files == '' && inputs.bdd_tags == '')
+    if: github.event_name != 'workflow_dispatch' || (!inputs.formal_only && inputs.vitest_files == '' && inputs.bdd_tags == '')
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -225,7 +230,7 @@ jobs:
 
   formal:
     name: Formal verification
-    if: github.event_name != 'workflow_dispatch' || (inputs.vitest_files == '' && inputs.bdd_tags == '')
+    if: github.event_name != 'workflow_dispatch' || inputs.formal_only || (inputs.vitest_files == '' && inputs.bdd_tags == '')
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -274,7 +279,7 @@ jobs:
 
   formal-composition:
     name: Formal composition (${{ matrix.slice }})
-    if: github.event_name != 'workflow_dispatch' || (inputs.vitest_files == '' && inputs.bdd_tags == '')
+    if: github.event_name != 'workflow_dispatch' || inputs.formal_only || (inputs.vitest_files == '' && inputs.bdd_tags == '')
     runs-on: ubuntu-22.04
     timeout-minutes: 25
     strategy:

@@ -26,5 +26,5 @@ When('真实任务执行显式和默认超时的命令', async function () { rec
 Then('两次实际进程调用都应使用最大计时预算', function () { verified(this); });
 
 Given('任务采用最大交付修订和检查重试额度', function () { observations.set(this, { condition: '最大交付预算' }); });
-When('真实状态模型经历四次修订和三次检查网络重试', function () { record(this, maximumDeliveryBudgetsModel()); });
-Then('交付周期应继续等待实际结果而不被旧隐含配额结束', function () { verified(this); });
+When('真实状态模型完成一次下游补救且另一任务经历三次检查网络重试', function () { record(this, maximumDeliveryBudgetsModel()); });
+Then('交付补救应直接完成且网络重试继续遵循最大配额', function () { verified(this); });

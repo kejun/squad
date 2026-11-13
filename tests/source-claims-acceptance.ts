@@ -19,6 +19,7 @@ export async function sourceClaimsAcceptance() {
       f.requests.push(body);
       if (body.messages[0].content.includes('executing check work')) {
         const context = JSON.parse(body.messages[1].content).context;
+        assert(context.artifacts[0].sourceItems.some((item: { sourceDocId: string }) => item.sourceDocId === 'doc-4'));
         return modelResponse(fixtureJudgments(context.requirements as AcceptanceCriterion[]));
       }
       if (f.backend.calls.length === 0) return modelResponse({ type: 'runCli', executable: 'node',

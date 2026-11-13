@@ -63,8 +63,9 @@ export async function deliveryHost(root: string, backend: DeliveryBackend, direc
 
 export async function createVerification(root: string, backend: DeliveryBackend, directory: string) {
   const host = await deliveryHost(root, backend, directory, true);
+  const { artifactVerification } = await import(pathToFileURL(join(root, 'src/resource-acquisition.ts')).href);
   const check = host.deliver(), body = host.bodyFor(check), revision = 'a'.repeat(64);
-  let stage = 0, changed = false, online = true, rolledBack = false, unsafeModel = false;
+  let stage = 0, changed = false, online = true, rolledBack = false, earlyCheckAllowed = false;
   let validationId: string | undefined, validationSession: string | undefined, versionId: string | undefined, versionSession: string | undefined;
   const request = (action: Parameters<TeamEngine['requestLocal']>[4]) => host.engine.requestLocal(host.room, host.task, check.id, check.attempt, action, [], 'workspace');
   const claim = (id: string) => {
@@ -79,20 +80,27 @@ export async function createVerification(root: string, backend: DeliveryBackend,
     const c = host.context(), publication = c.publishedDelivery;
     const versioned = !!c.intents.find(work => work.id === check.id)?.localOperations?.some(op => op.action.type === 'verifyWorkspace' && op.status === 'succeeded');
     if (publication) {
-      assert(versioned && !changed && !c.stopped, 'OrderedPublication: published without matching final workspace verification');
+      assert(!c.stopped, 'Stopped work cannot publish');
+      if(!versioned||changed||!c.intents.find(work => work.id === check.id)?.localOperations?.some(op => op.action.type === 'runCli' && op.status === 'succeeded')) {
+        assert(c.candidate!.text.includes('实际验证未完成'), 'HonestVerification: missing or failed verification must be declared');
+        assert.equal(artifactVerification(c, c.artifacts.find(artifact => c.candidate!.artifactIds.includes(artifact.id))!).status,
+          'unverified', 'HonestVerification: actual failed/missing verification cannot receive a verified badge');
+      }
       assert.equal(c.outcome, 'complete', 'AtomicPublication: publication and completion must commit together');
       assert.equal(c.messages.filter(message => message.kind === 'final').length, 1, 'AtomicPublication: exactly one final');
       assert.deepEqual(c.messages.find(message => message.kind === 'final')?.artifactIds, publication.artifactIds, 'AtomicPublication: final selection');
     }
     const versionRejected = !!c.intents.find(work => work.id === check.id)?.localOperations?.some(op => op.action.type === 'verifyWorkspace' && op.status === 'failed');
-    return { stage, changed, versionRejected, published: !!publication, stopped: c.stopped, online, rolledBack, unsafeModel, versioned, validated: !!c.intents.find(work => work.id === check.id)?.localOperations?.some(op => op.action.type === 'runCli' && op.status === 'succeeded') };
+    return { gapsDeclared: c.candidate?.text.includes('实际验证未完成') ?? false,
+      verifiedBadge: artifactVerification(c, c.artifacts.find(artifact => c.candidate!.artifactIds.includes(artifact.id))!).status === 'verified',
+      stage, changed, versionRejected, published: !!publication, stopped: c.stopped, online, rolledBack, earlyCheckAllowed, versioned, validated: !!c.intents.find(work => work.id === check.id)?.localOperations?.some(op => op.action.type === 'runCli' && op.status === 'succeeded') };
   };
   const apply = (action: string) => {
     switch (action) {
       case 'ConsumeEarly': {
-        const reply = host.consume(check); unsafeModel = reply.ok;
-        assert(!reply.ok && reply.code === 'WORKSPACE_VALIDATION_REQUIRED', 'ModelNeedsValidation: model request before saved engineering receipt');
-        assert.equal(host.context().intents.find(work => work.id === check.id)?.requestCount, 0, 'ModelNeedsValidation: rejected request spent budget');
+        const reply = host.consume(check); earlyCheckAllowed = reply.ok;
+        assert(reply.ok, 'The downstream worker may inspect and remedy before validation');
+        assert.equal(host.context().intents.find(work => work.id === check.id)?.requestCount, 1, 'The authorized request is counted');
         break;
       }
       case 'RequestValidation': validationId = request({ type: 'runCli', executable: 'npm', args: ['test'], execution: 'sandbox' }).id; stage = 1; break;
@@ -119,13 +127,13 @@ export async function createVerification(root: string, backend: DeliveryBackend,
         assert(versionId && versionSession);
         result(versionId, versionSession, { ok: false, code: 'WORKSPACE_REVISION_CHANGED', data: { expectedRevision: revision, currentRevision: 'b'.repeat(64), copyRevision: revision } });
         stage = 10; break;
-      case 'FailVersionWork': assert(host.send({ type: 'WORK_FAILED', intentId: check.id, fence: check, reason: 'WORKSPACE_REVISION_CHANGED', transient: false }).ok); stage = 11; break;
+      case 'FailVersionWork': assert(host.send(body).ok); stage=11; break;
       case 'Publish': case 'PublishWithoutVersion': {
         assert(host.send(body).ok); stage = 11;
         if (action === 'PublishWithoutVersion' || changed) {
-          assert.equal(host.context().publishedDelivery, undefined, 'OrderedPublication: missing/changed version published');
-          assert.equal(host.context().outcome, 'partial');
-          assert(host.context().reason.includes(observe().versionRejected ? 'WORKSPACE_REVISION_CHANGED' : 'WORKSPACE_VERIFICATION_REQUIRED'));
+          assert(host.context().publishedDelivery, 'Content is delivered with an explicit verification gap');
+          assert.equal(host.context().outcome, 'complete');
+          assert(host.context().candidate!.text.includes('实际验证未完成'), 'HonestVerification: missing or failed verification must be declared');
         }
         break;
       }
@@ -180,10 +188,20 @@ export async function createCycles(root: string, backend: DeliveryBackend, direc
         for (const item of host.context().messages.filter(item => item.kind === 'final')) savedFinals.set(item.id, structuredClone(item));
         break;
       }
-      case 'Fail':
-        assert(host.send({ ...body, resultId: 'failed:' + body.resultId,
-          criteriaResults: body.criteriaResults.map(item => ({ ...item, status: 'failed', reason: 'Needs revision' })) }).ok);
-        assert.equal(host.context().outcome, null); revised = true; mode = 1; break;
+      case 'Repair': {
+        const oldId = host.context().candidate!.artifactIds[0]!;
+        assert(host.send({ ...body, resultId: 'repaired:' + body.resultId,
+          repair: { text: '下游直接修正报告', artifacts: [{ name: 'report.md', content: 'Corrected report', replacesArtifactId: oldId }] } }).ok);
+        assert.equal(host.context().outcome, 'complete'); revised = true; mode = 0;
+        const fixed = host.context().artifacts.at(-1)!;
+        const prior = host.context().artifacts.find(artifact => artifact.id === oldId)!;
+        assert.equal(fixed.documentId, prior.documentId, 'DirectRepairRevision: downstream repair retains document identity');
+        assert.equal(fixed.revision, prior.revision! + 1, 'DirectRepairRevision: downstream repair creates the next revision');
+        assert.equal(host.context().intents.filter(work => work.kind === 'owner').length, cycle, 'NoReviewBackflow: direct repair must not create upstream work');
+        for (const item of host.context().artifacts) savedArtifacts.set(item.id, structuredClone(item));
+        for (const item of host.context().messages.filter(item => item.kind === 'final')) savedFinals.set(item.id, structuredClone(item));
+        break;
+      }
       case 'OldReceipt': {
         const before = structuredClone(host.context().publishedDelivery);
         const result = host.send({ ...body, resultId: 'stale:' + body.resultId, candidateRevision: previous.candidateRevision });

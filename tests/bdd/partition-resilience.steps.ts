@@ -6,18 +6,14 @@ import { sharedToolKnowledge } from '../../src/task/tool-knowledge.js';
 import { commonFailureGate, invalidMethodGate, newMethodGate, ResilientPartitionModel,
   retryBoundaryGate, uncertainPartitionGate, typedResourcePreparation, typedResourceIdentityGate, alternateMemberPreparation } from '../partition-resilience-model-fixture.js';
 import { conservativeResourceEngineAcceptance, independentResourceEngineAcceptance, resourceLeaseStoreAcceptance, resourceRecoveryEngineAcceptance } from '../local-resource-policy-acceptance.js';
-import { evidencePartitionPreparation, reportUnverifiedSuccess, assertUnverifiedPartition, unverifiedPartitionGate, reasoningPartitionPreparation } from '../partition-evidence-model-fixture.js';
-import { partitionEvidenceEngineAcceptance, partitionSavedSourceEngineAcceptance, partitionGapRecoveryEngineAcceptance, reasoningPartitionEngineAcceptance } from '../partition-evidence-acceptance.js';
+import { evidencePartitionPreparation, reportChildSuccess, assertDirectPartition, directPartitionGate, reasoningPartitionPreparation } from '../partition-delivery-model-fixture.js';
+import { partitionDeliveryEngineAcceptance, partitionSourcePersistenceEngineAcceptance, reasoningPartitionEngineAcceptance } from '../partition-delivery-acceptance.js';
 import { isolatedPolicyGate, conservativePolicyGate, readonlyVerificationPolicyGate } from '../local-resource-policy-model-fixture.js';
 import { canAcquireResourceLeases, localExecutionLeases, resolveLocalResourcePolicy, type ResourceLeaseRow } from '../../src/local-resource-policy.js';
 import { heldLocalResourceLeases } from '../../src/local-operation.js';
 import { partitionEngineRecoveryAcceptance, successfulClaimReplayAcceptance, temporaryClaimRecoveryAcceptance, prepareSuccessfulClaimFixture, prepareTemporaryClaimFixture } from '../partition-resilience-acceptance.js';
-import { recoverySourcePreparation, submitRecoverySource, assertRecoverySourceRejected } from '../map-recovery-source-model-fixture.js';
-import { recoverySourceEngineAcceptance } from '../map-recovery-source-acceptance.js';
-import { verifyMapRecoveryWrongSourceIntegration } from '../map-recovery-acceptance.js';
-import { webRecoveryPreparation, submitWebRecovery, webRecoveryCheck, rejectedWebRecoveryGate,
-  changedFrozenWebRecoveryGate, stoppedWebRecoveryGate } from '../map-recovery-web-model-fixture.js';
-import { webPartitionRecoveryAcceptance } from '../map-recovery-web-acceptance.js';
+import { settledDirectMap, ordinaryDelivery, finishOrdinary, type DirectMapRun } from '../direct-map-delivery-model-fixture.js';
+import { directMapEngineAcceptance } from '../direct-map-delivery-acceptance.js';
 import { partitionWebAuthenticationModelGate } from '../partition-web-auth-model-fixture.js';
 import { partitionWebAuthenticationAcceptance } from '../partition-web-auth-acceptance.js';
 
@@ -39,9 +35,8 @@ interface State {
   evidenceHistory?: unknown;
   evidenceReceipt?: ReturnType<ResilientPartitionModel['acquire']>;
   reasoning?: ReturnType<typeof reasoningPartitionPreparation>;
-  recoverySource?: ReturnType<typeof recoverySourcePreparation>;
-  recoverySourceKind?: string;
-  webRecovery?: ReturnType<typeof webRecoveryPreparation>;
+  directDelivery?: DirectMapRun;
+  webOutcome?: Awaited<ReturnType<typeof directMapEngineAcceptance>>;
 }
 const states = new WeakMap<SpecWorld, State>();
 After(function (this: SpecWorld) {
@@ -123,7 +118,7 @@ Then('已成功分片不得重跑且旧失败历史应保持不变', function (t
   assert.equal(value.queue.find(part => part.workId === current.successful!.id)!.status, 'succeeded');
   assert.deepEqual(value.context.discussion!.results, current.originalResults);
 });
-Then('每个补做结果仍须绑定该分片自己的资源与执行凭证', function (this: SpecWorld) {
+Then('每个补做结果应直接保留子Agent返回的状态与正文', function (this: SpecWorld) {
   const value = model(this), pending = value.pending('assistance').find(work => work.payload.partitionAttempt === 2)!;
   assert(pending); const work = value.start(pending), receipt = value.acquire(work, value.url(work), '补做分片独立正文', false);
   assert.equal(receipt.workId, work.id); assert.deepEqual(receipt.resource, { kind: 'url', url: value.url(work) });
@@ -322,16 +317,16 @@ Given('分片负有明确的{string}读取义务而没有适用可信获取凭�
   const current = state(this); current.evidence = evidencePartitionPreparation(kind); current.evidenceKind = kind;
 });
 When('成员自报成功并声称已经抓取来源', function (this: SpecWorld) {
-  const scenario = state(this).evidence!; reportUnverifiedSuccess(scenario.model, scenario.work);
+  const scenario = state(this).evidence!; reportChildSuccess(scenario.model, scenario.work);
 });
-Then('可信分片状态应为部分完成且列出资源缺口', function (this: SpecWorld) {
-  const scenario = state(this).evidence!; assertUnverifiedPartition(scenario.model, scenario.work, scenario.resource);
+Then('分片应保留子Agent返回的成功状态和原正文', function (this: SpecWorld) {
+  const scenario = state(this).evidence!; assertDirectPartition(scenario.model, scenario.work, scenario.resource);
 });
-Then('成员原始成功自报和原文应保留但不得冒充执行事实', function (this: SpecWorld) {
+Then('不得追加资源缺口或因缺少凭证降级交付', function (this: SpecWorld) {
   const current = state(this), scenario = current.evidence!;
-  const result = assertUnverifiedPartition(scenario.model, scenario.work, scenario.resource);
-  assert.equal(result.reportedStatus, 'success'); assert.equal(result.status, 'partial');
-  partitionEvidenceEngineAcceptance(current.evidenceKind!);
+  const result = assertDirectPartition(scenario.model, scenario.work, scenario.resource);
+  assert.equal(result.status, 'success'); assert(!Reflect.has(result, 'missingResources'));
+  partitionDeliveryEngineAcceptance(current.evidenceKind!);
 });
 Given('分片只要求基于已有上下文推理而没有资源读取义务', function (this: SpecWorld) {
   state(this).reasoning = reasoningPartitionPreparation();
@@ -346,64 +341,37 @@ Then('该分片仍应允许按原有结果契约成功结算', function (this: S
   assert.equal(value.context.discussion!.mapReduce!.queue!.find(part => part.workId === work.id)!.status, 'succeeded');
   assert.equal(work.localOperations?.length ?? 0, 0); reasoningPartitionEngineAcceptance();
 });
-Given('一个读取分片的原成功自报已被可信状态降为部分完成', function (this: SpecWorld) {
-  const scenario = unverifiedPartitionGate(), current = state(this); current.evidence = scenario;
+Given('一个读取分片已经按子Agent返回成功结算', function (this: SpecWorld) {
+  const scenario = directPartitionGate(), current = state(this); current.evidence = scenario;
   current.evidenceHistory = structuredClone(scenario.model.context.discussion!.results.find(result => result.workId === scenario.work.id));
 });
-When('后续成员取得适用的新可信读取方法并允许补做', function (this: SpecWorld) {
+When('后续成员取得该来源的可用读取回执', function (this: SpecWorld) {
   const current = state(this), scenario = current.evidence!, source = scenario.initial.find(work => work.target === 'C')!;
-  current.evidenceReceipt = scenario.model.acquire(source, scenario.model.url(scenario.work), '后续可信来源正文', false);
+  current.evidenceReceipt = scenario.model.acquire(source, scenario.model.url(scenario.work), '后续来源正文', false);
 });
-Then('系统应保留原始自报并安排该资源缺口的有界补做', function (this: SpecWorld) {
-  const current = state(this), scenario = current.evidence!, value = scenario.model;
-  assert.equal(value.context.usage.retries, 1); assert.equal(value.queue.find(part => part.partitionId === 'part-1')!.reason, 'VERIFIED_METHOD_AVAILABLE');
-  assert.deepEqual(value.context.discussion!.results.find(result => result.workId === scenario.work.id), current.evidenceHistory);
+Then('成功分片的结果尝试次数与费用应保持不变', function (this: SpecWorld) {
+  const current = state(this), scenario = current.evidence!;
+  assert.equal(scenario.model.context.usage.retries, 0);
+  assert.equal(scenario.model.queue.find(p => p.partitionId === 'part-1')!.attempt, 1);
+  assert.deepEqual(scenario.model.context.discussion!.results.find(r => r.workId === scenario.work.id), current.evidenceHistory);
 });
-Then('资源完成结论应引用原始获取凭证并区分复用与新抓取', function (this: SpecWorld) {
-  const current = state(this), value = current.evidence!.model;
-  const occupied = value.pending('assistance').find(work => work.target === 'B' && work.payload.partitionAttempt === 1)!;
-  value.fail(value.start(occupied), false);
-  const retry = value.start(value.pending('assistance').find(work => (work.payload.partition as { id: string }).id === 'part-1')!);
-  reportUnverifiedSuccess(value, retry);
-  assert.equal(value.queue.find(part => part.workId === retry.id)!.status, 'succeeded');
-  const result = value.context.discussion!.results.find(item => item.workId === retry.id)!;
-  assert(result.resourceSources?.some(reference => reference.acquisitionId === current.evidenceReceipt!.id && reference.reused));
-  partitionGapRecoveryEngineAcceptance(); partitionSavedSourceEngineAcceptance();
+Then('工具回执仍保留自身原始身份而不变成分片验收记录', function (this: SpecWorld) {
+  assert(state(this).evidenceReceipt!.workId !== state(this).evidence!.work.id);
+  partitionSourcePersistenceEngineAcceptance();
 });
-
-Given('一个待补齐分片负有明确的{string}读取义务且另一个操作已取得真实正文', function (this: SpecWorld, kind: string) {
-  const current = state(this); current.recoverySource = recoverySourcePreparation(kind); current.recoverySourceKind = kind;
+Given('失败分片涉及{string}而负责人已完成普通汇总', function (this: SpecWorld, kind: string) {
+  state(this).directDelivery = settledDirectMap(kind === '文档' ? { kind: 'document', service: 'yuque', namespace: 'book', id: 'doc-1' }
+    : kind === '文件' ? { kind: 'file', workspaceId: 'project', path: 'doc.md', revision: 'r1' } : { kind: 'url', url: 'https://example.test/doc-1' });
 });
-When('负责人却指定没有取得该资源的成功命令作为补齐来源', function (this: SpecWorld) {
-  submitRecoverySource(state(this).recoverySource!);
+When('负责人提交正文并夹带旧补救来源字段', function (this: SpecWorld) {
+  const run = state(this).directDelivery!; assert(ordinaryDelivery(run, [{ partitionId: 'unknown', sourceOperationIds: ['wrong-source'] }]).ok); finishOrdinary(run);
 });
-Then('系统应拒绝该片恢复声明并保留原失败和资源缺口', function (this: SpecWorld) {
-  assertRecoverySourceRejected(state(this).recoverySource!);
-});
-Then('全任务已有其他真实来源或命令完整退出成功均不得替代指定来源的资源凭证', async function (this: SpecWorld) {
-  recoverySourceEngineAcceptance(state(this).recoverySourceKind!);
-  const actual = await verifyMapRecoveryWrongSourceIntegration();
-  assert.equal(actual.outcome, 'partial'); assert.equal(actual.cliCalls, 2);
-  assert.equal(actual.checkCalls, 0); assert.equal(actual.resolutions, 0);
-});
-
-Given('原分片读取失败而负责人已通过网页工具取得目标的完整可信正文', function (this: SpecWorld) {
-  state(this).webRecovery = webRecoveryPreparation();
-});
-When('负责人仅使用工具回传的来源引用声明补齐该分片', function (this: SpecWorld) {
-  submitWebRecovery(state(this).webRecovery!);
-});
-Then('该网页来源应能进入独立核验并在通过后解决原分片缺口', async function (this: SpecWorld) {
-  const scenario = state(this).webRecovery!, { event } = webRecoveryCheck(scenario);
-  assert(scenario.model.send(event).ok); assert.equal(scenario.model.context.outcome, 'complete');
-  assert.deepEqual(scenario.model.queue[0]!.resolution!.sourceOperationIds, [scenario.receipt.id]);
-  const actual = await webPartitionRecoveryAcceptance(); assert.equal(actual.outcome, 'complete'); assert.equal(actual.resolutions, 2);
-});
-Then('未完整核实或身份与冻结来源不匹配的网页仍不得被当作恢复证据', async function (this: SpecWorld) {
-  for (const boundary of ['不完整', '未验证', '资源不匹配', '登录页', '读取失败', '请求ID冒充来源引用']) rejectedWebRecoveryGate(boundary);
-  changedFrozenWebRecoveryGate(); stoppedWebRecoveryGate();
-  const actual = await webPartitionRecoveryAcceptance(true); assert.equal(actual.outcome, 'partial'); assert.equal(actual.resolutions, 0);
-});
+Then('应忽略该字段并仅按原任务要求完成普通检查', function (this: SpecWorld) { assert.equal(state(this).directDelivery!.m.context.outcome, 'complete'); });
+Then('不得产生逐片来源匹配错误或恢复证明', function (this: SpecWorld) { assert(state(this).directDelivery!.m.queue.every(p => !Reflect.has(p, 'resolution'))); });
+Given('分片读取失败且负责人准备通过网页工具继续获取内容', function (this: SpecWorld) { state(this).directDelivery = settledDirectMap(); });
+When('负责人读取网页并提交普通交付', { timeout: 20_000 }, async function (this: SpecWorld) { state(this).webOutcome = await directMapEngineAcceptance(false, true); });
+Then('应完成普通检查且不要求网页补救声明', function (this: SpecWorld) { assert.equal(state(this).webOutcome!.outcome, 'complete'); });
+Then('网页工具仍保留原始回执但不增加逐片补救验收', function (this: SpecWorld) { assert.equal(state(this).webOutcome!.webReads, 1); });
 Then('同配置网页宿主观察到的新认证故障也应立即失效旧方法且不得重复复活旧补做', async function () {
   assert.equal(partitionWebAuthenticationModelGate().paths, 4);
   const actual = await partitionWebAuthenticationAcceptance(); assert.deepEqual(actual.methodCounts, [1, 0, 1]);

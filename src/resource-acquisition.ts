@@ -1,3 +1,4 @@
+import { deliveryVerificationProblem } from './task/verification.js';
 import type { LocalOperation } from './local-operation.js';
 import type { Artifact, Intent, TaskContext } from './types.js';
 
@@ -258,12 +259,14 @@ export function resourceAcquisitionProblem(c: TaskContext, work?: Intent): strin
 export function artifactVerification(c: TaskContext, artifact: Artifact): { status: 'verified' | 'unverified'; reason?: string } {
   if (artifact.goalVersion !== c.goalVersion) return { status: 'unverified', reason: '旧目标文件' };
   const candidate = c.candidate;
-  const check = candidate?.revision ? c.intents.find(work => work.kind === 'check' && work.status === 'done'
+  const check = candidate?.revision ? [...c.intents].reverse().find(work => work.kind === 'check' && work.status === 'done'
+    && work.goalVersion === c.goalVersion
     && (work.payload.candidate as { revision?: string } | undefined)?.revision === candidate.revision && work.criteriaResults?.length) : undefined;
   const fixed = check?.payload.candidate as { artifactIds?: string[]; acceptance?: { criteria: { id: string }[] } } | undefined;
   const frozen = (check?.payload.artifacts as Artifact[] | undefined)?.find(item => item.id === artifact.id);
   return fixed?.acceptance?.criteria.length === check?.criteriaResults?.length
     && check?.criteriaResults?.every(item => item.status === 'passed' && fixed?.acceptance?.criteria.some(criterion => criterion.id === item.criterionId))
     && fixed?.artifactIds?.includes(artifact.id) && frozen?.content === artifact.content
-    && !resourceAcquisitionProblem(c) ? { status: 'verified' } : { status: 'unverified', reason: '没有通过绑定此候选及文件的独立完整检查' };
+    && check && !deliveryVerificationProblem(check, true)
+    ? { status: 'verified' } : { status: 'unverified', reason: '没有通过绑定此候选及文件的独立完整检查' };
 }

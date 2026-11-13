@@ -2,7 +2,6 @@ import { workInCleanup } from './resilience.js';
 import { type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { localEnabled, localPhysicalPending, localRecoveryBlocked } from '../local-operation.js';
 import { modelSignature, resolveModel } from '../model-config.js';
-import { isMarkdownRevision } from '../delivery-acceptance.js';
 
 export const ok = (c: TaskContext, detail = 'applied') => { c.reply = { ok: true, code: 'OK', detail }; };
 
@@ -50,11 +49,6 @@ export function workLaneAvailable(c: TaskContext, work: Intent): boolean {
   return work.discussionId ? discussionActive(c) && work.discussionId === c.discussion?.id : inflight(c).length === 0;
 }
 
-export function discussionIncomplete(c: TaskContext) {
-  const round = c.discussion;
-  return round && round.epoch === c.epoch && round.goalVersion === c.goalVersion ? round.incomplete : undefined;
-}
-
 export function deliveryHandoffPending(c: TaskContext): boolean {
   return discussionActive(c) || unresolvedInput(c) || c.inputs.some(input => !input.applied) || !!activeHelp(c)
     || !!c.review && !['summarizing', 'complete', 'cancelled'].includes(c.review.status);
@@ -64,18 +58,10 @@ export function completeProblem(c: TaskContext): string | null {
   if (discussionActive(c)) return 'UNFINISHED_DISCUSSION';
   if (unresolvedInput(c)) return 'UNRESOLVED_INPUT_INTENT';
   if (c.inputs.some(input => !input.applied)) return 'UNAPPLIED_USER_INPUT';
-  if (c.review && (c.review.incomplete || !['summarizing', 'complete'].includes(c.review.status))) return 'UNFINISHED_REVIEW';
+  if (c.review && ['pending', 'reviewing'].includes(c.review.status)) return 'UNFINISHED_REVIEW';
   if (!c.candidate || !c.candidate.text.trim()) return 'NO_DELIVERY';
   if (c.candidate.goalVersion !== c.goalVersion) return 'STALE_DELIVERY';
   if (activeHelp(c)) return 'UNSETTLED_ASSISTANCE';
-  const ids = new Set(c.candidate.artifactIds);
-  if (ids.size < c.goal.requiredArtifacts) return 'MISSING_ARTIFACTS';
-  for (const id of ids) {
-    const artifact = c.artifacts.find(a => a.id === id);
-    if (!artifact || !artifact.content.trim() || artifact.goalVersion !== c.goalVersion) return 'MISSING_OR_STALE_ARTIFACT';
-  }
-  if (c.sourceArtifact && !c.artifacts.some(artifact => ids.has(artifact.id) && artifact.id !== c.sourceArtifact!.artifactId
-    && artifact.goalVersion === c.goalVersion && isMarkdownRevision(artifact))) return 'MISSING_MARKDOWN_REVISION';
   return null;
 }
 

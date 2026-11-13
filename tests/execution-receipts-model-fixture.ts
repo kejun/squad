@@ -228,15 +228,15 @@ export function typedPartitionResourcesModel(label: '服务文档' | '工作区�
   return { model, first, second, receipt };
 }
 
-export function unverifiedPartitionResultModel() {
+export function directPartitionResultModel() {
   const model = new ResilientPartitionModel(), work = model.start();
   const text = '已收到HTTP200和242字符，全部完成';
   assert(model.send({ type: 'DISCUSSION_RESULT', discussionId: work.discussionId!, workId: work.id,
     fence: work, attempt: work.attempt, status: 'success', text }).ok);
   const result = model.context.discussion!.results.find(item => item.workId === work.id)!;
-  assert(result); assert.equal(result.answer, text); assert.equal(result.reportedStatus, 'success');
-  assert.equal(result.status, 'partial'); assert.equal(model.queue.find(part => part.workId === work.id)!.status, 'partial');
-  assert(result.missingResources?.length); assert.equal(savedResourceAcquisitions(model.context).length, 0);
+  assert(result); assert.equal(result.answer, text); assert.equal(result.status, 'success');
+  assert.equal(model.queue.find(part => part.workId === work.id)!.status, 'succeeded');
+  assert(!Reflect.has(result, 'missingResources')); assert.equal(savedResourceAcquisitions(model.context).length, 0);
   return { model, work, result };
 }
 

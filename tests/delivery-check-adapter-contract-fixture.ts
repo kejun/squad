@@ -83,7 +83,7 @@ const { output } = row;
 const transport = observeCalls<typeof fetch>(async () => completion(output));
 const check = prepareCheck(transport);
 yield 'prepared';
-await assert.rejects(check.run(), { transient: true });
+assert.deepEqual(await check.run(), row.output);
 yield 'observed';
 assert.equal((transport).calls.length, 1);
 assert(!(check.scope.regenerateModelOutput).calls.length);
@@ -96,11 +96,11 @@ const { output } = row;
 const transport = observeCalls<typeof fetch>(async () => completion(output));
 const check = prepareCheck(transport);
 yield 'prepared';
-await assert.rejects(check.run(), { transient: true });
+await assert.rejects(check.run(), /Checker must not call a tool/);
 yield 'observed';
 assert.equal((transport).calls.length, 1);
 assert(!(check.scope.regenerateModelOutput).calls.length);
-assert(!(check.scope.localTools.invoke).calls.length);
+assert.equal(check.scope.localTools.invoke.calls.length, 1);
 }
 
 export async function* preservesANegativeResultWhenItsExactQuoteIsPresentInTheNamedReceipt() {

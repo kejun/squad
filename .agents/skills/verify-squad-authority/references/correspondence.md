@@ -1,3 +1,17 @@
+# 当前单向交付对应（2026-11-12）
+
+当前维护范围、逐文件分类、退休性质及版本链真实反例见 [本轮审查](../../../../docs/implementation/forward-delivery-formal.md) 与 [逐文件记录](../../../../docs/implementation/forward-delivery-formal-review.json)。精确源码和同步状态见 coverage.json。以下旧章节中的自动作者修订、MapRecovery、验证失败不交付等描述仅保留为历史；与当前流程冲突时采用本节及实际模型/配置。
+
+- Execution：一个已领取 owner、固定 attempt1；一次重开、停止与重复/旧 permit，保留一次性已提交执行许可。
+- Host：单操作、固定旧 approval 与 parent attempt、四个授权阶段；领取/启动/审批到期/停止/恢复/其他工程持有者交错，检查 NoUnauthorizedStart。
+- SessionScope：八个二值作用域、revoked 共 512 个有限输入；这是输入域对应，不是 512 条事务历史。
+- ApprovalComposition：撤销、重新审批及 parent attempt 更新后的旧授权不能启动；精确域见 composition-spec.json。
+- 原有双存储生命周期、commandDigest 文件/参数输入探针保留；不启动真实宿主命令，也不证明已发生的副作用被撤回。
+
+实现连接仍是 TLC 全图与真实 TeamEngine 公开事务的一边一代表前缀对照；冻结原文、版本、授权、停止和未决效果保护分别保留。CHECK_RESULT 中直接修正、结论保存及 finish 是同一事务；工具请求/领取/启动/结果各自是独立事务。验证输出为信息，不能让 failed/unverified 自动变为 verified。
+
+## 历史对应与原始证据
+
 BT_F31冻结原始输入引用的来源链修复见[对应审查](drift-review-raw-input-citation.json)；保留精确ID/逐字引用、原子边界和预算性质。
 
 # 实现对应审查

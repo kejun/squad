@@ -1,3 +1,4 @@
+import { deliveryValidationOperation } from '../src/task/verification.js';
 import assert from 'node:assert/strict';
 import { deliveryCheckMaterials } from '../src/delivery-check-delta.js';
 import { deliveryEvidence } from '../src/task/evidence.js';
@@ -77,7 +78,6 @@ export function assertFixedCheckRejectsAddedStdin() {
   const check = m.c.intents.find(work => work.kind === 'check')!;
   assert(m.send({ type: 'CLAIM', intentId: check.id }).ok);
   m.work = m.c.intents.find(work => work.id === check.id)!;
-  assert.equal(m.request({ type: 'runCli', executable: 'npm', args: ['test'], execution: 'sandbox', stdin: { path: '.tmp/unapproved-input' } }).code,
-    'CHECK_LOCAL_TOOLS_NOT_ALLOWED');
-  assert.equal(m.op, undefined);
+  assert(m.request({ type: 'runCli', executable: 'npm', args: ['test'], execution: 'sandbox', stdin: { path: '.tmp/unapproved-input' } }).ok);
+  assert.equal(deliveryValidationOperation(m.c.intents.find(w=>w.id===check.id)!),undefined,'A remedial command with extra stdin is not the required validation command');
 }

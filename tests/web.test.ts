@@ -70,7 +70,6 @@ describe("Web host and HTTP boundary", () => {
       if (++ownerCalls === 1) return { type: "help", requestId: "H1", target: "B", question: "核查方案", expected: "依据" };
       if (ownerCalls === 2) return { type: "askUser", question: "核查中断，请重试 B" };
       expect(work.target).toBe("A"); expect(work.payload.answer).toBe("核查已恢复，结论有依据");
-      expect(work.payload.requiresAssessment).toBe(true);
       return { type: "deliver", text: "A 根据 B 的核查完成方案", artifactIds: [] };
     } });
     const room = (await app.request<WebRoom>("/api/rooms", { title: "协助重试" })).data;

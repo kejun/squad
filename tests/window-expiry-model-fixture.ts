@@ -8,7 +8,6 @@ import type { Phase } from '../src/types.js';
 import { grantedSession } from './host-session-model-fixture.js';
 import { approvalModel, decideApproval } from './host-approval-model-fixture.js';
 import { MapQueueModel } from './map-queue-fixture.js';
-import { submitRecovery, claimRecoveryCheck, reportRecovery } from './map-recovery-model-fixture.js';
 import { capacityModelIntent } from './map-capacity-model-fixture.js';
 import { fixtureCheck } from './delivery-protocol-fixture.js';
 
@@ -200,10 +199,12 @@ export function expiryMapResumeModel(viaContinue = false) {
   assert(m.send({ type: 'LOCAL_RESULT', intentId: owner.id, operationId: sourceId, sessionId: 'new-window-source-session', settled: true, effectsKnown: true,
     result: { ok: true, code: 'succeeded', data: { exitCode: 0, stdout, truncated: false,
       capturedEvidence: { stdout: { capturedContentHash: 'c'.repeat(64), bytes: Buffer.byteLength(stdout), chars: [...stdout].length } } } } }).ok);
-  const claims = m.queue.filter(part => part.status === 'timeout').map(part => ({ discussionId: m.context.discussion!.id, partitionId: part.partitionId, sourceOperationIds: [sourceId] }));
-  const run = { m, owner, sourceId, docs, claims, failures: [] };
-  assert(submitRecovery(run).ok); const check = claimRecoveryCheck(run); assert(reportRecovery(run, check).ok);
-  assert.equal(m.context.outcome, 'complete'); assert.equal(m.queue.filter(part => part.resolution).length, 7);
+  assert(m.send({ type: 'DELIVER', workId: owner.id, fence: owner, attempt: owner.attempt,
+    text: '续窗后普通交付已完成', artifactIds: [], artifacts: [{ name: 'report.md', content: docs.map(d => d.body).join('\n') }] }).ok);
+  const check = m.start(m.pending('check')[0]!);
+  assert(m.send({ type: 'CHECK_RESULT', workId: check.id, fence: check, attempt: check.attempt,
+    candidateRevision: m.context.candidate!.revision!, resultId: 'ordinary-window-pass', criteriaResults: fixtureCheck(m.context.candidate!).criteriaResults }).ok);
+  assert.equal(m.context.outcome, 'complete'); assert(m.queue.every(part => !Reflect.has(part, 'resolution')));
   assert.deepEqual(m.context.discussion!.results, saved); assert.equal(m.queue.filter(part => part.status === 'timeout').length, 7);
   assert.deepEqual(m.queue.map(part => ({ partitionId: part.partitionId, workId: part.workId, attempt: part.attempt })), identity);
   return m;

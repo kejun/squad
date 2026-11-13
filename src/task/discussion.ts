@@ -82,7 +82,7 @@ export function discussionFailed(c: TaskContext, e: TaskEvent, work: Intent, rea
     }
     release(c, work.id);
     const status = /deadline|超时/i.test(reason) ? 'timeout' as const : 'failed' as const;
-    recordMapResult(c, e, work, { target: work.target, status, answer: reason, artifactIds: [] },
+    recordMapResult(c, e, work, { target: work.target, status, answer: '', artifactIds: [], reason },
       e.type === 'WORK_FAILED' && e.transient && work.replay !== 'unsafe');
     message(c, e, work.target, `分片${status === 'timeout' ? '超时' : '失败'}：${reason}`, 'answer');
     return;
@@ -92,7 +92,7 @@ export function discussionFailed(c: TaskContext, e: TaskEvent, work: Intent, rea
   round.incomplete = `讨论未全部完成：${reason}`;
   if (work.kind === 'assistance') {
     const status = /deadline|超时/i.test(reason) ? 'timeout' as const : 'failed' as const;
-    round.results.push({ target: work.target, status, answer: reason, artifactIds: [] });
+    round.results.push({ target: work.target, status, answer: '', artifactIds: [], reason });
     message(c, e, work.target, `讨论${status === 'timeout' ? '超时' : '失败'}：${reason}`, 'answer');
     if (!c.intents.some(item => item.discussionId === round.id && item.kind === 'assistance' && ['pending', 'inflight'].includes(item.status))) summarizeDiscussion(c, e);
   } else discussionReady(c, e, discussionSources(c));
@@ -101,15 +101,20 @@ export function discussionFailed(c: TaskContext, e: TaskEvent, work: Intent, rea
 export function acceptDiscussion(c: TaskContext, e: Extract<TaskEvent, { type: 'DISCUSSION_RESULT' }>) {
   const work = c.intents.find(item => item.id === e.workId)!;
   release(c, work.id);
-  const ids = saveReports(c, e, e.text, work.target, e.artifacts);
-  if (e.status !== 'success') c.discussion!.incomplete = '部分讨论工作未完整完成，详见原始意见。';
-  message(c, e, work.target, e.text, work.kind === 'discussionSummary' ? 'notice' : 'answer', { artifactIds: ids }, e.summary);
-  if (work.kind === 'discussionSummary') discussionReady(c, e, e.text);
+  const failed = e.status === 'failed';
+  const text = failed ? '' : e.text;
+  const ids = failed ? [] : saveReports(c, e, text, work.target, e.artifacts);
+  const reason = failed ? e.text || e.summary || '子 Agent 报告执行失败' : undefined;
+  const result = { target: work.target, status: e.status, answer: text, artifactIds: ids, ...(reason ? { reason } : {}) };
+  if (e.status !== 'success') c.discussion!.incomplete = '部分讨论工作未完整完成，详见执行状态。';
+  message(c, e, work.target, failed ? `子 Agent 执行失败：${reason}` : text,
+    work.kind === 'discussionSummary' || failed ? 'notice' : 'answer', { artifactIds: ids }, failed ? undefined : e.summary);
+  if (work.kind === 'discussionSummary') discussionReady(c, e, text);
   else if (c.discussion!.mapReduce?.queue) {
-    recordMapResult(c, e, work, { target: work.target, status: e.status, answer: e.text, artifactIds: ids });
+    recordMapResult(c, e, work, result);
   }
   else {
-    c.discussion!.results.push({ target: work.target, status: e.status, answer: e.text, artifactIds: ids });
+    c.discussion!.results.push(result);
     if (!c.intents.some(item => item.discussionId === c.discussion!.id && item.kind === 'assistance' && ['pending', 'inflight'].includes(item.status))) summarizeDiscussion(c, e);
   }
 }

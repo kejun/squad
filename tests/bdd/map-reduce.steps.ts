@@ -52,10 +52,10 @@ Given('两个独立分片已启动且其中一个{string}', async function (this
   fixture.failure = failure; await fixture.recognize(); await fixture.run();
 });
 When('另一个分片和归并工作返回', async function (this: SpecWorld) { const { model, fixture } = s(this); assert(model.answer(model.claim(model.pending('assistance')[0]!)).ok); assert(model.answer(model.claim(model.pending('discussionSummary')[0]!)).ok); await fixture.drain(); });
-Then('原负责人应收到失败分片和成功分片且未补齐时任务不得被标为完整完成', function (this: SpecWorld) {
+Then('原负责人应收到真实分片状态且普通检查应指出原任务缺失内容', function (this: SpecWorld) {
   const { model, fixture } = s(this); assert(model.context.discussion!.incomplete); const result = (model.pending('owner')[0]!.payload.discussion as { results: { status: string }[] }).results; assert.equal(result[0]!.status, s(this).failure === '部分完成' ? 'partial' : 'failed'); assert.equal(result[1]!.status, 'success');
   if (s(this).failure === '部分完成') assert(model.context.discussion!.incomplete!.includes('未完整完成'));
-  assert.equal(fixture.context().outcome, 'partial'); assert(fixture.context().discussion?.incomplete); assert.equal(fixture.context().discussion?.results.length, 2); const owner = fixture.requests.find(request => request.kind === 'owner'); assert(owner); assert(JSON.stringify(owner.context).includes('beta 原始证据')); assert((owner.context.discussion as { incomplete?: string }).incomplete);
+  assert.equal(fixture.context().outcome, 'complete'); assert(fixture.context().discussion?.incomplete); assert.equal(fixture.context().discussion?.results.length, 2); const owner = fixture.requests.find(request => request.kind === 'owner'); assert(owner); assert(JSON.stringify(owner.context).includes('beta 原始证据')); assert((owner.context.discussion as { incomplete?: string }).incomplete);
 });
 Given('两个独立分片已领取后发生{string}', async function (this: SpecWorld, change: string) {
   const value = create(this), { model, fixture } = value; model.interpret(); value.maps = [model.claim(model.pending('assistance')[0]!), model.claim(model.pending('assistance')[0]!)];

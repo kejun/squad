@@ -40,7 +40,7 @@ export function toolFailureProblem(c: TaskContext, e: Failure): string | null {
   if (!e.fence || e.fence.epoch !== c.epoch || e.fence.goalVersion !== c.goalVersion
     || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion) return 'STALE_FENCE';
   if (e.attempt !== work.attempt) return 'STALE_ATTEMPT';
-  if (!['owner', 'assistance', 'facilitator'].includes(work.kind) || work.replay === 'unsafe') return 'TOOL_RECOVERY_NOT_ALLOWED';
+  if (!['owner', 'assistance', 'facilitator', 'check'].includes(work.kind) || work.replay === 'unsafe') return 'TOOL_RECOVERY_NOT_ALLOWED';
   if (work.discussionId && (!discussionActive(c) || c.discussion?.id !== work.discussionId)) return 'STALE_DISCUSSION';
   if (work.deadline !== null && e.at >= work.deadline) return 'WORK_EXPIRED';
   if (localRecoveryBlocked(c)) return 'INCOMPATIBLE_EXECUTION';

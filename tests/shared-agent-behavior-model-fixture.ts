@@ -120,9 +120,9 @@ function assistancePreservesPartialProvenance() {
   const report = model.c.assists.find(item => item.id === 'shared-help')!;
   const resumed = model.pending('owner')[0]!;
   assert.equal(report.target, 'B'); assert.equal(report.status, 'partial'); assert.equal(report.answer, answer);
-  assert.equal(resumed.payload.status, 'partial'); assert.equal(resumed.payload.requiresAssessment, true);
+  assert.equal(resumed.payload.status, 'partial'); assert.equal(resumed.payload.answer, answer);
   assert.equal(model.phase, 'running'); assert.equal(model.c.outcome, null); assert.equal(model.c.assists.length, 1);
-  return { source: report.target, status: report.status, requiresAssessment: resumed.payload.requiresAssessment };
+  return { source: report.target, status: report.status, answerForwarded: resumed.payload.answer === answer };
 }
 
 function unknownEffectDoesNotBecomeAFailedAttempt() {

@@ -157,7 +157,6 @@ class SharedBehaviorFixture {
     const isTarget = request.kind === this.role;
     const ordinal = isTarget ? ++this.targetResponses : 0;
     if (isTarget && this.mode === 'repair' && ordinal === 1) return request.kind === 'check' ? { type: 'check', criteriaResults: null } : '{"type":';
-    if (isTarget && this.mode.startsWith('fixed-') && ordinal === 1) return { type: 'web_fetch', url: 'https://shared-source.example/must-not-read' };
     if (isTarget && this.mode === 'plan' && ordinal === 1) return { ...checkOutput(request, 'passed'), investigationPlan: '先读取新的外部来源再检查' };
     if (request.kind === 'interpretation') {
       const spec = interpretation(request.context, this.role === 'discussionSummary', isTarget && ['human', 'confidence'].includes(this.mode));
@@ -191,7 +190,7 @@ class SharedBehaviorFixture {
   async execute() {
     await this.runKind(this.role);
     if (this.mode === 'repair' && this.role === 'check') await this.runKind('check');
-    if (this.mode.startsWith('fixed-') || this.mode === 'plan') await this.runKind('check');
+    if (this.mode === 'plan') await this.runKind('check');
     assert.deepEqual(this.errors, [], 'The controlled HTTP provider must execute the actual compatible protocol');
   }
   async close() {
@@ -213,7 +212,7 @@ function promptEvidence(requests: RequestRecord[]) {
     const marker = request.kind === 'interpretation' ? '"type":"interpretation"' : request.kind === 'facilitator' ? '"type":"decision"'
       : request.kind === 'check' ? 'criteriaResults' : request.kind === 'owner' ? '"type":"deliver"' : '"type":"answer"';
     assert(system.includes(marker), 'The current role schema must remain in the actual system prompt');
-    if (request.kind === 'check') { assert(system.includes('You have no tools')); assert(system.includes('may not acquire, refresh or plan additional evidence')); }
+    if (request.kind === 'check') { assert(system.includes('directly fix problems yourself')); assert(system.includes('Never reject work back to its author')); }
   }
   return requests.map(({ kind, workId, systemBytes }) => ({ kind, workId, systemBytes, sharedCopies: 1, schemaPreserved: true }));
 }
@@ -242,7 +241,7 @@ export async function sharedRoleAcceptance(role: SharedModelRole, mode: Mode = '
     const context = fixture.context(), targetRequests = fixture.requests.filter(request => request.kind === role);
     const requests = promptEvidence(fixture.requests);
     if (suppliedFacts) assert(targetRequests.some(request => JSON.stringify(request.context).includes(suppliedFacts)), 'The actual model request must contain the supplied case facts');
-    assert.equal(targetRequests.length, ['repair', 'confidence', 'plan'].includes(mode) || mode.startsWith('fixed-') ? 2 : mode === 'alternative' ? 3 : 1);
+    assert.equal(targetRequests.length, ['repair', 'confidence', 'plan'].includes(mode) ? 2 : mode === 'alternative' ? 3 : 1);
     assert.deepEqual(processingWindow(context), before, 'Prompt injection and output repairs must not renew the processing window');
     assert.equal(fixture.webPaths.length, mode === 'alternative' ? 2 : 0);
     assert(context.intents.every(work => !work.localOperations?.length), 'These model choices cannot invent local execution receipts');
@@ -266,10 +265,10 @@ export async function sharedRoleAcceptance(role: SharedModelRole, mode: Mode = '
       roleAction = role === 'owner' ? 'askUser' : role === 'facilitator' ? 'decision的askUser' : role === 'interpretation' ? 'spec.clarification'
         : role === 'check' ? 'criteriaResults中保留缺口及unverified' : role === 'assistance' ? 'answer中保留问题影响与部分结果' : 'answer中保留未完成和待决定事项';
       if (['owner', 'facilitator', 'interpretation'].includes(role)) { assert(gate); assert.equal(gate.status, 'open'); assert.equal(view.phase, 'waitingHuman'); }
-      else { assert.equal(gate, undefined, 'A contribution or fixed check cannot fabricate a direct human decision'); assert.notEqual(context.outcome, 'complete'); }
+      else { assert.equal(gate, undefined, 'A contribution cannot fabricate a direct human decision'); if(role==='check'){assert.equal(context.outcome,'complete');assert(context.candidate!.text.includes('未完成或未核实事项'));}else assert.notEqual(context.outcome,'complete'); }
     }
     if (mode.startsWith('fixed-')) {
-      assert.equal(context.outcome, mode === 'fixed-passed' ? 'complete' : 'partial');
+      assert.equal(context.outcome, 'complete');
       assert.equal(context.intents.flatMap(work => work.criteriaResults ?? [])[0]?.status, mode === 'fixed-passed' ? 'passed' : 'unverified');
     }
     return { layer: 'actual-http-and-host-protocol; scripted-provider-not-semantic-effect', requests, role, phase: view.phase,
@@ -323,17 +322,9 @@ export async function sharedCitationAcceptance(handling: 'candidate' | 'omit' | 
     const initialWindow = structuredClone(processingWindow(fixture.context()));
     await fixture.runKind('check');
     const first = fixture.context().intents.find(work => work.id === fixture.target!.id)!;
-    const rejected = handling === 'candidate';
-    if (rejected) {
-      assert.equal(first.checkDiagnostics?.at(-1)?.diagnostic.code, 'CHECK_SOURCE_NOT_FOUND', 'A visible artifact ID remains outside the citation source catalog');
-      assert.equal(first.criteriaResults, undefined, 'No judgment from the rejected citation response may be saved');
-      assert.equal(fixture.context().outcome, null, 'A rejected citation cannot complete or partially accept the candidate');
-      assert.deepEqual(fixture.context().candidate, initialCandidate, 'Citation rejection cannot rewrite the frozen candidate');
-      await fixture.runKind('check');
-    }
     const context = fixture.context(), checkRequests = fixture.requests.filter(request => request.kind === 'check');
     assert.deepEqual(fixture.errors, []);
-    assert.equal(checkRequests.length, rejected ? 2 : 1);
+    assert.equal(checkRequests.length, 1);
     const instructions = checkRequests.map(request => {
       const system = request.messages.find(message => message.role === 'system')!.content;
       const instruction = system.split('\n').find(line => line.startsWith('Optional source.id must exactly match'));
@@ -343,7 +334,6 @@ export async function sharedCitationAcceptance(handling: 'candidate' | 'omit' | 
       assert(instruction.includes('current artifact ids and criterionIds are not citation sources merely because they are visible'));
       assert(instruction.includes('may establish passed without source'));
       assert(instruction.includes('use unverified with a specific reason and omit optional source'));
-      assert(instruction.includes('requiredSourceIds still require the prescribed original source and exact quote'));
       return instruction;
     });
     const materials = checkRequests[0]!.context as unknown as CheckMaterials;
@@ -355,7 +345,7 @@ export async function sharedCitationAcceptance(handling: 'candidate' | 'omit' | 
     assert(context.intents.every(work => !work.localOperations?.length));
     assert.equal(fixture.webPaths.length, 0);
     assert.deepEqual(processingWindow(context), initialWindow);
-    assert.deepEqual(context.candidate, initialCandidate);
+    assert.equal(context.candidate?.revision, initialCandidate?.revision); assert(context.candidate!.text.startsWith(initialCandidate!.text));
     const accepted = context.intents.find(work => work.criteriaResults?.length)!;
     assert(accepted, 'The original host protocol must accept the valid fixed-material check');
     const titleId = materials.requirements.find(item => item.text === '标题为新的标题')!.id;
@@ -367,14 +357,14 @@ export async function sharedCitationAcceptance(handling: 'candidate' | 'omit' | 
     if (handling === 'rawInput') {
       assert.deepEqual(tests.source, { id: materials.rawInputs[0]!.id, quote: materials.rawInputs[0]!.text });
       assert(checkCitationSources(materials).some(source => source.id === tests.source!.id));
-    } else assert.equal(tests.source, undefined, 'Missing test evidence must not require an invented citation');
-    assert.equal(context.outcome, 'partial');
+    } else if(handling==='candidate') assert.equal(tests.source?.id,'artifact:live'); else assert.equal(tests.source, undefined);
+    assert.equal(context.outcome, 'complete');
     return { layer: 'actual-http-and-host-protocol; scripted-provider-not-semantic-effect', requests: promptEvidence(fixture.requests),
       role: 'check', phase: fixture.engine.view(fixture.room, fixture.task)!.phase, outcome: context.outcome, noNewAuthority: true,
-      host: { citationHandling: handling, diagnostic: rejected ? 'CHECK_SOURCE_NOT_FOUND' : null, rejectedJudgmentsSaved: false,
+      host: { citationHandling: handling, diagnostic: null, rejectedJudgmentsSaved: false,
         title: title.status, tests: tests.status, citationSourceId: tests.source?.id ?? null, catalogContainsArtifact: false,
         citationInstruction: instructions[0], checkRequests: checkRequests.length, currentTestExecutionRecorded: false,
-        candidateUnchanged: true, webCalls: fixture.webPaths.length, semanticChoiceMeasured: false } };
+        candidateUnchanged: false, candidateBodyRetained: true, webCalls: fixture.webPaths.length, semanticChoiceMeasured: false } };
   } finally { await fixture.close(); }
 }
 

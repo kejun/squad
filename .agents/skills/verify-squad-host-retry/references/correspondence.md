@@ -1,3 +1,15 @@
+# 当前单向交付对应（2026-11-12）
+
+当前维护范围、逐文件分类、退休性质及版本链真实反例见 [本轮审查](../../../../docs/implementation/forward-delivery-formal.md) 与 [逐文件记录](../../../../docs/implementation/forward-delivery-formal-review.json)。精确源码和同步状态见 coverage.json。以下旧章节中的自动作者修订、MapRecovery、验证失败不交付等描述仅保留为历史；与当前流程冲突时采用本节及实际模型/配置。
+
+- 单任务、两个失败沙箱来源、两个宿主续办批次、一位负责人，queued/success/denied/uncertain 四种公共前缀，一次重开、两种时钟位置；权限、当前目标与充足额度固定。
+- NoUnknownAdvance 保留未知效果阻挡；PreserveReceipt 保留真实回执；UniqueSuccessor 防重复续办；Progress 要求已结算批次在 Reopen/ClaimParent/EndOwner 弱公平下推进。
+- 未知效果可以安全等待；不证明人工一定核清、不证明真实 CLI/OS 隔离、无限批次或跨主机锁。
+
+实现连接仍是 TLC 全图与真实 TeamEngine 公开事务的一边一代表前缀对照；冻结原文、版本、授权、停止和未决效果保护分别保留。CHECK_RESULT 中直接修正、结论保存及 finish 是同一事务；工具请求/领取/启动/结果各自是独立事务。验证输出为信息，不能让 failed/unverified 自动变为 verified。
+
+## 历史对应与原始证据
+
 # HostRetry 实现对应、原子边界与遗漏
 
 建立基线commit为64322436c87b216f9dd9ba1a137738e5cd923497，最终完整受测产品commit为e77f052acacd208fd8eb8587ac6901ba19003220。受测源含KEJ-108准备复用分支与WebService关闭门禁修复，其文件指纹记录在coverage及每次run.json。那些文件虽属于保守导入依赖，但本切片没有LocalRuntime/SkillRegistry文件I/O；模型不把它们的修复当作宿主批次性质证明。

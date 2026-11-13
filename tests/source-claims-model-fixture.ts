@@ -45,13 +45,9 @@ export function submitSourceClaim(run: ReturnType<typeof sourceClaimsModel>) {
 }
 export function assertSourceGate(run: ReturnType<typeof sourceClaimsModel>, code?: string) {
   const { m } = run;
-  if (code) {
-    assert.equal(m.c.candidate?.deliveryIssue?.code, code);
-    assert.equal(m.c.intents.filter(item => item.kind === 'check' && ['pending', 'inflight'].includes(item.status)).length, 0);
-  } else {
-    assert.equal(m.snapshot.value, 'checking');
-    assert.equal(m.c.intents.filter(item => item.kind === 'check').length, 1);
-  }
+  assert.equal(m.snapshot.value, 'checking');
+  assert.equal(m.c.candidate?.deliveryIssue, undefined);
+  assert(m.c.intents.some(item => item.kind === 'check' && item.status === 'pending'));
 }
 export function invalidSourceReport(problem: string) {
   const item: Record<string, unknown> = { text: '安排评审', status: '进行中', sourceDocId: 'doc-4', sourceEvidenceId: 'op1' };
@@ -70,9 +66,10 @@ export function sourceReportRevision() {
   assert(run.m.send({ type: 'CLAIM', intentId: check.id }).ok);
   const claimed = run.m.c.intents.find(work => work.id === check.id)!;
   assert(run.m.send({ type: 'CONSUME', intentId: claimed.id, fence: claimed, attempt: claimed.attempt }).ok);
+  assert(run.m.send({type:'USER_INPUT',text:'用户明确要求修订报告'}).ok);
   assert(run.m.send({ type: 'CHECK_RESULT', workId: claimed.id, fence: claimed, attempt: claimed.attempt, resultId: 'needs-revision',
     candidateRevision: run.m.c.candidate!.revision, criteriaResults: run.m.c.candidate!.acceptance!.criteria.map(criterion =>
-      ({ criterionId: criterion.id, status: 'failed', reason: '需要补充说明' })) }).ok);
+      ({ criterionId: criterion.id, status: 'passed' })) }).ok);
   return run;
 }
 export function submitUnboundSuccessor(run: ReturnType<typeof sourceClaimsModel>) {

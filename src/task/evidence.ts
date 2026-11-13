@@ -160,7 +160,7 @@ function completeCapturedText(metadata: DeliveryEvidenceSource['metadata'], hash
 /** Bind to the exact saved receipt and its captured content, without opening a process or log. */
 export function deliveryEvidence(c: TaskContext, work: Intent, refs?: readonly DeliveryEvidenceRef[]) {
   const available = settledSources(c, true).filter(source => (source.operation.action.type === 'webFetch' || localEnabled(c.config, work.target))
-    && canSeeEvidence(c, work, source.operation.id) && source.work.kind !== 'check');
+    && canSeeEvidence(c, work, source.operation.id));
   const byId = new Map(available.map(source => [source.operation.id, source]));
   const sources: DeliveryEvidenceSource[] = [];
   const savedRefs: DeliveryEvidenceRef[] = [];

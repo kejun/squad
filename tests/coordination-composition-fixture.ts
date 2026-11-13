@@ -64,7 +64,7 @@ export async function session(root: string, backend: string, directory: string, 
       reopen(); const before = commits; engine.recover(room);
       assert(commits - before <= 1, 'RecoveryAtomicBoundary: this single-task, no-result, pre-deadline recovery contains at most one committed RECOVER; settled ended tasks are a no-op');
     },
-    engine: () => engine, workspaceHeld: (key: string) => workspaceLeases.has(key), setNow: (value: number) => { now = value; }, close: () => store.close() };
+    engine: () => engine, get store() { return store; }, workspaceHeld: (key: string) => workspaceLeases.has(key), setNow: (value: number) => { now = value; }, close: () => store.close() };
 }
 
 function sourceFree(s: Session) {
@@ -197,9 +197,9 @@ async function deferredCoordination(root: string, backend: string, directory: st
 }
 
 async function reservedRequests(root: string, variant: string, backend: string, directory: string): Promise<CompositionDriver> {
-  const limits: Record<string, number> = { review: 4, retry: 4, host: 9, verification: 5 };
+  const limits: Record<string, number> = { review: 4, retry: 4, host: 9 };
   const s = await session(root, backend, directory, config => { config.limits.ordinary = limits[variant]!; });
-  s.submit(variant === 'verification' ? { goal: { text: '形成报告并运行 npm test', constraints: [], criteria: ['运行 npm test'], requiredArtifacts: 1 } } : {});
+  s.submit();
   let active: Intent;
   if (variant === 'review') {
     assert(s.send({ type: 'USER_INPUT', text: '请两位成员评审', reviewTargets: ['B', 'builder-1'] }).ok);
@@ -213,11 +213,7 @@ async function reservedRequests(root: string, variant: string, backend: string, 
     assert(s.send({ type: 'WAIT_USER', question: '请明确重试' }).ok);
     assert(s.send({ type: 'RETRY_ASSISTANCE', requestId: 'H', text: '重试这次协助' }).ok);
     active = s.claim(s.find('assistance'));
-  } else if (variant === 'verification') {
-    const original = s.claim(s.find('owner'));
-    assert(s.send({ type: 'DELIVER', ...identity(original), text: '缺少必需报告的候选', artifactIds: [] }).ok);
-    const revision = s.find('owner'); assert(revision?.payload.deliveryRevision, 'PublicPrefix: missing report must create the one revision work');
-    active = s.claim(revision);
+
   } else {
     const original = s.claim(s.find('owner'));
     const op = s.engine().requestLocal(s.room, s.task, original.id, original.attempt,
@@ -238,7 +234,7 @@ async function reservedRequests(root: string, variant: string, backend: string, 
     active = s.claim(s.find('assistance'));
   }
   const initialUsed = s.context().usage.ordinary;
-  const reserve = variant === 'host' ? 3 : variant === 'verification' ? 2 : 1;
+  const reserve = variant === 'host' ? 3 : 1;
   const observe = () => { sourceFree(s); const c = s.context(); return { used: c.usage.ordinary, requests: s.current(active.id).requestCount, reserve }; };
   const properties = () => {
     const o = observe();

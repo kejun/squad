@@ -15,7 +15,7 @@ import { fixtureCheck } from './delivery-protocol-fixture.js';
 function currentRecoverySeed() {
   const saved = structuredClone(legacyTaskContract.savedResult) as { context: TaskContext };
   Object.assign(saved.context.config, { version: currentExecutionVersion, toolVersion: currentToolVersion });
-  saved.context.deliveryCycle = { stage: { kind: 'drafting' }, requests: 0, revisionUsed: false };
+  saved.context.deliveryCycle = { stage: { kind: 'drafting' }, requests: 0 };
   return saved;
 }
 

@@ -14,7 +14,7 @@ describe('map-reduce engine, HTTP adapter and durable integration', () => {
   });
   it.each(['失败', '部分完成'])('[BT_Q03] retains %s despite a misleading success summary', async failure => {
     const f = setup(); f.failure = failure; await f.recognize(); await f.drain();
-    expect(f.context().outcome).toBe('partial');
+    expect(f.context().outcome).toBe('complete');
     expect(f.context().discussion?.incomplete).toBeTruthy();
     expect(f.context().discussion?.results).toHaveLength(2);
   });

@@ -10,7 +10,7 @@ import tempfile
 
 REQUIRED = {
     'ToolRecovery': (['TypeOK', 'BoundedToolRecovery', 'ToolRecoveryAccounting', 'ToolFailureIdentity', 'StoppedToolRecovery'], []),
-    'MapRecovery': (['TypeOK', 'NoUnresolvedPublication', 'NoUnverifiedRecovery', 'RecoveryHistoryImmutable', 'VerifiedRecoveryEvidence', 'RecoveryIsolation', 'OutstandingRecoveryDebt'], ['RecoveryProgress']),
+    'ForwardDelivery': (['TypeOK', 'NoReviewBackflow', 'DeclaredGaps', 'CurrentVerdict', 'HistoryImmutable'], ['Progress']),
     'DiscussionBudget': (['TypeOK', 'ProtectedDiscussionBudget', 'AllSettledBudget', 'OwnerBudgetHandoff'], ['Progress']),
     'ReservedRequests': (['TypeOK', 'ProtectedContinuation', 'SharedRequestAccounting'], []),
     'InputBoundary': (['TypeOK', 'NoPrematureInterpretation', 'AppliedInputBoundary', 'NoUnresolvedPublication', 'NoUnresolvedOwner', 'StopCancelsInputSuccessor'], ['Progress']),
@@ -22,7 +22,7 @@ READER_REASONS = {
     'remove-negative-json': 'memory.json', 'remove-negative-log': 'memory.log',
     'remove-negative-diff': 'real-code.diff', 'remove-required-property': 'required liveness properties differ',
     'remove-fixture-body': 'coordination-composition-fixture.ts',
-    'remove-recovery-driver': 'map-recovery-driver.mjs',
+    'remove-forward-driver': 'forward-delivery-driver.mjs',
     'remove-custody-probes': 'Missing cleanup resource-conflict probes',
 }
 COUNTS = r'([\d,]+) states generated, ([\d,]+) distinct states found, ([\d,]+) states left on queue'
@@ -119,7 +119,7 @@ def readback(area, specs, controls, check_reader_controls=True):
     assert coverage['files'] == report['coveredFileHashes'], 'Captured source fingerprint map differs'
     for name, expected in coverage['files'].items():
         assert sha(required(area, manifest, Path('implementation') / name)) == expected, f'Captured implementation differs: {name}'
-    for name in ['map-recovery-driver.mjs', 'tool-recovery-driver.mjs']:
+    for name in ['forward-delivery-driver.mjs', 'tool-recovery-driver.mjs']:
         key = '.agents/skills/verify-squad-coordination/scripts/' + name
         assert key in report['checkerInputHashes'], 'Missing required recovery driver fingerprint: ' + name
         assert sha(required(area, manifest, Path('checker-inputs') / key)) == report['checkerInputHashes'][key], 'Missing or changed recovery driver: ' + name
@@ -155,14 +155,12 @@ def readback(area, specs, controls, check_reader_controls=True):
                            and probe.get('conflictingClaimBeforeReceipt') == 'WORKSPACE_BUSY'
                            and probe.get('claimAfterTrustedReceipt') is True and probe.get('physicalCommandsSpawned') == 0
                            for probe in probes), 'Incomplete cleanup resource-conflict observation'
-            if model == 'MapRecovery':
+            if model == 'ForwardDelivery':
                 probes = raw.get('probes', [])
                 for backend in ['memory', 'sqlite']:
                     selected = [probe for probe in probes if probe.get('backend') == backend and probe.get('verified') is True]
-                    assert {probe.get('name') for probe in selected} == {'failed', 'truncated', 'unknown', 'duplicate', 'wrong-round', 'stale-epoch', 'independent-review'}, 'Missing MapRecovery evidence eligibility probes'
-                    assert len(selected) == 7 and all(probe.get('family') == 'map-recovery-evidence' for probe in selected), 'Duplicated or unrelated recovery evidence probe'
-                    assert all(probe.get('origin') == ('bounded-snapshot-input' if probe['name'] == 'independent-review' else 'public-prefix') for probe in selected), 'Unstated recovery probe input origin'
-                    assert next(probe for probe in selected if probe['name'] == 'independent-review').get('input', {}).get('incomplete') == '原独立审查仍有缺口', 'Missing independent-review bounded input'
+                    assert {probe.get('name') for probe in selected} == {'failed-then-passed', 'passed-then-failed'}, 'Missing latest downstream verdict probes'
+                    assert len(selected) == 2 and all(probe.get('family') == 'forward-latest-verdict' and probe.get('origin') == 'bounded-snapshot-input' for probe in selected), 'Unstated or duplicate latest verdict input'
 
     for key, (model, variant, names) in specs.items():
         assert set(report['witnesses'][key]) == set(names), 'Omitted required reachability witness'
@@ -212,7 +210,7 @@ def reader_controls(area, specs, controls):
         'remove-negative-diff': Path('negative-controls') / first / 'real-code.diff',
         'remove-required-property': Path('baseline') / key / f'{model}.cfg',
         'remove-fixture-body': Path('checker-inputs/tests/coordination-composition-fixture.ts'),
-        'remove-recovery-driver': Path('checker-inputs/.agents/skills/verify-squad-coordination/scripts/map-recovery-driver.mjs'),
+        'remove-forward-driver': Path('checker-inputs/.agents/skills/verify-squad-coordination/scripts/forward-delivery-driver.mjs'),
         'remove-custody-probes': Path('baseline-CancelledDiscussion-map-stop-physical.json'),
     }
     scratch = Path(tempfile.mkdtemp(prefix='squad-coordination-reader-'))

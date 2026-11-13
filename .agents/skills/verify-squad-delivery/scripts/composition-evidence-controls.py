@@ -36,7 +36,7 @@ def main():
     baseline_count = reader.verify_composition_evidence(original)
     original_manifest = digest(original / 'artifacts.json')
     original_report = json.loads((original / 'run.json').read_text())
-    prefix = 'composition/negative-controls/skip-validation/'
+    prefix = 'composition/negative-controls/hide-validation-gap/'
     cases = [
         ('missing-json', prefix + 'memory-code.json', 'Missing required raw artifact'),
         ('missing-log', prefix + 'memory-code.log', 'Missing required raw artifact'),
@@ -73,7 +73,7 @@ def main():
                 path.write_text(text)
                 manifest[relative] = {'sha256': digest(path), 'bytes': path.stat().st_size}
             else:
-                report['composition']['negativeControls']['skip-validation']['stores']['memory']['error'] += '\nchanged summary'
+                report['composition']['negativeControls']['hide-validation-gap']['stores']['memory']['error'] += '\nchanged summary'
             resign(area, manifest, report)
             # The generic integrity layer accepts this new self-consistent manifest.
             reader.helpers.verify_evidence(area)

@@ -21,13 +21,13 @@ helpers = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(helpers)
 MODELS = {
     'Verification': {
-        'properties': ['TypeOK', 'ModelNeedsValidation', 'OrderedPublication'],
-        'witnesses': ['NeverModelRequested', 'NeverPublished', 'NeverChanged', 'NeverRolledBack'],
-        'bounds': 'One task/candidate/check; one successful or failing isolated validation, one model request, two unequal workspace revisions, one final verification, one rollback/reopen. Adapter output is a local carrier; no OS crash is modeled.'},
+        'properties': ['TypeOK', 'HonestVerification', 'OrderedPublication'],
+        'witnesses': ['NeverModelRequested', 'NeverEarlyCheck', 'NeverFailedValidationDelivery', 'NeverPublished', 'NeverChanged', 'NeverRolledBack'],
+        'bounds': 'One task/candidate/check; one successful or failing isolated validation, up to two model requests including early remedy, two unequal workspace revisions, one final verification, one rollback/reopen. Missing or failed verification is declared in delivered content; no OS crash is modeled.'},
     'Cycles': {
-        'properties': ['TypeOK', 'RetainedPublication', 'CurrentCandidate', 'OneFinalPerCycle'],
+        'properties': ['TypeOK', 'RetainedPublication', 'CurrentCandidate', 'OneFinalPerCycle', 'DirectRepairRevision'],
         'witnesses': ['NeverThirdPublication', 'NeverRevised', 'NeverRolledBack'],
-        'bounds': 'One task, three publication cycles, one automatic failed-check revision across these cycles, four document revisions, one rollback/reopen; duplicate, prior-candidate and prior-work results.'},
+        'bounds': 'One task, three explicitly requested publication cycles, one direct downstream repair across these cycles, four document revisions, one rollback/reopen; duplicate, prior-candidate and prior-work results. No automatic owner revision.'},
     'SourceLineage': {
         'properties': ['TypeOK', 'FrozenSource', 'DirectLineage'],
         'witnesses': ['NeverSourceReplaced', 'NeverDirectChild', 'NeverRejectedStale', 'NeverReopened'],
@@ -35,19 +35,23 @@ MODELS = {
 }
 # Every source edit is made only in a disposable production-code copy.
 CONTROLS = [
-    ('skip-validation', 'Verification', 'ModelNeedsValidation', 'src/task/policy.ts',
-     'return requestBudgetProblem(c, i) ?? deliveryVerificationProblem(i, false);',
-     'return requestBudgetProblem(c, i);', 'skip-validation'),
-    ('skip-version', 'Verification', 'OrderedPublication', 'src/task/verification.ts',
+    ('hide-validation-gap', 'Verification', 'HonestVerification', 'src/task/delivery.ts',
+     "...(verification ? { detail: `实际验证未完成：${verification}` } : {})",
+     '...{}', 'hide-validation-gap'),
+    ('skip-version', 'Verification', 'HonestVerification', 'src/task/verification.ts',
      'return final ? versionReceiptProblem(work, receipt) : null;', 'return null;', 'skip-version'),
-    ('accept-changed', 'Verification', 'OrderedPublication', 'src/task/verification.ts',
+    ('accept-changed', 'Verification', 'HonestVerification', 'src/task/verification.ts',
      'if ([expectedRevision, currentRevision, copyRevision].every(value => value === receipt.revision)) return null;',
      'return null;', 'accept-changed'),
+    ('ignore-verification-badge', 'Verification', 'HonestVerification', 'src/resource-acquisition.ts',
+     '&& check && !deliveryVerificationProblem(check, true)', '&& check', 'ignore-verification-badge'),
     ('drop-publication', 'Cycles', 'RetainedPublication', 'src/task/reducer.ts',
      'if (e.extraOrdinary) c.config.limits.ordinary += e.extraOrdinary;\n      retainLegacyPublication(c, e.at);',
      'if (e.extraOrdinary) c.config.limits.ordinary += e.extraOrdinary;\n      c.publishedDelivery = { ...c.publishedDelivery!, artifactIds: [] };', 'drop-publication'),
     ('accept-old-cycle', 'Cycles', 'CurrentCandidate', 'src/task/delivery.ts',
      'e.candidateRevision !== candidate.revision || ', '', 'accept-stale'),
+    ('drop-repair-version', 'Cycles', 'DirectRepairRevision', 'src/task/reducer.ts',
+     'saveReports(c, delivery, c.sourceArtifact', 'saveReports(c, e, c.sourceArtifact', 'drop-repair-version'),
     ('corrupt-freeze', 'SourceLineage', 'FrozenSource', 'src/engine.ts',
      'sourceArtifact = resolution.sourceArtifact;',
      "sourceArtifact = { ...resolution.sourceArtifact, content: resolution.sourceArtifact.content + '\\ncorrupted' };", 'corrupt-freeze'),

@@ -213,8 +213,8 @@ describe("same-room conversational context", () => {
       gaps: [],
       resultId: "bad-check-result",
     });
-    expect(engine.view("r", "task:new-file")?.phase).toBe("running");
-    expect(engine.pending("r", "task:new-file").map(work => work.kind)).toEqual(["owner"]);
+    expect(engine.view("r", "task:new-file")?.phase).toBe("checking");
+    expect(engine.pending("r", "task:new-file").map(work => work.kind)).toEqual(["check"]);
     expect(engine.view("r", "task:new-file")?.context.outcome).toBeNull();
   });
 });
@@ -320,7 +320,7 @@ describe("bounded group review", () => {
           .map((work) => work.target),
       ).toEqual(["B"]);
       expect(calls.filter((work) => work.kind === "owner")).toHaveLength(1);
-      expect(engine.view("r", task)?.context.outcome).toBe("partial");
+      expect(engine.view("r", task)?.context.outcome).toBe("complete");
       expect(engine.view("r", task)?.context.review?.incomplete).toContain(
         "builder-1",
       );
@@ -340,7 +340,7 @@ describe("bounded group review", () => {
         .filter((work) => work.kind === "assistance")
         .map((work) => work.target),
     ).toEqual(reviewers);
-    expect(engine.view("r", task)?.context.outcome).toBe("partial");
+    expect(engine.view("r", task)?.context.outcome).toBe("complete");
     expect(
       engine
         .view("r", task)
@@ -377,8 +377,8 @@ describe("bounded group review", () => {
       expect(calls.filter((work) => work.kind === "owner")).toHaveLength(1);
       expect(calls.filter((work) => work.kind === "check")).toHaveLength(1);
       expect(engine.view("r", task)?.context.usage.ordinary).toBe(3);
-      expect(engine.view("r", task)?.context.outcome).toBe("partial");
-      expect(engine.view("r", task)?.context.assists[0]?.answer).toContain(
+      expect(engine.view("r", task)?.context.outcome).toBe("complete");
+      expect(engine.view("r", task)?.context.assists[0]?.reason).toContain(
         "REVIEW_SYNTHESIS_RESERVED",
       );
     },
@@ -399,7 +399,7 @@ describe("bounded group review", () => {
     });
     expect(attempts).toBe(1);
     expect(calls.filter((work) => work.kind === "owner")).toHaveLength(1);
-    expect(engine.view("r", task)?.context.outcome).toBe("partial");
+    expect(engine.view("r", task)?.context.outcome).toBe("complete");
     expect(engine.view("r", task)?.context.usage.retries).toBe(0);
   });
 
@@ -422,7 +422,7 @@ describe("bounded group review", () => {
     expect(calls.filter((work) => work.kind === "owner")).toHaveLength(1);
     expect(engine.view("r", task)?.context.assists[0]?.status).toBe("success");
     expect(engine.view("r", task)?.context.usage.ordinary).toBe(4);
-    expect(engine.view("r", task)?.context.outcome).toBe("partial");
+    expect(engine.view("r", task)?.context.outcome).toBe("complete");
   });
 
   it("[BT_F12] settles a recovered reviewer that cannot be reclaimed without spending synthesis capacity", async () => {
@@ -438,7 +438,7 @@ describe("bounded group review", () => {
     expect(calls.filter((work) => work.kind === "assistance")).toHaveLength(0);
     expect(calls.filter((work) => work.kind === "owner")).toHaveLength(1);
     expect(restored.view("r", task)?.context.usage.ordinary).toBe(3);
-    expect(restored.view("r", task)?.context.outcome).toBe("partial");
+    expect(restored.view("r", task)?.context.outcome).toBe("complete");
     expect(restored.view("r", task)?.context.assists[0]?.status).toBe("failed");
   });
 

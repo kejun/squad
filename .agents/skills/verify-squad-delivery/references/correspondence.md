@@ -1,3 +1,17 @@
+# 当前单向交付对应（2026-11-12）
+
+当前维护范围、逐文件分类、退休性质及版本链真实反例见 [本轮审查](../../../../docs/implementation/forward-delivery-formal.md) 与 [逐文件记录](../../../../docs/implementation/forward-delivery-formal-review.json)。精确源码和同步状态见 coverage.json。以下旧章节中的自动作者修订、MapRecovery、验证失败不交付等描述仅保留为历史；与当前流程冲突时采用本节及实际模型/配置。
+
+- Delivery：单任务、候选、文档及固定技能回执，goal1..2，一次崩溃/回滚。AtomicPublication、CurrentCandidate、VersionIsolation 与 Progress 保留；九种损坏回执是独立有限输入检查。
+- Verification：单检查、一次验证成功/失败、最多两次请求（含提前补救）、两个工作区版本、一次最终复核与回滚/重开。允许验证前请求模型；HonestVerification 要求缺失/失败/版本变化进入正文，OrderedPublication 保护停止及发布原子性。
+- Cycles：三个明确用户周期、四个文档修订、一次下游直接修正、一次回滚/重开。RetainedPublication、CurrentCandidate、OneFinalPerCycle 与 Progress 保留；不再经过作者自动修订。
+- SourceLineage：同群三个任务，A 两版，B 冻结 A1，C 只引用 B，包含停止/续办和一次重开。FrozenSource 与 DirectLineage 保留。
+- 主 check.py 自动运行三个组合切片；临时开发可单独运行 composition-check.py，不能据此宣称完整技能通过。
+
+实现连接仍是 TLC 全图与真实 TeamEngine 公开事务的一边一代表前缀对照；冻结原文、版本、授权、停止和未决效果保护分别保留。CHECK_RESULT 中直接修正、结论保存及 finish 是同一事务；工具请求/领取/启动/结果各自是独立事务。验证输出为信息，不能让 failed/unverified 自动变为 verified。
+
+## 历史对应与原始证据
+
 BT_F31冻结原始输入引用的来源链修复见[对应审查](drift-review-raw-input-citation.json)；保留精确ID/逐字引用、原子边界和预算性质。
 
 # 交付模型与实现对应审查

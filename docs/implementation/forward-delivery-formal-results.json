@@ -1,0 +1,317 @@
+{
+  "status": "verified",
+  "productFixCommit": "8085c81e46ab0285540d6a896180585e408358ca",
+  "verificationCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+  "allNineEntryPointsVerified": true,
+  "independentReadbacksVerified": true,
+  "entries": [
+    {
+      "check": "authority",
+      "script": ".agents/skills/verify-squad-authority/scripts/check.py",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-authority/scripts/check.py",
+        "--evidence",
+        "/workspace/squad/reports/forward-formal-authority-2786223"
+      ],
+      "source": "278622352722a9f1c33674a71ce4d1c1b5b5baa8",
+      "exitCode": 0,
+      "seconds": 59.419,
+      "evidence": "reports/forward-formal-authority-2786223",
+      "log": "/workspace/work/squad-formal-forward/full-authority-2786223.log",
+      "status": "verified",
+      "error": null,
+      "cleanup": true,
+      "outcome": "in_sync",
+      "readerLog": "/workspace/work/squad-formal-forward/reader-authority-2786223.log"
+    },
+    {
+      "check": "authority-composition",
+      "script": ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-authority/scripts/composition-check.py",
+        "--evidence",
+        "/workspace/squad/reports/forward-formal-authority-composition-2786223"
+      ],
+      "source": "278622352722a9f1c33674a71ce4d1c1b5b5baa8",
+      "exitCode": 0,
+      "seconds": 34.663,
+      "evidence": "reports/forward-formal-authority-composition-2786223",
+      "log": "/workspace/work/squad-formal-forward/full-authority-composition-2786223.log",
+      "status": "verified",
+      "error": null,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true
+      },
+      "outcome": "in_sync",
+      "readerLog": "/workspace/work/squad-formal-forward/reader-authority-composition-2786223.log"
+    },
+    {
+      "check": "coordination",
+      "script": ".agents/skills/verify-squad-coordination/scripts/check.py",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-coordination/scripts/check.py",
+        "--jar",
+        "/workspace/work/squad-e2e/workspace-fix/formal/tla2tools-1.7.4.jar",
+        "--evidence",
+        "reports/forward-formal-coordination-b459dbf"
+      ],
+      "source": "b459dbf3454093fd78264b325e5c337e57a3491b",
+      "exitCode": 0,
+      "seconds": 430.551,
+      "evidence": "reports/forward-formal-coordination-b459dbf",
+      "log": "/workspace/work/squad-formal-forward/full-coordination-b459dbf.log",
+      "status": "verified",
+      "error": null,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "checkerInputsUnchanged": true
+      },
+      "outcome": "updated",
+      "readerLog": "/workspace/work/squad-formal-forward/reader-coordination-b459dbf.log"
+    },
+    {
+      "check": "coordination-extensions",
+      "script": ".agents/skills/verify-squad-coordination/scripts/check-extensions.py",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-coordination/scripts/check-extensions.py",
+        "--jar",
+        "/workspace/work/squad-e2e/workspace-fix/formal/tla2tools-1.7.4.jar",
+        "--evidence",
+        "reports/forward-formal-coordination-extensions-b459dbf"
+      ],
+      "source": "b459dbf3454093fd78264b325e5c337e57a3491b",
+      "exitCode": 0,
+      "seconds": 457.611,
+      "evidence": "reports/forward-formal-coordination-extensions-b459dbf",
+      "log": "/workspace/work/squad-formal-forward/full-coordination-extensions-b459dbf.log",
+      "status": "verified",
+      "error": null,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "checkerInputsUnchanged": true
+      },
+      "outcome": "updated",
+      "readerLog": "/workspace/work/squad-formal-forward/reader-coordination-extensions-b459dbf.log"
+    },
+    {
+      "check": "delivery",
+      "script": ".agents/skills/verify-squad-delivery/scripts/check.py",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-delivery/scripts/check.py",
+        "--evidence",
+        "/workspace/squad/reports/forward-formal-delivery-2786223"
+      ],
+      "source": "278622352722a9f1c33674a71ce4d1c1b5b5baa8",
+      "exitCode": 0,
+      "seconds": 151.80978819099983,
+      "evidence": "reports/forward-formal-delivery-2786223",
+      "log": "/workspace/work/squad-formal-forward/full-delivery-2786223.log",
+      "status": "verified",
+      "error": null,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true,
+        "checkerInputsUnchanged": true
+      },
+      "outcome": "updated",
+      "readerLog": "/workspace/work/squad-formal-forward/reader-delivery-2786223.log"
+    },
+    {
+      "check": "handoff",
+      "script": ".agents/skills/verify-squad-handoff/scripts/check.py",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-handoff/scripts/check.py",
+        "--evidence",
+        "/workspace/squad/reports/forward-formal-handoff-2786223"
+      ],
+      "source": "278622352722a9f1c33674a71ce4d1c1b5b5baa8",
+      "exitCode": 0,
+      "seconds": 45.723,
+      "evidence": "reports/forward-formal-handoff-2786223",
+      "log": "/workspace/work/squad-formal-forward/full-handoff-2786223.log",
+      "status": "verified",
+      "error": null,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true
+      },
+      "outcome": "updated",
+      "readerLog": "/workspace/work/squad-formal-forward/reader-handoff-2786223.log"
+    },
+    {
+      "check": "handoff-composition",
+      "script": ".agents/skills/verify-squad-handoff/scripts/check-composition.py",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-handoff/scripts/check-composition.py",
+        "--evidence",
+        "/workspace/squad/reports/forward-formal-handoff-composition-2786223"
+      ],
+      "source": "278622352722a9f1c33674a71ce4d1c1b5b5baa8",
+      "exitCode": 0,
+      "seconds": 40.542,
+      "evidence": "reports/forward-formal-handoff-composition-2786223",
+      "log": "/workspace/work/squad-formal-forward/full-handoff-composition-2786223.log",
+      "status": "verified",
+      "error": null,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true
+      },
+      "outcome": "in_sync",
+      "readerLog": "/workspace/work/squad-formal-forward/reader-handoff-composition-2786223.log"
+    },
+    {
+      "check": "host-retry",
+      "script": ".agents/skills/verify-squad-host-retry/scripts/check.py",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-host-retry/scripts/check.py",
+        "--evidence",
+        "/workspace/squad/reports/forward-formal-host-retry-2786223"
+      ],
+      "source": "278622352722a9f1c33674a71ce4d1c1b5b5baa8",
+      "exitCode": 0,
+      "seconds": 29.422,
+      "evidence": "reports/forward-formal-host-retry-2786223",
+      "log": "/workspace/work/squad-formal-forward/full-host-retry-2786223.log",
+      "status": "verified",
+      "error": null,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true,
+        "evidenceRetained": true
+      },
+      "outcome": "in_sync",
+      "readerLog": "/workspace/work/squad-formal-forward/reader-host-retry-2786223.log"
+    },
+    {
+      "check": "local-effects",
+      "script": ".agents/skills/verify-squad-local-effects/scripts/check.py",
+      "command": [
+        "python3",
+        ".agents/skills/verify-squad-local-effects/scripts/check.py",
+        "--evidence",
+        "/workspace/squad/reports/forward-formal-local-effects-2786223"
+      ],
+      "source": "278622352722a9f1c33674a71ce4d1c1b5b5baa8",
+      "exitCode": 0,
+      "seconds": 66.985,
+      "evidence": "reports/forward-formal-local-effects-2786223",
+      "log": "/workspace/work/squad-formal-forward/full-local-effects-2786223.log",
+      "status": "verified",
+      "error": null,
+      "cleanup": {
+        "scratchRemoved": true,
+        "coveredFilesUnchanged": true
+      },
+      "outcome": "in_sync",
+      "readerLog": "/workspace/work/squad-formal-forward/reader-local-effects-2786223.log"
+    }
+  ],
+  "newModelStatistics": {
+    "Verification": {
+      "counts": [
+        207,
+        106,
+        0
+      ],
+      "properties": [
+        "TypeOK",
+        "HonestVerification",
+        "OrderedPublication"
+      ]
+    },
+    "Cycles": {
+      "counts": [
+        128,
+        49,
+        0
+      ],
+      "properties": [
+        "TypeOK",
+        "RetainedPublication",
+        "CurrentCandidate",
+        "OneFinalPerCycle",
+        "DirectRepairRevision"
+      ]
+    },
+    "CheckBudget": {
+      "counts": [
+        1203,
+        630,
+        0
+      ],
+      "requiredConfig": "reports/forward-formal-coordination-b459dbf/baseline/CheckBudget/CheckBudget.cfg"
+    },
+    "ForwardDelivery": {
+      "counts": [
+        76,
+        32,
+        0
+      ],
+      "requiredConfig": "reports/forward-formal-coordination-extensions-b459dbf/baseline/ForwardDelivery/ForwardDelivery.cfg"
+    }
+  },
+  "evidenceReaderControls": [
+    {
+      "case": "delivery-structured",
+      "exitCode": 0,
+      "log": "/workspace/work/squad-formal-forward/evidence-controls-delivery-structured.log",
+      "lastLine": "11 self-consistent evidence controls detected; original 329 artifacts still verify"
+    },
+    {
+      "case": "delivery-raw",
+      "exitCode": 0,
+      "log": "/workspace/work/squad-formal-forward/evidence-controls-delivery-raw.log",
+      "lastLine": "{\"status\": \"verified\", \"evidence\": \"/workspace/work/squad-formal-forward/reader-controls-delivery\", \"cleanup\": {\"scratchRemoved\": true, \"sourceEvidenceUnchanged\": true}}"
+    },
+    {
+      "case": "handoff-composition-raw",
+      "exitCode": 0,
+      "log": "/workspace/work/squad-formal-forward/evidence-controls-handoff-composition-raw.log",
+      "lastLine": "{\"status\": \"verified\", \"evidence\": \"/workspace/work/squad-formal-forward/reader-controls-handoff-composition\", \"cleanup\": {\"scratchRemoved\": true, \"sourceEvidenceUnchanged\": true}}"
+    },
+    {
+      "case": "local-effects-raw",
+      "exitCode": 0,
+      "log": "/workspace/work/squad-formal-forward/evidence-controls-local-effects-raw.log",
+      "lastLine": "{\"status\": \"verified\", \"evidence\": \"/workspace/work/squad-formal-forward/reader-controls-local-effects\", \"cleanup\": {\"scratchRemoved\": true, \"sourceEvidenceUnchanged\": true}}"
+    },
+    {
+      "case": "host-retry-raw",
+      "exitCode": 0,
+      "log": "/workspace/work/squad-formal-forward/evidence-controls-host-retry-raw.log",
+      "lastLine": "{\"status\": \"verified\", \"evidence\": \"/workspace/work/squad-formal-forward/reader-controls-host-retry\", \"cleanup\": {\"scratchRemoved\": true, \"sourceEvidenceUnchanged\": true}}"
+    },
+    {
+      "case": "host-retry-structured",
+      "exitCode": 0,
+      "log": "/workspace/work/squad-formal-forward/evidence-controls-host-retry-structured.log",
+      "lastLine": "{\"status\": \"verified\", \"rejections\": 7, \"output\": \"/workspace/squad/reports/verify-squad-host-retry/evidence-controls.json\"}"
+    }
+  ],
+  "retainedInitialFailures": "/workspace/work/squad-formal-forward/baseline-index.json",
+  "retainedFirstCandidateFailures": [
+    "reports/forward-formal-coordination-2786223",
+    "reports/forward-formal-coordination-extensions-2786223"
+  ],
+  "sevenUnchangedProducerProofs": "278622352722a9f1c33674a71ce4d1c1b5b5baa8",
+  "producerReexecutedForMetadataAdvance": false,
+  "limits": [
+    "Finite models plus one reachable representative prefix per labelled edge on each storage backend; no TypeScript equivalence proof",
+    "ForwardDelivery has one rollback before its only reopening, or one normal reopening without rollback; latest historical verdicts are bounded snapshot-input probes",
+    "Liveness assumes stated fairness and finite failures; no guarantee of provider availability, force archive deletion, infinite scale or all cross-model products"
+  ]
+}

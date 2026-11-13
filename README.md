@@ -103,6 +103,10 @@ npm start
 
 ## 状态模型
 
+子 Agent 直接交付，不再使用[分片补救申报](docs/implementation/remove-map-recovery.md)：成功或部分成功按原样汇总，失败的正文和文件为空；负责人走普通交付流程，不再逐片申报、匹配来源或登记补救证明。BT_Q36–Q49 覆盖新行为；恢复旧任务时丢弃已移除协议。
+
+内容交接单向推进，检查员自行补救；无法解决的缺口写入最终正文，照常交付。系统以当前候选的下游最新有效结论推进，历史失败和跳过只作为材料提供；取消逐条来源预审和可选引用复审。必要协议错误最多一次技术补试后明确结算，网络预算及执行安全边界保留。见[上下游最新结论](docs/state-diagrams.md#上下游最新结论)（BT_H201–H215）。
+
 模型返回不可自动重试的 400、403 等错误时，负责人、分片及检查统一进入[模型服务错误门](docs/implementation/model-service-error.md)，显示脱敏错误并提供跳过和停止；复用现有 `waitingHuman` 与持久决策，不要求文本回复或续窗。BT_Y168–Y172。
 
 归档会话删除采用[强制删除](docs/implementation/force-archived-deletion.md)：直接提交数据删除并释放所属锁，立即移除列表项；运行文件由同一个持久作业后台清理与自动重试，无需确认或核对旧操作。状态转移见[强制删除细图](docs/state-diagrams.md#归档会话强制删除)。BT_Y162–Y167 覆盖该行为，替代旧删除流程中的人类核对要求。
@@ -113,13 +117,13 @@ npm start
 
 完整工具目录与已结算 CLI 诊断的原权限和持久限次边界见[工具推荐与失败纠正](docs/state-diagrams.md#工具推荐与失败纠正kej-112)。上下文读取不产生 I/O；相同 CLI 两次可诊断失败后由本地请求守卫拒绝第三次，恢复沿用持久化操作记录。
 
-交付修订可在冻结基线上执行增量复核，仍须返回全部验收判断；基线、完整差异、回退与恢复边界见[增量交付复核](docs/state-diagrams.md#增量交付复核bt_f65bt_f70)。
+下游一次接收完整报告和冻结来源，在当前工作直接补救；原增量重审已移除，见[单向交付](docs/state-diagrams.md#上下游最新结论)。
 
 同任务已核实的能力元数据及确定的沙箱不可用事实可供后续成员复用，独立来源优先用满总分片容量；见[任务能力事实与充分分片](docs/state-diagrams.md#任务能力事实与充分分片kej-110)（BT_L113–L116、BT_Q34–Q35），原权限、版本与并发边界保持有效。
 
 同任务成员可复用已结算的 CLI 调用经验，边界见[调用经验投影](docs/state-diagrams.md#同任务-cli-调用经验投影)（BT_L109–L110）；实际执行仍须独立领取和授权。
 
-交付检查的引用错误沿用一次技术补试，持久化可定位的来源差异并保留采集结果，见[交付检查定向诊断](docs/state-diagrams.md#交付检查定向诊断kej-109)（BT_F60–F62）。
+可选引用不再触发二次审核；必要 JSON 协议错误最多技术补试一次。BT_F60–F62 验收正常采用下游结论及停止后的隔离。
 
 KEJ-107／108 的 [17 项组合验证索引](docs/formal-verification.md#kej-107108-组合覆盖)覆盖本地效果恢复、宿主续办、工程检查、预算、输入与讨论，以及交付、评审、授权、来源、网页和宿主接线。[组合状态图](docs/state-diagrams.md#kej-107108-组合验证补充)区分真实 XState、任务上下文、宿主流程和 UI 投影，不把验证抽象画成新增产品节点。
 
@@ -170,8 +174,8 @@ stateDiagram-v2
     interpreting --> running: INTERPRETATION_RESULT [valid且无需澄清] / apply
     running --> waitingAssistance: HELP [valid] / apply
     waitingAssistance --> running: HELP_RESULT [valid且不继续评审] / apply
-    running --> checking: DELIVER [机械门禁通过且交接已结算] / 保存绑定候选及证据的检查意图
-    checking --> ended: CHECK_RESULT [当前候选全部必需项通过且门禁有效] / 发布
+    running --> checking: DELIVER [当前身份版本有效且交接已结算] / 保存绑定候选及证据的检查意图
+    checking --> ended: CHECK_RESULT [当前候选的合法最终结论] / 发布修正稿或在正文声明缺口
 ```
 
 控制路径（与上图为同一个 taskMachine，不是另一台机器或父状态）：
@@ -209,9 +213,9 @@ stateDiagram-v2
 | 服务恢复、启动失败与幂等关闭 | [服务生命周期](docs/state-diagrams.md#显式服务生命周期bt_k08bt_k09)：独立宿主 XState，BT_K03–K09 |
 | 输入、协助、评审、后台讨论、交付 | [任务上下文](docs/state-diagrams.md#任务拥有的上下文生命周期)：BT_I、BT_H、BT_G01–G14、BT_T、BT_A01–A11 |
 | 当前交付、文档修订与历史报告 | [候选版本与当前交付](docs/state-diagrams.md#候选版本与当前交付)，BT_A22–BT_A26 |
-| 候选预检、固定材料独立验收与有界修订 | [交付验收](docs/state-diagrams.md#候选预检与独立验收)，BT_F03–F04、BT_F07–F08、BT_F10–F11、BT_F14–F21 |
-| 修订检查的冻结基线、完整差异与全部要求 | [增量交付复核](docs/state-diagrams.md#增量交付复核bt_f65bt_f70)，BT_F65–BT_F70、BT_F83 |
-| 按缺口分配修订并保留复核预算 | [自适应交付修订](docs/state-diagrams.md#自适应交付修订kej-110)，BT_F77–BT_F81 |
+| 当前候选与下游直接补救 | [交付验收](docs/state-diagrams.md#候选预检与独立验收)，BT_F03–F04、BT_F07–F08、BT_F10–F11、BT_F14–F21 |
+| 完整材料、全部要求与单次下游交付 | [增量交付复核](docs/state-diagrams.md#增量交付复核bt_f65bt_f70)，BT_F65–BT_F70、BT_F83 |
+| 下游直接补救与缺口交付 | [自适应交付修订](docs/state-diagrams.md#自适应交付修订kej-110)，BT_F77–BT_F81 |
 | 成员复用能力事实与充分分片 | [任务能力事实与充分分片](docs/state-diagrams.md#任务能力事实与充分分片kej-110)，BT_L113–BT_L116、BT_Q34–BT_Q35 |
 | 文档工作项的原始来源与状态预检 | [文档工作项来源预检](docs/state-diagrams.md#文档工作项来源预检kej-110)，BT_F71–BT_F76、BT_F82 |
 | 意图领取、工具、格式修正、本地操作与宿主 | [执行与适配器](docs/state-diagrams.md#执行与适配器边界)：BT_M、BT_W、BT_L |
@@ -437,11 +441,11 @@ BT_I23–I24 要求解释和检查保留用户措辞的强度：“无需工具�
 
 成员审查证据保留可逐字引用的原始文本视图（BT_F26），JSON元数据与原始答复均来自同一冻结记录，不解码或归一化模型返回的引文。
 
-交付缺口按首次检查分配 2–3 次自动修订机会，仍服从任务总额度与复核预留，见[自适应交付修订](docs/state-diagrams.md#自适应交付修订kej-110)（BT_F77–BT_F81）。
+交付缺口由当前检查员自行补救；无法补齐的事项写入正文并正常交付，不再自动退回负责人或重开检查（BT_F77–BT_F81、BT_H209–H212）。
 
 网页工具的已知失败可以在原工作中有界重选合法工具，恢复反馈最多2次且不扩大执行预算；见[网页失败的有界工具重选](docs/state-diagrams.md#网页失败的有界工具重选kej-111)（BT_M52–BT_M59）。
 
-只读 Map-Reduce 的失败分片可由负责人提供完整来源并逐片独立验收后恢复；原失败历史保留，普通成员评审仍要求独立完成。见[Map-Reduce 分片恢复](docs/state-diagrams.md#map-reduce-分片恢复kej-111)（BT_Q36–BT_Q47）。
+Map-Reduce 子 Agent 的成功和部分成功结果直接汇总，失败交付为空；负责人无需补救申报或逐片验收，按原任务要求普通交付。原失败状态保留，原任务的独立成员评审要求不变。见[子 Agent 直接交付](docs/state-diagrams.md#子-agent-直接交付)（BT_Q36–BT_Q49）。
 
 自动 CLI 目录从有效 PATH 和本机安装包/手册静态资料生成用途与适用场景，无人工目录也可选择工具；目录完整返回且不执行命令。观察流程复用现有 ToolInventoryStore，执行继续由真实任务模型和宿主批准控制。见[自动目录需求](docs/requirements/automatic-cli-catalog.md)和[目录观察流程](docs/state-diagrams.md#自动-cli-目录观察)。
 

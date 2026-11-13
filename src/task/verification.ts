@@ -62,7 +62,7 @@ function matchesCommand(action: LocalAction, plan: ValidationCommand): boolean {
 export function deliveryValidationOperation(work: Intent): LocalOperation | undefined {
   const plan = planFor(work);
   if (plan?.status !== 'required') return undefined;
-  return work.localOperations?.find(op => matchesCommand(op.action, plan.action));
+  return [...(work.localOperations ?? [])].reverse().find(op => matchesCommand(op.action, plan.action));
 }
 
 type ValidationReceipt = { ok: true; operation: LocalOperation; revision: string; result: LocalToolResult }
@@ -79,11 +79,13 @@ function validationReceipt(work: Intent): ValidationReceipt {
   return { ok: true, operation, revision: operation.workspaceRevision, result };
 }
 
-export function deliveryVerificationEvidence(work: Intent): { id: string; workspaceRevision: string; stdout?: string; stderr?: string } | undefined {
+export function deliveryVerificationEvidence(work: Intent): { id: string; workspaceRevision?: string; status: 'passed' | 'failed'; code: string; stdout?: string; stderr?: string } | undefined {
   const receipt = validationReceipt(work);
-  if (!receipt.ok) return undefined;
-  const evidence = { id: receipt.operation.id, workspaceRevision: receipt.revision };
-  const data = receipt.result.data;
+  const operation = deliveryValidationOperation(work);
+  if (!operation?.result || !['succeeded', 'failed'].includes(operation.status)) return undefined;
+  const evidence = { id: operation.id, ...(operation.workspaceRevision ? { workspaceRevision: operation.workspaceRevision } : {}),
+    status: receipt.ok ? 'passed' as const : 'failed' as const, code: receipt.ok ? operation.result.code : receipt.code };
+  const data = operation.result.data;
   if (data.truncated !== false) return evidence;
   return { ...evidence, ...(typeof data.stdout === 'string' ? { stdout: data.stdout } : {}),
     ...(typeof data.stderr === 'string' ? { stderr: data.stderr } : {}) };
@@ -118,12 +120,7 @@ function versionActionAllowed(work: Intent, action: Extract<LocalAction, { type:
 
 export function verificationActionProblem(work: Intent, action: LocalAction, workspaceId: string | undefined, currentId?: string): string | null {
   if (work.kind !== 'check') return null;
-  const plan = planFor(work);
-  if (plan?.status !== 'required') return 'CHECK_LOCAL_TOOLS_NOT_ALLOWED';
-  if (action.type === 'runCli' && matchesCommand(action, plan.action)) {
-    const test = deliveryValidationOperation(work);
-    if (!test || test.id === currentId) return null;
-  }
+  if (action.type !== 'verifyWorkspace') return null;
   if (action.type === 'verifyWorkspace' && versionActionAllowed(work, action, workspaceId, currentId)) return null;
   return 'CHECK_LOCAL_TOOLS_NOT_ALLOWED';
 }
