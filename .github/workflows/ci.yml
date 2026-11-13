@@ -273,6 +273,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: formal-verification-${{ github.sha }}
+          include-hidden-files: true
           path: reports/verify-squad-*/
           if-no-files-found: error
           retention-days: 14
@@ -328,6 +329,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: formal-composition-${{ matrix.slice }}-${{ github.sha }}
+          include-hidden-files: true
           path: reports/
           if-no-files-found: error
           retention-days: 14

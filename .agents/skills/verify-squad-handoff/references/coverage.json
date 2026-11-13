@@ -1,5 +1,5 @@
 {
-  "syncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+  "syncCommit": "1a59690ea2220650a70a0d8002ae960a807c31d1",
   "bounds": {
     "tasks": 1,
     "owner": "A",
@@ -294,9 +294,10 @@
       "changedCoveredFiles": [
         "src/model-env.ts"
       ],
-      "outcome": "reviewed-candidate",
+      "outcome": "updated",
       "reason": "Configuration changes which raw model ID gets an existing numeric default; result saving, owner handoff, epoch/goal identity and transaction boundaries are unchanged.",
-      "verification": "Formal-only CI, including unchanged real-code negative controls and independent evidence readback; syncCommit is retained until success."
+      "verification": "https://github.com/kejun/squad/actions/runs/43355211869",
+      "verifiedCommit": "1a59690ea2220650a70a0d8002ae960a807c31d1"
     }
   ],
   "mapReduceLiveReview": "references/drift-review-map-reduce-live.json",
@@ -822,5 +823,12 @@
     "verifiedAtCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
     "results": "docs/implementation/forward-delivery-formal-results.json",
     "producerReexecutedForMetadataAdvance": false
+  },
+  "providerModelIdReview": {
+    "status": "verified",
+    "review": "docs/implementation/deepseek-provider-model-id-formal.json",
+    "verifiedCommit": "1a59690ea2220650a70a0d8002ae960a807c31d1",
+    "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
+    "ciRunId": 43355211869
   }
 }

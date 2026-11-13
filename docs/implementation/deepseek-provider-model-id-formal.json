@@ -1,5 +1,5 @@
 {
-  "status": "reviewed-candidate",
+  "status": "updated",
   "productCommit": "92db683af662054140056d75eed4ffe729d945a4",
   "source": "src/model-env.ts",
   "beforeSha256": "ecee3cac5d0355cb6c470c75cab93d687de7228111abce0b55bf65643fbd8f54",
@@ -22,61 +22,187 @@
       "coverage": ".agents/skills/verify-squad-authority/references/composition-coverage.json",
       "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
       "classification": "no-change-to-model-semantics",
-      "reason": "Model ID recognition neither changes role authorization nor host credential isolation, execution identity or physical-effect custody."
+      "reason": "Model ID recognition neither changes role authorization nor host credential isolation, execution identity or physical-effect custody.",
+      "outcome": "updated"
     },
     {
       "coverage": ".agents/skills/verify-squad-authority/references/coverage.json",
       "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
       "classification": "no-change-to-model-semantics",
-      "reason": "Model ID recognition neither changes role authorization nor host credential isolation, execution identity or physical-effect custody."
+      "reason": "Model ID recognition neither changes role authorization nor host credential isolation, execution identity or physical-effect custody.",
+      "outcome": "updated"
     },
     {
       "coverage": ".agents/skills/verify-squad-coordination/references/coverage.json",
       "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
       "classification": "no-change-to-model-semantics",
-      "reason": "Budget values and all request charging, retry/partition transitions and downstream verdict rules remain unchanged; aliases select the existing 384000 output default."
+      "reason": "Budget values and all request charging, retry/partition transitions and downstream verdict rules remain unchanged; aliases select the existing 384000 output default.",
+      "outcome": "updated"
     },
     {
       "coverage": ".agents/skills/verify-squad-coordination/references/extensions-coverage.json",
       "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
       "classification": "no-change-to-model-semantics",
-      "reason": "Budget values and all request charging, retry/partition transitions and downstream verdict rules remain unchanged; aliases select the existing 384000 output default."
+      "reason": "Budget values and all request charging, retry/partition transitions and downstream verdict rules remain unchanged; aliases select the existing 384000 output default.",
+      "outcome": "updated"
     },
     {
       "coverage": ".agents/skills/verify-squad-delivery/references/coverage.json",
       "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
       "classification": "no-change-to-model-semantics",
-      "reason": "Output-token defaults do not change immutable candidate identity, publication, honest verification or direct repair revisions; explicit output limits still take priority."
+      "reason": "Output-token defaults do not change immutable candidate identity, publication, honest verification or direct repair revisions; explicit output limits still take priority.",
+      "outcome": "updated"
     },
     {
       "coverage": ".agents/skills/verify-squad-handoff/references/composition-coverage.json",
       "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
       "classification": "no-change-to-model-semantics",
-      "reason": "Configuration changes which raw model ID gets an existing numeric default; result saving, owner handoff, epoch/goal identity and transaction boundaries are unchanged."
+      "reason": "Configuration changes which raw model ID gets an existing numeric default; result saving, owner handoff, epoch/goal identity and transaction boundaries are unchanged.",
+      "outcome": "updated"
     },
     {
       "coverage": ".agents/skills/verify-squad-handoff/references/coverage.json",
       "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
       "classification": "no-change-to-model-semantics",
-      "reason": "Configuration changes which raw model ID gets an existing numeric default; result saving, owner handoff, epoch/goal identity and transaction boundaries are unchanged."
+      "reason": "Configuration changes which raw model ID gets an existing numeric default; result saving, owner handoff, epoch/goal identity and transaction boundaries are unchanged.",
+      "outcome": "updated"
     },
     {
       "coverage": ".agents/skills/verify-squad-host-retry/references/coverage.json",
       "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
       "classification": "no-change-to-model-semantics",
-      "reason": "Host retry identity, credential/authorization gates, stop and unknown-effect retention do not depend on raw provider model ID spelling."
+      "reason": "Host retry identity, credential/authorization gates, stop and unknown-effect retention do not depend on raw provider model ID spelling.",
+      "outcome": "updated"
     },
     {
       "coverage": ".agents/skills/verify-squad-local-effects/references/coverage.json",
       "previousSyncCommit": "b459dbf3454093fd78264b325e5c337e57a3491b",
       "classification": "no-change-to-model-semantics",
-      "reason": "Configuration selection introduces no process start, effect, cancellation, reconciliation or replay transition."
+      "reason": "Configuration selection introduces no process start, effect, cancellation, reconciliation or replay transition.",
+      "outcome": "updated"
     }
   ],
-  "syncAdvanced": false,
+  "syncAdvanced": true,
   "limits": [
     "Finite models and existing fairness assumptions are unchanged.",
     "Provider reasoning and timing are not verified by controlled model responses.",
     "Original proof manifests and source identities remain immutable."
-  ]
+  ],
+  "verification": {
+    "runId": 43355211869,
+    "url": "https://github.com/kejun/squad/actions/runs/43355211869",
+    "headSha": "1a59690ea2220650a70a0d8002ae960a807c31d1",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "Formal verification",
+        "conclusion": "success"
+      },
+      {
+        "name": "Formal composition (local-effects)",
+        "conclusion": "success"
+      },
+      {
+        "name": "Formal composition (host-retry)",
+        "conclusion": "success"
+      },
+      {
+        "name": "Formal composition (handoff)",
+        "conclusion": "success"
+      },
+      {
+        "name": "Formal composition (coordination)",
+        "conclusion": "success"
+      },
+      {
+        "name": "Formal composition (authority)",
+        "conclusion": "success"
+      },
+      {
+        "name": "Browser fault detection",
+        "conclusion": "skipped"
+      },
+      {
+        "name": "Complete verification",
+        "conclusion": "skipped"
+      },
+      {
+        "name": "Targeted verification",
+        "conclusion": "skipped"
+      }
+    ],
+    "artifacts": [
+      {
+        "id": 14006685186,
+        "name": "formal-verification-1a59690ea2220650a70a0d8002ae960a807c31d1",
+        "digest": "sha256:e1e636ac13d264073d1f061fdf6fb869318faa67ac146629f9ba5505efe0a4ea",
+        "headSha": "1a59690ea2220650a70a0d8002ae960a807c31d1"
+      },
+      {
+        "id": 14005533897,
+        "name": "formal-composition-coordination-1a59690ea2220650a70a0d8002ae960a807c31d1",
+        "digest": "sha256:cb4c52fac9e0f51a2fa4f122da11c930c90d71db3afc4ff0b0a7db5ac12ab3be",
+        "headSha": "1a59690ea2220650a70a0d8002ae960a807c31d1"
+      },
+      {
+        "id": 14005457791,
+        "name": "formal-composition-authority-1a59690ea2220650a70a0d8002ae960a807c31d1",
+        "digest": "sha256:80b5be6712e0010a823e397b85854407215ec4158f36d4e5b79c09830fbe533c",
+        "headSha": "1a59690ea2220650a70a0d8002ae960a807c31d1"
+      },
+      {
+        "id": 14005304017,
+        "name": "formal-composition-local-effects-1a59690ea2220650a70a0d8002ae960a807c31d1",
+        "digest": "sha256:b6bfa424fe4272ae78da70e34e18c7b1e49215df861f53b3dd35e02245721c56",
+        "headSha": "1a59690ea2220650a70a0d8002ae960a807c31d1"
+      },
+      {
+        "id": 14005088724,
+        "name": "formal-composition-host-retry-1a59690ea2220650a70a0d8002ae960a807c31d1",
+        "digest": "sha256:dccc1dc9e79a27362ec2e5e331b3976797e043229b2b6b9a43b78ce076a46e89",
+        "headSha": "1a59690ea2220650a70a0d8002ae960a807c31d1"
+      },
+      {
+        "id": 14004954524,
+        "name": "formal-composition-handoff-1a59690ea2220650a70a0d8002ae960a807c31d1",
+        "digest": "sha256:f26b457afb2ce4ed9a74faa1e212ec2b9f2bdbd3b0e093a70789794051fe5abc",
+        "headSha": "1a59690ea2220650a70a0d8002ae960a807c31d1"
+      }
+    ]
+  },
+  "mergedProductCommit": "13bf60d2ad2dba4a325863c5e2ca1f72b513bc15",
+  "proofProducerRerunForMetadataOnly": false,
+  "downloadedEvidenceReadback": {
+    "outcome": "verified-with-exact-source-input-recovery",
+    "initialPasses": 7,
+    "initialBlocked": 2,
+    "reason": "actions/upload-artifact@v4 omitted hidden .agents snapshot directories",
+    "recoveredFrom": "1a59690ea2220650a70a0d8002ae960a807c31d1",
+    "restoredFiles": {
+      "delivery": 11,
+      "coordination-extensions": 49
+    },
+    "allNineReadbacksPassed": true,
+    "originalArchivesAndProofManifestsUnchanged": true,
+    "runtimeProofsRegenerated": false,
+    "recoveryAudit": "/workspace/work/deepseek-provider-id-proof/exact-source-rehydration.json",
+    "readbacks": "/workspace/work/deepseek-provider-id-proof/post-sync-readbacks.json"
+  },
+  "workflowChange": {
+    "path": ".github/workflows/ci.yml",
+    "jobs": [
+      "formal",
+      "formal-composition"
+    ],
+    "include-hidden-files": true,
+    "scope": "Only formal report directories; retain all manifest-referenced checker input snapshots.",
+    "uploadDownloadVerification": {
+      "runId": 43357235627,
+      "url": "https://github.com/kejun/squad/actions/runs/43357235627",
+      "headSha": "c27686ea2b8278c8115f04f1374b3feedb159008",
+      "conclusion": "success",
+      "scope": "Both formal report path patterns use upload-artifact@v4 include-hidden-files=true; download-artifact@v4 fetches both actual archives and compares the hidden input bytes. No model producers rerun.",
+      "temporaryWorkflowRemoved": true
+    }
+  }
 }
