@@ -67,3 +67,21 @@ Then('未召回条目仍应通过发现动作可取回', function (this: SpecWor
   const proof = state(this).merged; assert(proof);
   assert(!proof.followUp.cli.entries.some(entry => entry.command === 'pdftotext'));
 });
+
+Then('生成目录上下文不得启动命令或授予执行权限', function (this: SpecWorld) {
+  const proof = state(this).progressive; assert(proof);
+  assert.equal(proof.inventory.executionAuthority, false);
+  assert.equal(proof.inventory.metadataOnly, true);
+});
+
+Then('发现不得启动命令或消耗执行额度', async function (this: SpecWorld) {
+  const proof = state(this).merged ?? await mergedRecallAcceptance();
+  assert(proof);
+  assert(proof.recalled.entries.length > 0);
+});
+
+Then('目录观察不得冒充授权或执行结果', function (this: SpecWorld) {
+  const proof = state(this).merged; assert(proof);
+  assert.equal(proof.followUp.executionAuthority, false);
+  assert.equal(proof.followUp.metadataOnly, true);
+});

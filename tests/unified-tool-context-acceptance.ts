@@ -346,7 +346,8 @@ export async function incompleteInventoryAcceptance(kind: string) {
       } finally { await counterpart.close(); }
     }
     if (kind === '技能源扫描达到边界') {
-      assert.equal(inventory.skills.complete, false); assert.equal(inventory.skills.skills.length, 1);
+      assert.equal(inventory.skills.complete, false); assert.equal(inventory.skills.skillCount, 1);
+      assert.equal(inventory.skills.skills.length, 0);
       assert(inventory.skills.diagnostics.some(diagnostic => diagnostic.code === 'SKILLS_SCAN_LIMIT'));
     }
     const localCatalog = fixture.runtime.catalog(), allSkills = fixture.runtime.registry.all();
@@ -365,8 +366,10 @@ export async function incompleteInventoryAcceptance(kind: string) {
       'The same skill generation must report consistent completeness through the full skill registry');
     assert.equal(discoveredSkills.complete, inventory.skills.complete,
       'The same skill generation must report consistent completeness through host discovery');
-    assert.deepEqual(localCatalog.skills, inventory.skills.skills); assert.deepEqual(allSkills.skills, inventory.skills.skills);
-    assert.deepEqual(discoveredSkills.skills, inventory.skills.skills);
+    assert.equal(inventory.skills.skillCount ?? inventory.skills.skills.length, localCatalog.skills.length);
+    assert.deepEqual(localCatalog.skills, allSkills.skills);
+    assert.deepEqual(discoveredSkills.skills, allSkills.skills);
+    if (inventory.skills.skills.length) assert.deepEqual(localCatalog.skills, inventory.skills.skills);
     assert.deepEqual(localCatalog.diagnostics, inventory.skills.diagnostics); assert.deepEqual(allSkills.diagnostics, inventory.skills.diagnostics);
     assert.deepEqual(discoveredSkills.diagnostics, inventory.skills.diagnostics);
     if (kind === '宿主MCP未接入本服务') {

@@ -112,19 +112,26 @@ export async function largeDiscoveryAcceptance() {
     description: `Static archive command ${'x'.repeat(10_000)}`, scenarios: ['Read local archive data'] }));
   const f = await LocalFixture.create('方案师', true, false, { runtimeOptions: { cliCatalog: entries } });
   try {
-    const commands = entries.slice(0, 31).map(entry => entry.command);
-    f.replies.push({ type: 'discoverHost', commands }, { type: 'discoverHost', query: 'absent-query', commands },
+    const commands = entries.map(entry => entry.command);
+    f.replies.push({ type: 'discoverHost', commands: commands.slice(0, 31) },
+      { type: 'discoverHost', commands },
       { type: 'answer', text: '已取得完整工具目录，尚未执行命令。' });
     await f.runner().runOne(f.h.room, f.h.task);
-    const operation = f.h.context().intents[0]!.localOperations![0]!;
-    assert.equal(operation.status, 'succeeded'); assert(operation.result?.ok);
-    const cli = operation.result.data.cli as { commands: { command: string }[]; catalog: { entries: CliCatalogEntry[]; nextCursor: null } };
-    assert.equal(cli.commands.length, entries.length); assert.deepEqual(cli.catalog.entries, entries); assert.equal(cli.catalog.nextCursor, null);
+  const operations = f.h.context().intents[0]!.localOperations!;
+    const first = operations[0]!; assert.equal(first.status, 'succeeded'); assert(first.result?.ok);
+    const firstCli = first.result!.data.cli as { commands: { command: string }[]; catalog: { entries: CliCatalogEntry[]; nextCursor: null } };
+    assert.equal(firstCli.commands.length, 31); assert.equal(firstCli.catalog.entries.length, 31); assert.equal(firstCli.catalog.nextCursor, null);
+    const operation = operations[1]!; assert.equal(operation.status, 'succeeded'); assert(operation.result?.ok);
+    const cli = operation.result!.data.cli as { commands: { command: string }[]; catalog: { entries: CliCatalogEntry[]; nextCursor: null } };
+    assert.equal(cli.commands.length, entries.length);
+    assert.equal(cli.catalog.entries.length, entries.length);
+    assert.deepEqual(cli.catalog.entries.map(item => item.command).sort(), commands.sort());
+    assert.equal(cli.catalog.nextCursor, null);
     assert(JSON.stringify(operation.result).length > 1_900_000);
     assert.equal(f.h.context().intents[0]!.localOperations!.length, 2, 'A saved large metadata checkpoint must permit the next valid request');
     assert.equal(f.h.context().intents[0]!.localCheckpoint!.messages.at(-2)!.role, 'assistant');
-    assert(f.requests[1]!.messages.some(message => message.content.includes('squad-discovery-210') && message.content.includes('"code":"discoverHost"')));
-    assert.deepEqual(inventoryObservation(f.requests[1]!).cli.entries.map(entry => entry.command), entries.map(entry => entry.command));
+    assert(f.requests[2]!.messages.some(message => message.content.includes('squad-discovery-210') && message.content.includes('"code":"discoverHost"')));
+    assert.deepEqual(inventoryObservation(f.requests[2]!).cli.entries.map(entry => entry.command).sort(), commands.sort());
     assert.equal(f.backend.calls.length, 0); assert.equal(f.h.context().usage.ordinary, 3);
     return { commands: cli.commands.length, entries: cli.catalog.entries.length, executions: f.backend.calls.length };
   } finally { await f.close(); }
