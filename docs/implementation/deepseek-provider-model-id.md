@@ -1,5 +1,7 @@
 # DeepSeek 提供商模型 ID 兼容
 
+后续要求见[模型默认输出额度与非流式传输时限](../requirements/model-output-timeout.md)：未指定 `MAX_TOKENS` 时所有模型都使用 384000。本文的“其他模型不得继承 DeepSeek 专属自动额度”不再是当前契约；显式额度和 `EXTRA_BODY` 优先级仍然有效。原始模型 ID 继续原样发送。
+
 用户报告：`deepseek-ai/DeepSeek-V4.1-Flash` 未命中 `deepseek-v4.1-flash` 精确比较，默认输出额度落到提供商默认；另观察 V4.1 Flash 长输出约 95 秒，V4 Flash 约 25 秒。后者是用户现场观测，本轮不重复付费测速，也不将 `enable_thinking=false` 等同于完全关闭思考。
 
 ## EARS 与核查

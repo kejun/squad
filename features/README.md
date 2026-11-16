@@ -4,7 +4,7 @@
 
 当前尚不能自动验收的范围在 `acceptance-gaps.json` 中逐项登记原因及场景编号，并在对应场景或功能上添加同名标签。排除项也必须进入覆盖报告；不得为了让检查通过而删除场景或随意扩充排除标签。Pi Durable 的原始要求保持不变，本地 SQLite 回归不冒充其验收。
 
-当前归档删除入口由 `72_force_archived_deletion.feature` 及更新后的 BT_Y92–Y99、Y101、Y119 验收：直接强制删除，无二次确认或执行核对。`55_archived_room_deletion.feature` 保留旧版已持久安全删除协议的恢复与资源隔离检查；BT_X01 验收当前直接删除入口。`73_model_service_error.feature` 验收模型 HTTP 错误消息与“跳过/停止任务”决定。
+当前归档删除入口由 `72_force_archived_deletion.feature` 及更新后的 BT_Y92–Y99、Y101、Y119 验收：直接强制删除，无二次确认或执行核对。`55_archived_room_deletion.feature` 保留旧版已持久安全删除协议的恢复与资源隔离检查；BT_X01 验收当前直接删除入口。`73_model_service_error.feature` 验收模型 HTTP 错误消息与“跳过/停止任务”决定。`75_model_output_timeout.feature` 验收未指定输出额度 384000，以及非流式请求不被 Node 默认 300 秒响应头时限打断（BT_Y176–Y179）。
 
 报告区分直接执行的 Gherkin、仅关联的回归断言和明确待验收项。更新功能遵循根目录 `AGENTS.md` 的顺序。
 

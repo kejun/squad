@@ -2199,7 +2199,27 @@ flowchart LR
 
 停止、过期、旧版本及迟到结果继续由原状态机拒绝。显式固定来源/检查内容不得删减；环境生成配置不再按字节估计token，手工既有配置保留原可选保守预检。Y155–159的实际适配器与真实模型门槛承接本轮边界。
 
-DMI-01–03 仅修正环境配置投影：DeepSeek V4.1 Flash 的提供商前缀与大小写不影响 384000 自动输出额度，原模型 ID 发给供应商；显式额度优先，其他模型不套用该默认值。思考开关沿用 EXTRA_BODY，未配置时不增加参数。无需新增 XState 转移；修改配置加载器前复验 maximumBudgetModelGate 的真实 CLAIM/CONSUME、宿主授权与 STOP 路径。BT_Y155 直接执行三种 ID 的适配器请求。
+DMI-01–03 仍让 DeepSeek V4.1 Flash 的提供商前缀与大小写把原始模型 ID 发给供应商，显式额度优先，思考开关沿用 EXTRA_BODY。OUT-01 起，未指定 `MAX_TOKENS` 的模型一律使用 384000，不再只有 DeepSeek 获得该额度；`EXTRA_BODY` 中的 `max_tokens` 或 `max_completion_tokens` 仍抑制这份自动额度。无需新增 XState 转移；修改配置加载器前复验 maximumBudgetModelGate 的真实 CLAIM/CONSUME、宿主授权与 STOP 路径。BT_Y155 直接执行三种 ID 的适配器请求，BT_Y176 验收通用缺省额度。
+
+### 非流式传输时限
+
+类型：适配器传输处理流程；所有者 `OpenAICompatibleAdapter`。任务生命周期仍由真实 `taskMachine` 管理。不新增状态、守卫或调度；响应头等待发生在已领取并消费的模型意图之内。
+
+```mermaid
+flowchart LR
+  Claim[已领取的模型意图] --> Limit[读取响应头和响应体时限]
+  Limit -->|非法时限 / 不发出请求| Reject[WORK_FAILED]
+  Limit --> Wait[stream false 等待完整响应头]
+  Wait -->|时限内完整正文且协议通过| Result[既有结果事件]
+  Wait -->|协议不通过| Repair[既有格式修复或失败]
+  Wait -->|超过客户端时限| Net[WORK_FAILED 可重试网络失败]
+  Net -->|usage.retries 未达上限 / 工作回到 pending| Retry[计入一次重试后重新领取]
+  Net -->|usage.retries 已达上限 / 不重新领取| Exhausted[释放工作并注明重试额度已用尽]
+  Wait -->|工作期限到达| Deadline[WORK_FAILED WORK_TIMEOUT]
+  Wait -->|用户停止| Stop[既有停止结算]
+```
+
+未设置 `MODEL_HEADERS_TIMEOUT_MS` 和 `MODEL_BODY_TIMEOUT_MS` 时，两者均为 2147483647 毫秒，大于 Node fetch 默认的 300000 毫秒，并覆盖 384000 token 的慢速生成。时限不属于模型签名。客户端超时仍是既有可重试 `WORK_FAILED`：共享 `usage.retries` 未用尽时工作回到 pending，用尽时释放工作并在原因中注明重试额度已用尽。用户停止和工作期限仍通过原请求信号中止连接；部分正文不能成为结果。BT_Y176–Y179 直接执行配置、真实传输、期限和停止。
 
 MAX-06的最大命令时限先经真实模型的LOCAL_REQUEST/LOCAL_CLAIM/LOCAL_STARTED/STOP路径核对；纯动作校验通过后才修改实际执行器默认时限，原审批守卫不变。
 

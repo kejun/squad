@@ -2,7 +2,7 @@
 
 需求见`docs/requirements/maximum-budgets.md`，Y155–161。收到“所有预算尽可能大/不行全撤掉/contextWindow默认按DeepSeek最大”的后续指令后，新配置的调用、检查、协助、重试、重规划与重复额度设为最大安全整数，工作和处理窗口设为最大Node计时值（约24.85天）；命令显式/默认时限也采用该上限。最大配置的交付周期不再沿用隐藏的2–3次修订及一次技术重试预算。已保存窗口/周期和明确给定的其他配置不回填。
 
-模型默认contextWindowTokens=1048571，DeepSeek V4.1 Flash默认max_tokens=384000，环境生成服务的默认响应字节预算为最大安全整数。`/models`给出取整context=1000000、output=384000；实际上游400披露prompt上限1048571。不同模型不继承DeepSeek专属的自动输出上限，显式模型配置仍可覆盖。环境配置由provider按真实tokenizer判容量，手工旧配置保留可选的保守字节预检。provider上下文错误保留MODEL_CONTEXT_LIMIT，不保存原始错误正文。
+模型默认contextWindowTokens=1048571，未设置 `MAX_TOKENS` 时每个模型的 max_tokens 为 384000（见 `docs/requirements/model-output-timeout.md`），环境生成服务的默认响应字节预算为最大安全整数。`/models`给出取整context=1000000、output=384000；实际上游400披露prompt上限1048571。显式模型配置和 `EXTRA_BODY` 输出额度仍可覆盖自动额度。环境配置由provider按真实tokenizer判容量，手工旧配置保留可选的保守字节预检。provider上下文错误保留MODEL_CONTEXT_LIMIT，不保存原始错误正文。
 
 工具目录以共享用途组和每环境公共观测压缩，全部条目、原用途/资料来源、路径、版本、权限及实际回执均保留；逐字段独立恢复比对。2476条（1806未知/670有用途）样本从2532313B降至1160359B，未删除任何工具。实际选择仍通过原持久意图、领取、批准与执行器，压缩不授予权限。完整原始目录仍可查询。
 

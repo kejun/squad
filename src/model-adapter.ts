@@ -1,3 +1,4 @@
+import { defaultModelTransportTimeoutMs, maximumTimeoutMs } from './budget-defaults.js';
 import { localEnabled, validLocalAction, type LocalMessage } from './local-operation.js';
 import { serializeModelInventory } from './model-inventory-format.js';
 import { modelToolInventory, selectedToolMetadataChanged } from './model-tool-inventory.js';
@@ -198,6 +199,41 @@ async function providerDiagnostic(response: Response): Promise<{ code: string; c
   finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 
+interface ClosableTransport { destroy(): Promise<void> | void }
+
+/** Client header/body limits for one non-streaming completion. Unset values cover a 384k-token generation. */
+export function modelTransportTimeouts(env: Record<string, string | undefined>): { headersTimeout: number; bodyTimeout: number } {
+  const read = (key: string) => {
+    const text = env[key]?.trim();
+    if (!text) return defaultModelTransportTimeoutMs;
+    const result = Number(text);
+    if (!Number.isSafeInteger(result) || result <= 0 || result > maximumTimeoutMs) throw new WorkFailure(`Invalid numeric environment variable: ${key}`);
+    return result;
+  };
+  return { headersTimeout: read('MODEL_HEADERS_TIMEOUT_MS'), bodyTimeout: read('MODEL_BODY_TIMEOUT_MS') };
+}
+
+function transportTimedOut(error: unknown): boolean {
+  const code = (value: unknown) => value && typeof value === 'object' && 'code' in value ? String((value as { code?: unknown }).code) : '';
+  const name = (value: unknown) => value instanceof Error ? value.name : '';
+  const cause = error && typeof error === 'object' && 'cause' in error ? (error as { cause?: unknown }).cause : undefined;
+  return /UND_ERR_(?:HEADERS|BODY)_TIMEOUT/.test(`${code(error)} ${code(cause)}`) || /(?:Headers|Body)TimeoutError/.test(`${name(error)} ${name(cause)}`);
+}
+
+function openModelTransport(timeouts: { headersTimeout: number; bodyTimeout: number }): ClosableTransport {
+  const symbol = Symbol.for('undici.globalDispatcher.1');
+  const installed = () => Reflect.get(globalThis, symbol) as { constructor?: new (options: { headersTimeout: number; bodyTimeout: number }) => ClosableTransport } | undefined;
+  // Node installs its bundled dispatcher on the first fetch. An already-aborted probe does that without a network request.
+  if (!installed()?.constructor) {
+    const probe = new AbortController();
+    probe.abort();
+    void fetch('data:,', { signal: probe.signal }).catch(() => undefined);
+  }
+  const Agent = installed()?.constructor;
+  if (!Agent) throw new WorkFailure('Model transport is unavailable');
+  return new Agent(timeouts);
+}
+
 /** Bound the actual (fetch-decoded) body; a provider's Content-Length is not authoritative. */
 async function readSuccessBody(response: Response, limit: number, signal: AbortSignal): Promise<unknown> {
   const reader = response.body?.getReader();
@@ -355,6 +391,8 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
     const fixedInput = !!materials || !!sourceArtifact;
     const contextFailure = materials ? () => contextLimitFailure(materials) : sourceContextLimitFailure;
     const extraBody = fixedInput ? fixedInputProviderParameters(service, hostname, materials ? 'CHECK' : 'SOURCE') : service.extraBody;
+    const dispatcher = this.options.transport ? undefined : openModelTransport(modelTransportTimeouts(env));
+    try {
     let turn = 0;
     while (true) {
       assertRequestActive();
@@ -398,6 +436,7 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
             ...(service.maxTokens === undefined ? {} : { max_tokens: service.maxTokens }),
           }),
         };
+        if (dispatcher) Object.assign(input, { dispatcher });
         startedAt = performance.now();
         report({ phase: 'model.transport', requestId, serviceId, model: service.model });
         response = await (this.options.transport ?? globalThis.fetch)(endpoint, input);
@@ -436,6 +475,7 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
         if (signal.aborted) signal.throwIfAborted();
         if (deadline.aborted) throw new WorkFailure('Model request deadline exceeded', false, false, undefined, 'WORK_TIMEOUT');
         if (error instanceof WorkFailure) { protocol(false, 'response_byte_limit'); throw error; }
+        if (transportTimedOut(error)) throw new WorkFailure(`Model network request failed (${serviceId})`, true, false, undefined, 'MODEL_NETWORK_ERROR');
         protocol(false, 'invalid_response_body');
         throw new WorkFailure(`Invalid model response (${serviceId})`, !!materials, false, materials ? { code: 'CHECK_INVALID_RESULT' } : undefined);
       } finally { responseBody(); }
@@ -551,5 +591,6 @@ export class OpenAICompatibleAdapter implements WorkAdapter {
         messages.push(repairFeedback(work.kind, error.issue, error.fieldRequirements));
       }
     }
+    } finally { if (dispatcher) await Promise.resolve(dispatcher.destroy()).catch(() => undefined); }
   }
 }

@@ -15,10 +15,10 @@ export async function maximumModelRequests(modelName = environment.MODEL_NAME) {
   const config = createTeamConfig(selectedEnvironment); config.inputAnalysis = { enabled: false };
   assert.equal(config.models!.services.primary!.contextWindowTokens, 1_048_571);
   const other = createTeamConfig({ ...selectedEnvironment, BUILDER_2_MODEL_NAME: 'different-model', BUILDER_3_MODEL_NAME: 'deepseek-v4.1-flash-preview' });
-  assert.equal(other.models!.services['builder-2']!.maxTokens, undefined, 'A different model must not inherit a DeepSeek-specific automatic output maximum');
-  assert.equal(other.models!.services['builder-3']!.maxTokens, undefined, 'Similar model IDs must not acquire this version-specific default');
+  assert.equal(other.models!.services['builder-2']!.maxTokens, 384_000, 'Unset output limits use the shared 384000 default');
+  assert.equal(other.models!.services['builder-3']!.maxTokens, 384_000, 'Similar model IDs use the same unset default and keep their original ID');
   const roleOverride = createTeamConfig({ ...environment, MODEL_NAME: 'different-model', BUILDER_2_MODEL_NAME: modelName });
-  assert.equal(roleOverride.models!.services['builder-2']!.maxTokens, 384_000, 'A role must recognize the provider ID independently of the primary model');
+  assert.equal(roleOverride.models!.services['builder-2']!.maxTokens, 384_000, 'A role without its own limit uses the shared output default');
   const explicitOverride = createTeamConfig({ ...selectedEnvironment, MODEL_MAX_TOKENS: '8192' });
   assert.equal(explicitOverride.models!.services.primary!.maxTokens, 8192, 'Explicit output settings must retain priority');
   const completionOverride = createTeamConfig({ ...selectedEnvironment, MODEL_EXTRA_BODY: '{"max_completion_tokens":8192}' });
