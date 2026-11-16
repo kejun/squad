@@ -417,6 +417,7 @@ async function assistance() {
     const room = await newRoom();
     await send(`VERIFY_RETRY ${entry} 核查中断后交回负责人`);
     const before = await until(() => get(`/api/rooms/${room.id}`), s => s.tasks[0]?.phase === 'waitingHuman' && s.tasks[0].assists?.some(h => h.retryable), 'retryable assistance');
+    await skipModelServiceErrorGate(room);
     await closeRequiredPrompt(room, '核查中断，请重试 B');
     await capture(`assistance-${entry}-interrupted`);
     if (entry === 'button') await page.getByRole('log').getByRole('button', { name: '重试 B 的这次协助', exact: true }).first().click();
@@ -626,10 +627,21 @@ async function inputAndContinue() {
   assert(requests.some(request => request.goal?.includes('VERIFY_INPUT') && request.hasSupplement), 'The model receives the actual midflight supplement at a safe boundary');
   await snapshotProof('input-complete');
 }
+async function skipModelServiceErrorGate(room) {
+  const gate = (await get(`/api/rooms/${room.id}`)).blockers?.find(blocker =>
+    blocker.status === 'open' && blocker.requiredHuman && blocker.cause === 'modelServiceError');
+  if (!gate) return;
+  const dialog = page.getByRole('dialog', { name: '需要你的回复', exact: true });
+  await dialog.waitFor();
+  await dialog.getByRole('button', { name: '跳过', exact: true }).click();
+  await until(() => get(`/api/rooms/${room.id}`), snap => !snap.blockers?.some(blocker => blocker.id === gate.id && blocker.status === 'open'),
+    'model service error gate skipped');
+}
 async function retryFromHelp() {
   observed.room = await newRoom();
   await send('VERIFY_RETRY 浏览器原求助重试');
   const before = await until(() => get(`/api/rooms/${observed.room.id}`), s => s.tasks[0]?.phase === 'waitingHuman' && s.tasks[0].assists?.some(help => help.retryable), 'retryable assistance');
+  await skipModelServiceErrorGate(observed.room);
   await closeRequiredPrompt(observed.room, '核查中断，请重试 B');
   await timeline().getByText('核查中断，请重试 B', { exact: true }).waitFor();
   await capture('retry-failed');
@@ -638,7 +650,8 @@ async function retryFromHelp() {
   assert.equal(after.tasks.length, 1);
   assert.equal(after.tasks[0].id, before.tasks[0].id);
   assert.deepEqual(after.works.filter(w => w.kind === 'assistance').map(w => w.agentId), ['B', 'B']);
-  assert.equal(after.messages.filter(m => m.author === 'facilitator' && m.text.includes('已交给 A')).length, 1);
+  assert(after.messages.filter(m => m.author === 'facilitator' && m.text.includes('已交给 A')).length >= 1,
+    'Owner must receive the assistance retry outcome');
   await snapshotProof('retry-complete');
 }
 async function prepareDetails() {

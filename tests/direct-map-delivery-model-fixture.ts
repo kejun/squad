@@ -6,12 +6,37 @@ import { persistTask, restoreTask } from '../src/task.machine.js';
 import { deliveryCheckMaterials } from '../src/delivery-check-delta.js';
 import { fixtureCheck } from './delivery-protocol-fixture.js';
 import { ResilienceModel } from './task-resilience-model-fixture.js';
-import type { ResourceIdentity } from '../src/resource-acquisition.js';
+import { observeResourceAcquisition, operationAcquisitionSnapshot, resourceAcquisitionProblem, type ResourceIdentity } from '../src/resource-acquisition.js';
+import type { Intent } from '../src/types.js';
+
+function acquireRequiredResource(m: MapQueueModel, work: Intent, resource: ResourceIdentity) {
+  const operationId = `typed-reading:${work.id}`, sessionId = `${operationId}:session`;
+  const action = { type: 'runCli' as const, executable: 'node', args: ['read-typed.mjs', JSON.stringify(resource)] };
+  const content = '宿主读取的完整资源正文', requestHash = createHash('sha256').update(JSON.stringify(action)).digest('hex');
+  assert(m.send({ type: 'LOCAL_REQUEST', intentId: work.id, operationId, namespace: requestHash, requestHash,
+    action, parentAttempt: work.attempt, messages: [], workspaceId: 'project', fence: work }).ok);
+  assert(m.send({ type: 'LOCAL_CLAIM', intentId: work.id, operationId, sessionId, parentAttempt: work.attempt,
+    leaseAvailable: true, fence: work }).ok);
+  assert(m.send({ type: 'LOCAL_STARTED', intentId: work.id, operationId, sessionId, workspaceRevision: 'r1', isolated: true }).ok);
+  assert(m.send({ type: 'LOCAL_RESULT', intentId: work.id, operationId, sessionId,
+    result: { ok: true, code: 'succeeded', data: { stdout: content, exitCode: 0, truncated: false } }, settled: true, effectsKnown: true }).ok);
+  const operation = m.context.intents.find(item => item.id === work.id)!.localOperations!.find(item => item.id === operationId)!;
+  assert.equal(resourceAcquisitionProblem(m.context), 'RESOURCE_ACQUISITION_UNVERIFIED', 'A successful CLI output alone must not satisfy the resource obligation');
+  const receipt = observeResourceAcquisition({ id: `${operationId}:acquisition`, operationId, taskId: m.context.taskId,
+    workId: work.id, attempt: work.attempt, epoch: work.epoch, goalVersion: work.goalVersion, requestHash, source: 'runCli',
+    requestedResource: resource, resource, content, contentHash: createHash('sha256').update(content).digest('hex'),
+    complete: true, verifier: { id: 'fixture-typed-reader', version: '1' }, executionSucceeded: true,
+    configuration: { id: 'task-protocol', version: JSON.stringify([m.context.config.version, m.context.config.toolVersion]), authentication: 'satisfied' },
+    at: operation.finishedAt!, sourceSnapshot: operationAcquisitionSnapshot(operation) });
+  assert(m.send({ type: 'RECORD_ACQUISITION', intentId: work.id, receipt }).ok);
+  assert.equal(resourceAcquisitionProblem(m.context), null);
+}
 
 export function settledDirectMap(resource?: ResourceIdentity) {
   const m = new MapQueueModel(input => { if (resource) input.goal.partitionResources = { 'part-7': [resource] }; });
   while (m.pending('assistance').length) {
     const work = m.start(), id = (work.payload.partition as { id: string }).id;
+    if (resource && id === 'part-7') acquireRequiredResource(m, work, resource);
     assert(m.send({ type: 'DISCUSSION_RESULT', workId: work.id, fence: work, attempt: work.attempt, discussionId: work.discussionId!,
       status: id === 'part-7' ? 'success' : 'failed', text: id === 'part-7' ? 'doc-7已完成内容' : '失败诊断，不是交付正文',
       artifacts: [{ name: id + '.md', content: id === 'part-7' ? '成功文件' : '失败片不得交付此文件' }] }).ok);

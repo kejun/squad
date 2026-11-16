@@ -64,11 +64,18 @@ export async function webRecoveryAcceptance(kind: RecoveryCase, role = '并行�
     } else if (kind === 'limit') {
       assert.equal(snapshot.modelRequests, 3); assert.equal(snapshot.webCalls, 3); assert.equal(snapshot.cliCalls, 0);
       assert.equal(facts.length, 2); assert.equal(f.replies.length, 1);
-      assert(context.discussion!.results.some(result => result.status === 'failed' && result.answer.includes('TOOL_RECOVERY_EXHAUSTED')));
+      const failed = context.discussion!.results.find(result => result.target === work.target)!;
+      assert.equal(failed.status, 'failed');
+      assert.equal(failed.answer, '');
+      assert.deepEqual(failed.artifactIds, []);
+      assert(failed.reason?.includes('TOOL_RECOVERY_EXHAUSTED'));
     } else if (kind === 'no-alternative') {
       assert.equal(snapshot.modelRequests, 2); assert.equal(snapshot.cliCalls, 0); assert.equal(facts.length, 1);
-      assert.equal(context.discussion!.results[0]!.status, 'failed');
-      assert(context.discussion!.results[0]!.answer.includes('没有其他获准'));
+      const failed = context.discussion!.results.find(result => result.target === work.target)!;
+      assert.equal(failed.status, 'failed');
+      assert.equal(failed.answer, '');
+      assert.deepEqual(failed.artifactIds, []);
+      assert.equal(failed.reason, '没有其他获准的工具，未能取得目标资料');
     } else {
       assert.equal(snapshot.modelRequests, 1); assert.equal(snapshot.cliCalls, 0); assert.equal(facts.length, 0);
       if (kind === 'uncertain') assert.equal(settled.status, 'uncertain');

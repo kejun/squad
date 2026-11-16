@@ -54,13 +54,14 @@ export function directHostSelectionModel(decision = '尚未决定') {
 const boundaryCodes: Record<string, string> = {
   已停止: 'STOPPED', 旧目标: 'STALE_WORK', 旧轮次: 'STALE_WORK', 已过期: 'WORK_EXPIRED',
   本地工具撤权: 'LOCAL_TOOLS_DISABLED', 成员工具撤权: 'LOCAL_TOOLS_DISABLED',
-  效果不明: 'WORK_NOT_INFLIGHT', 最终固定材料检查: 'CHECK_LOCAL_TOOLS_NOT_ALLOWED',
+  效果不明: 'WORK_NOT_INFLIGHT', 最终检查本地工具撤权: 'LOCAL_TOOLS_DISABLED',
 };
 
 export function unifiedToolBoundaryModel(boundary: string) {
   assert(Object.hasOwn(boundaryCodes, boundary), `Unknown unified-tool boundary: ${boundary}`);
-  const originalBoundary = boundary === '最终固定材料检查' ? '最终检查' : boundary;
+  const originalBoundary = boundary === '最终检查本地工具撤权' ? '本地工具撤权' : boundary;
   const { model: m, allowed } = modelGuidanceBoundary(originalBoundary);
+  if (boundary === '最终检查本地工具撤权') m.c.intents[0]!.kind = 'check';
   assert.equal(allowed, false);
   const operations = structuredClone(m.c.intents[0]!.localOperations);
   const usage = structuredClone(m.c.usage);

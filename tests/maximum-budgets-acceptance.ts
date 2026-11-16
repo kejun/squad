@@ -87,15 +87,16 @@ export async function compactMaximumInventory() {
     assert(await f.runner().runOne(f.h.room, f.h.task)); assert.equal(f.requests.length, 2);
     const observations = f.requests.map(request => request.messages.filter(message => message.role === 'user')
       .map(message => { try { return JSON.parse(message.content); } catch { return null; } }).find(value => value?.type === 'tool_inventory'));
-    assert.equal(observations[0].cli.encoding, 'shared_cli_metadata_v1', 'Repeated placeholder metadata must be shared, not copied thousands of times');
-    const expanded = expandInventory(observations[0]);
-    assert.deepEqual(expanded.cli.entries, before.cli.entries, 'The wire format must preserve every command, usage, path, version and readiness fact');
-    assert.equal(expandInventory(observations[1]).cli.entries.length, 2476);
+    assert.equal(observations[0].catalogProjection, 'progressive');
+    assert.equal(observations[0].cli.entryCount, 2476);
+    assert.equal(observations[0].cli.entries.length, 0, 'Progressive inventory must not ship the full catalog on the first request');
+    const expanded = expandInventory(observations[1]);
+    assert.equal(expanded.cli.entries.length, 2, 'Discovery returns full metadata only for recalled commands');
     assert(f.requests[1]!.messages.some(message => message.content.includes('local_tool_result')));
     assert.equal(f.backend.calls.length, 0);
     const compactBytes = Buffer.byteLength(JSON.stringify(observations[0]));
     const originalBytes = Buffer.byteLength(JSON.stringify({ type: 'tool_inventory', untrusted: true, ...before }));
-    assert(compactBytes < originalBytes * 0.65, `Shared metadata must leave material context headroom: ${compactBytes}/${originalBytes}`);
+    assert(compactBytes < originalBytes * 0.2, `Progressive inventory must leave material context headroom: ${compactBytes}/${originalBytes}`);
     return { entries: 2476, unknown: 1806, known: 670, originalBytes, compactBytes, modelRequests: 2, executions: 0 };
   } finally { await f.close(); }
 }

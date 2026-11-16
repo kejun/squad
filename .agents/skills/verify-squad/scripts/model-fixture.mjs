@@ -13,6 +13,7 @@ export async function startFixture(log) {
   const pending = new Set();
   const archivePending = new Map();
   const barriers = new Map();
+  const verifyStopHeld = new Set();
   let cancelled = 0;
   const server = createServer(async (req, res) => {
     try {
@@ -31,9 +32,10 @@ export async function startFixture(log) {
         return typeof value?.workId === 'string' && value.workId && value.context &&
           typeof value.context === 'object' && !Array.isArray(value.context) ? [value] : [];
       });
-      if (inputs.length !== 1) throw new Error('Production task envelope drift');
-      const { workId, context } = inputs[0];
-      const match = /^You are (.+?), executing (\w+) work\./.exec(request.messages[0].content);
+      if (!inputs.length) throw new Error('Production task envelope drift');
+      const { workId, context } = inputs[inputs.length - 1];
+      const system = request.messages.find(message => message.role === 'system');
+      const match = system ? /^You are (.+?), executing ([\w-]+) work(?:\.|\s)/.exec(system.content) : null;
       if (!match || !workId) throw new Error('Production model protocol drift');
       const [, target, kind] = match;
       const goal = context.goal?.text ?? context.rawInputs?.[0]?.text ?? '';
@@ -87,19 +89,22 @@ export async function startFixture(log) {
         appendFileSync(log, JSON.stringify({ event: 'archive-request-held', workId, goal }) + '\n');
         return;
       }
-      if (goal.includes('VERIFY_STOP') && kind === 'owner' && count === 1) {
-        pending.add(res);
-        res.on('close', () => {
-          pending.delete(res);
-          cancelled++;
-          appendFileSync(log, JSON.stringify({ event: 'request-cancelled', workId, goal, target, kind }) + '\n');
-        });
-        return; // Deliberately wait for the user's Stop action to abort HTTP.
+      if (goal.includes('VERIFY_STOP') && kind === 'owner') {
+        const stopKey = `${goal.replace(/@[\w-]+\s*/g, '').trim()}:${target}`;
+        if (!verifyStopHeld.has(stopKey)) {
+          verifyStopHeld.add(stopKey);
+          pending.add(res);
+          res.on('close', () => {
+            pending.delete(res);
+            cancelled++;
+            appendFileSync(log, JSON.stringify({ event: 'request-cancelled', workId, goal, target, kind }) + '\n');
+          });
+          return; // Deliberately wait for the user's Stop action to abort HTTP.
+        }
       }
       if (goal.includes('VERIFY_RETRY') && kind === 'assistance' && count === 1) {
-        res.writeHead(400, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ error: { code: 'VerificationInterrupted' } }));
-        return;
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return respond({ type: 'answer', text: '核查中断', status: 'failed', summary: '核查中断' });
       }
       res.writeHead(200, { 'content-type': 'application/json' });
       if (kind === 'check') return respond({ type: 'check', criteriaResults: goal.includes('VERIFY_REPAIR') && count === 1

@@ -43,6 +43,7 @@ def write(path, value):
 
 def execute(command, cwd, log, timeout=60):
     env = dict(os.environ)
+    env['NODE_NO_WARNINGS'] = '1'
     # Host-injected incomplete profiles are irrelevant to this provider-free slice.
     for key in list(env):
         if re.match(r'^(?:MODEL_|A_MODEL_|B_MODEL_|BUILDER_[123]_MODEL_|FACILITATOR_MODEL_|CHECK_MODEL_|INTENT_MODEL_)', key):

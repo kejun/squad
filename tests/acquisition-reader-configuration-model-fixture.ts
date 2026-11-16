@@ -111,7 +111,22 @@ export function customReaderSourceItemsModel(kind: 'document' | 'url' = 'documen
   assert(m.send({ type: 'DELIVER', workId: work.id, fence: work, attempt: work.attempt, text: '文档工作清单', artifactIds: [],
     artifacts: [{ name: 'work.md', content: '当前工作项', sourceItems: [{ text: '安排评审', status: '进行中',
       sourceDocId: wrongId ? 'six' : 'five', sourceEvidenceId: op.id }] }] }).ok);
-  if (wrongId) { assert.equal(m.c.candidate?.deliveryIssue?.code, 'SOURCE_DOCUMENT_NOT_FOUND'); assert.notEqual(m.c.outcome, 'complete'); }
+  if (wrongId) {
+    assert.equal(m.c.candidate?.deliveryIssue, undefined);
+    const pending = m.c.intents.find(item => item.kind === 'check' && item.status === 'pending')!;
+    assert(pending); assert(m.send({ type: 'CLAIM', intentId: pending.id }).ok);
+    const check = m.c.intents.find(item => item.id === pending.id)!;
+    assert(JSON.stringify(check.payload).includes('six'), 'The original declared document identity must reach the checker');
+    assert.equal(savedResourceAcquisitions(m.c)[0]!.content, '进行中，等待评审。');
+    assert(m.send({ type: 'CONSUME', intentId: check.id, fence: check, attempt: check.attempt }).ok);
+    const criteriaResults = m.c.candidate!.acceptance!.criteria.map(criterion => ({ criterionId: criterion.id,
+      status: 'failed', reason: '工作项声明文档six，但真实读取凭证只取得文档five，不能据此核实six。' }));
+    assert(m.send({ type: 'CHECK_RESULT', workId: check.id, fence: check, attempt: check.attempt, resultId: 'wrong-document-check',
+      candidateRevision: m.c.candidate!.revision, criteriaResults }).ok);
+    assert.equal(m.c.outcome, 'complete');
+    assert.deepEqual(m.c.intents.find(item => item.id === check.id)!.criteriaResults, criteriaResults);
+    assert.equal(m.c.intents.filter(item => item.kind === 'owner').length, 1);
+  }
   else { assert.equal(m.c.candidate?.deliveryIssue, undefined); finishReceiptCheck(m); assert.equal(m.c.outcome, 'complete'); }
   return { m, receipt };
 }

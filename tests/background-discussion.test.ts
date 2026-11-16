@@ -42,10 +42,14 @@ describe('bounded background discussion', () => {
     expect(f.calls.filter(work => work.kind === 'discussionSummary')).toHaveLength(1);
     expect(f.calls.filter(work => work.kind === 'check')).toHaveLength(1);
   });
-  it.each([['成员', '失败'], ['成员', '超时'], ['安排', '失败'], ['汇总', '失败']])('[BT_T05] continues with truthful partial results after %s %s', async (stage, mode) => {
+  it.each([['成员', '失败'], ['成员', '超时'], ['安排', '失败'], ['汇总', '失败']])('[BT_T05] preserves discussion gaps for the downstream judgment after %s %s', async (stage, mode) => {
     const f = setup(); f.invite(); f.failStage = stage; f.failMode = mode; await f.discuss(); f.draft();
     const input = f.pending()[0]!.payload.discussion as { incomplete: string; summary: string };
-    expect(input.incomplete).toBeTruthy(); expect(input.summary).toBeTruthy(); await f.drain(); expect(f.context().outcome).toBe('partial');
+    expect(input.incomplete).toBeTruthy(); expect(input.summary).toBeTruthy(); await f.drain();
+    expect(f.calls.find(work => work.kind === 'check')!.payload.executionNotes).toContain(input.incomplete);
+    expect(f.context().discussion?.incomplete).toBe(input.incomplete);
+    expect(f.context().messages.find(message => message.kind === 'final')!.text).toContain(input.incomplete);
+    expect(f.context().outcome).toBe('complete');
     if (stage === '成员') expect(f.context().discussion?.results).toHaveLength(4);
   });
   it.each([2, 4, 5, 6])('[BT_T06] retains summary and owner capacity at ordinary limit %s', async limit => {
@@ -53,7 +57,9 @@ describe('bounded background discussion', () => {
     f.invite(); await f.discuss(); f.draft(); await f.drain();
     expect(f.context().usage.ordinary).toBeLessThanOrEqual(limit);
     expect(f.context().usage.assists).toBeLessThanOrEqual(f.config.limits.assists);
-    expect(f.context().outcome).toBe('partial');
+    expect(f.context().discussion?.incomplete).toBeTruthy();
+    expect(f.calls.find(work => work.kind === 'check')!.payload.executionNotes).toContain(f.context().discussion!.incomplete);
+    expect(f.context().outcome).toBe('complete');
     expect(f.context().messages.some(message => /额度|未参与/.test(message.detailText ?? message.text))).toBe(true);
   });
   it('[BT_T07] coalesces invitations and rejects repeated results without duplicating handoff', async () => {

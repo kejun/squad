@@ -16,7 +16,9 @@ export interface HostCapabilitySource {
 export async function discoverHostCapabilities(source: HostCapabilitySource, commands: string[], signal: AbortSignal) {
   signal.throwIfAborted();
   const cli = [];
-  for (const command of [...new Set([...commands, ...(source.catalog?.entries.map(entry => entry.command) ?? [])])]) {
+  const catalogNames = source.catalog?.entries.map(entry => entry.command) ?? [];
+  const unregistered = source.catalog?.recall?.unregisteredNames ?? [];
+  for (const command of [...new Set([...commands, ...catalogNames, ...unregistered])]) {
     signal.throwIfAborted();
     const sandbox = await source.locate(command, 'sandbox');
     signal.throwIfAborted();

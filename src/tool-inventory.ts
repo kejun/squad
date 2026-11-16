@@ -13,13 +13,14 @@ export interface ToolInventorySnapshot {
   observedAt: number;
   metadataOnly: true;
   executionAuthority: false;
+  catalogProjection?: 'progressive';
   environment: {
     platform: string; arch: string;
     sandbox: { available: boolean; reason?: string };
     host: { approvalRequired: true };
   };
-  cli: { catalogVersion: string; configuration: CliCatalogConfiguration; entries: CliCatalogEntry[] };
-  skills: Pick<SkillPage, 'catalogVersion' | 'complete' | 'skills' | 'diagnostics'>;
+  cli: { catalogVersion: string; configuration: CliCatalogConfiguration; entries: CliCatalogEntry[]; entryCount?: number };
+  skills: Pick<SkillPage, 'catalogVersion' | 'complete' | 'skills' | 'diagnostics'> & { skillCount?: number };
   refresh: { status: 'current' | 'failed'; checkedAt: number; error?: string };
 }
 export interface ToolInventoryOptions {
@@ -128,8 +129,10 @@ export class ToolInventoryStore {
     const snapshot = freeze<ToolInventorySnapshot>({ schemaVersion: 1, metadataOnly: true, executionAuthority: false,
       catalogVersion: hash([cliPage.catalogVersion, cliPage.configuration, skillPage.catalogVersion, environment, skillComplete, skillPage.diagnostics]),
       observedAt: this.now(), environment,
-      cli: { catalogVersion: cliPage.catalogVersion, configuration: structuredClone(cli.configuration), entries: cliPage.entries },
-      skills: { catalogVersion: skillPage.catalogVersion, complete: skillComplete, skills: skillPage.skills, diagnostics: skillPage.diagnostics },
+      cli: { catalogVersion: cliPage.catalogVersion, configuration: structuredClone(cli.configuration),
+        entryCount: cliPage.entries.length, entries: cliPage.entries },
+      skills: { catalogVersion: skillPage.catalogVersion, complete: skillComplete, skillCount: skillPage.skills.length,
+        skills: skillPage.skills, diagnostics: skillPage.diagnostics },
       refresh: { status: 'current', checkedAt: this.now() } });
     if (this.closed) return this.generation?.snapshot ?? snapshot;
     this.generation = { cli, registry, snapshot };

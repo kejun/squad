@@ -170,9 +170,16 @@ export function prepareCheckCommand(): CoreModelRun {
     return { act() {
             const reply = m.request({ type: 'runCli', executable: 'npm', args: ['test'], execution: 'sandbox' });
             const observed1 = reply.code;
-            checks.push(() => { assert.equal(observed1, 'CHECK_LOCAL_TOOLS_NOT_ALLOWED'); });
+            checks.push(() => { assert.equal(observed1, 'OK'); });
             const observed2 = m.c.intents.find(work => work.id === m.work.id)?.localOperations;
-            checks.push(() => { assert.equal(observed2, undefined); });
+            checks.push(() => {
+                assert.equal(observed2?.length, 1);
+                assert.equal(observed2?.[0]?.status, 'queued');
+                assert.equal(observed2?.[0]?.attempt, 0);
+                assert.equal(observed2?.[0]?.startedAt, undefined);
+                assert.deepEqual(observed2?.[0]?.action, { type: 'runCli', executable: 'npm', args: ['test'], execution: 'sandbox' });
+                assert.equal(m.c.usage.ordinary, 1);
+            });
         }, verify() { for (const check of checks)
             check(); } };
 }
@@ -182,9 +189,13 @@ export function prepareCheckPrerequisite(): CoreModelRun {
     return { act() {
             const reply = m.send({ type: 'CONSUME', intentId: m.work.id, fence: m.work });
             const observed1 = reply.code;
-            checks.push(() => { assert.equal(observed1, 'WORKSPACE_VALIDATION_REQUIRED'); });
+            checks.push(() => { assert.equal(observed1, 'OK'); });
             const observed2 = m.c.intents.find(work => work.id === m.work.id)?.requestCount;
-            checks.push(() => { assert.equal(observed2, 0); });
+            checks.push(() => {
+                assert.equal(observed2, 1);
+                assert.equal(m.c.usage.checks, 1);
+                assert.equal(m.c.intents.find(work => work.id === m.work.id)?.localOperations, undefined);
+            });
         }, verify() { for (const check of checks)
             check(); } };
 }
@@ -201,11 +212,16 @@ export function prepareCheckFinalVersion(): CoreModelRun {
             const observed1 = reply.ok;
             checks.push(() => { assert.equal(observed1, true); });
             const observed2 = m.c.outcome;
-            checks.push(() => { assert.equal(observed2, 'partial'); });
-            const observed3 = m.c.reason;
+            checks.push(() => { assert.equal(observed2, 'complete'); });
+            const observed3 = m.c.candidate?.text;
             checks.push(() => { assert((observed3)?.includes('WORKSPACE_VERIFICATION_REQUIRED')); });
             const observed4 = m.c.publishedDelivery;
-            checks.push(() => { assert.equal(observed4, undefined); });
+            checks.push(() => {
+                assert.equal(observed4?.revision, m.c.candidate?.revision);
+                assert.equal(m.c.messages.at(-1)?.text, observed3);
+                assert.deepEqual(m.c.intents.find(work => work.id === m.work.id)?.criteriaResults, criteriaResults);
+                assert(!m.c.intents.some(work => work.status === 'pending'));
+            });
         }, verify() { for (const check of checks)
             check(); } };
 }
@@ -217,11 +233,15 @@ export function prepareMissingCommand(): CoreModelRun {
             const observed1 = reply.ok;
             checks.push(() => { assert.equal(observed1, true); });
             const observed2 = m.c.outcome;
-            checks.push(() => { assert.equal(observed2, 'partial'); });
-            const observed3 = m.c.reason;
-            checks.push(() => { assert((observed3)?.includes('WORKSPACE_VALIDATION_UNAVAILABLE')); });
-            const observed4 = m.c.intents.some(work => work.kind === 'check');
-            checks.push(() => { assert.equal(observed4, false); });
+            checks.push(() => { assert.equal(observed2, null); });
+            const check = m.c.intents.find(work => work.kind === 'check');
+            checks.push(() => {
+                assert.equal(check?.status, 'pending');
+                assert.deepEqual(check?.payload.verification, { status: 'unavailable' });
+                assert.equal(check?.localOperations, undefined);
+                assert.equal(m.c.publishedDelivery, undefined);
+                assert.equal(m.c.candidate?.text, 'candidate');
+            });
         }, verify() { for (const check of checks)
             check(); } };
 }

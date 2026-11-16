@@ -345,7 +345,7 @@ export async function namespaceAcceptance() {
       const task = engine.submit(room, { id: 'same-message', text: '写入任务工作区并运行 npm run build' }).taskId!;
       const runner = new WorkRunner(engine, { execute: async (work, signal, scope) => {
         if (work.kind === 'check') {
-          assert.equal(scope.localTools, undefined);
+          assert(scope.localTools);
           return fixtureCheck(work.payload.candidate);
         }
         assert(scope.localTools);
@@ -427,16 +427,22 @@ export async function revisionAcceptance(change: string, expected: string) {
     assert.equal(f.backend.calls.length, 1);
     assert.deepEqual(check.localOperations?.map(op => op.action.type), restoreCopy ? ['runCli'] : ['runCli', 'verifyWorkspace']);
     assert(check.localOperations?.every(op => op.sessionId));
-    assert.equal(f.requests.length, restoreCopy ? 0 : 1);
+    assert.equal(f.requests.length, 1);
     assert.equal(f.h.context().usage.ordinary, restoreCopy ? 2 : 3);
     if (restoreCopy) assert.equal(await readFile(join(f.backend.calls[0]!.workspace, 'source.txt'), 'utf8'), 'authoritative');
-    if (expected === '通过') assert.equal(f.h.context().outcome, 'complete');
+    assert.equal(f.h.context().outcome, 'complete');
+    assert.equal(f.h.view().phase, 'ended');
+    if (expected === '通过') assert(!f.h.context().candidate?.text.includes('实际验证未完成'));
     else {
-      assert.equal(f.h.context().outcome, 'partial');
-      assert.equal(f.h.view().phase, 'ended');
-      assert.match(f.h.context().reason, restoreCopy ? /CHECK_INPUTS_CHANGED/ : /WORKSPACE_REVISION_CHANGED/);
-      assert.equal(f.h.context().publishedDelivery, undefined);
+      assert.equal(expected, '声明版本缺口');
+      const code = restoreCopy ? 'CHECK_INPUTS_CHANGED' : 'WORKSPACE_REVISION_CHANGED';
+      const operation = check.localOperations!.find(op => op.action.type === (restoreCopy ? 'runCli' : 'verifyWorkspace'))!;
+      if (restoreCopy) assert.equal(operation.result?.data.validationInputsChanged, true);
+      else assert.equal(operation.result?.code, code);
+      assert(f.h.context().candidate?.text.includes(`实际验证未完成：${code}`));
+      assert.equal(f.h.context().messages.at(-1)?.text, f.h.context().candidate?.text);
     }
+    assert.equal(f.h.context().publishedDelivery?.revision, f.h.context().candidate?.revision);
     const writeRoots = f.backend.calls[0]!.writeRoots!; assert(writeRoots.every(p => p !== f.backend.calls[0]!.workspace));
   } finally { await f.close(); }
 }
