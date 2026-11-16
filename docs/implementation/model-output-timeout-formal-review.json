@@ -1,0 +1,35 @@
+{
+  "userRequest": "默认输出额度 384000，并避免非流式生成停在 undici 300 秒响应头时限",
+  "status": "no-effect",
+  "productCommit": "48456a17b92596525d225632c71485fb5c143b06",
+  "syncCommitPreserved": "b25125aa0d6b5fd7cd5afb9d9a569f3705fd1ed0",
+  "baseline": "coverage pins matched a95355a78dbbc97b753bc6fbabaf8aeeb7bdfce7 except the three files below; CI composition and formal checks stopped at the hash gate before TLC",
+  "files": [
+    {
+      "path": "src/budget-defaults.ts",
+      "beforeSha256": "47cb319318d1bb534bc8d75a06523588846a7316f546c1934b934839cea9fa39",
+      "afterSha256": "7b3ddd66ca771f70769e50ab2dc356cb5927019b8e744cdb37550af99f8bdc32",
+      "classification": "no-effect",
+      "reason": "defaultMaxOutputTokens is 384000, the same value deepseekFlashMaximumOutputTokens already had. defaultModelTransportTimeoutMs aliases the existing maximumTimeoutMs. No modeled counter, deadline, or budget transition changes."
+    },
+    {
+      "path": "src/model-env.ts",
+      "beforeSha256": "bcc3f5eb29b33bfd45302f8d3fb151229420d3574474480c1535f421a2976765",
+      "afterSha256": "eba7d8b4bf4c8425b7ab84e6a7d5ae6af5c5933a813f2127a0d2702a87ff4523",
+      "classification": "no-effect",
+      "reason": "Unset MAX_TOKENS now fills 384000 for every model. Explicit MAX_TOKENS and EXTRA_BODY output limits keep the previous priority. This is a configuration projection, not an authority, handoff, delivery, coordination, host-retry, or local-effect transition."
+    },
+    {
+      "path": "src/model-adapter.ts",
+      "beforeSha256": "b79eac76c443670ea15f69ea47660d1717f289cbe2e4eda78bd1997f8f3aab88",
+      "afterSha256": "8760e3f52e4b033555037aef942396cb8274e765276323eb4e3386809b599670",
+      "classification": "no-effect",
+      "reason": "Non-streaming requests still return one JSON body. Headers and body waits use MODEL_HEADERS_TIMEOUT_MS and MODEL_BODY_TIMEOUT_MS, defaulting to the existing maximum timer. A client timeout remains the existing transient MODEL_NETWORK_ERROR; a work deadline remains WORK_TIMEOUT; user stop still aborts the same request signal. Invalid timeout values fail before a request. No new state-machine event, guard, or atomic write."
+    }
+  ],
+  "models": "unchanged",
+  "properties": "unchanged",
+  "bounds": "unchanged",
+  "negativeControls": "anchors are not in these three files",
+  "syncCommitAdvanced": false
+}
