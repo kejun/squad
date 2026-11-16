@@ -71,6 +71,9 @@ export async function checkEvidence(fixture: LocalFixture, finding?: Omit<Extrac
 }
 
 export async function reviseEvidenceCandidate(fixture: LocalFixture) {
+  assert.equal(fixture.h.context().outcome, 'complete');
+  assert(fixture.h.context().candidate!.text.includes('未完成或未核实事项：\n- 候选误述证据出处'));
+  assert(fixture.h.event({ type: 'CONTINUE' }).ok);
   assert.equal((await runPending(fixture, { ...delivery, text: '修正出处说明，保留原始来源' })).kind, 'owner');
   assert.equal(fixture.h.view().phase, 'checking');
 }

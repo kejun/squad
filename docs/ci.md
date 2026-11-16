@@ -1,6 +1,6 @@
 # 持续集成
 
-`CI` 工作流在 PR、main 推送和手动运行时执行。工作流定义8个实际作业：完整产品验收、独立浏览器与集成故障对照、原形式化集合，以及5个并行组合切片。GitHub分支保护的required状态以仓库设置为准；增加workflow job不会自动修改保护规则。
+`CI` 工作流在 PR、main 推送和手动运行时执行。普通完整运行有12个作业：完整产品验收、独立浏览器与集成故障对照、4个原形式化切片及其汇总门禁，以及5个并行组合切片。GitHub分支保护的required状态以仓库设置为准；增加workflow job不会自动修改保护规则。
 
 ## 完整产品验收
 
@@ -26,7 +26,9 @@
 
 ## 形式化集合
 
-`Formal verification`安装Node24.22.1和Java21，15分钟内顺序运行handoff、delivery、authority、coordination原入口，再独立读回实际证据。delivery主入口包含原Delivery及Verification、Cycles、SourceLineage三个新域。
+`Formal checks (...)`以4个独立matrix作业完整运行handoff、delivery、authority、coordination原入口；每个作业安装Node24.22.1和Java21，仍有15分钟上限，并独立读回本切片实际证据。delivery主入口包含原Delivery及Verification、Cycles、SourceLineage三个新域，原证据遗漏反控仍在delivery切片执行。各切片以独立名称上传隐藏文件与完整证据，保留14天。
+
+原必需检查名`Formal verification`保留为汇总门禁：始终等待4个切片结论，仅矩阵全部success时通过；failure、cancelled或非预期skipped都不能变绿。定向手动运行仍按原条件跳过整组形式化检查。拆分依据为CI75的真实超时：原串行作业运行满15分钟，coordination在运行8分32秒后被平台取消；不提高时限、不减少任何模型、反控或读回。
 
 `Formal composition (...)`为handoff、authority、coordination、local-effects、host-retry五个独立matrix作业，各25分钟。每个干净runner独立下载官方TLA+ Tools v1.7.4并校验固定SHA-256，导出`TLA2TOOLS_JAR`，不假设另一作业已准备缓存。各切片完整探索后，用同一checker另行`--verify-evidence`读回；handoff/local-effects/host-retry还运行证据损坏与删件控制。具体九入口和有限保证见[形式化验证](formal-verification.md)。
 
@@ -34,6 +36,6 @@
 
 所有作业在成功或失败时上传reports原始证据并保留14天；完整验收另上传test-results。缺报告、空checks、skip、cancel、timeout或旧提交成功都不能当作当前head完成。job上限只用于终止失控执行，叶进程保留自己的时限、断言与清理。
 
-合并前核对PR最终head的本工作流全部8个作业成功，并确认head未变化。仅本地成功不能替代CI；本文不修改分支保护或授予写权限。独立读回检查声明协议下的证据完整性，不重新运行模型，不是防恶意作者伪造的数字签名。
+合并前核对PR最终head的本工作流全部12个作业成功，并确认head未变化。仅本地成功不能替代CI；本文不修改分支保护或授予写权限。独立读回检查声明协议下的证据完整性，不重新运行模型，不是防恶意作者伪造的数字签名。
 
 工作流使用合成输入和受控模型HTTP，不配置真实供应商密钥。真实浏览器覆盖限定的原始契约及组合场景；不声称验收真实供应商质量、用户账号、任意浏览器流程或无限故障。

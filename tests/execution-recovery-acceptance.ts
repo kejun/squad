@@ -420,6 +420,7 @@ export async function receiptWindowRecoveryAcceptance(backend: string) {
   const body = '真实原生命令已取得的文档five正文';
   const action = { type: 'runCli' as const, executable: 'node', args: ['-e', `process.stdout.write(${JSON.stringify(JSON.stringify({ id: 'five', body }))})`] };
   const runtime = await LocalRuntime.create({ dataRoot: join(root, 'runtime'), skillRoots: [], backend: processBackend, clock: () => h.now,
+    cliCatalog: [{ command: 'node', description: '读取固定夹具文档正文' }],
     acquisitionReaders: [{ id: 'trusted-fixture-json-reader', version: '1', command: 'node', argsPrefix: ['-e'],
       format: 'json-document', resource: documentFive }] });
   let firstRunner: WorkRunner | undefined;
@@ -433,8 +434,11 @@ export async function receiptWindowRecoveryAcceptance(backend: string) {
       return new Promise<never>(() => {});
     } }, () => h.now, undefined, undefined, runtime);
     const originalRun = firstRunner.runOne(h.room, h.task);
-    await Promise.race([localComplete, originalRun.then(() => { throw new Error(`Original fixture execution stopped: ${h.context().reason}`); }),
-      wait(2000).then(() => { throw new Error('Native receipt did not settle before controlled cut'); })]);
+    let receiptTimeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([localComplete, originalRun.then(() => { throw new Error(`Original fixture execution stopped: ${h.context().reason}`); }),
+        new Promise<never>((_resolve, reject) => { receiptTimeout = setTimeout(() => reject(new Error('Native receipt did not settle before controlled cut')), 2000); })]);
+    } finally { if (receiptTimeout) clearTimeout(receiptTimeout); }
     const original = h.context().intents.find(work => work.status === 'inflight' && work.kind === 'owner')!;
     const originalOperation = original.localOperations![0]!;
     assert.equal(originalOperation.status, 'succeeded'); assert.equal(processBackend.calls.length, 1);

@@ -36,7 +36,7 @@ After(async function (this: SpecWorld) { await states.get(this)?.fixture?.close(
 Given('负责人已经取得资料并保存完整的执行回执', async function (this: SpecWorld) { await prepare(this); });
 Given('当前目标已经保存一次资料采集的执行证据', async function (this: SpecWorld) { await prepare(this); });
 Given('当前目标保持不变且旧执行轮次保存了完整回执', async function (this: SpecWorld) { await prepare(this); });
-When('系统为首检及修订后的复核准备固定材料', async function (this: SpecWorld) {
+When('系统为首检及用户明确续办后的检查准备固定材料', async function (this: SpecWorld) {
   const s = state(this);
   const first = await checkEvidence(s.fixture!, { status: 'failed', reason: '候选误述证据出处', source: { id: s.source!, quote: '真实正文' } });
   await reviseEvidenceCandidate(s.fixture!);
@@ -47,7 +47,7 @@ Then('检查员应从同一证据快照各一次取得原正文、来源和采�
   const [first, review] = s.checks!;
   const [source] = first!.evidence;
   assert.equal(first!.evidence.length, 1);
-  assert.deepEqual(review!.evidence, first!.evidence);
+  assert.deepEqual(review!.evidence, first!.evidence.map(item => ({ ...item, metadata: { ...item.metadata, historicalObservation: true } })));
   assert.notEqual(review!.candidate.revision, first!.candidate.revision);
   assert.equal(review!.previousResults[0]?.source?.id, s.source);
   assert.equal(source?.stdout, fixtureBody);

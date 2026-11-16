@@ -8,11 +8,13 @@ export interface InventoryReadiness {
 }
 export interface InventoryObservation {
   type: 'tool_inventory'; untrusted: true; schemaVersion: 1; catalogVersion: string; observedAt: number;
-  metadataOnly: true; executionAuthority: false;
+  metadataOnly: true; executionAuthority: false; catalogProjection?: 'progressive';
   cli: { configuration: { state: string; entryCount: number; source?: 'automatic' | 'configured' }; catalogVersion: string;
+    entryCount?: number;
     entries: (CliCatalogEntry & { toolId: string; entryVersion: string;
       variants: { execution: 'sandbox' | 'host'; approvalRequired: boolean; readiness: InventoryReadiness }[] })[] };
-  skills: { catalogVersion: string; complete: boolean; skills: { name: string; skillId: string; skillVersion: string }[];
+  skills: { catalogVersion: string; complete: boolean; skillCount?: number;
+    skills: { name: string; skillId: string; skillVersion: string }[];
     diagnostics: { code: string }[] };
   environment: { sandbox: { available: boolean }; host: { approvalRequired: true } };
   refresh: { status: 'current' | 'failed'; checkedAt: number; error?: string };

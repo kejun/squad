@@ -27,7 +27,7 @@ function replaceOnce(text, original, changed) {
 const controls = [
   { id: 'truncate-complete-skill-inventory', scenario: 'BT_Y121', file: 'src/local-skills.ts',
     entry: "await import('./tests/unified-tool-context-acceptance.ts').then(m => m.completeToolInventoryAcceptance());",
-    marker: '20 !== 28', oracle: 'completeToolInventoryAcceptance',
+    marker: 'Complete inventory must retain every installed skill', oracle: 'completeToolInventoryAcceptance',
     mutate: text => replaceOnce(text,
       'skills: this.entries.map(({ root: _root, files: _files, ...metadata }) => structuredClone(metadata)),',
       'skills: this.entries.slice(0, 20).map(({ root: _root, files: _files, ...metadata }) => structuredClone(metadata)),') },

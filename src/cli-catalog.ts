@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { catalogWindow, matchesCatalogQuery, normalizeCatalogQuery } from './catalog-search.js';
+import { recallCatalogEntries, type CatalogRecallMatch } from './catalog-bm25.js';
 import { recommendMetadata } from './tool-recommendation.js';
 
 export interface CliUsageMetadata {
@@ -18,7 +19,19 @@ export interface CliCatalogEntry extends CliUsageMetadata {
   discovery?: { execution: 'host' | 'sandbox'; path: string; usage?: CliUsageMetadata }[];
 }
 export interface CliCatalogConfiguration { state: 'unconfigured' | 'empty' | 'configured'; entryCount: number; source?: 'automatic' | 'configured' }
-export interface CliCatalogPage { catalogVersion: string; entries: CliCatalogEntry[]; nextCursor: string | null; configuration?: CliCatalogConfiguration }
+export interface CliCatalogRecallMeta {
+  recallTerms: string[];
+  unregisteredNames: string[];
+  queried: boolean;
+  matches: Array<{ command: string; channels: CatalogRecallMatch['channels']; matchedTerms: string[] }>;
+}
+export interface CliCatalogPage {
+  catalogVersion: string;
+  entries: CliCatalogEntry[];
+  nextCursor: string | null;
+  configuration?: CliCatalogConfiguration;
+  recall?: CliCatalogRecallMeta;
+}
 export class CliCatalogError extends Error { constructor(readonly code: string) { super(code); } }
 const text = (value: unknown) => typeof value === 'string' && !!value.trim() && !value.includes('\0');
 const args = (value: unknown) => Array.isArray(value) && value.length <= 128
@@ -96,5 +109,27 @@ export class CliCatalog {
       ...(entry.requirements ?? [])].join(' '), q));
     const page = catalogWindow(matches, this.catalogVersion, q, cursor, () => new CliCatalogError('CLI_CATALOG_CURSOR_INVALID'));
     return { catalogVersion: this.catalogVersion, configuration: structuredClone(this.configuration), entries: structuredClone(page.entries), nextCursor: page.nextCursor };
+  }
+  recall({ query, terms, commands, cursor }: { query?: string; terms?: string[]; commands?: string[]; cursor?: string } = {}): CliCatalogPage {
+    const q = normalizeCatalogQuery([query, ...(terms ?? [])].filter(Boolean).join(' '));
+    const recalled = recallCatalogEntries(this.entries, {
+      ...(query ? { query } : {}),
+      ...(terms ? { terms } : {}),
+      ...(commands ? { commands } : {}),
+    });
+    const entries = recalled.matches.map(match => match.entry);
+    const page = catalogWindow(entries, this.catalogVersion, q, cursor, () => new CliCatalogError('CLI_CATALOG_CURSOR_INVALID'));
+    return {
+      catalogVersion: this.catalogVersion,
+      configuration: structuredClone(this.configuration),
+      entries: structuredClone(page.entries),
+      nextCursor: page.nextCursor,
+      recall: {
+        recallTerms: recalled.recallTerms,
+        unregisteredNames: recalled.unregisteredNames,
+        queried: recalled.queried,
+        matches: recalled.matches.map(match => ({ command: match.entry.command, channels: match.channels, matchedTerms: match.matchedTerms })),
+      },
+    };
   }
 }

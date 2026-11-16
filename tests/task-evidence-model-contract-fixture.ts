@@ -64,18 +64,21 @@ function savedRead(m: LocalModel) {
   return m;
 }
 
-export async function* givesTheCheckerOneFixedSourceWithItsOriginalTextAndDeniesPagedReads() {
+export async function* givesTheCheckerOneFixedSourceAndAllowsAuthorizedPagedReads() {
 const m = checking();
 yield 'prepared';
 const projected = deliveryEvidence(m.c, m.work, m.c.deliveryCycle?.evidence);
-const denied = request(m, readAction());
+const requested = request(m, readAction());
+const claimed = claim(m);
 yield 'observed';
 assert.equal((projected?.sources)?.length, 1);
 assert.partialDeepStrictEqual(projected?.sources, [{ id: firstSource, stdout: '已有正文', metadata: { sourceRole: 'owner',
       completeness: 'complete', capturedContentHash: 'd'.repeat(64), stdoutBytes: 12, stdoutChars: 4, obtainedAt: 1 } }]);
-assert.equal(denied.code, 'CHECK_LOCAL_TOOLS_NOT_ALLOWED');
-assert.equal(operation(m), undefined);
-assert.partialDeepStrictEqual(m.c.usage, { ordinary: 2, checks: 0 });
+assert.equal(requested.ok, true);
+assert.equal(claimed.ok, true);
+assert.equal(operation(m)?.status, 'claimed');
+assert.deepEqual(operation(m)?.action, readAction());
+assert.partialDeepStrictEqual(m.c.usage, { ordinary: 3, checks: 0 });
 }
 
 export async function* keepsATruncatedCheckSourceAsMetadataWithoutPresentingAUsableQuotation() {

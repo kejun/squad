@@ -7,6 +7,7 @@ import { windowExpired } from './task/resilience.js';
 import { sharedToolExperiences, type ToolExperience } from './task/tool-experience.js';
 import { cliFailureGuidance, toolGuidanceAllowed } from './task/tool-guidance.js';
 import { withToolInventoryReadiness, type ToolInventoryView } from './cli-readiness.js';
+import { projectModelToolInventory } from './tool-inventory-projection.js';
 import { hostEvidenceReference, observeResourceAcquisition, resourceIdentity } from './resource-acquisition.js';
 import { deliveryCheckMaterials } from './delivery-check-delta.js';
 import { acceptanceCriteria, checkCitationSources, judgmentsDiagnostic, validCriterionJudgments, type CheckDiagnostic, type CheckMaterials, type CriterionJudgment } from './delivery-acceptance.js';
@@ -40,6 +41,7 @@ export interface WorkAdapter {
 export interface LocalWorkTools {
   readonly catalog: SkillPage;
   readonly toolInventory?: ToolInventoryView | undefined;
+  readonly catalogInventory?: ToolInventoryView | undefined;
   readonly sharedToolKnowledge?: ReturnType<typeof sharedToolKnowledge> | undefined;
   readonly toolExperiences?: ToolExperience[] | undefined;
   readonly toolGuidance?: { failures: ReturnType<typeof cliFailureGuidance> } | undefined;
@@ -386,11 +388,17 @@ export class WorkRunner {
         if (!localEnabled(this.engine.config, member.target) || !toolGuidanceAllowed(current, member, this.clock())) return undefined;
         return runtime.clean({ failures: cliFailureGuidance(member) });
       };
-      const toolInventory = () => {
+      const catalogInventory = () => {
         this.assertAttached();
         const current = this.engine.view(roomId, taskId)!.context, member = currentWork();
         if (!localEnabled(this.engine.config, member.target) || !toolGuidanceAllowed(current, member, this.clock())) return undefined;
         return runtime.clean(withToolInventoryReadiness(current, member, runtime.toolInventory()));
+      };
+      const toolInventory = () => {
+        this.assertAttached();
+        const current = this.engine.view(roomId, taskId)!.context, member = currentWork();
+        if (!localEnabled(this.engine.config, member.target) || !toolGuidanceAllowed(current, member, this.clock())) return undefined;
+        return runtime.clean(projectModelToolInventory(current, member, runtime.toolInventory()));
       };
       const executeLocal = async (operationId: string, externalSignal: AbortSignal): Promise<LocalToolResult> => {
         const retryDeadline = currentWork().localOperations?.find(op => op.id === operationId)?.deadline;
@@ -523,6 +531,7 @@ export class WorkRunner {
       Object.defineProperty(scope, 'localTools', { value: {
         get catalog() { return runtime.catalog(); }, get checkpoint() { return currentWork().localCheckpoint; },
         get toolInventory() { return toolInventory(); },
+        get catalogInventory() { return catalogInventory(); },
         get sharedToolKnowledge() { return toolKnowledge(); },
         get toolExperiences() { return toolExperiences(); },
         get toolGuidance() { return toolGuidance(); },

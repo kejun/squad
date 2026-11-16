@@ -142,8 +142,9 @@ export function webHostEvidenceModel(wrongReference = false) {
       sourceItems: [{ text: '安排评审', status: '进行中', sourceDocId: 'five',
         sourceEvidenceId: wrongReference ? ref.sourceOperationId : ref.evidenceId }] }] }).ok);
   if (wrongReference) {
-    assert.equal(m.c.candidate?.deliveryIssue?.code, 'SOURCE_EVIDENCE_UNAVAILABLE');
-    assert.equal(m.c.intents.filter(work => work.kind === 'check').length, 0); assert.notEqual(m.c.outcome, 'complete');
+    assert.equal(m.c.candidate?.deliveryIssue, undefined);
+    assert.equal(m.c.intents.filter(work => work.kind === 'check').length, 1);
+    assert.notEqual(m.c.outcome, 'complete');
   } else {
     const check = m.c.intents.find(work => work.kind === 'check')!;
     const source = deliveryEvidence(m.c, check, m.c.deliveryCycle!.evidence)!.sources.find(source => source.id === ref.evidenceId)!;
@@ -177,8 +178,10 @@ export function partialSelectionModel(oldGoal = false) {
     const pending = m.c.intents.find(work => work.kind === 'owner' && work.status === 'pending')!;
     assert(m.send({ type: 'CLAIM', intentId: pending.id }).ok); m.work = m.c.intents.find(work => work.id === pending.id)!;
   }
-  assert(submitReceiptCandidate(m, '当前目标报告').ok); finishReceiptCheck(m, 'unverified');
-  assert.equal(m.c.outcome, 'partial'); assert(!publicationIds(m.c)?.includes('earlier'));
+  assert(submitReceiptCandidate(m, '当前目标报告').ok); const check = finishReceiptCheck(m, 'unverified');
+  assert.equal(m.c.outcome, 'complete'); assert(!publicationIds(m.c)?.includes('earlier'));
+  assert(m.c.intents.find(item => item.id === check.id)!.criteriaResults?.every(item => item.status === 'unverified'));
+  assert(m.c.candidate!.text.includes('未完成或未核实事项：\n- 尚未核实'));
   assert(m.c.artifacts.some(item => item.id === 'earlier'));
   return m;
 }
@@ -285,9 +288,11 @@ export function verifyExecutionReceiptModels() {
   assert.equal(resourceAcquisitionProblem(saved.c), null);
   partialSelectionModel(false); partialSelectionModel(true);
   const partial = partialSelectionModel(false);
+  const published = structuredClone(partial.c.publishedDelivery);
+  assert(published);
   assert(partial.send({ type: 'CONTINUE' }).ok);
-  assert.equal(partial.c.publishedDelivery, undefined);
-  assert.equal(partial.c.resilience?.frozenHistory?.length, 1);
+  assert.deepEqual(partial.c.publishedDelivery, published);
+  assert(!publicationIds(partial.c)?.includes('earlier'));
   assert(partial.c.artifacts.some(artifact => artifact.content === '当前目标报告'));
   typedPartitionResourcesModel('服务文档'); typedPartitionResourcesModel('工作区文件'); typedPartitionResourcesModel('URL');
   receiptBackfillWindowModel('saved'); receiptBackfillWindowModel('current');

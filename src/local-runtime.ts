@@ -279,7 +279,7 @@ export class LocalRuntime {
           platform: process.platform, arch: process.arch, runtimeVersion: process.version,
           sandbox: { available: this.backend.available, ...(this.backend.unavailableReason ? { reason: this.backend.unavailableReason } : {}) },
           skills: this.catalog(),
-          catalog: this.cliCatalog.list(action),
+          catalog: this.cliCatalog.recall(action),
           locate: async (command, execution) => {
             const profile = this.options.commandEnv?.[command];
             const env = { PATH: cliSearchPath(execution, profile) };

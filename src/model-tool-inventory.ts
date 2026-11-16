@@ -11,7 +11,8 @@ interface ToolInterface {
 interface ToolPermissions { local: boolean; search: boolean; fetch: boolean; findSkills: boolean }
 const localInterfaces: ToolInterface[] = [
   { type: 'discoverHost', description: 'Inspect registered CLI metadata or resolve explicitly named commands without executing them.',
-    input: '{commands?: string[], query?: string, cursor?: string}', output: 'Platform, environment observations and complete matching metadata.', environment: 'local_metadata' },
+    input: '{commands?: string[], query?: string, terms?: string[], cursor?: string}',
+    output: 'Platform, environment observations and complete matching metadata for recalled commands.', environment: 'local_metadata' },
   { type: 'listSkills', description: 'Inspect the local skill metadata catalog, optionally by query or page.',
     input: '{query?: string, cursor?: string}', output: 'Skill IDs, versions, descriptions, completeness and continuation cursor.', environment: 'local_metadata' },
   { type: 'loadSkill', description: 'Read and pin a local skill before following its instructions or using its resources.',

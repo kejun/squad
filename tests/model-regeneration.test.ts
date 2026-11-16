@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { OpenAICompatibleAdapter, WorkRunner } from '../src/index.js';
 import { candidateJudgments, configuration, Harness } from './helpers.js';
+import { fixtureWorkInput } from './delivery-protocol-fixture.js';
 import { badModelOutput, goodModelOutput, modelResponse, RegenerationFixture, regenerationConfig, type ModelKind } from './model-regeneration-fixture.js';
 
 const opened: RegenerationFixture[] = [];
@@ -19,7 +20,11 @@ describe('model output regeneration', () => {
     await f.run();
 
     expect(f.requests).toHaveLength(2);
-    expect(f.requests[1]!.messages).toEqual(f.requests[0]!.messages);
+    const original = fixtureWorkInput(f.requests[0]);
+    const { retryDiagnostic, ...retried } = fixtureWorkInput(f.requests[1]).context;
+    expect(retryDiagnostic).toEqual({ code: 'CHECK_INVALID_RESULT' });
+    expect(retried).toEqual(original.context);
+    expect(fixtureWorkInput(f.requests[1]).workId).toBe(original.workId);
     expect(f.h.context().outcome).toBe('complete');
     expect(f.h.context().usage).toMatchObject({ retries: 1, checks: 2, ordinary: 1 });
   });
@@ -60,8 +65,8 @@ describe('model output regeneration', () => {
     expect(f.h.context().usage.checks).toBe(1); expect(f.h.context().reason).toContain('WORK_EXPIRED');
   });
 
-  it('[BT_M10] never executes a tool suggested by a malformed checking response', async () => {
-    const f = fixture(); f.replies = [{ type: 'web_search', query: 'must not execute' }, goodModelOutput('check')];
+  it('[BT_M10] never executes malformed tool arguments suggested by a checking response', async () => {
+    const f = fixture(); f.replies = [badModelOutput('网页工具参数错误'), goodModelOutput('check')];
     await f.run(); await f.run();
     expect(f.requests).toHaveLength(2); expect(f.webCalls).toBe(0); expect(f.searches).toBe(0);
     expect(f.h.context().outcome).toBe('complete');
@@ -109,10 +114,12 @@ describe('model output regeneration', () => {
 
     await f.run(); await f.run();
 
-    expect(f.requests).toHaveLength(2); expect(f.h.view().phase).toBe('running');
-    expect(f.h.context().outcome).toBeNull(); expect(f.h.context().usage.retries).toBe(1);
+    expect(f.requests).toHaveLength(2); expect(f.h.view().phase).toBe('ended');
+    expect(f.h.context().outcome).toBe('complete'); expect(f.h.context().usage.retries).toBe(1);
     expect(f.work.criteriaResults).toEqual(criteriaResults);
-    expect(f.h.context().intents.at(-1)!.payload).toHaveProperty('priorFindings');
+    expect(f.h.engine.pending(f.h.room, f.h.task)).toEqual([]);
+    expect(f.h.context().candidate?.text).toContain('未完成或未核实事项：\n- 实际缺口');
+    expect(f.h.context().messages.at(-1)?.text).toBe(f.h.context().candidate?.text);
   });
 
   it.each(['web', 'skills'])('[BT_W02] keeps explicitly disabled %s capabilities outside the format-repair loop', async capability => {

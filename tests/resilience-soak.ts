@@ -42,7 +42,16 @@ try {
       const gate = service.snapshot(human.id).blockers!.find(g => g.status === 'open')!;
       service.decideBlocker(human.id, { id: `skip-${round}`, taskId: waiting, blockerId: gate.id, blockerVersion: gate.version, actionId: 'skip' });
       await until(() => service.engine.view(human.id, waiting)?.context.outcome !== null);
-      assert.equal(service.engine.view(human.id, waiting)!.context.outcome, 'partial', 'skipped content must never become complete after a model check');
+      const completed = service.engine.view(human.id, waiting)!;
+      assert.equal(completed.phase, 'ended');
+      assert.equal(completed.context.outcome, 'complete', 'the latest passing check must not be vetoed by historical skips');
+      assert.equal(completed.context.resilience!.gates.find(item => item.id === gate.id)!.status, 'skipped');
+      const skip = completed.context.resilience!.skips.find(item => item.gateId === gate.id)!;
+      assert.equal(skip.authorization, 'human');
+      assert.equal(skip.reason, '用户明确跳过此内容');
+      const check = completed.context.intents.find(item => item.kind === 'check')!;
+      assert.deepEqual(check.payload.executionNotes, [`已跳过 ${skip.targetId}：${skip.reason}`]);
+      assert.equal(service.snapshot(human.id).messages.at(-1)!.text, '受控验收的实际持久交付');
       for (const room of [ordinary, human]) {
         const archived = service.setRoomArchived(room.id, `archive-${room.id}`, true);
         await service.deleteRoom(room.id, { id: `delete-${round}-${room.id}`, expectedArchiveVersion: archived.archiveVersion! });
@@ -65,7 +74,7 @@ try {
       assert.equal((db.prepare('SELECT count(*) n FROM workspace_leases').get() as { n: number }).n, 0);
     } finally { db.close(); }
   }
-  const result = { status: 'passed', rounds, tasksCompleted: rounds + 1, tasksPartial: rounds, roomsDeleted: deleted.length,
+  const result = { status: 'passed', rounds, tasksCompleted: rounds * 2 + 1, tasksPartial: 0, tasksWithSkippedHistory: rounds, roomsDeleted: deleted.length,
     requests, source: 'real WebService and SQLite; controlled adapter; no external provider', activeTimerGrowth: timers() - baselineTimers,
     heapBytes: heap, finalHeapBytes: previousHeap, gcEnabled: !!globalThis.gc,
     limit: 'bounded process-local exercise; no production-scale SLO, unbounded liveness or media erasure claim' };

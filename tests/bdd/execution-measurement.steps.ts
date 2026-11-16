@@ -247,8 +247,21 @@ Given('任务读取原回执并处理已接受的宿主续办与交付检查', a
       return { type: 'deliver', text: '已核验来源并附报告', artifactIds: [], artifacts: [{ name: 'sources.md', content: '真实正文' }] };
     },
   }, () => h.now, undefined, undefined, local.runtime, (_context, event) => s.records.push(event));
-  for (let i = 0; i < 3; i++) assert(await runner.runOne(h.room, h.task));
+  assert(await runner.runOne(h.room, h.task));
+  assert(await runner.runOne(h.room, h.task));
   assert.equal(h.context().outcome, 'complete');
+  assert(h.context().candidate!.text.includes('尚未提供要求的全部文件'));
+  assert.equal(await runner.runOne(h.room, h.task), false, 'A missing artifact must not automatically send work back to the owner');
+  s.runner = runner;
+});
+
+Given('用户在缺口交付后明确要求继续补齐报告', async function (this: SpecWorld) {
+  const s = state(this), h = s.local!.h;
+  assert(h.event({ type: 'CONTINUE', text: '请读取已经保存的原回执并补齐报告文件' }).ok);
+  assert(await s.runner!.runOne(h.room, h.task));
+  assert(await s.runner!.runOne(h.room, h.task));
+  assert.equal(h.context().outcome, 'complete');
+  assert(h.context().artifacts.some(artifact => h.context().candidate!.artifactIds.includes(artifact.id) && artifact.content === '真实正文'));
   const retry = new HostRetryFixture(); s.retry = retry;
   await retry.pauseAfterTwoFailures();
   const request = retry.retryData(); s.retrySourceId = request.operationId;
@@ -286,14 +299,19 @@ Then('应能由证据读取追溯原操作并由宿主执行追溯续办请求',
   assert.notEqual(process.operationId, request!.sourceOperationId);
 });
 
-Then('交付观测应区分预检缺口、候选检查和最终发布', function (this: SpecWorld) {
+Then('交付观测应区分候选提交、候选检查和最终发布', function (this: SpecWorld) {
   const s = state(this), records = s.records;
-  const preflight = records.find(event => event.phase === 'delivery.preflightRejected');
-  const checked = records.find(event => event.phase === 'delivery.checked');
-  const published = records.find(event => event.phase === 'delivery.published');
-  assert(preflight && checked && published?.phase === 'delivery.published');
-  assert(preflight.gaps.some(gap => gap.criterionId === null && gap.kind === 'missing_requirement'));
-  assert.notEqual(preflight.candidateRevision, checked.candidateRevision);
+  const submissions = records.filter(event => event.phase === 'delivery.submitted');
+  const checks = records.filter(event => event.phase === 'delivery.checked');
+  const publications = records.filter(event => event.phase === 'delivery.published');
+  assert.equal(submissions.length, 2); assert.equal(checks.length, 2); assert.equal(publications.length, 2);
+  const firstSubmission = submissions[0], finalSubmission = submissions.at(-1);
+  assert(firstSubmission?.phase === 'delivery.submitted' && finalSubmission?.phase === 'delivery.submitted');
+  const checked = checks.at(-1);
+  const published = publications.at(-1);
+  assert(checked && published?.phase === 'delivery.published');
+  assert.notEqual(firstSubmission.candidateRevision, checked.candidateRevision);
+  assert.equal(finalSubmission.candidateRevision, checked.candidateRevision);
   assert.equal(checked.candidateRevision, published.candidateRevision);
   assert.equal(checked.passed, true);
   assert(checked.judgments.length && checked.judgments.every(item => item.status === 'passed'));
