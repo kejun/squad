@@ -24,6 +24,7 @@ export class DirectMapProvider {
   webReads = 0;
   async open() {
     this.server = createServer(async (req, res) => {
+      try {
       if (req.url === '/source') { this.webReads++; res.writeHead(200, { 'content-type': 'text/markdown' }); res.end('# doc-7\n新取得的普通网页正文'); return; }
       let body = ''; for await (const chunk of req) body += chunk;
       this.requests++; this.bodies.push(body);
@@ -82,6 +83,14 @@ export class DirectMapProvider {
       }
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }] }));
+      } catch (error) {
+        if (!res.writableEnded) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (!res.headersSent) res.writeHead(500, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ error: { message } }));
+        }
+        throw error;
+      }
     });
     await new Promise<void>(resolve => this.server.listen(0, '127.0.0.1', resolve));
     this.url = `http://127.0.0.1:${(this.server.address() as AddressInfo).port}/v1`; return this;

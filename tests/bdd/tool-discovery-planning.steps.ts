@@ -43,6 +43,15 @@ Then('系统应合并 BM25 与精确名称命中并去重', function (this: Spec
   assert(proof.recalled.entries.some(entry => entry.command === 'tesseract'));
   assert(proof.recalled.entries.some(entry => entry.command === 'git'));
 });
+Then('真实用途说明应被 BM25 命中，通用用途未知模板不得单独构成命中', function (this: SpecWorld) {
+  const proof = state(this).merged; assert(proof);
+  const matches = proof.recalled.recall?.matches ?? [];
+  const tesseract = matches.find(match => match.command === 'tesseract');
+  assert(tesseract?.channels.includes('bm25'));
+  const git = matches.find(match => match.command === 'git');
+  assert.deepEqual(git?.channels, ['name']);
+  assert(!proof.recalled.entries.some(entry => entry.command === 'unknown-template'));
+});
 Then('名称命中条目应返回完整目录资料', function (this: SpecWorld) {
   const proof = state(this).merged; assert(proof);
   const tesseract = proof.recalled.entries.find(entry => entry.command === 'tesseract');
