@@ -22,6 +22,8 @@ export function groupedIntent(count: number): InputIntentSpec {
 /** Provider responses and source HTTP transport are controlled; production web_fetch parses each body. */
 export class MapCapacityFixture extends InputIntentFixture {
   readonly documentReads: string[] = [];
+  /** Page text the model already saw while that result was still the latest full message. */
+  readonly seenPages = new Map<string, string>();
   readonly sourceTools = new CloudflareWebTools({ env: {}, transport: async url => {
     const address = String(url); this.documentReads.push(address);
     const index = documentUrls.indexOf(address); assert(index >= 0, `Unexpected source ${address}`);
@@ -53,12 +55,23 @@ export class MapCapacityFixture extends InputIntentFixture {
     if (request.kind === 'assistance') {
       const partition = request.context.partition as { objective: string };
       const assigned = partition.objective.match(/https:\/\/docs\.fixture\.example\/doc-\d\.md/g) ?? [];
-      const pages = request.messages.slice(2).filter(message => message.role === 'user').map(message => {
-        try { return JSON.parse(message.content) as { type?: string; text?: string }; } catch { return {}; }
-      }).filter(message => message.type === 'web_fetch_result');
-      if (pages.length < assigned.length) return modelResponse({ type: 'web_fetch', url: assigned[pages.length] });
-      assert.equal(pages.length, assigned.length);
-      return modelResponse({ type: 'answer', text: pages.map(page => page.text).join('\n\n'), status: 'success' });
+      let pendingUrl: string | undefined;
+      for (const message of request.messages.slice(2)) {
+        if (message.role === 'assistant') {
+          try {
+            const action = JSON.parse(message.content) as { type?: string; url?: string };
+            if (action.type === 'web_fetch' && action.url) pendingUrl = action.url;
+          } catch { /* The assistant turn is not a tool request. */ }
+          continue;
+        }
+        let page: { type?: string; text?: string };
+        try { page = JSON.parse(message.content) as { type?: string; text?: string }; } catch { continue; }
+        if (page.type === 'web_fetch_result' && pendingUrl && typeof page.text === 'string') this.seenPages.set(pendingUrl, page.text);
+      }
+      const next = assigned.find(url => !this.seenPages.has(url));
+      if (next) return modelResponse({ type: 'web_fetch', url: next });
+      assert.equal(assigned.length, assigned.filter(url => this.seenPages.has(url)).length);
+      return modelResponse({ type: 'answer', text: assigned.map(url => this.seenPages.get(url)).join('\n\n'), status: 'success' });
     }
     const discussion = request.context.discussion as { results: { answer: string }[] };
     const completeEvidence = discussion.results.map(result => result.answer).join('\n\n');
