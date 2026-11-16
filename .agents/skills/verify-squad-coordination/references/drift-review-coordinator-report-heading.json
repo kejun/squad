@@ -1,0 +1,26 @@
+{
+  "issue": "PR-68",
+  "outcome": "no-effect-on-declared-formal-slices",
+  "reviewedCommit": "a744f6ea0cd9b428f22053e3aae6888ee96ef2ad",
+  "previousSyncCommit": "8f65c220bb06b7914ba9c849ce859728899b4af9",
+  "classification": "no-effect-on-declared-formal-slices",
+  "propertyChanges": [],
+  "boundsChanges": [],
+  "tlcRerun": "Not claimed here. Coverage hashes were updated only after this correspondence review so the existing CI entrypoints can run the unchanged models. This file does not assert a new TLC pass.",
+  "changes": [
+    {
+      "file": "src/presentation.ts",
+      "oldSha256": "1ffa66657884dffe98cceb1166485df99541aee762a53cfaa3a57de69af896d8",
+      "reviewedSha256": "4b48cc7008c20619935cfa13dc45cb784ff802649aa51019a5d8f3f13f8be462",
+      "classification": "no-effect-within-explicit-slice",
+      "reason": "compactMessage stops joining an ATX heading marker onto later lines of a long summary, and unwraps a stored one-line coordinator report that already starts with '# 任务处理报告 '. Formal replays observe transitions, guards, and selected message counts. They do not render Markdown and do not assert that summary string. Short messages and a single intentional heading line stay unchanged. No negative-control anchor lives in this function."
+    },
+    {
+      "file": "src/task/resilience.ts",
+      "oldSha256": "6b8029d2da6b7a5062bbc28fabc71fde1bb01938ee89ebde86b67c33b11b310d",
+      "reviewedSha256": "c0f78c09962272d1eecb72d3bf7a0cfadf1feaf12f6bd7a3beab3cd2e9b1a071",
+      "classification": "no-effect-within-explicit-slice",
+      "reason": "freezeIncomplete drops only the leading '#' on the report title line. Window identity, cleanup ownership, human gates, outcome, artifact identity, and the cleanup push that coordination mutates are unchanged. The lose-cleanup-owner anchor still occurs once."
+    }
+  ]
+}
