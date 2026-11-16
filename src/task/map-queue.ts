@@ -2,6 +2,7 @@ import type { Candidate, DiscussionRound, Intent, MapPartitionRun, TaskContext, 
 import { localPhysicalPending } from '../local-operation.js';
 import { availableMapReduceMembers } from './map-reduce-capacity.js';
 import { discussionIntent, summarizeDiscussion } from './discussion.js';
+import { assignSummaryBatch } from './hierarchical-summary.js';
 import { hostRetryReservation } from '../host-retry.js';
 import { consumePartitionMethod, newPartitionMethod, partitionMayDispatch, schedulingState, sharedPrerequisiteFailures } from './map-scheduling.js';
 import { processingWindow } from './resilience.js';
@@ -176,7 +177,8 @@ export function advanceMapQueue(c: TaskContext, e: TaskEvent): void {
       ...(method ? { verifiedReadMethod: { id: method.id, sourceOperationId: method.sourceOperationId, resource: method.resource } } : {}) });
     plan.assignments.push({ partitionId: part.partitionId, target: member.id, workId: work.id, attempt: part.attempt });
     if (!round.targets.includes(member.id)) round.targets.push(member.id);
-    work.payload.discussion = structuredClone(round);
+    if (plan.summaryLayer) assignSummaryBatch(c, work, part.partitionId);
+    else work.payload.discussion = structuredClone(round);
     c.usage.assists++; dispatched++;
   }
   if (queue.some(part => active(part) || part.status === 'queued')) return;

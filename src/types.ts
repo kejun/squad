@@ -150,10 +150,17 @@ export interface ReviewRound extends Fence {
   status: 'pending' | 'reviewing' | 'summarizing' | 'complete' | 'cancelled';
   question?: string; expected?: string; incomplete?: string;
 }
+export interface SummarySourceFailure { id: string; status: string; reason?: string }
+/** Scheduling facts for one capacity-aware summary layer. Source indexes are derived at request time. */
+export interface SummaryLayer {
+  layer: number; rounds: number; pendingSourceIds: string[]; producedIds: string[];
+  carried: SummarySourceFailure[]; inputCount: number; topId?: string;
+  roundSources: Record<string, string[]>;
+}
 export interface DiscussionRound extends Fence {
   mapReduce?: MapReducePlan & { inputId: string; assignments: { partitionId: string; target: string; workId?: string; attempt?: number }[];
     scheduling?: import('./task/map-scheduling.js').MapSchedulingState;
-    concurrency?: number; queue?: MapPartitionRun[] };
+    concurrency?: number; queue?: MapPartitionRun[]; summaryLayer?: SummaryLayer };
   id: string; request: string; targets: string[];
   status: 'planning' | 'collecting' | 'summarizing' | 'ready' | 'delivered' | 'cancelled';
   skipped: { target: string; reason: string }[];

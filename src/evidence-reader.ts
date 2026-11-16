@@ -4,7 +4,9 @@ import { artifactForWork, documentIdentity } from './task/delivery.js';
 import { evidenceMetadata, evidenceSource, type CapturedEvidenceStream } from './task/evidence.js';
 import type { Intent, TaskContext } from './types.js';
 
-const pageSize = 4000;
+/** One saved page. Hierarchical summaries reuse this budget and do not invent another. */
+export const savedPageCodePoints = 4000;
+export const codePointLength = (text: string) => Array.from(text).length;
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 
 function capturedStream(value: unknown): CapturedEvidenceStream | undefined {
@@ -42,6 +44,7 @@ export function readSavedArtifact(c: TaskContext, work: Intent, action: Extract<
 
 function savedPage(text: string, identity: string[], cursor: string | undefined, type: 'EVIDENCE' | 'ARTIFACT', metadata: Record<string, unknown>): LocalToolResult {
   const codepoints = Array.from(text);
+  const pageSize = savedPageCodePoints;
   const capturedContentHash = sha256(text);
   const cursorKey = sha256(JSON.stringify([...identity, capturedContentHash]));
   const offset = cursor === undefined ? 0 : Number(cursor.split(':')[1]);

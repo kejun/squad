@@ -8,6 +8,7 @@ import { capabilities, discussionActive, fence, unresolvedInput } from './facts.
 import { documentIdentity } from './delivery.js';
 import { resolveModel } from '../model-config.js';
 import { assignedEvidenceRefs } from './evidence.js';
+import { corpusBodiesExceedPage, hierarchicalSummaryPending, summaryHandoffPayload, summaryTop } from './hierarchical-summary.js';
 import { cancelLocalOperations, localEnabled, localPhysicalPending } from '../local-operation.js';
 
 export function message(c: TaskContext, e: TaskEvent, author: string, text: string, kind: TaskContext['messages'][number]['kind'], extra: Partial<TaskContext['messages'][number]> = {}, summary?: string) {
@@ -101,11 +102,17 @@ export function conversationInput(c: TaskContext) {
 
 export function owner(c: TaskContext, e: TaskEvent, payload: Record<string, unknown> = {}) {
   if (c.stopped || taskHumanGate(c) || unresolvedInput(c) || discussionActive(c) || c.intents.some(work => localPhysicalPending(work) && !workInCleanup(c, work))) return;
+  const top = summaryTop(c);
+  const onSummaryPath = !!c.discussion?.mapReduce?.summaryLayer;
+  const summaryPayload = top && (payload.summaryHandoff || onSummaryPath) ? summaryHandoffPayload(c, top) : undefined;
+  if (!summaryPayload && onSummaryPath && corpusBodiesExceedPage(c)) return;
   // Pending instructions are superseded, not executed in parallel.
   for (const i of c.intents) if (i.kind === 'owner' && i.status === 'pending') i.status = 'cancelled';
-  intent(c, e.at, 'owner', c.owner, { ...payload, goal: c.goal, inputs: c.inputs.filter(n => n.applied),
-    board: c.board, ...deliveryArtifacts(c, Array.isArray(payload.artifactIds) ? payload.artifactIds as string[] : []), repeat: c.repeat, ...conversationInput(c),
-    capabilities: capabilities(c), roster: c.config.bots.map(b => ({ id: b.id, name: b.name, instructions: b.instructions, tools: b.tools })) });
+  intent(c, e.at, 'owner', c.owner, summaryPayload
+    ? { ...summaryPayload, inputs: c.inputs.filter(note => note.applied) }
+    : { ...payload, goal: c.goal, inputs: c.inputs.filter(n => n.applied),
+      board: c.board, ...deliveryArtifacts(c, Array.isArray(payload.artifactIds) ? payload.artifactIds as string[] : []), repeat: c.repeat, ...conversationInput(c),
+      capabilities: capabilities(c), roster: c.config.bots.map(b => ({ id: b.id, name: b.name, instructions: b.instructions, tools: b.tools })) });
   c.nextCheckAt = e.at + c.config.limits.progressIntervalMs;
 }
 
