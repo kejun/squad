@@ -85,9 +85,15 @@ When('成员通过真实传输请求模型', slow, async function (this: SpecWor
   await fixture.run();
   reports.set(this, fixture.report());
 });
-Then('传输结果应为{string}', function (this: SpecWorld, expected: string) {
+Then('传输结果应为{string}', async function (this: SpecWorld, expected: string) {
   if (expected === '接受完整协议结果且请求包含384000输出额度') return acceptComplete(this);
-  if (expected === '可重试网络失败且不发布部分结果') return rejectPartial(this);
+  if (expected === '可重试网络失败且不发布部分结果') {
+    const fixture = fixtures.get(this);
+    assert(fixture);
+    await waitUntilClosed(fixture);
+    reports.set(this, fixture.report());
+    return rejectPartial(this);
+  }
   throw new Error(`未知传输结果：${expected}`);
 });
 function acceptComplete(world: SpecWorld): void {

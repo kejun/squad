@@ -2213,11 +2213,13 @@ flowchart LR
   Wait -->|时限内完整正文且协议通过| Result[既有结果事件]
   Wait -->|协议不通过| Repair[既有格式修复或失败]
   Wait -->|超过客户端时限| Net[WORK_FAILED 可重试网络失败]
+  Net -->|usage.retries 未达上限 / 工作回到 pending| Retry[计入一次重试后重新领取]
+  Net -->|usage.retries 已达上限 / 不重新领取| Exhausted[释放工作并注明重试额度已用尽]
   Wait -->|工作期限到达| Deadline[WORK_FAILED WORK_TIMEOUT]
   Wait -->|用户停止| Stop[既有停止结算]
 ```
 
-未设置 `MODEL_HEADERS_TIMEOUT_MS` 和 `MODEL_BODY_TIMEOUT_MS` 时，两者均为 2147483647 毫秒，大于 Node fetch 默认的 300000 毫秒，并覆盖 384000 token 的慢速生成。时限不属于模型签名。用户停止和工作期限仍通过原请求信号中止连接；部分正文不能成为结果。BT_Y176–Y179 直接执行配置、真实传输、期限和停止。
+未设置 `MODEL_HEADERS_TIMEOUT_MS` 和 `MODEL_BODY_TIMEOUT_MS` 时，两者均为 2147483647 毫秒，大于 Node fetch 默认的 300000 毫秒，并覆盖 384000 token 的慢速生成。时限不属于模型签名。客户端超时仍是既有可重试 `WORK_FAILED`：共享 `usage.retries` 未用尽时工作回到 pending，用尽时释放工作并在原因中注明重试额度已用尽。用户停止和工作期限仍通过原请求信号中止连接；部分正文不能成为结果。BT_Y176–Y179 直接执行配置、真实传输、期限和停止。
 
 MAX-06的最大命令时限先经真实模型的LOCAL_REQUEST/LOCAL_CLAIM/LOCAL_STARTED/STOP路径核对；纯动作校验通过后才修改实际执行器默认时限，原审批守卫不变。
 
