@@ -145,7 +145,12 @@ export class ResilientWorkspaceBrowserFixture {
   }
 
   async capture(name) {
-    await this.page.evaluate(() => document.fonts.ready);
+    // Aborted Google Font stylesheets can leave document.fonts.ready pending.
+    // The Chinese glyph check below uses the local CJK face and must not wait out the step timeout.
+    await this.page.evaluate(() => Promise.race([
+      document.fonts.ready,
+      new Promise(resolve => setTimeout(resolve, 1500)),
+    ]));
     await this.page.screenshot({ path: join(this.evidence, name + '.png'), fullPage: true });
     await writeFile(join(this.evidence, name + '.aria.txt'), await this.page.locator('body').ariaSnapshot());
     const cdp = await this.context.newCDPSession(this.page);

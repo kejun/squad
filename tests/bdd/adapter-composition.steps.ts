@@ -13,7 +13,7 @@ Then('执行后端只应收到完整且身份匹配的副本及可用的临时�
 
 Given('同一次工作交错使用搜索抓取和本地资料并返回不合规结果', function (this: SpecWorld) { state(this).verified = false; });
 When('运行真实模型适配器和执行器完成会话', async function (this: SpecWorld) { const { modelSessionComposition } = await import('../model-session-composition-fixture.js'); await modelSessionComposition(false); state(this).verified = true; });
-Then('后续请求应保留已有资料且修正不得自动重跑工具或回显无效原文', function (this: SpecWorld) { assert.equal(state(this).verified,true); });
+Then('后续请求应保留无回执资料的原文和已结算结果的回执卡，完整正文留在回执或捕获中，且修正不得自动重跑工具或回显无效原文', function (this: SpecWorld) { assert.equal(state(this).verified,true); });
 Then('另一工作不得继承这次工作的资料', function (this: SpecWorld) { assert.equal(state(this).verified,true); });
 Given('混合工具和格式修正的短序列已确定', function (this: SpecWorld) { state(this).verified = false; });
 When('逐一运行全部会话序列', { timeout: 30_000 }, async function (this: SpecWorld) { const { modelSessionComposition } = await import('../model-session-composition-fixture.js'); const result = await modelSessionComposition(true); assert.equal(result.sequences,48); state(this).verified = true; });

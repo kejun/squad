@@ -97,22 +97,28 @@ export function validCliStdin(value: unknown): value is { path: string } {
   return typeof path === 'string' && !!path.trim() && path.length <= 4096 && !path.includes('\0')
     && !path.startsWith('/') && !path.includes('\\') && !path.split('/').includes('..');
 }
+function directoryReceipt(operation: LocalOperation | undefined): boolean {
+  return !!operation && ['discoverHost', 'listSkills'].includes(operation.action.type)
+    && operation.status === 'succeeded' && operation.result?.ok === true && operation.result.code === operation.action.type;
+}
+
+/** Successful catalog receipts are stored as an operation id. The full receipt stays on the operation. */
+function projectDirectoryCheckpointMessage(work: Intent, message: LocalMessage): LocalMessage {
+  if (message.role !== 'user') return message;
+  try {
+    const receipt = JSON.parse(message.content) as Record<string, unknown>;
+    if (receipt.type !== 'local_tool_result' || receipt.untrusted !== true
+      || Object.keys(receipt).some(key => !['type', 'operationId', 'untrusted', 'ok', 'code', 'data'].includes(key))) return message;
+    const source = work.localOperations?.find(operation => operation.id === receipt.operationId && directoryReceipt(operation));
+    if (!source?.result || receipt.ok !== source.result.ok || receipt.code !== source.result.code
+      || JSON.stringify(receipt.data) !== JSON.stringify(source.result.data)) return message;
+    return { ...message, content: JSON.stringify({ ...receipt, data: { persistedMetadataOperationId: source.id } }) };
+  } catch { return message; }
+}
+
 /** Full host-generated catalog receipts do not consume the conversational payload limit. */
 function checkpointWithinLimit(work: Intent, messages: LocalMessage[]): boolean {
-  const bounded = messages.map(message => {
-    if (message.role !== 'user') return message;
-    try {
-      const receipt = JSON.parse(message.content) as Record<string, unknown>;
-      if (receipt.type !== 'local_tool_result' || receipt.untrusted !== true
-        || Object.keys(receipt).some(key => !['type', 'operationId', 'untrusted', 'ok', 'code', 'data'].includes(key))) return message;
-      const source = work.localOperations?.find(operation => operation.id === receipt.operationId
-        && ['discoverHost', 'listSkills'].includes(operation.action.type) && operation.status === 'succeeded' && operation.result?.ok && operation.result.code === operation.action.type);
-      if (!source?.result || receipt.ok !== source.result.ok || receipt.code !== source.result.code
-        || JSON.stringify(receipt.data) !== JSON.stringify(source.result.data)) return message;
-      return { ...message, content: JSON.stringify({ ...receipt, data: { persistedMetadataOperationId: source.id } }) };
-    } catch { return message; }
-  });
-  return JSON.stringify(bounded).length <= 1_900_000;
+  return JSON.stringify(messages.map(message => projectDirectoryCheckpointMessage(work, message))).length <= 1_900_000;
 }
 export const localAwaitingApproval = (work: Intent) => work.localOperations?.some(op => op.status === 'awaitingApproval') ?? false;
 export const localUnsettled = (work: Intent) => localAwaitingApproval(work) || (work.localOperations?.some(op => ['queued', 'claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) ?? false);
@@ -292,7 +298,7 @@ function finishOperation(work: Intent, op: LocalOperation, result: LocalToolResu
     const checkpointResult: LocalToolResult = op.hostRetryRequestId ? { ok: result.ok, code: result.code, data: {
       execution: 'host', ...(typeof result.data.exitCode === 'number' ? { exitCode: result.data.exitCode } : {}),
       ...(typeof result.data.truncated === 'boolean' ? { truncated: result.data.truncated } : {}),
-    } } : result;
+    } } : directoryReceipt(op) ? { ok: result.ok, code: result.code, data: { persistedMetadataOperationId: op.id } } : result;
     work.localCheckpoint.messages.push({ role: 'user', content: JSON.stringify({ type: 'local_tool_result', operationId: op.id, untrusted: true, ...checkpointResult }) });
     delete work.localCheckpoint.pendingOperationId;
   }
@@ -307,7 +313,7 @@ export function applyLocalEvent(c: TaskContext, e: TaskEvent & LocalEvent): void
         ...(e.workspaceId ? { workspaceId: e.workspaceId } : {}), ...(e.conflictKey ? { conflictKey: e.conflictKey } : {}),
         ...(e.resourceLeases ? { resourceLeases: structuredClone(e.resourceLeases) } : {}) };
       (work.localOperations ??= []).push(op);
-      work.localCheckpoint = { messages: e.messages, nextOperation: (work.localCheckpoint?.nextOperation ?? 0) + 1, pendingOperationId: op.id };
+      work.localCheckpoint = { messages: e.messages.map(message => projectDirectoryCheckpointMessage(work, message)), nextOperation: (work.localCheckpoint?.nextOperation ?? 0) + 1, pendingOperationId: op.id };
       break;
     case 'LOCAL_REJECTED':
       finishOperation(work, op!, e.result, e.at);

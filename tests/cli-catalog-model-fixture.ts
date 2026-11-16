@@ -23,7 +23,8 @@ export function catalogModelAcceptance(constraint?: string) {
   const result = { ok: true, code: 'discoverHost', data: { cli: { catalog: { entries: [{ command: 'document-reader', description: 'read documents' }], nextCursor: null } } } };
   assert(m.result({ result }).ok); assert.equal(m.op?.status, 'succeeded'); assert.deepEqual(m.op.result, result);
   assert.equal(m.op.workspaceId, undefined); assert.equal(m.c.usage.ordinary, 1);
-  assert(m.c.intents[0]!.localCheckpoint!.messages.at(-1)!.content.includes('document-reader'));
+  const checkpoint = m.c.intents[0]!.localCheckpoint!.messages.at(-1)!.content;
+  assert(checkpoint.includes(m.op.id)); assert(!checkpoint.includes('document-reader'));
   assert.equal(m.c.intents.filter(work => work.kind === 'owner').length, 1);
   return { model: m, response };
 }

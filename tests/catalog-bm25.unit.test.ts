@@ -38,4 +38,25 @@ describe('catalog bm25 recall', () => {
     const result = recallCatalogEntries(ocrEntries, { query: '提取PDF已有文字层', commands: ['pdftotext'] });
     assert(result.matches.some(match => match.entry.command === 'pdftotext'));
   });
+
+  it('indexes real descriptions when every scenario is the generic template', () => {
+    const boilerplate = '当任务的输入和目标符合用途说明时，选择本命令；按所引资料核对参数和前提，以取得说明中的结果。';
+    const unknown = '已在有效 PATH 发现可执行命令；用途资料未知。';
+    const entries: CliCatalogEntry[] = [
+      { command: 'named-ocr', description: 'Named optical character recognition utility', scenarios: [boilerplate] },
+      ...Array.from({ length: 2475 }, (_, index) => ({
+        command: `path-command-${index}`,
+        description: index < 1806 ? unknown : `Read archive records for workflow ${index}`,
+        scenarios: [boilerplate],
+      })),
+    ];
+    const recalled = recallCatalogEntries(entries, { query: 'optical character recognition' });
+    assert.deepEqual(recalled.matches.map(match => match.entry.command), ['named-ocr']);
+    assert.deepEqual(recalled.matches[0]?.channels, ['bm25']);
+    const documented = recallCatalogEntries(entries, { query: 'workflow' });
+    assert.equal(documented.matches.length, 669);
+    assert(documented.matches.every(match => match.channels.includes('bm25') && !match.entry.description.includes('用途资料未知')));
+    assert.equal(recallCatalogEntries(entries, { query: '按所引资料核对参数' }).matches.length, 0);
+    assert.equal(recallCatalogEntries(entries, { query: '用途资料未知' }).matches.length, 0);
+  });
 });

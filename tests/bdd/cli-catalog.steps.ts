@@ -10,10 +10,12 @@ const states = new WeakMap<SpecWorld, State>();
 const state = (world: SpecWorld) => { let item = states.get(world); if (!item) { item = {}; states.set(world, item); } return item; };
 Given('成员准备按用途查询宿主命令目录', function (this: SpecWorld) { state(this); });
 When('通过真实任务模型保存领取并回传目录结果', function (this: SpecWorld) { state(this).modelResult = catalogModelAcceptance(); });
-Then('目录结果应进入原工作检查点且不消耗执行额度', function (this: SpecWorld) {
+Then('目录全文应留在原操作回执，检查点只记录该操作号，且不消耗执行额度', function (this: SpecWorld) {
   const m = state(this).modelResult!.model;
   assert.equal(m.op!.status, 'succeeded'); assert.equal(m.c.usage.ordinary, 1);
-  assert(m.c.intents[0]!.localCheckpoint!.messages.at(-1)!.content.includes('document-reader'));
+  assert(JSON.stringify(m.op!.result).includes('document-reader'));
+  const checkpoint = m.c.intents[0]!.localCheckpoint!.messages.at(-1)!.content;
+  assert(checkpoint.includes(m.op!.id)); assert(!checkpoint.includes('document-reader'));
 });
 Given('命令目录请求受到{string}约束', function (this: SpecWorld, constraint: string) { state(this).constraint = constraint; });
 When('通过真实任务模型请求目录查询', function (this: SpecWorld) { const s = state(this); s.modelResult = catalogModelAcceptance(s.constraint); });

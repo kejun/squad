@@ -3,6 +3,7 @@ import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { OpenAICompatibleAdapter } from '../src/model-adapter.js';
+import { savedAcquisitions } from '../src/resource-acquisition.js';
 import { WorkRunner } from '../src/runner.js';
 import type { WebTools } from '../src/web-tools.js';
 import type { LocalAction } from '../src/local-operation.js';
@@ -36,8 +37,22 @@ async function runSequence(sequence: Token[], ordinal: number): Promise<SessionE
   const transport: typeof fetch = async (_url, init) => {
     const request = JSON.parse(String(init?.body)) as typeof requests[number];
     const serialized = JSON.stringify(request.messages);
+    const cards = request.messages.flatMap(message => {
+      try {
+        const value = JSON.parse(message.content) as { bodyIncluded?: boolean; operationId?: string; contentHash?: string; hostEvidence?: { evidenceId?: string } };
+        return value?.bodyIncluded === false ? [value] : [];
+      } catch { return []; }
+    });
     try {
-      for (const value of acquired) assert(serialized.includes(value), 'SessionEvidence: completed tool data disappeared');
+      for (const value of acquired) {
+        if (serialized.includes(value)) continue;
+        const context = f.h.context();
+        const acquisitions = savedAcquisitions(context).filter(item => item.content.includes(value));
+        const operations = context.intents.flatMap(work => work.localOperations ?? []).filter(op => JSON.stringify(op.result ?? {}).includes(value));
+        const matched = cards.some(card => acquisitions.some(item => card.contentHash === item.contentHash || card.hostEvidence?.evidenceId === item.id)
+          || operations.some(op => card.operationId === op.id));
+        assert(matched, 'SessionEvidence: completed tool data disappeared');
+      }
       assert(!serialized.includes(invalidMarker), 'InvalidBodyIsolation: invalid provider body echoed');
       requests.push(request);
       assert(cursor < actions.length, 'Sequence model replies exhausted');
@@ -75,7 +90,17 @@ async function runSequence(sequence: Token[], ordinal: number): Promise<SessionE
     assert(!JSON.stringify(f.h.store.read(f.h.room)).includes(invalidMarker),'InvalidBodyIsolation: rejected original persisted');
     const localReceipts = work.localOperations?.filter(op => op.action.type === 'readSkillResource') ?? [];
     assert(localReceipts.every(op => op.result?.ok && String(op.result.data.content).includes('真实引用资料')));
-    if (expectedLocal) assert(JSON.stringify(requests.at(-1)).includes('真实引用资料'),'SessionEvidence: local receipt missing from final request');
+    if (expectedLocal) {
+      const last = requests.at(-1)!;
+      const visible = JSON.stringify(last.messages).includes('真实引用资料');
+      const carded = last.messages.some(message => {
+        try {
+          const value = JSON.parse(message.content) as { bodyIncluded?: boolean; operationId?: string };
+          return value.bodyIncluded === false && localReceipts.some(op => op.id === value.operationId);
+        } catch { return false; }
+      });
+      assert(visible || carded, 'SessionEvidence: local receipt missing from final request');
+    }
     // A new room/work shares the host runtime, never the first room's transcript.
     const otherRoom = 'other-session-room', submission = f.h.engine.submit(otherRoom,{ id:'other',text:'只回答这次新问题' }); assert(submission.ok);
     let cleanOtherRoom = false;

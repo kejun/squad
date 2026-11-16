@@ -16,10 +16,10 @@ const genericDescriptionMarkers = [
 ];
 const commandPattern = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/;
 
+/** The unknown-purpose description is not a usage signal. A boilerplate scenario
+ * attached to a real description must not erase that description from the index. */
 export function isGenericCatalogUsage(entry: CliCatalogEntry): boolean {
-  if (genericDescriptionMarkers.some(marker => entry.description.includes(marker))) return true;
-  const scenarios = entry.scenarios ?? [];
-  return scenarios.length > 0 && scenarios.every(text => genericDescriptionMarkers.some(marker => text.includes(marker)));
+  return genericDescriptionMarkers.some(marker => entry.description.includes(marker));
 }
 
 function searchableFields(entry: CliCatalogEntry): { command: string; body: string } {

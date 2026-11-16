@@ -4,12 +4,17 @@ import { LocalRuntime } from '../src/local-runtime.js';
 import { LocalFixture } from './local-tools-fixture.js';
 import { inventoryObservation } from './tool-inventory-observation.js';
 
+const boilerplateScenario = '当任务的输入和目标符合用途说明时，选择本命令；按所引资料核对参数和前提，以取得说明中的结果。';
 const ocrCatalog: CliCatalogEntry[] = [
-  { command: 'tesseract', description: '识别图片中的文字并输出文本', scenarios: ['扫描件 OCR', '图片文字识别'] },
+  { command: 'tesseract', description: 'Open source OCR engine that reads text from images', scenarios: [boilerplateScenario] },
   { command: 'ocrmypdf', description: '为扫描 PDF 增加可搜索文字层', scenarios: ['扫描 PDF OCR'] },
   { command: 'pdftotext', description: '提取 PDF 已有文字层', scenarios: ['读取电子版 PDF 文本'] },
   { command: 'git', description: '已在有效 PATH 发现可执行命令；用途资料未知。',
+    scenarios: ['适用场景未知；先取得具体用法说明，再决定调用。'],
     documentation: { state: 'unknown', source: 'path', reference: 'git' } },
+  { command: 'unknown-template', description: '已在有效 PATH 发现可执行命令；用途资料未知。',
+    scenarios: [boilerplateScenario],
+    documentation: { state: 'unknown', source: 'path', reference: 'unknown-template' } },
 ];
 const largeCatalog: CliCatalogEntry[] = [
   ...ocrCatalog,
@@ -50,7 +55,7 @@ export async function mergedRecallAcceptance() {
       { type: 'answer', text: '已合并用途 BM25 与名称假设。' });
     await fixture.runner().runOne(fixture.h.room, fixture.h.task);
     const result = fixture.h.context().intents[0]!.localOperations![0]!.result!;
-    const recalled = (result.data.cli as { catalog?: { entries: CliCatalogEntry[]; recall?: { unregisteredNames: string[] } } }).catalog!;
+    const recalled = (result.data.cli as { catalog?: { entries: CliCatalogEntry[]; recall?: { unregisteredNames: string[]; matches?: { command: string; channels: string[] }[] } } }).catalog!;
     const commands = recalled.entries.map(entry => entry.command);
     assert(commands.includes('tesseract'));
     assert(commands.includes('git'));
