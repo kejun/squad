@@ -8,7 +8,7 @@ import { sharedToolExperiences, type ToolExperience } from './task/tool-experien
 import { cliFailureGuidance, toolGuidanceAllowed } from './task/tool-guidance.js';
 import { withToolInventoryReadiness, type ToolInventoryView } from './cli-readiness.js';
 import { projectModelToolInventory } from './tool-inventory-projection.js';
-import { hostEvidenceReference, observeResourceAcquisition, resourceIdentity } from './resource-acquisition.js';
+import { hostEvidenceReference, observeResourceAcquisition, resourceIdentity, savedAcquisitions, type HostAcquisition } from './resource-acquisition.js';
 import { deliveryCheckMaterials } from './delivery-check-delta.js';
 import { acceptanceCriteria, checkCitationSources, judgmentsDiagnostic, validCriterionJudgments, type CheckDiagnostic, type CheckMaterials, type CriterionJudgment } from './delivery-acceptance.js';
 import { deliveryValidationOperation, deliveryVerificationEvidence, deliveryVerificationProblem, type DeliveryVerificationPlan } from './task/verification.js';
@@ -66,6 +66,8 @@ export interface WorkScope {
   findSkills(query: string, signal?: AbortSignal): Promise<FoundSkill[]>;
   webSearch: WebTools['search'];
   webFetch: WebTools['fetch'];
+  /** Settled receipts for request projection. Absent scopes keep the original tool text. */
+  receiptSources?(): { operations: readonly LocalOperation[]; acquisitions: readonly HostAcquisition[] };
 }
 
 export class WorkFailure extends Error {
@@ -331,6 +333,11 @@ export class WorkRunner {
     } };
     if (observeCoordination) Object.defineProperty(scope, 'coordinationView', { get: observeCoordination });
     const currentWork = () => { this.assertAttached(); return this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === work.id)!; };
+    scope.receiptSources = () => {
+      const context = this.engine.view(roomId, taskId)!.context;
+      const current = currentWork();
+      return { operations: current.localOperations ?? [], acquisitions: savedAcquisitions(context).filter(item => item.workId === current.id) };
+    };
     const toolKnowledge = () => {
       this.assertAttached();
       const current = this.engine.view(roomId, taskId)!.context;

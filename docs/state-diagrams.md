@@ -478,6 +478,24 @@ LOCAL_REQUEST 固定 operationId、请求摘要、父会话 attempt、技能版�
 
 停止会将已领取子操作置 cancelling 并发取消意图，执行器等待沙箱会话和后代退出；可能写入的取消/崩溃保留 uncertain，直到核对回执/效果。重启先核对本地会话日志与存储，再调度父工作；没有会话启动记录可证明未执行，已有回执可补交，缺少证据则保持 uncertain 和租约，不重放写入。旧任务缺失能力默认不授权；显式恢复核对通过后仅为兼容版本的新动作启用当前配置。
 
+### 回执投影
+
+类型：既有本地操作上下文的保存形式，加上模型请求组装投影。所有者：检查点为 `src/local-operation.ts`，请求卡片为 `src/model-adapter.ts`。验收 BT_M60–M65。不新增顶层状态、父状态、并行区域或执行队列。
+
+`LOCAL_REQUEST` 仍保存动作、检查点和待结算操作号。成功的 `discoverHost` / `listSkills` 在 `LOCAL_RESULT` 写入检查点时，以及之后的 `LOCAL_REQUEST` 再保存对话时，消息数据只有 `persistedMetadataOperationId`。操作上的完整回执不变。命令、技能页和网页捕获的有界正文仍可留在检查点里；组请求时若该结果已经不是最近一条，并且回执已结算，则改写成索引卡。卡片字段取自回执，不取检查点里可能过期的正文。没有持久回执的网页搜索和技能搜索保持原文。
+
+最近一条工具结果在当次请求中保留有界原文，供模型决定下一步。当前候选、固定来源和检查材料不进入这套替换；装不下时仍是 `SOURCE_CONTEXT_LIMIT`、`CHECK_CONTEXT_LIMIT` 或 `MODEL_CONTEXT_LIMIT`。`readEvidence` 继续沿用上图的 `LOCAL_REQUEST → LOCAL_CLAIM → LOCAL_RESULT`。新页领取消耗一次 ordinary；同一读取确认未开始后重新领取不另扣。失败、停止、额度和旧目标守卫不变。
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued: LOCAL_REQUEST [动作有效] / 保存检查点；目录回执只留操作号
+    queued --> claimed: LOCAL_CLAIM [原权限额度与租约] / 新证据页扣一次ordinary，已领取的读取不另扣
+    claimed --> succeeded: LOCAL_RESULT [结算且成功] / 保存完整回执；目录检查点消息只留操作号
+    claimed --> failed: LOCAL_RESULT [结算且失败] / 保存失败回执且不补写正文
+```
+
+模型请求组装不是上图中的新状态。它读取已经结算的 `localOperations` 和网页捕获，在发出请求前替换更早的结果消息。助手的工具调用 JSON、系统提示和任务载荷保持原样。
+
 技能注册表固定启动 manifest；激活原子发布同版本只读快照，资源按包内相对路径读取；正文和资源不是调度权限。执行阶段的 Bot 默认获得四个本地接口；解析、纯汇总和独立检查模型不执行这些工具。宿主工程验证与后台讨论命令用隔离副本并标记工程 revision；主工作区仍为权威来源。执行后端不可用返回真实失败，不退回无沙箱进程。文件、日志、环境、网络和进程 I/O 在执行器完成，状态机不访问文件或启动进程。
 
 可信 LOCAL_RECONCILE 或 uncertain 操作的 LOCAL_RESULT 回执全部结算后，若目标仍有效且未停止，返回原主工作的阶段（owner→running、assistance→waitingAssistance、facilitator→coordinating、check→checking），复用检查点继续。旧目标和停止任务只结算旧操作，不恢复执行。
