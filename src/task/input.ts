@@ -19,11 +19,10 @@ export function prepareInterpretation(c: TaskContext, e: TaskEvent) {
   if (!input) return;
   cancelWork(c, e);
   const hierarchical = hierarchicalSummaryPending(c);
+  const shared = { maxPartitions: mapReduceCapacity(c, 1), maxConcurrentPartitions: mapReduceConcurrency(c, 1),
+    input: { id: input.id, rawText: input.rawText, action: input.action }, references: inputReferences(c) };
   const work = intent(c, e.at, 'interpretation', 'facilitator', hierarchical
-    ? { maxPartitions: mapReduceCapacity(c, 1), maxConcurrentPartitions: mapReduceConcurrency(c, 1),
-      input: { id: input.id, rawText: input.rawText, action: input.action }, references: inputReferences(c), ...hierarchicalContext(c) }
-    : { maxPartitions: mapReduceCapacity(c, 1), maxConcurrentPartitions: mapReduceConcurrency(c, 1),
-      input: { id: input.id, rawText: input.rawText, action: input.action }, goal: c.goal, artifacts: c.artifacts, board: c.board,
-      references: inputReferences(c), ...conversationInput(c) });
+    ? { ...shared, ...hierarchicalContext(c) }
+    : { ...shared, goal: c.goal, artifacts: c.artifacts, board: c.board, ...conversationInput(c) });
   input.workId = work.id;
 }

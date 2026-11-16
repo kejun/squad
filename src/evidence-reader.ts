@@ -1,12 +1,11 @@
 import { createHash } from 'node:crypto';
 import type { LocalAction, LocalToolResult } from './local-operation.js';
+import { codePointLength, savedPageCodePoints } from './saved-page.js';
 import { artifactForWork, documentIdentity } from './task/delivery.js';
 import { evidenceMetadata, evidenceSource, type CapturedEvidenceStream } from './task/evidence.js';
 import type { Intent, TaskContext } from './types.js';
 
-/** One saved page. Hierarchical summaries reuse this budget and do not invent another. */
-export const savedPageCodePoints = 4000;
-export const codePointLength = (text: string) => Array.from(text).length;
+export { codePointLength, savedPageCodePoints };
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 
 function capturedStream(value: unknown): CapturedEvidenceStream | undefined {

@@ -1,4 +1,4 @@
-import { codePointLength, savedPageCodePoints } from '../evidence-reader.js';
+import { codePointLength, savedPageCodePoints } from '../saved-page.js';
 import type { Artifact, DiscussionRound, Intent, SummaryLayer, TaskContext, TaskEvent } from '../types.js';
 import { documentIdentity } from './delivery.js';
 import { capabilities, discussionActive, fence } from './facts.js';
