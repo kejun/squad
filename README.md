@@ -129,6 +129,8 @@ KEJ-107／108 的 [17 项组合验证索引](docs/formal-verification.md#kej-107
 
 模型成功响应的实际字节读取上限沿用既有失败、停止和检查结算路径，见[成功响应资源边界](docs/state-diagrams.md#模型成功响应资源边界bt_m46bt_m49)（BT_M46–M49）；无需新增任务状态。
 
+未指定输出额度时每个模型请求 384000 token。非流式补全的响应头和响应体时限默认 2147483647 毫秒，避免 Node fetch 在 300 秒默认响应头时限处掐断长生成；工作期限、用户停止和协议校验仍沿用原路径。见[非流式传输时限](docs/state-diagrams.md#非流式传输时限)（BT_Y176–Y179）。
+
 CLI 外部效果后的真实宿主终止沿用已领取操作 → uncertain → 可信核对或持久回执续办的既有路径；BT_L06 的进程屏障、重复恢复和停止边界见[效果后宿主崩溃](docs/state-diagrams.md#效果后宿主崩溃kej-103)。该依赖接线验证不增加状态或调度权限。
 
 [SQLite 进程丢失边界](docs/state-diagrams.md#sqlite-写事务的进程丢失边界kej-104)以真实写事务验证报告结果和本地领取的快照、回执及工作区租约原子性；沿用既有 XState 转移，不新增生命周期。
@@ -330,14 +332,16 @@ CHECK_MODEL_NAME=YOUR_CHECK_MODEL
 | `NO_AUTH` | `MODEL_NO_AUTH=true` | 明确使用无鉴权服务 |
 | `JSON_MODE` | `B_MODEL_JSON_MODE=false` | 是否发送 JSON 输出格式参数 |
 | `TEMPERATURE` | `MODEL_TEMPERATURE=0.2` | 温度 |
-| `MAX_TOKENS` | `MODEL_MAX_TOKENS=8192` | 单次输出 Token 上限 |
+| `MAX_TOKENS` | `MODEL_MAX_TOKENS=8192` | 单次输出 Token 上限；未设置时为 384000 |
 | `MAX_RESPONSE_BYTES` | `CHECK_MODEL_MAX_RESPONSE_BYTES=8388608` | 成功响应实际解压后字节上限，默认 8 MiB；超限取消并明确失败 |
 | `CONTEXT_WINDOW_TOKENS` | `CHECK_MODEL_CONTEXT_WINDOW_TOKENS=131072` | 可选。完成检查发送固定材料前，按该模型上下文容量做保守预检 |
 | `EXTRA_BODY` | `MODEL_EXTRA_BODY={"enable_thinking":false}` | 供应商扩展 JSON 参数 |
 
 空白的成员配置继承默认值；完成检查未单独配置时，继承促进者的模型选择。同一地址可以共用默认密钥，修改为另一地址后必须设置对应角色的密钥，或明确设置该角色的 `NO_AUTH=true`，不会把默认服务的密钥转发到新地址。布尔项使用 `true` 或 `false`。
 
-DeepSeek V4.1 Flash 的默认输出额度为 384000，识别模型 ID 最后一段时忽略大小写，兼容 `deepseek-v4.1-flash` 和硅基流动的 `deepseek-ai/DeepSeek-V4.1-Flash`；实际请求保留原始 ID。显式 `MAX_TOKENS` 或 `EXTRA_BODY` 中的输出额度沿用现有优先级，其他模型不套用这个自动默认值。
+未设置 `MAX_TOKENS` 时，每个模型的输出额度都是 384000。实际请求保留原始模型 ID，因此 `deepseek-v4.1-flash` 与 `deepseek-ai/DeepSeek-V4.1-Flash` 都会带上这份额度。显式 `MAX_TOKENS` 优先；`EXTRA_BODY` 里的 `max_tokens` 或 `max_completion_tokens` 会代替自动 `max_tokens`。
+
+非流式请求保持 `stream: false`。`MODEL_HEADERS_TIMEOUT_MS` 与 `MODEL_BODY_TIMEOUT_MS` 控制等待响应头和响应体的时间，未设置时均为 2147483647 毫秒，避免客户端在 Node fetch 默认的 300 秒响应头时限处中断长生成。这两个值不是模型签名的一部分。更短的工作期限和用户停止仍会取消请求。
 
 希望减少思考带来的延迟时，可显式设置 `MODEL_EXTRA_BODY={"enable_thinking":false}`，也支持各角色的同名后缀。默认不添加该参数；是否降低延迟、是否仍返回 reasoning 由提供商实现决定，不能据此保证完全关闭思考。
 

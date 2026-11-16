@@ -1,4 +1,4 @@
-import { defaultContextWindowTokens, deepseekFlashMaximumOutputTokens, maximumCount } from './budget-defaults.js';
+import { defaultContextWindowTokens, defaultMaxOutputTokens, maximumCount } from './budget-defaults.js';
 import { readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { validateConfig, type ModelService, type TeamConfig } from './types.js';
@@ -76,7 +76,7 @@ export function configureModelsFromEnv(base: TeamConfig, env: ModelEnvironment):
     }
     const temperature = number(`${prefix}_TEMPERATURE`, fallback?.temperature);
     const inheritedOutput = fallback && (!automaticOutputDefaults.has(fallback) || fallback.model === model) ? fallback.maxTokens : undefined;
-    const maxTokens = number(`${prefix}_MAX_TOKENS`, inheritedOutput ?? (model.split('/').at(-1)?.toLowerCase() === 'deepseek-v4.1-flash' ? deepseekFlashMaximumOutputTokens : undefined));
+    const maxTokens = number(`${prefix}_MAX_TOKENS`, inheritedOutput ?? defaultMaxOutputTokens);
     if (!value(`${prefix}_MAX_TOKENS`) && (inheritedOutput === undefined || fallback && automaticOutputDefaults.has(fallback))) automaticOutputDefaults.add(service);
     const maxResponseBytes = number(`${prefix}_MAX_RESPONSE_BYTES`, fallback?.maxResponseBytes ?? maximumCount);
     const inheritedContext = !differentEndpoint && model === fallback?.model ? fallback.contextWindowTokens : undefined;
