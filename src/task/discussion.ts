@@ -1,13 +1,17 @@
-import { type Decision, type Intent, type TaskContext, type TaskEvent } from '../types.js';
-import { conversationInput, intent, message, release, saveReports } from './operations.js';
-import { capabilities, discussionActive, fence } from './facts.js';
-import { recordMapResult } from './map-queue.js';
-import { workInCleanup } from './resilience.js';
+import { codePointLength, savedPageCodePoints } from '../saved-page.js';
 import { localPhysicalPending } from '../local-operation.js';
+import { type Decision, type Intent, type TaskContext, type TaskEvent } from '../types.js';
+import { capabilities, discussionActive, fence } from './facts.js';
+import { hierarchicalContext, settleHierarchicalLayer, validShortArtifact } from './hierarchical-summary.js';
+import { recordMapResult } from './map-queue.js';
+import { conversationInput, intent, message, release, saveReports } from './operations.js';
+import { workInCleanup } from './resilience.js';
 
 export function discussionIntent(c: TaskContext, e: TaskEvent, kind: Intent['kind'], target: string) {
-  const work = intent(c, e.at, kind, target, { goal: c.goal, board: c.board, artifacts: c.artifacts,
-    ...conversationInput(c), roster: c.config.bots, capabilities: capabilities(c) });
+  const hierarchical = !!c.discussion?.mapReduce?.summaryLayer;
+  const work = intent(c, e.at, kind, target, hierarchical
+    ? hierarchicalContext(c)
+    : { goal: c.goal, board: c.board, artifacts: c.artifacts, ...conversationInput(c), roster: c.config.bots, capabilities: capabilities(c) });
   work.discussionId = c.discussion!.id;
   return work;
 }
@@ -98,8 +102,36 @@ export function discussionFailed(c: TaskContext, e: TaskEvent, work: Intent, rea
   } else discussionReady(c, e, discussionSources(c));
 }
 
+function stopHierarchicalSummary(c: TaskContext, e: TaskEvent, reason: string) {
+  if (c.discussion && c.discussion.status !== 'cancelled') {
+    c.discussion.status = 'cancelled';
+    c.discussion.incomplete = reason;
+  }
+  c.reason = reason;
+  message(c, e, 'facilitator', reason, 'notice');
+}
+
 export function acceptDiscussion(c: TaskContext, e: Extract<TaskEvent, { type: 'DISCUSSION_RESULT' }>) {
   const work = c.intents.find(item => item.id === e.workId)!;
+  const sourceIds = work.payload.sourceIds as string[] | undefined;
+  if (sourceIds && c.discussion?.mapReduce?.summaryLayer && work.kind === 'assistance') {
+    release(c, work.id);
+    const fits = e.status === 'success' && validShortArtifact(e.text, sourceIds);
+    const ids = fits ? saveReports(c, e, e.text, work.target, [{ name: 'summary.md', content: e.text }]) : [];
+    const reason = fits ? undefined : codePointLength(e.text) > savedPageCodePoints ? 'SUMMARY_PAGE_EXCEEDED' : e.text || '短产物未保留直接来源与要点';
+    const result = { target: work.target, status: fits ? 'success' as const : 'failed' as const, answer: '', artifactIds: ids, ...(reason ? { reason } : {}) };
+    message(c, e, work.target, fits ? '本批已收成一条短产物' : `分片失败：${reason}`, fits ? 'answer' : 'notice', { artifactIds: ids });
+    recordMapResult(c, e, work, result);
+    return;
+  }
+  if (work.kind === 'discussionSummary' && c.discussion?.mapReduce?.summaryLayer) {
+    release(c, work.id);
+    message(c, e, work.target, '本层分片已结算', 'notice');
+    const outcome = settleHierarchicalLayer(c, e);
+    if (outcome === 'handoff') discussionReady(c, e, e.text);
+    else if (outcome === 'stop') stopHierarchicalSummary(c, e, '顶层摘要超过一页，汇总已停止');
+    return;
+  }
   release(c, work.id);
   const failed = e.status === 'failed';
   const text = failed ? '' : e.text;

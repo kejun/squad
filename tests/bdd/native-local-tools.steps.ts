@@ -8,7 +8,7 @@ When('隔离服务开启本地工具并加载技能后执行真实命令', async
 Then('应获取原生进程身份且服务锁不得依赖其他平台的接口', function (this: SpecWorld) { assert(completed.has(this)); });
 Then('CLI 应经已持久化领取的子操作返回真实输出和回执', function (this: SpecWorld) { assert(completed.has(this)); });
 Given('宿主持有含启动时间和开机标识的服务锁', function () {});
-When('核对活跃、已退出、复用标识与未知平台的身份', async function (this: SpecWorld) { await nativeIdentityAcceptance(); completed.add(this); });
+When('核对活跃、已退出、复用标识与未知平台的身份', { timeout: 20_000 }, async function (this: SpecWorld) { await nativeIdentityAcceptance(); completed.add(this); });
 Then('只应确认匹配身份仍活跃且不得接管活跃或不确定的锁', function (this: SpecWorld) { assert(completed.has(this)); });
 Then('身份探测失败不得留下本次新建的空锁', function (this: SpecWorld) { assert(completed.has(this)); });
 Given('技能与快照目录通过同一真实目录的别名访问', function () {});

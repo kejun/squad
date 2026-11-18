@@ -2,6 +2,7 @@ import { type InputAction, type TaskContext, type TaskEvent } from '../types.js'
 import { createInputAnalysis, inputReferences } from '../input-intent.js';
 import { pendingInput } from './facts.js';
 import { cancelWork, conversationInput, intent } from './operations.js';
+import { hierarchicalContext, hierarchicalSummaryPending } from './hierarchical-summary.js';
 import { mapReduceCapacity, mapReduceConcurrency } from './map-reduce-capacity.js';
 
 export function recordInput(c: TaskContext, id: string, text: string, action: InputAction) {
@@ -17,11 +18,11 @@ export function prepareInterpretation(c: TaskContext, e: TaskEvent) {
   const input = pendingInput(c);
   if (!input) return;
   cancelWork(c, e);
-  const work = intent(c, e.at, 'interpretation', 'facilitator', {
-    maxPartitions: mapReduceCapacity(c, 1),
-    maxConcurrentPartitions: mapReduceConcurrency(c, 1),
-    input: { id: input.id, rawText: input.rawText, action: input.action }, goal: c.goal, artifacts: c.artifacts, board: c.board,
-    references: inputReferences(c), ...conversationInput(c),
-  });
+  const hierarchical = hierarchicalSummaryPending(c);
+  const shared = { maxPartitions: mapReduceCapacity(c, 1), maxConcurrentPartitions: mapReduceConcurrency(c, 1),
+    input: { id: input.id, rawText: input.rawText, action: input.action }, references: inputReferences(c) };
+  const work = intent(c, e.at, 'interpretation', 'facilitator', hierarchical
+    ? { ...shared, ...hierarchicalContext(c) }
+    : { ...shared, goal: c.goal, artifacts: c.artifacts, board: c.board, ...conversationInput(c) });
   input.workId = work.id;
 }

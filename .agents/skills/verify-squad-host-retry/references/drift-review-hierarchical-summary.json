@@ -1,0 +1,25 @@
+{
+  "change": "hierarchical-summary",
+  "reviewedCommits": [
+    "2befa9dc33f112de8e49938ddca2b50a32672241",
+    "07066ab7dcb3c65cac39fb18fc9f8833d86ce259"
+  ],
+  "outcome": "no-effect",
+  "syncCommit": "07066ab7dcb3c65cac39fb18fc9f8833d86ce259",
+  "reason": "分层摘要只在 summaryLayer 已建立时改变理解、分片、归并和负责人载荷。有限模型的夹具不建立该层，也不发出「汇总/归纳」输入。页预算仍是 4000 个 Unicode 码点，只是从读取器挪到不含 node:crypto 的模块。理解请求的 mapReduceCapacity(c, 1) 仍只出现一次。既有负对照锚点仍然唯一。固定检查全文路径未改。模型、性质和边界没有改写。",
+  "addedDriftGate": [
+    "src/saved-page.ts",
+    "src/task/hierarchical-summary.ts"
+  ],
+  "verified": [
+    "verify-squad-handoff/scripts/check.py status=verified seconds=35.365",
+    "verify-squad-handoff/scripts/check-composition.py status=verified",
+    "verify-squad-authority/scripts/check.py status=verified",
+    "verify-squad-authority/scripts/composition-check.py status=verified",
+    "verify-squad-coordination/scripts/check.py status=verified seconds=436.472",
+    "verify-squad-coordination/scripts/check-extensions.py status=verified seconds=463.978",
+    "verify-squad-delivery/scripts/check.py status=verified seconds=179.165",
+    "verify-squad-local-effects/scripts/check.py status=verified seconds=105.958",
+    "verify-squad-host-retry/scripts/check.py status=verified seconds=58.07"
+  ]
+}

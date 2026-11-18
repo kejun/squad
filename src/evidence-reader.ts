@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
 import type { LocalAction, LocalToolResult } from './local-operation.js';
+import { codePointLength, savedPageCodePoints } from './saved-page.js';
 import { artifactForWork, documentIdentity } from './task/delivery.js';
 import { evidenceMetadata, evidenceSource, type CapturedEvidenceStream } from './task/evidence.js';
 import type { Intent, TaskContext } from './types.js';
 
-const pageSize = 4000;
+export { codePointLength, savedPageCodePoints };
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 
 function capturedStream(value: unknown): CapturedEvidenceStream | undefined {
@@ -42,6 +43,7 @@ export function readSavedArtifact(c: TaskContext, work: Intent, action: Extract<
 
 function savedPage(text: string, identity: string[], cursor: string | undefined, type: 'EVIDENCE' | 'ARTIFACT', metadata: Record<string, unknown>): LocalToolResult {
   const codepoints = Array.from(text);
+  const pageSize = savedPageCodePoints;
   const capturedContentHash = sha256(text);
   const cursorKey = sha256(JSON.stringify([...identity, capturedContentHash]));
   const offset = cursor === undefined ? 0 : Number(cursor.split(':')[1]);

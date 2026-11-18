@@ -1,3 +1,4 @@
+import { beginHierarchicalSummary } from './hierarchical-summary.js';
 import { startMapReduce } from './map-reduce.js';
 import { bindDeliveryCheck, deliveryCandidate, resetDeliveryMaterials, settleDeliveryCycle } from './delivery-cycle.js';
 import { mapReduceCapacity, mapReduceConcurrency } from './map-reduce-capacity.js';
@@ -87,8 +88,13 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       c.discussion!.status = 'delivered';
       c.deferredCoordination = false;
       cancelWork(c, e);
-      owner(c, e, { reason: '吸收协调员汇总和全部成员原始意见，在已有草稿上继续完善；区分共识、分歧、依据和未完成项。', previousBlocker: c.reason });
-      message(c, e, 'facilitator', `讨论汇总及成员原始意见已交给 ${c.owner}，已安排继续完善方案。`, 'notice', { recipient: c.owner });
+      if (c.discussion?.mapReduce?.summaryLayer?.topId) {
+        owner(c, e, { summaryHandoff: true });
+        message(c, e, 'facilitator', `顶层摘要已交给 ${c.owner}。`, 'notice', { recipient: c.owner });
+      } else {
+        owner(c, e, { reason: '吸收协调员汇总和全部成员原始意见，在已有草稿上继续完善；区分共识、分歧、依据和未完成项。', previousBlocker: c.reason });
+        message(c, e, 'facilitator', `讨论汇总及成员原始意见已交给 ${c.owner}，已安排继续完善方案。`, 'notice', { recipient: c.owner });
+      }
       break;
     case 'INTERPRETATION_RESULT': {
       const input = c.inputAnalyses!.find(input => input.id === e.inputId)!;
@@ -97,6 +103,8 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (e.spec.clarification) {
         c.reason = e.spec.clarification; message(c, e, 'facilitator', e.spec.clarification, 'notice');
         openHumanGate(c, e, { kind: 'clarification', question: e.spec.clarification, ...(e.workId ? { workId: e.workId } : {}) });
+      } else if (beginHierarchicalSummary(c, e)) {
+        // The host batches current articles. The interpretation does not enumerate them.
       } else if (!c.inputs.some(note => !note.applied) && c.review?.status !== 'pending' && !startMapReduce(c, e)) {
         owner(c, e, { reason: 'Plan from the validated user intent and preserve the original goal' });
       }
@@ -212,7 +220,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (c.inputs.some(note => !note.applied)) resetDeliveryMaterials(c);
       for (const note of c.inputs) note.applied = true;
       if (c.review && !['cancelled', 'complete'].includes(c.review.status)) resetReviewAtBoundary(c, e);
-      else if (!startMapReduce(c, e)) owner(c, e, { reason: 'Apply latest user input' });
+      else if (!beginHierarchicalSummary(c, e) && !startMapReduce(c, e)) owner(c, e, { reason: 'Apply latest user input' });
       c.deferredCoordination = false; break;
     case 'HANDOFF': {
       const from = c.owner;
