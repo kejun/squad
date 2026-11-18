@@ -26,7 +26,7 @@ SPECS = {
     'InputBoundary-help': ('InputBoundary', 'help', ['NeverWaitingBoundary', 'NeverResolved', 'NeverClarified', 'NeverStoppedSaved', 'NeverRecoveredParsing']),
     'InputBoundary-check': ('InputBoundary', 'check', ['NeverResolved', 'NeverClarified', 'NeverStoppedSaved', 'NeverRecoveredParsing']),
     'ReviewQueue': ('ReviewQueue', '', ['NeverSynthesis', 'NeverRecoveredSaved', 'NeverRepairedReview', 'NeverNewRound']),
-    'DeferredCoordination': ('DeferredCoordination', '', ['NeverDeferred', 'NeverCoordinated', 'NeverReset', 'NeverRecoveredDeferred']),
+    'DeferredCoordination': ('DeferredCoordination', '', ['NeverDeferred', 'NeverCoordinated', 'NeverReset', 'NeverRecoveredDeferred', 'NeverRetainedClaimable']),
     'ToolRecovery': ('ToolRecovery', '', ['NeverFeedback', 'NeverSecondFeedback', 'NeverRecoveredFeedback', 'NeverBudgetFrontier', 'NeverExpiredFeedback']),
     'ForwardDelivery': ('ForwardDelivery', '', ['NeverGapDelivery', 'NeverDirectRepair', 'NeverPublication', 'NeverRollback', 'NeverReopened', 'NeverStoppedCheck', 'NeverStaleGoal']),
 }
@@ -37,7 +37,7 @@ for origin in ['map', 'discussion']:
             SPECS[key] = ('CancelledDiscussion', f'{origin}-{mode}-{effects}', ['NeverRetired', 'NeverReinvited'] + (['NeverRecoveredUnknown'] if effects == 'physical' else []) + (['NeverContentResumedWithCustody'] if effects == 'physical' and mode != 'goal' else []))
 
 CONTROLS = {
-    'tool-recovery-no-bound': ('ToolRecovery', 'BoundedToolRecovery', 'src/task/tool-recovery.ts', "  if (failures.length >= 2) return 'TOOL_RECOVERY_EXHAUSTED';", '  /* faulty missing feedback ceiling */'),
+    'tool-recovery-no-bound': ('ToolRecovery', 'BoundedToolRecovery', 'src/task/tool-recovery.ts', "  if (failures.length >= failureLimit) return 'TOOL_RECOVERY_EXHAUSTED';", '  /* faulty missing feedback ceiling */'),
     'tool-recovery-no-duplicate': ('ToolRecovery', 'ToolFailureIdentity', 'src/task/tool-recovery.ts', "  if (failures.some(item => item.requestId === e.requestId)) return 'DUPLICATE_TOOL_FAILURE';", '  /* faulty missing duplicate guard */'),
     'tool-recovery-no-request': ('ToolRecovery', 'ToolFailureIdentity', 'src/task/tool-recovery.ts', "|| !c.trace.some(entry => entry.event === 'CONSUME' && entry.detail === e.requestId)", ''),
     'tool-recovery-no-budget': ('ToolRecovery', 'ToolRecoveryAccounting', 'src/task/tool-recovery.ts', '  return requestBudgetProblem(c, work);', '  return null; /* faulty missing follow-up reservation */'),
@@ -83,6 +83,8 @@ CONTROLS = {
         '    refreshReviewFailures(c);\n  }\n  const target = nextReviewer(c);', '    /* faulty loss of failed reviewer status */\n  }\n  const target = nextReviewer(c);'),
     'lose-deferred-coordination': ('DeferredCoordination', 'DeferredProgress', 'src/task/guards.ts',
         "deferredReady: ({ context }) => context.deferredCoordination && !discussionActive(context) && !unresolvedInput(context) && inflight(context).length === 0 && !context.intents.some(work => localPhysicalPending(work) && !workInCleanup(context, work)),", 'deferredReady: () => false,'),
+    'cancel-claimable-progress-work': ('DeferredCoordination', 'RetainClaimableWork', 'src/task/resilience.ts',
+        "    && (c.repeat.count > 1 || effectiveWork(c, 'running', at).length === 0);", '    && true; /* faulty progress check ignores still-claimable work */'),
     'retire-obsolete-discussion-too-late': ('CancelledDiscussion-map-goal-safe', 'CancelledRetirement', 'src/task/reducer.ts',
         'for (const work of c.intents.filter(work => canRetireDiscussionWork(c, work))) release(c, work.id);', '/* faulty cancelled work continues occupying members after recovery */'),
     'skip-ended-obsolete-discussion': ('CancelledDiscussion-discussion-end-safe', 'CancelledRetirement', 'src/engine.ts',

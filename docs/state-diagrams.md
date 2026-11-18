@@ -19,7 +19,7 @@ stateDiagram-v2
 
 历史讨论/评审失败、skip 和 sourceItems 声明随材料交接，不在交接处否决下游。可选引用不再触发目录/逐字复审；不能据此伪造真实回执。读取结果选当前候选最新记录。模型请求仍从持久化领取的意图发起；旧目标/候选/尝试、停止、更新中的用户要求、授权和未决物理效果继续隔离。用户明确要求的实际测试及工作区版本校验保留；其失败显式结算。恢复清除旧内容审核指令，不重置预算或绕过人工决定。
 
-BT_F15、BT_F21、BT_F27 复验同一 `checking → ended` 路径：当前完整合法结论中的未通过项全部为 `unverified` 时，也保存逐项结论并在正文声明缺口后正常交付，不按普通讨论或 MapReduce 区分。BT_E128–E129 覆盖必需凭证缺失时的交接：候选进入已持久化、可领取的同一次检查；已获准的下游工具可补证，完成前宿主按原资源身份、完整性和时效验证。未补齐时从检查结算为部分交付；协议错误、预算耗尽、停止、迟到和恢复沿用检查边界。
+BT_F15、BT_F21、BT_F27 复验同一 `checking → ended` 路径：当前完整合法结论中的未通过项全部为 `unverified` 时，也保存逐项结论并在正文声明缺口后正常交付，不按普通讨论或 MapReduce 区分。BT_E128–E129 覆盖必需凭证缺失的交接。候选进入同一次持久化检查，检查员可用获准的工具补证。完整交付前，宿主核对原资源身份、完整性和时效。未补齐时从检查结算为部分交付。协议错误、预算耗尽、停止、迟到和恢复沿用检查边界。
 
 ## 子 Agent 直接交付
 
@@ -1483,7 +1483,7 @@ flowchart TD
 
 ## 分层摘要
 
-类型：真实 XState 任务里的既有 map 生命周期；所有者 `src/task/hierarchical-summary.ts`、`src/task/map-queue.ts`、`src/task/discussion.ts`、`src/task/reducer.ts`。验收 BT_Q50–BT_Q56。普通文档归并 BT_Q07 仍沿用 `discussionSummary`。
+图中分片与结算沿用真实 XState 任务的 map 生命周期，由 `src/task/hierarchical-summary.ts`、`src/task/map-queue.ts`、`src/task/discussion.ts`、`src/task/reducer.ts` 实现。验收 BT_Q50–BT_Q56。普通文档归并 BT_Q07 仍沿用 `discussionSummary`。
 
 ```mermaid
 flowchart TD
@@ -1502,7 +1502,7 @@ flowchart TD
 ```
 
 一页是 `readSavedArtifact` 已有的 4000 个 Unicode 码点。直接来源索引在组请求时从产物编号、`documentId`、`revision` 和 `goalVersion` 派生，不含正文。读某一篇仍是 `readArtifact`。固定检查材料保持全文，装不下时仍是 `CHECK_CONTEXT_LIMIT`。
-分层轮次只预留一份方案师续办额度。分片仍通过持久派发、领取和结果回传运行。合法恢复使用已保存结果一次结算，退休旧的协调员结算工作；停止、期限、非当前目标或迟到工作仍受现有守卫约束。
+分层轮次只预留一份方案师续办额度。分片仍通过持久派发、领取和结果回传运行。合法恢复使用已保存结果一次结算，退休旧的协调员结算工作。停止、期限、目标版本和迟到工作仍按各自守卫校验。
 
 ## 模型成功响应资源边界（BT_M46–BT_M49）
 
@@ -2019,7 +2019,7 @@ flowchart TD
 
 ### 网页失败的有界工具重选（KEJ-111）
 
-类型：真实 taskMachine 的工作上下文生命周期；所有者 `src/task/tool-recovery.ts`、`src/task/policy.ts`、`src/task/reducer.ts`。验收 BT_M52–BT_M59、BT_M66–M67。沿用 running、waitingAssistance、coordinating 及现有工作身份。
+图中展示真实 taskMachine 的工作生命周期，由 `src/task/tool-recovery.ts`、`src/task/policy.ts`、`src/task/reducer.ts` 实现。验收 BT_M52–BT_M59、BT_M66–M67。沿用 running、waitingAssistance、coordinating 及现有工作身份。
 
 ```mermaid
 stateDiagram-v2
@@ -2045,11 +2045,11 @@ stateDiagram-v2
 
 ### 进展检查与有效工作
 
-类型：真实 taskMachine 的运行阶段；所有者 `src/task/guards.ts`、`src/task/resilience.ts`。验收 BT_O01、BT_O03、BT_O12。
+以下转移发生在真实 taskMachine 的运行阶段，由 `src/task/guards.ts`、`src/task/resilience.ts` 校验。验收 BT_O01、BT_O03、BT_O12。
 
 | 转移 | 观察结果 |
 |---|---|
-| running → running，TICK [工作仍可领取且无重复失败] | 保留相同工作身份；执行器继续领取。 |
+| running → running，TICK [工作仍可领取且无重复失败] | 执行器继续领取同一份工作。 |
 | running → coordinating，TICK [期限到达、已有重复失败或已无有效工作，且不存在并发操作边界] | 派发协调意图。 |
 
 进展检查和监督共用有效工作判断。期限到达、合法等待、未知物理效果、权限与预算仍按原所有者处理。

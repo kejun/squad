@@ -159,13 +159,13 @@ async function deferredCoordination(root: string, backend: string, directory: st
   assert(s.send({ type: 'BOARD_WRITE', author: 'A', entryId: 'new-progress', text: '新依据', kind: 'evidence', sources: ['source'] }).ok);
   assert(s.send({ type: 'TOOL', tool: 'read', replay: 'safe', payload: {} }).ok);
   const original = s.claim(s.find('tool'));
-  let recovered = false, progressed = false, activity = false, changed = false;
+  let recovered = false, progressed = false, activity = false, changed = false, claimableTick = false;
   const observe = () => {
     sourceFree(s); const c = s.context();
     return { work: ['pending', 'inflight', 'done', 'cancelled'].indexOf(s.current(original.id).status),
       failures: c.repeat.count, changed, deferred: c.deferredCoordination,
       coordinations: c.intents.filter(work => work.kind === 'facilitator').length,
-      stopped: c.stopped, recovered, progressed, activity };
+      stopped: c.stopped, recovered, progressed, activity, claimableTick };
   };
   const properties = () => {
     const o = observe();
@@ -184,7 +184,22 @@ async function deferredCoordination(root: string, backend: string, directory: st
       case 'Block': assert(s.send({ type: 'BLOCKED', reason: '待安全边界重新协调' }).ok); break;
       case 'Settle': assert(s.send({ type: 'SETTLE', intentId: original.id }).ok); break;
       case 'ClaimTool': s.claim(s.current(original.id)); break;
-      case 'Tick': s.setNow(2); assert(s.send({ type: 'TICK' }).ok); break;
+      case 'TickClaimable': {
+        const owner = s.find('owner');
+        s.setNow(c.nextCheckAt);
+        assert(owner?.deadline && c.nextCheckAt < owner.deadline);
+        assert.equal(s.send({ type: 'TICK' }).ok, false, 'RetainClaimableWork: a due check must leave a claimable continuation alone');
+        assert.equal(s.find('owner')?.id, owner.id, 'RetainClaimableWork: keep the original continuation identity');
+        claimableTick = true;
+        break;
+      }
+      case 'Tick': {
+        const owner = s.find('owner');
+        assert(owner?.deadline);
+        s.setNow(Math.max(c.nextCheckAt, owner.deadline));
+        assert(s.send({ type: 'TICK' }).ok);
+        break;
+      }
       case 'Recover': s.recover(); recovered = true; break;
       case 'Stop': assert(s.send({ type: 'STOP' }).ok); break;
       case 'LateSignal': assert.equal(s.send({ type: 'FAILURE_SIGNAL', operation: '读取', parameters: '原参数', resource: '资料', error: '无法访问', result: '无结果' }).ok, false,
