@@ -102,7 +102,7 @@ export interface SummaryRun {
   count: number; layer: number; material: string; summary: string; sourceIds: string[]; inlined: boolean;
 }
 
-function ownerMaterial(model: SummaryModel): SummaryRun {
+export function ownerMaterial(model: SummaryModel): SummaryRun {
   const owner = model.pending('owner')[0];
   assert(owner, model.context.discussion?.incomplete ?? model.context.reason);
   const summary = owner.payload.summary as string;
@@ -115,6 +115,53 @@ function ownerMaterial(model: SummaryModel): SummaryRun {
   const material = JSON.stringify({ summary, sourceIndex });
   return { count: 0, layer: model.context.discussion!.mapReduce!.summaryLayer!.layer, material, summary,
     sourceIds: sourceIndex.map(item => item.id), inlined: model.inlined };
+}
+
+export function makeArticlesLarge(model: SummaryModel): void {
+  for (const artifact of model.context.artifacts) artifact.content = `${token}-${artifact.id.slice(0, 9)}-${'文'.repeat(2500)}`;
+}
+
+export function prepareSummaryModel(count: number, assists = 800): SummaryModel {
+  const model = new SummaryModel(input => { input.config.limits.assists = assists; });
+  model.saveArticles(count);
+  const bodies = model.context.artifacts.map(artifact => artifact.content).join('');
+  if (codePointLength(bodies) <= savedPageCodePoints) makeArticlesLarge(model);
+  return model;
+}
+
+export function executeSummaryModel(model: SummaryModel, draft?: (ids: readonly string[]) => string): SummaryRun {
+  model.requestSummary();
+  model.settle(draft);
+  return ownerMaterial(model);
+}
+
+export function oversizedSummaryDraft(ids: readonly string[]): string {
+  return `来源\\n${ids.join('\\n')}\\n要点\\n${'超'.repeat(savedPageCodePoints)}`;
+}
+
+export function readIndexedArticleFrom(model: SummaryModel, run: SummaryRun): { body: string; pageText: string; shortBoundary: boolean; charged: number } {
+  const articleIdToRead = run.sourceIds.find(id => model.context.artifacts.find(artifact => artifact.id === id)?.content.includes(token));
+  assert(articleIdToRead);
+  const owner = model.pending('owner')[0]!;
+  assert(model.send({ type: 'CLAIM', intentId: owner.id }).ok);
+  const work = model.context.intents.find(item => item.id === owner.id)!;
+  const before = model.context.usage.ordinary;
+  assert(model.send({ type: 'LOCAL_REQUEST', intentId: work.id, operationId: 'read-article', namespace: 'c'.repeat(64),
+    requestHash: 'd'.repeat(64), action: { type: 'readArtifact', artifactId: articleIdToRead }, parentAttempt: work.attempt, messages: [], fence: work }).ok);
+  assert(model.send({ type: 'LOCAL_CLAIM', intentId: work.id, operationId: 'read-article', parentAttempt: work.attempt,
+    sessionId: 'summary-read', leaseAvailable: false, fence: work }).ok);
+  const charged = model.context.usage.ordinary - before;
+  const page = readSavedArtifact(model.context, work, { type: 'readArtifact', artifactId: articleIdToRead });
+  assert(page.ok);
+  const saved = model.context.artifacts.find(artifact => artifact.id === articleIdToRead)!;
+  assert.equal(page.data.text, saved.content);
+  const short = model.context.artifacts.find(artifact => artifact.content === run.summary)!;
+  const shortPage = readSavedArtifact(model.context, work, { type: 'readArtifact', artifactId: short.id });
+  assert.equal(shortPage.data.nextCursor, null);
+  assert.equal(shortPage.data.atSavedBoundary, true);
+  assert(model.send({ type: 'LOCAL_RESULT', intentId: work.id, operationId: 'read-article', sessionId: 'summary-read',
+    result: page, settled: true, effectsKnown: true }).ok);
+  return { body: saved.content, pageText: String(page.data.text), shortBoundary: shortPage.data.atSavedBoundary === true, charged };
 }
 
 export function summarizeArticles(count: number): SummaryRun {
