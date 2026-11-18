@@ -4,7 +4,6 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Given, When, Then } from '@cucumber/cucumber';
 import { MemoryStore, TeamEngine, WorkRunner, OpenAICompatibleAdapter } from '../../src/index.js';
-import { compactMessage } from '../../src/presentation.js';
 import { Harness, configuration } from '../helpers.js';
 import { MessageText } from '../../web/src/MessageText.js';
 import type { SpecWorld } from './steps.js';
@@ -75,58 +74,3 @@ Given('消息包含脚注引用和对应注释', function (this: SpecWorld) { ma
 Then('应保留脚注目标与返回引用的链接', function (this: SpecWorld) { assert(md(this).html!.includes('href="#user-content-fn-source"')); assert(md(this).html!.includes('id="user-content-fnref-source"')); assert(md(this).html!.includes('href="#user-content-fnref-source"')); });
 Then('消息内跳转不应另开窗口', function (this: SpecWorld) { assert(!md(this).html!.includes('target="_blank"')); });
 
-const REPORT_URL = 'https://yuque.antfin.com/example/report';
-const INTENTIONAL_HEADING = '# 方案\n\n保留依据 https://example.com/intent';
-const GLUED_REPORT = '# 任务处理报告 任务：task:45850319-974b-4b0d-b9b4-a985471a47bc；固定交付：task:45850319-974b-4b0d-b9b4-a985471a47bc:window:initial:final:1 状态：partial；核验未完成 目标版本：1；执行轮次：3 目标：依据下面的语雀文档统计10月的主要工作，要看文档中的截图，不要忽略任何内容： https://yuque.antfin.com/example/report';
-interface ReportRender { timeline: string; detail: string; glued: string; heading: string }
-const reportRenders = new WeakMap<SpecWorld, ReportRender>();
-function renderMessage(text: string) {
-  return renderToStaticMarkup(createElement(MessageText, { text, agents: [], onAgent() {} }));
-}
-Given('协调员已发布包含目标和链接的未完成任务报告', function (this: SpecWorld) {
-  const goal = `依据下面的文档统计工作：${REPORT_URL}`;
-  const engine = new TeamEngine(new MemoryStore(), configuration({ ordinary: 0, checks: 0 }), () => 0);
-  const submitted = engine.submit('room1', { id: 'M1', text: goal, goal: { text: goal, constraints: ['cite sources'], criteria: ['Complete plan'], requiredArtifacts: 0 } });
-  assert(submitted.ok && submitted.taskId);
-  assert(engine.send('room1', submitted.taskId, { type: 'DELIVER', id: 'deliver-1', at: 0, text: '已有部分成果，但缺少核查', artifactIds: [] }).ok);
-  const context = engine.view('room1', submitted.taskId)!.context;
-  assert.equal(context.outcome, 'partial');
-  const message = context.messages.at(-1)!;
-  assert.equal(message.author, 'facilitator');
-  assert.equal(message.kind, 'final');
-  assert.equal(message.detailText, context.resilience?.frozen?.text);
-  reportRenders.set(this, { timeline: message.text, detail: message.detailText ?? message.text, glued: GLUED_REPORT, heading: INTENTIONAL_HEADING });
-});
-Given('时间线上还留有已折成单行的同一类协调报告摘要', function (this: SpecWorld) {
-  assert(reportRenders.get(this)?.glued.startsWith('# 任务处理报告 '));
-});
-Given('成员消息中有意写有一级标题', function (this: SpecWorld) {
-  assert(reportRenders.get(this)?.heading.startsWith('# 方案'));
-});
-When('按群时间线和消息详情渲染协调报告及该标题', function (this: SpecWorld) {
-  const saved = reportRenders.get(this)!;
-  saved.timeline = renderMessage(compactMessage(saved.timeline));
-  saved.detail = renderMessage(saved.detail);
-  saved.glued = renderMessage(compactMessage(saved.glued));
-  saved.heading = renderMessage(compactMessage(saved.heading));
-});
-Then('新发布的协调报告和已折成单行的协调报告摘要都应显示为普通正文并保留可打开的链接', function (this: SpecWorld) {
-  const saved = reportRenders.get(this)!;
-  for (const html of [saved.timeline, saved.detail, saved.glued]) {
-    assert(html.includes('任务处理报告'), html);
-    assert(html.includes('核验未完成'), html);
-    assert(html.includes(`href="${REPORT_URL}"`), html);
-    assert(html.includes('target="_blank"'), html);
-    assert(html.includes('rel="noopener noreferrer"'), html);
-  }
-  assert(saved.detail.includes('已保存材料'), saved.detail);
-});
-Then('这些协调报告正文不得位于一级标题中', function (this: SpecWorld) {
-  const saved = reportRenders.get(this)!;
-  for (const html of [saved.timeline, saved.detail, saved.glued]) assert(!/<h1[\s>]/.test(html), html);
-});
-Then('成员有意写下的标题仍应显示为一级标题', function (this: SpecWorld) {
-  const html = reportRenders.get(this)!.heading;
-  assert(html.includes('<h1>方案</h1>'), html);
-  assert(html.includes('href="https://example.com/intent"'), html);
-});

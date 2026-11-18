@@ -61,6 +61,10 @@ export async function startFixture(log) {
         return respond({ type: 'interpretation', spec: { action: context.input.action, objective: context.goal.text,
           constraints: ['验收必须保留来源'], expectedOutputs: [], acceptanceCriteria: [], references: [], confidence: 1, clarification: null } });
       }
+      if (goal.includes('VERIFY_COORDINATOR_REPORT') && kind === 'owner') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return respond({ type: 'askUser', question: '核验尚未完成，请明确决定是否停止本轮。' });
+      }
       if (goal.includes('VERIFY_INPUT') && kind === 'owner' && count === 2) {
         res.writeHead(200, { 'content-type': 'application/json' });
         return respond({ type: 'askUser', question: '请确认是否采用追加资料中的来源要求？' });
