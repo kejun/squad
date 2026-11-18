@@ -62,7 +62,7 @@ function citationOutput(request: RequestRecord, mode: CitationMode, ordinal: num
 }
 
 /** Real compatible-provider HTTP, SQLite, Engine and Runner. Provider choices are scripted, not an LLM effect evaluation. */
-class SharedBehaviorFixture {
+export class SharedBehaviorFixture {
   readonly directory = mkdtempSync(join(tmpdir(), 'squad-shared-behavior-'));
   readonly room = 'shared-behavior';
   readonly requests: RequestRecord[] = [];
