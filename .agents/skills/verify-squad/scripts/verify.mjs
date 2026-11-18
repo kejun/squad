@@ -735,13 +735,16 @@ const intentionalMemberHeading = '# 方案\n\n保留依据 https://example.com/i
 
 async function prepareCoordinatorReport() {
   observed.room = await newRoom();
+  const roomPath = `/api/rooms/${observed.room.id}`;
   await send(`VERIFY_COORDINATOR_REPORT 核查资料 ${coordinatorReportUrl}`);
-  const waiting = await until(() => get(`/rooms/${observed.room.id}`),
+  const waiting = await until(() => get(roomPath),
     value => value.tasks.at(-1)?.phase === 'waitingHuman', 'coordinator report task waits for explicit decision');
   assert(waiting.tasks.at(-1).id);
+  const decision = page.getByRole('dialog', { name: '需要你的回复', exact: true });
+  await decision.waitFor();
   await capture('coordinator-report-waiting');
-  await click('button', '停止');
-  const stopped = await until(() => get(`/rooms/${observed.room.id}`),
+  await decision.getByRole('button', { name: '停止任务', exact: true }).click();
+  const stopped = await until(() => get(roomPath),
     value => value.tasks.at(-1)?.outcome === 'stopped' && value.messages.some(message => message.kind === 'final' && message.author === 'facilitator'),
     'frozen incomplete coordinator report');
   const report = stopped.messages.find(message => message.kind === 'final' && message.author === 'facilitator');
@@ -795,7 +798,10 @@ async function renderCoordinatorReport() {
   await until(() => reports.count(), count => count >= 2, 'new and historical coordinator reports rendered');
   const reportHtml = [];
   for (let index = 0; index < 2; index++) {
-    reportHtml.push(await reports.nth(index).locator('.message-text').evaluate(element => element.innerHTML));
+    const body = reports.nth(index).locator('.message-text');
+    // The lazy Markdown renderer initially shows a plain-text fallback.
+    await body.locator('p, h1').first().waitFor();
+    reportHtml.push(await body.evaluate(element => element.innerHTML));
   }
   observed.reportHtml = reportHtml;
   const member = timeline().locator('.message').filter({ hasText: '保留依据 https://example.com/intent' }).last();
