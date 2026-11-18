@@ -2,8 +2,10 @@ import { localPhysicalPending, localRecoveryBlocked } from '../local-operation.j
 import { toolFailureCodes, type TaskContext, type TaskEvent, type ToolFailureCode, type WebToolKind } from '../types.js';
 import { requestBudgetProblem } from './budget.js';
 import { discussionActive } from './facts.js';
+import { taskHumanGate, windowExpired } from './resilience.js';
 
 type Failure = Extract<TaskEvent, { type: 'RECORD_TOOL_FAILURE' }>;
+const failureLimit = 2;
 const knownFailures: Record<string, ToolFailureCode> = {
   WEB_TOOLS_NOT_CONFIGURED: 'WEB_TOOL_CONFIGURATION_UNAVAILABLE',
   WEB_TOOLS_ENV_UNAVAILABLE: 'WEB_TOOL_CONFIGURATION_UNAVAILABLE',
@@ -54,11 +56,19 @@ export function toolFailureProblem(c: TaskContext, e: Failure): string | null {
     || !c.trace.some(entry => entry.event === 'CONSUME' && entry.detail === e.requestId)) return 'TOOL_FAILURE_REQUEST_REQUIRED';
   const failures = work.toolRecovery?.failures ?? [];
   if (failures.some(item => item.requestId === e.requestId)) return 'DUPLICATE_TOOL_FAILURE';
-  if (failures.length >= 2) return 'TOOL_RECOVERY_EXHAUSTED';
+  if (failures.length >= failureLimit) return 'TOOL_RECOVERY_EXHAUSTED';
   return requestBudgetProblem(c, work);
 }
 
 export function recordToolFailure(c: TaskContext, e: Failure): void {
   const work = c.intents.find(item => item.id === e.intentId)!;
   (work.toolRecovery ??= { failures: [] }).failures.push({ requestId: e.requestId, tool: e.tool, code: e.code, attempt: work.attempt, at: e.at });
+}
+
+export function ownerWebRecoveryExhausted(c: TaskContext, e: TaskEvent): boolean {
+  if (e.type !== 'WORK_FAILED' || e.code !== 'TOOL_RECOVERY_EXHAUSTED' || e.resultUncertain || c.stopped || c.outcome !== null
+    || windowExpired(c, e.at) || taskHumanGate(c)) return false;
+  const work = c.intents.find(item => item.id === e.intentId);
+  return work?.kind === 'owner' && work.status === 'inflight' && work.replay !== 'unsafe'
+    && (work.deadline === null || e.at < work.deadline) && work.toolRecovery?.failures.length === failureLimit;
 }

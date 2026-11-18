@@ -1,12 +1,12 @@
 /** Pure task supervision, durable human gates, frozen delivery and physical custody. */
 import type { Fence, Intent, Outcome, Phase, TaskContext, TaskEvent } from '../types.js';
-import { cancelLocalOperations, heldLocalResourceLeases, localPhysicalPending, localWorkspaceWaiting, taskResourceWaiting } from '../local-operation.js';
+import { cancelLocalOperations, heldLocalResourceLeases, localAwaitingApproval, localPhysicalPending, localWorkspaceWaiting, taskResourceWaiting } from '../local-operation.js';
 import { cancelWork, coordinate, message, owner, release, intent } from './operations.js';
 import { cancelHostRetries } from '../host-retry.js';
 import { settleDeliveryCycle } from './delivery-cycle.js';
 import { permissionProblem } from './policy.js';
 import { recordInput } from './input.js';
-import { activeHelp, discussionActive } from './facts.js';
+import { activeHelp, discussionActive, inflight } from './facts.js';
 import { requestBudgetProblem } from './budget.js';
 import { artifactVerification, savedResourceAcquisitions } from '../resource-acquisition.js';
 import { unconfinedEffectsKey } from '../local-resource-policy.js';
@@ -463,6 +463,12 @@ export function effectiveWork(c: TaskContext, phase: Phase, at: number): Intent[
       || w.status === 'pending' && !permissionProblem(c, { type: 'CLAIM', id: 'supervisor-probe', at, intentId: w.id })));
 }
 export type SupervisionDecision = 'none' | 'human' | 'windowExpired' | 'resources' | 'repair' | 'freeze' | 'stopped' | 'settled';
+export function progressCoordinationAllowed(c: TaskContext, at: number): boolean {
+  return !discussionActive(c) && inflight(c).length === 0
+    && !c.intents.some(work => localPhysicalPending(work) || localAwaitingApproval(work))
+    && (c.repeat.count > 1 || effectiveWork(c, 'running', at).length === 0);
+}
+
 export function supervisionDecision(c: TaskContext, phase: Phase, at: number): SupervisionDecision {
   if (c.outcome !== null || c.resilience?.frozen) return phase === 'ended' ? 'none' : 'settled';
   if (c.stopped || phase === 'stopping') return 'stopped';

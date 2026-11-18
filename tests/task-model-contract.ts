@@ -59,7 +59,8 @@ const checkSettleRules = rules('checking', 'SETTLE', [['settlingCheckHandoff', '
 const boundedTransitions = [
   rules('running', 'DELIVER', [['holdingDelivery', null], ['deliveryReady', 'checking'], ['valid', 'ended']]),
   rules('running', 'BLOCKED', [['canCoordinate', 'coordinating'], ['valid', null]]),
-  rules('running', 'WORK_FAILED', [['failedDiscussion', null], ['retryable', null], ['valid', 'waitingHuman']]),
+  rules('running', 'WORK_FAILED', [['failedDiscussion', null], ['ownerWebRecoveryBudgetExhausted', 'ended'],
+    ['ownerWebRecoveryExhausted', null], ['retryable', null], ['valid', 'waitingHuman']]),
   rules('checking', 'CLAIM', [['claimCheckUnavailable', 'ended', 'failCheckClaim'], ['claimCheck', null]]),
   rules('checking', 'CHECK_RESULT', [['checkCanRetry', null], ['checkContinues', 'running'], ['valid', 'ended']]),
   rules('checking', 'WORK_FAILED', [['failedDiscussion', null], ['checkFailureHandoff', 'running'], ['retryable', null], ['checkFailed', 'ended'], ['valid', 'waitingHuman']]),
@@ -127,7 +128,7 @@ function resilienceTransitions(base: MachineTransition[]): MachineTransition[] {
       if (row.order === 0) added.push(...rules('ended', 'CLAIM', [['claimCancel', null]]));
       shift = 1;
     }
-    const retryAt = row.source === 'checking' ? 2 : 1;
+    const retryAt = row.source === 'running' ? 3 : row.source === 'checking' ? 2 : 1;
     if (row.event === 'WORK_FAILED' && row.source !== 'stopping') {
       if (row.order === 0) added.push(...rules(row.source, row.event, [['windowFailed', 'waitingHuman'], ['approvalBlockedFailure', 'waitingHuman']]));
       shift = 2 + Number(row.source !== '*' && row.order > retryAt);
@@ -141,7 +142,9 @@ function resilienceTransitions(base: MachineTransition[]): MachineTransition[] {
 }
 function beforeResilienceEvidence(actual: DebugEvidence, label: string, salvage: boolean): DebugEvidence {
   assert.equal(actual.definition, taskGraph().definition);
-  const inserted = new Set(['windowFailed', 'activeWindowExpired', 'gateReplyExpired', 'recoverIncompatible', 'businessBlockedByHuman', 'approvalBlockedFailure', 'approvalDecisionEnds', 'directHumanResponseExpired', 'humanDecisionExpired', 'recoverStopped', 'hasTaskHumanGate', 'logicalStopped', 'safeFailureRetry']);
+  const inserted = new Set(['windowFailed', 'activeWindowExpired', 'gateReplyExpired', 'recoverIncompatible', 'businessBlockedByHuman',
+    'approvalBlockedFailure', 'approvalDecisionEnds', 'directHumanResponseExpired', 'humanDecisionExpired', 'recoverStopped',
+    'hasTaskHumanGate', 'logicalStopped', 'safeFailureRetry', 'ownerWebRecoveryBudgetExhausted', 'ownerWebRecoveryExhausted']);
   const evaluations = actual.evaluations.flatMap(row => {
     if (row.guard === 'recoverIncompatible' && row.passed) {
       assert(label.startsWith('不兼容恢复:') && row.event === 'RECOVER' && row.source === '*', `${label}: unexpected incompatible recovery`);
@@ -155,6 +158,7 @@ function beforeResilienceEvidence(actual: DebugEvidence, label: string, salvage:
     }
     if (row.guard && inserted.has(row.guard)) { assert.equal(row.passed, false, `${label}: new guard changes this frozen trace`); return []; }
     const parts = row.ruleId.split(':'); let order = Number(parts.at(-1));
+    if (row.source === 'running' && row.event === 'WORK_FAILED' && order >= 5) order -= 2;
     if (row.source === 'running' && row.event === 'DELIVER' || row.source === 'coordinating' && row.event === 'COORDINATE'
       || row.source === 'checking' && ['CHECK_RESULT', 'SETTLE'].includes(row.event)) order--;
     if (row.source === '*' && ['HUMAN_DECISION', 'USER_INPUT', 'RETRY_ASSISTANCE'].includes(row.event) || row.source === 'stopping' && row.event === '@always') order--;

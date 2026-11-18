@@ -3,7 +3,6 @@ import type { Artifact, DiscussionRound, Intent, SummaryLayer, TaskContext, Task
 import { documentIdentity } from './delivery.js';
 import { capabilities, discussionActive, fence } from './facts.js';
 import { availableMapReduceMembers, mapReduceCapacity } from './map-reduce-capacity.js';
-import { advanceMapQueue } from './map-queue.js';
 import { message } from './operations.js';
 import { processingWindow } from './resilience.js';
 
@@ -125,13 +124,13 @@ function absorbRound(c: TaskContext): void {
 
 export function openSummaryRound(c: TaskContext, e: TaskEvent): boolean {
   const round = c.discussion!, plan = round.mapReduce!, layer = plan.summaryLayer!;
-  if (mapReduceCapacity(c) < 1 || !layer.pendingSourceIds.length) {
+  const capacity = mapReduceCapacity(c, 0, 1);
+  if (capacity < 1 || !layer.pendingSourceIds.length) {
     round.status = 'cancelled';
     round.incomplete = capacityReason(c);
     message(c, e, 'facilitator', `未启动并行分片：${round.incomplete}。未形成顶层摘要，不把未归并的文章交给方案师。`, 'notice');
     return false;
   }
-  const capacity = mapReduceCapacity(c);
   const batches = sourceBatches(layer.pendingSourceIds);
   const taken = batches.slice(0, capacity);
   const takenIds = new Set(taken.flat());
@@ -147,7 +146,6 @@ export function openSummaryRound(c: TaskContext, e: TaskEvent): boolean {
   const deadline = Math.min(e.at + c.config.limits.workTimeoutMs, processingWindow(c).hardDeadline, processingWindow(c).repairDeadline ?? Number.MAX_SAFE_INTEGER);
   plan.queue = plan.partitions.map(part => ({ partitionId: part.id, attempt: 0, status: 'queued' as const, deadline }));
   round.status = 'collecting';
-  advanceMapQueue(c, e);
   c.trace.push({ event: 'SUMMARY_ROUND', at: e.at, detail: JSON.stringify({ layer: layer.layer, batches: plan.partitions.length, pending: layer.pendingSourceIds.length }) });
   return true;
 }

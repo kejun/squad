@@ -8,6 +8,7 @@
 stateDiagram-v2
     running --> checking: DELIVER [当前领取、合法文件版本、无未决执行] / 保存原始材料与普通检查意图
     checking --> ended: CHECK_RESULT [当前候选与尝试、完整协议、全部通过] / 按最新结论发布
+    checking --> ended: CHECK_RESULT [必需凭证仍缺失] / 保存下游修正与缺口，标记部分交付
     checking --> checking: 下游发现问题 / 同一检查员在当前工作调用获准工具并直接修正
     checking --> ended: CHECK_RESULT [修正后当前有效结论通过] / 原子保存并发布修正稿，保留原稿历史
     checking --> ended: CHECK_RESULT [当前结论失败或未核实] / 正文声明缺口并正常交付，不改写检查状态
@@ -18,7 +19,7 @@ stateDiagram-v2
 
 历史讨论/评审失败、skip 和 sourceItems 声明随材料交接，不在交接处否决下游。可选引用不再触发目录/逐字复审；不能据此伪造真实回执。读取结果选当前候选最新记录。模型请求仍从持久化领取的意图发起；旧目标/候选/尝试、停止、更新中的用户要求、授权和未决物理效果继续隔离。用户明确要求的实际测试及工作区版本校验保留；其失败显式结算。恢复清除旧内容审核指令，不重置预算或绕过人工决定。
 
-BT_F15、BT_F21、BT_F27 复验同一 `checking → ended` 路径：当前完整合法结论中的未通过项全部为 `unverified` 时，也保存逐项结论并在正文声明缺口后正常交付，不按普通讨论或 MapReduce 区分。实际资源采集未满足的门禁仍先于内容结论检查，协议错误和检查预算耗尽仍沿原部分结束路径，不放宽宿主权限或未知物理效果边界。
+BT_F15、BT_F21、BT_F27 复验同一 `checking → ended` 路径：当前完整合法结论中的未通过项全部为 `unverified` 时，也保存逐项结论并在正文声明缺口后正常交付，不按普通讨论或 MapReduce 区分。BT_E128–E129 覆盖必需凭证缺失的交接。候选进入同一次持久化检查，检查员可用获准的工具补证。完整交付前，宿主核对原资源身份、完整性和时效。未补齐时从检查结算为部分交付。协议错误、预算耗尽、停止、迟到和恢复沿用检查边界。
 
 ## 子 Agent 直接交付
 
@@ -1482,7 +1483,7 @@ flowchart TD
 
 ## 分层摘要
 
-类型：真实 XState 任务里的既有 map 生命周期；所有者 `src/task/hierarchical-summary.ts`、`src/task/map-queue.ts`、`src/task/discussion.ts`、`src/task/reducer.ts`。验收 BT_Q50–BT_Q54。不新增父状态、并行区域或摘要存储器。`@BT_Q07` 的八份文档仍是一次 `discussionSummary`，不进入本图。
+图中分片与结算沿用真实 XState 任务的 map 生命周期，由 `src/task/hierarchical-summary.ts`、`src/task/map-queue.ts`、`src/task/discussion.ts`、`src/task/reducer.ts` 实现。验收 BT_Q50–BT_Q56。普通文档归并 BT_Q07 仍沿用 `discussionSummary`。
 
 ```mermaid
 flowchart TD
@@ -1492,7 +1493,8 @@ flowchart TD
   C -->|不足一轮| X[现有容量失败且不把文章正文交给方案师]
   C -->|至少一轮| R[advanceMapQueue 派发本轮 每批只有编号]
   R --> S[短产物不超过一页则 saveReports]
-  S --> M[summarizeDiscussion]
+  S -->|本轮均结算| M[宿主依据保存的短产物与失败原因结算本轮]
+  V[恢复尚未完成的旧分层结算轮次] -->|当前目标与窗口有效| M
   M -->|本层仍有下一批| C
   M -->|短产物多于一条| H
   M -->|只剩一条且不超过一页| D[DISCUSSION_HANDOFF / 方案师只收该摘要和直接来源索引]
@@ -1500,6 +1502,7 @@ flowchart TD
 ```
 
 一页是 `readSavedArtifact` 已有的 4000 个 Unicode 码点。直接来源索引在组请求时从产物编号、`documentId`、`revision` 和 `goalVersion` 派生，不含正文。读某一篇仍是 `readArtifact`。固定检查材料保持全文，装不下时仍是 `CHECK_CONTEXT_LIMIT`。
+分层轮次只预留一份方案师续办额度。分片仍通过持久派发、领取和结果回传运行。合法恢复使用已保存结果一次结算，退休旧的协调员结算工作。停止、期限、目标版本和迟到工作仍按各自守卫校验。
 
 ## 模型成功响应资源边界（BT_M46–BT_M49）
 
@@ -2016,7 +2019,7 @@ flowchart TD
 
 ### 网页失败的有界工具重选（KEJ-111）
 
-类型：真实 taskMachine 的工作上下文生命周期；所有者 `src/task/tool-recovery.ts`、`src/task/policy.ts`、`src/task/reducer.ts`。验收 BT_M52–BT_M59。复用原 running、waitingAssistance、coordinating 状态和现有工作身份，不创建新的业务父状态。
+图中展示真实 taskMachine 的工作生命周期，由 `src/task/tool-recovery.ts`、`src/task/policy.ts`、`src/task/reducer.ts` 实现。验收 BT_M52–BT_M59、BT_M66–M67。沿用 running、waitingAssistance、coordinating 及现有工作身份。
 
 ```mermaid
 stateDiagram-v2
@@ -2028,6 +2031,8 @@ stateDiagram-v2
     inflight --> pending: RECOVER [安全可重领] / 保留失败次数与原截止时间
 ```
 
+负责人当前窗口内重选耗尽时，原工作结算为 `done`。安全执行边界已到且有普通额度时，任务阶段由 `running` 进入 `coordinating`，已保存材料和失败原因进入协调工作。普通额度用尽时从 `running` 进入 `ended`，保存已有成果和缺口。
+
 最多2条失败记录属于原工作，包含模型请求身份、网页工具类型、稳定错误分类及原尝试身份，不保存URL、提供方正文或凭据；重复同一请求不增计数，重启、工作重领和工具切换不清零。模型、网页和CLI的实际请求仍由既有 CONSUME/领取入口计费；保存反馈不收费，也不增加 ordinary/check/retries 总额度。接受反馈前必须能保留下一次模型请求，分片仍受后继分片、归并及负责人预留约束。
 
 模型和工具I/O仍由已持久化且领取成功的工作发起。Web工具已知、效果确定的失败返回后，运行器先保存 RECORD_TOOL_FAILURE，适配器再将结构化失败反馈交回模型；只有模型选择并通过原权限与预算守卫后才调用替代工具。无合法替代时允许如实结束。停止、过期、旧fence、旧attempt、权限撤销、审批拒绝、预算拒绝及效果不明不能转换为恢复许可；没有宿主记录回调时保持失败关闭。CLI现有已结算失败回执路径不改变。
@@ -2037,6 +2042,17 @@ stateDiagram-v2
 原 KEJ-111 的分片补救声明、来源逐片匹配、恢复验收项与证明登记已全部移除，旧图与旧命令不再适用。当前状态与兼容迁移见[子 Agent 直接交付](#子-agent-直接交付)。历史形式化覆盖清单仍记录旧实现，不作为当前语义的证明，未进行重绑或伪造重新通过。
 
 ## 持续推进与安全删除（KEJ-113/114）
+
+### 进展检查与有效工作
+
+以下转移发生在真实 taskMachine 的运行阶段，由 `src/task/guards.ts`、`src/task/resilience.ts` 校验。验收 BT_O01、BT_O03、BT_O12。
+
+| 转移 | 观察结果 |
+|---|---|
+| running → running，TICK [工作仍可领取且无重复失败] | 执行器继续领取同一份工作。 |
+| running → coordinating，TICK [期限到达、已有重复失败或已无有效工作，且不存在并发操作边界] | 派发协调意图。 |
+
+进展检查和监督共用有效工作判断。期限到达、合法等待、未知物理效果、权限与预算仍按原所有者处理。
 
 本节对应实现中的状态及责任边界。主任务仍是原八阶段；需求核查、完整细图和分层验证记录分别由以下文档承接，有限形式化切片的保证范围以各自对应关系文档为准：
 

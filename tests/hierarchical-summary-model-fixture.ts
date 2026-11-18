@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { codePointLength, readSavedArtifact, savedPageCodePoints } from '../src/evidence-reader.js';
 import { OpenAICompatibleAdapter } from '../src/model-adapter.js';
+import { discussionIntent } from '../src/task/discussion.js';
 import { resolveModel } from '../src/model-config.js';
 import { initialTask, persistTask, restoreTask, stepTask, type TaskSnapshot } from '../src/task.machine.js';
 import type { Intent, TaskEvent, TaskInput } from '../src/types.js';
@@ -71,29 +72,21 @@ export class SummaryModel {
       spec: { action: 'supplement', objective: '汇总当前文章', constraints: ['保留来源'], expectedOutputs: ['一条顶层摘要'],
         acceptanceCriteria: ['覆盖每篇'], references: [], confidence: 1, clarification: null } }).ok);
   }
+  settleBatch(pending: Intent, draft: (ids: readonly string[]) => string = shortDraft) {
+    assert(this.send({ type: 'CLAIM', intentId: pending.id }).ok);
+    const work = this.context.intents.find(item => item.id === pending.id)!;
+    const ids = work.payload.sourceIds as string[];
+    assert(ids?.length);
+    assert(!JSON.stringify(work.payload).includes(token));
+    assert(this.send({ type: 'DISCUSSION_RESULT', discussionId: work.discussionId!, workId: work.id, fence: work,
+      text: draft(ids), status: 'success' }).ok);
+  }
   settle(draft: (ids: readonly string[]) => string = shortDraft) {
     for (let guard = 0; guard < 5000 && !this.pending('owner').length && this.context.discussion?.status !== 'cancelled'; guard += 1) {
       const assistance = [...this.pending('assistance')];
-      const summary = this.pending('discussionSummary')[0];
-      if (!assistance.length && !summary) throw new Error(`汇总停住：${this.context.discussion?.incomplete ?? this.context.reason}`);
-      for (const pending of assistance) {
-        assert(this.send({ type: 'CLAIM', intentId: pending.id }).ok);
-        const work = this.context.intents.find(item => item.id === pending.id)!;
-        const ids = work.payload.sourceIds as string[];
-        assert(ids?.length);
-        assert(!JSON.stringify(work.payload).includes(token));
-        const text = draft(ids);
-        assert(this.send({ type: 'DISCUSSION_RESULT', discussionId: work.discussionId!, workId: work.id, fence: work, text, status: 'success' }).ok);
-      }
-      const reducing = this.pending('discussionSummary')[0];
-      if (reducing) {
-        assert(this.send({ type: 'CLAIM', intentId: reducing.id }).ok);
-        const work = this.context.intents.find(item => item.id === reducing.id)!;
-        assert(!JSON.stringify(work.payload).includes(token));
-        const answers = (work.payload.discussion as { results?: { answer: string }[] } | undefined)?.results ?? [];
-        assert(answers.every(result => result.answer === ''));
-        assert(this.send({ type: 'DISCUSSION_RESULT', discussionId: work.discussionId!, workId: work.id, fence: work, text: '本层已结算', status: 'success' }).ok);
-      }
+      assert.equal(this.pending('discussionSummary').length, 0);
+      if (!assistance.length) throw new Error(`汇总停住：${this.context.discussion?.incomplete ?? this.context.reason}`);
+      for (const pending of assistance) this.settleBatch(pending, draft);
     }
   }
 }
@@ -133,6 +126,24 @@ export function executeSummaryModel(model: SummaryModel, draft?: (ids: readonly 
   model.requestSummary();
   model.settle(draft);
   return ownerMaterial(model);
+}
+
+export function prepareLegacySummarySettlement() {
+  const model = prepareSummaryModel(2);
+  model.requestSummary();
+  model.settleBatch(model.pending('assistance')[0]!);
+  const round = model.context.discussion!, layer = round.mapReduce!.summaryLayer!;
+  assert.equal(round.results.length, 1);
+  round.status = 'summarizing';
+  delete round.summary;
+  delete layer.topId;
+  layer.producedIds = [];
+  // Persist the prior-version handoff boundary with a redundant, unclaimed request.
+  model.context.intents = model.context.intents.filter(work => !work.payload.summaryHandoff);
+  const legacy = model.pending('discussionSummary')[0] ?? discussionIntent(model.context,
+    { type: 'RECOVER', id: 'legacy-summary', at: model.sequence, config: model.context.config }, 'discussionSummary', 'facilitator');
+  model.snapshot = restoreTask(structuredClone(persistTask(model.snapshot)));
+  return { model, legacyId: legacy.id };
 }
 
 export function oversizedSummaryDraft(ids: readonly string[]): string {

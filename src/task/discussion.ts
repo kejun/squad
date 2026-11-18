@@ -2,7 +2,7 @@ import { codePointLength, savedPageCodePoints } from '../saved-page.js';
 import { localPhysicalPending } from '../local-operation.js';
 import { type Decision, type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { capabilities, discussionActive, fence } from './facts.js';
-import { hierarchicalContext, settleHierarchicalLayer, validShortArtifact } from './hierarchical-summary.js';
+import { hierarchicalContext, settleHierarchicalLayer, summaryTop, validShortArtifact } from './hierarchical-summary.js';
 import { recordMapResult } from './map-queue.js';
 import { conversationInput, intent, message, release, saveReports } from './operations.js';
 import { workInCleanup } from './resilience.js';
@@ -31,7 +31,17 @@ function discussionReady(c: TaskContext, e: TaskEvent, text: string) {
 }
 
 export function summarizeDiscussion(c: TaskContext, e: TaskEvent) {
-  c.discussion!.status = 'summarizing';
+  const round = c.discussion!;
+  if (round.mapReduce?.summaryLayer) {
+    const outcome = settleHierarchicalLayer(c, e);
+    if (outcome === 'handoff') discussionReady(c, e, summaryTop(c)!.content);
+    else if (outcome === 'stop') {
+      const failure = round.incomplete?.replaceAll('SUMMARY_PAGE_EXCEEDED', '摘要超过一页');
+      stopHierarchicalSummary(c, e, failure ? `分层汇总无法继续。${failure}` : '顶层摘要超过一页，汇总已停止');
+    }
+    return;
+  }
+  round.status = 'summarizing';
   discussionIntent(c, e, 'discussionSummary', 'facilitator');
 }
 
@@ -93,6 +103,10 @@ export function discussionFailed(c: TaskContext, e: TaskEvent, work: Intent, rea
   }
   release(c, work.id);
   const round = c.discussion!;
+  if (work.kind === 'discussionSummary' && round.mapReduce?.summaryLayer) {
+    summarizeDiscussion(c, e);
+    return;
+  }
   round.incomplete = `讨论未全部完成：${reason}`;
   if (work.kind === 'assistance') {
     const status = /deadline|超时/i.test(reason) ? 'timeout' as const : 'failed' as const;
@@ -126,10 +140,7 @@ export function acceptDiscussion(c: TaskContext, e: Extract<TaskEvent, { type: '
   }
   if (work.kind === 'discussionSummary' && c.discussion?.mapReduce?.summaryLayer) {
     release(c, work.id);
-    message(c, e, work.target, '本层分片已结算', 'notice');
-    const outcome = settleHierarchicalLayer(c, e);
-    if (outcome === 'handoff') discussionReady(c, e, e.text);
-    else if (outcome === 'stop') stopHierarchicalSummary(c, e, '顶层摘要超过一页，汇总已停止');
+    summarizeDiscussion(c, e);
     return;
   }
   release(c, work.id);

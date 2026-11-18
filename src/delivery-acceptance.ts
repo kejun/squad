@@ -3,6 +3,7 @@ import { isLongResult } from './presentation.js';
 import type { DeliveryEvidenceSource } from './task/evidence.js';
 import type { ArtifactSourceMetadata, Candidate, InputAnalysis, InputReference, TaskContext, TaskEvent } from './types.js';
 import type { SourceItem } from './source-items.js';
+import type { ResourceRequirement } from './resource-acquisition.js';
 
 export type CriterionSource = { kind: 'goal' | 'input'; id: string };
 export type AcceptanceCriterion = { id: string; text: string; goalVersion: number; sources: CriterionSource[] };
@@ -61,6 +62,7 @@ export function checkReviewSources(c: TaskContext): CheckReviewSource[] {
 
 export interface CheckMaterials {
   executionNotes?: string[];
+  missingResources?: ResourceRequirement[];
   sourceArtifact?: ArtifactSourceMetadata;
   requirements: AcceptanceCriterion[];
   candidate: { revision: string; text: string };

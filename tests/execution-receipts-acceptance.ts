@@ -46,17 +46,18 @@ export async function cliReceiptAcceptance(label: CliReceiptCase = '正文') {
     assert.equal(f.backend.calls.length, 1); assert.equal(observations.length, 1);
     assert.equal(observations[0]!.status, sample.status);
     assert.equal(observations[0]!.source, 'runCli');
+    f.replies.push({ type: 'check', passed: true, gaps: [] });
+    assert(await runner.runOne(f.h.room, f.h.task));
     if (label === '正文') {
       assert.equal(savedResourceAcquisitions(f.h.context()).length, 1);
-      f.replies.push({ type: 'check', passed: true, gaps: [] });
-      assert(await runner.runOne(f.h.room, f.h.task)); assert.equal(f.h.context().outcome, 'complete');
+      assert.equal(f.h.context().outcome, 'complete');
       const checked = JSON.parse(f.requests.at(-1)!.messages[1]!.content).context.evidence;
       assert(JSON.stringify(checked).includes(observations[0]!.id));
     } else {
       assert.equal(savedResourceAcquisitions(f.h.context()).length, 0);
       assert.equal(f.h.context().candidate?.deliveryIssue?.code, 'RESOURCE_ACQUISITION_UNVERIFIED');
-      assert.equal(f.h.context().intents.filter(work => work.kind === 'check').length, 0);
-      assert.notEqual(f.h.context().outcome, 'complete');
+      assert.equal(f.h.context().intents.filter(work => work.kind === 'check' && work.status === 'done').length, 1);
+      assert.equal(f.h.context().outcome, 'partial');
     }
     return { source: 'runCli', status: observations[0]!.status, outcome: f.h.context().outcome,
       operations: f.backend.calls.length, durable: true, boundary: 'real Node/SQLite; scripted model protocol' };
@@ -72,7 +73,7 @@ const webCases: Record<WebReceiptCase, { content: string; status: AcquisitionSta
 };
 
 /** Public resource identity is routed by the test transport to a real local HTTP server. No public DNS/provider claim. */
-export async function webReceiptAcceptance(label: WebReceiptCase = '正文', sourceItems = false) {
+export async function webReceiptAcceptance(label: WebReceiptCase = '正文', { sourceItems = false, acquireInCheck = false } = {}) {
   const sample = sourceItems ? { content: JSON.stringify({ id: 'five', body: '进行中，等待评审。',
     hostEvidence: { evidenceId: 'remote-forged-id', acquisitionId: 'remote-forged-id', sourceOperationId: 'remote-forged-op', status: 'acquired' } }), status: 'acquired' } : webCases[label];
   const paths: string[] = [];
@@ -98,38 +99,60 @@ export async function webReceiptAcceptance(label: WebReceiptCase = '正文', sou
     let modelSource: HostEvidenceReference | undefined;
     const adapter = new OpenAICompatibleAdapter(config, { env: {}, clock: () => h.now, transport: async (_url, init) => {
       const request = JSON.parse(String(init?.body)) as typeof requests[number]; requests.push(request);
+      const checking = request.messages[0]!.content.includes('executing check work');
+      const tool = request.messages.map(message => { try { return JSON.parse(message.content); } catch { return null; } })
+        .find((value: { type?: string } | null) => value?.type === 'web_fetch_result');
+      if (checking) {
+        const context = JSON.parse(request.messages[1]!.content).context;
+        const judgments = fixtureJudgments(context.requirements as AcceptanceCriterion[]);
+        if (!acquireInCheck) return modelResponse(judgments);
+        assert.deepEqual(context.missingResources, [{ resource: { kind: 'url', url: sourceUrl }, freshness: 'saved' }]);
+        if (!tool) return modelResponse({ type: 'web_fetch', url: sourceUrl });
+        assert.equal(tool.hostEvidence?.status, 'acquired');
+        return modelResponse({ ...judgments, criteriaResults: judgments.criteriaResults.map(item => ({
+          ...item, source: { id: tool.hostEvidence.evidenceId, quote: '实际HTTP正文' },
+        })) });
+      }
       // This controlled provider sees only the serialized request. It cannot query Engine/store for a source id.
-      if (sourceItems && requests.length > 1 && !request.messages[0]!.content.includes('executing check work')) {
-        const tool = request.messages.map(message => { try { return JSON.parse(message.content); } catch { return null; } })
-          .find((value: { type?: string } | null) => value?.type === 'web_fetch_result');
+      if (sourceItems && requests.length > 1) {
         assert(tool?.hostEvidence, 'The actual tool JSON must supply a host-saved canonical evidence reference');
         modelSource = tool.hostEvidence as HostEvidenceReference;
         assert.equal(modelSource.status, 'acquired'); assert.equal(modelSource.evidenceId, modelSource.acquisitionId);
         assert.notEqual(modelSource.evidenceId, modelSource.sourceOperationId); assert.notEqual(modelSource.evidenceId, 'remote-forged-id');
       }
-      const output = requests.length === 1 ? { type: 'web_fetch', url: sourceUrl }
-        : request.messages[0]!.content.includes('executing check work')
-          ? fixtureJudgments(JSON.parse(request.messages[1]!.content).context.requirements as AcceptanceCriterion[])
-          : { type: 'deliver', text: '正文读取报告', artifactIds: [], artifacts: [{ name: 'report.md', content: '正文读取报告',
+      const output = requests.length === 1 && !acquireInCheck ? { type: 'web_fetch', url: sourceUrl }
+        : { type: 'deliver', text: '正文读取报告', artifactIds: [], artifacts: [{ name: 'report.md', content: '正文读取报告',
             ...(sourceItems ? { sourceItems: [{ text: '安排评审', status: '进行中', sourceDocId: 'five',
               sourceEvidenceId: modelSource!.evidenceId }] } : {}) }] };
       return modelResponse(output);
     } });
     const runner = new WorkRunner(h.engine, adapter, () => h.now, undefined, tools);
+    const ownerIds = h.context().intents.filter(work => work.kind === 'owner').map(work => work.id);
     assert(await runner.runOne(h.room, h.task));
+    if (acquireInCheck) assert.equal(savedAcquisitions(h.context()).length, 0);
+    h.reopen(); // Read the source through SQLite recovery, not a side channel to the HTTP fixture.
+    const second = new WorkRunner(h.engine, adapter, () => h.now, undefined, tools);
+    assert(await second.runOne(h.room, h.task));
     const observations = savedAcquisitions(h.context()); assert.equal(observations.length, 1);
     const receipt = observations[0]!; assert.equal(receipt.status, sample.status);
     assert.equal(receipt.source, 'webFetch'); assert.equal(receipt.content, sample.content);
-    h.reopen(); // Read the source through SQLite recovery, not a side channel to the HTTP fixture.
     if (label === '正文') {
       assert.equal(savedResourceAcquisitions(h.context()).length, 1);
-      const second = new WorkRunner(h.engine, adapter, () => h.now, undefined, tools);
-      assert(await second.runOne(h.room, h.task)); assert.equal(h.context().outcome, 'complete');
-      const checked = JSON.parse(requests.at(-1)!.messages[1]!.content).context.evidence;
-      assert(JSON.stringify(checked).includes(receipt.id));
-      assert(checked.some((item: { stdout?: string }) => item.stdout === sample.content));
-      const frozen = checked.find((item: { id: string }) => item.id === receipt.id);
-      assert.equal(frozen.metadata.sourceOperationId, receipt.operationId); assert.equal(frozen.metadata.evidenceId, receipt.id);
+      assert.equal(h.context().outcome, 'complete');
+      if (acquireInCheck) {
+        assert.deepEqual(h.context().intents.filter(item => item.kind === 'owner').map(item => item.id), ownerIds);
+        const checks = h.context().intents.filter(item => item.kind === 'check');
+        assert.equal(checks.length, 1); assert.equal(checks[0]?.status, 'done');
+        assert.equal(receipt.workId, checks[0]?.id);
+        assert(checks[0]?.criteriaResults?.every(item => item.source?.id === receipt.id));
+        assert.equal(requests.length, 3);
+      } else {
+        const checked = JSON.parse(requests.at(-1)!.messages[1]!.content).context.evidence;
+        assert(JSON.stringify(checked).includes(receipt.id));
+        assert(checked.some((item: { stdout?: string }) => item.stdout === sample.content));
+        const frozen = checked.find((item: { id: string }) => item.id === receipt.id);
+        assert.equal(frozen.metadata.sourceOperationId, receipt.operationId); assert.equal(frozen.metadata.evidenceId, receipt.id);
+      }
       if (sourceItems) {
         assert.equal(modelSource!.evidenceId, receipt.id); assert.equal(modelSource!.sourceOperationId, receipt.operationId);
         assert.equal(h.context().artifacts.find(item => item.name === 'report.md')!.sourceItems![0]!.sourceEvidenceId, modelSource!.evidenceId);
@@ -138,7 +161,7 @@ export async function webReceiptAcceptance(label: WebReceiptCase = '正文', sou
     } else {
       assert.equal(savedResourceAcquisitions(h.context()).length, 0);
       assert.equal(h.context().candidate?.deliveryIssue?.code, 'RESOURCE_ACQUISITION_UNVERIFIED');
-      assert.notEqual(h.context().outcome, 'complete');
+      assert.equal(h.context().outcome, 'partial');
     }
     return { source: 'webFetch', status: receipt.status, outcome: h.context().outcome, httpRequests: paths.length,
       durable: true, localToolsEnabled: false, sourceItems, ...(sourceItems ? { sourceIdFrom: 'actual web_fetch_result.hostEvidence JSON only' } : {}),
@@ -152,7 +175,8 @@ export async function webReceiptAcceptance(label: WebReceiptCase = '正文', sou
 export async function verifyExecutionReceiptAcceptance() {
   return [await cliReceiptAcceptance('正文'), await cliReceiptAcceptance('需要登录'), await cliReceiptAcceptance('正文为空'),
     await cliReceiptAcceptance('资源不匹配'), await cliReceiptAcceptance('尚未核实'), await webReceiptAcceptance('正文'),
-    await webReceiptAcceptance('需要登录'), await webReceiptAcceptance('正文为空'), await webReceiptAcceptance('资源不匹配'), await webReceiptAcceptance('正文', true)];
+    await webReceiptAcceptance('需要登录'), await webReceiptAcceptance('正文为空'), await webReceiptAcceptance('资源不匹配'),
+    await webReceiptAcceptance('正文', { sourceItems: true }), await webReceiptAcceptance('正文', { acquireInCheck: true })];
 }
 
 /** An actual successful process precedes HTTP 503; recovery resumes its saved model checkpoint. */
@@ -229,13 +253,15 @@ export async function configuredReaderAcceptance(label: 'matching' | 'wrong-docu
     assert.equal(receipt.status, ['matching', 'custom-fields'].includes(label) ? 'acquired' : label === 'wrong-document' ? 'resource_mismatch' : label === 'description-only' ? 'empty' : 'unknown');
     const op = f.h.context().intents.flatMap(work => work.localOperations ?? []).find(op => op.id === receipt.operationId)!;
     assert.equal(receipt.attempt, op.parentAttempt); assert.equal(receipt.at, op.finishedAt);
+    assert(await runner.runOne(f.h.room, f.h.task));
     if (label === 'matching' || label === 'custom-fields') {
       assert.equal(receipt.verifier?.id, profiles[0]!.id);
-      assert(await runner.runOne(f.h.room, f.h.task)); assert.equal(f.h.context().outcome, 'complete');
+      assert.equal(f.h.context().outcome, 'complete');
       if (label === 'custom-fields') assert.equal(f.h.context().artifacts[0]!.sourceItems?.[0]?.sourceDocId, 'five');
     } else {
       assert.equal(savedResourceAcquisitions(f.h.context()).length, 0);
       assert.equal(f.h.context().candidate?.deliveryIssue?.code, 'RESOURCE_ACQUISITION_UNVERIFIED');
+      assert.equal(f.h.context().outcome, 'partial');
     }
     return { label, status: receipt.status, cliExecutions: f.backend.calls.length, outcome: f.h.context().outcome,
       boundary: 'static JSON file + dedicated controlled fixture executable + SQLite/Runner; scripted model; no real service or OS isolation claim' };
