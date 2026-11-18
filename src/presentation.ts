@@ -19,8 +19,8 @@ function detachOpeningHeading(block: string): string {
 }
 
 /** Presentation fallback only. Callers retain the complete source separately. */
-export function compactMessage(text: string, summary?: string): string {
-  const value = normalizeStoredReportHeading((summary?.trim() || text.trim()));
+export function compactMessage(text: string, summary?: string, coordinatorReport = false): string {
+  const value = normalizeStoredReportHeading((summary?.trim() || text.trim()), coordinatorReport);
   if (value.length <= 300 && value.split('\n').length <= 5) return value;
   const paragraph = value.split(/\n\s*\n/).map(detachOpeningHeading).find(part => part.trim() && !pureHeading.test(part.trim())) ?? value;
   const flat = paragraph.replace(/\s+/g, ' ').trim();
