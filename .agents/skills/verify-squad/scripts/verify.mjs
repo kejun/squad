@@ -17,7 +17,7 @@ import { verifyBuild } from './build-proof.mjs';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const args = process.argv.slice(2);
 const allowed = ['rooms', 'reports', 'control', 'assistance', 'layout'];
-const browserContracts = ['BT_U01', 'BT_U02', 'BT_U03', 'BT_U09'];
+const browserContracts = ['BT_U01', 'BT_U02', 'BT_U03', 'BT_U09', 'BT_U22'];
 if (args.includes('--help')) {
   console.log('Usage: verify.mjs [--feature rooms|reports|control|assistance|layout|all] [--evidence ABSOLUTE_NEW_DIRECTORY]\nRequires npm ci, npm run build, Playwright and Chromium. See SKILL.md.');
   process.exit(0);
@@ -730,6 +730,104 @@ async function artifactVersion() {
   await capture('details-revision-from-member');
   await snapshotProof('details-artifact-version');
 }
+const coordinatorReportUrl = 'https://example.org/coordinator-report';
+const intentionalMemberHeading = '# 方案\\n\\n保留依据 https://example.com/intent';
+
+async function prepareCoordinatorReport() {
+  observed.room = await newRoom();
+  await send(`VERIFY_COORDINATOR_REPORT 核查资料 ${coordinatorReportUrl}`);
+  const waiting = await until(() => get(`/rooms/${observed.room.id}`),
+    value => value.tasks.at(-1)?.phase === 'waitingHuman', 'coordinator report task waits for explicit decision');
+  assert(waiting.tasks.at(-1).id);
+  await capture('coordinator-report-waiting');
+  await click('button', '停止');
+  const stopped = await until(() => get(`/rooms/${observed.room.id}`),
+    value => value.tasks.at(-1)?.outcome === 'stopped' && value.messages.some(message => message.kind === 'final' && message.author === 'facilitator'),
+    'frozen incomplete coordinator report');
+  const report = stopped.messages.find(message => message.kind === 'final' && message.author === 'facilitator');
+  assert(report && report.text.includes(coordinatorReportUrl), 'The real frozen report must retain the original goal link');
+  assert.equal(stopped.tasks.at(-1).outcome, 'stopped');
+  observed.reportTaskId = stopped.tasks.at(-1).id;
+  observed.reportText = report.text;
+  writeFileSync(join(evidence, 'coordinator-report.snapshot.json'), JSON.stringify(stopped, null, 2));
+  await capture('coordinator-report-created');
+  // Stop the real service before modifying its persisted fixture row. The next
+  // command restarts it from SQLite, so the browser reads only reloaded state.
+  await stopApp();
+}
+
+function updateCoordinatorRoomData(change) {
+  const db = new DatabaseSync(database);
+  try {
+    const row = db.prepare('SELECT data FROM rooms WHERE id=?').get(observed.room.id);
+    assert(row, 'Coordinator report room must be persisted');
+    const saved = JSON.parse(row.data);
+    const task = saved.tasks[observed.reportTaskId];
+    assert(task?.snapshot?.context?.messages, 'The persisted task snapshot must contain its message timeline');
+    change(task.snapshot.context.messages, task.snapshot.context);
+    db.prepare('UPDATE rooms SET data=? WHERE id=?').run(JSON.stringify(saved), observed.room.id);
+  } finally { db.close(); }
+}
+
+async function seedLegacyCoordinatorSummary() {
+  updateCoordinatorRoomData(messages => {
+    const report = messages.find(message => message.kind === 'final' && message.author === 'facilitator');
+    assert(report, 'A real coordinator report must exist before adding its legacy projection');
+    const legacyText = `# ${report.text.replace(/\\s+/g, ' ').trim()}`;
+    messages.push({ ...report, id: `legacy-summary:${report.id}`, at: report.at + 1,
+      text: legacyText, detailText: legacyText });
+    observed.legacySummary = legacyText;
+  });
+}
+
+async function seedMemberHeading() {
+  updateCoordinatorRoomData(messages => {
+    messages.push({ id: `member-heading:${observed.reportTaskId}`, author: 'A', kind: 'answer',
+      text: intentionalMemberHeading, at: Date.now(), taskId: observed.reportTaskId });
+  });
+}
+
+async function renderCoordinatorReport() {
+  await launch();
+  await page.reload();
+  await page.getByRole('log', { name: '群聊消息', exact: true }).waitFor();
+  const reports = timeline().locator('.message').filter({ hasText: '任务处理报告' });
+  await until(() => reports.count(), count => count >= 2, 'new and historical coordinator reports rendered');
+  const reportHtml = [];
+  for (let index = 0; index < 2; index++) {
+    reportHtml.push(await reports.nth(index).locator('.message-text').evaluate(element => element.innerHTML));
+  }
+  observed.reportHtml = reportHtml;
+  const member = timeline().locator('.message').filter({ hasText: '保留依据 https://example.com/intent' }).last();
+  await member.locator('.message-text h1').getByText('方案', { exact: true }).waitFor();
+  observed.memberHtml = await member.locator('.message-text').evaluate(element => element.innerHTML);
+  await reports.first().getByRole('button', { name: '查看任务详情', exact: true }).click();
+  const details = page.getByRole('complementary', { name: '结果详情', exact: true });
+  await details.waitFor();
+  const messageText = details.locator('.message-text').last();
+  await messageText.waitFor();
+  observed.detailHtml = await messageText.evaluate(element => element.innerHTML);
+  await capture('coordinator-report-details');
+  await snapshotProof('coordinator-report-ui');
+}
+
+async function assertCoordinatorReportBodyAndLinks() {
+  for (const html of [...observed.reportHtml, observed.detailHtml]) {
+    assert(html.includes('任务处理报告'), html);
+    assert(html.includes('核验未完成'), html);
+    assert(html.includes(`href="${coordinatorReportUrl}"`), html);
+    assert(html.includes('target="_blank"'), html);
+    assert(html.includes('rel="noopener noreferrer"'), html);
+  }
+}
+async function assertCoordinatorReportHasNoHeading() {
+  for (const html of [...observed.reportHtml, observed.detailHtml]) assert(!/<h1[\\s>]/.test(html), html);
+}
+async function assertIntentionalMemberHeading() {
+  assert(observed.memberHtml.includes('<h1>方案</h1>'), observed.memberHtml);
+  assert(observed.memberHtml.includes('href="https://example.com/intent"'), observed.memberHtml);
+}
+
 async function prepareOffline() {
   observed.room = await newRoom();
   await send('VERIFY_RECONNECT 活动刷新与宿主重连');
