@@ -112,7 +112,7 @@ Then('方案师请求不会改带文章全文', function (this: SpecWorld) {
   assert.equal(stopped.keptDraft, false);
 });
 
-Given('当前任务已经保存可生成固定大小摘要的文章和超容量检查证据', { timeout: 30_000 }, function (this: SpecWorld) {
+Given('当前任务已经保存可生成固定大小摘要的文章，且已准备超容量检查证据正文', { timeout: 30_000 }, function (this: SpecWorld) {
   const model = prepareSummaryModel(2);
   makeArticlesLarge(model);
   state(this).model = model;
