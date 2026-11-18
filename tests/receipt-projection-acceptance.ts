@@ -93,7 +93,14 @@ export async function directoryReceiptCollapsesToOperationId() {
     assert.equal(later.bodyIncluded, false);
     assert.deepEqual(later.data, { persistedMetadataOperationId: discovered.id });
     assert(f.requests[2]!.messages.some(message => message.content.includes('AFTER-CATALOG-STDOUT')));
-    return { operationId: discovered.id };
+    return {
+      operationId: discovered.id,
+      checkpointData: stored?.data,
+      firstProjectionData: shownOnce.data,
+      laterBodyIncluded: later.bodyIncluded,
+      laterData: later.data,
+      latestCommandVisible: f.requests[2]!.messages.some(message => message.content.includes('AFTER-CATALOG-STDOUT')),
+    };
   } finally { await f.close(); }
 }
 
@@ -144,7 +151,14 @@ export async function webPagesProjectAndSearchStays() {
     const acquisitions = savedAcquisitions(f.h.context()).filter(item => item.workId === pending.id);
     assert(acquisitions.some(item => item.id === older.hostEvidence.evidenceId));
     assert(decision.messages.some(message => message.content.includes(snippet)));
-    return { fetches, acquisitions: acquisitions.length };
+    return {
+      fetches, acquisitions: acquisitions.length,
+      older: { bodyIncluded: older.bodyIncluded, text: older.text, offset: older.offset,
+        totalChars: older.totalChars, contentHash: older.contentHash, evidenceId: older.hostEvidence.evidenceId },
+      latestBody: latest.text,
+      searchSnippetVisible: decision.messages.some(message => message.content.includes(snippet)),
+      olderBodyAbsent: !JSON.stringify(decision.messages).includes(pageA),
+    };
   } finally { await f.close(); }
 }
 
@@ -190,7 +204,9 @@ export async function projectionUsesReceiptHash() {
     assert.equal(card.capturedContentHash, hash('REAL-RECEIPT-BODY'));
     assert.equal(JSON.stringify(request.messages).includes(tampered), false);
     assert(request.messages.some(message => message.content.includes('LATEST-RECEIPT-BODY')));
-    return { hash: card.capturedContentHash };
+    return { hash: card.capturedContentHash, bodyIncluded: card.bodyIncluded,
+      tamperedBodyAbsent: !JSON.stringify(request.messages).includes(tampered),
+      latestBodyVisible: request.messages.some(message => message.content.includes('LATEST-RECEIPT-BODY')) };
   } finally { h.store.close(); }
 }
 
@@ -227,7 +243,9 @@ export async function checkMaterialsStayComplete() {
     assert.equal(card.code, 'EVIDENCE_CONTENT_MISSING');
     assert.equal(card.completeness, 'failed');
     assert(request.messages.some(message => message.content.includes('CHECK-LATEST-STDOUT')));
-    return { candidate: true, evidence: true, code: card.code };
+    return { candidate: true, evidence: true, code: card.code, completeness: card.completeness,
+      latestReceiptVisible: request.messages.some(message => message.content.includes('CHECK-LATEST-STDOUT')),
+      fixedInputNotTruncated: !body.includes('truncate_prompt_tokens') };
   } finally { h.store.close(); }
 }
 
@@ -258,6 +276,9 @@ export async function failedReceiptIsNotRewritten() {
     assert.equal(JSON.stringify(request.messages).includes('SECRET-FAILURE-BODY'), false);
     assert.equal(JSON.stringify(request.messages).includes('INVENTED-MISSING-BODY'), false);
     assert(request.messages.some(message => message.content.includes('VISIBLE-LATEST-BODY')));
-    return { failure: failure.code, missing: absent.code };
+    return { failure: failure.code, failureCompleteness: failure.completeness, missing: absent.code,
+      failedBodyAbsent: !JSON.stringify(request.messages).includes('SECRET-FAILURE-BODY'),
+      missingBodyAbsent: !JSON.stringify(request.messages).includes('INVENTED-MISSING-BODY'),
+      latestBodyVisible: request.messages.some(message => message.content.includes('VISIBLE-LATEST-BODY')) };
   } finally { h.store.close(); }
 }
