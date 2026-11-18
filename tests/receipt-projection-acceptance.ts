@@ -238,7 +238,6 @@ export function prepareProjectionHashScenario(): PreparedReceiptRequest {
 
 export async function executeProjectionHashScenario(prepared: PreparedReceiptRequest) {
   const request = await captureRequest(prepared.config, prepared.work, prepared.scope);
-  const card = toolMessage(request.messages, 'operation-1');
   const actual = JSON.stringify(request.messages);
   const expectedHash = hash('REAL-RECEIPT-BODY');
   const hasTampered = actual.includes('TAMPERED-OLD-BODY');
