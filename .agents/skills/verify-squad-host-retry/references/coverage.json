@@ -1,5 +1,5 @@
 {
-  "syncCommit": "cc4db5c18340fd8f7498e294eb5be036b47868c1",
+  "syncCommit": "b19c7ccf98a839ae63d5e1fca19ef4a55b1f2e4a",
   "bounds": {
     "sources": 2,
     "batches": 2,
@@ -22,7 +22,7 @@
     "package-lock.json": "d84c31c06688a48a0ba3e8bdfe36bf95b1a490bc7d4af5d85dd58ab716d35aa9",
     "package.json": "e809edfebb43fbfd77f200e6afec11e6109c7d7e8549efb8ee45536d6278df21",
     "src/acquisition-readers.ts": "011b165c1c4d8acfbf32c16c8655baf312148b9944dd518a61e4f528fdd48d47",
-    "src/agent-behavior.ts": "1b1c18b90e05f7673e1d2b5253a7a2171e5dfa4ccf869219e265835f25b4e814",
+    "src/agent-behavior.ts": "beb9035c1894c6953e3bd811d4600da865bc7f9831c6c6ffd22efdb617b537d7",
     "src/artifact-request.ts": "26bf5832bf474b0138ab807dd522b13db51ea7a04e9bc5b27dedb372748619fd",
     "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
     "src/automatic-cli-catalog.ts": "51912aee4691520072a111e9b8850bf91e9c988be88bb758394c7a74e087ec75",
@@ -53,7 +53,7 @@
     "src/local-stdin.ts": "3ba3b53ee6583598f78edc2abb1e164897e0fc0b5523cb6344ebffb7e1faaf6d",
     "src/measurement-report.ts": "62a9010d7a112c52f7e93b6e21d5fcb6a6e6a8011c4852784dd44b811a196183",
     "src/measurement.ts": "e3b7c9b69d3970a32c159a65ed6fee908f2ee6b5d9a828080ead8d0c6b78fdbb",
-    "src/model-adapter.ts": "17ffec0af773816d97c93be15a93162f6048c5a0f6040e9d147de6568737133d",
+    "src/model-adapter.ts": "477b2abc0def24d66023098e9d121b59c02f6bc8b9748461f0b9fd77bac6ae27",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
     "src/model-env.ts": "eba7d8b4bf4c8425b7ab84e6a7d5ae6af5c5933a813f2127a0d2702a87ff4523",
     "src/model-inventory-format.ts": "6f22e2ef4319c1b7a1cbb7a5f7995277f7022cb2eeac4d4cd7298a0128744b23",
