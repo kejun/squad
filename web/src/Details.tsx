@@ -500,7 +500,7 @@ function ResultDetails({ snapshot, target, onClose, onOpen, onBack, connected, o
             <h2>{task!.goal}</h2>
             <span className="task-state">{connected ? phaseLabel(task) : "连接中断"}</span>
             <FrozenDelivery task={task!} />
-            {message && <MessageText text={message.detailText ?? message.text} agents={onAgent ? snapshot?.agents ?? [] : []} onAgent={onAgent ?? noAgentAction} />}
+            {message && <MessageText text={normalizeStoredReportHeading(message.detailText ?? message.text)} agents={onAgent ? snapshot?.agents ?? [] : []} onAgent={onAgent ?? noAgentAction} />}
             {!message && task!.reason && <p className="task-reason">{task!.reason}</p>}
             {!message && task!.currentArtifactIds && <h3 className="detail-section-heading">当前交付</h3>}
             {!!artifacts.length && <Artifacts artifacts={artifacts} onOpen={(item) => onOpen({ ...target, artifactId: item.id })} />}
