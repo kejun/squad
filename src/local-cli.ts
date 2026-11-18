@@ -135,7 +135,16 @@ export async function processIdentity(pid: number): Promise<ProcessIdentity> {
       procPid = found;
     }
   }
-  const content = await readFile(`/proc/${procPid}/stat`, 'utf8');
+  let content: string;
+  try {
+    content = await readFile(`/proc/${procPid}/stat`, 'utf8');
+  } catch (error) {
+    // Linux can return ESRCH after opening stat if the process exits before the read.
+    if ((error as NodeJS.ErrnoException).code === 'ESRCH') {
+      throw Object.assign(new Error('Process already exited', { cause: error }), { code: 'ENOENT' });
+    }
+    throw error;
+  }
   const fields = content.slice(content.lastIndexOf(')') + 2).split(' ');
   return { platform: 'linux', pid, procPid, pidNamespace: namespace, startTime: fields[19]!, bootId: (await readFile('/proc/sys/kernel/random/boot_id', 'utf8')).trim() };
 }
