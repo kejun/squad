@@ -1480,6 +1480,26 @@ flowchart TD
 
 旧意图缺maxPartitions时维持原协议范围与恢复兼容，派发必须通过当前共享守卫。普通输入无分解仍走负责人；0/1容量不发明分片。停止、目标版本、评审、讨论、迟到结果与重启边界沿用原真实XState路径。新增材料、成员派发与归并仍是事务持久化意图后领取和回传，输入理解没有执行或工具权限。模型提示要求完整分配全部文档；语义覆盖由独立检查及逐文集成断言验证，不以容量数值本身证明内容完整。
 
+## 分层摘要
+
+类型：真实 XState 任务里的既有 map 生命周期；所有者 `src/task/hierarchical-summary.ts`、`src/task/map-queue.ts`、`src/task/discussion.ts`、`src/task/reducer.ts`。验收 BT_Q50–BT_Q54。不新增父状态、并行区域或摘要存储器。`@BT_Q07` 的八份文档仍是一次 `discussionSummary`，不进入本图。
+
+```mermaid
+flowchart TD
+  A[当前文章正文超过一页且用户要求汇总] --> P[理解请求只保留目标约束意图和名册]
+  P --> H[宿主按一页能放下的来源编号分批]
+  H --> C{mapReduceCapacity}
+  C -->|不足一轮| X[现有容量失败且不把文章正文交给方案师]
+  C -->|至少一轮| R[advanceMapQueue 派发本轮 每批只有编号]
+  R --> S[短产物不超过一页则 saveReports]
+  S --> M[summarizeDiscussion]
+  M -->|本层仍有下一批| C
+  M -->|短产物多于一条| H
+  M -->|只剩一条且不超过一页| D[DISCUSSION_HANDOFF / 方案师只收该摘要和直接来源索引]
+  M -->|只剩一条且超过一页| F[停止汇总且不回填文章正文]
+```
+
+一页是 `readSavedArtifact` 已有的 4000 个 Unicode 码点。直接来源索引在组请求时从产物编号、`documentId`、`revision` 和 `goalVersion` 派生，不含正文。读某一篇仍是 `readArtifact`。固定检查材料保持全文，装不下时仍是 `CHECK_CONTEXT_LIMIT`。
 
 ## 模型成功响应资源边界（BT_M46–BT_M49）
 
