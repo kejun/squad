@@ -41,7 +41,7 @@ export function artifactsForAgent(snapshot: RoomSnapshot | null, agentId: string
 
 export function hasMessageDetails(snapshot: RoomSnapshot | null, message: Message) {
   const task = snapshot?.tasks.find((item) => item.id === message.taskId);
-  return !!task && !!(message.detailText || compactMessage(message.text, undefined, message.author === 'facilitator' && message.kind === 'final') !== message.text || messageArtifacts(snapshot, message).length
+  return !!task && !!(message.detailText || compactMessage(message.text) !== message.text || messageArtifacts(snapshot, message).length
     || task.board.length || task.trace.length
     || snapshot?.works.some((work) => work.taskId === task.id && work.agentId === message.author)
     || snapshot?.events.some((event) => event.taskId === task.id && event.agentId === message.author));
