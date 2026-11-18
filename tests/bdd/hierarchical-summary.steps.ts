@@ -148,17 +148,12 @@ Given('当前任务已保存多篇待汇总文章但协助额度不足', { timeo
   state(this).model = model;
 });
 When('汇总准备按容量派发', { timeout: 30_000 }, function (this: SpecWorld) {
-  const model = requireModel(this);
-  model.requestSummary();
-  state(this).stopped = { reason: model.context.reason, owners: model.pending('owner').length,
-    keptDraft: JSON.stringify(model.context.intents).includes('正文专有') };
+  requireModel(this).requestSummary();
 });
 Then('系统保留协助额度不足且不发出带文章正文的方案师请求', function (this: SpecWorld) {
   const model = requireModel(this);
-  const stopped = state(this).stopped;
-  assert(stopped);
   const notice = model.context.messages.map(message => message.text).join('\\n');
   assert.match(notice, /协助额度不足/);
-  assert.equal(stopped.owners, 0);
-  assert.equal(stopped.keptDraft, false);
+  assert.equal(model.pending('owner').length, 0);
+  assert.equal(model.inlined, false, '本轮汇总请求不能携带文章正文');
 });
