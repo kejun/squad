@@ -285,7 +285,7 @@ export function freezeIncomplete(c: TaskContext, e: Pick<TaskEvent, 'id' | 'at'>
   const items = drafts.map(a => ({ artifactId: a.id, ...artifactVerification(c, a) }));
   const finalId = `${r.window.id}:final:${r.frozenHistory?.length ?? 0}`;
   const acquisitions = savedResourceAcquisitions(c);
-  const text = [`# 任务处理报告`, `任务：${c.taskId}；固定交付：${finalId}`, `状态：${outcome}；核验未完成`, `目标版本：${c.goalVersion}；执行轮次：${c.epoch}`,
+  const text = [`任务处理报告`, `任务：${c.taskId}；固定交付：${finalId}`, `状态：${outcome}；核验未完成`, `目标版本：${c.goalVersion}；执行轮次：${c.epoch}`,
     `目标：${c.goal.text}`, `结束原因：${reason}`, '', '## 已保存材料（未核验材料不构成完成证明）',
     ...(drafts.length ? drafts.map(a => `- ${JSON.stringify(a.name)}：${items.find(i => i.artifactId === a.id)?.status === 'verified' ? '已核验' : '未核验'}`) : ['- 没有可用的业务成果']),
     '', '## 已取得的源材料（取得正文不等于草稿已独立核验）',

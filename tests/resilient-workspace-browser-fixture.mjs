@@ -211,7 +211,11 @@ export class ResilientWorkspaceBrowserFixture {
   async restartService() {
     assert.deepEqual(verifyBuild(root), this.build, 'Restart must serve the same verified production bundle');
     const port = this.server.address().port;
-    this.server.close(); await once(this.server, 'close');
+    const closed = once(this.server, 'close');
+    this.server.close();
+    // Keep-alive and intercepted browser requests must not hold a test-only service restart open.
+    this.server.closeAllConnections();
+    await closed;
     await this.service.close();
     if (this.options.reopenLocalRuntime) {
       await this.options.localRuntime?.close();
