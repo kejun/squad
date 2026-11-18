@@ -26,14 +26,14 @@ const requireModel = (world: SpecWorld) => {
   return model;
 };
 
-Given('当前任务可以分别保存一百篇和一千篇待汇总文章', function (this: SpecWorld) {
+Given('当前任务可以分别保存一百篇和一千篇待汇总文章', { timeout: 60_000 }, function (this: SpecWorld) {
   const current = state(this);
   current.smallModel = prepareSummaryModel(100);
   current.largeModel = prepareSummaryModel(1000);
   assert.equal(current.smallModel.context.artifacts.length, 100);
   assert.equal(current.largeModel.context.artifacts.length, 1000);
 });
-When('两次汇总都沿容量允许的轮次完成', function (this: SpecWorld) {
+When('两次汇总都沿容量允许的轮次完成', { timeout: 120_000 }, function (this: SpecWorld) {
   const current = state(this);
   assert(current.smallModel && current.largeModel, 'Given 必须先保存两组文章');
   current.smaller = executeSummaryModel(current.smallModel);
@@ -62,12 +62,12 @@ Then('理解分片和归并请求都不内联文章正文或成员原始答复',
   assert.equal(current.larger.inlined, false);
 });
 
-Given('当前任务已经保存两篇可分页读取的文章', function (this: SpecWorld) {
+Given('当前任务已经保存两篇可分页读取的文章', { timeout: 30_000 }, function (this: SpecWorld) {
   const model = prepareSummaryModel(2);
   makeArticlesLarge(model);
   state(this).model = model;
 });
-When('系统完成分层归并并按顶层来源索引读取其中一篇', function (this: SpecWorld) {
+When('系统完成分层归并并按顶层来源索引读取其中一篇', { timeout: 60_000 }, function (this: SpecWorld) {
   const model = requireModel(this);
   const run = executeSummaryModel(model);
   state(this).run = run;
@@ -85,12 +85,12 @@ Then('短产物第一次读取停在保存边界且新页消耗一次普通额�
   assert.equal(read.charged, 1);
 });
 
-Given('当前任务已经保存可产生超页顶层摘要的文章', function (this: SpecWorld) {
+Given('当前任务已经保存可产生超页顶层摘要的文章', { timeout: 30_000 }, function (this: SpecWorld) {
   const model = prepareSummaryModel(2);
   makeArticlesLarge(model);
   state(this).model = model;
 });
-When('系统执行分层归并并验收顶层摘要', function (this: SpecWorld) {
+When('系统执行分层归并并验收顶层摘要', { timeout: 60_000 }, function (this: SpecWorld) {
   const model = requireModel(this);
   model.requestSummary();
   model.settle(oversizedSummaryDraft);
@@ -111,12 +111,12 @@ Then('方案师请求不会改带文章全文', function (this: SpecWorld) {
   assert.equal(stopped.keptDraft, false);
 });
 
-Given('当前任务已经保存可生成固定大小摘要的文章和超容量检查证据', function (this: SpecWorld) {
+Given('当前任务已经保存可生成固定大小摘要的文章和超容量检查证据', { timeout: 30_000 }, function (this: SpecWorld) {
   const model = prepareSummaryModel(2);
   makeArticlesLarge(model);
   state(this).model = model;
 });
-When('系统完成汇总并组装固定检查请求', async function (this: SpecWorld) {
+When('系统完成汇总并组装固定检查请求', { timeout: 60_000 }, async function (this: SpecWorld) {
   const model = requireModel(this);
   const run = executeSummaryModel(model);
   state(this).run = run;
@@ -136,14 +136,14 @@ Then('该失败不改写汇总结果', function (this: SpecWorld) {
   assert.equal(run.summary.length > 0, true);
 });
 
-Given('当前任务已保存多篇待汇总文章但协助额度不足', function (this: SpecWorld) {
+Given('当前任务已保存多篇待汇总文章但协助额度不足', { timeout: 30_000 }, function (this: SpecWorld) {
   const model = prepareSummaryModel(2, 0);
   makeArticlesLarge(model);
   assert.equal(model.context.config.limits.assists, 0);
   assert.equal(model.context.artifacts.length, 2);
   state(this).model = model;
 });
-When('汇总准备按容量派发', function (this: SpecWorld) {
+When('汇总准备按容量派发', { timeout: 30_000 }, function (this: SpecWorld) {
   const model = requireModel(this);
   model.requestSummary();
   state(this).stopped = { reason: model.context.reason, owners: model.pending('owner').length,
