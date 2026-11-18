@@ -12,7 +12,7 @@ interface State {
   smaller?: SummaryRun; larger?: SummaryRun; run?: SummaryRun;
   read?: ReturnType<typeof readIndexedArticleFrom>;
   stopped?: { reason: string; owners: number; keptDraft: boolean };
-  check?: { unchanged: boolean; fullText: string };
+  check?: { unchanged: boolean; fullText: string }; checkEvidence?: string;
 }
 const states = new WeakMap<SpecWorld, State>();
 const state = (world: SpecWorld) => {
@@ -116,12 +116,15 @@ Given('当前任务已经保存可生成固定大小摘要的文章和超容量�
   const model = prepareSummaryModel(2);
   makeArticlesLarge(model);
   state(this).model = model;
+  state(this).checkEvidence = '固定证据'.repeat(1024);
 });
 When('系统完成汇总并组装固定检查请求', { timeout: 60_000 }, async function (this: SpecWorld) {
   const model = requireModel(this);
   const run = executeSummaryModel(model);
   state(this).run = run;
-  state(this).check = await fixedCheckKeepsSummary(run.summary);
+  const evidence = state(this).checkEvidence;
+  assert(evidence, 'Given 必须准备超容量检查证据正文');
+  state(this).check = await fixedCheckKeepsSummary(run.summary, evidence);
   await summaryRequestOmitsProviderTruncation();
 });
 Then('检查按现有全文边界失败', function (this: SpecWorld) {
