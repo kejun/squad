@@ -824,7 +824,7 @@ async function assertCoordinatorReportBodyAndLinks() {
   }
 }
 async function assertCoordinatorReportHasNoHeading() {
-  for (const html of [...observed.reportHtml, observed.detailHtml]) assert(!/<h1[\s>]/.test(html), html);
+  for (const html of [...observed.reportHtml, ...observed.detailHtml]) assert(!/<h1[\s>]/.test(html), 'Coordinator report must not be rendered as a heading: ' + html);
 }
 async function assertIntentionalMemberHeading() {
   assert(observed.memberHtml.includes('<h1>方案</h1>'), observed.memberHtml);
