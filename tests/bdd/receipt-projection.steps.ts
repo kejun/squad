@@ -80,7 +80,7 @@ Given('检查工作已准备两条命令回执且一条正文缺失', function (
   assert.equal(prepared.work.payload.checkMaterials !== undefined, true);
 });
 When('系统组装检查请求', async function (this: SpecWorld) {
-  const prepared = preparedFixtures.get(this); assert(prepared && 'h' in prepared);
+  const prepared = preparedFixtures.get(this); assert(prepared && !(prepared instanceof LocalFixture) && !('f' in prepared));
   results.set(this, await executeCheckMaterialsScenario(prepared) as unknown as Result);
 });
 Then('请求应完整包含候选全文和证据正文', function (this: SpecWorld) {
