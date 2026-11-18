@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { Given, Then, When } from '@cucumber/cucumber';
 import {
-  executeSummaryModel, fixedCheckKeepsSummary, makeArticlesLarge, ownerMaterial, prepareSummaryModel,
-  readIndexedArticleFrom, savedPageCodePoints, summaryRequestOmitsProviderTruncation, oversizedSummaryDraft,
+  executeSummaryModel, fixedCheckKeepsSummary, makeArticlesLarge, prepareSummaryModel,
+  readIndexedArticleFrom, summaryRequestOmitsProviderTruncation, oversizedSummaryDraft,
   type SummaryModel, type SummaryRun,
 } from '../hierarchical-summary-model-fixture.js';
 import type { SpecWorld } from './steps.js';
