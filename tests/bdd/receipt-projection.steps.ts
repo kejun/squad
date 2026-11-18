@@ -5,18 +5,22 @@ import type { LocalFixture } from '../local-tools-fixture.js';
 import {
   checkMaterialsStayComplete, directoryReceiptCollapsesToOperationId, failedReceiptIsNotRewritten,
   olderReceiptsBecomeCards, prepareDirectoryReceiptScenario, prepareOlderReceiptsScenario, prepareWebPagesScenario,
-  projectionUsesReceiptHash, webPagesProjectAndSearchStays, type PreparedWebReceiptScenario,
+  prepareProjectionHashScenario, executeProjectionHashScenario, prepareCheckMaterialsScenario, executeCheckMaterialsScenario,
+  prepareFailedReceiptScenario, executeFailedReceiptScenario,
+  projectionUsesReceiptHash, webPagesProjectAndSearchStays, type PreparedWebReceiptScenario, type PreparedReceiptRequest,
 } from '../receipt-projection-acceptance.js';
 
 type Case = 'older' | 'directory' | 'web' | 'tampered' | 'check' | 'failed';
 type Result = Record<string, unknown>;
 const cases = new WeakMap<SpecWorld, Case>();
-const preparedFixtures = new WeakMap<SpecWorld, LocalFixture | PreparedWebReceiptScenario>();
+const preparedFixtures = new WeakMap<SpecWorld, LocalFixture | PreparedWebReceiptScenario | PreparedReceiptRequest>();
 After({ timeout: 30_000 }, async function (this: SpecWorld) {
   const prepared = preparedFixtures.get(this);
   if (!prepared) return;
   preparedFixtures.delete(this);
-  await ('f' in prepared ? prepared.f.close() : prepared.close());
+  if ('f' in prepared) await prepared.f.close();
+  else if ('h' in prepared) prepared.h.store.close();
+  else await prepared.close();
 });
 const results = new WeakMap<SpecWorld, Result>();
 const select = (world: SpecWorld, value: Case) => { cases.set(world, value); results.delete(world); };
@@ -57,17 +61,27 @@ Then('较早页面应变成含偏移、总长度、内容哈希和证据引用�
 Then('最近一页应保留有界原文', function (this: SpecWorld) { assert.equal(result(this).latestBody, 'PAGE-B-UNIQUE-BODY'); });
 Then('没有持久回执的网页搜索结果应保持原文', function (this: SpecWorld) { assert.equal(result(this).searchSnippetVisible, true); });
 
-Given('检查点里仍留着与已结算回执不一致的旧命令正文', function (this: SpecWorld) { select(this, 'tampered'); });
+Given('已准备包含旧正文冲突的检查点和两条已保存命令回执', function (this: SpecWorld) {
+  preparedFixtures.set(this, prepareProjectionHashScenario()); select(this, 'tampered');
+});
 When('该回执已不是最近一条工具结果并再次组装模型请求', async function (this: SpecWorld) {
-  results.set(this, await projectionUsesReceiptHash() as unknown as Result);
+  const prepared = preparedFixtures.get(this); assert(prepared && 'h' in prepared);
+  results.set(this, await executeProjectionHashScenario(prepared) as unknown as Result);
 });
 Then('索引卡应使用已结算回执的内容哈希', function (this: SpecWorld) { assert.match(String(result(this).hash), /^[a-f0-9]{64}$/); });
 Then('请求不应包含检查点里的那份旧正文', function (this: SpecWorld) { assert.equal(result(this).tamperedBodyAbsent, true); assert.equal(result(this).latestBodyVisible, true); });
 
-Given('检查材料已经绑定当前候选全文和证据正文', function (this: SpecWorld) { select(this, 'check'); });
-Given('同一次检查还有更早的命令回执', function (this: SpecWorld) { assert.equal(cases.get(this), 'check'); });
+Given('检查工作已准备当前候选全文、证据正文和更早失败回执', function (this: SpecWorld) {
+  preparedFixtures.set(this, prepareCheckMaterialsScenario()); select(this, 'check');
+});
+Given('检查工作已准备两条命令回执且一条正文缺失', function (this: SpecWorld) {
+  const prepared = preparedFixtures.get(this); assert(prepared && 'h' in prepared);
+  assert.equal(prepared.work.kind, 'check');
+  assert.equal(prepared.work.payload.checkMaterials !== undefined, true);
+});
 When('系统组装检查请求', async function (this: SpecWorld) {
-  results.set(this, await checkMaterialsStayComplete() as unknown as Result);
+  const prepared = preparedFixtures.get(this); assert(prepared && 'h' in prepared);
+  results.set(this, await executeCheckMaterialsScenario(prepared) as unknown as Result);
 });
 Then('请求应完整包含候选全文和证据正文', function (this: SpecWorld) {
   assert.equal(result(this).candidate, true); assert.equal(result(this).evidence, true); assert.equal(result(this).latestReceiptVisible, true);
@@ -75,9 +89,12 @@ Then('请求应完整包含候选全文和证据正文', function (this: SpecWor
 Then('更早的命令回执应变成不含正文的索引卡', function (this: SpecWorld) { assert.equal(result(this).code, 'EVIDENCE_CONTENT_MISSING'); });
 Then('固定输入不应改成静默截断', function (this: SpecWorld) { assert.equal(result(this).fixedInputNotTruncated, true); });
 
-Given('较早的命令回执已经确定失败或正文缺失', function (this: SpecWorld) { select(this, 'failed'); });
+Given('已准备一条失败回执、一条正文缺失回执和一条最新成功回执', function (this: SpecWorld) {
+  preparedFixtures.set(this, prepareFailedReceiptScenario()); select(this, 'failed');
+});
 When('它不再是最近一条工具结果', async function (this: SpecWorld) {
-  results.set(this, await failedReceiptIsNotRewritten() as unknown as Result);
+  const prepared = preparedFixtures.get(this); assert(prepared && 'h' in prepared);
+  results.set(this, await executeFailedReceiptScenario(prepared) as unknown as Result);
 });
 Then('索引卡应使用原失败或内容缺失代码', function (this: SpecWorld) {
   assert.equal(result(this).failure, 'EXIT_NONZERO'); assert.equal(result(this).missing, 'EVIDENCE_CONTENT_MISSING'); assert.equal(result(this).failureCompleteness, 'failed');
