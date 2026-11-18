@@ -801,7 +801,7 @@ async function renderCoordinatorReport() {
   const member = timeline().locator('.message').filter({ hasText: '保留依据 https://example.com/intent' }).last();
   await member.locator('.message-text h1').getByText('方案', { exact: true }).waitFor();
   observed.memberHtml = await member.locator('.message-text').evaluate(element => element.innerHTML);
-  await reports.first().getByRole('button', { name: '查看任务详情', exact: true }).click();
+  await reports.first().getByRole('button', { name: '查看任务详情', exact: true }).first().click();
   const details = page.getByRole('complementary', { name: '结果详情', exact: true });
   await details.waitFor();
   const messageText = details.locator('.message-text').last();
