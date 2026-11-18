@@ -57,7 +57,7 @@ async function prepare(world: SpecWorld, failed: boolean) {
 }
 Given('服务恢复未决本地操作时核对失败', async function (this: SpecWorld) { await prepare(this, true); });
 When('用户读取启动结果并关闭失败服务', async function (this: SpecWorld) { await runs.get(this)!.service.close(); });
-Then('启动应报告原始错误而关闭应释放两个数据库连接', function (this: SpecWorld) { runs.get(this)!.assertClosed(); });
+Then('启动应报告原始错误而关闭应关闭唯一共享 SQLite 连接', function (this: SpecWorld) { runs.get(this)!.assertClosed(); });
 Then('失败服务不得启动模型或下一条核对', function (this: SpecWorld) {
   assert.equal(runs.get(this)!.calls, 0); assert.equal(runs.get(this)!.reconciliations, 1);
 });
