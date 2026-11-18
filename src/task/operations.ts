@@ -12,7 +12,7 @@ import { corpusBodiesExceedPage, hierarchicalSummaryPending, summaryHandoffPaylo
 import { cancelLocalOperations, localEnabled, localPhysicalPending } from '../local-operation.js';
 
 export function message(c: TaskContext, e: TaskEvent, author: string, text: string, kind: TaskContext['messages'][number]['kind'], extra: Partial<TaskContext['messages'][number]> = {}, summary?: string) {
-  const shown = kind === 'user' ? text : compactMessage(text, summary, author === 'facilitator' && kind === 'final');
+  const shown = kind === 'user' ? text : compactMessage(text, summary);
   c.messages.push({ id: `${c.taskId}:message:${c.nextSeq++}`, taskId: c.taskId, at: e.at, author, text: shown, kind,
     ...(shown === text ? {} : { detailText: text }), ...(e.workId ? { workId: e.workId } : {}), ...extra });
 }
