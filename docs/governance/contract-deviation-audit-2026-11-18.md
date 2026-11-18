@@ -25,9 +25,9 @@
 
 | 编号 | 位置 | 已核实偏差 | 建议处理 | 规模/状态 |
 | --- | --- | --- | --- | --- |
-| GOV-005 | `tests/bdd/receipt-projection.steps.ts`，BT_M60–M65 | 多个 When 是空函数；部分 Given 承担了完整执行过程，Then 只检查弱代理值，未逐项核对场景所述的回执字段。底层 `tests/receipt-projection-acceptance.ts` 有真实行为断言，但 Gherkin 步骤并未忠实编排该行为。 | 逐场景重构 Given/When/Then，使 Given 准备数据、When 触发实际请求/检查点组装、Then 直接核对完整结果；保留现有真实验收覆盖，不以弱断言代替。 | **较大测试契约重构；待用户确认**。 |
-| GOV-006 | `tests/bdd/hierarchical-summary.steps.ts`，BT_Q50–Q54 | 多个 Given 为空操作；数据规模、顶层摘要超页、固定检查材料等前提没有在 Given 中建立，而由后续辅助函数/When 临时构造或合成。 | 重新设计场景夹具与步骤职责；确认 100/1000 文章、页预算、额度与正文隔离都由场景驱动的可观察路径验证。 | **较大测试契约重构；待用户确认**。 |
-| GOV-007 | `tests/bdd/model-and-markdown.steps.ts`，BT_U22 | 目前直接调用 `compactMessage` 与 `MessageText` SSR，未真实渲染 Workspace 时间线和 Details 页面；只能证明纯投影与 Markdown 渲染，不足以证明页面接线。 | 在不改变产品行为的前提下评估最小组件集成或 Chromium 验收，验证真实时间线、详情、链接和旧摘要。 | **增加真实 UI 接线验证；待用户确认**。 |
+| GOV-005 | `tests/bdd/receipt-projection.steps.ts`，BT_M60–M65 | 原空 When 和弱 Then 已修复：When 现在执行真实回执验收，Then 核对正文隔离、操作号、退出码、截断状态、SHA-256、偏移、证据引用、固定输入完整性及失败代码。 | 已增强验收函数返回的可观察证据，并由 Gherkin 逐字段断言。Given 目前只选择场景类型，真实数据仍由 When 调用的验收函数内部构造；严格 Given/When/Then 数据准备分离尚未完成。 | **部分完成；待进一步重构 Given 夹具**。 |
+| GOV-006 | `tests/bdd/hierarchical-summary.steps.ts`，BT_Q50–Q54 | 空 Given 已替换为场景选择状态，When 执行对应模型验收；但 Given 仍未真实保存文章、构造摘要或固定检查材料，场景数据在 When 的辅助函数内部创建。 | 下一步将 SummaryModel 的准备与执行拆开：Given 建立并持有真实模型/文章/额度前置状态，When 只触发归并、分页读取、超页拒绝或检查组装，Then 断言真实结果。 | **部分完成；待 Given/When 数据边界重构**。 |
+| GOV-007 | `tests/bdd/model-and-markdown.steps.ts`，BT_U22 | 目前直接调用 `compactMessage` 与 `MessageText` SSR，未真实渲染 Workspace 时间线和 Details 页面；只能证明纯投影与 Markdown 渲染，不足以证明页面接线。现有 Chromium BDD 驱动只允许 BT_U01/U02/U03/U09，尚无 BT_U22 浏览器命令链。 | 需扩展真实 Chromium contract driver，准备已持久化的协调报告、历史单行摘要和成员标题，再从实际页面时间线及 Details 面板核对普通正文、可打开链接和标题保留。 | **尚未实施；待 UI fixture 与 Chromium contract 接线**。 |
 
 ## 重要边界
 
@@ -36,3 +36,11 @@
 - 其他 Gherkin 步骤是否存在同类空操作、虚假前置条件或弱 Then，尚未完成全仓逐步审计；不得将本轮发现外推为全部偏差。
 - 最新基线 CI Run #102（提交 `17c851f`）通过 2,073 个 Gherkin 场景和 151,582 步，但它不能证明本次后续修改已通过，也不能消除上述测试表达偏差。
 - 本次后续提交尚无新的 CI run/status 记录；在新的验证运行完成前，不宣称这些改动已通过 CI。
+
+
+## 2026-11-18 后续进展（提交 `eb64483` 及其前置提交）
+
+- GOV-005：`tests/receipt-projection-acceptance.ts` 现在向步骤层返回具体回执字段；`tests/bdd/receipt-projection.steps.ts` 不再以计数或字段存在性代替主要结果断言。静态核对确认这些步骤文件没有空函数或 `return undefined`。仍未完成 Given 真正准备数据、When 单独执行请求的分离，因此仅标记部分完成。
+- GOV-006：空 Given 已去掉，但目前 Given 只选择场景类型；When 内的模型夹具仍同时创建文章、建立前提并执行场景。不可将其视为完整 Given/When/Then 语义修复。
+- GOV-007：已核实当前 Chromium 驱动只接受 BT_U01、BT_U02、BT_U03、BT_U09；尚未接入 BT_U22，因此没有宣称页面级验证完成。
+- 本次提交尚未取得新的 CI 运行证据。
