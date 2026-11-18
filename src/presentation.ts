@@ -8,8 +8,8 @@ export function isLongResult(text: string): boolean {
 const pureHeading = /^\s*#{1,6}\s+[^\n]+$/;
 
 /** A saved coordinator summary can already be one line whose heading marker swallowed the body. */
-export function normalizeStoredReportHeading(value: string, coordinatorReport = false): string {
-  return coordinatorReport && !value.includes('\n') && value.startsWith('# 任务处理报告 ') ? value.replace(/^# /, '') : value;
+function detachStoredReportHeading(value: string): string {
+  return !value.includes('\n') && value.startsWith('# 任务处理报告 ') ? value.replace(/^# /, '') : value;
 }
 
 function detachOpeningHeading(block: string): string {
@@ -19,8 +19,8 @@ function detachOpeningHeading(block: string): string {
 }
 
 /** Presentation fallback only. Callers retain the complete source separately. */
-export function compactMessage(text: string, summary?: string, coordinatorReport = false): string {
-  const value = normalizeStoredReportHeading((summary?.trim() || text.trim()), coordinatorReport);
+export function compactMessage(text: string, summary?: string): string {
+  const value = detachStoredReportHeading((summary?.trim() || text.trim()));
   if (value.length <= 300 && value.split('\n').length <= 5) return value;
   const paragraph = value.split(/\n\s*\n/).map(detachOpeningHeading).find(part => part.trim() && !pureHeading.test(part.trim())) ?? value;
   const flat = paragraph.replace(/\s+/g, ' ').trim();
