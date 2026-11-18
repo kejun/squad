@@ -801,18 +801,21 @@ async function renderCoordinatorReport() {
   const member = timeline().locator('.message').filter({ hasText: '保留依据 https://example.com/intent' }).last();
   await member.locator('.message-text h1').getByText('方案', { exact: true }).waitFor();
   observed.memberHtml = await member.locator('.message-text').evaluate(element => element.innerHTML);
-  await reports.first().getByRole('button', { name: '查看任务详情', exact: true }).first().click();
+  observed.detailHtml = [];
   const details = page.getByRole('complementary', { name: '结果详情', exact: true });
-  await details.waitFor();
-  const messageText = details.locator('.message-text').last();
-  await messageText.waitFor();
-  observed.detailHtml = await messageText.evaluate(element => element.innerHTML);
+  for (let index = 0; index < 2; index++) {
+    await reports.nth(index).getByRole('button', { name: '查看任务详情', exact: true }).first().click();
+    await details.waitFor();
+    const messageText = details.locator('.message-text').last();
+    await messageText.waitFor();
+    observed.detailHtml.push(await messageText.evaluate(element => element.innerHTML));
+  }
   await capture('coordinator-report-details');
   await snapshotProof('coordinator-report-ui');
 }
 
 async function assertCoordinatorReportBodyAndLinks() {
-  for (const html of [...observed.reportHtml, observed.detailHtml]) {
+  for (const html of [...observed.reportHtml, ...observed.detailHtml]) {
     assert(html.includes('任务处理报告'), html);
     assert(html.includes('核验未完成'), html);
     assert(html.includes(`href="${coordinatorReportUrl}"`), html);
