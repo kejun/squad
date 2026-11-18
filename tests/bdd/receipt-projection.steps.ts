@@ -75,7 +75,7 @@ Given('检查工作已准备当前候选全文、证据正文和更早失败回�
   preparedFixtures.set(this, prepareCheckMaterialsScenario()); select(this, 'check');
 });
 Given('检查工作已准备两条命令回执且一条正文缺失', function (this: SpecWorld) {
-  const prepared = preparedFixtures.get(this); assert(prepared && 'h' in prepared);
+  const prepared = preparedFixtures.get(this); assert(prepared && !(prepared instanceof LocalFixture) && !('f' in prepared));
   assert.equal(prepared.work.kind, 'check');
   assert.equal(prepared.work.payload.checkMaterials !== undefined, true);
 });
