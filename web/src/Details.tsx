@@ -16,6 +16,7 @@ import {
   Terminal,
 } from "lucide-react";
 import type { ArtifactReference, ArtifactSourceMetadata } from "../../src/types";
+import { normalizeStoredReportHeading } from "../../src/presentation";
 import type {
   ExecutionEvent,
   RoomSnapshot,
