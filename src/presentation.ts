@@ -8,8 +8,8 @@ export function isLongResult(text: string): boolean {
 const pureHeading = /^\s*#{1,6}\s+[^\n]+$/;
 
 /** A saved coordinator summary can already be one line whose heading marker swallowed the body. */
-export function normalizeStoredReportHeading(value: string): string {
-  return !value.includes('\n') && value.startsWith('# 任务处理报告 ') ? value.replace(/^# /, '') : value;
+export function normalizeStoredReportHeading(value: string, coordinatorReport = false): string {
+  return coordinatorReport && !value.includes('\n') && value.startsWith('# 任务处理报告 ') ? value.replace(/^# /, '') : value;
 }
 
 function detachOpeningHeading(block: string): string {
