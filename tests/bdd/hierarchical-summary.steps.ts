@@ -3,7 +3,7 @@ import { Given, Then, When } from '@cucumber/cucumber';
 import {
   executeSummaryModel, fixedCheckKeepsSummary, makeArticlesLarge, prepareSummaryModel,
   readIndexedArticleFrom, summaryRequestOmitsProviderTruncation, oversizedSummaryDraft,
-  prepareLegacySummarySettlement, ownerMaterial,
+  prepareLegacySummarySettlement, ownerMaterial, hierarchicalHandoffPrompts,
   type SummaryModel, type SummaryRun,
 } from '../hierarchical-summary-model-fixture.js';
 import type { SpecWorld } from './steps.js';
@@ -15,6 +15,7 @@ interface State {
   stopped?: { reason: string; owners: number; keptDraft: boolean };
   check?: { unchanged: boolean; fullText: string }; checkEvidence?: string;
   legacyId?: string;
+  handoffPrompts?: Awaited<ReturnType<typeof hierarchicalHandoffPrompts>>;
 }
 const states = new WeakMap<SpecWorld, State>();
 const state = (world: SpecWorld) => {
@@ -194,4 +195,27 @@ Then('宿主应从已保存的短产物交接一次顶层摘要且不再领取�
   assert.equal(ownerMaterial(model).sourceIds.length, 2);
   assert.equal(model.context.intents.filter(work => work.payload.summaryHandoff).length, 1);
   assert.equal(model.send({ type: 'CLAIM', intentId: state(this).legacyId! }).ok, false);
+});
+
+Given('分层汇总的最后一批和最终目标已保存且可以继续', function (this: SpecWorld) {
+  const model = prepareSummaryModel(2);
+  model.requestSummary();
+  assert.equal(model.pending('assistance').length, 1);
+  assert.equal(model.pending('assistance')[0]?.payload.hierarchicalSummary, true);
+  state(this).model = model;
+});
+
+When('分片和方案师依次领取已有工作并收到模型请求', { timeout: 30_000 }, async function (this: SpecWorld) {
+  state(this).handoffPrompts = await hierarchicalHandoffPrompts(requireModel(this));
+});
+
+Then('分片指令应要求在一页内保留服务最终目标的要点及其来源', function (this: SpecWorld) {
+  const prompt = state(this).handoffPrompts?.assistance ?? '';
+  assert(prompt.includes('4000-code-point page'));
+  assert(/preserve.*sources.*points that support the final goal/i.test(prompt), 'Batch prompt must protect source identity and goal-relevant content');
+});
+
+Then('方案师指令应以顶层摘要和直接来源索引完成最终交付', function (this: SpecWorld) {
+  const prompt = state(this).handoffPrompts?.owner ?? '';
+  assert(/context\.summary.*final deliverable.*context\.sourceIndex/i.test(prompt), 'Owner must receive directions for the top summary and precise source lookup');
 });

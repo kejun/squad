@@ -307,3 +307,40 @@ export async function summaryRequestOmitsProviderTruncation(): Promise<void> {
   assert.equal(sent.plugins?.find(plugin => plugin.id === 'context-compression')?.enabled, false);
   assert(!sent.messages.some(message => message.content.includes(token)));
 }
+
+export async function hierarchicalHandoffPrompts(model: SummaryModel) {
+  const prompts: string[] = [];
+  const adapter = new OpenAICompatibleAdapter(model.context.config, { env: {}, clock: () => model.sequence,
+    transport: async (_url, init) => {
+      const request = JSON.parse(String(init?.body)) as { messages: { role: string; content: string }[] };
+      const system = request.messages.find(item => item.role === 'system');
+      assert(system);
+      prompts.push(system.content);
+      const context = request.messages.filter(item => item.role === 'user').map(item => JSON.parse(item.content))
+        .find(item => item.workId)?.context;
+      assert(context?.hierarchicalSummary);
+      assert(!JSON.stringify(context).includes(token));
+      const output = context.summaryHandoff ? { type: 'deliver', text: '顶层归纳', artifactIds: [] }
+        : { type: 'answer', text: shortDraft(context.sourceIds as string[]) };
+      return Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }] });
+    } });
+  const unavailable = async (): Promise<never> => { throw new Error('No external tool in this handoff fixture'); };
+  const execute = async (kind: 'assistance' | 'owner') => {
+    const pending = model.pending(kind)[0];
+    assert(pending);
+    assert(model.send({ type: 'CLAIM', intentId: pending.id }).ok);
+    const work = model.context.intents.find(item => item.id === pending.id)!;
+    assert(model.send({ type: 'CONSUME', intentId: work.id, fence: work, attempt: work.attempt }).ok);
+    const output = await adapter.execute(work, new AbortController().signal, { authorizeAdditionalRequest: unavailable,
+      findSkills: unavailable, webSearch: unavailable, webFetch: unavailable });
+    return { work, output };
+  };
+  const { work, output } = await execute('assistance');
+  assert(output.type === 'answer');
+  assert(model.send({ type: 'DISCUSSION_RESULT', discussionId: work.discussionId!, workId: work.id, fence: work,
+    text: output.text, status: 'success' }).ok);
+  ownerMaterial(model);
+  assert.equal((await execute('owner')).output.type, 'deliver');
+  assert.equal(prompts.length, 2);
+  return { assistance: prompts[0]!, owner: prompts[1]! };
+}

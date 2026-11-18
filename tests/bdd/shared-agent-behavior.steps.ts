@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
-import { Given, When, Then } from '@cucumber/cucumber';
+import { After, Given, When, Then } from '@cucumber/cucumber';
 import type { SpecWorld } from './steps.js';
-import { sharedModelRoles, sharedRoleAcceptance, sharedNormativeAcceptance, sharedUnknownAcceptance,
+import { SharedBehaviorFixture, sharedModelRoles, sharedRoleAcceptance, sharedNormativeAcceptance, sharedUnknownAcceptance,
   sharedAuthorizationAcceptance, sharedNonModelBoundaryAcceptance, type SharedBehaviorProof, type SharedModelRole } from '../shared-agent-behavior-acceptance.js';
 import { sharedCitationAcceptance, sharedFixedMaterialAcceptance } from '../shared-agent-behavior-acceptance.js';
 
 interface State { role?: SharedModelRole; family?: string; basis?: string; label?: string; proof?: SharedBehaviorProof;
-  nonModel?: Awaited<ReturnType<typeof sharedNonModelBoundaryAcceptance>> }
+  nonModel?: Awaited<ReturnType<typeof sharedNonModelBoundaryAcceptance>>; goalFixture?: SharedBehaviorFixture; goalPrompt?: string }
 const states = new WeakMap<SpecWorld, State>();
 function state(world: SpecWorld) { let value = states.get(world); if (!value) { value = {}; states.set(world, value); } return value; }
 function role(value: string): SharedModelRole { assert(sharedModelRoles.includes(value as SharedModelRole)); return value as SharedModelRole; }
@@ -117,4 +117,40 @@ Then('宿主应{string}且不把候选产物自动升级为可引证来源', fun
 Then('没有执行记录的测试要求不得被判为已经运行通过', function (this: SpecWorld) {
   const result = proof(this); assert.equal(result.host!.tests, 'unverified'); assert.equal(result.host!.currentTestExecutionRecorded, false);
   assert.equal(result.host!.webCalls, 0); assert.equal(result.host!.semanticChoiceMeasured, false);
+});
+
+const goalHandoffInstructions: Record<SharedModelRole, readonly RegExp[]> = {
+  interpretation: [/each partition.*final requirement/i, /expectedOutput.*checkable.*sources/i, /synthesis.*combine/i],
+  owner: [/when requesting help.*question.*unmet requirement.*expected/i, /organize the final deliverable.*acceptance criteria/i, /resolve conflicting findings/i],
+  assistance: [/context\.question.*context\.expected/, /report.*actual coverage.*sources.*gaps/i, /if the sub-goal is incomplete.*partial or failed/i],
+  facilitator: [/identify the unmet requirement/i, /question.*scope.*expected.*checkable/i],
+  discussionSummary: [/organize.*final requirements/i, /deduplicate.*conflicts.*gaps/i],
+  check: [/check the complete deliverable.*each requirement/i, /check.*sub-goals/i, /当本次工作明确要求只使用固定材料时/],
+};
+
+Given('当前交付要求已保存并且有可领取的{string}工作', timeout, async function (this: SpecWorld, value: string) {
+  const fixture = await SharedBehaviorFixture.open(role(value));
+  state(this).goalFixture = fixture;
+  assert(fixture.context().goal.text.trim());
+  assert.equal(fixture.target?.status, 'pending');
+});
+
+When('宿主领取该工作并向模型发送交接请求', timeout, async function (this: SpecWorld) {
+  const fixture = state(this).goalFixture!;
+  await fixture.execute();
+  const request = fixture.requests.find(item => item.workId === fixture.target?.id);
+  assert(request, 'The provider must receive the exact claimed work');
+  state(this).goalPrompt = request.messages.find(message => message.role === 'system')!.content;
+});
+
+Then('接手角色应收到用于{string}的目标对齐指令', function (this: SpecWorld, responsibility: string) {
+  const { goalFixture, goalPrompt } = state(this);
+  assert(goalFixture && goalPrompt);
+  for (const instruction of goalHandoffInstructions[goalFixture.role]) {
+    assert(instruction.test(goalPrompt), `${goalFixture.role} cannot ${responsibility} with the missing instruction ${instruction}`);
+  }
+});
+
+After({ tags: '@BT_S14' }, async function (this: SpecWorld) {
+  await state(this).goalFixture?.close();
 });
