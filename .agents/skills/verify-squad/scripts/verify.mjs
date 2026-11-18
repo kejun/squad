@@ -809,6 +809,7 @@ async function renderCoordinatorReport() {
     const messageText = details.locator('.message-text').last();
     await messageText.waitFor();
     observed.detailHtml.push(await messageText.evaluate(element => element.innerHTML));
+    if (index === 0) await click('button', '关闭详情');
   }
   await capture('coordinator-report-details');
   await snapshotProof('coordinator-report-ui');
