@@ -259,6 +259,8 @@ export function resourceAcquisitionProblem(c: TaskContext, work?: Intent): strin
 export function artifactVerification(c: TaskContext, artifact: Artifact): { status: 'verified' | 'unverified'; reason?: string } {
   if (artifact.goalVersion !== c.goalVersion) return { status: 'unverified', reason: '旧目标文件' };
   const candidate = c.candidate;
+  if (candidate?.deliveryIssue?.code === 'RESOURCE_ACQUISITION_UNVERIFIED')
+    return { status: 'unverified', reason: candidate.deliveryIssue.detail ?? '必需资源仍缺少可核实的获取凭证' };
   const check = candidate?.revision ? [...c.intents].reverse().find(work => work.kind === 'check' && work.status === 'done'
     && work.goalVersion === c.goalVersion
     && (work.payload.candidate as { revision?: string } | undefined)?.revision === candidate.revision && work.criteriaResults?.length) : undefined;

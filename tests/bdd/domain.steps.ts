@@ -91,6 +91,16 @@ Given('{string}处于{string}', function (this: SpecWorld, _task: string, situat
 When('一次常规进展检查到达', function (this: SpecWorld) { this.h.now = this.h.config.limits.progressIntervalMs; this.h.engine.tick(this.h.room); });
 Then('应保持对应等待或执行状态', function (this: SpecWorld) { assert.equal(this.h.view().phase, f(this).before); });
 Then('不应仅因群里没有新消息而调用促进者模型', function (this: SpecWorld) { assert(!this.h.context().intents.some(work => work.kind === 'facilitator')); });
+Given('负责人的原工作尚未领取且在进展期限到达时仍可领取', function (this: SpecWorld) {
+  const owner = this.h.engine.pending(this.h.room, this.h.task).find(work => work.kind === 'owner');
+  assert(owner?.deadline && owner.deadline > this.h.context().nextCheckAt);
+  f(this).before = owner.id;
+});
+Then('负责人仍可领取同一份工作且不派发促进者模型', function (this: SpecWorld) {
+  const pending = this.h.engine.pending(this.h.room, this.h.task);
+  assert.deepEqual(pending.map(work => [work.kind, work.id]), [['owner', f(this).before]]);
+  assert.equal(this.h.claim('owner').id, f(this).before);
+});
 Given('{string}没有新增证据、产物或完成标准的推进', function (this: SpecWorld, _capture0: string) { f(this).deadline = this.h.context().nextCheckAt; });
 When('{string}再次发送{string}', function (this: SpecWorld, _bot: string, text: string) { this.h.now = 100; this.h.event({ type: 'ACTIVITY', text }); });
 Then('活动记录可更新', function (this: SpecWorld) { assert.equal(this.h.context().lastActivityAt, 100); });

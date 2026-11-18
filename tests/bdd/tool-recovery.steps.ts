@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { Given, When, Then } from '@cucumber/cucumber';
 import { webRecoveryAcceptance, webRecoveryResumeAcceptance, type RecoveryCase } from '../tool-recovery-acceptance.js';
-import { modelRecoveryRestart, modelRecoveryBoundary, modelRecoveryReservation, preparedRecoveryFeedback, preparedRecoveryReservation } from '../tool-recovery-model-fixture.js';
+import { modelRecoveryBound, modelRecoveryRestart, modelRecoveryBoundary, modelRecoveryReservation, preparedRecoveryFeedback, preparedRecoveryReservation } from '../tool-recovery-model-fixture.js';
 import type { SpecWorld } from './steps.js';
 const states = new WeakMap<SpecWorld, { role?: string; boundary?: string; scenario?: RecoveryCase; feedback?: ReturnType<typeof preparedRecoveryFeedback>; reserved?: ReturnType<typeof preparedRecoveryReservation>; result?: Awaited<ReturnType<typeof webRecoveryAcceptance>>; model?: ReturnType<typeof modelRecoveryRestart>; reservation?: ReturnType<typeof modelRecoveryReservation> }>();
 const state = (world: SpecWorld) => { let value = states.get(world); if (!value) { value = {}; states.set(world, value); } return value; };
@@ -35,3 +35,38 @@ Then('应保留两次独立回执并以实际成功结果继续交付', function
 Given('成员收到网页失败反馈后确认没有合法替代方法', function (this: SpecWorld) { state(this).scenario = 'no-alternative'; });
 When('成员明确返回未能取得资料', async function (this: SpecWorld) { state(this).result = await webRecoveryAcceptance(state(this).scenario!); });
 Then('应保留失败及缺口且不自动猜测其他工具或执行宿主命令', function (this: SpecWorld) { assert.equal(state(this).result!.modelRequests, 2); assert.equal(state(this).result!.cliCalls, 0); });
+
+Given('负责人已保存阶段成果且连续三次网页读取确定失败', function (this: SpecWorld) {
+  const model = modelRecoveryBound();
+  assert(model.send({ type: 'ARTIFACT', artifact: { id: 'saved-work', name: '背景.md', content: '已经核实的阶段成果' } }).ok);
+  state(this).model = model;
+});
+Given('可执行的普通额度已经用尽', function (this: SpecWorld) {
+  const model = state(this).model!;
+  model.c.config.limits.ordinary = model.c.usage.ordinary;
+});
+When('系统结算网页重选用尽的负责人工作', async function (this: SpecWorld) {
+  const model = state(this).model!, work = model.work;
+  assert(model.send({ type: 'WORK_FAILED', intentId: work.id, attempt: work.attempt, fence: work,
+    code: 'TOOL_RECOVERY_EXHAUSTED', reason: '网页重选次数用尽：WEB_TOOL_UNSUPPORTED_RESOURCE', transient: false }).ok);
+  if (model.c.usage.ordinary < model.c.config.limits.ordinary) state(this).result = await webRecoveryAcceptance('limit', '负责人');
+});
+Then('应把失败原因和已有成果立即交给协调员并保留本轮额度边界', function (this: SpecWorld) {
+  const model = state(this).model!;
+  assert.equal(model.snapshot.value, 'coordinating');
+  const coordinator = model.c.intents.find(work => work.kind === 'facilitator' && work.status === 'pending');
+  assert(coordinator);
+  assert.match(String(coordinator.payload.reason), /WEB_TOOL_UNSUPPORTED_RESOURCE/);
+  assert(JSON.stringify(coordinator.payload.artifacts).includes('已经核实的阶段成果'));
+  assert.equal(model.c.intents.find(work => work.id === model.work.id)?.toolRecovery?.failures.length, 2);
+  assert.equal(model.c.usage.retries, 0);
+  assert.equal(state(this).result?.modelRequests, 3);
+});
+Then('应冻结包含阶段成果和工具失败原因的部分交付', function (this: SpecWorld) {
+  const model = state(this).model!;
+  assert.equal(model.snapshot.value, 'ended');
+  assert.equal(model.c.outcome, 'partial');
+  assert(model.c.resilience?.frozen?.artifactIds.includes('saved-work'));
+  assert.match(model.c.reason, /WEB_TOOL_UNSUPPORTED_RESOURCE/);
+  assert(!model.c.intents.some(work => work.kind === 'facilitator' && work.status === 'pending'));
+});

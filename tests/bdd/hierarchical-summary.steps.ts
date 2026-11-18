@@ -3,6 +3,7 @@ import { Given, Then, When } from '@cucumber/cucumber';
 import {
   executeSummaryModel, fixedCheckKeepsSummary, makeArticlesLarge, prepareSummaryModel,
   readIndexedArticleFrom, summaryRequestOmitsProviderTruncation, oversizedSummaryDraft,
+  prepareLegacySummarySettlement, ownerMaterial,
   type SummaryModel, type SummaryRun,
 } from '../hierarchical-summary-model-fixture.js';
 import type { SpecWorld } from './steps.js';
@@ -13,6 +14,7 @@ interface State {
   read?: ReturnType<typeof readIndexedArticleFrom>;
   stopped?: { reason: string; owners: number; keptDraft: boolean };
   check?: { unchanged: boolean; fullText: string }; checkEvidence?: string;
+  legacyId?: string;
 }
 const states = new WeakMap<SpecWorld, State>();
 const state = (world: SpecWorld) => {
@@ -156,4 +158,40 @@ Then('系统保留协助额度不足且不发出带文章正文的方案师请�
   assert.match(notice, /协助额度不足/);
   assert.equal(model.pending('owner').length, 0);
   assert.equal(model.inlined, false, '本轮汇总请求不能携带文章正文');
+});
+
+Given('分层汇总已到最后一批且仍有方案师续办额度', function (this: SpecWorld) {
+  const model = prepareSummaryModel(2);
+  model.context.config.limits.ordinary = 3;
+  model.requestSummary();
+  state(this).model = model;
+});
+When('最后一批交回合格短产物', function (this: SpecWorld) {
+  const model = requireModel(this);
+  const pending = model.pending('assistance');
+  assert.equal(pending.length, 1);
+  model.settleBatch(pending[0]!);
+});
+Then('宿主应直接把顶层摘要交给方案师且不派发协调员结算请求', function (this: SpecWorld) {
+  const model = requireModel(this);
+  assert.equal(ownerMaterial(model).sourceIds.length, 2);
+  assert.equal(model.context.intents.some(work => work.kind === 'discussionSummary'), false);
+  const owner = model.pending('owner')[0]!;
+  assert(model.send({ type: 'CLAIM', intentId: owner.id }).ok);
+});
+
+Given('已保存上一版本等待协调员结算的分层摘要快照', function (this: SpecWorld) {
+  const { model, legacyId } = prepareLegacySummarySettlement();
+  Object.assign(state(this), { model, legacyId });
+});
+When('系统恢复该快照两次', function (this: SpecWorld) {
+  const model = requireModel(this);
+  assert(model.send({ type: 'RECOVER', config: model.context.config }).ok);
+  assert(model.send({ type: 'RECOVER', config: model.context.config }).ok);
+});
+Then('宿主应从已保存的短产物交接一次顶层摘要且不再领取旧结算工作', function (this: SpecWorld) {
+  const model = requireModel(this);
+  assert.equal(ownerMaterial(model).sourceIds.length, 2);
+  assert.equal(model.context.intents.filter(work => work.payload.summaryHandoff).length, 1);
+  assert.equal(model.send({ type: 'CLAIM', intentId: state(this).legacyId! }).ok, false);
 });
