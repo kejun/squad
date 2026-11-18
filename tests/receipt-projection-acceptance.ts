@@ -58,7 +58,14 @@ export async function olderReceiptsBecomeCards() {
     assert.equal(JSON.stringify(page).includes(guide), false);
     assert.equal(String((current.data as { stdout?: string } | undefined)?.stdout ?? ''), `${second}`);
     assert(decision.messages.some(message => message.role === 'assistant' && message.content.includes('"type":"runCli"')));
-    return { operations: work.localOperations?.length, card: older.code, skillHash: page.capturedContentHash };
+    return {
+      operations: work.localOperations?.length,
+      command: { operationId: older.operationId, bodyIncluded: older.bodyIncluded, ok: older.ok,
+        exitCode: older.exitCode, truncated: older.truncated, capturedContentHash: older.capturedContentHash },
+      skill: { bodyIncluded: page.bodyIncluded, offset: page.offset, capturedContentHash: page.capturedContentHash },
+      latestBody: (current.data as { stdout?: string } | undefined)?.stdout,
+      assistantToolCall: decision.messages.some(message => message.role === 'assistant' && message.content.includes('"type":"runCli"')),
+    };
   } finally { await f.close(); }
 }
 
