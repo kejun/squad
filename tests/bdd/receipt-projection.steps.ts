@@ -93,7 +93,7 @@ Given('已准备一条失败回执、一条正文缺失回执和一条最新成�
   preparedFixtures.set(this, prepareFailedReceiptScenario()); select(this, 'failed');
 });
 When('它不再是最近一条工具结果', async function (this: SpecWorld) {
-  const prepared = preparedFixtures.get(this); assert(prepared && 'h' in prepared);
+  const prepared = preparedFixtures.get(this); assert(prepared && !(prepared instanceof LocalFixture) && !('f' in prepared));
   results.set(this, await executeFailedReceiptScenario(prepared) as unknown as Result);
 });
 Then('索引卡应使用原失败或内容缺失代码', function (this: SpecWorld) {
