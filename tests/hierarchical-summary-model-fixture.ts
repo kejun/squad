@@ -250,8 +250,7 @@ export function refuseWhenAssistsRunOut(): { notice: string; owners: number } {
   return { notice, owners: 0 };
 }
 
-export async function fixedCheckKeepsSummary(summary: string): Promise<{ unchanged: boolean; fullText: string }> {
-  const fullText = '固定证据'.repeat(1024);
+export async function fixedCheckKeepsSummary(summary: string, fullText = '固定证据'.repeat(1024)): Promise<{ unchanged: boolean; fullText: string }> {
   const unchanged = summary;
   const config = createTeamConfig({});
   config.models = { default: 'review', services: { review: { baseUrl: 'https://review.example/v1', model: 'review', contextWindowTokens: 4096, maxTokens: 256,
