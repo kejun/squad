@@ -1914,13 +1914,13 @@ stateDiagram-v2
     recovering --> closing: CLOSE / 禁止新调度并清除定时器
     ready --> closing: CLOSE / 等待已领取工作结算
     startupFailed --> closing: CLOSE / 仍释放资源
-    closing --> closed: CLOSED / 两个数据库清理完成
+    closing --> closed: CLOSED / 关闭唯一共享数据库连接
 ```
 
 | 边界 | 契约 |
 | --- | --- |
 | 恢复中关闭 | 当前核对可返回；不开始下一条，迟到 RECOVERED 不能重开调度 |
-| 启动失败 | ready 报告原错误；close 仍清理两个数据库，不把启动失败当成清理失败 |
+| 启动失败 | ready 报告原错误；close 仍关闭唯一共享数据库连接并释放服务资源，不把启动失败当成清理失败 |
 | 并发或再次关闭 | 返回保存的同一个 close Promise；每项资源只清理一次 |
 | 任务停止、等待授权、未知副作用 | 沿用既有 STOP、suspendApprovals、取消和回执结算，不撤销已经发生的物理效果 |
 | 关闭之后 | 不接受提交；不再触发定时器和 runner；重新运行需创建新服务实例 |
@@ -2083,24 +2083,9 @@ stateDiagram-v2
     settled --> settled: 重复或迟到事件 / 幂等且不改冻结交付
 ```
 
-类型：拟建真实 XState 独立删除生命周期；所有者 `roomDeletionMachine`。归档仍由原 `roomMachine` 拥有。删除屏障和作业在独立表持久化，不能随待删房间数据一起丢失。所有事件检查删除身份、版本与领取；I/O 只能执行已保存意图。
+当前删除模型已经实现为真实 XState 独立生命周期，所有者 `src/room-deletion.machine.ts` 导出的 `roomDeletionMachine`。当前新请求采用[归档会话强制删除](#归档会话强制删除)：`REQUEST` 受理后进入 `deleting`，`DATA_ERASED` 转入 `preparing`，随后按 `PREPARED`、`ASSET_REMOVED`、`VERIFIED` 推进；技术失败进入 `paused`，由 `TICK` 或 `RECOVER` 自动续办。实际事件、守卫和动作以该机器源码及强制删除细图为准。旧的确认、清单核对和人类等待协议仅用于兼容旧快照，不是当前新请求流程。
 
-```mermaid
-stateDiagram-v2
-    [*] --> idle
-    idle --> preparing: REQUEST [确认且归档版本一致] / 持久屏障及清单意图
-    preparing --> waiting: INVENTORY [在途或归属不明] / 保存停止与核对责任
-    waiting --> preparing: SETTLED [可信结算] / 更新未决事实
-    preparing --> deleting: INVENTORY [完整且物理责任满足] / 保存逐项清理意图
-    preparing --> paused: FAILED / 保存原因与余项
-    deleting --> deleting: ITEM_SETTLED [当前领取] / 保存进度
-    deleting --> paused: FAILED / 不回滚已删文件
-    paused --> preparing: RETRY或RECOVER [原删除身份] / 续办
-    deleting --> deleted: VERIFIED [DB文件执行及投影全核对] / 同事务清业务表并压缩墓碑
-    deleted --> deleted: 迟到业务或轮询或重复删除 / 拒绝复活或幂等
-```
-
-删除的全历史所有权、共享目录保护、历史 session 与 pending 文件、崩溃检查点和客户端墓碑同步规则见删除细图。UI 仅投影持久状态，不能自行超时关门、把后台清理当成已删干净，或绕过版本屏障。上述门槛均须由真实模型、真实 SQLite/文件/HTTP 与浏览器按层验证。
+删除屏障和作业在独立表持久化；所有 I/O 只能执行已保存并领取的意图。删除的全历史所有权、共享目录保护、历史 session 与 pending 文件、崩溃检查点和客户端墓碑同步规则见[KEJ-114 安全删除记录](implementation/kej-114-deletion.md)。UI 仅投影持久状态，不能自行超时关门、把后台清理当成已删干净，或绕过版本屏障。
 
 分片的可信成功守卫为“原始自报success，且该片明确资源义务已由合法宿主来源满足”。缺凭证时可信状态为partial，原始状态和文本另存，来源引用保留acquisition/operation/work/attempt/采集时间及复用标记；同goal合法saved来源可复用，不能改称新抓取。恢复声明还须在其指定的sourceOperationIds集合内逐项覆盖资源，其他全局来源不能替声明作证；无资源义务的推理不增加工具要求。见[分片事实与恢复](implementation/kej-113-scheduling.md)的BT_Y57–Y60及[统一资源校验](implementation/kej-113-evidence.md)。
 
