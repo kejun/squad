@@ -912,6 +912,10 @@ const contractCommands = {
   detailSources,
   noHiddenReasoning: async () => { assert.doesNotMatch(await page.locator('.details').innerText(), /隐藏推理|chain.of.thought|hidden.reasoning/i); },
   artifactVersion,
+  prepareCoordinatorReport, seedLegacyCoordinatorSummary, seedMemberHeading, renderCoordinatorReport,
+  reportBodyAndLinks: assertCoordinatorReportBodyAndLinks,
+  noReportHeading: assertCoordinatorReportHasNoHeading,
+  intentionalHeading: assertIntentionalMemberHeading,
   prepareOffline,
   observeOffline: async () => { assert.equal(child, undefined); await page.getByText('连接中断', { exact: true }).first().waitFor(); await capture('offline-visible'); },
   disconnected: async () => { assert.match(await taskButton().innerText(), /连接中断/); assert.equal(await page.getByRole('button', { name: '发送消息', exact: true }).isDisabled(), true); },
@@ -922,6 +926,8 @@ const requiredCommands = {
   BT_U02: ['prepareState', 'receiveStates', 'sameRow', 'timeline', 'collapsed'],
   BT_U03: ['prepareDetails', 'openDetails', 'sharedDetails', 'detailSources', 'noHiddenReasoning', 'artifactVersion'],
   BT_U09: ['prepareOffline', 'observeOffline', 'disconnected', 'noOfflineProgress', 'reconnect', 'lostReceiptRetry'],
+  BT_U22: ['prepareCoordinatorReport', 'seedLegacyCoordinatorSummary', 'seedMemberHeading', 'renderCoordinatorReport',
+    'reportBodyAndLinks', 'noReportHeading', 'intentionalHeading'],
 };
 async function driveContract() {
   process.send({ id: 'ready', result: { evidence, source: run.source, browser: run.browser } });
