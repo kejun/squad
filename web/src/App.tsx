@@ -661,7 +661,7 @@ export function Workspace({
                     (agent) => agent.id === message.author,
                   );
                   const isUser = message.kind === "user";
-                  const displayText = isUser ? message.text : compactMessage(message.text, undefined, message.author === 'facilitator' && message.kind === 'final');
+                  const displayText = isUser ? message.text : compactMessage(message.text);
                   const messageTask = snapshot?.tasks.find((item) => item.id === message.taskId);
                   const help = (message.kind === "help" || message.kind === "notice")
                     ? snapshot?.tasks.find((item) => item.id === message.taskId)?.assists?.find(
