@@ -731,7 +731,7 @@ async function artifactVersion() {
   await snapshotProof('details-artifact-version');
 }
 const coordinatorReportUrl = 'https://example.org/coordinator-report';
-const intentionalMemberHeading = '# 方案\\n\\n保留依据 https://example.com/intent';
+const intentionalMemberHeading = '# 方案\n\n保留依据 https://example.com/intent';
 
 async function prepareCoordinatorReport() {
   observed.room = await newRoom();
@@ -773,7 +773,7 @@ async function seedLegacyCoordinatorSummary() {
   updateCoordinatorRoomData(messages => {
     const report = messages.find(message => message.kind === 'final' && message.author === 'facilitator');
     assert(report, 'A real coordinator report must exist before adding its legacy projection');
-    const legacyText = `# ${report.text.replace(/\\s+/g, ' ').trim()}`;
+    const legacyText = `# ${report.text.replace(/\s+/g, ' ').trim()}`;
     messages.push({ ...report, id: `legacy-summary:${report.id}`, at: report.at + 1,
       text: legacyText, detailText: legacyText });
     observed.legacySummary = legacyText;
@@ -821,7 +821,7 @@ async function assertCoordinatorReportBodyAndLinks() {
   }
 }
 async function assertCoordinatorReportHasNoHeading() {
-  for (const html of [...observed.reportHtml, observed.detailHtml]) assert(!/<h1[\\s>]/.test(html), html);
+  for (const html of [...observed.reportHtml, observed.detailHtml]) assert(!/<h1[\s>]/.test(html), html);
 }
 async function assertIntentionalMemberHeading() {
   assert(observed.memberHtml.includes('<h1>方案</h1>'), observed.memberHtml);
