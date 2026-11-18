@@ -101,8 +101,9 @@ When('系统执行分层归并并验收顶层摘要', { timeout: 60_000 }, funct
   };
 });
 Then('汇总停止', function (this: SpecWorld) {
-  assert(state(this).stopped);
-  assert.match(state(this).stopped.reason, /超过一页/);
+  const stopped = state(this).stopped;
+  assert(stopped);
+  assert.match(stopped.reason, /超过一页/);
 });
 Then('方案师请求不会改带文章全文', function (this: SpecWorld) {
   const stopped = state(this).stopped;
