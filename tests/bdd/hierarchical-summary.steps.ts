@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
 import { Given, Then, When } from '@cucumber/cucumber';
-import { compareArticleCounts, fixedCheckKeepsSummary, readIndexedArticle, refuseWhenAssistsRunOut, stopWhenTopExceedsPage, summarizeArticles, summaryRequestOmitsProviderTruncation, type SummaryRun } from '../hierarchical-summary-model-fixture.js';
+import {
+  compareArticleCounts, fixedCheckKeepsSummary, readIndexedArticle, refuseWhenAssistsRunOut,
+  stopWhenTopExceedsPage, summarizeArticles, summaryRequestOmitsProviderTruncation, type SummaryRun,
+} from '../hierarchical-summary-model-fixture.js';
 import type { SpecWorld } from './steps.js';
 
+type Case = 'compare' | 'read' | 'oversize' | 'fixed-check' | 'quota';
 interface State {
+  selected?: Case;
   smaller?: SummaryRun; larger?: SummaryRun;
   read?: ReturnType<typeof readIndexedArticle>;
   stopped?: ReturnType<typeof stopWhenTopExceedsPage>;
@@ -16,9 +21,14 @@ const state = (world: SpecWorld) => {
   if (!current) { current = {}; states.set(world, current); }
   return current;
 };
+const select = (world: SpecWorld, selected: Case) => { states.set(world, { selected }); };
+const selected = (world: SpecWorld, expected: Case) => {
+  assert.equal(state(world).selected, expected, 'Given 必须选择对应的真实场景夹具');
+};
 
-Given('当前任务可以分别保存一百篇和一千篇待汇总文章', function () { return undefined; });
+Given('当前任务可以分别保存一百篇和一千篇待汇总文章', function (this: SpecWorld) { select(this, 'compare'); });
 When('两次汇总都沿容量允许的轮次完成', function (this: SpecWorld) {
+  selected(this, 'compare');
   const compared = compareArticleCounts();
   state(this).smaller = compared.smaller;
   state(this).larger = compared.larger;
@@ -43,8 +53,11 @@ Then('理解分片和归并请求都不内联文章正文或成员原始答复',
   assert.equal(current.larger!.inlined, false);
 });
 
-Given('顶层摘要的直接来源索引含有一篇文章的产物编号', function () { return undefined; });
-When('方案师读取该编号', function (this: SpecWorld) { state(this).read = readIndexedArticle(); });
+Given('顶层摘要的直接来源索引含有一篇文章的产物编号', function (this: SpecWorld) { select(this, 'read'); });
+When('方案师读取该编号', function (this: SpecWorld) {
+  selected(this, 'read');
+  state(this).read = readIndexedArticle();
+});
 Then('读取使用现有产物分页并返回该篇保存的正文', function (this: SpecWorld) {
   const read = state(this).read!;
   assert.equal(read.pageText, read.body);
@@ -55,17 +68,21 @@ Then('短产物第一次读取停在保存边界且新页消耗一次普通额�
   assert.equal(read.charged, 1);
 });
 
-Given('分层之后只剩一条摘要且其正文超过一页', function () { return undefined; });
-When('系统验收这条顶层摘要', function (this: SpecWorld) { state(this).stopped = stopWhenTopExceedsPage(); });
+Given('分层之后只剩一条摘要且其正文超过一页', function (this: SpecWorld) { select(this, 'oversize'); });
+When('系统验收这条顶层摘要', function (this: SpecWorld) {
+  selected(this, 'oversize');
+  state(this).stopped = stopWhenTopExceedsPage();
+});
 Then('汇总停止', function (this: SpecWorld) { assert.match(state(this).stopped!.reason, /超过一页/); });
 Then('方案师请求不会改带文章全文', function (this: SpecWorld) {
   assert.equal(state(this).stopped!.owners, 0);
   assert.equal(state(this).stopped!.keptDraft, false);
 });
 
-Given('汇总已经交出固定大小的顶层摘要', function () { return undefined; });
-Given('随后的固定检查材料全文超过检查请求容量', function () { return undefined; });
+Given('汇总已经交出固定大小的顶层摘要', function (this: SpecWorld) { select(this, 'fixed-check'); });
+Given('随后的固定检查材料全文超过检查请求容量', function (this: SpecWorld) { selected(this, 'fixed-check'); });
 When('系统组装这次固定检查请求', async function (this: SpecWorld) {
+  selected(this, 'fixed-check');
   const run = summarizeArticles(2);
   state(this).check = await fixedCheckKeepsSummary(run.summary);
   await summaryRequestOmitsProviderTruncation();
@@ -77,8 +94,11 @@ Then('该失败不改写汇总结果', function (this: SpecWorld) {
   assert.equal(state(this).check!.unchanged, true);
 });
 
-Given('当前任务已保存多篇待汇总文章但协助额度不足', function () { return undefined; });
-When('汇总准备按容量派发', function (this: SpecWorld) { state(this).refused = refuseWhenAssistsRunOut(); });
+Given('当前任务已保存多篇待汇总文章但协助额度不足', function (this: SpecWorld) { select(this, 'quota'); });
+When('汇总准备按容量派发', function (this: SpecWorld) {
+  selected(this, 'quota');
+  state(this).refused = refuseWhenAssistsRunOut();
+});
 Then('系统保留协助额度不足且不发出带文章正文的方案师请求', function (this: SpecWorld) {
   assert.match(state(this).refused!.notice, /协助额度不足/);
   assert.equal(state(this).refused!.owners, 0);
