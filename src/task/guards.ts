@@ -1,10 +1,11 @@
-import { executionNotStartedEnds, safeFailureRetry, taskHumanGate, taskHumanGates, otherTaskHumanGate, directTaskGate, requiredHumanFailure, authorizationFailure, windowExpired, workInCleanup } from './resilience.js';
+import { executionNotStartedEnds, progressCoordinationAllowed, safeFailureRetry, taskHumanGate, taskHumanGates, otherTaskHumanGate, directTaskGate, requiredHumanFailure, authorizationFailure, windowExpired, workInCleanup } from './resilience.js';
 import { mapQueueNeedsProgress } from './map-queue.js';
 import { canStartHostRetry, findHostRetry, hostRetryBatchNeedsSync, hostRetryBatchRetirable, hostRetryBoundary, pendingHostRetry } from '../host-retry.js';
 import { type TaskContext, type TaskEvent } from '../types.js';
 import { localResumeKind, permissionProblem, valid } from './policy.js';
-import { activeHelp, allInflight, d, discussionActive, fresh, incompatibleExecution, inflight, isBot, pendingInput, recoveryIssue, remainingInflight, unresolvedInput } from './facts.js';
-import { localAwaitingApproval, localPhysicalPending } from '../local-operation.js';
+import { activeHelp, allInflight, d, discussionActive, fresh, hasOrdinary, incompatibleExecution, inflight, isBot, pendingInput, recoveryIssue, remainingInflight, unresolvedInput } from './facts.js';
+import { localPhysicalPending } from '../local-operation.js';
+import { ownerWebRecoveryExhausted } from './tool-recovery.js';
 import { helpResultContinuesReview, nextReviewer, reviewCanDispatch, savedHelpResult } from './assistance.js';
 import { checkDisposition, deliveryInterruptionPending, deliverySubmissionProblem, hasDeliveryRetryPermit, isBoundedCheck, recoveryCheckExhausted, settlingDeliveryCheck } from './delivery.js';
 import { canRetryDeliveryCheck, canRetryWork } from './budget.js';
@@ -79,6 +80,8 @@ export const taskGuards = {
     uncertainLocalResult: args => valid(args) && !args.context.stopped && args.event.type === 'LOCAL_RESULT' && !args.context.intents.find(w => w.id === (args.event as Extract<TaskEvent, { type: 'LOCAL_RESULT' }>).intentId)?.discussionId && (!args.event.settled || !args.event.effectsKnown),
     claimDiscussion: args => valid(args) && args.event.type === 'CLAIM' && args.context.intents.some(work => work.id === (args.event.type === 'CLAIM' ? args.event.intentId : '') && !!work.discussionId),
     failedDiscussion: args => valid(args) && args.event.type === 'WORK_FAILED' && args.context.intents.some(work => work.id === (args.event.type === 'WORK_FAILED' ? args.event.intentId : '') && !!work.discussionId),
+    ownerWebRecoveryExhausted: args => valid(args) && ownerWebRecoveryExhausted(args.context, args.event),
+    ownerWebRecoveryBudgetExhausted: args => valid(args) && ownerWebRecoveryExhausted(args.context, args.event) && !hasOrdinary(args.context),
     holdingDelivery: args => valid(args) && deliveryInterruptionPending(args.context),
     discussionHandoffReady: ({ context }) => context.discussion?.status === 'ready' && !context.stopped && !incompatibleExecution(context)
       && inflight(context).length === 0 && !context.intents.some(work => localPhysicalPending(work) && !workInCleanup(context, work)) && !activeHelp(context) && !unresolvedInput(context) && !context.inputs.some(input => !input.applied),
@@ -122,7 +125,8 @@ export const taskGuards = {
       && context.intents.some(work => work.id === event.intentId && isBoundedCheck(work))
       && ['CHECK_BUDGET_EXHAUSTED', 'WORK_EXPIRED'].includes(permissionProblem(context, event) ?? ''),
     claimCancel: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'cancel',
-    shouldTick: ({ context, event }) => valid({ context, event }) && !discussionActive(context) && event.at >= context.nextCheckAt && inflight(context).length === 0 && !context.intents.some(work => localPhysicalPending(work) || localAwaitingApproval(work)) && !context.processedSignals.includes(event.id),
+    shouldTick: ({ context, event }) => valid({ context, event }) && event.at >= context.nextCheckAt
+      && progressCoordinationAllowed(context, event.at) && !context.processedSignals.includes(event.id),
     repeated: ({ context, event }) => {
       if (event.type !== 'FAILURE_SIGNAL' || !valid({ context, event }) || discussionActive(context) || remainingInflight(context, event).length) return false;
       const f = JSON.stringify([event.operation, event.parameters, event.resource, event.error, event.result]).normalize('NFKC');

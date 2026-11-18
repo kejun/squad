@@ -5,7 +5,7 @@ import { mapReduceCapacity, mapReduceConcurrency } from './map-reduce-capacity.j
 import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { artifactSourceMetadata, type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
-import { canRetireDiscussionWork, capabilities, discussionActive, fence, fresh, inflight, ok, recoveryIssue, reject } from './facts.js';
+import { canRetireDiscussionWork, capabilities, discussionActive, fence, fresh, hasOrdinary, inflight, ok, recoveryIssue, reject } from './facts.js';
 import { cancelWork, coordinate, continueOwner, finish, intent, message, owner, release, saveReports } from './operations.js';
 import { applyLocalEvent, cancelLocalOperations, localEnabled, localPhysicalPending, localAwaitingApproval, recoverLocalOperations, type LocalEvent } from '../local-operation.js';
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
@@ -19,7 +19,7 @@ import { applyHostRetry, cancelHostRetries, claimHostRetryOwner, expireHostRetry
 import { deliveryEvidence } from './evidence.js';
 import { deliveryVerificationPlan } from './verification.js';
 import { preserveSourceReference } from '../input-intent.js';
-import { recordToolFailure } from './tool-recovery.js';
+import { ownerWebRecoveryExhausted, recordToolFailure } from './tool-recovery.js';
 import { ensureResilience, openHumanGate, decideHumanGate, executionNotStarted, freezeIncomplete, taskHumanGate, answerTaskGate, syncLocalApprovalGate, recordApprovalExplanation, requiredHumanFailure, modelServiceFailureCode, authorizationFailure,
   windowExpired, requestNewWindow, archiveFrozen, replaceProcessingWindow, adoptCleanup, settleCleanup, resiliencePolicy, processingWindow, safeFailureRetry, requeueSafeWork } from './resilience.js';
 import { recordAcquisition } from '../resource-acquisition.js';
@@ -295,23 +295,30 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       release(c, work.id);
       if (outcome.kind === 'handoff') { deliveryCandidate(c); break; }
       if (outcome.checked) work.criteriaResults = e.criteriaResults!;
-      if (outcome.kind === 'complete') {
-        if (e.repair) {
-          const delivery = { ...e, type: 'DELIVER' as const, text: e.repair.text, artifactIds: [], artifacts: e.repair.artifacts };
-          const issue = deliveryVersionProblem(c, delivery);
-          if (issue) { delete work.criteriaResults; finishDelivery(c, e, issue, issue); break; }
-          const artifactIds = saveReports(c, delivery, c.sourceArtifact && !e.repair.artifacts.length ? '' : e.repair.text, work.target, e.repair.artifacts);
-          const revision = `${c.candidate!.revision}:checked:${e.id}`;
-          const gaps = deliveryPreflight(c, delivery).gaps;
-          c.candidate = { ...c.candidate!, workId: work.id, text: e.repair.text + (gaps.length ? '\n\n交付时尚缺少：\n' + gaps.map(g => `- ${deliveryGapMessage(g.reason)}`).join('\n') : ''), artifactIds, revision,
-            acceptance: { ...c.candidate!.acceptance!, revision } };
-          work.payload.candidate = structuredClone(c.candidate);
-          work.payload.artifacts = c.artifacts.filter(artifact => artifactIds.includes(artifact.id));
+      const missingResources = outcome.code === 'RESOURCE_ACQUISITION_UNVERIFIED';
+      if (e.repair && (outcome.kind === 'complete' || missingResources)) {
+        const delivery = { ...e, type: 'DELIVER' as const, text: e.repair.text, artifactIds: [], artifacts: e.repair.artifacts };
+        const issue = deliveryVersionProblem(c, delivery);
+        if (issue) {
+          delete work.criteriaResults;
+          finishDelivery(c, e, missingResources ? `${outcome.detail}；检查修正未保存（${issue}）` : issue, outcome.code ?? issue);
+          break;
         }
+        const artifactIds = saveReports(c, delivery, c.sourceArtifact && !e.repair.artifacts.length ? '' : e.repair.text, work.target, e.repair.artifacts);
+        const revision = `${c.candidate!.revision}:checked:${e.id}`;
+        const gaps = deliveryPreflight(c, delivery).gaps;
+        c.candidate = { ...c.candidate!, workId: work.id, text: e.repair.text + (gaps.length ? '\n\n交付时尚缺少：\n' + gaps.map(g => `- ${deliveryGapMessage(g.reason)}`).join('\n') : ''), artifactIds, revision,
+          acceptance: { ...c.candidate!.acceptance!, revision } };
+        work.payload.candidate = structuredClone(c.candidate);
+        work.payload.artifacts = c.artifacts.filter(artifact => artifactIds.includes(artifact.id));
+      }
+      if (outcome.kind === 'complete' || missingResources) {
         const findings = e.criteriaResults!.filter(result => result.status !== 'passed');
         if (findings.length) c.candidate!.text += '\n\n未完成或未核实事项：\n' + findings.map(item => `- ${item.reason}`).join('\n');
-        if (outcome.detail && !findings.length) c.candidate!.text += '\n\n未完成或未核实事项：\n- ' + outcome.detail;
-        finish(c, e, 'complete', '');
+        if (outcome.kind === 'complete') {
+          if (outcome.detail && !findings.length) c.candidate!.text += '\n\n未完成或未核实事项：\n- ' + outcome.detail;
+          finish(c, e, 'complete', '');
+        }
       }
       if (outcome.kind === 'finish') finishDelivery(c, e, outcome.detail ?? `检查未完成（${outcome.code}）`, outcome.code);
       break;
@@ -434,6 +441,16 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       saveCheckDiagnostic(c, work, e.checkDiagnostic);
       if (!c.stopped && c.outcome === null && windowExpired(c, e.at)) {
         release(c, work.id); requestNewWindow(c, e); break;
+      }
+      if (ownerWebRecoveryExhausted(c, e)) {
+        release(c, work.id);
+        if (!hasOrdinary(c)) freezeIncomplete(c, e, e.reason);
+        else {
+          c.reason = e.reason;
+          c.deferredCoordination = true;
+          message(c, e, work.target, e.reason, 'notice');
+        }
+        break;
       }
       const modelFailure = modelServiceFailureCode(e);
       if (modelFailure && requiredHumanFailure(c, e)) {

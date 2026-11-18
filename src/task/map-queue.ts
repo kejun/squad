@@ -5,7 +5,7 @@ import { discussionIntent, summarizeDiscussion } from './discussion.js';
 import { assignSummaryBatch } from './hierarchical-summary.js';
 import { hostRetryReservation } from '../host-retry.js';
 import { consumePartitionMethod, newPartitionMethod, partitionMayDispatch, schedulingState, sharedPrerequisiteFailures } from './map-scheduling.js';
-import { processingWindow } from './resilience.js';
+import { processingWindow, taskHumanGate, windowExpired } from './resilience.js';
 
 const active = (part: MapPartitionRun) => ['running', 'uncertain'].includes(part.status);
 export const queuedMapPartitions = (c: TaskContext) => c.discussion?.status === 'collecting'
@@ -90,8 +90,9 @@ function observedStatus(c: TaskContext, part: MapPartitionRun): MapPartitionRun[
 function queueBudget(c: TaskContext, extra = 0): boolean {
   const round = c.discussion!, queued = queuedMapPartitions(c) + extra;
   const pending = c.intents.filter(work => work.discussionId === round.id && work.status === 'pending').length;
+  const downstreamRequests = round.mapReduce?.summaryLayer ? 1 : 2;
   return c.usage.assists + queued <= c.config.limits.assists
-    && c.usage.ordinary + pending + queued + 2 + hostRetryReservation(c) <= c.config.limits.ordinary;
+    && c.usage.ordinary + pending + queued + downstreamRequests + hostRetryReservation(c) <= c.config.limits.ordinary;
 }
 
 function canReevaluate(c: TaskContext, at: number): MapPartitionRun | undefined {
@@ -130,6 +131,7 @@ export function skipCurrentPartition(c: TaskContext, workId: string, reason: str
 export function mapQueueNeedsProgress(c: TaskContext, at: number): boolean {
   const queue = c.discussion?.mapReduce?.queue;
   if (!queue) return false;
+  if (legacySummaryReady(c, at)) return true;
   if (canReevaluate(c, at)) return true;
   if (JSON.stringify(c.discussion!.mapReduce!.scheduling?.blockedPrerequisites ?? []) !== JSON.stringify(sharedPrerequisiteFailures(c))) return true;
   if (queue.some(part => observedStatus(c, part) !== part.status)) return true;
@@ -143,6 +145,12 @@ export function mapQueueNeedsProgress(c: TaskContext, at: number): boolean {
 
 export function advanceMapQueue(c: TaskContext, e: TaskEvent): void {
   const round = c.discussion!, plan = round.mapReduce!, queue = plan.queue!;
+  if (legacySummaryReady(c, e.at)) {
+    for (const work of c.intents.filter(work => work.discussionId === round.id && work.kind === 'discussionSummary'
+      && ['pending', 'inflight'].includes(work.status))) work.status = 'cancelled';
+    summarizeDiscussion(c, e);
+    return;
+  }
   reevaluateMapFailure(c, e.at);
   const failures = sharedPrerequisiteFailures(c);
   if (failures.length || plan.scheduling) schedulingState(c).blockedPrerequisites = failures;
@@ -186,6 +194,16 @@ export function advanceMapQueue(c: TaskContext, e: TaskEvent): void {
   if (!incomplete.length) delete round.incomplete;
   if (incomplete.length) round.incomplete = '部分分片未完整完成：' + incomplete.map(part => `${part.partitionId}（${part.status}${part.reason ? '：' + part.reason : ''}）`).join('；');
   summarizeDiscussion(c, e);
+}
+
+/** Older snapshots may be waiting for, or have failed to receive, the retired model response. */
+function legacySummaryReady(c: TaskContext, at: number): boolean {
+  const round = c.discussion, plan = round?.mapReduce;
+  if (!round || !plan?.summaryLayer || plan.summaryLayer.topId || !plan.queue?.length || c.stopped || c.outcome !== null
+    || round.epoch !== c.epoch || round.goalVersion !== c.goalVersion || windowExpired(c, at) || taskHumanGate(c)
+    || !['summarizing', 'ready', 'delivered'].includes(round.status)) return false;
+  return plan.queue.every(part => !active(part) && part.status !== 'queued')
+    && !c.intents.some(work => work.discussionId === round.id && work.kind === 'discussionSummary' && localPhysicalPending(work));
 }
 
 /** Partition identity is stable when a member processes several parts or attempts. */

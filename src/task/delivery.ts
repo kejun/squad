@@ -3,7 +3,7 @@ import { checkCitationSources, judgmentsDiagnostic, type CheckDiagnostic, type C
 import { pendingHostRetry } from '../host-retry.js';
 import { localPhysicalPending } from '../local-operation.js';
 import { canRetryDeliveryCheck } from './budget.js';
-import { deliveryEvidence } from './evidence.js';
+import { deliveryCheckEvidence } from './evidence.js';
 import { completeProblem, deliveryHandoffPending } from './facts.js';
 import { deliveryVerificationEvidence, deliveryVerificationPlan, deliveryVerificationProblem } from './verification.js';
 import { resourceAcquisitionProblem } from '../resource-acquisition.js';
@@ -71,8 +71,6 @@ export function checkReferenceSources(c: TaskContext): CheckReferenceSource[] {
 export function deliverySubmissionProblem(c: TaskContext, e: Delivery): { code: string; mechanical: boolean } | null {
   const problem = deliveryVersionProblem(c, e);
   if (problem) return { code: problem, mechanical: true };
-  const acquisition = resourceAcquisitionProblem(c);
-  if (acquisition) return { code: acquisition, mechanical: false };
   const budget = deliveryCheckBudgetProblem(c);
   if (budget) return { code: budget, mechanical: false };
   return null;
@@ -101,7 +99,7 @@ function beforeCheckResult(c: TaskContext, e: CheckResult, work: Intent): CheckD
 
 function checkedDelivery(c: TaskContext, e: CheckResult, work: Intent): CheckDisposition {
   const resourceProblem = resourceAcquisitionProblem(c);
-  if (resourceProblem) return { kind: 'finish', code: resourceProblem, checked: true };
+  if (resourceProblem) return { kind: 'finish', code: resourceProblem, detail: '必需资源仍缺少可核实的获取凭证', checked: true };
   const mechanical = completeProblem(c);
   if (mechanical) return { kind: 'finish', code: mechanical, checked: true };
   const findings = e.criteriaResults!.filter(item => item.status !== 'passed');
@@ -115,13 +113,13 @@ function checkedDelivery(c: TaskContext, e: CheckResult, work: Intent): CheckDis
 export function checkDisposition(c: TaskContext, e: CheckResult, work: Intent): CheckDisposition {
   const interruption = beforeCheckResult(c, e, work);
   if (interruption) return interruption;
-  const evidence = c.deliveryCycle?.evidence && deliveryEvidence(c, work, c.deliveryCycle.evidence);
+  const evidence = deliveryCheckEvidence(c, work);
   if (!evidence) return { kind: 'finish', code: 'CHECK_EVIDENCE_CHANGED' };
   const test = deliveryVerificationEvidence(work);
   const references = (work.payload.references as CheckReferenceSource[] | undefined) ?? [];
   const reviewRecords = (work.payload.reviewRecords as CheckReviewSource[] | undefined) ?? [];
   const rawInputs = (work.payload.rawInputs as CheckMaterials['rawInputs'] | undefined) ?? [];
-  const sources = checkCitationSources({ evidence: evidence.sources, references, reviewRecords, rawInputs, ...(test ? { verification: test } : {}) });
+  const sources = checkCitationSources({ evidence, references, reviewRecords, rawInputs, ...(test ? { verification: test } : {}) });
   const diagnostic = e.passed !== undefined || e.gaps !== undefined ? { code: 'CHECK_INVALID_CRITERIA_RESULTS' }
     : judgmentsDiagnostic(c.candidate!.acceptance!.criteria, e.criteriaResults, sources);
   if (diagnostic) return { kind: canRetryDeliveryCheck(c, work, e.at, true) ? 'retry' : 'finish', code: diagnostic.code, diagnostic };

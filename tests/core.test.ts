@@ -118,7 +118,10 @@ describe('bounded assistance', () => {
 
 describe('supervision and shared record', () => {
   it('[BT_O01] checks unreported lack of progress', () => {
-    const h = new Harness(); h.now = h.config.limits.progressIntervalMs;
+    const h = new Harness();
+    const failure = { type: 'FAILURE_SIGNAL' as const, operation: '读取', parameters: '相同参数', resource: '资料', error: '无法访问', result: '无新进展' };
+    h.event(failure); h.event(failure);
+    h.now = h.context().nextCheckAt;
     h.engine.tick(h.room); expect(h.view().phase).toBe('coordinating');
     expect(h.engine.pending(h.room, h.task)[0]?.kind).toBe('facilitator');
   });

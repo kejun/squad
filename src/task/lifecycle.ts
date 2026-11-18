@@ -101,7 +101,16 @@ export const taskLifecycle = {
         TOOL: { guard: 'valid', actions: 'apply' },
         TICK: { guard: 'shouldTick', target: 'coordinating', actions: 'apply' },
         FAILURE_SIGNAL: [{ guard: 'repeated', target: 'coordinating', actions: 'apply' }, { guard: 'valid', actions: 'apply' }],
-        WORK_FAILED: [{ guard: 'windowFailed', target: 'waitingHuman', actions: 'apply' }, { guard: 'approvalBlockedFailure', target: 'waitingHuman', actions: 'apply' }, { guard: 'failedDiscussion', actions: 'apply' }, { guard: 'retryable', actions: 'apply' }, { guard: 'safeFailureRetry', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
+        WORK_FAILED: [
+          { guard: 'windowFailed', target: 'waitingHuman', actions: 'apply' },
+          { guard: 'approvalBlockedFailure', target: 'waitingHuman', actions: 'apply' },
+          { guard: 'failedDiscussion', actions: 'apply' },
+          { guard: 'ownerWebRecoveryBudgetExhausted', target: 'ended', actions: 'apply' },
+          { guard: 'ownerWebRecoveryExhausted', actions: 'apply' },
+          { guard: 'retryable', actions: 'apply' },
+          { guard: 'safeFailureRetry', actions: 'apply' },
+          { guard: 'valid', target: 'waitingHuman', actions: 'apply' },
+        ],
       },
     },
     waitingAssistance: {

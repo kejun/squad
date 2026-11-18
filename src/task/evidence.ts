@@ -187,3 +187,11 @@ export function deliveryEvidence(c: TaskContext, work: Intent, refs?: readonly D
   }
   return { sources, refs: savedRefs };
 }
+
+export function deliveryCheckEvidence(c: TaskContext, work: Intent): DeliveryEvidenceSource[] | undefined {
+  const fixed = c.deliveryCycle?.evidence && deliveryEvidence(c, work, c.deliveryCycle.evidence);
+  if (!fixed) return undefined;
+  const ids = new Set(fixed.sources.map(source => source.id));
+  const own = deliveryEvidence(c, work)?.sources.filter(source => source.metadata.sourceWorkId === work.id && !ids.has(source.id)) ?? [];
+  return [...fixed.sources, ...own];
+}

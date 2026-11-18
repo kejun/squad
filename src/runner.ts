@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { deliveryObservations, initialModelRequestId, publishObservation, type ExecutionObservation, type MeasurementSink, type ModelObservation } from './measurement.js';
 import { readSavedArtifact, readSavedEvidence } from './evidence-reader.js';
-import { deliveryEvidence, evidenceIndex } from './task/evidence.js';
+import { deliveryCheckEvidence, deliveryEvidence, evidenceIndex } from './task/evidence.js';
 import { sharedToolKnowledge } from './task/tool-knowledge.js';
 import { windowExpired } from './task/resilience.js';
 import { sharedToolExperiences, type ToolExperience } from './task/tool-experience.js';
@@ -68,6 +68,8 @@ export interface WorkScope {
   webFetch: WebTools['fetch'];
   /** Settled receipts for request projection. Absent scopes keep the original tool text. */
   receiptSources?(): { operations: readonly LocalOperation[]; acquisitions: readonly HostAcquisition[] };
+  /** Frozen inputs and eligible receipts produced by this check. */
+  readCheckEvidence?(): CheckMaterials['evidence'] | undefined;
 }
 
 export class WorkFailure extends Error {
@@ -277,6 +279,9 @@ export class WorkRunner {
       const response = send({ type: 'RECORD_TOOL_FAILURE', intentId: work.id, requestId: lastWebRequest.id,
         tool: failure.tool, code: failure.code, id: `tool-failure:${lastWebRequest.id}`, at: this.clock(),
         fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
+      if (response.code === 'TOOL_RECOVERY_EXHAUSTED') {
+        throw new WorkFailure(`网页工具重选次数已用尽（${response.code}，${failure.code}）`, false, false, undefined, response.code);
+      }
       if (!response.ok) throw new WorkFailure(response.code);
     }, findSkills: async (query, signal) => {
       this.assertAttached();
@@ -333,6 +338,11 @@ export class WorkRunner {
     } };
     if (observeCoordination) Object.defineProperty(scope, 'coordinationView', { get: observeCoordination });
     const currentWork = () => { this.assertAttached(); return this.engine.view(roomId, taskId)!.context.intents.find(i => i.id === work.id)!; };
+    if (work.kind === 'check') scope.readCheckEvidence = () => {
+      this.assertAttached();
+      const context = this.engine.view(roomId, taskId)!.context;
+      return deliveryCheckEvidence(context, currentWork());
+    };
     scope.receiptSources = () => {
       const context = this.engine.view(roomId, taskId)!.context;
       const current = currentWork();
@@ -602,7 +612,7 @@ export class WorkRunner {
         work.payload.checkMaterials = materials;
         scope.authorizeAdditionalRequest(initialModelRequestId);
         output = await this.adapter.execute(work, controller.signal, scope);
-        const sources = checkCitationSources(materials);
+        const sources = checkCitationSources({ ...materials, evidence: scope.readCheckEvidence?.() ?? materials.evidence });
         const diagnostic = validWorkOutput(output) && output.type === 'check'
           ? judgmentsDiagnostic(materials.requirements, output.criteriaResults, sources) : { code: 'CHECK_INVALID_CRITERIA_RESULTS' };
         if (diagnostic) throw new WorkFailure(diagnostic.code, true, false, diagnostic);
