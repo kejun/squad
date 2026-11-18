@@ -16,7 +16,7 @@ import {
   Terminal,
 } from "lucide-react";
 import type { ArtifactReference, ArtifactSourceMetadata } from "../../src/types";
-import { normalizeStoredReportHeading } from "../../src/presentation";
+import { normalizeCoordinatorReportText } from "./coordinator-report-presentation";
 import type {
   ExecutionEvent,
   RoomSnapshot,
@@ -500,7 +500,7 @@ function ResultDetails({ snapshot, target, onClose, onOpen, onBack, connected, o
             <h2>{task!.goal}</h2>
             <span className="task-state">{connected ? phaseLabel(task) : "连接中断"}</span>
             <FrozenDelivery task={task!} />
-            {message && <MessageText text={normalizeStoredReportHeading(message.detailText ?? message.text, message.author === 'facilitator' && message.kind === 'final')} agents={onAgent ? snapshot?.agents ?? [] : []} onAgent={onAgent ?? noAgentAction} />}
+            {message && <MessageText text={normalizeCoordinatorReportText(message.detailText ?? message.text, message.author === 'facilitator' && message.kind === 'final')} agents={onAgent ? snapshot?.agents ?? [] : []} onAgent={onAgent ?? noAgentAction} />}
             {!message && task!.reason && <p className="task-reason">{task!.reason}</p>}
             {!message && task!.currentArtifactIds && <h3 className="detail-section-heading">当前交付</h3>}
             {!!artifacts.length && <Artifacts artifacts={artifacts} onOpen={(item) => onOpen({ ...target, artifactId: item.id })} />}
