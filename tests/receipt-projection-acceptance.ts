@@ -207,6 +207,135 @@ async function captureRequest(config: ReturnType<typeof localConfig>, work: Para
   return request;
 }
 
+type PreparedWork = ReturnType<Harness['context']>['intents'][number];
+export interface PreparedReceiptRequest {
+  config: ReturnType<typeof localConfig>;
+  h: Harness;
+  work: PreparedWork;
+  scope: WorkScope;
+}
+
+export function prepareProjectionHashScenario(): PreparedReceiptRequest {
+  const config = localConfig();
+  const h = new Harness(config);
+  const owner = h.claim('owner');
+  const first = saveEvidence(h, owner, 'REAL-RECEIPT-BODY');
+  const second = saveEvidence(h, owner, 'LATEST-RECEIPT-BODY');
+  const current = h.context().intents.find(item => item.id === owner.id)!;
+  const tampered = 'TAMPERED-OLD-BODY';
+  const scope = scriptedScope({
+    catalog: { catalogVersion: '0', skills: [], nextCursor: null, diagnostics: [], complete: true },
+    checkpoint: { nextOperation: 3, messages: [
+      { role: 'assistant', content: '{"type":"runCli","executable":"node"}' },
+      { role: 'user', content: JSON.stringify({ type: 'local_tool_result', operationId: first, untrusted: true, ok: true, code: 'succeeded',
+        data: { stdout: tampered, truncated: false, capturedEvidence: { stdout: { capturedContentHash: 'a'.repeat(64), bytes: 1, chars: 1 } } } }) },
+      { role: 'user', content: JSON.stringify({ type: 'local_tool_result', operationId: second, untrusted: true, ok: true, code: 'succeeded',
+        data: { stdout: 'LATEST-RECEIPT-BODY', truncated: false } }) },
+    ] }, invoke: async () => { throw new Error('unused'); }, resume: async () => { throw new Error('unused'); },
+  }, { operations: current.localOperations ?? [], acquisitions: [] });
+  return { config, h, work: current, scope };
+}
+
+export async function executeProjectionHashScenario(prepared: PreparedReceiptRequest) {
+  const request = await captureRequest(prepared.config, prepared.work, prepared.scope);
+  const card = toolMessage(request.messages, 'operation-1');
+  const actual = JSON.stringify(request.messages);
+  const expectedHash = hash('REAL-RECEIPT-BODY');
+  const hasTampered = actual.includes('TAMPERED-OLD-BODY');
+  const latestVisible = request.messages.some(message => message.content.includes('LATEST-RECEIPT-BODY'));
+  const receipt = (prepared.work.localOperations ?? []).find(operation => operation.result?.data.stdout === 'REAL-RECEIPT-BODY');
+  assert(receipt);
+  const actualCard = toolMessage(request.messages, receipt.id);
+  assert.equal(actualCard.bodyIncluded, false);
+  assert.equal(actualCard.capturedContentHash, expectedHash);
+  assert.equal(hasTampered, false);
+  assert(latestVisible);
+  return { hash: actualCard.capturedContentHash, bodyIncluded: actualCard.bodyIncluded,
+    tamperedBodyAbsent: !hasTampered, latestBodyVisible: latestVisible };
+}
+
+export function prepareCheckMaterialsScenario(): PreparedReceiptRequest {
+  const config = localConfig();
+  const h = new Harness(config);
+  const owner = h.claim('owner');
+  assert(h.event({ type: 'DELIVER', workId: owner.id, fence: owner, text: 'CANDIDATE-FULL-TEXT', artifactIds: [] }).ok);
+  const check = h.claim('check');
+  const oldId = 'check-old-command';
+  const latestId = 'check-latest-command';
+  const operations = [oldId, latestId].map((id, index): LocalOperation => ({ id, namespace: 'c'.repeat(64), requestHash: index === 0 ? 'a'.repeat(64) : 'b'.repeat(64),
+    action: { type: 'runCli', executable: 'node', args: ['check.js'] }, status: index === 0 ? 'failed' : 'succeeded', parentAttempt: check.attempt, attempt: 1, createdAt: 1,
+    result: index === 0 ? { ok: false, code: 'EVIDENCE_CONTENT_MISSING', data: {} }
+      : { ok: true, code: 'succeeded', data: { stdout: 'CHECK-LATEST-STDOUT', truncated: false, exitCode: 0 } } }));
+  check.payload.checkMaterials = { requirements: [{ id: 'need-complete', text: '候选完整' }],
+    artifacts: [{ id: 'artifact:candidate', name: 'report.md', content: 'CANDIDATE-FULL-TEXT' }],
+    evidence: [{ id: 'evidence:bound', stdout: 'EVIDENCE-FULL-BODY' }] } as never;
+  const scope = scriptedScope({
+    catalog: { catalogVersion: '0', skills: [], nextCursor: null, diagnostics: [], complete: true },
+    checkpoint: { nextOperation: 3, messages: [
+      { role: 'user', content: JSON.stringify({ type: 'local_tool_result', operationId: oldId, untrusted: true, ok: false, code: 'EVIDENCE_CONTENT_MISSING', data: { stdout: 'SHOULD-NOT-LEAK' } }) },
+      { role: 'user', content: JSON.stringify({ type: 'local_tool_result', operationId: latestId, untrusted: true, ok: true, code: 'succeeded', data: { stdout: 'CHECK-LATEST-STDOUT' } }) },
+    ] }, invoke: async () => { throw new Error('unused'); }, resume: async () => { throw new Error('unused'); },
+  }, { operations, acquisitions: [] });
+  return { config, h, work: check, scope };
+}
+
+export async function executeCheckMaterialsScenario(prepared: PreparedReceiptRequest) {
+  const request = await captureRequest(prepared.config, prepared.work, prepared.scope);
+  const body = JSON.stringify(request);
+  const card = toolMessage(request.messages, 'check-old-command');
+  const latestVisible = request.messages.some(message => message.content.includes('CHECK-LATEST-STDOUT'));
+  assert(body.includes('CANDIDATE-FULL-TEXT'));
+  assert(body.includes('EVIDENCE-FULL-BODY'));
+  assert.equal(body.includes('truncate_prompt_tokens'), false);
+  assert.equal(body.includes('SHOULD-NOT-LEAK'), false);
+  assert.equal(card.bodyIncluded, false);
+  assert.equal(card.code, 'EVIDENCE_CONTENT_MISSING');
+  assert.equal(card.completeness, 'failed');
+  assert(latestVisible);
+  return { candidate: true, evidence: true, code: card.code, completeness: card.completeness,
+    latestReceiptVisible: latestVisible, fixedInputNotTruncated: !body.includes('truncate_prompt_tokens') };
+}
+
+export function prepareFailedReceiptScenario(): PreparedReceiptRequest {
+  const config = localConfig();
+  const h = new Harness(config);
+  const owner = h.claim('owner');
+  const failed = saveEvidence(h, owner, 'SECRET-FAILURE-BODY', false);
+  const latest = saveEvidence(h, owner, 'VISIBLE-LATEST-BODY');
+  const current = h.context().intents.find(item => item.id === owner.id)!;
+  const missing: LocalOperation = { id: 'missing-body', namespace: 'c'.repeat(64), requestHash: 'c'.repeat(64),
+    action: { type: 'readEvidence', sourceOperationId: failed, stream: 'stdout' }, status: 'failed', parentAttempt: owner.attempt, attempt: 1, createdAt: 1,
+    result: { ok: false, code: 'EVIDENCE_CONTENT_MISSING', data: {} } };
+  const scope = scriptedScope({
+    catalog: { catalogVersion: '0', skills: [], nextCursor: null, diagnostics: [], complete: true },
+    checkpoint: { nextOperation: 4, messages: [
+      { role: 'user', content: JSON.stringify({ type: 'local_tool_result', operationId: failed, untrusted: true, ok: false, code: 'EXIT_NONZERO', data: { stdout: 'SECRET-FAILURE-BODY' } }) },
+      { role: 'user', content: JSON.stringify({ type: 'local_tool_result', operationId: missing.id, untrusted: true, ok: false, code: 'EVIDENCE_CONTENT_MISSING', data: { stdout: 'INVENTED-MISSING-BODY' } }) },
+      { role: 'user', content: JSON.stringify({ type: 'local_tool_result', operationId: latest, untrusted: true, ok: true, code: 'succeeded', data: { stdout: 'VISIBLE-LATEST-BODY' } }) },
+    ] }, invoke: async () => { throw new Error('unused'); }, resume: async () => { throw new Error('unused'); },
+  }, { operations: [...(current.localOperations ?? []), missing], acquisitions: [] });
+  return { config, h, work: current, scope };
+}
+
+export async function executeFailedReceiptScenario(prepared: PreparedReceiptRequest) {
+  const request = await captureRequest(prepared.config, prepared.work, prepared.scope);
+  const failureOperation = prepared.work.localOperations?.find(operation => operation.result?.data.stdout === 'SECRET-FAILURE-BODY');
+  assert(failureOperation);
+  const failure = toolMessage(request.messages, failureOperation.id);
+  const absent = toolMessage(request.messages, 'missing-body');
+  const failedBodyAbsent = !JSON.stringify(request.messages).includes('SECRET-FAILURE-BODY');
+  const missingBodyAbsent = !JSON.stringify(request.messages).includes('INVENTED-MISSING-BODY');
+  const latestBodyVisible = request.messages.some(message => message.content.includes('VISIBLE-LATEST-BODY'));
+  assert.equal(failure.code, 'EXIT_NONZERO');
+  assert.equal(failure.completeness, 'failed');
+  assert.equal(absent.code, 'EVIDENCE_CONTENT_MISSING');
+  assert.equal(failedBodyAbsent, true);
+  assert.equal(missingBodyAbsent, true);
+  assert(latestBodyVisible);
+  return { failure: failure.code, failureCompleteness: failure.completeness, missing: absent.code,
+    failedBodyAbsent, missingBodyAbsent, latestBodyVisible };
+}
+
 export async function projectionUsesReceiptHash() {
   const config = localConfig();
   const h = new Harness(config);
