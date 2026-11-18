@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { After, Given, Then, When } from '@cucumber/cucumber';
 import type { SpecWorld } from './steps.js';
-import type { LocalFixture } from '../local-tools-fixture.js';
+import { LocalFixture } from '../local-tools-fixture.js';
 import {
-  checkMaterialsStayComplete, directoryReceiptCollapsesToOperationId, failedReceiptIsNotRewritten,
+  directoryReceiptCollapsesToOperationId,
   olderReceiptsBecomeCards, prepareDirectoryReceiptScenario, prepareOlderReceiptsScenario, prepareWebPagesScenario,
   prepareProjectionHashScenario, executeProjectionHashScenario, prepareCheckMaterialsScenario, executeCheckMaterialsScenario,
   prepareFailedReceiptScenario, executeFailedReceiptScenario,
-  projectionUsesReceiptHash, webPagesProjectAndSearchStays, type PreparedWebReceiptScenario, type PreparedReceiptRequest,
+  webPagesProjectAndSearchStays, type PreparedWebReceiptScenario, type PreparedReceiptRequest,
 } from '../receipt-projection-acceptance.js';
 
 type Case = 'older' | 'directory' | 'web' | 'tampered' | 'check' | 'failed';
@@ -18,9 +18,9 @@ After({ timeout: 30_000 }, async function (this: SpecWorld) {
   const prepared = preparedFixtures.get(this);
   if (!prepared) return;
   preparedFixtures.delete(this);
-  if ('f' in prepared) await prepared.f.close();
-  else if ('h' in prepared) prepared.h.store.close();
-  else await prepared.close();
+  if (prepared instanceof LocalFixture) await prepared.close();
+  else if ('f' in prepared) await prepared.f.close();
+  else prepared.h.store.close();
 });
 const results = new WeakMap<SpecWorld, Result>();
 const select = (world: SpecWorld, value: Case) => { cases.set(world, value); results.delete(world); };
@@ -30,7 +30,7 @@ Given('同一次负责人工作已准备连续命令和技能读取操作', { ti
   preparedFixtures.set(this, await prepareOlderReceiptsScenario()); select(this, 'older');
 });
 When('模型继续执行另一条命令并再次请求决策', { timeout: 60_000 }, async function (this: SpecWorld) {
-  const prepared = preparedFixtures.get(this); assert(prepared && !('f' in prepared));
+  const prepared = preparedFixtures.get(this); assert(prepared instanceof LocalFixture);
   results.set(this, await olderReceiptsBecomeCards(prepared) as unknown as Result);
 });
 Then('新请求应保留最近一条命令回执的有界原文', function (this: SpecWorld) { assert.equal(result(this).latestBody, 'UNIQUE-SECOND-STDOUT-BODY'); });
@@ -43,7 +43,7 @@ Given('同一次工作已准备目录发现和后续命令操作', { timeout: 30
   preparedFixtures.set(this, await prepareDirectoryReceiptScenario()); select(this, 'directory');
 });
 When('系统保存检查点并在后续命令之后再次请求决策', { timeout: 60_000 }, async function (this: SpecWorld) {
-  const prepared = preparedFixtures.get(this); assert(prepared && !('f' in prepared));
+  const prepared = preparedFixtures.get(this); assert(prepared instanceof LocalFixture);
   results.set(this, await directoryReceiptCollapsesToOperationId(prepared) as unknown as Result);
 });
 Then('检查点中的目录回执应只保留操作号', function (this: SpecWorld) { assert.deepEqual(result(this).checkpointData, { persistedMetadataOperationId: result(this).operationId }); });
@@ -65,7 +65,7 @@ Given('已准备包含旧正文冲突的检查点和两条已保存命令回执'
   preparedFixtures.set(this, prepareProjectionHashScenario()); select(this, 'tampered');
 });
 When('该回执已不是最近一条工具结果并再次组装模型请求', async function (this: SpecWorld) {
-  const prepared = preparedFixtures.get(this); assert(prepared && 'h' in prepared);
+  const prepared = preparedFixtures.get(this); assert(prepared && !(prepared instanceof LocalFixture) && !('f' in prepared));
   results.set(this, await executeProjectionHashScenario(prepared) as unknown as Result);
 });
 Then('索引卡应使用已结算回执的内容哈希', function (this: SpecWorld) { assert.match(String(result(this).hash), /^[a-f0-9]{64}$/); });
