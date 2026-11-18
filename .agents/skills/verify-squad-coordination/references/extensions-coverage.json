@@ -36,7 +36,7 @@
     "src/index.ts": "79ef24ede132e36388df54ccbb8e6e48efc472adff3c13d57f68ce745b98e331",
     "src/input-intent.ts": "8c2886e4b9054655203f5b72fc357aaab0d3502927320b722f9fa196a951d266",
     "src/inspector.machine.ts": "0c9ba840dd017b3149dfae33186ea850376c35048eb43da52a57a8618cc000f5",
-    "src/local-cli.ts": "53b7ae46b7912f6ea6389e063751c24eb325cf039fbbcb9a13f1d313b52a3cd1",
+    "src/local-cli.ts": "a120ed26dcadc0585a4ab0f1d11ca288e4b7c82328a64e2a43f2705c9f129ef4",
     "src/local-operation.ts": "3bf993083c30b9bde37376df50581d76a3b2e858d9f93e6ab28bbfbefd2bf665",
     "src/local-resource-policy.ts": "08061b38c1876835ee0255484e855eb7f9c01bf7009c2f9106c8aa559e6c72de",
     "src/local-runtime.ts": "37e8dd9fe6f865f220efba4dd06d2523ace4aab54d10579fb7a5c0947ad57118",
