@@ -36,3 +36,25 @@ Then('页面应如实显示连接不可用', timeout, async function (this: Spec
 Then('不应显示宿主离线期间新产生的执行进展', timeout, async function (this: SpecWorld) { await driver(this).step('noOfflineProgress'); });
 Then('活动任务刷新和宿主重连应恢复同一任务及已保存记录', timeout, async function (this: SpecWorld) { await driver(this).step('reconnect'); });
 Then('发送回执丢失后重试不应重复保存消息或派发任务', timeout, async function (this: SpecWorld) { await driver(this).step('lostReceiptRetry'); });
+
+Given('协调员已发布包含目标和链接的未完成任务报告', timeout, async function (this: SpecWorld) {
+  await start(this, 'BT_U22', 'prepareCoordinatorReport');
+});
+Given('时间线上还留有已折成单行的同一类协调报告摘要', timeout, async function (this: SpecWorld) {
+  await driver(this).step('seedLegacyCoordinatorSummary');
+});
+Given('成员消息中有意写有一级标题', timeout, async function (this: SpecWorld) {
+  await driver(this).step('seedMemberHeading');
+});
+When('按群时间线和消息详情渲染协调报告及该标题', timeout, async function (this: SpecWorld) {
+  await driver(this).step('renderCoordinatorReport');
+});
+Then('新发布的协调报告和已折成单行的协调报告摘要都应显示为普通正文并保留可打开的链接', timeout, async function (this: SpecWorld) {
+  await driver(this).step('reportBodyAndLinks');
+});
+Then('这些协调报告正文不得位于一级标题中', timeout, async function (this: SpecWorld) {
+  await driver(this).step('noReportHeading');
+});
+Then('成员有意写下的标题仍应显示为一级标题', timeout, async function (this: SpecWorld) {
+  await driver(this).step('intentionalHeading');
+});
