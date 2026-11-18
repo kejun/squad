@@ -53,7 +53,11 @@ export class SpecWorld extends World {
 setWorldConstructor(SpecWorld);
 Before(function (this: SpecWorld) { this.h = new Harness(); });
 
-Given('主任务{string}由成员{string}负责且状态为{string}', function (this: SpecWorld, _task: string, owner: string, phase: string) { assert.equal(this.h.context().owner, owner); assert.equal(phase, '执行中'); });
+Given('主任务{string}由成员{string}负责且状态为{string}', function (this: SpecWorld, _task: string, owner: string, phase: string) {
+  assert.equal(this.h.context().owner, owner);
+  assert.equal(phase, '执行中');
+  assert.equal(this.h.view().phase, 'running', 'Gherkin 前置状态必须与真实 taskMachine 快照一致');
+});
 Given('成员{string}具备执行所请求核查的权限', function (this: SpecWorld, id: string) { assert(this.h.config.bots.find(b => b.id === id)?.tools.includes('read')); });
 Given('当前目标版本为{string}，执行轮次为{string}', function (this: SpecWorld, goal: string, epoch: string) { assert.equal(goal, 'G1'); assert.equal(epoch, 'E1'); });
 Given('求助和执行预算足够', function (this: SpecWorld) { assert(this.h.context().config.limits.assists > 0); });
