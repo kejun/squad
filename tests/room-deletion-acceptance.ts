@@ -412,7 +412,15 @@ export async function deletionHistoricalRuntimeAcceptance() {
     const otherHash = createHash('sha256').update(otherOp.sessionId!).digest('hex');
     const protectedJournal = await readFile(join(dataRoot, 'sessions', otherHash + '.json'), 'utf8');
     const source = await directorySnapshot(fixture.source);
-    await fixture.archive(); assert.equal((await fixture.resumeLegacyDeletion()).status, 202); await fixture.assertGone();
+    await fixture.archive();
+    const retry = await fixture.resumeLegacyDeletion();
+    // Background cleanup may advance the durable revision before this legacy retry reaches HTTP.
+    // A stale retry must be rejected; only independent deletion readback proves completion.
+    if (retry.status === 409) {
+      assert.equal(retry.data.error, '删除请求已失效，请查看最新状态。');
+      assert(fixture.service.engine.roomDeletion(fixture.room)?.value !== 'idle');
+    } else assert.equal(retry.status, 202, JSON.stringify(retry.data));
+    await fixture.assertGone();
     assert.deepEqual(await directorySnapshot(otherWorkspace), otherFiles);
     assert.equal(await readFile(join(dataRoot, 'sessions', otherHash + '.json'), 'utf8'), protectedJournal);
     assert.deepEqual(fixture.service.snapshot(fixture.otherRoom).messages, otherSnapshot.messages);
