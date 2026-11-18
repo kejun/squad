@@ -418,7 +418,8 @@ export async function deletionHistoricalRuntimeAcceptance() {
     // A stale retry must be rejected; only independent deletion readback proves completion.
     if (retry.status === 409) {
       assert.equal(retry.data.error, '删除请求已失效，请查看最新状态。');
-      assert(fixture.service.engine.roomDeletion(fixture.room)?.value !== 'idle');
+      const current = fixture.service.engine.roomDeletion(fixture.room);
+      assert(current && current.value !== 'idle', 'The rejected legacy retry must belong to a durable deletion');
     } else assert.equal(retry.status, 202, JSON.stringify(retry.data));
     await fixture.assertGone();
     assert.deepEqual(await directorySnapshot(otherWorkspace), otherFiles);
