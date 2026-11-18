@@ -21,19 +21,29 @@ function toolMessage(messages: { content: string }[], operationId: string) {
   return JSON.parse(message.content) as Record<string, unknown>;
 }
 
-export async function olderReceiptsBecomeCards() {
+const firstCommandBody = 'UNIQUE-FIRST-STDOUT-BODY';
+const secondCommandBody = 'UNIQUE-SECOND-STDOUT-BODY';
+const skillGuideBody = '真实引用资料；不得扩大宿主权限。';
+
+export async function prepareOlderReceiptsScenario(): Promise<LocalFixture> {
   const f = await LocalFixture.create('方案师', true);
-  const first = 'UNIQUE-FIRST-STDOUT-BODY';
-  const second = 'UNIQUE-SECOND-STDOUT-BODY';
-  const guide = '真实引用资料；不得扩大宿主权限。';
+  f.replies.push(
+    { type: 'loadSkill', skillId: f.skillId },
+    { type: 'runCli', executable: 'node', args: ['-e', `process.stdout.write(${JSON.stringify(firstCommandBody)})`] },
+    { type: 'readSkillResource', skillId: f.skillId, path: 'references/guide.md' },
+    { type: 'runCli', executable: 'node', args: ['-e', `process.stdout.write(${JSON.stringify(secondCommandBody)})`] },
+    { type: 'answer', text: '已完成两次命令和一次技能读取' },
+  );
+  return f;
+}
+
+export async function olderReceiptsBecomeCards(prepared?: LocalFixture) {
+  const ownsFixture = !prepared;
+  const f = prepared ?? await prepareOlderReceiptsScenario();
+  const first = firstCommandBody;
+  const second = secondCommandBody;
+  const guide = skillGuideBody;
   try {
-    f.replies.push(
-      { type: 'loadSkill', skillId: f.skillId },
-      { type: 'runCli', executable: 'node', args: ['-e', `process.stdout.write(${JSON.stringify(first)})`] },
-      { type: 'readSkillResource', skillId: f.skillId, path: 'references/guide.md' },
-      { type: 'runCli', executable: 'node', args: ['-e', `process.stdout.write(${JSON.stringify(second)})`] },
-      { type: 'answer', text: '已完成两次命令和一次技能读取' },
-    );
     const pending = f.h.engine.pending(f.h.room, f.h.task).find(item => item.kind === 'owner');
     assert(pending);
     assert(await f.runner().runOne(f.h.room, f.h.task, pending.id));
@@ -66,17 +76,23 @@ export async function olderReceiptsBecomeCards() {
       latestBody: (current.data as { stdout?: string } | undefined)?.stdout,
       assistantToolCall: decision.messages.some(message => message.role === 'assistant' && message.content.includes('"type":"runCli"')),
     };
-  } finally { await f.close(); }
+  } finally { if (ownsFixture) await f.close(); }
 }
 
-export async function directoryReceiptCollapsesToOperationId() {
+export async function prepareDirectoryReceiptScenario(): Promise<LocalFixture> {
   const f = await LocalFixture.create('方案师', true);
+  f.replies.push(
+    { type: 'discoverHost', query: '验证' },
+    { type: 'runCli', executable: 'node', args: ['-e', 'process.stdout.write("AFTER-CATALOG-STDOUT")'] },
+    { type: 'answer', text: '目录之后完成命令' },
+  );
+  return f;
+}
+
+export async function directoryReceiptCollapsesToOperationId(prepared?: LocalFixture) {
+  const ownsFixture = !prepared;
+  const f = prepared ?? await prepareDirectoryReceiptScenario();
   try {
-    f.replies.push(
-      { type: 'discoverHost', query: '验证' },
-      { type: 'runCli', executable: 'node', args: ['-e', 'process.stdout.write("AFTER-CATALOG-STDOUT")'] },
-      { type: 'answer', text: '目录之后完成命令' },
-    );
     const pending = f.h.engine.pending(f.h.room, f.h.task).find(item => item.kind === 'owner');
     assert(pending);
     assert(await f.runner().runOne(f.h.room, f.h.task, pending.id));
@@ -101,10 +117,11 @@ export async function directoryReceiptCollapsesToOperationId() {
       laterData: later.data,
       latestCommandVisible: f.requests[2]!.messages.some(message => message.content.includes('AFTER-CATALOG-STDOUT')),
     };
-  } finally { await f.close(); }
+  } finally { if (ownsFixture) await f.close(); }
 }
 
-export async function webPagesProjectAndSearchStays() {
+export interface PreparedWebReceiptScenario { f: LocalFixture; web: WebTools; adapter: OpenAICompatibleAdapter; getFetches(): number }
+export async function prepareWebPagesScenario(): Promise<PreparedWebReceiptScenario> {
   const f = await LocalFixture.create('方案师', true);
   const pageA = 'PAGE-A-UNIQUE-BODY';
   const pageB = 'PAGE-B-UNIQUE-BODY';
@@ -122,17 +139,27 @@ export async function webPagesProjectAndSearchStays() {
         content, totalChars: content.length, headers: {}, redirects: [] } };
     },
   };
+  f.replies.push(
+    { type: 'web_search', query: 'sources' },
+    { type: 'web_fetch', url: 'https://source.fixture.example/a' },
+    { type: 'web_fetch', url: 'https://source.fixture.example/b' },
+    { type: 'answer', text: '已读取两页' },
+  );
+  const adapter = new OpenAICompatibleAdapter(f.h.config, { clock: () => f.h.now, transport: async (_url, init) => {
+    f.requests.push(JSON.parse(String(init?.body)) as typeof f.requests[number]);
+    return modelResponse(f.replies.shift());
+  } });
+  return { f, web, adapter, getFetches: () => fetches };
+}
+
+export async function webPagesProjectAndSearchStays(prepared?: PreparedWebReceiptScenario) {
+  const ownsFixture = !prepared;
+  const scenario = prepared ?? await prepareWebPagesScenario();
+  const { f, web, adapter } = scenario;
+  const pageA = 'PAGE-A-UNIQUE-BODY';
+  const pageB = 'PAGE-B-UNIQUE-BODY';
+  const snippet = 'SEARCH-SNIPPET-UNIQUE';
   try {
-    f.replies.push(
-      { type: 'web_search', query: 'sources' },
-      { type: 'web_fetch', url: 'https://source.fixture.example/a' },
-      { type: 'web_fetch', url: 'https://source.fixture.example/b' },
-      { type: 'answer', text: '已读取两页' },
-    );
-    const adapter = new OpenAICompatibleAdapter(f.h.config, { clock: () => f.h.now, transport: async (_url, init) => {
-      f.requests.push(JSON.parse(String(init?.body)) as typeof f.requests[number]);
-      return modelResponse(f.replies.shift());
-    } });
     const pending = f.h.engine.pending(f.h.room, f.h.task).find(item => item.kind === 'owner');
     assert(pending);
     assert(await new WorkRunner(f.h.engine, adapter, () => f.h.now, undefined, web, f.runtime).runOne(f.h.room, f.h.task, pending.id));
@@ -152,14 +179,14 @@ export async function webPagesProjectAndSearchStays() {
     assert(acquisitions.some(item => item.id === older.hostEvidence.evidenceId));
     assert(decision.messages.some(message => message.content.includes(snippet)));
     return {
-      fetches, acquisitions: acquisitions.length,
+      fetches: scenario.getFetches(), acquisitions: acquisitions.length,
       older: { bodyIncluded: older.bodyIncluded, text: older.text, offset: older.offset,
         totalChars: older.totalChars, contentHash: older.contentHash, evidenceId: older.hostEvidence.evidenceId },
       latestBody: latest.text,
       searchSnippetVisible: decision.messages.some(message => message.content.includes(snippet)),
       olderBodyAbsent: !JSON.stringify(decision.messages).includes(pageA),
     };
-  } finally { await f.close(); }
+  } finally { if (ownsFixture) await f.close(); }
 }
 
 function scriptedScope(checkpoint: WorkScope['localTools'], sources: { operations: readonly LocalOperation[]; acquisitions: readonly HostAcquisition[] }): WorkScope {
