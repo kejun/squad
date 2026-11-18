@@ -15,7 +15,7 @@ import { hostRetryAction, hostRetryBatchRetirable } from './host-retry.js';
 import { parseArtifactRequest, resolveArtifactSource } from './source-artifact.js';
 import type { ArtifactReference, ArtifactSource, ArtifactSourceMetadata } from './types.js';
 import type { HostAcquisition } from './resource-acquisition.js';
-import { processingWindow, taskHumanGate } from './task/resilience.js';
+import { processingWindow, progressCoordinationAllowed, taskHumanGate } from './task/resilience.js';
 import { permissionProblem } from './task/policy.js';
 import type { DeletionIntent, SavedRoomDeletion } from './room-deletion.machine.js';
 import { runtimeCleanupPlan } from './runtime-ownership.js';
@@ -575,8 +575,8 @@ export class TeamEngine {
       }
     }
     const latest = this.view(roomId, c.taskId)!;
-    if (latest.phase === 'running' && (!latest.context.discussion || ['delivered', 'cancelled'].includes(latest.context.discussion.status))
-      && latest.context.nextCheckAt <= at) this.send(roomId, c.taskId, { type: 'TICK', id: `progress:${c.taskId}:${latest.context.epoch}:${latest.context.nextCheckAt}`, at });
+    if (latest.phase === 'running' && latest.context.nextCheckAt <= at && progressCoordinationAllowed(latest.context, at))
+      this.send(roomId, c.taskId, { type: 'TICK', id: `progress:${c.taskId}:${latest.context.epoch}:${latest.context.nextCheckAt}`, at });
     const supervised = this.view(roomId, c.taskId)!.context;
     const due = supervised.resilience?.nextSupervisionAt;
     if (due !== null && (due === undefined || due <= at) || windowExpiryUnobserved(supervised) && processingWindow(supervised).hardDeadline <= at)
@@ -610,7 +610,8 @@ export class TeamEngine {
       if (op.status === 'awaitingApproval' && op.approval) work.push(op.approval.expiresAt);
       if (op.deadline !== undefined && ['queued', 'awaitingApproval'].includes(op.status)) work.push(op.deadline);
     }
-    if (view.phase === 'running' && !discussing && !view.context.intents.some(localAwaitingApproval)) work.push(view.context.nextCheckAt);
+    if (view.phase === 'running' && progressCoordinationAllowed(view.context, Math.max(this.clock(), view.context.nextCheckAt)))
+      work.push(view.context.nextCheckAt);
     return earliest(work);
   }
 }

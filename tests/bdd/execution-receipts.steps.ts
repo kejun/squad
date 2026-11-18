@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { Before, Given, When, Then } from '@cucumber/cucumber';
 import { persistTask, restoreTask } from '../../src/task.machine.js';
-import { resourceAcquisitionProblem, requiredResources, savedResourceAcquisitions, type HostAcquisition } from '../../src/resource-acquisition.js';
+import { artifactVerification, resourceAcquisitionProblem, requiredResources, savedResourceAcquisitions, type HostAcquisition } from '../../src/resource-acquisition.js';
 import { sharedToolKnowledge } from '../../src/task/tool-knowledge.js';
 import { taskHumanGate } from '../../src/task/resilience.js';
 import { publicationIds } from '../../src/task/delivery.js';
 import { receiptModel, recordCliObservation, recordWebObservation, currentReceiptWork, submitReceiptCandidate,
-  finishReceiptCheck, assertReceiptBlocked, documentFive, documentUrl, receiptSemantics } from '../execution-receipts-model-fixture.js';
+  claimReceiptCheck, finishReceiptCheck, assertReceiptBlocked, documentFive, documentUrl, receiptSemantics } from '../execution-receipts-model-fixture.js';
 import { captureCliObservation } from '../execution-receipts-model-fixture.js';
 import { receiptBackfillWindowModel, receiptCheckpointRetryModel, webHostEvidenceModel } from '../execution-receipts-model-fixture.js';
 import { prepareTypedPartitionResourcesModel, directPartitionResultModel } from '../execution-receipts-model-fixture.js';
@@ -20,6 +20,46 @@ import { receiptWindowRecoveryAcceptance } from '../execution-recovery-acceptanc
 interface Run { child?: ReturnType<typeof directPartitionResultModel>; id: string; labels: string[]; m: LocalModel; receipt?: HostAcquisition; original?: string; metadata?: HostAcquisition[];
   previous?: LocalModel; frozen?: string; act(): void | Promise<void>; verify(): void; prepared(): void }
 const runs = new WeakMap<SpecWorld, Run>();
+const downstreamChecks = new WeakMap<SpecWorld, LocalModel>();
+
+Given('候选报告所需的文档还没有取得凭证且可以执行下游检查', function (this: SpecWorld) {
+  const model = receiptModel(documentUrl, 'current');
+  assert.equal(savedResourceAcquisitions(model.c).length, 0);
+  assert(submitReceiptCandidate(model).ok);
+  downstreamChecks.set(this, model);
+});
+When('检查员在同一工作取得合法凭证并给出通过结论', async function (this: SpecWorld) {
+  const model = downstreamChecks.get(this)!;
+  model.work = claimReceiptCheck(model);
+  assert(recordWebObservation(model).reply.ok);
+  finishReceiptCheck(model, 'passed', model.work);
+  assert.equal((await webReceiptAcceptance('正文', { acquireInCheck: true })).httpRequests, 1);
+});
+When('检查员修正报告并给出通过结论但没有取得真实凭证', function (this: SpecWorld) {
+  const model = downstreamChecks.get(this)!;
+  finishReceiptCheck(model, 'passed', claimReceiptCheck(model), {
+    text: '下游修订报告', artifacts: [{ name: 'report.md', content: '下游修订报告', replacesArtifactId: model.c.artifacts[0]!.id }],
+  });
+});
+Then('应发布经核验的候选且不重新派发负责人或另一次检查', function (this: SpecWorld) {
+  const { c, work } = downstreamChecks.get(this)!;
+  assert.equal(c.outcome, 'complete');
+  assert.equal(savedResourceAcquisitions(c)[0]?.workId, work.id);
+  assert.equal(artifactVerification(c, c.artifacts[0]!).status, 'verified');
+  assert.deepEqual(c.intents.filter(item => ['owner', 'check'].includes(item.kind)).map(item => [item.kind, item.status]),
+    [['owner', 'done'], ['check', 'done']]);
+});
+Then('应以部分交付保留修正稿与未取得原因且不重新派发负责人', function (this: SpecWorld) {
+  const { c } = downstreamChecks.get(this)!;
+  assert.equal(c.outcome, 'partial');
+  assert.equal(c.candidate?.deliveryIssue?.code, 'RESOURCE_ACQUISITION_UNVERIFIED');
+  const repaired = c.artifacts.find(item => c.candidate?.artifactIds.includes(item.id))!;
+  assert.equal(repaired.content, '下游修订报告');
+  assert.equal(artifactVerification(c, repaired).status, 'unverified');
+  assert(c.resilience?.frozen?.items.some(item => item.artifactId === repaired.id && item.status === 'unverified'));
+  assert.deepEqual(c.intents.filter(item => ['owner', 'check'].includes(item.kind)).map(item => [item.kind, item.status]),
+    [['owner', 'done'], ['check', 'done']]);
+});
 const lastOwner = (m: LocalModel) => {
   const pending = m.c.intents.find(work => work.kind === 'owner' && work.status === 'pending')!;
   assert(pending); assert(m.send({ type: 'CLAIM', intentId: pending.id }).ok);
@@ -75,7 +115,7 @@ function prepare(id: string, labels: string[]): Run {
     assert(observed.reply.ok); run.receipt = observed.receipt;
     run.prepared = () => { assert.equal(savedResourceAcquisitions(m.c).length, 1); };
     run.act = async () => { assert(submitReceiptCandidate(m).ok); finishReceiptCheck(m);
-      if (label === '网页读取器') await webReceiptAcceptance('正文', true); else await cliReceiptAcceptance('正文'); };
+      if (label === '网页读取器') await webReceiptAcceptance('正文', { sourceItems: true }); else await cliReceiptAcceptance('正文'); };
     run.verify = () => { assert.equal(m.c.outcome, 'complete'); assert.equal(savedResourceAcquisitions(m.c)[0]?.snapshot, run.receipt!.snapshot); };
   }
   if (id === 'E100') {
@@ -293,7 +333,7 @@ function prepare(id: string, labels: string[]): Run {
   if (id === 'E127') {
     run.prepared = () => { assert.equal(savedResourceAcquisitions(m.c).length, 0); };
     run.act = async () => { run.m = webHostEvidenceModel().m; webHostEvidenceModel(true);
-      const actual = await webReceiptAcceptance('正文', true); assert.equal(actual.outcome, 'complete');
+      const actual = await webReceiptAcceptance('正文', { sourceItems: true }); assert.equal(actual.outcome, 'complete');
       assert.equal(actual.sourceIdFrom, 'actual web_fetch_result.hostEvidence JSON only'); };
     run.verify = () => { assert.equal(run.m.c.outcome, 'complete');
       assert.equal(run.m.c.intents.flatMap(work => work.localOperations ?? []).length, 0); };

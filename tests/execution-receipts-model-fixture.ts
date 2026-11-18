@@ -10,7 +10,7 @@ import { requiredResources, missingResourceAcquisitions, resourceAcquisitionSour
 import { ResilientPartitionModel } from './partition-resilience-model-fixture.js';
 import { deliveryEvidence } from '../src/task/evidence.js';
 import { publicationIds } from '../src/task/delivery.js';
-import type { Intent } from '../src/types.js';
+import type { Intent, TaskEvent } from '../src/types.js';
 
 export const documentFive = { kind: 'document', service: 'documents.example', namespace: 'team', id: 'five' } as const satisfies ResourceIdentity;
 export const documentUrl = { kind: 'url', url: 'https://documents.example/team/five' } as const satisfies ResourceIdentity;
@@ -68,23 +68,27 @@ export function submitReceiptCandidate(m: LocalModel, content = '文档五的报
   return m.send({ type: 'DELIVER', workId: m.work.id, attempt: m.work.attempt, fence: m.work,
     text: content, artifactIds: [], artifacts: [{ name: 'report.md', content }] });
 }
-export function finishReceiptCheck(m: LocalModel, status: 'passed' | 'unverified' = 'passed') {
+export function claimReceiptCheck(m: LocalModel) {
   const pending = m.c.intents.find(work => work.kind === 'check' && work.status === 'pending');
   assert(pending, 'A valid candidate must reach its independent check');
   assert(m.send({ type: 'CLAIM', intentId: pending.id }).ok);
-  const check = m.c.intents.find(work => work.id === pending.id)!;
+  return m.c.intents.find(work => work.id === pending.id)!;
+}
+export function finishReceiptCheck(m: LocalModel, status: 'passed' | 'unverified' = 'passed', check = claimReceiptCheck(m),
+  repair?: Extract<TaskEvent, { type: 'CHECK_RESULT' }>['repair']) {
   assert(m.send({ type: 'CONSUME', intentId: check.id, fence: check, attempt: check.attempt }).ok);
   assert(m.send({ type: 'CHECK_RESULT', workId: check.id, fence: check, attempt: check.attempt, resultId: `check:${check.id}`,
-    candidateRevision: m.c.candidate!.revision, criteriaResults: m.c.candidate!.acceptance!.criteria.map(criterion => ({
+    candidateRevision: m.c.candidate!.revision, ...(repair ? { repair } : {}), criteriaResults: m.c.candidate!.acceptance!.criteria.map(criterion => ({
       criterionId: criterion.id, status, ...(status === 'unverified' ? { reason: '尚未核实' } : {}) })) }).ok);
   return check;
 }
 
 export function assertReceiptBlocked(m: LocalModel) {
   assert(submitReceiptCandidate(m, '已收到HTTP200和242字符，全部完成').ok);
+  finishReceiptCheck(m);
   assert.equal(m.c.candidate?.deliveryIssue?.code, 'RESOURCE_ACQUISITION_UNVERIFIED');
-  assert.equal(m.c.intents.filter(work => work.kind === 'check').length, 0);
-  assert.notEqual(m.c.outcome, 'complete');
+  assert.equal(m.c.intents.filter(work => work.kind === 'check' && work.status === 'done').length, 1);
+  assert.equal(m.c.outcome, 'partial');
 }
 
 export const receiptSemantics = {

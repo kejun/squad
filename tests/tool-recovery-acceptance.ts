@@ -64,11 +64,17 @@ export async function webRecoveryAcceptance(kind: RecoveryCase, role = '并行�
     } else if (kind === 'limit') {
       assert.equal(snapshot.modelRequests, 3); assert.equal(snapshot.webCalls, 3); assert.equal(snapshot.cliCalls, 0);
       assert.equal(facts.length, 2); assert.equal(f.replies.length, 1);
-      const failed = context.discussion!.results.find(result => result.target === work.target)!;
-      assert.equal(failed.status, 'failed');
-      assert.equal(failed.answer, '');
-      assert.deepEqual(failed.artifactIds, []);
-      assert(failed.reason?.includes('TOOL_RECOVERY_EXHAUSTED'));
+      if (role === '负责人') {
+        assert.equal(snapshot.phase, 'coordinating');
+        assert.deepEqual(snapshot.pending, ['facilitator']);
+        assert.match(context.reason, /TOOL_RECOVERY_EXHAUSTED.*WEB_TOOL_UNSUPPORTED_RESOURCE/);
+      } else {
+        const failed = context.discussion!.results.find(result => result.target === work.target)!;
+        assert.equal(failed.status, 'failed');
+        assert.equal(failed.answer, '');
+        assert.deepEqual(failed.artifactIds, []);
+        assert(failed.reason?.includes('TOOL_RECOVERY_EXHAUSTED'));
+      }
     } else if (kind === 'no-alternative') {
       assert.equal(snapshot.modelRequests, 2); assert.equal(snapshot.cliCalls, 0); assert.equal(facts.length, 1);
       const failed = context.discussion!.results.find(result => result.target === work.target)!;

@@ -8,11 +8,11 @@ export function availableMapReduceMembers(c: TaskContext) {
   return c.config.bots.filter(bot => bot.id !== c.owner && !busy.has(bot.id));
 }
 
-/** Reserve synthesis and owner continuation, plus any not-yet-charged interpretation request. */
-export function mapReduceCapacity(c: TaskContext, reservedOrdinary = 0): number {
+/** Reserve downstream requests plus any not-yet-charged interpretation request. */
+export function mapReduceCapacity(c: TaskContext, reservedOrdinary = 0, downstreamRequests = 2): number {
   return Math.max(0, Math.min(availableMapReduceMembers(c).length ? 8 : 0,
     c.config.limits.assists - c.usage.assists,
-    c.config.limits.ordinary - c.usage.ordinary - reservedOrdinary - 2));
+    c.config.limits.ordinary - c.usage.ordinary - reservedOrdinary - downstreamRequests));
 }
 
 export const mapReduceConcurrency = (c: TaskContext, reservedOrdinary = 0) =>
