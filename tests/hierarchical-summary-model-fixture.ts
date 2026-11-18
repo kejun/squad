@@ -136,7 +136,7 @@ export function executeSummaryModel(model: SummaryModel, draft?: (ids: readonly 
 }
 
 export function oversizedSummaryDraft(ids: readonly string[]): string {
-  return `来源\\n${ids.join('\\n')}\\n要点\\n${'超'.repeat(savedPageCodePoints)}`;
+  return `来源\n${ids.join('\n')}\n要点\n${'超'.repeat(savedPageCodePoints)}`;
 }
 
 export function readIndexedArticleFrom(model: SummaryModel, run: SummaryRun): { body: string; pageText: string; shortBoundary: boolean; charged: number } {
