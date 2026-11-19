@@ -78,11 +78,17 @@ export async function createVerification(root: string, backend: DeliveryBackend,
     sessionId, result: value, settled: true, effectsKnown: true }).ok);
   const observe = () => {
     const c = host.context(), publication = c.publishedDelivery;
-    const versioned = !!c.intents.find(work => work.id === check.id)?.localOperations?.some(op => op.action.type === 'verifyWorkspace' && op.status === 'succeeded');
+    const settledCheck = c.intents.find(work => work.id === check.id);
+    const versioned = !!settledCheck?.localOperations?.some(op => op.action.type === 'verifyWorkspace' && op.status === 'succeeded');
+    const validated = !!settledCheck?.localOperations?.some(op => op.action.type === 'runCli' && op.status === 'succeeded');
+    const issue = c.candidate?.deliveryIssue;
+    const failureReported = !settledCheck?.criteriaResults && !!issue?.detail && c.messages.some(message => message.kind === 'notice'
+      && message.workId === check.id && (message.detailText ?? message.text).includes(issue.detail!));
+    const gapsDeclared = !!c.candidate?.text.includes('实际验证未完成') || failureReported;
     if (publication) {
       assert(!c.stopped, 'Stopped work cannot publish');
-      if(!versioned||changed||!c.intents.find(work => work.id === check.id)?.localOperations?.some(op => op.action.type === 'runCli' && op.status === 'succeeded')) {
-        assert(c.candidate!.text.includes('实际验证未完成'), 'HonestVerification: missing or failed verification must be declared');
+      if (!versioned || changed || !validated) {
+        assert(gapsDeclared, 'HonestVerification: missing or failed verification must be declared');
         assert.equal(artifactVerification(c, c.artifacts.find(artifact => c.candidate!.artifactIds.includes(artifact.id))!).status,
           'unverified', 'HonestVerification: actual failed/missing verification cannot receive a verified badge');
       }
@@ -91,9 +97,9 @@ export async function createVerification(root: string, backend: DeliveryBackend,
       assert.deepEqual(c.messages.find(message => message.kind === 'final')?.artifactIds, publication.artifactIds, 'AtomicPublication: final selection');
     }
     const versionRejected = !!c.intents.find(work => work.id === check.id)?.localOperations?.some(op => op.action.type === 'verifyWorkspace' && op.status === 'failed');
-    return { gapsDeclared: c.candidate?.text.includes('实际验证未完成') ?? false,
+    return { gapsDeclared,
       verifiedBadge: artifactVerification(c, c.artifacts.find(artifact => c.candidate!.artifactIds.includes(artifact.id))!).status === 'verified',
-      stage, changed, versionRejected, published: !!publication, stopped: c.stopped, online, rolledBack, earlyCheckAllowed, versioned, validated: !!c.intents.find(work => work.id === check.id)?.localOperations?.some(op => op.action.type === 'runCli' && op.status === 'succeeded') };
+      stage, changed, versionRejected, published: !!publication, stopped: c.stopped, online, rolledBack, earlyCheckAllowed, versioned, validated };
   };
   const apply = (action: string) => {
     switch (action) {

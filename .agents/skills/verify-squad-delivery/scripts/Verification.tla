@@ -26,8 +26,8 @@ ValidationFailed == /\ online /\ stage = 3
     /\ validated' = FALSE
     /\ UNCHANGED <<changed, published, stopped, online, rolledBack, earlyCheckAllowed, versioned, versionRejected, gapsDeclared, verifiedBadge>>
 FailWork == /\ online /\ stage = 4 /\ ~validated
-    /\ stage' = 11
-    /\ UNCHANGED <<changed, published, stopped, online, rolledBack, earlyCheckAllowed, versioned, validated, versionRejected, gapsDeclared, verifiedBadge>>
+    /\ stage' = 11 /\ published' = TRUE /\ gapsDeclared' = TRUE
+    /\ UNCHANGED <<changed, stopped, online, rolledBack, earlyCheckAllowed, versioned, validated, versionRejected, verifiedBadge>>
 Consume == /\ online /\ stage = 4
     /\ stage' = 5
     /\ UNCHANGED <<changed, published, stopped, online, rolledBack, earlyCheckAllowed, versioned, validated, versionRejected, gapsDeclared, verifiedBadge>>

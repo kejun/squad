@@ -23,7 +23,7 @@ MODELS = {
     'Verification': {
         'properties': ['TypeOK', 'HonestVerification', 'OrderedPublication'],
         'witnesses': ['NeverModelRequested', 'NeverEarlyCheck', 'NeverFailedValidationDelivery', 'NeverPublished', 'NeverChanged', 'NeverRolledBack'],
-        'bounds': 'One task/candidate/check; one successful or failing isolated validation, up to two model requests including early remedy, two unequal workspace revisions, one final verification, one rollback/reopen. Missing or failed verification is declared in delivered content; no OS crash is modeled.'},
+        'bounds': 'One task/candidate/check; one successful or failing isolated validation, up to two model requests including early remedy, two unequal workspace revisions, one final verification, one rollback/reopen. Missing or failed verification is declared in the delivery or a bound check failure notice; no OS crash is modeled.'},
     'Cycles': {
         'properties': ['TypeOK', 'RetainedPublication', 'CurrentCandidate', 'OneFinalPerCycle', 'DirectRepairRevision'],
         'witnesses': ['NeverThirdPublication', 'NeverRevised', 'NeverRolledBack'],
@@ -36,7 +36,7 @@ MODELS = {
 # Every source edit is made only in a disposable production-code copy.
 CONTROLS = [
     ('hide-validation-gap', 'Verification', 'HonestVerification', 'src/task/delivery.ts',
-     "...(verification ? { detail: `实际验证未完成：${verification}` } : {})",
+     "...(verification ? { code: 'CHECK_VERIFICATION_UNCONFIRMED', detail: `实际验证未完成：${verification}` } : {})",
      '...{}', 'hide-validation-gap'),
     ('skip-version', 'Verification', 'HonestVerification', 'src/task/verification.ts',
      'return final ? versionReceiptProblem(work, receipt) : null;', 'return null;', 'skip-version'),
