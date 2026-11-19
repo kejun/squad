@@ -52,7 +52,8 @@ export class CliInputEvidenceAcceptance {
     this.releaseOwner!(); await this.ownerExecution;
     const check = f.h.engine.pending(f.h.room, f.h.task).find(work => work.kind === 'check')!;
     assert(check); this.check = check;
-    f.replies.push({ type: 'check', criteriaResults: candidateJudgments(f.h.context().candidate) });
+    f.replies.push({ type: 'readCheckSource', sourceId: this.source!.localOperations![0]!.id },
+      { type: 'check', criteriaResults: candidateJudgments(f.h.context().candidate) });
     await f.runner().runOne(f.h.room, f.h.task, check.id);
     this.checkRequest = f.requests.at(-1)!;
   }
@@ -70,9 +71,11 @@ export class CliInputEvidenceAcceptance {
     assert.equal(material.evidence[0]!.metadata.validationInputsChanged, null);
     const envelope = this.checkRequest!.messages.map(message => { try { return JSON.parse(message.content); } catch { return null; } })
       .find(value => value?.workId === this.check!.id);
-    assert(envelope?.context?.evidence, 'the final model request must receive the fixed evidence');
-    assert.deepEqual(envelope.context.evidence[0].metadata.command.invocation, invocation);
-    assert.equal(envelope.context.evidence[0].metadata.validationInputsChanged, null);
+    assert(envelope?.context?.sourceIndex.some((source: { id: string }) => source.id === op.id));
+    const page = JSON.parse(this.checkRequest!.messages.at(-1)!.content);
+    assert.equal(page.code, 'CHECK_SOURCE_PAGE');
+    assert.deepEqual(page.data.evidence.command.invocation, invocation);
+    assert.equal(page.data.evidence.validationInputsChanged, null);
     assert.equal(f.h.context().outcome, 'complete');
   }
   assertNoOwnerProofOrSecrets() {

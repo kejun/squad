@@ -327,21 +327,18 @@ export async function sharedCitationAcceptance(handling: 'candidate' | 'omit' | 
     assert.equal(checkRequests.length, 1);
     const instructions = checkRequests.map(request => {
       const system = request.messages.find(message => message.role === 'system')!.content;
-      const instruction = system.split('\n').find(line => line.startsWith('Optional source.id must exactly match'));
-      assert(instruction, 'The actual HTTP check request must explain the optional citation catalog');
-      for (const field of ['evidence', 'references', 'reviewRecords', 'verification', 'rawInputs'])
-        assert(instruction.includes(`context.${field}`), `The check citation explanation must include context.${field}`);
-      assert(instruction.includes('current artifact ids and criterionIds are not citation sources merely because they are visible'));
-      assert(instruction.includes('may establish passed without source'));
-      assert(instruction.includes('use unverified with a specific reason and omit optional source'));
+      const instruction = system.split('\n').find(line => line.startsWith('Optional source.id must match'));
+      assert(instruction, 'The actual HTTP check request must explain optional citations');
+      assert(instruction.includes('material you actually read or a context.rawInputs ID'));
+      assert(instruction.includes('may establish passed without a source'));
+      assert(instruction.includes('Use unverified with a specific reason'));
       return instruction;
     });
-    const materials = checkRequests[0]!.context as unknown as CheckMaterials;
+    const materials = checkRequests[0]!.context as unknown as ReturnType<typeof import('../src/check-model-input.js').checkModelInput>;
     assert(materials.candidate.text.includes('# 新的标题'));
     assert(materials.artifacts.some(item => item.id === 'artifact:live' && item.content === citationCandidate));
-    assert(!checkCitationSources(materials).some(source => source.id === 'artifact:live'), 'A visible artifact must not be promoted to a citation source');
-    assert.equal(materials.verification, undefined, 'This case has no current verification receipt');
-    assert.equal(materials.evidence.length, 0, 'An author assertion is not a host execution receipt');
+    assert(!materials.sourceIndex.some(source => source.id === 'artifact:live'), 'A visible artifact must not be promoted to a citation source');
+    assert.equal(materials.sourceIndex.length, 0, 'An author assertion is not a host execution receipt');
     assert(context.intents.every(work => !work.localOperations?.length));
     assert.equal(fixture.webPaths.length, 0);
     assert.deepEqual(processingWindow(context), initialWindow);
@@ -356,7 +353,7 @@ export async function sharedCitationAcceptance(handling: 'candidate' | 'omit' | 
     assert.equal(tests.status, 'unverified'); assert(tests.reason?.includes('没有当前测试执行记录'));
     if (handling === 'rawInput') {
       assert.deepEqual(tests.source, { id: materials.rawInputs[0]!.id, quote: materials.rawInputs[0]!.text });
-      assert(checkCitationSources(materials).some(source => source.id === tests.source!.id));
+      assert(materials.rawInputs.some(source => source.id === tests.source!.id));
     } else if(handling==='candidate') assert.equal(tests.source?.id,'artifact:live'); else assert.equal(tests.source, undefined);
     assert.equal(context.outcome, 'complete');
     return { layer: 'actual-http-and-host-protocol; scripted-provider-not-semantic-effect', requests: promptEvidence(fixture.requests),

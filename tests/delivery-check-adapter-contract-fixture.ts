@@ -45,7 +45,10 @@ assert.deepEqual(result, passed);
 assert.equal((transport).calls.length, 1);
 const body = JSON.parse(String(transport.calls[0]![1]?.body));
 yield 'observed';
-assert.deepEqual(JSON.parse(body.messages[1].content), { workId: check.work.id, context: check.materials });
+const context = JSON.parse(body.messages[1].content);
+assert.equal(context.workId, check.work.id);
+assert.deepEqual(context.context, { requirements: check.materials.requirements, candidate: check.materials.candidate,
+  artifacts: check.materials.artifacts, rawInputs: check.materials.rawInputs, sourceIndex: [{ id: 'receipt-1', kind: 'verification' }] });
 assert(!(check.scope.authorizeAdditionalRequest).calls.length);
 }
 

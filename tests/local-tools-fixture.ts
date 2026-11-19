@@ -120,7 +120,10 @@ export function assertFlow(f: LocalFixture, work: Intent) {
     assert.deepEqual(work.localOperations?.map(op => op.action.type), ['runCli', 'verifyWorkspace']);
     assert(work.localOperations!.every(op => op.status === 'succeeded' && op.attempt === 1 && op.result?.ok));
     assert.equal(f.requests.length, 1);
-    assert(f.requests[0]!.messages.some(message => message.content.includes('skill-ok')));
+    assert(!f.requests[0]!.messages.some(message => message.content.includes('skill-ok')));
+    const sourceIndex = JSON.parse(f.requests[0]!.messages[1]!.content).context.sourceIndex;
+    assert(sourceIndex.some((entry: { id: string; kind: string; status?: string }) =>
+      entry.id === work.localOperations![0]!.id && entry.kind === 'verification' && entry.status === 'passed'));
     assert.equal(f.h.context().usage.ordinary, 3);
     assert.equal(f.h.context().usage.checks, 1);
     assert.equal(f.h.context().outcome, 'complete');

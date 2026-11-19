@@ -23,17 +23,23 @@ export interface CloudflareWebToolsOptions {
   allowedHosts?: string[];
 }
 export function validWebSearchInput(input: unknown): input is WebSearchToolInput {
-  if (!input || typeof input !== 'object') return false;
+  return webSearchInputProblem(input) === undefined;
+}
+export function webSearchInputProblem(input: unknown): string | undefined {
+  if (!input || typeof input !== 'object') return 'query';
   const { query, limit } = input as WebSearchToolInput;
-  return typeof query === 'string' && query.trim().length > 0 && query.trim().length <= 1024
-    && (limit === undefined || (Number.isSafeInteger(limit) && limit > 0));
+  if (typeof query !== 'string' || query.trim().length === 0 || query.trim().length > 1024) return 'query';
+  return limit === undefined || (Number.isSafeInteger(limit) && limit > 0) ? undefined : 'limit';
 }
 export function validWebFetchInput(input: unknown): input is WebFetchToolInput {
-  if (!input || typeof input !== 'object') return false;
+  return webFetchInputProblem(input) === undefined;
+}
+export function webFetchInputProblem(input: unknown): string | undefined {
+  if (!input || typeof input !== 'object') return 'url';
   const { url, offset, format } = input as WebFetchToolInput;
-  return typeof url === 'string' && url.trim().length > 0 && url.trim().length <= 2000
-    && (offset === undefined || (Number.isSafeInteger(offset) && offset >= 0))
-    && (format === undefined || format === 'auto' || format === 'raw');
+  if (typeof url !== 'string' || url.trim().length === 0 || url.trim().length > 2000) return 'url';
+  if (offset !== undefined && (!Number.isSafeInteger(offset) || offset < 0)) return 'offset';
+  return format === undefined || format === 'auto' || format === 'raw' ? undefined : 'format';
 }
 
 /** Node host for the SDK's public sources. No Worker deployment or model-provider change is required. */

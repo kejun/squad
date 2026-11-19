@@ -66,10 +66,11 @@ describe('model output regeneration', () => {
   });
 
   it('[BT_M10] never executes malformed tool arguments suggested by a checking response', async () => {
-    const f = fixture(); f.replies = [badModelOutput('网页工具参数错误'), goodModelOutput('check')];
-    await f.run(); await f.run();
+    const f = fixture(); f.replies = [badModelOutput('网页工具参数错误'), { type: 'unrepairable' }];
+    await f.run();
     expect(f.requests).toHaveLength(2); expect(f.webCalls).toBe(0); expect(f.searches).toBe(0);
-    expect(f.h.context().outcome).toBe('complete');
+    expect(f.h.context().outcome).toBe('partial');
+    expect(f.requests[1]!.messages[1]!.content).toContain('invalid_tool_request');
   });
 
   it('[BT_M16] does not classify a real tool execution error as a format validation failure', async () => {

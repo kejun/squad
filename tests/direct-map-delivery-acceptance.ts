@@ -39,10 +39,12 @@ export class DirectMapProvider {
             : JSON.stringify({ choices: [{ finish_reason: 'tool_calls', message: { content: null, tool_calls: [{}] } }] })); return;
         }
         const acquired = messages.some((m: { role: string; content: string }) => m.role === 'user' && m.content.includes('"type":"web_fetch_result"'))
-          || context.evidence.some((source: { stdout?: string }) => source.stdout?.includes('新取得的普通网页正文'));
+          || messages.some((message: { content: string }) => message.content.includes('新取得的普通网页正文'));
         if (this.checkRepair && !acquired) {
-          this.checkToolRequests++;
-          res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ type: 'web_fetch', url: 'https://docs.example.test/current' }) } }] })); return;
+          const saved = context.sourceIndex.find((source: { kind: string }) => source.kind === 'webFetch');
+          if (!saved) this.checkToolRequests++;
+          const action = saved ? { type: 'readCheckSource', sourceId: saved.id } : { type: 'web_fetch', url: 'https://docs.example.test/current' };
+          res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(action) } }] })); return;
         }
         if (this.failAfterRead && !this.networkFailureSent) {
           this.networkFailureSent = true; res.writeHead(503, { 'content-type': 'application/json' });
@@ -122,6 +124,7 @@ export async function directMapEngineAcceptance(legacyAnswer = false, webSource 
   try {
     const config = provider.config();
     if (checkFault) { config.limits.checks = Number.MAX_SAFE_INTEGER; config.limits.retries = Number.MAX_SAFE_INTEGER; }
+    if (failAfterRead) config.limits.checks = 5;
     const tools = webSource || checkRepair ? new CloudflareWebTools({ env: {}, transport: (_url, init) => globalThis.fetch(provider.url.replace('/v1', '/source'), init) }) : undefined;
     service = new WebService(config, join(root, 'team.sqlite'), new OpenAICompatibleAdapter(config), tools);
     await service.ready(); server = createWebServer(service);
@@ -154,7 +157,11 @@ export async function directMapEngineAcceptance(legacyAnswer = false, webSource 
       assert(c.artifacts.some(a => c.candidate!.artifactIds.includes(a.id) && a.content.includes('新取得的普通网页正文')));
       assert.equal(c.intents.filter(w => w.kind === 'check').length, 1);
       assert(!c.intents.some(w => w.payload.deliveryRevision));
-      if (failAfterRead) { assert(provider.networkFailureSent); assert.equal(c.usage.retries, 1); }
+      if (failAfterRead) {
+        assert(provider.networkFailureSent);
+        assert.equal(c.usage.retries, 1);
+        assert.equal(c.usage.checks, 5);
+      }
     }
     return { outcome: c.outcome, ownerRequests: provider.ownerCalls, checkRequests: provider.checkModelRequests, checkWorks: c.intents.filter(work=>work.kind==='check').length, totalModelRequests: provider.requests, children: provider.children,
       legacyAnswerIgnored: legacyAnswer, webReads: provider.webReads, boundary: 'Native model HTTP -> adapter/runner -> SQLite -> public Web API, controlled provider content' };

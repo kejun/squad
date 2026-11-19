@@ -430,7 +430,8 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'REGENERATE_MODEL_OUTPUT': {
       const work = c.intents.find(i => i.id === e.intentId)!;
       c.usage.retries++;
-      work.outputRepair = { count: (work.outputRepair?.count ?? 0) + 1, issue: e.issue };
+      work.outputRepair = { count: (work.outputRepair?.count ?? 0) + 1, issue: e.issue,
+        ...(e.issue === 'invalid_tool_request' || work.outputRepair?.toolActionUsed ? { toolActionUsed: true } : {}) };
       c.trace.push({ event: 'MODEL_OUTPUT_REPAIR', at: e.at, detail: JSON.stringify({ intentId: work.id, issue: e.issue, count: work.outputRepair.count }) });
       break;
     }

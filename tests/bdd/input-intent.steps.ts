@@ -120,12 +120,12 @@ Then('只有获准的本群历史引用可以作为固定检查材料', async fu
   f.prepare('check');
   f.response = request => {
     assert.equal(request.kind, 'check');
-    const references = request.context.references as NonNullable<CheckMaterials['references']>;
-    assert.deepEqual(references.map(({ kind, taskId, content }) => ({ kind, taskId, content })), [
-      { kind: 'message', taskId: refs![0]!.taskId, content: '历史方案' },
-      { kind: 'artifact', taskId: refs![1]!.taskId, content: '先验证恢复再发布。' },
-    ]);
+    const references = request.context.sourceIndex as { id: string; kind: string }[];
+    assert.deepEqual(references, refs!.map(({ kind, taskId, id }) => ({ kind, id: `history:${JSON.stringify([kind, taskId, id])}` })));
     assert.deepEqual(request.context.artifacts, []);
+    const last = JSON.parse(request.messages.at(-1)!.content);
+    if (last.type !== 'check_source_result') return modelResponse({ type: 'readCheckSource', sourceId: references[1]!.id });
+    assert.equal(last.data.text, '先验证恢复再发布。');
     return modelResponse({ type: 'check', criteriaResults: (request.context.requirements as AcceptanceCriterion[]).map((criterion, index) => ({
       criterionId: criterion.id, status: 'passed', ...(index ? {} : { source: { id: references[1]!.id, quote: '先验证恢复' } }),
     })) });

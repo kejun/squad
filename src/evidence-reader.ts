@@ -41,7 +41,7 @@ export function readSavedArtifact(c: TaskContext, work: Intent, action: Extract<
   });
 }
 
-function savedPage(text: string, identity: string[], cursor: string | undefined, type: 'EVIDENCE' | 'ARTIFACT', metadata: Record<string, unknown>): LocalToolResult {
+export function savedPage(text: string, identity: string[], cursor: string | undefined, type: 'EVIDENCE' | 'ARTIFACT' | 'CHECK_SOURCE', metadata: Record<string, unknown>): LocalToolResult {
   const codepoints = Array.from(text);
   const pageSize = savedPageCodePoints;
   const capturedContentHash = sha256(text);

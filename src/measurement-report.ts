@@ -48,9 +48,11 @@ export function summarizeMeasurements(records: readonly MeasurementRecord[]) {
       return { coveredMs: intervals.length ? coveredDuration(intervals) : null, complete: intervals.length, missingStart, missingEnd: starts.size };
     };
     const usageEntries = entries.filter(entry => entry.observation.phase === 'model.usage');
-    const knownUsage = (field: 'input' | 'output' | 'total') => {
-      const values = usageEntries.flatMap(({ observation }) => observation.phase === 'model.usage' && observation.usage[field] !== null
-        ? [observation.usage[field]] : []);
+    const knownUsage = (field: 'input' | 'output' | 'total' | 'cacheRead' | 'cacheWrite') => {
+      const values = usageEntries.flatMap(({ observation }) => {
+        const value = observation.phase === 'model.usage' ? observation.usage[field] : undefined;
+        return typeof value === 'number' ? [value] : [];
+      });
       return { knownTokens: values.length ? values.reduce((sum, value) => sum + value, 0) : null,
         knownResponses: values.length, unknownResponses: Math.max(0, count('model.response') - values.length) };
     };
@@ -97,7 +99,8 @@ export function summarizeMeasurements(records: readonly MeasurementRecord[]) {
         deliveryChecks: count('delivery.checked'), deliveriesPublished: count('delivery.published'),
       },
       deliveryGapKinds,
-      usage: { input: knownUsage('input'), output: knownUsage('output'), total: knownUsage('total') },
+      usage: { input: knownUsage('input'), output: knownUsage('output'), total: knownUsage('total'),
+        cacheRead: knownUsage('cacheRead'), cacheWrite: knownUsage('cacheWrite') },
       durations,
       observedWindowMs: windowMs,
       observedIntervalUnionMs,

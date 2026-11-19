@@ -51,7 +51,7 @@ export async function cliReceiptAcceptance(label: CliReceiptCase = '正文') {
     if (label === '正文') {
       assert.equal(savedResourceAcquisitions(f.h.context()).length, 1);
       assert.equal(f.h.context().outcome, 'complete');
-      const checked = JSON.parse(f.requests.at(-1)!.messages[1]!.content).context.evidence;
+      const checked = JSON.parse(f.requests.at(-1)!.messages[1]!.content).context.sourceIndex;
       assert(JSON.stringify(checked).includes(observations[0]!.id));
     } else {
       assert.equal(savedResourceAcquisitions(f.h.context()).length, 0);
@@ -105,7 +105,11 @@ export async function webReceiptAcceptance(label: WebReceiptCase = '正文', { s
       if (checking) {
         const context = JSON.parse(request.messages[1]!.content).context;
         const judgments = fixtureJudgments(context.requirements as AcceptanceCriterion[]);
-        if (!acquireInCheck) return modelResponse(judgments);
+        if (!acquireInCheck) {
+          const ref = context.sourceIndex.find((item: { kind: string }) => item.kind === 'webFetch');
+          const result = JSON.parse(request.messages.at(-1)!.content);
+          return modelResponse(ref && result.type !== 'check_source_result' ? { type: 'readCheckSource', sourceId: ref.id } : judgments);
+        }
         assert.deepEqual(context.missingResources, [{ resource: { kind: 'url', url: sourceUrl }, freshness: 'saved' }]);
         if (!tool) return modelResponse({ type: 'web_fetch', url: sourceUrl });
         assert.equal(tool.hostEvidence?.status, 'acquired');
@@ -147,11 +151,13 @@ export async function webReceiptAcceptance(label: WebReceiptCase = '正文', { s
         assert(checks[0]?.criteriaResults?.every(item => item.source?.id === receipt.id));
         assert.equal(requests.length, 3);
       } else {
-        const checked = JSON.parse(requests.at(-1)!.messages[1]!.content).context.evidence;
-        assert(JSON.stringify(checked).includes(receipt.id));
-        assert(checked.some((item: { stdout?: string }) => item.stdout === sample.content));
-        const frozen = checked.find((item: { id: string }) => item.id === receipt.id);
-        assert.equal(frozen.metadata.sourceOperationId, receipt.operationId); assert.equal(frozen.metadata.evidenceId, receipt.id);
+        const last = requests.at(-1)!;
+        const context = JSON.parse(last.messages[1]!.content).context;
+        assert(JSON.stringify(context.sourceIndex).includes(receipt.id));
+        assert(!JSON.stringify(context).includes('实际HTTP正文'));
+        const page = JSON.parse(last.messages.at(-1)!.content).data;
+        assert.equal(page.text, sample.content);
+        assert.equal(page.evidence.sourceOperationId, receipt.operationId); assert.equal(page.evidence.evidenceId, receipt.id);
       }
       if (sourceItems) {
         assert.equal(modelSource!.evidenceId, receipt.id); assert.equal(modelSource!.sourceOperationId, receipt.operationId);

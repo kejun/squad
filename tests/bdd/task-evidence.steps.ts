@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { After, Given, Then, When } from '@cucumber/cucumber';
-import type { CheckMaterials } from '../../src/delivery-acceptance.js';
 import type { LocalToolResult } from '../../src/local-operation.js';
 import { LocalFixture } from '../local-tools-fixture.js';
 import {
@@ -16,7 +15,7 @@ interface State {
   outcome?: LocalToolResult;
   pages?: LocalToolResult[];
   boundaryResult?: string;
-  checks?: CheckMaterials[];
+  checks?: Awaited<ReturnType<typeof checkEvidence>>[];
 }
 const states = new WeakMap<SpecWorld, State>();
 const state = (world: SpecWorld) => {
@@ -58,10 +57,10 @@ Then('检查员应从同一证据快照各一次取得原正文、来源和采�
   assert.equal(source?.metadata.stdoutChars, 16);
   assert.equal(source?.metadata.completeness, 'complete');
 });
-Then('检查不应分页查读、再次执行命令或申请宿主批准', function (this: SpecWorld) {
+Then('检查应查读已冻结回执且无需再次执行命令或申请宿主批准', function (this: SpecWorld) {
   const f = state(this).fixture!;
   assert.equal(f.backend.calls.length, 1);
-  assert.equal(f.h.context().usage.checks, 2);
+  assert.equal(f.h.context().usage.checks, 4);
   assert.equal(f.h.context().outcome, 'complete');
   assert(f.h.context().intents.every(work => !work.localOperations?.some(op => op.approval || op.action.type === 'readEvidence')));
 });

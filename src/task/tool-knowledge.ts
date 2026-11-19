@@ -9,16 +9,16 @@ const record = (value: unknown): Record<string, unknown> => value && typeof valu
 const pick = (value: unknown, keys: string[]) => Object.fromEntries(keys.filter(key => Object.hasOwn(record(value), key))
   .map(key => [key, structuredClone(record(value)[key])]));
 const entries = (value: unknown, keys: string[]) => Array.isArray(value) ? value.map(item => pick(item, keys)) : [];
-function skillMetadata(value: unknown) {
+function skillMetadata(value: unknown, discovery = false) {
   const data = record(value);
   return { ...pick(data, ['catalogVersion', 'complete', 'nextCursor']),
-    skills: entries(data.skills, ['skillId', 'skillVersion', 'name', 'description', 'source', 'compatibility']),
-    diagnostics: entries(data.diagnostics, ['source', 'code']) };
+    skills: entries(data.skills, discovery ? ['skillId', 'name', 'description'] : ['skillId', 'skillVersion', 'name', 'description', 'source', 'compatibility']),
+    diagnostics: entries(data.diagnostics, discovery ? ['code'] : ['source', 'code']) };
 }
 function capabilityMetadata(data: Record<string, unknown>) {
   const cli = record(data.cli), catalog = record(cli.catalog);
   return { ...pick(data, ['platform', 'arch']), runtime: pick(data.runtime, ['name', 'version']),
-    skills: skillMetadata(data.skills), cli: { ...pick(cli, ['queriedOnly', 'hostApprovalRequired', 'presenceIsNotExecution', 'network']),
+    skills: skillMetadata(data.skills, true), cli: { ...pick(cli, ['queriedOnly', 'hostApprovalRequired', 'presenceIsNotExecution', 'network']),
       sandbox: pick(cli.sandbox, ['available', 'reason']), commands: entries(cli.commands, ['command', 'sandbox', 'host']),
       catalog: { ...pick(catalog, ['catalogVersion', 'nextCursor']),
         entries: entries(catalog.entries, ['command', 'description', 'scenarios', 'documentation', 'domains', 'helpArgs', 'examples', 'execution', 'requirements']) } },

@@ -161,14 +161,13 @@ Then('不得再安排作者修订或额外检查请求', function (this: SpecWor
   assert.deepEqual(pending(this), []);
 });
 
-Given('当前候选相关的完整证据超过模型输入容量', function (this: SpecWorld) {
+Given('当前候选正文和判据超过模型输入容量', function (this: SpecWorld) {
   const config = regenerationConfig();
   config.models!.services.test!.contextWindowTokens = 8192;
   config.models!.services.test!.maxTokens = 1024;
   this.h = new Harness(config);
   const work = this.h.claim('owner');
-  test(this).sourceId = saveEvidence(this.h, work, '需完整核实的原始资料'.repeat(800));
-  submit(this, {}, work);
+  submit(this, { text: '不能截断的当前交付正文'.repeat(800) }, work);
 });
 When('系统准备独立检查', async function (this: SpecWorld) {
   test(this).requests = 0;
@@ -210,8 +209,8 @@ Given('候选声称已取得必需资料但只有{string}', function (this: Spec
 });
 When('独立检查核实资料的出处', async function (this: SpecWorld) {
   await runCheck(this, body => {
-    const projected = JSON.parse(JSON.parse(body).messages[1].content).context.evidence as { id: string; stdout?: string }[];
-    assert(!projected.some(source => source.id === test(this).sourceId && source.stdout));
+    const projected = JSON.parse(JSON.parse(body).messages[1].content).context.sourceIndex as { id: string; completeness?: string }[];
+    assert(!projected.some(source => source.id === test(this).sourceId && source.completeness === 'complete'));
     assert(!body.includes('不可用于验收的采集正文'));
     return { type: 'check', criteriaResults: finding(this, 'unverified', '没有证明当前资料取得成功的回执') };
   });

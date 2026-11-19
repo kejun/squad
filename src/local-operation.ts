@@ -62,34 +62,47 @@ export type LocalEvent =
   | { type: 'LOCAL_RESULT'; intentId: string; operationId: string; sessionId: string; result: LocalToolResult; settled: boolean; effectsKnown: boolean }
   | { type: 'LOCAL_RECONCILE'; intentId: string; operationId: string; sessionId: string; resolution: 'notStarted' | 'receipt'; result?: LocalToolResult; detail: string };
 
+export const localActionFields = {
+  discoverHost: ['commands', 'query', 'terms', 'cursor'], verifyWorkspace: ['expectedRevision'], listSkills: ['query', 'cursor'],
+  loadSkill: ['skillId'], readSkillResource: ['skillId', 'path', 'offset'], readEvidence: ['sourceOperationId', 'stream', 'cursor'],
+  readArtifact: ['artifactId', 'cursor'], runCli: ['executable', 'args', 'cwd', 'timeoutMs', 'skillId', 'execution', 'reason', 'stdin'],
+} as const satisfies Record<LocalAction['type'], readonly string[]>;
+
 export function validLocalAction(value: unknown): value is LocalAction {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return localActionProblem(value) === undefined;
+}
+
+export function localActionProblem(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return 'type';
   const a = value as Record<string, unknown>;
   const text = (v: unknown, max = 4096) => typeof v === 'string' && !!v.trim() && v.length <= max && !v.includes('\0');
   const optional = (key: string) => a[key] === undefined || text(a[key]);
-  const keys: Record<string, string[]> = { discoverHost: ['commands', 'query', 'terms', 'cursor'], verifyWorkspace: ['expectedRevision'], listSkills: ['query', 'cursor'], loadSkill: ['skillId'], readSkillResource: ['skillId', 'path', 'offset'], readEvidence: ['sourceOperationId', 'stream', 'cursor'], readArtifact: ['artifactId', 'cursor'], runCli: ['executable', 'args', 'cwd', 'timeoutMs', 'skillId', 'execution', 'reason', 'stdin'] };
-  if (typeof a.type !== 'string' || !keys[a.type] || Object.keys(a).some(k => k !== 'type' && !keys[a.type as string]!.includes(k))) return false;
+  const firstInvalid = (checks: Record<string, boolean>) => Object.keys(checks).find(key => !checks[key]);
+  if (typeof a.type !== 'string' || !Object.hasOwn(localActionFields, a.type)) return 'type';
+  const fields: readonly string[] = localActionFields[a.type as LocalAction['type']];
+  const unknownFields = Object.keys(a).some(key => key !== 'type' && !fields.includes(key));
+  let invalid: string | undefined;
   switch (a.type) {
-    case 'verifyWorkspace': return typeof a.expectedRevision === 'string' && /^[a-f0-9]{64}$/.test(a.expectedRevision);
-    case 'discoverHost': return optional('query') && optional('cursor')
-      && (a.terms === undefined || Array.isArray(a.terms) && a.terms.length <= 64
-        && a.terms.every(term => typeof term === 'string' && !!term.trim() && term.length <= 256 && !term.includes('\0')))
-      && (a.commands === undefined || Array.isArray(a.commands)
-      && a.commands.every(command => typeof command === 'string' && /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/.test(command)));
-    case 'listSkills': return optional('query') && optional('cursor');
-    case 'loadSkill': return text(a.skillId);
-    case 'readArtifact': return text(a.artifactId, 1024)
-      && (a.cursor === undefined || typeof a.cursor === 'string' && /^[a-f0-9]{64}:[1-9][0-9]{0,14}$/.test(a.cursor));
-    case 'readEvidence': return text(a.sourceOperationId, 1024) && (a.stream === 'stdout' || a.stream === 'stderr')
-      && (a.cursor === undefined || typeof a.cursor === 'string' && /^[a-f0-9]{64}:[1-9][0-9]{0,5}$/.test(a.cursor));
-    case 'readSkillResource': return text(a.skillId) && text(a.path) && (a.offset === undefined || Number.isSafeInteger(a.offset) && Number(a.offset) >= 0);
-    case 'runCli': return text(a.executable) && Array.isArray(a.args) && a.args.length <= 128 && a.args.every(v => typeof v === 'string' && v.length <= 8192 && !v.includes('\0'))
-      && optional('cwd') && optional('skillId') && optional('reason')
-      && (a.stdin === undefined || validCliStdin(a.stdin)) && (a.execution === undefined || a.execution === 'sandbox' || a.execution === 'host')
-      && (a.execution !== 'host' || text(a.reason, 1000))
-      && (a.timeoutMs === undefined || Number.isSafeInteger(a.timeoutMs) && Number(a.timeoutMs) > 0 && Number(a.timeoutMs) <= maximumTimeoutMs);
-    default: return false;
+    case 'verifyWorkspace': invalid = firstInvalid({ expectedRevision: typeof a.expectedRevision === 'string' && /^[a-f0-9]{64}$/.test(a.expectedRevision) }); break;
+    case 'discoverHost': invalid = firstInvalid({ query: optional('query'), cursor: optional('cursor'),
+      terms: a.terms === undefined || Array.isArray(a.terms) && a.terms.length <= 64 && a.terms.every(term => text(term, 256)),
+      commands: a.commands === undefined || Array.isArray(a.commands)
+        && a.commands.every(command => typeof command === 'string' && /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/.test(command)) }); break;
+    case 'listSkills': invalid = firstInvalid({ query: optional('query'), cursor: optional('cursor') }); break;
+    case 'loadSkill': invalid = firstInvalid({ skillId: text(a.skillId) }); break;
+    case 'readArtifact': invalid = firstInvalid({ artifactId: text(a.artifactId, 1024),
+      cursor: a.cursor === undefined || typeof a.cursor === 'string' && /^[a-f0-9]{64}:[1-9][0-9]{0,14}$/.test(a.cursor) }); break;
+    case 'readEvidence': invalid = firstInvalid({ sourceOperationId: text(a.sourceOperationId, 1024), stream: a.stream === 'stdout' || a.stream === 'stderr',
+      cursor: a.cursor === undefined || typeof a.cursor === 'string' && /^[a-f0-9]{64}:[1-9][0-9]{0,5}$/.test(a.cursor) }); break;
+    case 'readSkillResource': invalid = firstInvalid({ skillId: text(a.skillId), path: text(a.path),
+      offset: a.offset === undefined || Number.isSafeInteger(a.offset) && Number(a.offset) >= 0 }); break;
+    case 'runCli': invalid = firstInvalid({ executable: text(a.executable),
+      args: Array.isArray(a.args) && a.args.length <= 128 && a.args.every(v => typeof v === 'string' && v.length <= 8192 && !v.includes('\0')),
+      cwd: optional('cwd'), skillId: optional('skillId'), reason: a.execution === 'host' ? text(a.reason, 1000) : optional('reason'),
+      stdin: a.stdin === undefined || validCliStdin(a.stdin), execution: a.execution === undefined || a.execution === 'sandbox' || a.execution === 'host',
+      timeoutMs: a.timeoutMs === undefined || Number.isSafeInteger(a.timeoutMs) && Number(a.timeoutMs) > 0 && Number(a.timeoutMs) <= maximumTimeoutMs }); break;
   }
+  return invalid ?? (unknownFields ? 'additionalProperties' : undefined);
 }
 export function validCliStdin(value: unknown): value is { path: string } {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => key !== 'path')) return false;

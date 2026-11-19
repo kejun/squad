@@ -7,7 +7,7 @@ export const initialModelRequestId = '__initial_reserved_request__';
 
 export type ModelOutputField = 'text' | 'artifactIds' | 'backgroundArtifactIds' | 'summary' | 'artifacts' | 'status';
 
-type Usage = { input: number | null; output: number | null; total: number | null };
+type Usage = { input: number | null; output: number | null; total: number | null; cacheRead?: number; cacheWrite?: number };
 export type ModelObservation = { requestId: string } & (
   | { phase: 'model.transport'; serviceId: string; model: string }
   | { phase: 'model.response'; status: number; providerRequestId: string | null }
@@ -119,10 +119,26 @@ export function deliveryObservations(before: TaskContext, after: TaskContext, ev
 }
 
 export function providerUsage(data: unknown): Usage {
-  const usage = data && typeof data === 'object' ? (data as Record<string, unknown>).usage : undefined;
-  const fields = usage && typeof usage === 'object' ? usage as Record<string, unknown> : {};
+  const fields = usageRecord(usageRecord(data).usage);
+  const details = usageRecord(fields.prompt_tokens_details);
+  const billing = usageRecord(usageRecord(fields.opencode).tokens);
   const count = (value: unknown) => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
-  return { input: count(fields.prompt_tokens), output: count(fields.completion_tokens), total: count(fields.total_tokens) };
+  const billedInput = count(billing.input), billedRead = count(billing.cache_read);
+  const shortWrite = count(billing.cache_write_5m), longWrite = count(billing.cache_write_1h);
+  const billedWrite = shortWrite !== null && longWrite !== null ? count(shortWrite + longWrite) : null;
+  const cacheRead = billedRead ?? count(details.cached_tokens) ?? count(fields.prompt_cache_hit_tokens);
+  const cacheWrite = billedWrite ?? count(details.cache_write_tokens);
+  const output = count(fields.completion_tokens);
+  // OpenCode bills input, cache reads and writes separately. Its prompt_tokens can exclude the latter two.
+  const fullInput = billedInput !== null && billedRead !== null && billedWrite !== null
+    ? count(billedInput + billedRead + billedWrite) : null;
+  return { input: fullInput ?? count(fields.prompt_tokens), output,
+    total: fullInput !== null && output !== null ? count(fullInput + output) : count(fields.total_tokens),
+    ...(cacheRead === null ? {} : { cacheRead }), ...(cacheWrite === null ? {} : { cacheWrite }) };
+}
+
+function usageRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
 type Interval = readonly [start: number, end: number];

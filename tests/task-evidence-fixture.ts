@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { TeamEngine } from '../src/engine.js';
 import type { CheckMaterials, CriterionJudgment } from '../src/delivery-acceptance.js';
+import type { checkModelInput } from '../src/check-model-input.js';
 import type { LocalAction, LocalToolResult } from '../src/local-operation.js';
 import { OpenAICompatibleAdapter } from '../src/model-adapter.js';
 import { WorkRunner } from '../src/runner.js';
@@ -63,11 +64,19 @@ export async function checkEvidence(fixture: LocalFixture, finding?: Omit<Extrac
   const results = candidateJudgments(candidate, finding ? { index: 0, status: finding.status, reason: finding.reason } : undefined);
   if (finding?.source && results[0]) results[0].source = finding.source;
   const before = fixture.requests.length;
-  const work = await runPending(fixture, { type: 'check', criteriaResults: results });
+  const refs = fixture.h.context().deliveryCycle!.evidence!;
+  const work = await runPending(fixture, ...refs.map(({ id }) => ({ type: 'readCheckSource', sourceId: id })),
+    { type: 'check', criteriaResults: results });
   assert.equal(work.kind, 'check');
-  assert.equal(fixture.requests.length, before + 1);
-  const body = JSON.parse(fixture.requests.at(-1)!.messages[1]!.content) as { context?: CheckMaterials } & CheckMaterials;
-  return body.context ?? body;
+  assert.equal(fixture.requests.length, before + 1 + refs.length);
+  const { context } = JSON.parse(fixture.requests[before]!.messages[1]!.content) as { context: ReturnType<typeof checkModelInput> };
+  const evidence = fixture.requests.slice(before + 1).map(request => {
+    const { code, data } = JSON.parse(request.messages.at(-1)!.content);
+    assert.equal(code, 'CHECK_SOURCE_PAGE');
+    assert.equal(data.nextCursor, null);
+    return { id: data.sourceId, stdout: data.text, metadata: data.evidence } as CheckMaterials['evidence'][number];
+  });
+  return { ...context, evidence, previousResults: work.payload.priorFindings as CriterionJudgment[] };
 }
 
 export async function reviseEvidenceCandidate(fixture: LocalFixture) {

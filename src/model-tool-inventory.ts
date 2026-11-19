@@ -12,7 +12,7 @@ interface ToolPermissions { local: boolean; search: boolean; fetch: boolean; fin
 const localInterfaces: ToolInterface[] = [
   { type: 'discoverHost', description: 'Inspect registered CLI metadata or resolve explicitly named commands without executing them.',
     input: '{commands?: string[], query?: string, terms?: string[], cursor?: string}',
-    output: 'Platform, environment observations and complete matching metadata for recalled commands.', environment: 'local_metadata' },
+    output: 'Platform, environment observations, complete metadata for recalled commands and skill candidates with ID, name and purpose.', environment: 'local_metadata' },
   { type: 'listSkills', description: 'Inspect the local skill metadata catalog, optionally by query or page.',
     input: '{query?: string, cursor?: string}', output: 'Skill IDs, versions, descriptions, completeness and continuation cursor.', environment: 'local_metadata' },
   { type: 'loadSkill', description: 'Read and pin a local skill before following its instructions or using its resources.',
@@ -35,6 +35,10 @@ const webInterfaces: ToolInterface[] = [
   { type: 'findSkills', description: 'Search public skill metadata. Searching does not install or activate a skill.',
     input: '{query: string}', output: 'Public skill references for subsequent inspection.', environment: 'service' },
 ];
+
+export function modelToolInputSchema(type: string): string | undefined {
+  return localInterfaces.find(tool => tool.type === type)?.input ?? webInterfaces.find(tool => tool.type === type)?.input;
+}
 
 /** Build one complete observation from already captured host metadata and current work permissions. */
 export function modelToolInventory(snapshot: ToolInventoryView | undefined, permissions: ToolPermissions) {

@@ -3,10 +3,10 @@ import { After, Given, When, Then } from '@cucumber/cucumber';
 import { completedMapModel, mapDeliveryModelGate, oldMapDeliveryModelGate } from '../map-delivery-model-fixture.js';
 import { MapReduceFixture } from '../map-reduce-fixture.js';
 import { modelResponse } from '../model-regeneration-fixture.js';
-import type { CheckMaterials } from '../../src/delivery-acceptance.js';
+import type { checkModelInput } from '../../src/check-model-input.js';
 import type { SpecWorld } from './steps.js';
 
-const runs = new WeakMap<SpecWorld, { fixture?: MapReduceFixture; materials?: CheckMaterials; instructions?: string; old?: boolean }>();
+const runs = new WeakMap<SpecWorld, { fixture?: MapReduceFixture; materials?: ReturnType<typeof checkModelInput>; instructions?: string; page?: string; old?: boolean }>();
 Given('当前目标的独立分片已由不同成员完成并归并交接', function (this: SpecWorld) {
   assert.equal(completedMapModel().context.discussion?.status, 'delivered');
   runs.set(this, {});
@@ -21,17 +21,21 @@ When('负责人提交交付并恢复已保存的检查工作', async function (t
   assert.deepEqual(f.pending('check')[0]!.payload.reviewRecords, frozen);
   f.response = request => {
     assert.equal(request.kind, 'check');
-    run.materials = request.context as unknown as CheckMaterials; run.instructions = request.messages[0]!.content;
-    const source = run.materials.reviewRecords![0]!;
+    run.materials = request.context as unknown as ReturnType<typeof checkModelInput>; run.instructions = request.messages[0]!.content;
+    const source = run.materials.sourceIndex.find(item => item.kind === 'review')!;
+    const last = JSON.parse(request.messages.at(-1)!.content);
+    if (last.type !== 'check_source_result') return modelResponse({ type: 'readCheckSource', sourceId: source.id });
+    run.page = last.data.text;
     return modelResponse({ type: 'check', criteriaResults: run.materials.requirements.map(item => ({ criterionId: item.id,
       status: 'passed', source: { id: source.id, quote: 'alpha 原始证据' } })) });
   };
   await f.run();
 });
-Then('检查应收到冻结的分片身份成员任务答复和附件且可逐字引用', function (this: SpecWorld) {
-  const run = runs.get(this)!, records = run.materials!.reviewRecords!;
+Then('检查应能查读冻结的分片身份成员任务答复和附件且可逐字引用', function (this: SpecWorld) {
+  const run = runs.get(this)!, records = run.materials!.sourceIndex.filter(item => item.kind === 'review');
   assert.equal(records.length, 2);
-  assert.partialDeepStrictEqual(JSON.parse(records[0]!.content), { member: 'B', partition: { id: 'alpha' },
+  assert(!JSON.stringify(run.materials).includes('alpha 原始证据'));
+  assert.partialDeepStrictEqual(JSON.parse(run.page!), { member: 'B', partition: { id: 'alpha' },
     question: '研究甲来源', expected: '甲证据与出处', answer: 'alpha 原始证据，来源 https://example.com/alpha' });
   assert.equal(run.fixture!.context().outcome, 'complete');
 });
