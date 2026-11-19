@@ -111,7 +111,8 @@ Then('主笔应只收到一次交接并可查阅失败组的原始资料和缺�
   assert.equal(context.artifacts.filter(artifact => artifact.name === 'group-result.md').length, 1);
   const requests = current.requests.filter(request => request.kind === 'owner');
   const failed = (requests[0]!.context.groups as Group[]).find(group => group.status === 'failed');
-  assert(failed?.reason?.includes('AGGREGATION_READ_ONLY') && !failed.content);
+  assert(failed);
+  assert(failed.reason?.includes('AGGREGATION_READ_ONLY') && !failed.content);
   assert.equal(current.backend.calls.length, 0);
   const id = failed.sources[0]!.artifactIds[0];
   assert(requests.some(request => receiptMessages(request, 'ARTIFACT_PAGE').some(page => page.artifact.artifactId === id && page.text.includes(rawMarker))));
