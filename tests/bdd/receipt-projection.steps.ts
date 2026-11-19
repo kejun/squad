@@ -83,7 +83,7 @@ When('系统组装检查请求', async function (this: SpecWorld) {
   const prepared = preparedFixtures.get(this); assert(prepared && !(prepared instanceof LocalFixture) && !('f' in prepared));
   results.set(this, await executeCheckMaterialsScenario(prepared) as unknown as Result);
 });
-Then('请求应完整包含候选全文和证据正文', function (this: SpecWorld) {
+Then('请求应完整包含候选全文并通过索引提供固定证据', function (this: SpecWorld) {
   assert.equal(result(this).candidate, true); assert.equal(result(this).evidence, true); assert.equal(result(this).latestReceiptVisible, true);
 });
 Then('更早的命令回执应变成不含正文的索引卡', function (this: SpecWorld) { assert.equal(result(this).code, 'EVIDENCE_CONTENT_MISSING'); });

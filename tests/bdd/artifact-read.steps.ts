@@ -33,23 +33,26 @@ Given('当前候选修订了同目标的报告且原报告仍保留在任务历�
   fixtures.set(this, { local, original, revision: h.context().candidate!.revision!, ordinary: h.context().usage.ordinary });
 });
 When('系统为独立检查准备修订和原报告的对照材料', async function (this: SpecWorld) {
-  const { local } = fixtures.get(this)!;
-  local.replies.push({ type: 'check', criteriaResults: candidateJudgments(local.h.context().candidate) });
+  const { local, original } = fixtures.get(this)!;
+  local.replies.push({ type: 'readCheckSource', sourceId: original }, { type: 'check', criteriaResults: candidateJudgments(local.h.context().candidate) });
   assert(await local.runner().runOne(local.h.room, local.h.task));
 });
-Then('应提供一次原报告正文并保留当前候选版本', function (this: SpecWorld) {
+Then('检查应能按引用读取一次原报告正文并保留当前候选版本', function (this: SpecWorld) {
   const { local, original, revision } = fixtures.get(this)!;
   const c = local.h.context();
   const context = fixtureWorkInput(local.requests[0]).context;
-  const originalReport = (context.artifacts as { id: string; content: string }[]).filter(item => item.id === original && item.content === originalBody);
-  assert.equal(originalReport.length, 1);
+  assert((context.sourceIndex as { id: string }[]).some(item => item.id === original));
+  assert(!JSON.stringify(context).includes(originalBody));
+  const page = JSON.parse(local.requests[1]!.messages.at(-1)!.content);
+  assert.equal(page.data.text, originalBody);
+  assert.equal(page.data.sourceId, original);
   const current = c.artifacts.find(item => c.candidate!.artifactIds.includes(item.id))!;
   assert.equal(current.content, 'Revised saved report');
   assert.equal(current.replacesArtifactId, original);
   assert.equal(c.artifacts.find(item => item.id === original)?.content, originalBody);
   assert.equal(c.publishedDelivery?.revision, revision);
 });
-Then('材料不应包含其他任务的产物，且不产生模型发起的读取或读取额度消耗', function (this: SpecWorld) {
+Then('检查材料不应包含其他任务的产物，且原报告查读不消耗普通工具额度', function (this: SpecWorld) {
   const { local, ordinary } = fixtures.get(this)!;
   const c = local.h.context();
   assert(!JSON.stringify(local.requests).includes(foreignBody));

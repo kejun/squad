@@ -136,7 +136,10 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (!modelOutputIssues.includes(e.issue)) return 'INVALID_OUTPUT_ISSUE';
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
       if (c.usage.retries >= c.config.limits.retries) return 'OUTPUT_REPAIR_EXHAUSTED';
-      if (isBoundedCheck(i)) return 'OUTPUT_REPAIR_NOT_ALLOWED';
+      if (e.issue === 'invalid_tool_request') {
+        if (i.requestCount === 0) return 'OUTPUT_REPAIR_NOT_ALLOWED';
+        if (i.outputRepair?.toolActionUsed) return 'OUTPUT_REPAIR_EXHAUSTED';
+      } else if (isBoundedCheck(i)) return 'OUTPUT_REPAIR_NOT_ALLOWED';
       return requestBudgetProblem(c, i);
     }
     case 'CONSUME': {

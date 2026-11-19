@@ -22,8 +22,8 @@ export class ModelErrorProvider {
     this.server = createServer(async (req, res) => {
       this.requests++;
       let text = ''; for await (const chunk of req) text += chunk;
-      const body = JSON.parse(text), last = body.messages.at(-1);
-      const context = JSON.parse(last.content).context;
+      const body = JSON.parse(text);
+      const context = JSON.parse(body.messages[1].content).context;
       const success = this.map && (context.input || context.partition?.id === 'beta');
       res.writeHead(success ? 200 : this.status, { 'content-type': 'application/json' });
       if (success) res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(context.input

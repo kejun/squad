@@ -102,7 +102,7 @@ export interface Intent extends Fence {
   /** Task-local settled evidence selected by the host for this assignment. */
   evidenceRefs?: string[];
   /** Persisted format-repair authorization; never stores the rejected model body. */
-  outputRepair?: { count: number; issue: ModelOutputIssue };
+  outputRepair?: { count: number; issue: ModelOutputIssue; toolActionUsed?: true };
   /** The independently checked criteria for this work's fixed candidate revision. */
   criteriaResults?: CriterionJudgment[];
   /** Bounded check failures, retained across recovery without rejected model text. */

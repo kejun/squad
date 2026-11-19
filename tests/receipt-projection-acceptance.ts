@@ -104,7 +104,9 @@ export async function directoryReceiptCollapsesToOperationId(prepared?: LocalFix
     assert.deepEqual(stored?.data, { persistedMetadataOperationId: discovered.id });
     assert.notDeepEqual(discovered.result.data, { persistedMetadataOperationId: discovered.id });
     const shownOnce = toolMessage(f.requests[1]!.messages, discovered.id);
-    assert.deepEqual(shownOnce.data, discovered.result.data);
+    const full = discovered.result.data as { skills: { skills: Array<{ skillId: string; name: string; description: string }> } };
+    assert.deepEqual((shownOnce.data as typeof full).skills.skills,
+      full.skills.skills.map(({ skillId, name, description }) => ({ skillId, name, description })));
     const later = toolMessage(f.requests[2]!.messages, discovered.id);
     assert.equal(later.bodyIncluded, false);
     assert.deepEqual(later.data, { persistedMetadataOperationId: discovered.id });
@@ -284,7 +286,8 @@ export async function executeCheckMaterialsScenario(prepared: PreparedReceiptReq
   const card = toolMessage(request.messages, 'check-old-command');
   const latestVisible = request.messages.some(message => message.content.includes('CHECK-LATEST-STDOUT'));
   assert(body.includes('CANDIDATE-FULL-TEXT'));
-  assert(body.includes('EVIDENCE-FULL-BODY'));
+  assert(!body.includes('EVIDENCE-FULL-BODY'));
+  assert(JSON.parse(request.messages[1]!.content).context.sourceIndex.some((source: { id: string }) => source.id === 'evidence:bound'));
   assert.equal(body.includes('truncate_prompt_tokens'), false);
   assert.equal(body.includes('SHOULD-NOT-LEAK'), false);
   assert.equal(card.bodyIncluded, false);

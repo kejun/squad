@@ -105,9 +105,23 @@ function receiptCard(message: Record<string, unknown>, sources: ReceiptSources):
   return localCard(operation);
 }
 
+function discoverHostForModel(message: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (message.type !== 'local_tool_result' || message.code !== 'discoverHost' || message.ok !== true) return undefined;
+  const data = record(message.data);
+  const skills = record(data?.skills);
+  if (!skills || !Array.isArray(skills.skills)) return undefined;
+  return { ...message, data: { ...data, skills: { ...skills,
+    skills: skills.skills.flatMap(value => {
+      const skill = record(value);
+      return skill ? [{ skillId: skill.skillId, name: skill.name, description: skill.description }] : [];
+    }),
+    diagnostics: Array.isArray(skills.diagnostics) ? skills.diagnostics.map(value => ({ code: record(value)?.code })) : [],
+  } } };
+}
+
 /** Replace settled tool results older than the newest one. Messages without a receipt stay unchanged. */
-export function projectModelToolResults<T extends { role: string; content: string }>(messages: readonly T[], sources: ReceiptSources | undefined): T[] {
-  if (!sources) return [...messages];
+export function projectModelToolResults<T extends { role: string; content: string }>(messages: readonly T[], sources: ReceiptSources | undefined,
+  verificationReceiptId?: string): T[] {
   const parsed = messages.map(message => {
     if (message.role !== 'user') return undefined;
     try { return record(JSON.parse(message.content)); } catch { return undefined; }
@@ -115,9 +129,11 @@ export function projectModelToolResults<T extends { role: string; content: strin
   const indexes = parsed.flatMap((value, index) => value && replayTypes.has(String(value.type)) ? [index] : []);
   const latest = indexes.at(-1);
   if (latest === undefined) return [...messages];
-  return messages.map((message, index) => {
-    if (index === latest || !indexes.includes(index)) return message;
-    const card = receiptCard(parsed[index]!, sources);
-    return card ? { ...message, content: JSON.stringify(card) } : message;
+  return messages.flatMap((message, index) => {
+    const result = parsed[index];
+    if (!result || !replayTypes.has(String(result.type))) return [message];
+    if (verificationReceiptId && result.type === 'local_tool_result' && result.operationId === verificationReceiptId) return [];
+    const projection = (sources && index !== latest ? receiptCard(result, sources) : undefined) ?? discoverHostForModel(result);
+    return [projection ? { ...message, content: JSON.stringify(projection) } : message];
   });
 }

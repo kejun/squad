@@ -26,13 +26,13 @@ describe('Cloudflare SDK web tools', () => {
     expect(h.context().candidate).toBeNull(); expect(JSON.stringify(h.context())).not.toContain(webEnv.CLOUDFLARE_API_TOKEN);
   });
 
-  it('[BT_W02] [BT_M11] regenerates malformed tool arguments without executing or charging a tool call', async () => {
+  it('[BT_W02] [BT_M69] rejects unrepairable tool arguments without executing or charging a tool call', async () => {
     for (const output of [{ type: 'web_search', query: ' ' }, { type: 'web_search', query: 'a', limit: -1 }, { type: 'web_fetch', url: sourceUrl, offset: -1 }, { type: 'web_fetch', url: sourceUrl, format: 'browser' }]) {
-      const h = new Harness(webModelConfig()); const f = webFixture(); const model = scriptedModel(h.config, [output, answer]);
+      const h = new Harness(webModelConfig()); const f = webFixture(); const model = scriptedModel(h.config, [output, { type: 'unrepairable' }]);
       await new WorkRunner(h.engine, model.adapter, () => 0, undefined, f.tools).runOne(h.room, h.task);
       expect(f.calls).toHaveLength(0); expect(model.requests).toHaveLength(2);
       expect(h.context().usage.ordinary).toBe(2); expect(h.context().usage.retries).toBe(1);
-      expect(h.view().phase).toBe('checking'); expect(h.context().candidate?.text).toBe(answer.text);
+      expect(h.view().phase).toBe('waitingHuman'); expect(h.context().candidate).toBeNull();
     }
   });
   it('[BT_W09] default capabilities and dotenv switch never persist credentials', () => {

@@ -17,15 +17,19 @@ async function directory() { const dir = await mkdtemp(join(tmpdir(), 'squad-reg
 describe('local skill registry and real child-process integration', () => {
   it('[BT_F22] forwards an actual skill file receipt to the independent delivery check', async () => {
     const f = await fixture();
-    f.replies.push(...f.actions().slice(0, 2), { type: 'deliver', text: '引用资料交付', artifactIds: [] },
-      { type: 'check', passed: true, gaps: [] });
+    f.replies.push(...f.actions().slice(0, 2), { type: 'deliver', text: '引用资料交付', artifactIds: [] });
 
     await f.runner().runOne(f.h.room, f.h.task);
+    const read = f.h.context().intents.find(work => work.kind === 'owner')!.localOperations!.find(op => op.action.type === 'readSkillResource')!;
+    f.replies.push({ type: 'readCheckSource', sourceId: read.id }, { type: 'check', passed: true, gaps: [] });
     await f.runner().runOne(f.h.room, f.h.task);
 
-    const input = JSON.parse(f.requests.at(-1)!.messages[1]!.content).context;
-    expect(input.evidence).toEqual([expect.objectContaining({ stdout: expect.stringContaining('真实引用'),
-      metadata: expect.objectContaining({ completeness: 'complete', command: expect.objectContaining({ type: 'readSkillResource' }) }) })]);
+    const request = f.requests.at(-1)!;
+    const input = JSON.parse(request.messages[1]!.content).context;
+    expect(input.sourceIndex).toEqual([expect.objectContaining({ id: read.id, completeness: 'complete' })]);
+    const page = JSON.parse(request.messages.at(-1)!.content).data;
+    expect(page).toMatchObject({ sourceId: read.id, text: expect.stringContaining('真实引用'),
+      evidence: { completeness: 'complete', command: { type: 'readSkillResource' } } });
     expect(f.h.context().outcome).toBe('complete');
     expect(f.backend.calls).toHaveLength(0);
   });
