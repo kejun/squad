@@ -168,10 +168,13 @@ function checkBudget(backend, directory) {
   const observe = () => {
     const c = s.context(), w = check(), d = c.deliveryCycle;
     const stage = c.outcome !== null ? 4 : w.status === 'uncertain' ? 5 : w.status === 'pending' ? 0 : w.status === 'inflight' ? 1 : -1;
+    const issue = c.candidate?.deliveryIssue?.detail;
+    const failureReported = !!issue && c.messages.some(message => message.kind === 'notice' && message.workId === w.id
+      && (message.detailText ?? message.text).includes(issue));
     assert.equal(c.intents.filter(work => work.kind === 'owner').length, 1, 'NoReviewBackflow: judgments cannot create upstream work');
     return { stage, requests: d.requests, currentRequests: w.requestCount, retry: d.retry ? (d.retry.status === 'reserved' ? 1 : 2) : 0,
       recoveries, checks: c.usage.checks, retries: c.usage.retries, protocolErrors: w.checkDiagnostics?.length ?? 0,
-      completed: c.outcome === 'complete', gapsDeclared: c.candidate?.text.includes('synthetic criterion judgment') ?? false };
+      completed: !!c.publishedDelivery && c.outcome === 'complete', gapsDeclared: !!c.candidate?.text.includes('synthetic criterion judgment') || failureReported };
   };
   const judgment = (w, status, gaps = 1) => ({ type: 'CHECK_RESULT', workId: w.id, attempt: w.attempt, fence: w,
     candidateRevision: w.payload.candidate.revision, resultId: `check-result:${w.id}:${w.attempt}:${status}`,
@@ -207,7 +210,7 @@ function properties(s) {
     assert(s.requests <= 5 && !(s.requests === 5 && s.retry === 1), 'BoundedChecks: exhausted configured budget cannot authorize another request or reserve an unfunded retry');
     assert(s.retries <= s.requests && (s.retry === 0) === (s.retries === 0), 'RetryAccounting: retry reservation is charged once');
     assert(s.protocolErrors < 2 || s.stage === 4, 'ProtocolRetryOnce: repeated invalid protocol must terminate');
-    assert(!s.completed || s.stage === 4, 'DeclaredDelivery: valid final judgment must finish the delivery');
+    assert.equal(s.completed, s.stage === 4, 'DeclaredDelivery: settled checking must finish the delivery');
   } else {
     assert(!s.summary || s.r1 > 0 && s.r2 > 0, 'AllSettledBeforeReduce: reducer scheduled before all shards settled');
     assert(s.handoffs <= 1, 'UniqueHandoff: multiple owner resumptions');
