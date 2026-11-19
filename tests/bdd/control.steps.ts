@@ -59,18 +59,13 @@ Then('不应把检查预留用于继续探索或无限评审', function (this: S
 Given('普通执行和检查额度均已耗尽', function (this: SpecWorld) { this.h = new Harness(configuration({ ordinary: 0, checks: 0 })); });
 Given('已有部分产物与明确缺口', function (this: SpecWorld) { this.h.event({ type: 'DELIVER', text: '已有部分成果，但缺少核查', artifactIds: [] }); });
 When('系统结算任务', function (this: SpecWorld) { assert.equal(this.h.view().phase, 'ended'); });
-Then('应根据已有记录交付成果与缺口并标记{string}', function (this: SpecWorld, outcome: string) {
-  assert.equal(outcome, '部分完成'); const c = this.h.context(), frozen = c.resilience!.frozen!;
-  assert.equal(c.outcome, 'partial'); assert.equal(frozen.verification, 'incomplete'); assert.equal(c.publishedDelivery, undefined);
+Then('应发布已有候选并标记{string}且说明检查额度耗尽', function (this: SpecWorld, outcome: string) {
+  assert.equal(outcome, '完成'); const c = this.h.context();
+  assert.equal(c.outcome, 'complete'); assert.equal(c.publishedDelivery?.revision, c.candidate?.revision);
   assert.equal(c.candidate!.text, '已有部分成果，但缺少核查');
-  const draft = c.artifacts.find(artifact => artifact.id !== frozen.reportArtifactId)!;
-  assert.equal(draft.content, c.candidate!.text); assert.equal(frozen.items.find(item => item.artifactId === draft.id)!.status, 'unverified');
-  const report = c.artifacts.find(artifact => artifact.id === frozen.reportArtifactId)!;
-  assert.equal(report.name, 'task-report.md'); assert.equal(report.content, frozen.text);
-  assert(frozen.text.includes('partial')); assert(frozen.text.includes('核验未完成')); assert(frozen.text.includes(c.reason));
-  assert.deepEqual(frozen.artifactIds, [report.id, draft.id]); assert.deepEqual(c.messages.at(-1)!.artifactIds, frozen.artifactIds);
-  assert.equal(c.messages.at(-1)!.detailText, report.content);
-  assert(c.messages.at(-1)!.text.includes('partial'));
+  assert.equal(c.candidate?.deliveryIssue?.code, 'CHECK_BUDGET_EXHAUSTED');
+  assert(currentDeliveryIssues(c).some(issue => issue.reason.includes('检查额度已用尽')));
+  assert(c.messages.some(message => message.kind === 'notice' && message.text.includes('是否重试检查')));
 });
 Then('不应再调用模型来解释为什么额度耗尽', function (this: SpecWorld) { assert.equal(this.h.context().usage.checks, 0); assert.equal(this.h.engine.pending(this.h.room, this.h.task).length, 0); });
 Given('团队配置遗漏必需的执行上限或工具期限', function (this: SpecWorld) { const config = configuration(); delete (config.limits as Partial<typeof config.limits>).workTimeoutMs; data(this).config = config; });
@@ -97,8 +92,8 @@ Then('任务主状态应为{string}', function (this: SpecWorld, phase: string) 
 Then('结束结果应为{string}并保留依据', function (this: SpecWorld, outcome: string) { assert.equal(this.h.context().outcome, ({ 完成: 'complete', 部分完成: 'partial', 失败: 'failed', 已停止: 'stopped' } as Record<string, string>)[outcome]); assert(this.h.context().trace.length); });
 Given('完成判断的模型输出无效且修复额度已经耗尽', function (this: SpecWorld) { this.h = new Harness(configuration({ retries: 0 })); this.h.event({ type: 'DELIVER', text: '交付文本', artifactIds: [] }); });
 When('系统处理该输出', async function (this: SpecWorld) { await new WorkRunner(this.h.engine, { execute: async () => ({ type: 'check', criteriaResults: 'false' } as never) }, () => 0).runOne(this.h.room, this.h.task); });
-Then('不应把无法解析的回答当作检查通过', function (this: SpecWorld) { assert.notEqual(this.h.context().outcome, 'complete'); });
-Then('应按已有成果和缺口明确结束', function (this: SpecWorld) { assert.equal(this.h.view().phase, 'ended'); assert.equal(this.h.context().outcome, 'partial'); assert(this.h.context().candidate?.text); });
+Then('不应把无法解析的回答当作检查通过', function (this: SpecWorld) { assert(!this.h.context().intents.some(work => work.kind === 'check' && work.criteriaResults)); });
+Then('应按已有成果和缺口明确结束', function (this: SpecWorld) { assert.equal(this.h.view().phase, 'ended'); assert.equal(this.h.context().outcome, 'complete'); assert(this.h.context().candidate?.deliveryIssue); });
 
 Given('一个简单点名请求正在正常执行', function (this: SpecWorld) { assert.equal(this.h.engine.pending(this.h.room, this.h.task)[0]?.target, 'A'); });
 When('促进者没有需要公开说明的协调动作', function (this: SpecWorld) { settleDone(this); });

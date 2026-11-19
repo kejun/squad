@@ -1540,6 +1540,21 @@ flowchart TD
 
 组意图与原分片共用队列，绑定当前任务轮次、目标版本和已结算结果。原分片定义、责任和证据仍用于独立检查。宿主按原有链路保存、领取、执行并回收组意图。组失败、过期或跳过时，原始来源进入主笔交接。停止、换目标及恢复复用原守卫，运行中的已作废结果无法继续交接。组内 `readArtifact` 按已绑定来源与现有额度执行。
 
+## 交付完成与核检结果
+
+类型：真实 `taskMachine` 交付转移与任务上下文投影。`delivery` 校验检查判据，`reducer` 结算，`operations` 发布和记录核检消息。对应 BT_F85–BT_F87。
+
+```mermaid
+stateDiagram-v2
+    checking --> checking: WORK_FAILED [仍有技术补试许可] / 保留候选和诊断
+    checking --> ended: CHECK_RESULT [有效候选] / 发布并保存结论、通知发现
+    checking --> ended: WORK_FAILED 或 SETTLE [检查无法结论且可交付] / 完成并通知漏项或失败原因
+    checking --> ended: SUPERVISE [独立检查超时且当前任务可交付] / 完成并通知核检超时
+    ended --> checking: CONTINUE [用户明确重试检查且有检查额度] / 保留已发布交付、重新领取同一候选
+```
+
+独立检查工作的正常领取、预算和候选版本守卫继续有效。独立审批、停止和未决外部效果遵守既有监督约束。重试期间保留原发布记录。迟到的旧尝试不能作为当前核检的依据。
+
 ## 模型请求的上下文与工具修正
 
 类型：请求投影与检查材料读取流程。所有者为 `OpenAICompatibleAdapter`、`WorkRunner` 和 `taskMachine`。对应 BT_Y180、BT_M68–M69、BT_F19、BT_F22、BT_F24、BT_F84。

@@ -15,7 +15,7 @@ import { hostRetryAction, hostRetryBatchRetirable } from './host-retry.js';
 import { parseArtifactRequest, resolveArtifactSource } from './source-artifact.js';
 import type { ArtifactReference, ArtifactSource, ArtifactSourceMetadata } from './types.js';
 import type { HostAcquisition } from './resource-acquisition.js';
-import { processingWindow, progressCoordinationAllowed, taskHumanGate } from './task/resilience.js';
+import { processingWindow, progressCoordinationAllowed, resiliencePolicy, taskHumanGate } from './task/resilience.js';
 import { permissionProblem } from './task/policy.js';
 import type { DeletionIntent, SavedRoomDeletion } from './room-deletion.machine.js';
 import { runtimeCleanupPlan } from './runtime-ownership.js';
@@ -195,6 +195,19 @@ export class TeamEngine {
         const next = this.step(decode(tx.room.tasks[referencedId]), { type: 'STOP', id: input.id, text: input.text, at });
         storeTask(tx, next);
         return { ...next.context.reply, taskId: referencedId };
+      }
+      if (control === 'retryCheck') {
+        if (!referencedId || !referenced) return { ok: false, code: 'TASK_NOT_FOUND', detail: '没有可重试检查的交付。' };
+        if (tx.room.activeTaskId && tx.room.activeTaskId !== referencedId)
+          return { ok: false, code: 'ROOM_BUSY', detail: '另一任务正在执行，请在结束后重试检查。' };
+        const next = this.step(decode(tx.room.tasks[referencedId]), { type: 'CONTINUE', id: input.id, at, text: input.text,
+          retryCheck: true, currentConfig: this.config,
+          ...(at >= processingWindow(referenced).hardDeadline ? { newWindowMs: resiliencePolicy(referenced).automaticTimeoutMs } : {}) });
+        storeTask(tx, next, next.context.reply.ok);
+        const detail = next.context.reply.ok ? '已受理重试，将核检原交付。'
+          : next.context.reply.code === 'CHECK_BUDGET_EXHAUSTED' ? '检查额度已用尽，原交付仍可查看。'
+          : next.context.reply.code === 'CHECK_RETRY_NOT_AVAILABLE' ? '当前没有可重试的已发布检查。' : next.context.reply.detail;
+        return { ...next.context.reply, detail, taskId: referencedId };
       }
       const retryBots = [...this.config.bots, ...(referenced?.config.bots ?? []),
         ...(referenced?.assists ?? []).map(h => ({ id: h.target, name: h.target, instructions: '', tools: [] }))];

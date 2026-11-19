@@ -138,8 +138,10 @@ export async function directMapEngineAcceptance(legacyAnswer = false, webSource 
     const snapshot = await deletionUntil(() => service!.snapshot(room.id), value => value.tasks.some(t => t.outcome !== null), 'ordinary map completion');
     const c = service.engine.view(room.id, snapshot.tasks.at(-1)!.id)!.context;
     if (checkFault) {
-      assert.equal(c.outcome, 'partial'); assert.equal(provider.checks, 2); assert.equal(c.usage.retries, 1);
-      assert.equal(provider.ownerCalls, 1); assert.equal(c.candidate?.deliveryIssue?.code, 'DELIVERY_CHECK_FAILED');
+      assert.equal(c.outcome, 'complete'); assert.equal(provider.checks, 2); assert.equal(c.usage.retries, 1);
+      assert.equal(provider.ownerCalls, 1); assert.equal(c.candidate?.deliveryIssue?.code, 'CHECK_INVALID_RESULT');
+      assert.equal(c.publishedDelivery?.revision, c.candidate?.revision);
+      assert(c.messages.some(item => item.kind === 'notice' && item.text.includes('是否重试')));
       assert(!c.intents.some(work => work.status === 'pending' && work.kind !== 'cancel'));
     } else provider.verify(snapshot);
     assert.equal(c.discussion!.results.filter(r => r.status === 'failed').length, 7);

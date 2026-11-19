@@ -77,7 +77,8 @@ export function protocolHandoffModel() {
   submitHandoff(m); const first = claimHandoff(m, 'check'); assert(reportHandoff(m, first, []).ok);
   assert.equal(m.snapshot.value, 'checking');
   const retry = claimHandoff(m, 'check'); assert(reportHandoff(m, retry, []).ok);
-  assert.equal(m.c.outcome, 'partial'); assert.equal(m.c.candidate?.deliveryIssue?.code, 'CHECK_MISSING_CRITERION');
+  assert.equal(m.c.outcome, 'complete'); assert.equal(m.c.candidate?.deliveryIssue?.code, 'CHECK_MISSING_CRITERION');
+  assert.equal(m.c.publishedDelivery?.revision, m.c.candidate?.revision);
   assert.equal(m.c.intents.filter(w => w.kind === 'check' && ['pending', 'inflight'].includes(w.status)).length, 0);
   assert.equal(m.c.usage.checks, 2); return m;
 }
@@ -89,7 +90,8 @@ export function protocolFailureHandoffModel() {
     assert(m.send({ type: 'WORK_FAILED', intentId: check.id, fence: check, attempt: check.attempt,
       transient: true, reason: 'Invalid model response', checkDiagnostic: { code: 'CHECK_INVALID_RESULT' } }).ok);
   }
-  assert.equal(m.c.outcome, 'partial'); assert.equal(m.c.usage.retries, 1);
+  assert.equal(m.c.outcome, 'complete'); assert.equal(m.c.usage.retries, 1);
+  assert(m.c.messages.some(item => item.kind === 'notice' && item.text.includes('是否重试')));
   assert(!m.c.intents.some(w => w.kind !== 'cancel' && w.status === 'pending')); return m;
 }
 export function staleHandoffModel() {

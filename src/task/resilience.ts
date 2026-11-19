@@ -1,9 +1,10 @@
 /** Pure task supervision, durable human gates, frozen delivery and physical custody. */
 import type { Fence, Intent, Outcome, Phase, TaskContext, TaskEvent } from '../types.js';
 import { cancelLocalOperations, heldLocalResourceLeases, localAwaitingApproval, localPhysicalPending, localWorkspaceWaiting, taskResourceWaiting } from '../local-operation.js';
-import { cancelWork, coordinate, message, owner, release, intent } from './operations.js';
+import { cancelWork, coordinate, finishDeliveryCheck, message, owner, release, intent } from './operations.js';
 import { cancelHostRetries } from '../host-retry.js';
 import { settleDeliveryCycle } from './delivery-cycle.js';
+import { currentDeliveryCheck, deliveryInterruptionPending } from './delivery.js';
 import { permissionProblem } from './policy.js';
 import { recordInput } from './input.js';
 import { activeHelp, discussionActive, inflight } from './facts.js';
@@ -354,8 +355,9 @@ export function modelServiceFailureCode(e: TaskEvent): string | undefined {
 export function requiredHumanFailure(c: TaskContext, e: TaskEvent): boolean {
   if (e.type !== 'WORK_FAILED' || c.stopped || c.outcome !== null || c.resilience?.frozen || e.at >= processingWindow(c).hardDeadline) return false;
   const work = c.intents.find(item => item.id === e.intentId);
-  if (work && work.kind !== 'cancel' && modelServiceFailureCode(e)) return true;
-  if (!work || work.kind === 'cancel' || work.discussionId || work.replay === 'unsafe'
+  if (!work || work.kind === 'cancel') return false;
+  if (modelServiceFailureCode(e)) return work.kind !== 'check' || work.payload.deliveryProtocol !== 'bounded';
+  if (work.discussionId || work.replay === 'unsafe'
     || work.deadline !== null && e.at >= work.deadline) return false;
   return authorizationFailure(e.reason);
 }
@@ -462,7 +464,7 @@ export function effectiveWork(c: TaskContext, phase: Phase, at: number): Intent[
     && (w.status === 'inflight' && w.deadline !== null && at < w.deadline && !workInCleanup(c, w)
       || w.status === 'pending' && !permissionProblem(c, { type: 'CLAIM', id: 'supervisor-probe', at, intentId: w.id })));
 }
-export type SupervisionDecision = 'none' | 'human' | 'windowExpired' | 'resources' | 'repair' | 'freeze' | 'stopped' | 'settled';
+export type SupervisionDecision = 'none' | 'human' | 'windowExpired' | 'resources' | 'repair' | 'freeze' | 'stopped' | 'settled' | 'checkExpired';
 export function progressCoordinationAllowed(c: TaskContext, at: number): boolean {
   return !discussionActive(c) && inflight(c).length === 0
     && !c.intents.some(work => localPhysicalPending(work) || localAwaitingApproval(work))
@@ -477,8 +479,10 @@ export function supervisionDecision(c: TaskContext, phase: Phase, at: number): S
   const window = processingWindow(c);
   if (at >= window.hardDeadline) return 'windowExpired';
   if (window.repairDeadline !== undefined && at >= window.repairDeadline) return 'freeze';
-  if (phase === 'checking' && c.intents.some(w => w.kind === 'check' && ['pending', 'inflight'].includes(w.status)
-    && w.epoch === c.epoch && w.goalVersion === c.goalVersion && w.deadline !== null && at >= w.deadline)) return 'freeze';
+  const check = phase === 'checking' ? currentDeliveryCheck(c) : undefined;
+  if (check && ['pending', 'inflight'].includes(check.status) && check.epoch === c.epoch && check.deadline !== null && at >= check.deadline) {
+    return check.replay === 'unsafe' || deliveryInterruptionPending(c) ? 'freeze' : 'checkExpired';
+  }
   if (effectiveWork(c, phase, at).length || c.results.some(result => !result.consumed)) return 'none';
   if (taskResourceWaiting(c)) return 'resources';
   if (window.repairUsed >= window.repairLimit || c.usage.ordinary >= c.config.limits.ordinary || c.usage.retries >= c.config.limits.retries) return 'freeze';
@@ -495,6 +499,7 @@ export function applySupervision(c: TaskContext, e: TaskEvent, phase: Phase): vo
   settleCleanup(c, e.at);
   skipOptionalStalls(c, e);
   const decision = supervisionDecision(c, phase, e.at);
+  if (decision === 'checkExpired') { finishDeliveryCheck(c, e, '核检超过工作时限', 'WORK_EXPIRED'); return; }
   if (decision === 'windowExpired' || decision === 'human' && windowExpired(c, e.at)) requestNewWindow(c, e);
   if (decision === 'windowExpired') return;
   if (decision === 'human') {

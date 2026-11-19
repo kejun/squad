@@ -6,6 +6,7 @@ vars == <<stage, requests, currentRequests, retry, recoveries, checks, retries, 
 \* 0=pending, 1=inflight, 4=ended, 5=uncertain. Retry 0=none,1=reserved,2=used.
 CanRetry == currentRequests > 0 /\ requests < 5 /\ retry # 1
 CanProtocolRetry == CanRetry /\ retry = 0
+RecoveryExhausted == stage = 1 /\ currentRequests > 0 /\ retry # 1 /\ ~CanRetry
 Init == /\ stage = 0 /\ requests = 0 /\ currentRequests = 0 /\ retry = 0
         /\ recoveries = 0 /\ checks = 0 /\ retries = 0 /\ protocolErrors = 0
         /\ completed = FALSE /\ gapsDeclared = FALSE
@@ -19,13 +20,15 @@ Failure == /\ stage = 1
     /\ stage' = (IF CanRetry THEN 0 ELSE 4)
     /\ retry' = (IF CanRetry THEN 1 ELSE retry)
     /\ retries' = (IF CanRetry THEN retries + 1 ELSE retries)
-    /\ UNCHANGED <<requests, currentRequests, recoveries, checks, protocolErrors, completed, gapsDeclared>>
+    /\ completed' = ~CanRetry /\ gapsDeclared' = ~CanRetry
+    /\ UNCHANGED <<requests, currentRequests, recoveries, checks, protocolErrors>>
 BadProtocol == /\ stage = 1 /\ currentRequests > 0 /\ retry # 1
     /\ stage' = (IF CanProtocolRetry THEN 0 ELSE 4)
     /\ retry' = (IF CanProtocolRetry THEN 1 ELSE retry)
     /\ retries' = (IF CanProtocolRetry THEN retries + 1 ELSE retries)
     /\ protocolErrors' = protocolErrors + 1
-    /\ UNCHANGED <<requests, currentRequests, recoveries, checks, completed, gapsDeclared>>
+    /\ completed' = ~CanProtocolRetry /\ gapsDeclared' = ~CanProtocolRetry
+    /\ UNCHANGED <<requests, currentRequests, recoveries, checks>>
 Uncertain == /\ stage = 1 /\ stage' = 5
     /\ UNCHANGED <<requests, currentRequests, retry, recoveries, checks, retries, protocolErrors, completed, gapsDeclared>>
 FailedJudgment == /\ stage = 1 /\ currentRequests > 0 /\ retry # 1
@@ -36,10 +39,11 @@ PassedJudgment == /\ stage = 1 /\ currentRequests > 0 /\ retry # 1
     /\ stage' = 4 /\ completed' = TRUE /\ gapsDeclared' = FALSE
     /\ UNCHANGED <<requests, currentRequests, retry, recoveries, checks, retries, protocolErrors>>
 Recover == /\ stage \in {0,1} /\ recoveries < 2 /\ recoveries' = recoveries + 1
-    /\ stage' = (IF stage = 1 /\ currentRequests > 0 /\ retry # 1 /\ ~CanRetry THEN 4 ELSE 0)
+    /\ stage' = (IF RecoveryExhausted THEN 4 ELSE 0)
     /\ retry' = (IF stage = 1 /\ CanRetry THEN 1 ELSE retry)
     /\ retries' = (IF stage = 1 /\ CanRetry THEN retries + 1 ELSE retries)
-    /\ UNCHANGED <<requests, currentRequests, checks, protocolErrors, completed, gapsDeclared>>
+    /\ completed' = RecoveryExhausted /\ gapsDeclared' = RecoveryExhausted
+    /\ UNCHANGED <<requests, currentRequests, checks, protocolErrors>>
 DeniedConsume == /\ stage = 1 /\ requests = 5 /\ UNCHANGED vars
 DuplicateResult == /\ stage = 4 /\ UNCHANGED vars
 Next == ClaimCheck \/ Consume \/ Failure \/ Uncertain \/ BadProtocol \/ FailedJudgment \/ FailedManyJudgment \/ PassedJudgment \/ Recover \/ DeniedConsume \/ DuplicateResult
@@ -51,7 +55,7 @@ CheckAccounting == checks = requests /\ requests = currentRequests
 BoundedChecks == requests <= 5 /\ ~(requests = 5 /\ retry = 1)
 RetryAccounting == retries <= requests /\ (retry = 0 <=> retries = 0)
 ProtocolRetryOnce == protocolErrors = 2 => stage = 4
-DeclaredDelivery == completed => stage = 4
+DeclaredDelivery == completed <=> stage = 4
 NeverFiveRequests == requests < 5
 NeverMultipleNetworkRetries == retries < 3
 NeverTechnicalRetry == retry # 2

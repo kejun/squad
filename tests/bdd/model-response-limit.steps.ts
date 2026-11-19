@@ -20,17 +20,20 @@ Then('应完整接受中文结果且只请求一次模型', function (this: Spec
 });
 Then('应取消超大响应并记录明确且脱敏的字节超限原因', async function (this: SpecWorld) {
   const f = active(this); await f.waitClosed();
-  assert.match(f.h.context().reason, /MODEL_RESPONSE_TOO_LARGE/);
-  assert.match(f.h.context().reason, /1024/);
+  const context = f.h.context();
+  const detail = f.kind === 'check' ? context.candidate?.deliveryIssue?.detail ?? '' : context.reason;
+  assert.match(detail, /MODEL_RESPONSE_TOO_LARGE/);
+  assert.match(detail, /1024/);
   if (f.transfer !== '压缩长度很小但解压超限') assert(f.evidence.sentBytes < f.body.length, 'must cancel before consuming the complete oversized response');
   assert(!JSON.stringify(f.store.read(f.h.room)).includes(privateBodyMarker));
 });
 Then('不得发布部分正文或按原容量重试且请求应能结算', async function (this: SpecWorld) {
   const f = active(this); await f.run();
   assert.equal(f.requests.length, 1); assert.equal(f.h.context().usage.retries, 0);
-  assert.equal(f.h.context().publishedDelivery, undefined); assertNoProviderBodyArtifacts(f);
+  assert.equal(f.h.context().publishedDelivery?.revision, f.kind === 'check' ? f.h.context().candidate?.revision : undefined);
+  assertNoProviderBodyArtifacts(f);
   assert.equal(f.h.view().phase, f.kind === 'check' ? 'ended' : 'waitingHuman');
-  assert.equal(f.h.context().outcome, f.kind === 'check' ? 'partial' : null);
+  assert.equal(f.h.context().outcome, f.kind === 'check' ? 'complete' : null);
   assert.equal(f.h.context().intents.filter(work => work.status === 'inflight').length, 0);
   assert.equal(f.h.engine.pending(f.h.room, f.h.task).length, 0);
 });

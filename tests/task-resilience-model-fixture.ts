@@ -148,8 +148,8 @@ export function resilienceReviewRetryGate() {
   assert(m.send({ type: 'HELP_RESULT', requestId, resultId: 'other-review', status: 'success', answer: '其他成员的意见' }).ok);
   const owner = m.claim(); assert(m.send({ type: 'DELIVER', workId: owner.id, fence: owner, text: '评审暂未完成', artifactIds: [] }).ok);
   const check = m.claim('check'), candidate = m.c.candidate!; assert(m.send({ type: 'CONSUME', intentId: check.id, fence: check }).ok);
-  assert(m.send({ type: 'WORK_FAILED', intentId: check.id, fence: check, attempt: check.attempt,
-    transient: false, reason: '旧检查执行中断，已有材料保留为未核验结果' }).ok);
+  assert(m.send({ type: 'EXHAUSTED', reason: '宿主结束评审后的自动执行并保留成果' }).ok);
+  assert(m.send({ type: 'SETTLE', intentId: check.id, attempt: check.attempt }).ok);
   assert.equal(m.c.outcome, 'partial'); const frozen = structuredClone(m.c.resilience!.frozen), deadline = processingWindow(m.c).hardDeadline;
   assert(m.send({ type: 'RETRY_ASSISTANCE', requestId: String(failed.payload.requestId), text: '明确重试B', config: m.c.config }).ok);
   assert.equal(m.c.resilience!.frozen, undefined); assert.deepEqual(m.c.resilience!.frozenHistory!.at(-1), frozen);
@@ -222,7 +222,14 @@ export function resilienceResultDeadlineGate() {
     const reply = m.send({ ...event, workId: work.id, attempt: work.attempt, fence: work });
     assert.equal(reply.ok, offset < 0, `${role}/${offset}/${tickFirst}: business result expiry cannot depend on timer order`);
     if (!tickFirst) m.supervise();
-    if (offset >= 0) { assert.notEqual(m.c.outcome, 'complete'); assert(m.c.lateResults.some(result => result.workId === work.id)); }
+    if (offset >= 0) {
+      assert(m.c.lateResults.some(result => result.workId === work.id));
+      if (role === 'check') {
+        assert.equal(m.c.outcome, 'complete');
+        assert.equal(m.c.candidate?.deliveryIssue?.code, 'WORK_EXPIRED');
+        assert(!m.c.intents.find(item => item.id === work.id)?.criteriaResults);
+      } else assert.notEqual(m.c.outcome, 'complete');
+    }
     rows.push({ role, offset, tickFirst, accepted: reply.ok });
   }
   return rows;
@@ -369,6 +376,11 @@ export function resilienceRequiredFailureGate(role: 'owner' | 'interpretation' |
   assert(m.send({ type: 'WORK_FAILED', intentId: work.id, attempt: work.attempt, reason: 'Model HTTP 401', transient }).ok);
   assert.equal(m.c.usage.retries, usage.retries, 'Permission failure cannot become an automatic retry');
   if (expired) { assert.equal(taskHumanGate(m.c)?.cause, 'windowExpired'); m.supervise(101); assert.equal(m.phase, 'waitingHuman'); assert.equal(m.c.outcome, null); return m; }
+  if (role === 'check') {
+    assert.equal(m.phase, 'ended'); assert.equal(m.c.outcome, 'complete');
+    assert(m.c.candidate?.deliveryIssue?.detail?.includes('HTTP 401'));
+    assert(!taskHumanGate(m.c)); return m;
+  }
   const gate = taskHumanGate(m.c)!; assert(gate); assert.equal(gate.kind, 'authorization');
   assert.equal(m.phase, 'waitingHuman'); assert.equal(m.c.outcome, null);
   m.supervise(101); assert(m.send({ type: 'RECOVER', config: m.c.config }).ok);
@@ -402,14 +414,15 @@ export function resilienceRepeatedPartialGate() {
   assert(m.send({ type: 'ARTIFACT', artifact: { id: 'first-selection', name: 'first.md', content: '第一版业务正文' } }).ok);
   const owner1 = m.claim(); assert(m.send({ type: 'DELIVER', workId: owner1.id, fence: owner1, text: '第一版摘要', artifactIds: ['first-selection'] }).ok);
   const check1 = m.claim('check'); assert(m.send({ type: 'CONSUME', intentId: check1.id, fence: check1 }).ok);
-  assert(m.send({ type: 'WORK_FAILED', intentId: check1.id, reason: '独立检查未完成', transient: false }).ok);
+  assert(m.send({ type: 'EXHAUSTED', reason: '宿主结束自动执行并保留已有成果' }).ok);
+  assert(m.send({ type: 'SETTLE', intentId: check1.id, attempt: check1.attempt }).ok);
   assert.equal(m.c.outcome, 'partial'); const first = structuredClone(m.c.resilience!.frozen)!;
   const firstShadow = m.c.artifacts.find(a => a.content === '第一版摘要')!; assert(firstShadow); const frozenShadow = structuredClone(firstShadow);
   assert(m.send({ type: 'CONTINUE' }).ok);
   assert(m.send({ type: 'ARTIFACT', artifact: { id: 'current-selection', name: 'second.md', content: '第二版业务正文' } }).ok);
   const owner2 = m.claim(); assert(m.send({ type: 'DELIVER', workId: owner2.id, fence: owner2, text: '第二版摘要', artifactIds: ['current-selection'] }).ok);
   const check2 = m.claim('check'); assert(m.send({ type: 'CONSUME', intentId: check2.id, fence: check2 }).ok);
-  assert(m.send({ type: 'WORK_FAILED', intentId: check2.id, reason: '第二次独立检查未完成', transient: false }).ok);
+  assert(m.send({ type: 'EXHAUSTED', reason: '宿主结束本次执行并保留已有成果' }).ok);
   assert.equal(m.c.outcome, 'partial'); assert.equal(new Set(m.c.artifacts.map(a => a.id)).size, m.c.artifacts.length);
   const published = publicationIds(m.c)!; const selectedText = published.map(id => m.c.artifacts.find(a => a.id === id)!.content);
   assert(selectedText.includes('第二版摘要')); assert(!selectedText.includes('第一版摘要')); assert(!published.includes(firstShadow.id));

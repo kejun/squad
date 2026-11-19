@@ -6,12 +6,12 @@ import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { artifactSourceMetadata, type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
 import { canRetireDiscussionWork, capabilities, discussionActive, fence, fresh, hasOrdinary, inflight, ok, recoveryIssue, reject } from './facts.js';
-import { cancelWork, coordinate, continueOwner, finish, intent, message, owner, release, saveReports } from './operations.js';
+import { cancelWork, coordinate, continueOwner, finish, finishDeliveryCheck, finishIncompleteDelivery, intent, message, owner, release, saveReports } from './operations.js';
 import { applyLocalEvent, cancelLocalOperations, localEnabled, localPhysicalPending, localAwaitingApproval, recoverLocalOperations, type LocalEvent } from '../local-operation.js';
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
 import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requestReview, resetReviewAtBoundary, savedHelpResult, startHelp } from './assistance.js';
 import { recordInput } from './input.js';
-import { checkDisposition, checkReferenceSources, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication, saveCheckDiagnostic, settlingDeliveryCheck } from './delivery.js';
+import { checkDisposition, checkReferenceSources, currentDeliveryCheck, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication, saveCheckDiagnostic, settlingDeliveryCheck } from './delivery.js';
 import { canRetryDeliveryCheck, canRetryWork, reserveDeliveryRetry } from './budget.js';
 import { checkReviewSources, deliveryJudgments, deliveryPreflight, deliveryGapMessage } from '../delivery-acceptance.js';
 import { adoptLegacyTerminalConfig } from './protocol.js';
@@ -23,12 +23,6 @@ import { ownerWebRecoveryExhausted, recordToolFailure } from './tool-recovery.js
 import { ensureResilience, openHumanGate, decideHumanGate, executionNotStarted, freezeIncomplete, taskHumanGate, answerTaskGate, syncLocalApprovalGate, recordApprovalExplanation, requiredHumanFailure, modelServiceFailureCode, authorizationFailure,
   windowExpired, requestNewWindow, archiveFrozen, replaceProcessingWindow, adoptCleanup, settleCleanup, resiliencePolicy, processingWindow, safeFailureRetry, requeueSafeWork } from './resilience.js';
 import { recordAcquisition } from '../resource-acquisition.js';
-
-function finishDelivery(c: TaskContext, e: TaskEvent, detail: string, code?: string) {
-  if (c.candidate && code) c.candidate.deliveryIssue = { code, detail };
-  const usable = c.candidate?.text.trim() || c.artifacts.some(item => item.goalVersion === c.goalVersion && item.content.trim());
-  finish(c, e, usable ? 'partial' : 'failed', detail);
-}
 
 export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
   const c = structuredClone(original);
@@ -65,7 +59,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     if (resumeCheck && work.status === 'pending' && work.requestCount > 0 && !hasDeliveryRetryPermit(c, work)) {
       if (deliveryInterruptionPending(c)) release(c, work.id);
       else if (canRetryDeliveryCheck(c, work, e.at)) reserveDeliveryRetry(c, work);
-      else finishDelivery(c, e, '检查未完成，无法重新授权中断的检查请求', 'CHECK_RECOVERY_EXHAUSTED');
+      else finishDeliveryCheck(c, e, '检查未完成，无法重新授权中断的检查请求', 'CHECK_RECOVERY_EXHAUSTED', work);
     }
     return c;
   }
@@ -237,7 +231,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const versionProblem = deliveryVersionProblem(c, e);
       if (versionProblem) {
         if (!deliveryInterruptionPending(c)) {
-          finishDelivery(c, e, versionProblem, versionProblem);
+          finishIncompleteDelivery(c, e, versionProblem, versionProblem);
         }
         reject(c, versionProblem.split(':')[0]!);
         break;
@@ -259,8 +253,8 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       deliveryCandidate(c);
       if (deliveryInterruptionPending(c)) break;
       if (problem) {
-        c.candidate.deliveryIssue = { code: problem.code };
-        finishDelivery(c, e, problem.code, problem.code);
+        const detail = problem.code === 'CHECK_BUDGET_EXHAUSTED' ? '检查额度已用尽，当前交付未完成核检。' : problem.code;
+        finishDeliveryCheck(c, e, detail, problem.code);
         break;
       }
       const selected = new Set([...c.candidate.artifactIds, ...(c.candidate.backgroundArtifactIds ?? [])]);
@@ -304,7 +298,8 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         const issue = deliveryVersionProblem(c, delivery);
         if (issue) {
           delete work.criteriaResults;
-          finishDelivery(c, e, missingResources ? `${outcome.detail}；检查修正未保存（${issue}）` : issue, outcome.code ?? issue);
+          if (missingResources) finishIncompleteDelivery(c, e, `${outcome.detail}；检查修正未保存（${issue}）`, outcome.code);
+          else finishDeliveryCheck(c, e, issue, issue, work);
           break;
         }
         const artifactIds = saveReports(c, delivery, c.sourceArtifact && !e.repair.artifacts.length ? '' : e.repair.text, work.target, e.repair.artifacts);
@@ -315,15 +310,14 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         work.payload.candidate = structuredClone(c.candidate);
         work.payload.artifacts = c.artifacts.filter(artifact => artifactIds.includes(artifact.id));
       }
-      if (outcome.kind === 'complete' || missingResources) {
+      if ((outcome.kind === 'complete' || missingResources) && work.payload.manualCheck !== true) {
         const findings = e.criteriaResults!.filter(result => result.status !== 'passed');
         if (findings.length) c.candidate!.text += '\n\n未完成或未核实事项：\n' + findings.map(item => `- ${item.reason}`).join('\n');
-        if (outcome.kind === 'complete') {
-          if (outcome.detail && !findings.length) c.candidate!.text += '\n\n未完成或未核实事项：\n- ' + outcome.detail;
-          finish(c, e, 'complete', '');
-        }
+        else if (outcome.kind === 'complete' && outcome.detail) c.candidate!.text += '\n\n未完成或未核实事项：\n- ' + outcome.detail;
       }
-      if (outcome.kind === 'finish') finishDelivery(c, e, outcome.detail ?? `检查未完成（${outcome.code}）`, outcome.code);
+      const detail = outcome.kind === 'finish' ? outcome.detail ?? `检查未完成（${outcome.code}）` : outcome.detail;
+      if (missingResources || outcome.code === 'CHECK_EVIDENCE_CHANGED') finishIncompleteDelivery(c, e, detail ?? outcome.code!, outcome.code);
+      else finishDeliveryCheck(c, e, detail, outcome.code, work);
       break;
     }
     case 'STOP':
@@ -341,11 +335,23 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const work = c.intents.find(i => i.id === e.intentId);
       const unfinishedCheck = settlingDeliveryCheck(c, work) && !deliveryInterruptionPending(c);
       release(c, e.intentId);
-      if (unfinishedCheck) finishDelivery(c, e, '检查工作已结算，未收到可发布的检查结果', 'CHECK_NOT_COMPLETED');
+      if (unfinishedCheck) finishDeliveryCheck(c, e, '检查工作已结算，未收到有效的检查结果', 'CHECK_NOT_COMPLETED', work);
       if (work?.kind === 'tool' && !c.stopped && fresh(c, { ...e, fence: { epoch: work.epoch, goalVersion: work.goalVersion } })) owner(c, e, { toolResult: work.id });
       break;
     }
     case 'CONTINUE':
+      if (e.retryCheck) {
+        const previous = currentDeliveryCheck(c)!;
+        const { deliveryIssue: _issue, ...candidate } = c.candidate!;
+        const evidence = c.deliveryCycle!.evidence;
+        if (e.newWindowMs !== undefined) replaceProcessingWindow(c, e, e.newWindowMs);
+        c.epoch++; c.outcome = null; c.reason = '';
+        c.deliveryCycle = { ...newDeliveryCycle(), ...(evidence ? { evidence } : {}) };
+        message(c, e, 'user', e.text ?? '重试检查', 'user');
+        const work = intent(c, e.at, 'check', previous.target, { ...previous.payload, candidate, manualCheck: true });
+        bindDeliveryCheck(c, work);
+        break;
+      }
       if (e.newWindowMs !== undefined && c.outcome === null && !c.stopped && windowExpired(c, e.at)) {
         requestNewWindow(c, e);
         const gate = taskHumanGate(c)!;
@@ -497,7 +503,12 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         if (requiredHumanFailure(c, e))
           openHumanGate(c, e, { kind: 'authorization', workId: work.id, question: `需要处理权限或配置：${failureReason}` });
         if (!c.stopped && !deliveryInterruptionPending(c)) {
-          if (isBoundedCheck(work)) finishDelivery(c, e, `检查未完成（${failureReason}）`, 'DELIVERY_CHECK_FAILED');
+          if (isBoundedCheck(work)) {
+            const code = e.checkDiagnostic?.code ?? e.code ?? 'DELIVERY_CHECK_FAILED';
+            const detail = `检查未完成（${failureReason}）`;
+            if (code === 'CHECK_EVIDENCE_CHANGED' || code === 'CHECK_EVIDENCE_REVOKED') finishIncompleteDelivery(c, e, detail, code);
+            else finishDeliveryCheck(c, e, detail, code, work);
+          }
         }
         if (work.kind === 'facilitator') {
           c.reason = `协调工作未能完成：${failureReason}。请重试或补充处理方式。`;
@@ -554,7 +565,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         c.reason = taskHumanGate(c)!.question; break;
       }
       if (recoveryCheckExhausted(c, e.at)) {
-        finishDelivery(c, e, '检查未完成，无法重新授权中断的检查请求', 'CHECK_RECOVERY_EXHAUSTED');
+        finishDeliveryCheck(c, e, '检查未完成，无法重新授权中断的检查请求', 'CHECK_RECOVERY_EXHAUSTED');
         break;
       }
       for (const work of c.intents.filter(i => i.status === 'inflight' && i.kind !== 'cancel')) {

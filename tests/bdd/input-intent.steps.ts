@@ -386,6 +386,7 @@ Then('全部角色仍应收到原始目标硬约束并据此检查交付', funct
   assert.deepEqual(check.criteriaResults?.filter(result => result.status === 'failed').map(result => result.criterionId),
     (request.context.requirements as AcceptanceCriterion[]).filter(criterion => criterion.text === '不得改用私有资料' || criterion.text === '包含恢复风险').map(criterion => criterion.id));
   assert(f.context().candidate!.text.includes('未完成或未核实事项：\n- 报告内容与原始硬约束不符'));
-  assert.equal(f.context().messages.at(-1)?.text, f.context().candidate!.text);
+  assert.equal(f.context().messages.filter(message => message.kind === 'final').at(-1)?.text, f.context().candidate!.text);
+  assert(f.context().messages.at(-1)?.text.includes('报告内容与原始硬约束不符'));
   assert.deepEqual(f.engine.pending(f.room, f.task), []);
 });

@@ -106,7 +106,7 @@ function fixedCheckMaterials(c: TaskContext, work: Intent): CheckMaterials {
   if (!candidate?.revision || !candidate.acceptance || candidate.revision !== c.candidate?.revision
     || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion || c.stopped) throw new WorkFailure('STALE_CANDIDATE_CHECK');
   const materials = deliveryCheckMaterials(c, work);
-  if (!materials) throw new WorkFailure('CHECK_EVIDENCE_CHANGED');
+  if (!materials) throw new WorkFailure('CHECK_EVIDENCE_CHANGED', false, false, undefined, 'CHECK_EVIDENCE_CHANGED');
   return materials;
 }
 
@@ -608,7 +608,7 @@ export class WorkRunner {
         const current = this.engine.view(roomId, taskId)!.context;
         if (!localEnabled(this.engine.config, work.target) && current.deliveryCycle?.evidence?.length
           && current.deliveryCycle.evidence.some(ref => evidenceIndex(current, currentWork()).find(source => source.evidenceId === ref.id)?.command.type !== 'webFetch'))
-          throw new WorkFailure('CHECK_EVIDENCE_REVOKED');
+          throw new WorkFailure('CHECK_EVIDENCE_REVOKED', false, false, undefined, 'CHECK_EVIDENCE_REVOKED');
         const materials = fixedCheckMaterials(current, currentWork());
         work.payload.checkMaterials = materials;
         scope.authorizeAdditionalRequest(initialModelRequestId);

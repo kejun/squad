@@ -36,7 +36,7 @@ export function canRetryWork(c: TaskContext, e: TaskEvent): boolean {
 }
 
 export function canRetryDeliveryCheck(c: TaskContext, work: Intent, at: number, protocolError = false): boolean {
-  return !!c.deliveryCycle && (!c.deliveryCycle.retry || !protocolError && c.config.limits.retries === maximumCount && c.deliveryCycle.retry.status === 'used') && !c.stopped && work.requestCount > 0
+  return work.payload.manualCheck !== true && !!c.deliveryCycle && (!c.deliveryCycle.retry || !protocolError && c.config.limits.retries === maximumCount && c.deliveryCycle.retry.status === 'used') && !c.stopped && work.requestCount > 0
     && c.usage.retries < c.config.limits.retries && !deliveryCheckBudgetProblem(c, true)
     && (work.deadline === null || at < work.deadline);
 }

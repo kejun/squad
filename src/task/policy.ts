@@ -2,7 +2,7 @@ import { humanGateProblem, windowExpired, workInCleanup, taskHumanGate } from '.
 import { acquisitionEventProblem } from '../resource-acquisition.js';
 import { modelOutputIssues, type InputReference, type TaskContext, type TaskEvent } from '../types.js';
 import { localAwaitingApproval, localEventProblem, localPhysicalPending, localUnsettled } from '../local-operation.js';
-import { boundCheckProblem, hasDeliveryRetryPermit, isBoundedCheck } from './delivery.js';
+import { boundCheckProblem, currentDeliveryCheck, deliveryCheckBudgetProblem, hasDeliveryRetryPermit, isBoundedCheck } from './delivery.js';
 import { requestBudgetProblem } from './budget.js';
 import { allInflight, discussionActive, fresh, hasOrdinary, incompatibleExecution, isBot, workLaneAvailable } from './facts.js';
 import { validArtifactDrafts, validSummary } from '../presentation.js';
@@ -182,6 +182,12 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       const upgraded = legacyTerminalConfig(c, e.currentConfig);
       if (!upgraded && (incompatibleExecution(c) || e.currentConfig && taskProtocolChanged(c.config, e.currentConfig))) return 'INCOMPATIBLE_EXECUTION';
       if (allInflight(c).length || c.intents.some(i => i.status === 'uncertain' && !workInCleanup(c, i))) return 'UNRESOLVED_WORK';
+      if (e.retryCheck) {
+        const check = currentDeliveryCheck(c);
+        if (c.outcome !== 'complete' || !check || !c.candidate?.revision || c.publishedDelivery?.revision !== c.candidate.revision
+          || !c.candidate.deliveryIssue && !check.criteriaResults?.some(result => result.status !== 'passed')) return 'CHECK_RETRY_NOT_AVAILABLE';
+        return deliveryCheckBudgetProblem(c);
+      }
       if (!(upgraded ?? c.config).bots.some(bot => bot.id === c.owner)) return 'OWNER_UNAVAILABLE';
       if (e.extraOrdinary !== undefined && (!Number.isSafeInteger(e.extraOrdinary) || e.extraOrdinary <= 0)) return 'INVALID_BUDGET';
       return hasOrdinary(c) || e.extraOrdinary ? null : 'BUDGET_EXHAUSTED';
