@@ -10,3 +10,5 @@
 核查结论：四项分别对应用户确认的发现、缓存、协议修正和检查输入。裁剪只影响发送给模型的材料；验收检查以当前候选和原始用户要求为准。缓存用量和实际发送量分别观测。实测应比较整次 check 的输入、往返和判据结果。
 
 状态对应关系：`REGENERATE_MODEL_OUTPUT` 只在已有模型请求、当前工作有效且两种额度充足时授予一次单动作修正。状态机仍分开记录模型请求与工具执行，最终检查 JSON 仍走原技术补试。`LOCAL_REQUEST` 的动作、权限、持久化和执行守卫保持原语义。证据分页只读已绑定的 `CheckMaterials`，使用 `CONSUME` 授权下一次模型请求。缓存和发现投影均在模型传输边界，无任务状态转移。
+
+形式化对应审查：`policy.ts`、`reducer.ts`、`types.ts` 对已有模型输出修复事件增加单动作本地约束，保留停止、迟到、额度和版本校验；`tests/tool-action-repair-model-fixture.ts` 通过真实 XState 和快照往返验证该分支。`local-operation.ts`、`web-tools.ts` 将原协议字段校验转成可诊断反馈，不转移操作所有权。`model-adapter.ts`、`receipt-projection.ts`、`check-model-input.ts`、`model-tool-inventory.ts`、`tool-knowledge.ts`、`evidence-reader.ts` 属于传输投影与已保存证据查读；`measurement.ts`、`measurement-report.ts` 只解释供应商返回的用量。原有有限状态图验证不包含供应商缓存实际命中率与按需取证的模型选择质量。
