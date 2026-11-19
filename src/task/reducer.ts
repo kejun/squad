@@ -91,6 +91,9 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       if (c.discussion?.mapReduce?.summaryLayer?.topId) {
         owner(c, e, { summaryHandoff: true });
         message(c, e, 'facilitator', `顶层摘要已交给 ${c.owner}。`, 'notice', { recipient: c.owner });
+      } else if (c.discussion?.mapReduce?.resultAggregation) {
+        owner(c, e);
+        message(c, e, 'facilitator', `组内成果、原始引用及缺口已交给 ${c.owner}。`, 'notice', { recipient: c.owner });
       } else {
         owner(c, e, { reason: '吸收协调员汇总和全部成员原始意见，在已有草稿上继续完善；区分共识、分歧、依据和未完成项。', previousBlocker: c.reason });
         message(c, e, 'facilitator', `讨论汇总及成员原始意见已交给 ${c.owner}，已安排继续完善方案。`, 'notice', { recipient: c.owner });

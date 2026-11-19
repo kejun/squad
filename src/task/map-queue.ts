@@ -1,13 +1,18 @@
 import type { Candidate, DiscussionRound, Intent, MapPartitionRun, TaskContext, TaskEvent } from '../types.js';
-import { localPhysicalPending } from '../local-operation.js';
+import { localEnabled, localPhysicalPending } from '../local-operation.js';
 import { availableMapReduceMembers } from './map-reduce-capacity.js';
 import { discussionIntent, summarizeDiscussion } from './discussion.js';
 import { assignSummaryBatch } from './hierarchical-summary.js';
 import { hostRetryReservation } from '../host-retry.js';
 import { consumePartitionMethod, newPartitionMethod, partitionMayDispatch, schedulingState, sharedPrerequisiteFailures } from './map-scheduling.js';
 import { processingWindow, taskHumanGate, windowExpired } from './resilience.js';
+import { aggregationGroupPayload } from './result-aggregation.js';
 
 const active = (part: MapPartitionRun) => ['running', 'uncertain'].includes(part.status);
+function mayDispatch(c: TaskContext, part: MapPartitionRun, target: string): boolean {
+  const group = c.discussion?.mapReduce?.resultAggregation?.[part.partitionId];
+  return group ? group.inline || localEnabled(c.config, target) : partitionMayDispatch(c, part, target);
+}
 export const queuedMapPartitions = (c: TaskContext) => c.discussion?.status === 'collecting'
   ? c.discussion.mapReduce?.queue?.filter(part => part.status === 'queued').length ?? 0 : 0;
 
@@ -90,14 +95,14 @@ function observedStatus(c: TaskContext, part: MapPartitionRun): MapPartitionRun[
 function queueBudget(c: TaskContext, extra = 0): boolean {
   const round = c.discussion!, queued = queuedMapPartitions(c) + extra;
   const pending = c.intents.filter(work => work.discussionId === round.id && work.status === 'pending').length;
-  const downstreamRequests = round.mapReduce?.summaryLayer ? 1 : 2;
+  const downstreamRequests = round.mapReduce?.summaryLayer || round.mapReduce?.resultAggregation ? 1 : 2;
   return c.usage.assists + queued <= c.config.limits.assists
     && c.usage.ordinary + pending + queued + downstreamRequests + hostRetryReservation(c) <= c.config.limits.ordinary;
 }
 
 function canReevaluate(c: TaskContext, at: number): MapPartitionRun | undefined {
   const round = c.discussion, plan = round?.mapReduce;
-  if (!plan?.queue || c.stopped || c.outcome !== null || round!.epoch !== c.epoch || round!.goalVersion !== c.goalVersion
+  if (!plan?.queue || plan.resultAggregation || c.stopped || c.outcome !== null || round!.epoch !== c.epoch || round!.goalVersion !== c.goalVersion
     || round!.status === 'cancelled' || c.usage.retries >= c.config.limits.retries
     || c.intents.some(work => work.discussionId === round!.id && work.kind === 'discussionSummary' && work.status === 'inflight')) return undefined;
   const window = processingWindow(c);
@@ -140,7 +145,7 @@ export function mapQueueNeedsProgress(c: TaskContext, at: number): boolean {
   if (!queue.some(part => active(part) || part.status === 'queued')) return true;
   if (queued.some(part => at >= part.deadline) || queued.length && !queueBudget(c)) return true;
   return queued.length > 0 && queue.filter(active).length < c.discussion!.mapReduce!.concurrency!
-    && availableMapReduceMembers(c).some(member => queued.some(part => partitionMayDispatch(c, part, member.id)));
+    && availableMapReduceMembers(c).some(member => queued.some(part => mayDispatch(c, part, member.id)));
 }
 
 export function advanceMapQueue(c: TaskContext, e: TaskEvent): void {
@@ -173,20 +178,23 @@ export function advanceMapQueue(c: TaskContext, e: TaskEvent): void {
   let dispatched = 0;
   for (const member of members) {
     if (dispatched >= slots) break;
-    const part = queue.find(part => part.status === 'queued' && partitionMayDispatch(c, part, member.id));
+    const part = queue.find(part => part.status === 'queued' && mayDispatch(c, part, member.id));
     if (!part) continue;
-    const definition = plan.partitions.find(item => item.id === part.partitionId)!;
-    const method = consumePartitionMethod(c, part, member.id);
-    const work = discussionIntent(c, e, 'assistance', member.id);
+    const group = plan.resultAggregation?.[part.partitionId];
+    const method = group ? undefined : consumePartitionMethod(c, part, member.id);
+    const work = discussionIntent(c, e, 'assistance', member.id, group ? aggregationGroupPayload(c, group) : undefined);
     part.status = 'running'; part.attempt++; part.workId = work.id; part.target = member.id;
     work.deadline = Math.min(work.deadline!, part.deadline);
-    Object.assign(work.payload, { question: definition.objective, expected: definition.expectedOutput,
-      partition: structuredClone(definition), partitionAttempt: part.attempt, instructions: member.instructions,
-      ...(method ? { verifiedReadMethod: { id: method.id, sourceOperationId: method.sourceOperationId, resource: method.resource } } : {}) });
-    plan.assignments.push({ partitionId: part.partitionId, target: member.id, workId: work.id, attempt: part.attempt });
+    work.payload.partitionAttempt = part.attempt;
     if (!round.targets.includes(member.id)) round.targets.push(member.id);
-    if (plan.summaryLayer) assignSummaryBatch(c, work, part.partitionId);
-    else work.payload.discussion = structuredClone(round);
+    if (!group) {
+      const definition = plan.partitions.find(item => item.id === part.partitionId)!;
+      Object.assign(work.payload, { question: definition.objective, expected: definition.expectedOutput, partition: structuredClone(definition), instructions: member.instructions,
+        ...(method ? { verifiedReadMethod: { id: method.id, sourceOperationId: method.sourceOperationId, resource: method.resource } } : {}) });
+      plan.assignments.push({ partitionId: part.partitionId, target: member.id, workId: work.id, attempt: part.attempt });
+      if (plan.summaryLayer) assignSummaryBatch(c, work, part.partitionId);
+      else work.payload.discussion = structuredClone(round);
+    }
     c.usage.assists++; dispatched++;
   }
   if (queue.some(part => active(part) || part.status === 'queued')) return;

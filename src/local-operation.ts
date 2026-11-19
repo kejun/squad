@@ -199,6 +199,7 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
         || !Array.isArray(event.messages) || !event.messages.every(m => m && ['user', 'assistant'].includes(m.role) && typeof m.content === 'string')
         || !checkpointWithinLimit(work, event.messages)) return 'INVALID_LOCAL_REQUEST';
       if (op) return op.requestHash === event.requestHash ? 'LOCAL_ALREADY_REQUESTED' : 'LOCAL_REQUEST_CONFLICT';
+      if (work.payload.resultAggregation === 'group' && event.action.type !== 'readArtifact') return 'AGGREGATION_READ_ONLY';
       if (localUnsettled(work)) return 'LOCAL_OPERATION_PENDING';
       if (event.action.type === 'runCli' && repeatedCliFailures(work, event.action) >= 2) return 'CLI_REPEAT_FAILURE_LIMIT';
       if (isSavedRead(event.action) && event.workspaceId !== undefined) return 'INVALID_LOCAL_REQUEST';

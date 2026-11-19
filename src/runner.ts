@@ -285,6 +285,7 @@ export class WorkRunner {
       if (!response.ok) throw new WorkFailure(response.code);
     }, findSkills: async (query, signal) => {
       this.assertAttached();
+      if (work.payload.resultAggregation === 'group') throw new WorkFailure('AGGREGATION_READ_ONLY');
       const current = this.engine.view(roomId, taskId)!.context;
       if (this.engine.config.skillSearch?.enabled === false || current.config.skillSearch?.enabled === false) throw new WorkFailure('SKILL_SEARCH_DISABLED');
       if (!['owner', 'assistance', 'facilitator'].includes(work.kind)) throw new WorkFailure('SKILL_SEARCH_NOT_ALLOWED');
@@ -595,7 +596,7 @@ export class WorkRunner {
         if (refreshed?.localOperations) work.localOperations = refreshed.localOperations;
         if (refreshed?.localCheckpoint) work.localCheckpoint = refreshed.localCheckpoint;
       }
-      if (work.kind !== 'check' && scope.localTools && localEnabled(this.engine.config, work.target)
+      if (work.kind !== 'check' && !work.payload.resultAggregation && scope.localTools && localEnabled(this.engine.config, work.target)
         && (work.payload.capabilities as { localTools?: boolean } | undefined)?.localTools === true) {
         work.payload.evidenceIndex = evidenceIndex(context, work);
       }

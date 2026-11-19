@@ -15,7 +15,8 @@ export function requestBudgetProblem(c: TaskContext, work: Intent): string | nul
     const round = c.discussion!;
     const pending = c.intents.filter(i => i.discussionId === round.id && i.status === 'pending' && i.id !== work.id).length;
     // Reserve every already-promised participant, coordinator synthesis and one owner continuation.
-    const coordinationReserve = round.status === 'planning' ? 2 : round.status === 'collecting' && !round.mapReduce?.summaryLayer ? 1 : 0;
+    const coordinationReserve = round.status === 'planning' ? 2
+      : round.status === 'collecting' && !round.mapReduce?.summaryLayer && !round.mapReduce?.resultAggregation ? 1 : 0;
     const reserve = 1 + pending + queuedMapPartitions(c) + coordinationReserve;
     if (c.usage.ordinary + 1 + reserve + hostReserve > c.config.limits.ordinary) return 'DISCUSSION_BUDGET_RESERVED';
   }

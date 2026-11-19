@@ -150,6 +150,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
       if (c.hostRetryBatch?.workId === i.id && localUnsettled(i)) return 'LOCAL_OPERATION_PENDING';
       if (e.capability) {
+        if (i.payload.resultAggregation === 'group') return 'AGGREGATION_READ_ONLY';
         if (!['owner', 'assistance', 'facilitator', 'check'].includes(i.kind)) return 'WEB_TOOLS_NOT_ALLOWED';
         if (c.config.webTools?.enabled === false) return 'WEB_TOOLS_DISABLED';
       }

@@ -1524,6 +1524,22 @@ flowchart TD
 一页是 `readSavedArtifact` 已有的 4000 个 Unicode 码点。直接来源索引在组请求时从产物编号、`documentId`、`revision` 和 `goalVersion` 派生，不含正文。读某一篇仍是 `readArtifact`。固定检查材料保持全文，装不下时仍是 `CHECK_CONTEXT_LIMIT`。
 分层轮次只预留一份方案师续办额度。分片仍通过持久派发、领取和结果回传运行。合法恢复使用已保存结果一次结算，退休旧的协调员结算工作。停止、期限、目标版本和迟到工作仍按各自守卫校验。
 
+## 主笔树形归并
+
+类型：普通分片队列的上下文生命周期与模型输入投影。状态所有者仍是 `taskMachine`。`map-queue` 安排组工作，`discussion` 结算成果，`operations` 组装主笔材料。对应 BT_Q58–BT_Q61。
+
+```mermaid
+flowchart TD
+  A[collecting：原分片] -->|全部已结算且容量满足，保存分组| B[collecting：归并组]
+  A -->|材料小或容量不足| C[既有协调员交接]
+  B -->|DISCUSSION_RESULT / 保存成果和原始引用| B
+  B -->|组均结算 / 保留成功成果和失败缺口| D[ready]
+  D -->|DISCUSSION_HANDOFF / 持久派发一次主笔| E[delivered]
+  E -->|主笔提交候选| F[既有独立检查]
+```
+
+组意图与原分片共用队列，绑定当前任务轮次、目标版本和已结算结果。原分片定义、责任和证据仍用于独立检查。宿主按原有链路保存、领取、执行并回收组意图。组失败、过期或跳过时，原始来源进入主笔交接。停止、换目标及恢复复用原守卫，运行中的已作废结果无法继续交接。组内 `readArtifact` 按已绑定来源与现有额度执行。
+
 ## 模型请求的上下文与工具修正
 
 类型：请求投影与检查材料读取流程。所有者为 `OpenAICompatibleAdapter`、`WorkRunner` 和 `taskMachine`。对应 BT_Y180、BT_M68–M69、BT_F19、BT_F22、BT_F24、BT_F84。

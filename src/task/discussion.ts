@@ -1,17 +1,19 @@
 import { codePointLength, savedPageCodePoints } from '../saved-page.js';
 import { localPhysicalPending } from '../local-operation.js';
+import { compactMessage } from '../presentation.js';
 import { type Decision, type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { capabilities, discussionActive, fence } from './facts.js';
 import { hierarchicalContext, settleHierarchicalLayer, summaryTop, validShortArtifact } from './hierarchical-summary.js';
 import { recordMapResult } from './map-queue.js';
 import { conversationInput, intent, message, release, saveReports } from './operations.js';
 import { workInCleanup } from './resilience.js';
+import { beginResultAggregation, validGroupResult } from './result-aggregation.js';
 
-export function discussionIntent(c: TaskContext, e: TaskEvent, kind: Intent['kind'], target: string) {
+export function discussionIntent(c: TaskContext, e: TaskEvent, kind: Intent['kind'], target: string, payload?: Record<string, unknown>) {
   const hierarchical = !!c.discussion?.mapReduce?.summaryLayer;
-  const work = intent(c, e.at, kind, target, hierarchical
+  const work = intent(c, e.at, kind, target, payload ?? (hierarchical
     ? hierarchicalContext(c)
-    : { goal: c.goal, board: c.board, artifacts: c.artifacts, ...conversationInput(c), roster: c.config.bots, capabilities: capabilities(c) });
+    : { goal: c.goal, board: c.board, artifacts: c.artifacts, ...conversationInput(c), roster: c.config.bots, capabilities: capabilities(c) }));
   work.discussionId = c.discussion!.id;
   return work;
 }
@@ -41,6 +43,11 @@ export function summarizeDiscussion(c: TaskContext, e: TaskEvent) {
     }
     return;
   }
+  if (round.mapReduce?.resultAggregation) {
+    discussionReady(c, e, '各组已结算，保留组成果、原始来源及缺口。');
+    return;
+  }
+  if (round.mapReduce?.queue && beginResultAggregation(c, e)) return;
   round.status = 'summarizing';
   discussionIntent(c, e, 'discussionSummary', 'facilitator');
 }
@@ -127,6 +134,17 @@ function stopHierarchicalSummary(c: TaskContext, e: TaskEvent, reason: string) {
 
 export function acceptDiscussion(c: TaskContext, e: Extract<TaskEvent, { type: 'DISCUSSION_RESULT' }>) {
   const work = c.intents.find(item => item.id === e.workId)!;
+  if (work.payload.resultAggregation === 'group') {
+    release(c, work.id);
+    const accepted = e.status !== 'failed' && validGroupResult(e.text);
+    const artifactIds = accepted ? saveReports(c, e, '', work.target, [{ name: 'group-result.md', content: e.text }]) : [];
+    const reason = accepted && e.status === 'success' ? undefined
+      : accepted ? '本组仅部分完成' : e.status === 'failed' ? e.summary ?? compactMessage(e.text) : '组成果为空或超出交接预算';
+    recordMapResult(c, e, work, { target: work.target, status: accepted ? e.status : 'failed', answer: '', artifactIds,
+      ...(reason ? { reason } : {}) });
+    message(c, e, work.target, reason || '已保存组内归并成果', accepted ? 'answer' : 'notice', { artifactIds });
+    return;
+  }
   const sourceIds = work.payload.sourceIds as string[] | undefined;
   if (sourceIds && c.discussion?.mapReduce?.summaryLayer && work.kind === 'assistance') {
     release(c, work.id);

@@ -157,10 +157,19 @@ export interface SummaryLayer {
   carried: SummarySourceFailure[]; inputCount: number; topId?: string;
   roundSources: Record<string, string[]>;
 }
+export interface AggregationSource {
+  resultRef: string;
+  artifactIds: string[];
+}
+export interface ResultAggregationGroup {
+  sources: AggregationSource[];
+  inline: boolean;
+}
 export interface DiscussionRound extends Fence {
   mapReduce?: MapReducePlan & { inputId: string; assignments: { partitionId: string; target: string; workId?: string; attempt?: number }[];
     scheduling?: import('./task/map-scheduling.js').MapSchedulingState;
-    concurrency?: number; queue?: MapPartitionRun[]; summaryLayer?: SummaryLayer };
+    concurrency?: number; queue?: MapPartitionRun[]; summaryLayer?: SummaryLayer;
+    resultAggregation?: Record<string, ResultAggregationGroup> };
   id: string; request: string; targets: string[];
   status: 'planning' | 'collecting' | 'summarizing' | 'ready' | 'delivered' | 'cancelled';
   skipped: { target: string; reason: string }[];
