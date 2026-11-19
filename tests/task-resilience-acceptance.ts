@@ -48,7 +48,7 @@ export async function runResilienceAcceptance(id: string, detail: string): Promi
     }
     return wrap(m, detail);
   }
-  if (id === 'BT_Y04' && detail === '检查提供方权限缺失') { const m = resilienceRequiredFailureGate('check'); return wrap(m, detail); }
+  if (id === 'BT_Y04' && detail === '协助提供方权限缺失') { const m = resilienceRequiredFailureGate('assistance'); return wrap(m, detail); }
   if (id === 'BT_Y04') { const m = new ResilienceModel(); const gate = m.waiting(); m.supervise(101); assert(m.send({ type: 'RECOVER', config: m.c.config }).ok); m.supervise(200); return wrap(m, detail, gate.id); }
   if (id === 'BT_Y05') {
     if (detail.startsWith('澄清门')) {

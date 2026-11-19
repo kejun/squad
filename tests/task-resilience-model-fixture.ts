@@ -402,14 +402,15 @@ export function resilienceRepeatedPartialGate() {
   assert(m.send({ type: 'ARTIFACT', artifact: { id: 'first-selection', name: 'first.md', content: '第一版业务正文' } }).ok);
   const owner1 = m.claim(); assert(m.send({ type: 'DELIVER', workId: owner1.id, fence: owner1, text: '第一版摘要', artifactIds: ['first-selection'] }).ok);
   const check1 = m.claim('check'); assert(m.send({ type: 'CONSUME', intentId: check1.id, fence: check1 }).ok);
-  assert(m.send({ type: 'WORK_FAILED', intentId: check1.id, reason: '独立检查未完成', transient: false }).ok);
+  assert(m.send({ type: 'EXHAUSTED', reason: '宿主结束自动执行并保留已有成果' }).ok);
+  assert(m.send({ type: 'SETTLE', intentId: check1.id, attempt: check1.attempt }).ok);
   assert.equal(m.c.outcome, 'partial'); const first = structuredClone(m.c.resilience!.frozen)!;
   const firstShadow = m.c.artifacts.find(a => a.content === '第一版摘要')!; assert(firstShadow); const frozenShadow = structuredClone(firstShadow);
   assert(m.send({ type: 'CONTINUE' }).ok);
   assert(m.send({ type: 'ARTIFACT', artifact: { id: 'current-selection', name: 'second.md', content: '第二版业务正文' } }).ok);
   const owner2 = m.claim(); assert(m.send({ type: 'DELIVER', workId: owner2.id, fence: owner2, text: '第二版摘要', artifactIds: ['current-selection'] }).ok);
   const check2 = m.claim('check'); assert(m.send({ type: 'CONSUME', intentId: check2.id, fence: check2 }).ok);
-  assert(m.send({ type: 'WORK_FAILED', intentId: check2.id, reason: '第二次独立检查未完成', transient: false }).ok);
+  assert(m.send({ type: 'EXHAUSTED', reason: '宿主结束本次执行并保留已有成果' }).ok);
   assert.equal(m.c.outcome, 'partial'); assert.equal(new Set(m.c.artifacts.map(a => a.id)).size, m.c.artifacts.length);
   const published = publicationIds(m.c)!; const selectedText = published.map(id => m.c.artifacts.find(a => a.id === id)!.content);
   assert(selectedText.includes('第二版摘要')); assert(!selectedText.includes('第一版摘要')); assert(!published.includes(firstShadow.id));

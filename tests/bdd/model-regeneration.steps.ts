@@ -64,7 +64,7 @@ Then('首检与补试的协议应明确要求检查标识和逐项结果两个�
   const retried = fixtureWorkInput(requests[1]);
   const { retryDiagnostic, ...materials } = retried.context;
   assert.equal(retried.workId, original.workId);
-  assert.deepEqual(retryDiagnostic, { code: 'CHECK_INVALID_RESULT' });
+  assert.deepEqual(retryDiagnostic, { code: 'CHECK_INVALID_RESULT', outputIssue: 'invalid_type' });
   assert.deepEqual(materials, original.context);
 });
 
@@ -94,12 +94,13 @@ Then('实际检查请求应为2次且仅消耗一次技术补试', function (thi
   assert.equal(f.h.context().usage.retries, 1);
   assert.equal(f.h.context().usage.checks, 2);
 });
-Then('应明确结束并保留原因而不批准交付或安排作者重写', function (this: SpecWorld) {
+Then('应完成交付并由核检员说明失败而不安排作者重写', function (this: SpecWorld) {
   const { h } = state(this).fixture;
   assert.equal(h.view().phase, 'ended');
-  assert.equal(h.context().outcome, 'partial');
+  assert.equal(h.context().outcome, 'complete');
   assert(h.context().candidate?.deliveryIssue?.detail);
-  assert.equal(h.context().publishedDelivery, undefined);
+  assert.equal(h.context().publishedDelivery?.revision, h.context().candidate?.revision);
+  assert(h.context().messages.at(-1)?.text.includes('是否重试'));
   assert.equal(h.engine.pending(h.room, h.task).length, 0);
 });
 
@@ -113,8 +114,9 @@ Then('应只发出首次请求且不应用不合规输出', function (this: Spec
   const f = state(this).fixture; assert.equal(f.requests.length, 1); assert.equal(f.repairs.length, 0);
   assert.equal(f.h.context().usage.retries, 0);
   assert.equal(f.h.view().phase, f.kind === 'check' ? 'ended' : 'waitingHuman');
-  assert.equal(f.h.context().outcome, f.kind === 'check' ? 'partial' : null);
-  assert.equal(f.h.context().publishedDelivery, undefined);
+  assert.equal(f.h.context().outcome, f.kind === 'check' ? 'complete' : null);
+  assert.equal(f.h.context().publishedDelivery?.revision, f.kind === 'check' ? f.h.context().candidate?.revision : undefined);
+  assert(!f.work.criteriaResults);
   if (f.kind === 'owner') assert.equal(f.h.context().candidate, null);
 });
 
@@ -127,7 +129,7 @@ Given('首次不合规检查返回前发生{string}', function (this: SpecWorld,
 });
 Then('不得发出第二次请求或提交检查通过', function (this: SpecWorld) {
   const f = state(this).fixture; assert.equal(f.requests.length, 1); assert.equal(f.repairs.length, 0);
-  assert(!f.h.context().trace.some(t => t.event === 'CHECK_RESULT')); assert.notEqual(f.h.context().outcome, 'complete');
+  assert(!f.h.context().trace.some(t => t.event === 'CHECK_RESULT')); assert(!f.work.criteriaResults);
 });
 
 Given('模型请求返回{string}', function (this: SpecWorld, fault: string) {
@@ -144,34 +146,18 @@ Then('不应保存格式修正记录且仅瞬时供应商故障可自动重试',
   assert.equal(f.requests.length, s.expectedRequests);
   assert.equal(f.repairs.length, 0);
   const c = f.h.context();
-  if (s.providerFault === 'HTTP401') {
-    assert.equal(f.h.view().phase, 'waitingHuman'); assert.equal(c.outcome, null);
-    const gate = c.resilience?.gates.find(gate => gate.kind === 'authorization' && gate.scope === 'task' && gate.required && gate.status === 'open');
-    assert(gate);
-    f.h.now = c.resilience!.window.hardDeadline + 1; f.h.engine.tick(f.h.room);
-    assert.equal(f.h.view().phase, 'waitingHuman'); assert.equal(f.h.context().outcome, null);
-    assert.equal(f.h.context().resilience!.gates.find(item => item.id === gate.id)!.status, 'open');
-    assert.equal(f.requests.length, 1); assert.equal(f.h.context().usage.retries, 0);
-    assert(f.h.event({ type: 'HUMAN_GATE_DECISION', gateId: gate.id, decision: 'skip', fence: f.h.context() }).ok);
-    assert.equal(f.h.view().phase, 'ended'); assert.equal(f.h.context().outcome, 'partial');
-    assert.equal(f.h.context().resilience!.gates.find(item => item.id === gate.id)!.status, 'skipped');
-  } else {
-    assert.equal(f.h.view().phase, 'ended'); assert.equal(c.outcome, 'partial');
-  }
+  assert.equal(f.h.view().phase, 'ended'); assert.equal(c.outcome, 'complete');
+  assert(!c.resilience?.gates.some(gate => gate.status === 'open'));
+  assert(c.candidate?.deliveryIssue);
   assert.equal(f.h.context().usage.retries, s.expectedRequests! - 1);
 });
-Then('供应商正文不得替换原候选或发布为成功交付', function (this: SpecWorld) {
+Then('应发布原候选并保证供应商响应不进入交付正文', function (this: SpecWorld) {
   const s = state(this), c = s.fixture.h.context(), original = s.originalCandidate!;
   assert.equal(c.candidate!.text, original.text); assert.equal(c.candidate!.revision, original.revision);
   assert.deepEqual(c.candidate!.artifactIds, original.artifactIds);
-  assert.equal(c.publishedDelivery, undefined); assert(!c.trace.some(entry => entry.event === 'CHECK_RESULT'));
+  assert.equal(c.publishedDelivery?.revision, original.revision); assert(!c.trace.some(entry => entry.event === 'CHECK_RESULT'));
   assert(!JSON.stringify(c).includes('private-provider-body'));
-  for (const artifact of c.artifacts) {
-    if (original.artifacts.some(old => old.id === artifact.id && old.content === artifact.content)) continue;
-    if (artifact.id === c.resilience?.frozen?.reportArtifactId) { assert.equal(artifact.content, c.resilience.frozen.text); continue; }
-    assert(artifact.id.startsWith(`${c.resilience!.window.id}:unverified-draft:`) && artifact.name === 'unverified-draft.md'
-      && artifact.content === original.text, 'Only the original candidate shadow and identified host report may be added; rejected provider content cannot become an artifact');
-  }
+  assert.deepEqual(c.artifacts.map(({ id, content }) => ({ id, content })), original.artifacts);
 });
 
 const secret = 'INVALID_RETURN_SECRET_DO_NOT_RETAIN';
@@ -288,7 +274,8 @@ Then('应正常交付已有成果并明确保留最终缺口', function (this: S
   assert.equal(h.view().phase, 'ended');
   assert.equal(h.context().outcome, 'complete');
   assert.equal(h.context().candidate?.text, '完整方案，依据 https://example.com\n\n未完成或未核实事项：\n- 计划尚未完成');
-  assert.equal(h.context().messages.at(-1)?.text, h.context().candidate?.text);
+  assert.equal(h.context().messages.find(message => message.kind === 'final')?.text, h.context().candidate?.text);
+  assert(h.context().messages.at(-1)?.text.includes('是否重试'));
   assert.equal(state(this).fixture.work.criteriaResults?.[0]?.status, 'failed');
   assert.equal(state(this).fixture.work.criteriaResults?.[0]?.reason, '计划尚未完成');
 });

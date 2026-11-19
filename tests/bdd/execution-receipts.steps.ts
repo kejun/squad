@@ -232,7 +232,9 @@ function prepare(id: string, labels: string[]): Run {
       }
     };
     run.verify = () => {
-      assert.equal(m.c.outcome, label === '全部要求尚未核实' ? 'complete' : 'partial');
+      assert.equal(m.c.outcome, 'complete');
+      assert.equal(m.c.publishedDelivery?.revision, m.c.candidate?.revision);
+      assert(m.c.messages.some(item => item.kind === 'notice' && item.text.includes('是否重试')));
       assert(m.c.artifacts.some(a => a.name === 'report.md'));
       if (label === '全部要求尚未核实') {
         const judgments = m.c.intents.find(work => work.kind === 'check')!.criteriaResults!;
@@ -400,7 +402,7 @@ const thens = [
   '应阻止使用变化后的凭证发布该候选', '不应靠相同长度或自报指纹掩盖变化', '不应将该方法标为已验证适用于本次资源',
   '原观察仍应保留其资源范围和验证前提', '工具建议应只表达已核实的非敏感前提', '不应产生正文读取成功事实或暴露凭据值',
   '应保留文档五的读取缺口', '不应发布完整交付或把文档四凭证移给文档五', '应保留候选及未核实的检查缺口',
-  '合法的未核实结论应声明缺口后正常交付而技术失败保留部分交付', '当前文件应只包含新目标明确选择的交付文件', '旧目标文件应可作为历史查阅且不能列为当前交付',
+  '应正常交付并由核检员说明未核实结论或技术失败', '当前文件应只包含新目标明确选择的交付文件', '旧目标文件应可作为历史查阅且不能列为当前交付',
   '应冻结该报告的当前文件选择', '其他草稿和未选择原文应保留在历史或依据中', '文件本身应包含任务目标与交付版本及部分完成状态',
   '应分别列出已核实、未核实、失败、跳过和未决效果', '已核实内容应保留可追溯资源和凭证引用', '宿主报告应明确部分完成及未核实草稿身份',
   '原始草稿应原样保留且不能冒充已证实终稿', '应保留冻结的正文和当前文件选择不变', '迟到结果只能追加原身份的历史或结算原资源',

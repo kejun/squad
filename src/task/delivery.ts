@@ -80,6 +80,13 @@ export function deliveryInterruptionPending(c: TaskContext, settlingWorkId?: str
   return deliveryHandoffPending(c) || pendingHostRetry(c) || c.intents.some(work => work.id !== settlingWorkId && localPhysicalPending(work));
 }
 
+export function currentDeliveryCheck(c: TaskContext): BoundedCheck | undefined {
+  const revision = c.candidate?.revision;
+  if (!revision) return undefined;
+  return [...c.intents].reverse().find((work): work is BoundedCheck => isBoundedCheck(work) && work.goalVersion === c.goalVersion
+    && (work.payload.candidate as Candidate | undefined)?.revision === revision);
+}
+
 type CheckDisposition = { kind: 'handoff' | 'complete' | 'finish' | 'retry'; code?: string; detail?: string; checked?: true; diagnostic?: CheckDiagnostic };
 
 export function saveCheckDiagnostic(c: TaskContext, work: Intent, diagnostic: CheckDiagnostic | undefined): void {
@@ -105,7 +112,7 @@ function checkedDelivery(c: TaskContext, e: CheckResult, work: Intent): CheckDis
   const findings = e.criteriaResults!.filter(item => item.status !== 'passed');
   if (!findings.length) {
     const verification = deliveryVerificationProblem(work, true);
-    return { kind: 'complete', checked: true, ...(verification ? { detail: `实际验证未完成：${verification}` } : {}) };
+    return { kind: 'complete', checked: true, ...(verification ? { code: 'CHECK_VERIFICATION_UNCONFIRMED', detail: `实际验证未完成：${verification}` } : {}) };
   }
   return { kind: 'complete', checked: true, detail: findings.map(item => item.reason).join('；') };
 }
@@ -121,6 +128,7 @@ export function checkDisposition(c: TaskContext, e: CheckResult, work: Intent): 
   const rawInputs = (work.payload.rawInputs as CheckMaterials['rawInputs'] | undefined) ?? [];
   const sources = checkCitationSources({ evidence, references, reviewRecords, rawInputs, ...(test ? { verification: test } : {}) });
   const diagnostic = e.passed !== undefined || e.gaps !== undefined ? { code: 'CHECK_INVALID_CRITERIA_RESULTS' }
+    : e.repair && work.payload.manualCheck === true ? { code: 'CHECK_RETRY_CANNOT_REPLACE_DELIVERY' }
     : judgmentsDiagnostic(c.candidate!.acceptance!.criteria, e.criteriaResults, sources);
   if (diagnostic) return { kind: canRetryDeliveryCheck(c, work, e.at, true) ? 'retry' : 'finish', code: diagnostic.code, diagnostic };
   return checkedDelivery(c, e, work);

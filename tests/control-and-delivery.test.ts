@@ -112,7 +112,8 @@ describe('budget and delivery', () => {
     const h = new Harness(configuration({ ordinary: 0, checks: 0 }));
     h.event({ type: 'DELIVER', text: 'partial', artifactIds: [] });
     expect(h.engine.pending(h.room, h.task)).toEqual([]);
-    expect(h.view().phase).toBe('ended'); expect(h.context().outcome).toBe('partial'); expect(h.context().usage.checks).toBe(0);
+    expect(h.view().phase).toBe('ended'); expect(h.context().outcome).toBe('complete'); expect(h.context().usage.checks).toBe(0);
+    expect(h.context().candidate?.deliveryIssue?.code).toBe('CHECK_BUDGET_EXHAUSTED');
   });
   it('[BT_F07] text claiming files exist cannot satisfy missing artifacts', () => {
     const h = new Harness(); h.event({ type: 'USER_INPUT', text: 'two files', goal: { ...h.context().goal, requiredArtifacts: 2 } });
@@ -197,7 +198,8 @@ describe('configuration and driver', () => {
   it('[BT_F11] malformed criteria cannot turn a failed judgment into success', async () => {
     const h = new Harness(configuration({ retries: 0 })); h.event({ type: 'DELIVER', text: 'candidate', artifactIds: [] });
     const runner = new WorkRunner(h.engine, { async execute() { return { type: 'check', criteriaResults: null } as never; } }, () => 0);
-    await runner.runOne(h.room, h.task); expect(h.context().outcome).toBe('partial'); expect(h.view().phase).toBe('ended');
+    await runner.runOne(h.room, h.task); expect(h.context().outcome).toBe('complete'); expect(h.view().phase).toBe('ended');
+    expect(h.context().candidate?.deliveryIssue?.code).toBe('CHECK_INVALID_CRITERIA_RESULTS');
   });
   it('malformed decision values are rejected without crashing storage', () => {
     const h = new Harness(); h.event({ type: 'BLOCKED', reason: 'blocked' });

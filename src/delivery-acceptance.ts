@@ -19,6 +19,8 @@ export interface CheckReviewSource { id: string; content: string; stdout?: strin
 export interface CheckDiagnostic {
   code: string;
   criterionId?: string;
+  missingCriterionIds?: string[];
+  outputIssue?: import('./types.js').ModelOutputIssue;
   sourceId?: string;
   quoteLength?: number;
   location?: { field: 'stdout' | 'stderr' | 'content'; offset: number; matchedPrefixLength: number };
@@ -161,7 +163,7 @@ export function judgmentsDiagnostic(criteria: readonly AcceptanceCriterion[], re
   for (const item of results) {
     if (!remaining.delete(item.criterionId)) return { code: 'CHECK_UNKNOWN_OR_DUPLICATE_CRITERION' };
   }
-  return remaining.size ? { code: 'CHECK_MISSING_CRITERION' } : null;
+  return remaining.size ? { code: 'CHECK_MISSING_CRITERION', missingCriterionIds: [...remaining] } : null;
 }
 
 const gap = (candidateRevision: string, kind: DeliveryGapKind, reason: string, criterionId: string | null = null, refs: DeliveryReference[] = []): DeliveryGap =>

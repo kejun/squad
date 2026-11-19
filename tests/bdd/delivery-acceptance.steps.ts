@@ -50,11 +50,6 @@ async function runCheck(world: SpecWorld, reply: (body: string) => unknown) {
   assert(await new WorkRunner(h.engine, adapter, () => h.now).runOne(h.room, h.task));
 }
 
-function assertUnpublished(world: SpecWorld) {
-  assert.notEqual(world.h.context().outcome, 'complete');
-  assert.equal(world.h.context().publishedDelivery, undefined);
-}
-
 Given('任务有必需验收项且负责人提交的候选{string}', function (this: SpecWorld, problem: string) {
   this.h = new Harness();
   const oldId = 'old-file';
@@ -96,7 +91,14 @@ When('检查员返回{string}', async function (this: SpecWorld, problem: string
     return { type: 'check', criteriaResults: problem.includes('遗漏') ? results.slice(1) : results };
   });
 });
-Then('合法内容结论应声明缺口交付而无效协议应明确结束',function(this:SpecWorld){if(this.problem.includes('遗漏'))assertUnpublished(this);else {assert.equal(this.h.context().outcome,'complete');assert(this.h.context().candidate!.text.includes(this.problem));}});
+Then('应完成交付并报告内容缺口或检查协议问题', function (this: SpecWorld) {
+  const context = this.h.context();
+  assert.equal(context.outcome, 'complete');
+  assert.equal(context.publishedDelivery?.revision, context.candidate?.revision);
+  const notice = context.messages.at(-1)!;
+  assert.equal(notice.kind, 'notice');
+  assert((notice.detailText ?? notice.text).includes(this.problem.includes('遗漏') ? '漏核判据' : this.problem));
+});
 Then('用户应能看到尚未验收的要求和关联候选版本', function (this: SpecWorld) {
   const context = this.h.context();
   assert(context.candidate?.acceptance?.criteria.some(criterion => criterion.id === test(this).criterionId));
@@ -115,12 +117,12 @@ When('负责人修复该错误但新候选遗漏了另一项原有要求', funct
 Then('该要求仍应保留在验收清单中', function (this: SpecWorld) {
   assert(this.h.context().candidate?.acceptance?.criteria.some(criterion => criterion.id === test(this).criterionId));
 });
-Then('复核应指出该遗漏并以部分完成或失败结束', function (this: SpecWorld) {
+Then('复核应指出该遗漏并正常完成交付', function (this: SpecWorld) {
   const context = this.h.context();
   assert.equal(context.outcome, 'complete');
   assert(judgments(this).some(result => result.criterionId === test(this).criterionId && result.status === 'failed'));
 });
-Then('不得再自动安排修订或发布新候选', function (this: SpecWorld) {
+Then('不得再自动安排修订或额外发布', function (this: SpecWorld) {
   assert.deepEqual(pending(this), []);
   assert(this.h.context().publishedDelivery);
 });
@@ -138,7 +140,7 @@ Then('应保留已有成果和该内容错误并明确结束', function (this: S
   assert(this.h.context().candidate?.artifactIds.length);
   assert.equal(judgments(this)[0]?.reason, '报告把计划写成完成');
 });
-Then('不得再自动修订或发布', function (this: SpecWorld) {
+Then('不得再自动修订或重复发布', function (this: SpecWorld) {
   assert.deepEqual(pending(this), []);
   assert(this.h.context().publishedDelivery);
 });
@@ -176,14 +178,14 @@ When('系统准备独立检查', async function (this: SpecWorld) {
     return { type: 'check', criteriaResults: candidateJudgments(this.h.context().candidate) };
   });
 });
-Then('应标明未能覆盖的材料并以部分完成或失败结束', function (this: SpecWorld) {
-  assert.equal(this.h.context().outcome, 'partial');
-  assert.match(this.h.context().reason, /超[出过]|容量|CONTEXT|EVIDENCE/);
+Then('应完成交付并标明核检容量不足', function (this: SpecWorld) {
+  assert.equal(this.h.context().outcome, 'complete');
+  assert.match(this.h.context().candidate?.deliveryIssue?.detail ?? '', /超[出过]|容量|CONTEXT|EVIDENCE/);
 });
 Then('不得静默截断材料或安排作者重写', function (this: SpecWorld) {
   assert.equal(test(this).requests, 0);
   assert.deepEqual(pending(this), []);
-  assertUnpublished(this);
+  assert.equal(this.h.context().publishedDelivery?.revision, this.h.context().candidate?.revision);
 });
 
 Given('当前交付周期已执行一次检查技术补试及下游直接修正',function(this:SpecWorld){

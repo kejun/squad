@@ -121,6 +121,7 @@ export const taskGuards = {
     claimHelp: args => valid(args) && args.context.intents.some(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : '') && i.kind === 'assistance' && !i.discussionId),
     claimFacilitator: args => valid(args) && args.context.intents.some(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : '') && i.kind === 'facilitator' && !i.discussionId),
     claimCheck: args => valid(args) && args.context.intents.find(i => i.id === (args.event.type === 'CLAIM' ? args.event.intentId : ''))?.kind === 'check',
+    retryDeliveryCheck: args => args.event.type === 'CONTINUE' && args.event.retryCheck === true && valid(args),
     claimCheckUnavailable: ({ context, event }) => event.type === 'CLAIM'
       && context.intents.some(work => work.id === event.intentId && isBoundedCheck(work))
       && ['CHECK_BUDGET_EXHAUSTED', 'WORK_EXPIRED'].includes(permissionProblem(context, event) ?? ''),

@@ -248,7 +248,7 @@ export type TaskEvent = Envelope & (
   | { type: 'CHECK_RESULT'; resultId: string; candidateRevision?: string; criteriaResults?: CriterionJudgment[]; repair?: { text: string; artifacts: ArtifactDraft[] }; passed?: boolean; gaps?: string[] }
   | { type: 'STOP'; text?: string }
   | { type: 'SETTLE'; intentId: string }
-  | { type: 'CONTINUE'; extraOrdinary?: number; text?: string; currentConfig?: TeamConfig; newWindowMs?: number }
+  | { type: 'CONTINUE'; extraOrdinary?: number; text?: string; currentConfig?: TeamConfig; newWindowMs?: number; retryCheck?: true }
   | { type: 'TICK' }
   | { type: 'ACTIVITY'; text: string }
   | { type: 'PROGRESS'; detail: string; refs: string[] }

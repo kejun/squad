@@ -4,13 +4,14 @@ import { settleDeliveryCycle } from './delivery-cycle.js';
 import { type ArtifactDraft, type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { compactMessage, isLongResult } from '../presentation.js';
 import { renderSourceItems } from '../source-items.js';
-import { capabilities, discussionActive, fence, unresolvedInput } from './facts.js';
-import { documentIdentity } from './delivery.js';
+import { capabilities, completeProblem, discussionActive, fence, unresolvedInput } from './facts.js';
+import { currentDeliveryCheck, documentIdentity } from './delivery.js';
 import { resolveModel } from '../model-config.js';
 import { assignedEvidenceRefs } from './evidence.js';
 import { corpusBodiesExceedPage, hierarchicalSummaryPending, summaryHandoffPayload, summaryTop } from './hierarchical-summary.js';
 import { cancelLocalOperations, localEnabled, localPhysicalPending } from '../local-operation.js';
 import { resultAggregationHandoff } from './result-aggregation.js';
+import { resourceAcquisitionProblem } from '../resource-acquisition.js';
 
 export function message(c: TaskContext, e: TaskEvent, author: string, text: string, kind: TaskContext['messages'][number]['kind'], extra: Partial<TaskContext['messages'][number]> = {}, summary?: string) {
   const shown = kind === 'user' ? text : compactMessage(text, summary);
@@ -149,7 +150,7 @@ export function coordinate(c: TaskContext, e: TaskEvent, reason: string) {
   c.nextCheckAt = e.at + c.config.limits.progressIntervalMs;
 }
 
-export function finish(c: TaskContext, e: TaskEvent, outcome: TaskContext['outcome'], reason: string) {
+export function finish(c: TaskContext, e: TaskEvent, outcome: TaskContext['outcome'], reason: string, retainPublication = false) {
   if (taskHumanGate(c) && outcome !== 'stopped') return;
   if (outcome !== 'complete') { freezeIncomplete(c, e, reason, outcome === 'stopped' ? 'stopped' : undefined); return; }
   adoptCleanup(c, e.at);
@@ -161,6 +162,7 @@ export function finish(c: TaskContext, e: TaskEvent, outcome: TaskContext['outco
     input.status = 'failed'; input.error = reason;
   }
   if (c.review) c.review.status = 'complete';
+  if (retainPublication) return;
   if (outcome === 'complete' && c.candidate) {
     c.publishedDelivery = { ...(c.candidate.revision ? { revision: c.candidate.revision } : {}), goalVersion: c.goalVersion, artifactIds: [...c.candidate.artifactIds], at: e.at };
   }
@@ -171,5 +173,38 @@ export function finish(c: TaskContext, e: TaskEvent, outcome: TaskContext['outco
       artifactIds: c.candidate?.artifactIds.filter(id => c.artifacts.some(artifact => artifact.id === id && artifact.goalVersion === c.goalVersion)) ?? [],
       ...(c.candidate?.workId ? { workId: c.candidate.workId } : {}),
     }, summary);
+  }
+}
+
+export function finishIncompleteDelivery(c: TaskContext, e: TaskEvent, detail: string, code?: string) {
+  if (c.candidate && code) c.candidate.deliveryIssue = { code, detail };
+  finish(c, e, 'failed', detail);
+}
+
+export function finishDeliveryCheck(c: TaskContext, e: TaskEvent, detail?: string, code?: string, work: Intent | undefined = currentDeliveryCheck(c)) {
+  const problem = completeProblem(c) ?? resourceAcquisitionProblem(c);
+  if (problem) {
+    finishIncompleteDelivery(c, e, problem, problem);
+    return;
+  }
+  const candidate = c.candidate!;
+  if (code) candidate.deliveryIssue = { code, ...(detail ? { detail } : {}) };
+  else delete candidate.deliveryIssue;
+  const retained = work?.payload.manualCheck === true && c.publishedDelivery?.revision === candidate.revision;
+  finish(c, e, 'complete', '', retained);
+  if (c.outcome !== 'complete') return;
+  const details = (code ? work?.checkDiagnostics : undefined)?.map(({ attempt, diagnostic }) => {
+    const missing = new Set(diagnostic.missingCriterionIds ?? (diagnostic.criterionId ? [diagnostic.criterionId] : []));
+    const omitted = diagnostic.code === 'CHECK_MISSING_CRITERION' ? (candidate.acceptance?.criteria ?? [])
+      .filter(item => missing.has(item.id)).map(item => item.text) : [];
+    const summary = omitted.length ? `漏核判据：${omitted.join('；')}`
+      : diagnostic.outputIssue === 'invalid_type' ? '回复类型错误，预期为 check' : diagnostic.code;
+    return `第 ${attempt} 次：${summary}`;
+  }) ?? [];
+  if (detail || code) {
+    message(c, e, work?.target ?? 'facilitator', ['核检员：交付已完成。是否重试检查？请回复「重试检查」。', detail ?? code, ...details]
+      .filter(Boolean).join('\n'), 'notice', work ? { workId: work.id } : {});
+  } else if (retained && work) {
+    message(c, e, work.target, '核检员：重试检查已通过。', 'notice', { workId: work.id });
   }
 }

@@ -119,23 +119,15 @@ export class ResponseLimitFixture {
 }
 
 
-/** Preserve the response boundary while allowing the host's new deterministic check-failure report. */
+/** Preserve the exact delivery across a rejected provider response. */
 export function assertNoProviderBodyArtifacts(f: ResponseLimitFixture): void {
   const c = f.h.context();
   assert(!JSON.stringify(f.store.read(f.h.room)).includes(privateBodyMarker), 'Truncated provider body must never enter persistent artifacts or messages');
   if (f.kind !== 'check') { assert.deepEqual(c.artifacts, [], 'Owner response rejection has no previously saved business draft'); return; }
   assert.equal(c.candidate?.text, '完整候选', 'The saved pre-request candidate must remain exact');
-  const frozen = c.resilience?.frozen; assert(frozen, 'Check failure must have an independently identified host report');
-  assert.equal(frozen.outcome, 'partial'); assert.equal(frozen.verification, 'incomplete');
-  assert.equal(frozen.goalVersion, c.goalVersion); assert.equal(frozen.epoch, c.epoch);
-  const report = c.artifacts.find(artifact => artifact.id === frozen.reportArtifactId); assert(report);
-  assert.equal(report.content, frozen.text); assert(report.content.includes('状态：partial；核验未完成'));
-  assert(report.content.includes('MODEL_RESPONSE_TOO_LARGE'));
-  assert.equal(frozen.items.length, 1); const item = frozen.items[0]!; assert.equal(item.status, 'unverified');
-  const priorDraft = c.artifacts.find(artifact => artifact.id === item.artifactId); assert(priorDraft);
-  assert.equal(priorDraft.content, '完整候选', 'Only the exact candidate saved before the rejected HTTP response may be attached');
-  assert.notEqual(priorDraft.id, report.id);
-  assert.deepEqual(frozen.artifactIds, [report.id, priorDraft.id]);
-  assert.deepEqual(c.artifacts.map(artifact => artifact.id).sort(), [...frozen.artifactIds].sort(), 'No provider fragment or additional artifact may hide beside the host report');
-  assert.deepEqual([frozen.skippedIds, frozen.cleanupIds, frozen.sourceReceiptIds], [[], [], []]);
+  assert.equal(c.publishedDelivery?.revision, c.candidate?.revision);
+  assert(c.candidate?.deliveryIssue?.detail?.includes('MODEL_RESPONSE_TOO_LARGE'));
+  assert(c.messages.some(message => message.kind === 'notice' && message.text.includes('是否重试')));
+  assert(!c.intents.some(work => work.kind === 'check' && work.criteriaResults));
+  assert.deepEqual(c.artifacts.map(artifact => artifact.id), c.publishedDelivery?.artifactIds);
 }

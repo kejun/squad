@@ -2,7 +2,7 @@ import { supervisionDecision } from './resilience.js';
 import type { Phase, TaskContext, TaskEvent } from '../types.js';
 const superviseActions = { interpreting: 'superviseInterpreting', running: 'superviseRunning', waitingAssistance: 'superviseAssistance', coordinating: 'superviseCoordinating', waitingHuman: 'superviseHuman', checking: 'superviseChecking', stopping: 'superviseStopping', ended: 'superviseEnded' } as const;
 const supervision = (phase: Phase) => [
-  { guard: function supervisionEnds({ context, event }: { context: TaskContext; event: TaskEvent }) { return ['freeze', 'stopped', 'settled'].includes(supervisionDecision(context, phase, event.at)); }, target: '#botTeamTask.ended', actions: superviseActions[phase] },
+  { guard: function supervisionEnds({ context, event }: { context: TaskContext; event: TaskEvent }) { return ['freeze', 'stopped', 'settled', 'checkExpired'].includes(supervisionDecision(context, phase, event.at)); }, target: '#botTeamTask.ended', actions: superviseActions[phase] },
   { guard: function supervisionWaitsForHuman({ context, event }: { context: TaskContext; event: TaskEvent }) { return ['human', 'windowExpired'].includes(supervisionDecision(context, phase, event.at)); }, target: '#botTeamTask.waitingHuman', actions: superviseActions[phase] },
   { guard: function supervisionRepairs({ context, event }: { context: TaskContext; event: TaskEvent }) { return supervisionDecision(context, phase, event.at) === 'repair'; }, target: '#botTeamTask.coordinating', actions: superviseActions[phase] },
   { actions: superviseActions[phase] },
@@ -163,7 +163,7 @@ export const taskLifecycle = {
     ended: {
       on: {
         SUPERVISE: supervision('ended'),
-        STOP: {}, CONTINUE: { guard: 'valid', target: 'running', actions: 'apply' },
+        STOP: {}, CONTINUE: [{ guard: 'retryDeliveryCheck', target: 'checking', actions: 'apply' }, { guard: 'valid', target: 'running', actions: 'apply' }],
         USER_INPUT: { actions: 'reject' }, ARTIFACT: { actions: 'reject' }, PROGRESS: { actions: 'reject' },
         RECOVER: { actions: 'apply' }, CLAIM: [{ guard: 'claimCancel', actions: 'apply' }, { actions: 'reject' }], CONSUME: { actions: 'reject' },
       },

@@ -37,8 +37,8 @@ describe('model output regeneration', () => {
     await f.run();
     expect(f.requests).toHaveLength(2); expect(f.repairs).toHaveLength(0);
     expect(f.h.view().phase).toBe('ended'); expect(f.h.context().usage.checks).toBe(2);
-    expect(f.h.context().outcome).toBe('partial');
-    expect(f.h.context().reason).toContain('HTTP 429');
+    expect(f.h.context().outcome).toBe('complete');
+    expect(f.h.context().candidate?.deliveryIssue?.detail).toContain('HTTP 429');
   });
 
   it('[BT_M14] does not send a queued check retry after the user stops', async () => {
@@ -62,14 +62,14 @@ describe('model output regeneration', () => {
     await f.run();
 
     expect(f.requests).toHaveLength(1); expect(f.work.deadline).toBe(originalDeadline);
-    expect(f.h.context().usage.checks).toBe(1); expect(f.h.context().reason).toContain('WORK_EXPIRED');
+    expect(f.h.context().usage.checks).toBe(1); expect(f.h.context().candidate?.deliveryIssue?.detail).toContain('WORK_EXPIRED');
   });
 
   it('[BT_M10] never executes malformed tool arguments suggested by a checking response', async () => {
     const f = fixture(); f.replies = [badModelOutput('网页工具参数错误'), { type: 'unrepairable' }];
     await f.run();
     expect(f.requests).toHaveLength(2); expect(f.webCalls).toBe(0); expect(f.searches).toBe(0);
-    expect(f.h.context().outcome).toBe('partial');
+    expect(f.h.context().outcome).toBe('complete');
     expect(f.requests[1]!.messages[1]!.content).toContain('invalid_tool_request');
   });
 
@@ -120,7 +120,8 @@ describe('model output regeneration', () => {
     expect(f.work.criteriaResults).toEqual(criteriaResults);
     expect(f.h.engine.pending(f.h.room, f.h.task)).toEqual([]);
     expect(f.h.context().candidate?.text).toContain('未完成或未核实事项：\n- 实际缺口');
-    expect(f.h.context().messages.at(-1)?.text).toBe(f.h.context().candidate?.text);
+    expect(f.h.context().messages.find(message => message.kind === 'final')?.text).toBe(f.h.context().candidate?.text);
+    expect(f.h.context().messages.at(-1)?.text).toContain('是否重试');
   });
 
   it.each(['web', 'skills'])('[BT_W02] keeps explicitly disabled %s capabilities outside the format-repair loop', async capability => {

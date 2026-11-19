@@ -105,7 +105,7 @@ yield 'observed';
 assert.equal(model.c.outcome, 'complete');
 }
 
-export async function* settlesAClaimedCheckWithoutAModelReceiptAsIncomplete() {
+export async function* publishesAfterSettlingAClaimedCheckWithoutAModelReceipt() {
 const model = new LocalModel();
 assert.equal(submit(model).ok, true);
 const work = claim(model, 'check');
@@ -113,7 +113,8 @@ yield 'prepared';
 assert.equal(model.send({ type: 'SETTLE', intentId: work.id, attempt: work.attempt }).ok, true);
 yield 'observed';
 assert.equal(model.snapshot.value, 'ended');
-assert.equal(model.c.outcome, 'partial');
+assert.equal(model.c.outcome, 'complete');
+assert.equal(model.c.publishedDelivery?.revision, model.c.candidate?.revision);
 assert.equal(model.c.candidate?.deliveryIssue?.code, 'CHECK_NOT_COMPLETED');
 assert.equal(model.c.usage.checks, 0);
 }
@@ -130,7 +131,7 @@ assert.deepEqual(model.c.candidate!.artifactIds,[]); assert.deepEqual(pendingOwn
 export async function* settlesMissingArtifactsWithoutSpendingACorrectionWhenThereIsNoCheckBudget() {
 const model = new LocalModel(input=>{input.goal.requiredArtifacts=1;input.config.limits.checks=0;});
 yield 'prepared'; assert(submit(model).ok); yield 'observed';
-assert.equal(model.c.outcome,'partial'); assert.equal(model.c.candidate?.deliveryIssue?.code,'CHECK_BUDGET_EXHAUSTED'); assert.deepEqual(pendingOwner(model),[]);
+assert.equal(model.c.outcome,'complete'); assert.equal(model.c.candidate?.deliveryIssue?.code,'CHECK_BUDGET_EXHAUSTED'); assert.deepEqual(pendingOwner(model),[]);
 }
 
 export async function* treatsAMissingCriterionAsACheckFailureWithoutSchedulingAuthorWork() {
@@ -205,7 +206,8 @@ yield 'prepared';
 assert.equal(model.send({ type: 'RECOVER', config: model.c.config }).ok, true);
 yield 'observed';
 assert.equal(replay.id, original.id);
-assert.equal(model.c.outcome, 'partial');
+assert.equal(model.c.outcome, 'complete');
+assert.equal(model.c.publishedDelivery?.revision, model.c.candidate?.revision);
 assert.partialDeepStrictEqual(model.c.usage, { checks: 2, retries: 1 });
 }
 
@@ -226,7 +228,8 @@ assert.equal(model.send({ type: 'USER_INPUT', text: '补充第三项要求' }).o
 assert.equal(report(model, third, accept(model)).ok, true);
 assert.equal(submit(model, claim(model, 'owner'), 'fourth').ok, true);
 yield 'observed';
-assert.equal(model.c.outcome, 'partial');
+assert.equal(model.c.outcome, 'complete');
+assert.equal(model.c.publishedDelivery?.revision, model.c.candidate?.revision);
 assert.equal(model.c.candidate?.deliveryIssue?.code, 'CHECK_BUDGET_EXHAUSTED');
 assert.equal(model.c.usage.checks, 3);
 }

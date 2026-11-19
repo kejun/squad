@@ -23,10 +23,11 @@ export type InputReference = z.infer<typeof inputReferenceSchema>;
 export type InputIntentSpec = z.infer<typeof inputIntentSchema>;
 
 /** Anchoring the whole direct message prevents quoted or incidental words becoming commands. */
-export function inputControl(text: string): 'stop' | 'continue' | undefined {
+export function inputControl(text: string): 'stop' | 'continue' | 'retryCheck' | undefined {
   const direct = text.trim();
   if (/^(?:请\s*)?(?:停止|停下|暂停|stop|pause)[。.!！]?$/i.test(direct)) return 'stop';
   if (/^(?:请\s*)?(?:继续|继续执行|继续任务|continue|resume)[。.!！]?$/i.test(direct)) return 'continue';
+  if (/^(?:请\s*)?(?:重试检查|重试核检)[。.!！]?$/i.test(direct)) return 'retryCheck';
   return undefined;
 }
 
