@@ -218,7 +218,8 @@ export function prepareCheckFinalVersion(): CoreModelRun {
             const observed4 = m.c.publishedDelivery;
             checks.push(() => {
                 assert.equal(observed4?.revision, m.c.candidate?.revision);
-                assert.equal(m.c.messages.at(-1)?.text, observed3);
+                assert.equal(m.c.messages.filter(message => message.kind === 'final').at(-1)?.text, observed3);
+                assert(m.c.messages.at(-1)?.text.includes('WORKSPACE_VERIFICATION_REQUIRED'));
                 assert.deepEqual(m.c.intents.find(work => work.id === m.work.id)?.criteriaResults, criteriaResults);
                 assert(!m.c.intents.some(work => work.status === 'pending'));
             });

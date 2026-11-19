@@ -66,7 +66,8 @@ Then('缺少用户明确要求的审计证据时应保留未核实结论并声�
   assert.equal(context.outcome, 'complete');
   assert.equal(f.view().phase, 'ended');
   assert(context.candidate!.text.includes('未完成或未核实事项：\n- 没有所要求的审计证据'));
-  assert.equal(context.messages.at(-1)?.text, context.candidate!.text);
+  assert.equal(context.messages.filter(message => message.kind === 'final').at(-1)?.text, context.candidate!.text);
+  assert(context.messages.at(-1)?.text.includes('没有所要求的审计证据'));
   assert.deepEqual(f.engine.pending(f.room, f.task), []);
 });
 After(function (this: SpecWorld) { runs.get(this)?.close(); runs.delete(this); });

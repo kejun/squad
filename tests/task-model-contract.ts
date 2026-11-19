@@ -17,7 +17,7 @@ assert.equal(legacyTaskContract.sourceSha, 'dd5ec71b41a82a13c831938e5401783214db
 // Approval and host retry extensions add rules without changing the original frozen business traces.
 // BT_M23–M29 add one explanation action to the existing current-coordination rejection.
 // KEJ-111 adds one explicit host-only failure-record event; frozen business traces remain intact.
-const extendedDefinition = '5a6c24ef';
+const extendedDefinition = 'ebac676d';
 const toolFailureRules = [
   { id: '*:RECORD_TOOL_FAILURE:0', order: 0, source: '*', event: 'RECORD_TOOL_FAILURE', target: null, guards: ['valid'], actions: ['apply'] },
   { id: '*:RECORD_TOOL_FAILURE:1', order: 1, source: '*', event: 'RECORD_TOOL_FAILURE', target: null, guards: [], actions: ['reject'] },
@@ -47,6 +47,7 @@ const hostRetryAlwaysRules = [
   { id: '*:@always:4', order: 4, source: '*', event: '@always', target: null, guards: ['hostRetryBatchRetirable'], actions: ['retireHostRetry'] },
 ];
 const heldFinish = { id: 'coordinating:COORDINATE:4', order: 4, source: 'coordinating', event: 'COORDINATE', target: 'running', guards: ['hostRetryHoldsFinish'], actions: ['apply'] };
+const retryDeliveryCheck = { id: 'ended:CONTINUE:0', order: 0, source: 'ended', event: 'CONTINUE', target: 'checking', guards: ['retryDeliveryCheck'], actions: ['apply'] };
 const rules = (source: string, event: string, branches: [string | null, string | null, string?][]) => branches.map(([guard, target, action], order) => ({
   id: `${source}:${event}:${order}`, order, source, event, target, guards: guard ? [guard] : [], actions: [action ?? 'apply'],
 }));
@@ -198,6 +199,9 @@ function assertLegacyEvidence(actualRaw: DebugEvidence, expected: DebugEvidence,
       return [...(first ? [{ ...evaluation, ruleId: heldFinish.id, guard: heldFinish.guards[0]!, passed: false }] : []),
         { ...evaluation, ruleId: nextRuleId(evaluation.ruleId) }];
     }
+    if (evaluation.ruleId === retryDeliveryCheck.id) return [
+      { ...evaluation, guard: retryDeliveryCheck.guards[0]!, passed: false }, { ...evaluation, ruleId: nextRuleId(evaluation.ruleId) },
+    ];
     return evaluation.ruleId === '*:@always:1' && evaluation.passed === false ? [evaluation,
       ...hostRetryAlwaysRules.map(rule => ({ ...evaluation, ruleId: rule.id, guard: rule.guards[0], passed: false }))] : [evaluation];
   });
@@ -534,6 +538,7 @@ export function verifyLegacyDiagnostics() {
         const shifted = { ...rule, order: rule.order + 1, id: nextRuleId(rule.id) };
         return rule.order === heldFinish.order ? [heldFinish, shifted] : [shifted];
       }
+      if (rule.id === retryDeliveryCheck.id) return [retryDeliveryCheck, { ...rule, id: nextRuleId(rule.id), order: 1 }];
       return rule.id === '*:@always:1' ? [rule, ...hostRetryAlwaysRules] : [rule];
     }).flatMap(rule => rule.source === '*' && rule.event === '@always'
       ? [...(rule.order === 0 ? lifecycleRules : []), { ...rule, id: shiftedGlobal(rule.id), order: rule.order + 2 }] : [rule])

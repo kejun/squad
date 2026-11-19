@@ -440,7 +440,8 @@ export async function revisionAcceptance(change: string, expected: string) {
       if (restoreCopy) assert.equal(operation.result?.data.validationInputsChanged, true);
       else assert.equal(operation.result?.code, code);
       assert(f.h.context().candidate?.text.includes(`实际验证未完成：${code}`));
-      assert.equal(f.h.context().messages.at(-1)?.text, f.h.context().candidate?.text);
+      assert.equal(f.h.context().messages.filter(message => message.kind === 'final').at(-1)?.text, f.h.context().candidate?.text);
+      assert(f.h.context().messages.at(-1)?.text.includes(code));
     }
     assert.equal(f.h.context().publishedDelivery?.revision, f.h.context().candidate?.revision);
     const writeRoots = f.backend.calls[0]!.writeRoots!; assert(writeRoots.every(p => p !== f.backend.calls[0]!.workspace));
