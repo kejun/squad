@@ -16,7 +16,7 @@ const before = captureSource(root), sha = value => createHash('sha256').update(v
 const env = { ...process.env, TMPDIR: runtimeRoot, TSX_DISABLE_CACHE: '1' }; delete env.MODEL_API_KEY;
 const normal = "        sharedAgentBehavior,\n        work.kind === 'interpretation'";
 const checker = "      sharedAgentBehavior,\n      'Check the complete deliverable";
-const request = '      if (fixedInput) enforceFixedContext(service, requestMessages, contextFailure);';
+const request = '      const requestMessages = repair ? repair.feedback() : [...projected.slice(0, 2), ...observations, ...projected.slice(2)];';
 const cases = [
   { id: 'ordinary-work-loses-shared-policy', role: 'owner', mode: 'normal', from: normal, to: "        '',\n        work.kind === 'interpretation'" },
   { id: 'fixed-check-loses-shared-policy', role: 'check', mode: 'normal', from: checker, to: checker.replace('sharedAgentBehavior', "''") },

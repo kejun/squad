@@ -69,6 +69,10 @@ export function assignedEvidenceRefs(c: TaskContext, refs: readonly unknown[]): 
   return settledSources(c).filter(source => requested.has(source.operation.id)).map(source => source.operation.id);
 }
 
+export function workEvidenceIds(c: TaskContext, workId: string): string[] {
+  return settledSources(c).filter(source => source.work.id === workId).map(source => source.operation.id);
+}
+
 export function evidenceSource(c: TaskContext, work: Intent, id: string): EvidenceSource | undefined {
   if (!canSeeEvidence(c, work, id)) return undefined;
   return settledSources(c).find(source => source.operation.id === id);

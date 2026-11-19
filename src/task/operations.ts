@@ -10,6 +10,7 @@ import { resolveModel } from '../model-config.js';
 import { assignedEvidenceRefs } from './evidence.js';
 import { corpusBodiesExceedPage, hierarchicalSummaryPending, summaryHandoffPayload, summaryTop } from './hierarchical-summary.js';
 import { cancelLocalOperations, localEnabled, localPhysicalPending } from '../local-operation.js';
+import { resultAggregationHandoff } from './result-aggregation.js';
 
 export function message(c: TaskContext, e: TaskEvent, author: string, text: string, kind: TaskContext['messages'][number]['kind'], extra: Partial<TaskContext['messages'][number]> = {}, summary?: string) {
   const shown = kind === 'user' ? text : compactMessage(text, summary);
@@ -106,10 +107,11 @@ export function owner(c: TaskContext, e: TaskEvent, payload: Record<string, unkn
   const onSummaryPath = !!c.discussion?.mapReduce?.summaryLayer;
   const summaryPayload = top && (payload.summaryHandoff || onSummaryPath) ? summaryHandoffPayload(c, top) : undefined;
   if (!summaryPayload && onSummaryPath && corpusBodiesExceedPage(c)) return;
+  const aggregatePayload = summaryPayload ?? resultAggregationHandoff(c);
   // Pending instructions are superseded, not executed in parallel.
   for (const i of c.intents) if (i.kind === 'owner' && i.status === 'pending') i.status = 'cancelled';
-  intent(c, e.at, 'owner', c.owner, summaryPayload
-    ? { ...summaryPayload, inputs: c.inputs.filter(note => note.applied) }
+  intent(c, e.at, 'owner', c.owner, aggregatePayload
+    ? { ...(summaryPayload ? {} : payload), ...aggregatePayload, inputs: c.inputs.filter(note => note.applied) }
     : { ...payload, goal: c.goal, inputs: c.inputs.filter(n => n.applied),
       board: c.board, ...deliveryArtifacts(c, Array.isArray(payload.artifactIds) ? payload.artifactIds as string[] : []), repeat: c.repeat, ...conversationInput(c),
       capabilities: capabilities(c), roster: c.config.bots.map(b => ({ id: b.id, name: b.name, instructions: b.instructions, tools: b.tools })) });
