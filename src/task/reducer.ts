@@ -1,4 +1,5 @@
 import { beginHierarchicalSummary } from './hierarchical-summary.js';
+import { executionSummary } from './execution-summary.js';
 import { startMapReduce } from './map-reduce.js';
 import { bindDeliveryCheck, deliveryCandidate, resetDeliveryMaterials, settleDeliveryCycle } from './delivery-cycle.js';
 import { mapReduceCapacity, mapReduceConcurrency } from './map-reduce-capacity.js';
@@ -236,22 +237,29 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         reject(c, versionProblem.split(':')[0]!);
         break;
       }
-      const problem = deliverySubmissionProblem(c, e);
+      const summaryOnly = c.config.deliveryReport === 'summary';
+      const problem = summaryOnly ? null : deliverySubmissionProblem(c, e);
       const { acceptance, gaps: submissionGaps } = deliveryPreflight(c, e);
+      const gapDetails = submissionGaps.map(gap => deliveryGapMessage(gap.reason));
       const artifactIds = saveReports(c, e, c.sourceArtifact && !e.artifacts?.length ? '' : e.text, c.owner, e.artifacts);
-      const priorFindings = deliveryJudgments(c, c.candidate?.revision).filter(item => item.status !== 'passed');
-      const baselineCheckId = [...c.intents].reverse().find(work => work.kind === 'check' && work.criteriaResults
+      const priorFindings = summaryOnly ? [] : deliveryJudgments(c, c.candidate?.revision).filter(item => item.status !== 'passed');
+      const baselineCheckId = summaryOnly ? undefined : [...c.intents].reverse().find(work => work.kind === 'check' && work.criteriaResults
         && work.epoch === c.epoch && work.goalVersion === c.goalVersion
         && (work.payload.candidate as TaskContext['candidate'])?.revision === c.candidate?.revision)?.id;
-      const references = checkReferenceSources(c);
+      const references = summaryOnly ? [] : checkReferenceSources(c);
       cancelWork(c, e);
       const existingIds = e.artifactIds.filter(id => c.artifacts.some(a => a.id === id && a.goalVersion === c.goalVersion));
-      const submissionNote = submissionGaps.length ? '\n\n交付时尚缺少：\n' + submissionGaps.map(gap => `- ${deliveryGapMessage(gap.reason)}`).join('\n') : '';
+      const submissionNote = submissionGaps.length ? '\n\n交付时尚缺少：\n' + gapDetails.map(detail => `- ${detail}`).join('\n') : '';
       c.candidate = { text: e.text + submissionNote, artifactIds: [...new Set([...existingIds, ...artifactIds])], goalVersion: c.goalVersion,
         revision: acceptance.revision, ...(e.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(e.backgroundArtifactIds)] } : {}),
         ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}), acceptance };
       deliveryCandidate(c);
       if (deliveryInterruptionPending(c)) break;
+      if (summaryOnly) {
+        finishDeliveryCheck(c, e);
+        if (c.outcome !== null) message(c, e, 'facilitator', executionSummary(c, gapDetails), 'notice');
+        break;
+      }
       if (problem) {
         const detail = problem.code === 'CHECK_BUDGET_EXHAUSTED' ? '检查额度已用尽，当前交付未完成核检。' : problem.code;
         finishDeliveryCheck(c, e, detail, problem.code);
@@ -352,6 +360,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         bindDeliveryCheck(c, work);
         break;
       }
+      if (e.currentConfig?.deliveryReport === 'summary') c.config.deliveryReport = 'summary';
       if (e.newWindowMs !== undefined && c.outcome === null && !c.stopped && windowExpired(c, e.at)) {
         requestNewWindow(c, e);
         const gate = taskHumanGate(c)!;

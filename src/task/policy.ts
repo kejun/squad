@@ -174,6 +174,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       return e.reviewTargets?.some(target => target === c.owner || !isBot(c, target)) ? 'INVALID_REVIEW_TARGET' : null;
     case 'HANDOFF': return !isBot(c, e.owner) ? 'UNKNOWN_BOT' : allInflight(c).length || discussionActive(c) ? 'WAIT_FOR_BOUNDARY' : null;
     case 'CONTINUE': {
+      if (e.retryCheck && (c.config.deliveryReport === 'summary' || e.currentConfig?.deliveryReport === 'summary')) return 'CHECK_RETRY_NOT_AVAILABLE';
       if (e.newWindowMs !== undefined && (!Number.isSafeInteger(e.newWindowMs) || e.newWindowMs <= 0 || !Number.isSafeInteger(e.at + e.newWindowMs))) return 'INVALID_PROCESSING_WINDOW';
       if (windowExpired(c, e.at) && e.newWindowMs === undefined) return 'WINDOW_EXPIRED';
       const gate = taskHumanGate(c);

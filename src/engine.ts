@@ -197,6 +197,7 @@ export class TeamEngine {
         return { ...next.context.reply, taskId: referencedId };
       }
       if (control === 'retryCheck') {
+        if (this.config.deliveryReport === 'summary') return { ok: false, code: 'CHECK_RETRY_NOT_AVAILABLE', detail: '当前使用执行摘要，可在交付消息后查看。' };
         if (!referencedId || !referenced) return { ok: false, code: 'TASK_NOT_FOUND', detail: '没有可重试检查的交付。' };
         if (tx.room.activeTaskId && tx.room.activeTaskId !== referencedId)
           return { ok: false, code: 'ROOM_BUSY', detail: '另一任务正在执行，请在结束后重试检查。' };

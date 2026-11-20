@@ -80,6 +80,7 @@ export interface WebWork {
   epoch: number;
 }
 export interface WebTask {
+  deliveryReport?: 'summary';
   supervision?: { status: 'running' | 'repairing' | 'waitingHuman' | 'waitingResources' | 'cleaning' | 'faulted' | 'settled'; reason: string; nextWakeAt: number | null; hardDeadlineAt: number | null; failureCode?: 'WINDOW_EXPIRED' };
   delivery?: { epoch: number; goalVersion: number; revision: string; status: 'complete' | 'incomplete'; currentArtifactIds: string[]; reportArtifactId?: string };
   id: string;

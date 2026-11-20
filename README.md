@@ -34,7 +34,7 @@ npm run dev
 - 在输入框键入 `@`，或点击「点名成员」选择负责人，支持方向键与 Enter 补全。直接发送时由默认成员负责。普通消息中的引用不会自动触发成员调度。
 - Enter 发送，Shift+Enter 换行。执行期间可以补充当前工作；成员等待回复时，发送内容作为用户决定处理。
 - 群聊消息支持 Markdown：标题、粗体、列表、引用、链接、图片、代码块、表格和任务清单；普通换行保留。正文中的成员点名仍可点击查看过程，代码和链接内容按原样显示。协调员的未完成任务报告在时间线和消息详情中显示为普通正文，不把整篇报告放进一级标题；用户和成员自己写的标题仍按标题显示。
-- 已成功交付的 Markdown 可从预览中点「引用到新任务」，也可直接说「修改 a.md，补充部署说明，输出为 b.md」。同名产物需先选择；默认沿用来源任务负责人，也可直接 @ 现有成员。新任务固定原文，检查通过后发布独立文档，并可从「来源」返回原产物。原任务及下载入口保留；群内有活动任务时保留草稿并提示等待后重发。首版支持同群单份 `.md` / `.markdown`，原文上限 32 KiB。
+- 已成功交付的 Markdown 可从预览中点「引用到新任务」，也可直接说「修改 a.md，补充部署说明，输出为 b.md」。同名产物需先选择；默认沿用来源任务负责人，也可直接 @ 现有成员。新任务固定原文，由主笔提交后发布独立文档，并可从「来源」返回原产物。原任务及下载入口保留；群内有活动任务时保留草稿并提示等待后重发。首版支持同群单份 `.md` / `.markdown`，原文上限 32 KiB。
 - 点击成员列表、群聊头像或「查看执行过程」，在右侧查看该成员的执行请求、协助、模型输出、技能搜索、错误和取消记录。原始输出默认折叠；空闲成员显示空状态。
 - 点击底部任务状态查看目标、额度、调度记录和已有产物；「停止」会取消正在等待的模型请求，已停止任务可明确继续。连接中断时暂停发送并显示重连提示。
 - 同一群的新任务会带上有来源标识的历史发言、方案与产物。已结束的任务保持结束；历史文件作为参考材料，不会直接冒充本轮交付。既有的等待任务在收到下一条用户消息时，也会补齐群历史。
@@ -103,6 +103,10 @@ npm start
 
 ## 状态模型
 
+群聊新任务在主笔交付时发布正文和文件，并依据已保存的结果生成[执行摘要](docs/state-diagrams.md#交付完成与执行摘要)（BT_F88–F90）。
+
+独立分片的工具参数修正失败后，可用已取得的材料完成一次有界续办。见[模型请求的上下文与工具修正](docs/state-diagrams.md#模型请求的上下文与工具修正)（BT_M70–M72）。
+
 输入理解、子 Agent 分工、归并和下游检查共享当前交付目标。角色使用已保存的范围和材料，在现有协议中约定可合并的产物。验收见 [目标与分工](docs/requirements/goal-aligned-handoffs.md)及[模型交接](docs/state-diagrams.md#围绕最终交付的模型交接)。
 
 分层摘要在宿主结算后继续推进，网页重选耗尽时带着已有成果衔接，检查员可在原检查补齐真实凭证，定时进展检查保留可领取的有效工作。验收条目见[正向推进](docs/requirements/forward-workflow.md)及[状态细图](docs/state-diagrams.md)。
@@ -112,9 +116,9 @@ npm start
 
 子 Agent 直接交付，不再使用[分片补救申报](docs/implementation/remove-map-recovery.md)：成功或部分成功按原样汇总，失败的正文和文件为空；负责人走普通交付流程，不再逐片申报、匹配来源或登记补救证明。BT_Q36–Q49 覆盖新行为；恢复旧任务时丢弃已移除协议。
 
-内容交接单向推进，检查员可直接补救。提交有效候选后，核检有发现或无法结论时仍发布交付并完成任务。核检员单独说明问题并询问是否重试。用户可回复「重试检查」。见[交付完成与核检结果](docs/state-diagrams.md#交付完成与核检结果)（BT_F85–F87）及[上下游最新结论](docs/state-diagrams.md#上下游最新结论)（BT_H201–H215）。
+群聊新任务以主笔交付为准。宿主在发布后发送一条执行摘要，汇报已交付文件、分片完成情况及已知缺口。已经排程的历史核检沿用其协议，见[历史核检路径](docs/state-diagrams.md#交付完成与核检结果)（BT_F85–F87）。
 
-模型返回不可自动重试的 400、403 等错误时，负责人和分片进入[模型服务错误门](docs/implementation/model-service-error.md)，可明确选择跳过或停止。最终检查遇到同类错误时发布已有候选，并由核检员发送脱敏错误和重试询问。BT_Y168–Y172、BT_F85–F87。
+模型返回不可自动重试的 400、403 等错误时，负责人和分片进入[模型服务错误门](docs/implementation/model-service-error.md)，可明确选择跳过或停止。历史核检遇到同类错误时发布已有候选并保存脱敏错误。BT_Y168–Y172、BT_F85–F87。
 
 归档会话删除采用[强制删除](docs/implementation/force-archived-deletion.md)：直接提交数据删除并释放所属锁，立即移除列表项；运行文件由同一个持久作业后台清理与自动重试，无需确认或核对旧操作。状态转移见[强制删除细图](docs/state-diagrams.md#归档会话强制删除)。BT_Y162–Y167 覆盖该行为，替代旧删除流程中的人类核对要求。
 
@@ -191,7 +195,8 @@ stateDiagram-v2
     interpreting --> running: INTERPRETATION_RESULT [valid且无需澄清] / apply
     running --> waitingAssistance: HELP [valid] / apply
     waitingAssistance --> running: HELP_RESULT [valid且不继续评审] / apply
-    running --> checking: DELIVER [当前身份版本有效且交接已结算] / 保存绑定候选及证据的检查意图
+    running --> ended: DELIVER [有效候选且采用执行摘要] / 发布原交付并保存摘要
+    running --> checking: DELIVER [有效候选且使用历史核检协议] / 保存绑定候选及证据的检查意图
     checking --> ended: CHECK_RESULT [当前候选的合法最终结论] / 发布修正稿或在正文声明缺口
 ```
 
@@ -330,7 +335,7 @@ BUILDER_3_MODEL_NAME=YOUR_BUILDER_3_MODEL
 BUILDER_3_MODEL_BASE_URL=https://another-provider.example/v1
 BUILDER_3_MODEL_API_KEY=another-key
 
-# 促进者和完成检查也可单独选择模型。
+# 促进者可单独选择模型。CHECK_MODEL_* 对已有核检协议生效。
 FACILITATOR_MODEL_NAME=YOUR_FACILITATOR_MODEL
 CHECK_MODEL_NAME=YOUR_CHECK_MODEL
 ```

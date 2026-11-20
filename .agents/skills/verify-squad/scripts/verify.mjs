@@ -339,7 +339,7 @@ async function archiveRooms(first, before) {
   await capture('rooms-archive-inflight');
   fixture.releaseArchive();
   const finished = await done(working, 'A');
-  assert(finished.room.archived); assert.deepEqual(finished.tasks[0].usage, { ordinary: 1, checks: 1 });
+  assert(finished.room.archived); assert.equal(finished.tasks[0].usage.checks, 0);
   await send('VERIFY_ROOMS 归档群续办');
   await until(() => get(`/api/rooms/${working.id}`), value => value.tasks.length === 2, 'new task in archive');
   const next = await done(working, 'A'); assert(next.room.archived); assert.equal(next.tasks.length, 2);
@@ -355,16 +355,15 @@ async function archiveRooms(first, before) {
 async function reports() {
   const room = await newRoom();
   await capture('reports-before');
-  await send('VERIFY_REPAIR 生成可导出的报告');
+  await send('VERIFY_REPORT 生成可导出的报告');
   const snapshot = await done(room, 'A');
   const task = snapshot.tasks.at(-1);
   assert.equal(task.artifacts[0].content, report);
   assert.equal(task.artifacts[0].author, 'A');
-  assert.equal(task.usage.checks, 2, 'Check retry must consume a second check request');
+  assert.equal(task.usage.checks, 0);
+  assert.equal(snapshot.messages.filter(message => message.taskId === task.id && message.text.startsWith('执行摘要')).length, 1);
   const records = readFileSync(join(evidence, 'model-http.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
-  const checks = records.filter(r => r.goal.includes('VERIFY_REPAIR') && r.kind === 'check');
-  assert.deepEqual(checks.map(r => r.count), [1, 2]);
-  assert.equal(checks[0].workId, checks[1].workId);
+  assert(!records.some(record => record.goal.includes('VERIFY_REPORT') && record.kind === 'check'));
   await page.getByRole('log').getByRole('button', { name: '查看 verification-report.md', exact: true }).click();
   const preview = page.getByRole('complementary', { name: '报告预览', exact: true });
   await preview.getByRole('heading', { name: '验证报告', exact: true }).waitFor();
@@ -545,6 +544,7 @@ async function assertTimeline() {
     ['answer', 'B', 'B 已核对原始来源'],
     ['notice', 'facilitator', 'B 的核查结果已交给 A，已安排继续完善方案。'],
     ['final', 'A', '验证任务已完成，请查看报告。'],
+    ['notice', 'facilitator', '执行摘要。已交付正文及 1 个文件（verification-report.md）。'],
   ], 'State updates must not create extra persisted status messages');
   // Compare the displayed message identities with the persisted conversation;
   // status transitions must not produce extra synthetic messages.

@@ -304,12 +304,12 @@ export function Details({
                     {task.usage.ordinary} / {task.limits.ordinary}
                   </strong>
                 </div>
-                <div className="task-info">
+                {task.deliveryReport !== "summary" && <div className="task-info">
                   <span>交付检查</span>
                   <strong>
                     {task.usage.checks} / {task.limits.checks}
                   </strong>
-                </div>
+                </div>}
                 {task.deliveryGaps?.length ? (
                   <Collapsible.Root className="task-log">
                     <Collapsible.Trigger>待补验收项 <ChevronDown size={14} /></Collapsible.Trigger>
