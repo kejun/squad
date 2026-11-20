@@ -340,8 +340,10 @@ Then('关闭深度解析或读取旧快照仍能执行既有流程', function(th
   } finally { legacy.close(); }
 });
 
+const privateKeyResult = '内部目标：关键风险可追溯到对应决策';
 Given('网页收到复杂输入并使用受控意图服务', function(this: SpecWorld) {
   const f = setup(this), s = state(this); s.directory = mkdtempSync(join(tmpdir(), 'squad-intent-web-'));
+  f.replies.push({ type: 'interpretation', spec: parsedIntent('request', { okr: { keyResults: [{ text: privateKeyResult, status: 'pending' }] } }) });
   s.web = new WebService(f.config, join(s.directory, 'team.sqlite'), f.adapter); s.room = s.web.createRoom().id;
 });
 When('网页执行器完成解析及交付', async function(this: SpecWorld) {
@@ -356,6 +358,16 @@ Then('快照应包含原始输入意图状态和解析调用记录', function(th
   assert(snapshot.events.some(e => e.title === '开始理解输入')); assert(snapshot.events.some(e => e.title === '输入理解完成'));
   assert.equal(snapshot.works.filter(w => w.kind === 'interpretation').length, 1);
   const exported = buildDetailDocument(snapshot, { target: { taskId: snapshot.tasks[0]!.id } }); assert(exported?.content.includes(complexInput)); assert(exported?.content.includes('expectedOutputs'));
+});
+
+Then('普通网页快照和详情导出应省略内部关键结果', function(this: SpecWorld) {
+  const { f, web, room } = state(this), snapshot = web!.snapshot(room!);
+  const owner = f.requests.find(request => request.kind === 'owner');
+  assert(JSON.stringify(owner?.context.inputIntents).includes(privateKeyResult));
+  assert.equal(snapshot.tasks[0]?.inputAnalyses?.[0]?.spec?.okr, undefined);
+  assert(!JSON.stringify(snapshot.events).includes(privateKeyResult));
+  const exported = buildDetailDocument(snapshot, { target: { taskId: snapshot.tasks[0]!.id } });
+  assert(exported && !exported.content.includes(privateKeyResult));
 });
 
 Given('用户直接指定目标硬约束且解析模型遗漏它们', async function(this: SpecWorld) {
