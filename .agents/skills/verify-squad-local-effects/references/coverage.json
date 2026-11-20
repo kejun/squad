@@ -1,5 +1,5 @@
 {
-  "syncCommit": "1a52e80fe681c28abe1a2d4690d19decf8cafa12",
+  "syncCommit": "7c6205aa794072a63e2ad051aa2072fd9e4e2244",
   "bounds": {
     "tasks": 2,
     "workspaces": 1,
@@ -54,7 +54,7 @@
     "src/local-stdin.ts": "3ba3b53ee6583598f78edc2abb1e164897e0fc0b5523cb6344ebffb7e1faaf6d",
     "src/measurement-report.ts": "ccd928e084df80175db8d13c91d8c5a4aa038871e3f3309fcb6ab1f3344ba8b3",
     "src/measurement.ts": "c4a25d6388178622a0db60691a504a8e2f8816e56f7288845beebd8fe7b1b163",
-    "src/model-adapter.ts": "30423fed077eac2ce9373dfbaa858cc4f8b9bc78a9a5ee0cb43a9f67e8b661eb",
+    "src/model-adapter.ts": "8523394fd600a38007e78639e2c9c61cafcb0af46c39439ed4c74cf62fa3c219",
     "src/model-config.ts": "154ff18366132b4acd963767d2a522b0b37e1f960442ecb3e6eabd036d2b321e",
     "src/model-env.ts": "eba7d8b4bf4c8425b7ab84e6a7d5ae6af5c5933a813f2127a0d2702a87ff4523",
     "src/model-inventory-format.ts": "6f22e2ef4319c1b7a1cbb7a5f7995277f7022cb2eeac4d4cd7298a0128744b23",
