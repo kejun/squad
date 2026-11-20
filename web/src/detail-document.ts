@@ -80,7 +80,7 @@ function taskSections(snapshot: RoomSnapshot, task: WebTask, message?: Message):
   return [
     `# ${message ? "消息详情" : "任务详情"}`,
     `## 目标\n\n${task.goal}`,
-    `- 群聊：${line(snapshot.room.title)}\n- 任务：${line(task.id)}\n- 状态：${taskStatus(task)}\n- 负责人：${line(nameOf(snapshot, task.owner))}\n- 执行请求：${task.usage.ordinary} / ${task.limits.ordinary}\n- 交付检查：${task.usage.checks} / ${task.limits.checks}`,
+    `- 群聊：${line(snapshot.room.title)}\n- 任务：${line(task.id)}\n- 状态：${taskStatus(task)}\n- 负责人：${line(nameOf(snapshot, task.owner))}\n- 执行请求：${task.usage.ordinary} / ${task.limits.ordinary}${task.deliveryReport !== "summary" ? `\n- 交付检查：${task.usage.checks} / ${task.limits.checks}` : ""}`,
     ...(message ? [`## 结果\n\n作者：${line(nameOf(snapshot, message.author))}\n\n${message.detailText ?? message.text}`] : []),
     ...(task.reason ? [`## 任务说明\n\n${task.reason}`] : []),
     ...(task.inputAnalyses?.length ? ["## 输入理解", ...task.inputAnalyses.map(input =>

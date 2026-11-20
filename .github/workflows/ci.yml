@@ -133,6 +133,10 @@ jobs:
           node --import tsx tests/local-resource-preparation-model-fixture.ts
           node --import tsx tests/room-deletion-model-fixture.ts
           node --import tsx tests/process-supervisor-model-gate.ts
+      - name: Verify tool repair and execution summary state models
+        run: |
+          node --import tsx tests/tool-action-repair-model-fixture.ts
+          node --import tsx tests/execution-summary-model-fixture.ts
       - name: Verify input intent state model
         run: node --import tsx tests/internal-okr-model-fixture.ts
       - name: Type checks, all tests, Gherkin and coverage

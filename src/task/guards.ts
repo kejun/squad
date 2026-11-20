@@ -137,7 +137,8 @@ export const taskGuards = {
     decisionAsk: args => valid(args) && d(args.event)?.action === 'askUser',
     decisionFinish: args => valid(args) && d(args.event)?.action === 'finish',
     decisionRun: args => valid(args) && ['continue', 'replan'].includes(d(args.event)?.action ?? ''),
-    deliveryReady: ({ context, event }) => event.type === 'DELIVER' && valid({ context, event }) && !deliverySubmissionProblem(context, event),
+    deliveryReady: ({ context, event }) => event.type === 'DELIVER' && context.config.deliveryReport !== 'summary'
+      && valid({ context, event }) && !deliverySubmissionProblem(context, event),
     checkCanRetry: args => resultKind(args) === 'retry',
     checkContinues: args => resultKind(args) === 'handoff',
     settlingCheck,

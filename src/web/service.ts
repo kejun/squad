@@ -422,6 +422,7 @@ export class WebService {
           currentArtifactIds: [...frozen.artifactIds], reportArtifactId: frozen.reportArtifactId } } : {}),
         id: taskId,
         goal: c.goal.text,
+        ...(c.config.deliveryReport ? { deliveryReport: c.config.deliveryReport } : {}),
         owner: c.owner,
         phase,
         outcome: c.outcome,

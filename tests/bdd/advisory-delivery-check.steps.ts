@@ -3,6 +3,10 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 import { publicationIds } from '../../src/task/delivery.js';
 import { InputIntentFixture, intentConfig } from '../input-intent-fixture.js';
 import { modelResponse } from '../model-regeneration-fixture.js';
+import { config as appConfig } from '../../team.config.js';
+import { WebError, WebService } from '../../src/web/service.js';
+import { buildDetailDocument } from '../../web/src/detail-document.js';
+import { MapReduceFixture } from '../map-reduce-fixture.js';
 import type { SpecWorld } from './steps.js';
 
 const prompt = '请按给定判据交付结果。';
@@ -120,4 +124,96 @@ Then('已发布的正文和文件始终可以访问', function (this: SpecWorld)
   assert.deepEqual(publicationIds(fixture.context()), candidate.artifactIds);
   assert.equal(fixture.context().artifacts.find(item => item.id === candidate.artifactIds[0])?.content, content);
   assert.equal(fixture.context().messages.filter(item => item.kind === 'final').length, 1);
+});
+
+const summarySessions = new WeakMap<SpecWorld, { fixture: InputIntentFixture; web: WebService; room: string; retry?: unknown }>();
+const summaryMaps = new WeakMap<SpecWorld, MapReduceFixture>();
+After(async function (this: SpecWorld) {
+  const state = summarySessions.get(this);
+  if (state) { await state.web.close(); state.fixture.close(); }
+  summaryMaps.get(this)?.close();
+});
+
+function prepareSummary(world: SpecWorld) {
+  assert.equal(appConfig.deliveryReport, 'summary');
+  const fixture = new InputIntentFixture({ ...intentConfig({ checks: 0 }), deliveryReport: appConfig.deliveryReport });
+  fixture.replies.push({ type: 'deliver', text: delivered, artifactIds: [], artifacts: [{ name: 'delivery.md', content }] });
+  const web = new WebService(fixture.config, ':memory:', fixture.adapter);
+  const state = { fixture, web, room: web.createRoom().id };
+  summarySessions.set(world, state);
+  return state;
+}
+
+async function publishSummary(world: SpecWorld) {
+  const { web, room } = summarySessions.get(world)!;
+  web.submit(room, { id: 'summary-delivery', text: '交付正文和文件', mentions: ['A'] });
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (web.snapshot(room).tasks[0]?.outcome === 'complete') return;
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  assert.fail('主笔交付未在有限时间内发布');
+}
+
+Given('群聊使用执行摘要且主笔准备好正文和文件', function (this: SpecWorld) { prepareSummary(this); });
+When('主笔提交最终交付', async function (this: SpecWorld) { await publishSummary(this); });
+Then('应完成任务并发布原正文和文件', function (this: SpecWorld) {
+  const { web, room } = summarySessions.get(this)!, snapshot = web.snapshot(room);
+  const task = snapshot.tasks[0]!, final = snapshot.messages.find(message => message.kind === 'final');
+  assert.equal(task.outcome, 'complete');
+  assert.equal(task.deliveryReport, 'summary');
+  assert.equal(final?.detailText ?? final?.text, delivered);
+  assert.deepEqual(final?.artifactIds, task.currentArtifactIds);
+  assert.equal(task.artifacts.find(item => item.id === task.currentArtifactIds?.[0])?.content, content);
+});
+Then('应仅发送一条执行摘要且不安排核检调用', function (this: SpecWorld) {
+  const { fixture, web, room } = summarySessions.get(this)!, snapshot = web.snapshot(room);
+  const reports = snapshot.messages.filter(message => message.text.startsWith('执行摘要'));
+  assert.equal(reports.length, 1);
+  assert.match(reports[0]!.text, /已交付正文.*delivery\.md/);
+  assert.deepEqual(fixture.requests.map(request => request.kind), ['owner']);
+  assert(!snapshot.works.some(work => work.kind === 'check'));
+  const details = buildDetailDocument(snapshot, { target: { taskId: snapshot.tasks[0]!.id } });
+  assert(details && !details.content.includes('交付检查：'));
+});
+
+Given('群聊使用执行摘要且两个分片仅有一个成功', async function (this: SpecWorld) {
+  const fixture = new MapReduceFixture(); summaryMaps.set(this, fixture);
+  fixture.config.deliveryReport = 'summary'; fixture.failure = '失败';
+  await fixture.recognize();
+  assert(await fixture.run()); assert(await fixture.run()); assert(await fixture.run());
+});
+When('主笔提交保留可用成果的汇总', async function (this: SpecWorld) {
+  const fixture = summaryMaps.get(this)!;
+  fixture.replies.push({ type: 'deliver', text: '仅取得 beta 来源', artifactIds: [],
+    artifacts: [{ name: '汇总.md', content: 'beta 原始证据' }] });
+  fixture.response = undefined;
+  assert(await fixture.run());
+});
+Then('应发布汇总并在简短摘要中说明完成数量和失败分片', function (this: SpecWorld) {
+  const fixture = summaryMaps.get(this)!;
+  assert.equal(fixture.context().outcome, 'complete');
+  assert.equal(fixture.context().publishedDelivery?.artifactIds.length, 1);
+  const report = fixture.context().messages.at(-1)!;
+  assert.equal(report.kind, 'notice');
+  assert.match(report.text, /分片 1\/2 完成/);
+  assert.match(report.text, /alpha 失败.*没有取得正文/);
+  assert.equal(fixture.context().usage.checks, 0);
+});
+
+Given('使用执行摘要的交付已发布', async function (this: SpecWorld) {
+  prepareSummary(this); await publishSummary(this);
+});
+When('用户发送旧命令「重试检查」', function (this: SpecWorld) {
+  const state = summarySessions.get(this)!;
+  try { state.web.submit(state.room, { id: 'obsolete-retry', text: '重试检查' }); }
+  catch (error) { state.retry = error; }
+});
+Then('应保留原交付并说明当前使用执行摘要', function (this: SpecWorld) {
+  const { retry, web, room, fixture } = summarySessions.get(this)!;
+  assert(retry instanceof WebError);
+  assert.match(retry.message, /当前使用执行摘要/);
+  const snapshot = web.snapshot(room);
+  assert.equal(snapshot.tasks[0]?.outcome, 'complete');
+  assert.equal(snapshot.messages.filter(message => message.kind === 'final').length, 1);
+  assert.equal(fixture.requests.length, 1);
 });

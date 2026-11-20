@@ -5,6 +5,7 @@ import type { ExecutionObservation } from '../../src/measurement.js';
 import { LocalFixture } from '../local-tools-fixture.js';
 import { candidateJudgments, Harness, saveEvidence } from '../helpers.js';
 import { modelResponse, regenerationConfig, type CapturedModelRequest } from '../model-regeneration-fixture.js';
+import { MapReduceFixture } from '../map-reduce-fixture.js';
 import type { SpecWorld } from './steps.js';
 
 const locals = new WeakMap<SpecWorld, LocalFixture>();
@@ -113,4 +114,112 @@ Then('首轮检查应包含完整正文和判据且没有证据正文', function
 Then('系统应在一次模型请求中接受该检查', function (this: SpecWorld) {
   assert.equal(requests.get(this)!.length, 1);
   assert.equal(this.h.context().outcome, 'complete');
+});
+
+const savedMaterial = '第一次读取已找到的可信资料';
+const partialAnswer = '已保存第一次读取的资料，后续查询的结果仍待确认';
+const mapRecoveries = new WeakMap<SpecWorld, {
+  fixture: MapReduceFixture; requests: CapturedModelRequest[]; searches: string[];
+}>();
+After(function (this: SpecWorld) { mapRecoveries.get(this)?.fixture.close(); });
+
+async function prepareMapRecovery(world: SpecWorld, ordinary?: number) {
+  const fixture = new MapReduceFixture();
+  fixture.config.limits.retries = 1;
+  if (ordinary !== undefined) fixture.config.limits.ordinary = ordinary;
+  mapRecoveries.set(world, { fixture, requests: [], searches: [] });
+  await fixture.recognize();
+  assert.equal(fixture.pending('assistance').length, 2);
+}
+
+async function recoverMap(world: SpecWorld, badRepair: string, final: unknown) {
+  const { fixture, requests, searches } = mapRecoveries.get(world)!;
+  const first = fixture.pending('assistance')[0]!;
+  const repairs = {
+    无法修正: { type: 'unrepairable' },
+    参数仍无效: { type: 'web_search', query: '补充资料', limit: '依然无效' },
+    改变原目标: { type: 'web_search', query: '未经批准的新查询', limit: 2 },
+  };
+  const repair = repairs[badRepair as keyof typeof repairs];
+  assert(repair);
+  const replies = [
+    { type: 'web_search', query: '初次资料' },
+    { type: 'web_search', query: '补充资料', limit: '无效' },
+    repair,
+    final,
+  ];
+  const adapter = new OpenAICompatibleAdapter(fixture.config, { clock: () => fixture.now, transport: async (_url, init) => {
+    requests.push(JSON.parse(String(init?.body)));
+    assert(replies.length, '一次局部修正和一次最终答复后应结算');
+    return modelResponse(replies.shift());
+  } });
+  const runner = new WorkRunner(fixture.engine, adapter, () => fixture.now, undefined, {
+    search: async ({ query }) => { searches.push(query); return { output: {} as never, text: savedMaterial }; },
+    fetch: async () => assert.fail('分片续办无需额外读取'),
+  });
+  assert(await runner.runOne(fixture.room, fixture.task, first.id));
+}
+
+Given('独立分片已取得一份工具资料并发出了畸形工具动作', async function (this: SpecWorld) {
+  await prepareMapRecovery(this);
+});
+When('局部修正返回{string}且原分片提交已有成果', async function (this: SpecWorld, badRepair: string) {
+  await recoverMap(this, badRepair, { type: 'answer', text: partialAnswer, status: 'partial',
+    artifacts: [{ name: '分片资料.md', content: savedMaterial }] });
+});
+
+Then('坏动作应保持未执行并只请求一次最终答复', function (this: SpecWorld) {
+  const { fixture, requests, searches } = mapRecoveries.get(this)!;
+  const result = fixture.context().discussion?.results.find(item => item.partitionId === 'alpha');
+  assert.deepEqual(searches, ['初次资料']);
+  assert.equal(requests.length, 4, result?.reason);
+  assert.equal(requests[2]!.messages.length, 2);
+  assert(!JSON.stringify(requests[2]!).includes(savedMaterial));
+  assert(JSON.stringify(requests[3]!).includes(savedMaterial));
+  assert(JSON.stringify(requests[3]!).includes('INVALID_TOOL_REQUEST'));
+  assert.equal(fixture.context().usage.retries, 1);
+});
+
+Then('分片的部分成果和缺口应保存并交回主笔', async function (this: SpecWorld) {
+  const { fixture } = mapRecoveries.get(this)!;
+  const result = fixture.context().discussion?.results.find(item => item.partitionId === 'alpha');
+  assert.equal(result?.status, 'partial');
+  assert.equal(result.answer, partialAnswer);
+  assert.equal(result.artifactIds.length, 1);
+  assert.equal(fixture.context().artifacts.find(item => item.id === result.artifactIds[0])?.content, savedMaterial);
+  assert(await fixture.run());
+  assert(await fixture.run());
+  const owner = fixture.pending('owner')[0]!;
+  assert(owner);
+  assert(JSON.stringify(owner.payload.discussion).includes(partialAnswer));
+  assert(JSON.stringify(owner.payload.discussion).includes(result.artifactIds[0]!));
+});
+
+When('分片的最终答复仍然要求调用工具', async function (this: SpecWorld) {
+  await recoverMap(this, '无法修正', { type: 'web_search', query: '不得再次执行' });
+});
+Then('系统应结算该分片并保留明确缺口且不调用工具', function (this: SpecWorld) {
+  const { fixture, requests, searches } = mapRecoveries.get(this)!;
+  const result = fixture.context().discussion?.results.find(item => item.partitionId === 'alpha');
+  assert.equal(requests.length, 4);
+  assert.deepEqual(searches, ['初次资料']);
+  assert.equal(result?.status, 'failed');
+  assert.match(result.reason!, /INVALID_TOOL_REQUEST.*未能提交有效答复/);
+  assert.deepEqual(result.artifactIds, []);
+});
+
+Given('分片在仅余已预留普通额度时工具修正失败', async function (this: SpecWorld) {
+  await prepareMapRecovery(this, 8);
+});
+When('分片尝试请求最终答复', async function (this: SpecWorld) {
+  await recoverMap(this, '无法修正', { type: 'answer', text: '额外调用不应发生' });
+});
+Then('应保留已预留额度，不向供应商发出最终请求', function (this: SpecWorld) {
+  const { fixture, requests, searches } = mapRecoveries.get(this)!;
+  const result = fixture.context().discussion?.results.find(item => item.partitionId === 'alpha');
+  assert.equal(requests.length, 3);
+  assert.deepEqual(searches, ['初次资料']);
+  assert.equal(result?.status, 'failed');
+  assert.match(result.reason!, /DISCUSSION_BUDGET_RESERVED/);
+  assert.equal(fixture.pending('assistance').length, 1);
 });

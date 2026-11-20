@@ -31,4 +31,4 @@ export function createTeamConfig(env: ModelEnvironment = process.env): TeamConfi
   }, env);
 }
 
-export const config = createTeamConfig();
+export const config: TeamConfig = { ...createTeamConfig(), deliveryReport: 'summary' };

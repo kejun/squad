@@ -32,6 +32,7 @@ export interface TeamConfig {
   /** Shared read-only web tools; omitted means enabled. Credentials stay in the host environment. */
   webTools?: { enabled: boolean };
   inputAnalysis?: { enabled: boolean };
+  deliveryReport?: 'summary';
   resilience?: ResiliencePolicy;
   models?: ModelConfiguration;
 }
@@ -271,6 +272,7 @@ export function validateConfig(config: TeamConfig): void {
   if (!config.version || !config.toolVersion || !config.bots.length) throw new Error('Invalid team configuration');
   if (config.skillSearch !== undefined && (!config.skillSearch || typeof config.skillSearch.enabled !== 'boolean')) throw new Error('Invalid skill search configuration');
   if (config.webTools !== undefined && (!config.webTools || typeof config.webTools.enabled !== 'boolean')) throw new Error('Invalid web tools configuration');
+  if (config.deliveryReport !== undefined && config.deliveryReport !== 'summary') throw new Error('Invalid delivery report configuration');
   if (config.inputAnalysis !== undefined && (!config.inputAnalysis || typeof config.inputAnalysis.enabled !== 'boolean')) throw new Error('Invalid input analysis configuration');
   if (config.localTools !== undefined && typeof config.localTools.enabled !== 'boolean') throw new Error('Invalid local tools configuration');
   if (config.resilience !== undefined) {

@@ -111,8 +111,8 @@ export async function startFixture(log) {
         return respond({ type: 'answer', text: '核查中断', status: 'failed', summary: '核查中断' });
       }
       res.writeHead(200, { 'content-type': 'application/json' });
-      if (kind === 'check') return respond({ type: 'check', criteriaResults: goal.includes('VERIFY_REPAIR') && count === 1
-        ? 'invalid' : context.requirements.map(item => ({ criterionId: item.id, status: 'passed' })) });
+      if (kind === 'check') return respond({ type: 'check', criteriaResults: context.requirements
+        .map(item => ({ criterionId: item.id, status: 'passed' })) });
       if (kind === 'facilitator') return respond({ type: 'decision', decision: context.review?.status === 'pending'
         ? { action: 'review', reason: '用户请求评审', question: '核查现有报告', expected: '给出依据与改进项' }
         : { action: 'continue', reason: '继续原目标' } });
