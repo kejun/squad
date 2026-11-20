@@ -19,7 +19,8 @@ export function createTaskContext(input: TaskInput): TaskContext {
       c.goal.requiredArtifacts = Math.max(1, c.goal.requiredArtifacts);
       if (!c.goal.criteria.includes(sourceRevisionRequirement)) c.goal.criteria.push(sourceRevisionRequirement);
     }
-    recordInput(c, input.message.id, input.message.text, input.reviewTargets?.length ? 'review' : 'request');
+    const planNewTask = input.analyzeRequest === true && !input.reviewTargets?.length && c.config.limits.ordinary >= 2;
+    recordInput(c, input.message.id, input.message.text, input.reviewTargets?.length ? 'review' : 'request', planNewTask);
     if (input.reviewTargets?.length) requestReview(c, input.message.id, input.message.text, input.reviewTargets);
     else owner(c, { type: 'BOUNDARY', id: 'initial', at: input.at });
     return c;

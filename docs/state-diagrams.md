@@ -210,7 +210,7 @@ flowchart LR
 
 ### 输入意图解析
 
-对应 BT_I01–BT_I21。保留原执行内核，以 [Zod 运行时契约](https://zod.dev/basics)校验规则与模型结果；按 [XState 持久化](https://stately.ai/docs/persistence)的快照边界保存解析工作。结构化生成仍需宿主校验，参考 [AI SDK 结构化数据说明](https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data)，不引入该 SDK。项目继续固定 XState 5，不升级执行框架。
+对应 BT_I01–BT_I29。保留原执行内核，以 [Zod 运行时契约](https://zod.dev/basics)校验规则与模型结果；按 [XState 持久化](https://stately.ai/docs/persistence)的快照边界保存解析工作。结构化生成仍需宿主校验，参考 [AI SDK 结构化数据说明](https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data)，不引入该 SDK。项目继续固定 XState 5，不升级执行框架。
 
 **图型：上下文生命周期；所有者：`taskMachine / InputAnalysis.status`。**
 
@@ -219,7 +219,7 @@ stateDiagram-v2
     [*] --> pending: recordInput [source为model] / 保存原文与版本
     [*] --> resolved: recordInput [source为rule] / 保存规则解析
     pending --> inflight: CLAIM [claimInterpretation] / 预占ordinary
-    inflight --> resolved: INTERPRETATION_RESULT [valid且无clarification] / 保存spec
+    inflight --> resolved: INTERPRETATION_RESULT [valid且无clarification] / 保存spec及可选关键结果
     inflight --> clarification: INTERPRETATION_RESULT [interpretationClarifies] / 保存问题
     inflight --> pending: WORK_FAILED [retryable] / 保留已用预算
     inflight --> pending: RECOVER [安全重放] / 等待重新领取
@@ -242,6 +242,8 @@ STOP 或目标变化把未完成解析记录置 `cancelled`；新输入有自己
 当前产物与黑板正文同引用目录一起提供给解析模型，避免只有 ID 而缺少指代依据。自定义执行器即使绕过适配器仍须经状态机复核，非法当前结果进入 waitingHuman；未关联已领取解析工作的伪造事件不能改变阶段，迟到结果只结算自己的旧工作。澄清或失败后 CONTINUE 先重建解析操作，不直接安排负责人。解析期间追加的输入按顺序解释，全部完成后再规划；旧结果不得抢先发布。明确控制消息也随 STOP、CONTINUE 或 RETRY_ASSISTANCE 保存原文和回执。
 
 网页等待用户时自动附加的 decision 分类不能盖过完整的直接停止或继续命令；显式 new、retry 等专用入口仍保留原语义。即使补充走规则路径，CHECK_RESULT 也不能在存在未应用输入时发布完成，必须先回到原安全边界应用补充。
+
+BT_I25–BT_I29：已开启并配置模型且普通额度至少有两次时，未点名成员、只提交消息正文的新任务走同一个 pending → inflight → resolved 路径，含关键结果修订的补充走既有安全边界。解析用 objective 作为最终目标，可同时保存关键结果和独立分工。适配器先忽略不合法的可选关键结果，再校验原有契约。有效结果随当前目标版本交接，同版本以最近一次有效修订为准。缺少分片时续办给主笔，合法分片由宿主按已保存的容量与原队列派发。指导性关键结果不进入冻结判据，也不产生新的 UI、执行意图或权限。兼容旧任务及现有额度、停机、超时、重试和澄清机制。
 
 ### 协助重试与结果交接
 

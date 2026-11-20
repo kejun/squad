@@ -5,9 +5,9 @@ import { cancelWork, conversationInput, intent } from './operations.js';
 import { hierarchicalContext, hierarchicalSummaryPending } from './hierarchical-summary.js';
 import { mapReduceCapacity, mapReduceConcurrency } from './map-reduce-capacity.js';
 
-export function recordInput(c: TaskContext, id: string, text: string, action: InputAction) {
+export function recordInput(c: TaskContext, id: string, text: string, action: InputAction, analyzeRequest = false) {
   const analyses = c.inputAnalyses ??= [];
-  const force = analyses.some(input => ['clarification', 'failed'].includes(input.status));
+  const force = analyzeRequest || analyses.some(input => ['clarification', 'failed'].includes(input.status));
   for (const input of analyses.filter(input => ['clarification', 'failed'].includes(input.status))) {
     input.status = 'cancelled'; input.error = 'SUPERSEDED_INPUT';
   }

@@ -285,6 +285,7 @@ export class TeamEngine {
       const reviewTargets = requestedReviewTargets(input.text, input.mentions ?? [], this.config.bots, owner);
       const taskInput = { taskId, owner, goal, config: this.config, at,
         message: { id: input.id, text: input.text, author: 'user', at, taskId, kind: 'user' as const }, history,
+        analyzeRequest: !input.goal && !input.mentions?.length,
         ...(sourceArtifact ? { sourceArtifact } : {}), ...(reviewTargets ? { reviewTargets } : {}) };
       let snapshot: TaskSnapshot, evidence: DebugEvidence | undefined;
       if (this.observe) {

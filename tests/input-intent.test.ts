@@ -83,7 +83,7 @@ describe('validated input interpretation', () => {
   });
 
   it('[BT_I04] current artifact and board bodies accompany their reference identities', async () => {
-    const f = setup(); f.submit('整理方案');
+    const f = setup(); f.submit('整理方案', { mentions: ['A'] });
     f.event({ type: 'ARTIFACT', artifact: { id: 'current-plan', name: 'plan.md', content: '恢复必须保留事务回执。' } });
     f.event({ type: 'BOARD_WRITE', entryId: 'current-evidence', author: 'user', text: 'SQLite事务', kind: 'evidence', sources: ['https://sqlite.org/atomiccommit.html'] });
     f.submit('修改这个方案，必须保留恢复保证', { id: 'current-ref' });

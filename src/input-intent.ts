@@ -10,6 +10,12 @@ export const mapReduceSchema = z.strictObject({
 }).refine(plan => new Set(plan.partitions.map(part => part.id)).size === plan.partitions.length);
 export type MapReducePlan = z.infer<typeof mapReduceSchema>;
 export const inputReferenceSchema = z.strictObject({ kind: z.enum(['message', 'artifact', 'board', 'task']), id: text, taskId: text });
+const okrSchema = z.strictObject({
+  keyResults: z.array(z.strictObject({
+    text: z.string().trim().min(1).max(500),
+    status: z.enum(['pending', 'inProgress', 'achieved']),
+  })).min(1).max(8),
+});
 /** One contract is used at the HTTP protocol, worker and state-machine boundaries. */
 export const inputIntentSchema = z.strictObject({
   action: z.enum(['request', 'supplement', 'decision', 'review']), objective: text,
@@ -17,6 +23,7 @@ export const inputIntentSchema = z.strictObject({
   references: z.array(inputReferenceSchema).max(64), confidence: z.number().min(0).max(1),
   clarification: text.nullable(),
   decomposition: mapReduceSchema.nullable().optional(),
+  okr: okrSchema.optional(),
 }).refine(spec => spec.confidence >= 0.65 || spec.clarification !== null);
 export const inputIntentJsonSchema = z.toJSONSchema(inputIntentSchema);
 export type InputReference = z.infer<typeof inputReferenceSchema>;
@@ -38,7 +45,7 @@ export function leadingInputMention(text: string): string | undefined {
 
 export function needsInputAnalysis(text: string): boolean {
   return text.length >= 120 || (text.match(/[;；\n]/g)?.length ?? 0) >= 2
-    || /(?:map[ -]?reduce|并行|汇总|逐个|逐一|上面|上次|之前|刚才|这个|那个|它|改为|改成|沿用|不要|必须|至少|最多|只能|同时|分别|如果|否则|再试一次|\b(?:above|previous|that|it|must|unless|instead|at least|at most)\b)/i.test(text);
+    || /(?:map[ -]?reduce|并行|汇总|逐个|逐一|上面|上次|之前|刚才|这个|那个|它|改为|改成|沿用|不要|必须|至少|最多|只能|同时|分别|如果|否则|再试一次|关键结果|\b(?:OKR|KR\d*)\b|\b(?:above|previous|that|it|must|unless|instead|at least|at most)\b)/i.test(text);
 }
 
 export function fixedSourceReference(c: Pick<TaskContext, 'sourceArtifact'>): InputReference[] {
@@ -74,6 +81,13 @@ export function inputReferences(c: TaskContext): InputReference[] {
   ];
   return [...refs, ...fixedSourceReference(c)].filter((ref, index, all) => all.findIndex(item =>
     item.kind === ref.kind && item.id === ref.id && item.taskId === ref.taskId) === index);
+}
+
+/** Optional model guidance must not invalidate an otherwise usable interpretation. */
+export function omitInvalidOkr(spec: unknown): unknown {
+  if (!spec || typeof spec !== 'object' || !('okr' in spec) || okrSchema.safeParse(spec.okr).success) return spec;
+  const { okr: _invalid, ...intent } = spec;
+  return intent;
 }
 
 /** Schema validity alone grants no scheduling authority or reference identity. */

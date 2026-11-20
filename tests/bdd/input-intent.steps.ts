@@ -31,7 +31,7 @@ After(async function(this: SpecWorld) {
 Given('已配置模型且准备处理意图指令{string}', function(this: SpecWorld, command: string) {
   const f = setup(this); state(this).command = command === '等待回复时停止' ? '停止' : command === '等待回复时继续' ? '继续' : command;
   if (command.startsWith('@')) return;
-  assert(f.submit('写一份计划').ok);
+  assert(f.submit('写一份计划', { mentions: ['A'] }).ok);
   if (command.startsWith('等待回复时')) { f.event({ type: 'WAIT_USER', question: '请提供必要材料' }); state(this).stage = 'decision'; }
   if (command === '继续') assert(f.event({ type: 'STOP' }).ok);
   if (command === 'B 重试') {
@@ -89,7 +89,7 @@ Then('模型上下文应包含原始输入和该角色所需的校验后要求',
 
 Given('意图模型返回{string}且无格式修正额度', function(this: SpecWorld, reference: string) {
   const f = setup(this, intentConfig({ retries: 0 }));
-  assert(f.submit('历史方案', { id: 'history' }).ok); const oldTask = f.task;
+  assert(f.submit('历史方案', { id: 'history', mentions: ['A'] }).ok); const oldTask = f.task;
   assert(f.event({ type: 'ARTIFACT', artifact: { id: 'historical-plan', name: 'plan.md', content: '先验证恢复再发布。' } }).ok);
   assert(f.event({ type: 'ARTIFACT', artifact: { id: 'unrelated', name: 'unrelated.md', content: '无关的群内材料。' } }).ok);
   f.prepare('check'); assert(f.checkResult(f.claimCheck(), 'old-check').ok);
@@ -308,7 +308,7 @@ Then('应只保存一份输入和解析并安排一次负责人工作', function
 Then('同一输入身份携带不同文本应被拒绝', function(this: SpecWorld) { assert.equal(state(this).f.submit('不同文本').code, 'REQUEST_ID_CONFLICT'); });
 
 Given('用户输入包含{string}', function(this: SpecWorld, content: string) {
-  const f = setup(this); assert(f.submit('写计划').ok); f.prepare('assistance'); const work = f.context().intents.find(i => i.kind === 'assistance')!;
+  const f = setup(this); assert(f.submit('写计划', { mentions: ['A'] }).ok); f.prepare('assistance'); const work = f.context().intents.find(i => i.kind === 'assistance')!;
   assert(f.event({ type: 'WORK_FAILED', intentId: work.id, transient: false, reason: '原协助失败' }).ok);
   const command = ({ 引用中的停止: '> 停止', 代码中的继续: '```text\n继续\n```', 否定的重试: '不要 B 重试', 普通句子中的停止: '解释停止机制的原理' })[content];
   assert(command); state(this).command = command;
@@ -334,7 +334,7 @@ Then('关闭深度解析或读取旧快照仍能执行既有流程', function(th
   finally { disabled.close(); }
   const legacy = new InputIntentFixture();
   try {
-    assert(legacy.submit('旧版任务', { id: 'legacy' }).ok);
+    assert(legacy.submit('旧版任务', { id: 'legacy', mentions: ['A'] }).ok);
     legacy.store.transact(legacy.room, tx => { const stored = tx.room.tasks[legacy.task] as { snapshot: { context: { inputAnalyses?: unknown } } }; delete stored.snapshot.context.inputAnalyses; });
     legacy.reopen(); assert.equal(legacy.view().phase, 'running'); assert.equal(legacy.engine.pending(legacy.room, legacy.task)[0]?.kind, 'owner');
   } finally { legacy.close(); }

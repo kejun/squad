@@ -34,7 +34,7 @@ afterEach(() => {
     .forEach((fn) => fn());
 });
 function seed(engine: TeamEngine, room = "r") {
-  engine.submit(room, { id: "plan", text: "请制定 ESP32 同步方案" });
+  engine.submit(room, { id: "plan", text: "请制定 ESP32 同步方案", mentions: ["A"] });
   engine.send(room, "task:plan", {
     id: "artifact",
     type: "ARTIFACT",
