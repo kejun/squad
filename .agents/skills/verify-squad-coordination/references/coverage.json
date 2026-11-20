@@ -1,5 +1,5 @@
 {
-  "syncCommit": "7c6205aa794072a63e2ad051aa2072fd9e4e2244",
+  "syncCommit": "1d9778143bb11ddb82fff7ea8bbd325201a56274",
   "bounds": {
     "Budget": "one current ordinary owner intent, 2 user epochs, ordinary limits 3 then 5, automatic retry limit 1, one safe inflight recovery; request/claim count bounded by total paid budget 5",
     "Shards": "one round with exactly 2 shards, 3 result outcomes per shard, one reducer, stop or one goal change, one reopen including active safe inflight recovery; no recovery of cancelled inflight or second round",
