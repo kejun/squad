@@ -209,7 +209,7 @@ Given('网页任务的模型检查先不合规再修正通过', function (this: 
   s.web = new WebService(config, join(s.directory, 'team.sqlite'), adapter); s.room = s.web.createRoom().id;
 });
 When('通过网页执行器完成任务', async function (this: SpecWorld) {
-  const s = state(this); s.web!.submit(s.room!, { id: 'web-schema', text: '请形成可检查方案' });
+  const s = state(this); s.web!.submit(s.room!, { id: 'web-schema', text: '请形成可检查方案', mentions: ['A'] });
   for (let n = 0; n < 100; n++) {
     if (s.web!.snapshot(s.room!).tasks[0]?.phase === 'ended') return;
     await new Promise(resolve => setTimeout(resolve, 10));

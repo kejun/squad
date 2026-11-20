@@ -210,7 +210,7 @@ export interface TaskContext extends Fence {
   hostRetryRequests?: HostRetryRequest[];
   hostRetryBatch?: HostRetryBatch | undefined;
 }
-export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[]; sourceArtifact?: ArtifactSource }
+export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[]; sourceArtifact?: ArtifactSource; analyzeRequest?: boolean }
 export interface Envelope { id: string; at: number; fence?: Fence; workId?: string; attempt?: number }
 export type Decision =
   | { action: 'continue'; reason: string }

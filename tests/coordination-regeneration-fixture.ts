@@ -121,7 +121,7 @@ export class CoordinationWebFixture {
     return fixture;
   }
   async run() {
-    const result = this.service.submit(this.room, { id: 'coordination-self', text: '形成一份可检查方案' });
+    const result = this.service.submit(this.room, { id: 'coordination-self', text: '形成一份可检查方案', mentions: ['A'] });
     this.task = result.taskId!;
     const deadline = Date.now() + 3000;
     while (Date.now() < deadline) {

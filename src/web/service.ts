@@ -27,7 +27,7 @@ import { RoomDeletionCoordinator } from '../room-deletion-coordinator.js';
 import type { RuntimeCleanupInventory, SavedRoomDeletion } from '../room-deletion.machine.js';
 import { DebugJournal } from "./debug-journal.js";
 import type { DebugFeed } from "../task-debug.js";
-import type { Intent, TaskContext, TeamConfig } from "../types.js";
+import type { InputIntentSpec, Intent, TaskContext, TeamConfig } from "../types.js";
 import { effectiveWork, processingWindow } from '../task/resilience.js';
 import { coordinationView, type CoordinationView } from '../coordination-view.js';
 import type { WebTools } from "../web-tools.js";
@@ -44,6 +44,10 @@ import type {
   WebOperationReview,
   DeletedRoom,
 } from "./contracts.js";
+
+function publicIntentSpec({ okr: _internal, ...spec }: InputIntentSpec) {
+  return spec;
+}
 
 export class WebError extends Error {
   constructor(
@@ -433,7 +437,8 @@ export class WebService {
         ...(deliveryGaps.length ? { deliveryGaps } : {}),
         board: c.board,
         trace: c.trace,
-        ...(c.inputAnalyses ? { inputAnalyses: c.inputAnalyses } : {}),
+        ...(c.inputAnalyses ? { inputAnalyses: c.inputAnalyses.map(input =>
+          input.spec?.okr ? { ...input, spec: publicIntentSpec(input.spec) } : input) } : {}),
         assists: c.assists.filter(retryableAssistance).map((help) => {
           const problem = stored.activeTaskId && stored.activeTaskId !== taskId
             ? "ROOM_BUSY" : assistanceRetryProblem(c, help.id, this.config);
@@ -846,12 +851,14 @@ export class WebService {
         };
         try {
           const output = await this.adapter.execute(work, signal, tracedScope);
+          const visibleOutput = output?.type === 'interpretation' && output.spec?.okr
+            ? { ...output, spec: publicIntentSpec(output.spec) } : output;
           this.append(
             roomId,
             work,
             signal.aborted ? "cancelled" : "output",
             signal.aborted ? "执行已取消" : work.kind === "interpretation" ? "输入理解完成" : "返回执行结果",
-            JSON.stringify(output, null, 2),
+            JSON.stringify(visibleOutput, null, 2),
           );
           return output;
         } catch (error) {
