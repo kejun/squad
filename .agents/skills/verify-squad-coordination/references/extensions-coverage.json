@@ -106,7 +106,7 @@
     "src/web/debug-journal.ts": "5894a650d045569bdfe5e161a54ace71d2e2a89d30a50b2a4c84a6249106eebe",
     "src/web/http.ts": "ed024288de2ef242f4028514344ed6d67b9211d1a16e7b7723eb2dc2ff156fea",
     "src/web/service-lifecycle.ts": "265e659384eaae1770fbefa71c632e060cded863b47768f7292cd8151fd561db",
-    "src/web/service.ts": "7e371e8247fb650e9a650f481be9bfc715bb5693ca0f0a6a663654ac3654cc64",
+    "src/web/service.ts": "c32142965ec656c5d41fec1524a49d3ab875144810eedc23c5035e1f346e24d2",
     "team.config.ts": "35cdc732de46c7d93d4c9df77666f9d2261ba40ca69a06d98b1efe750997f9de"
   },
   "verification": {
