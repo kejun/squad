@@ -27,7 +27,7 @@ export class DiscussionFixture {
       coordinator: { baseUrl: 'http://127.0.0.1:9/v1', model: 'coordinator-model' },
     } };
     this.engine = new TeamEngine(this.store, this.config, () => this.now);
-    this.engine.submit(this.room, { id: 'plan', text: '制定有证据的可离线同步方案' });
+    this.engine.submit(this.room, { id: 'plan', text: '制定有证据的可离线同步方案', mentions: ['A'] });
     this.ownerWork = this.engine.claim(this.room, this.task, this.engine.pending(this.room, this.task)[0]!.id)!;
     assert.equal(this.ownerWork.kind, 'owner');
   }
