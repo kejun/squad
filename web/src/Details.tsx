@@ -287,7 +287,6 @@ export function Details({
             <span className="task-state">
               {connected ? phaseLabel(task) : "连接中断"}
             </span>
-            <TaskOkrReference task={task} />
             {task && (
               <>
                 <SourceArtifactLink source={task.sourceArtifact} onOpen={setOpened} />
@@ -441,11 +440,6 @@ function SourceArtifactLink({ source, onOpen }: {
   </Button>;
 }
 
-function TaskOkrReference({ task }: { task: WebTask | undefined }) {
-  if (!task?.okr) return null;
-  return <p className="okr-task-reference"><span>关联 KR</span><strong>{task.okr.keyResult}</strong><small>{task.okr.objective}</small></p>;
-}
-
 function FrozenDelivery({ task }: { task: WebTask }) {
   const delivery = task.delivery;
   if (!delivery) return null;
@@ -505,7 +499,6 @@ function ResultDetails({ snapshot, target, onClose, onOpen, onBack, connected, o
           </> : <>
             <h2>{task!.goal}</h2>
             <span className="task-state">{connected ? phaseLabel(task) : "连接中断"}</span>
-            <TaskOkrReference task={task} />
             <FrozenDelivery task={task!} />
             {message && <MessageText text={normalizeCoordinatorReportText(message.detailText ?? message.text, message.author === 'facilitator' && message.kind === 'final')} agents={onAgent ? snapshot?.agents ?? [] : []} onAgent={onAgent ?? noAgentAction} />}
             {!message && task!.reason && <p className="task-reason">{task!.reason}</p>}

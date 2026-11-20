@@ -38,14 +38,7 @@ export interface TeamConfig {
 export const localEnabled = (config: TeamConfig, target: string) => config.localTools?.enabled !== false
   && config.bots.find(bot => bot.id === target)?.localTools !== false;
 export interface Fence { epoch: number; goalVersion: number }
-export const keyResultStatuses = ['pending', 'inProgress', 'achieved'] as const;
-export type KeyResultStatus = typeof keyResultStatuses[number];
-export interface OkrKeyResult { id: string; title: string; status: KeyResultStatus }
-export interface OkrObjective { id: string; title: string; keyResults: OkrKeyResult[] }
-export interface OkrLink { keyResultId: string; objective: string; keyResult: string }
 export interface Goal { text: string; constraints: string[]; criteria: string[]; requiredArtifacts: number; resourceRequirements?: ResourceRequirement[];
-  /** Reference context selected by the user at task creation. */
-  okr?: OkrLink;
   /** Direct user/host obligations by stable partition id; never inferred authority from model prose. */
   partitionResources?: Record<string, ResourceIdentity[]>;
 }

@@ -31,7 +31,6 @@ import type { Intent, TaskContext, TeamConfig } from "../types.js";
 import { effectiveWork, processingWindow } from '../task/resilience.js';
 import { coordinationView, type CoordinationView } from '../coordination-view.js';
 import type { WebTools } from "../web-tools.js";
-import { applyOkrChange, linkOkr, type OkrChange } from './okr.js';
 import type {
   ExecutionEvent,
   RoomSnapshot,
@@ -303,22 +302,6 @@ export class WebService {
     // A repeated old receipt returns current metadata, never reapplies its old target state.
     return this.room(roomId);
   }
-  changeOkr(roomId: string, change: OkrChange) {
-    this.room(roomId);
-    return this.store.transact(roomId, tx => {
-      const receiptId = `okr:${change.id}`;
-      const fingerprint = createHash('sha256').update(JSON.stringify(change)).digest('hex');
-      const receipt = tx.receipt(receiptId);
-      if (receipt) {
-        if (receipt.fingerprint !== fingerprint) throw new WebError(409, '此 OKR 请求标识已被使用。');
-        return { ok: true };
-      }
-      if (!applyOkrChange(tx.room, change)) throw new WebError(404, '找不到当前群聊里的目标或关键结果。');
-      const result = { ok: true };
-      tx.remember(receiptId, fingerprint, result);
-      return result;
-    });
-  }
   decideHostApproval(roomId: string, data: { id: string; taskId: string; workId: string; operationId: string; approvalId: string; decision: 'approve' | 'approveSession' | 'deny' }) {
     this.room(roomId);
     let work: Intent | undefined;
@@ -435,7 +418,6 @@ export class WebService {
           currentArtifactIds: [...frozen.artifactIds], reportArtifactId: frozen.reportArtifactId } } : {}),
         id: taskId,
         goal: c.goal.text,
-        ...(c.goal.okr ? { okr: c.goal.okr } : {}),
         owner: c.owner,
         phase,
         outcome: c.outcome,
@@ -533,7 +515,6 @@ export class WebService {
     for (const blocker of this.workspaceBlockers(roomId)) if (!blockers.some(existing => existing.id === blocker.id)) blockers.push(blocker);
     return {
       room,
-      ...(stored.objectives?.length ? { objectives: stored.objectives } : {}),
       agents,
       tasks,
       works,
@@ -611,7 +592,7 @@ export class WebService {
     return { ...this.debugJournal.read(roomId, after, sessionId), tasks,
       current: id && stored ? { taskId: id, snapshot: structuredClone(stored.snapshot) } : null };
   }
-  submit(roomId: string, input: Submission, keyResultId?: string) {
+  submit(roomId: string, input: Submission) {
     if (!this.initialized) throw new WebError(503, "本地执行会话正在恢复，请稍后重试。");
     this.room(roomId);
     if (
@@ -627,10 +608,8 @@ export class WebService {
       )
     )
       throw new WebError(400, "点名的成员不存在。");
-    const okr = keyResultId === undefined ? undefined : linkOkr(this.store.read(roomId), keyResultId);
-    if (keyResultId !== undefined && !okr) throw new WebError(404, '找不到当前群聊的关键结果。');
     const first = this.engine.timeline(roomId).length === 0;
-    const result = this.engine.submit(roomId, okr ? { ...input, okr } : input);
+    const result = this.engine.submit(roomId, input);
     if (!result.ok) throw new WebError(409, result.detail, result);
     if (result.taskId && this.engine.view(roomId, result.taskId)?.context.stopped) {
       this.scheduleCancellation(roomId, result.taskId);

@@ -29,7 +29,6 @@ const protocolBoundEvents = new Set<TaskEvent['type']>([
 export interface CommandResult extends Reply { taskId?: string; duplicate?: boolean; sourceCandidates?: ArtifactSourceMetadata[]; roomId?: string; deletionVersion?: number }
 export interface Submission {
   id: string; text: string; mentions?: string[]; goal?: Goal;
-  okr?: Goal['okr'];
   intent?: 'new' | 'supplement' | 'decision' | 'continue' | 'retry'; replyToTaskId?: string;
   retryAssistanceId?: string;
   extraOrdinary?: number;
@@ -284,7 +283,7 @@ export class TeamEngine {
       const goal = input.goal ?? { text: input.text, constraints: [], criteria: ['Answer the user request'], requiredArtifacts: 0 };
       const history = conversationHistory(Object.values(tx.room.tasks).map(task => decode(task).context), sourceArtifact);
       const reviewTargets = requestedReviewTargets(input.text, input.mentions ?? [], this.config.bots, owner);
-      const taskInput = { taskId, owner, goal: input.okr ? { ...goal, okr: input.okr } : goal, config: this.config, at,
+      const taskInput = { taskId, owner, goal, config: this.config, at,
         message: { id: input.id, text: input.text, author: 'user', at, taskId, kind: 'user' as const }, history,
         ...(sourceArtifact ? { sourceArtifact } : {}), ...(reviewTargets ? { reviewTargets } : {}) };
       let snapshot: TaskSnapshot, evidence: DebugEvidence | undefined;
