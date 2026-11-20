@@ -183,7 +183,8 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       else {
         c.inputs.push({ id: e.id, text: e.text, applied: false });
         if (e.goal) {
-          c.goal = e.goal; c.goalVersion++; c.localSkillVersions = []; c.candidate = null; delete c.deliveryGaps;
+          c.goal = c.goal.okr ? { ...e.goal, okr: c.goal.okr } : e.goal;
+          c.goalVersion++; c.localSkillVersions = []; c.candidate = null; delete c.deliveryGaps;
           resetDeliveryMaterials(c);
           cancelWork(c, e, true); cancelHostRetries(c, 'STALE_WORK');
           for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight', 'clarification', 'failed'].includes(input.status)) input.status = 'cancelled';

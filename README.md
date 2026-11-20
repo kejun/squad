@@ -103,6 +103,8 @@ npm start
 
 ## 状态模型
 
+群聊 OKR 提供目标文字、可选的任务关联和手动 KR 状态。关联文字进入该任务的 Agent 参考上下文。任务完成沿用交付状态，KR 状态由群聊保存。[OKR 关联与任务状态](docs/state-diagrams.md#okr-关联与任务状态)（BT_O13–BT_O17）。
+
 输入理解、子 Agent 分工、归并和下游检查共享当前交付目标。角色使用已保存的范围和材料，在现有协议中约定可合并的产物。验收见 [目标与分工](docs/requirements/goal-aligned-handoffs.md)及[模型交接](docs/state-diagrams.md#围绕最终交付的模型交接)。
 
 分层摘要在宿主结算后继续推进，网页重选耗尽时带着已有成果衔接，检查员可在原检查补齐真实凭证，定时进展检查保留可领取的有效工作。验收条目见[正向推进](docs/requirements/forward-workflow.md)及[状态细图](docs/state-diagrams.md)。

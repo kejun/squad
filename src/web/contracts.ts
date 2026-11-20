@@ -6,6 +6,8 @@ import type {
   Intent,
   InputAnalysis,
   Message,
+  OkrLink,
+  OkrObjective,
   Outcome,
   Phase,
   ReviewRound,
@@ -84,6 +86,7 @@ export interface WebTask {
   delivery?: { epoch: number; goalVersion: number; revision: string; status: 'complete' | 'incomplete'; currentArtifactIds: string[]; reportArtifactId?: string };
   id: string;
   goal: string;
+  okr?: OkrLink;
   owner: string;
   phase: Phase;
   outcome: Outcome | null;
@@ -109,6 +112,7 @@ export interface WebAssistance {
   reason: string;
 }
 export interface RoomSnapshot {
+  objectives?: OkrObjective[];
   blockers?: WebBlocker[];
   deletedRooms?: DeletedRoom[];
   failedSandboxCommands?: WebFailedSandboxCommand[];

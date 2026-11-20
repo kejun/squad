@@ -8,6 +8,7 @@ import { extname, resolve, sep } from "node:path";
 import { WebError, type WebService } from "./service.js";
 import type { Submission } from "../engine.js";
 import { RoomDeletionError } from '../store.js';
+import { okrChange, okrId } from './okr.js';
 
 async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
   let text = "";
@@ -81,7 +82,7 @@ export function createWebServer(
             201,
           );
         }
-        const match = /^\/api\/rooms\/([^/]+)(?:\/(messages|stop|archive|restore|host-approval|host-retry|host-session-revoke|blocker-decision|operation-review|operation-reconcile|delete|delete-retry))?$/.exec(
+        const match = /^\/api\/rooms\/([^/]+)(?:\/(messages|stop|archive|restore|okr|host-approval|host-retry|host-session-revoke|blocker-decision|operation-review|operation-reconcile|delete|delete-retry))?$/.exec(
           url.pathname,
         );
         if (!match?.[1]) throw new WebError(404, "接口不存在。");
@@ -149,6 +150,11 @@ export function createWebServer(
           }
           if (match[2] === "archive" || match[2] === "restore")
             return json(res, service.setRoomArchived(roomId, data.id, match[2] === "archive"));
+          if (match[2] === 'okr') {
+            const change = okrChange.safeParse(data);
+            if (!change.success) throw new WebError(400, 'OKR 信息格式不正确，名称须为 1–200 字。');
+            return json(res, service.changeOkr(roomId, change.data));
+          }
           if (match[2] === "stop") {
             if (typeof data.taskId !== "string")
               throw new WebError(400, "缺少任务标识。");
@@ -192,6 +198,8 @@ export function createWebServer(
               })) throw new WebError(400, '产物引用格式不正确，请重新选择来源。');
             if (data.extraOrdinary !== undefined) throw new WebError(400, '产物引用不能与任务额度控制同时提交。');
           }
+          const keyResultId = okrId.optional().safeParse(data.keyResultId);
+          if (!keyResultId.success) throw new WebError(400, '关键结果标识不正确。');
           const input: Submission = {
             id: data.id,
             text: data.text,
@@ -207,7 +215,7 @@ export function createWebServer(
             ...(typeof data.newWindowMs === 'number' ? { newWindowMs: data.newWindowMs } : {}),
             ...(data.sourceArtifact ? { sourceArtifact: data.sourceArtifact as Submission['sourceArtifact'] & object } : {}),
           };
-          return json(res, service.submit(roomId, input));
+          return json(res, service.submit(roomId, input, keyResultId.data));
         }
         throw new WebError(405, "请求方法不受支持。");
       }

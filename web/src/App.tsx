@@ -32,6 +32,7 @@ import {
   PanelRight,
   Plus,
   Square,
+  Target,
   Users,
   WifiOff,
   X,
@@ -51,6 +52,7 @@ import { HostApprovals } from './HostApprovals';
 import { HostRetryButton } from './HostRetryButton';
 import { RoomDeletion, RoomDeletionStatus } from './RoomDeletion';
 import { HumanBlockers } from './HumanBlockers';
+import { OkrDialog } from './OkrDialog';
 
 const MessageText = lazy(() =>
   import("./MessageText").then((module) => ({ default: module.MessageText })),
@@ -101,6 +103,8 @@ export function Workspace({
     Record<string, string[]>
   >({});
   const [sourcesByRoom, setSourcesByRoom] = useState<Record<string, (ArtifactReference & { name: string }) | undefined>>({});
+  const [keyResultsByRoom, setKeyResultsByRoom] = useState<Record<string, string>>({});
+  const [okrRoom, setOkrRoom] = useState<string | null>(null);
   const [candidatesByRoom, setCandidatesByRoom] = useState<Record<string, ArtifactSourceMetadata[]>>({});
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionIndex, setMentionIndex] = useState(0);
@@ -131,13 +135,16 @@ export function Workspace({
     if (!removed.length) return;
     for (const id of removed) { clearedRooms.current.add(id); delete sendIdentities.current[id]; }
     const omit = <T,>(values: Record<string, T>) => Object.fromEntries(Object.entries(values).filter(([id]) => !clearedRooms.current.has(id)));
-    setDrafts(omit); setMentionsByRoom(omit); setSourcesByRoom(omit); setCandidatesByRoom(omit);
+    setDrafts(omit); setMentionsByRoom(omit); setSourcesByRoom(omit); setCandidatesByRoom(omit); setKeyResultsByRoom(omit);
+    if (okrRoom && removed.includes(okrRoom)) setOkrRoom(null);
     if (roomId && removed.includes(roomId)) { setDetailOpen(false); setDetailTarget(null); setSelectedAgent(null); setDebugOpen(false); }
-  }, [workspace.deletedRooms, roomId]);
+  }, [workspace.deletedRooms, roomId, okrRoom]);
   const draftKey = roomId ?? "new";
   const text = drafts[draftKey] ?? "";
   const sourceArtifact = sourcesByRoom[draftKey];
   const sourceCandidates = candidatesByRoom[draftKey] ?? [];
+  const objectives = snapshot?.objectives ?? [];
+  const keyResultId = keyResultsByRoom[draftKey];
   const agents = snapshot?.agents ?? [];
   const task = snapshot?.tasks.find(
     (task) => task.id === snapshot.activeTaskId,
@@ -298,6 +305,7 @@ export function Workspace({
           content.split(/\s+/).includes(`@${id}`),
         ),
         ...(!continueTask && sourceArtifact ? { sourceArtifact: { sourceTaskId: sourceArtifact.sourceTaskId, artifactId: sourceArtifact.artifactId } } : {}),
+        ...(!continueTask && keyResultId ? { keyResultId } : {}),
         ...(continueTask
           ? { intent: "continue", replyToTaskId: latestTask?.id, ...(addedOrdinary !== undefined ? { extraOrdinary: addedOrdinary } : {}),
             ...(newWindowMs !== undefined ? { newWindowMs } : {}) }
@@ -315,6 +323,7 @@ export function Workspace({
       if (continueTask) setContinueOpen(false);
       if (addedOrdinary !== undefined) setExtraOrdinary('');
       if (!continueTask) {
+        setKeyResultsByRoom(previous => ({ ...previous, [draftKey]: '', [targetRoom]: '' }));
         setSourcesByRoom(previous => ({ ...previous, [draftKey]: undefined, [targetRoom]: undefined }));
         setCandidatesByRoom(previous => ({ ...previous, [draftKey]: [], [targetRoom]: [] }));
         setDrafts((previous) => ({
@@ -548,6 +557,7 @@ export function Workspace({
                 {connected ? <><span className="tiny-dot" />已连接</> : <><WifiOff size={12} />连接中断</>}
               </span>
               {debugEnabled && <IconButton label="打开状态机调试" onClick={() => setDebugOpen(true)}><Bug size={18} /></IconButton>}
+              {roomId && <IconButton label="群聊 OKR" onClick={() => setOkrRoom(roomId)}><Target size={18} /></IconButton>}
               <IconButton
                 label={detailOpen ? "收起详情" : "查看任务详情"}
                 onClick={() => {
@@ -871,6 +881,18 @@ export function Workspace({
               <span>来源 {sourceArtifact.name}</span>
               <Button className="icon-button" aria-label="移除产物引用" disabled={sending} onClick={removeSource}><X size={14} /></Button>
             </div>}
+            {!task && objectives.some(objective => objective.keyResults.length) && <label className="okr-choice">
+              <span>关联 KR</span>
+              <select value={keyResultId ?? ''} disabled={!connected || sending || deleting}
+                onChange={event => { const id = event.target.value; setKeyResultsByRoom(previous => ({ ...previous, [draftKey]: id })); }}>
+                <option value="">不关联</option>
+                {objectives.filter(objective => objective.keyResults.length).map(objective => (
+                  <optgroup label={objective.title} key={objective.id}>
+                    {objective.keyResults.map(result => <option value={result.id} key={result.id}>{result.title}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </label>}
             <div className={`composer ${mentionOpen ? "mention-is-open" : ""}`}>
               <textarea
                 ref={textarea}
@@ -1013,6 +1035,8 @@ export function Workspace({
           </>
         )}
       </div>
+      {roomId && <OkrDialog key={roomId} roomId={roomId} objectives={objectives} open={okrRoom === roomId}
+        onOpenChange={open => setOkrRoom(open ? roomId : null)} editable={connected && !deleting} />}
       <Dialog.Root open={continueOpen} onOpenChange={setContinueOpen}>
         <Dialog.Portal><Dialog.Backdrop className="host-approval-backdrop" />
           <Dialog.Popup className="host-approval-dialog" aria-busy={sending}>
