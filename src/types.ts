@@ -1,3 +1,4 @@
+import type { LearnedReadRoute, ReusedPartitionSource, TaskExecutionMemory } from './task/execution-memory.js';
 import type { HostRetryBatch, HostRetryRequest } from './host-retry.js';
 import type { CheckDiagnostic, CheckDiagnosticRecord, CriterionJudgment, DeliveryAcceptance, DeliveryAssessment, DeliveryGap } from './delivery-acceptance.js';
 import type { DeliveryEvidenceRef } from './task/evidence.js';
@@ -33,6 +34,7 @@ export interface TeamConfig {
   webTools?: { enabled: boolean };
   inputAnalysis?: { enabled: boolean };
   deliveryReport?: 'summary';
+  executionMemory?: boolean;
   resilience?: ResiliencePolicy;
   models?: ModelConfiguration;
 }
@@ -59,6 +61,7 @@ export interface ArtifactDraft { name: string; content: string; replacesArtifact
 export interface Artifact {
   id: string; name: string; content: string; goalVersion: number; author?: string; workId?: string;
   documentId?: string; revision?: number; replacesArtifactId?: string; sourceItems?: SourceItem[];
+  reusedFrom?: ArtifactReference;
 }
 export interface ArtifactReference { sourceTaskId: string; artifactId: string }
 /** Trusted immutable input, separate from current-task artifacts and bounded room history. */
@@ -88,6 +91,7 @@ export type ToolFailureCode = typeof toolFailureCodes[number];
 export type WebToolKind = 'web_search' | 'web_fetch';
 export interface ToolFailureFeedback { tool: WebToolKind; code: ToolFailureCode }
 export interface Intent extends Fence {
+  learnedReadRoute?: LearnedReadRoute;
   hostAcquisitions?: HostAcquisition[];
   id: string; kind: WorkKind; target: string; payload: Record<string, unknown>;
   status: 'pending' | 'inflight' | 'done' | 'cancelled' | 'uncertain';
@@ -180,11 +184,13 @@ export interface DiscussionRound extends Fence {
   question?: string; expected?: string; summary?: string; incomplete?: string;
 }
 export interface MapPartitionRun {
+  reusedSource?: ReusedPartitionSource;
   partitionId: string; attempt: number; deadline: number;
   status: 'queued' | 'running' | 'uncertain' | 'succeeded' | 'partial' | 'failed' | 'timeout' | 'cancelled';
   workId?: string; target?: string; resultRef?: string; reason?: string;
 }
 export interface TaskContext extends Fence {
+  executionMemory?: TaskExecutionMemory;
   /** Persisted supervision; absent only on pre-supervision snapshots. */
   resilience?: TaskResilience;
   schemaVersion: 1; taskId: string; owner: string; config: TeamConfig; goal: Goal;
@@ -211,7 +217,7 @@ export interface TaskContext extends Fence {
   hostRetryRequests?: HostRetryRequest[];
   hostRetryBatch?: HostRetryBatch | undefined;
 }
-export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[]; sourceArtifact?: ArtifactSource; analyzeRequest?: boolean }
+export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[]; sourceArtifact?: ArtifactSource; analyzeRequest?: boolean; executionMemory?: TaskExecutionMemory }
 export interface Envelope { id: string; at: number; fence?: Fence; workId?: string; attempt?: number }
 export type Decision =
   | { action: 'continue'; reason: string }

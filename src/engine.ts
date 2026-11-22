@@ -15,6 +15,9 @@ import { hostRetryAction, hostRetryBatchRetirable } from './host-retry.js';
 import { parseArtifactRequest, resolveArtifactSource } from './source-artifact.js';
 import type { ArtifactReference, ArtifactSource, ArtifactSourceMetadata } from './types.js';
 import type { HostAcquisition } from './resource-acquisition.js';
+import { collectExecutionMemory, rememberPublication, taskExecutionMemory } from './execution-memory.js';
+import { memoryCatalog } from './task/execution-memory.js';
+import type { ToolInventorySnapshot } from './tool-inventory.js';
 import { processingWindow, progressCoordinationAllowed, resiliencePolicy, taskHumanGate } from './task/resilience.js';
 import { permissionProblem } from './task/policy.js';
 import type { DeletionIntent, SavedRoomDeletion } from './room-deletion.machine.js';
@@ -52,7 +55,11 @@ function decode(value: unknown): TaskSnapshot {
 function storeTask(tx: Transaction, snapshot: TaskSnapshot, activate = false) {
   const id = snapshot.context.taskId;
   tx.room.tasks[id] = { version: taskStorageVersion(snapshot.context.config), snapshot: persistTask(snapshot) } satisfies StoredTask;
-  if (taskPhase(snapshot) === 'ended') { if (tx.room.activeTaskId === id) tx.room.activeTaskId = null; }
+  if (taskPhase(snapshot) === 'ended') {
+    if (tx.room.activeTaskId === id) tx.room.activeTaskId = null;
+    const memory = rememberPublication(tx.room.executionMemory, snapshot.context);
+    if (memory) tx.room.executionMemory = memory;
+  }
   else if (activate && !tx.room.activeTaskId) tx.room.activeTaskId = id;
 }
 
@@ -66,7 +73,8 @@ export class TeamEngine {
   private observationTransaction: string | null = null;
   get healthy(): boolean { return !this.storageFault; }
   constructor(readonly store: Store, readonly config: TeamConfig, private readonly clock: () => number = Date.now,
-    private readonly observe?: (roomId: string, frame: DebugFrame) => void) { validateConfig(config); }
+    private readonly observe?: (roomId: string, frame: DebugFrame) => void,
+    private readonly executionInventory?: () => ToolInventorySnapshot) { validateConfig(config); }
 
   private record(snapshot: TaskSnapshot, event: DebugEvent, from: ReturnType<typeof taskPhase> | null, evidence?: DebugEvidence) {
     if (!this.observe || !this.pendingObservations) return;
@@ -173,8 +181,24 @@ export class TeamEngine {
       return { ok: true, code: 'OK', detail: archived ? '已归档' : '已恢复' };
     }));
   }
+  private maintainExecutionMemory(roomId: string): void {
+    if (!this.config.executionMemory) return;
+    try {
+      if (!Object.keys(this.store.read(roomId).executionMemory?.pending ?? {}).length) return;
+      const inventory = this.executionInventory?.();
+      this.store.transact(roomId, tx => {
+        const memory = tx.room.executionMemory;
+        if (!memory) return;
+        for (const [taskId, revision] of Object.entries(memory.pending)) {
+          if (tx.room.tasks[taskId]) collectExecutionMemory(memory, decode(tx.room.tasks[taskId]).context, revision, inventory);
+          delete memory.pending[taskId];
+        }
+      });
+    } catch { /* Publication already committed. Keep the room's durable work for the next maintenance pass. */ }
+  }
   submit(roomId: string, input: Submission): CommandResult {
     const blocked = this.deletionRejection(roomId); if (blocked) return blocked;
+    this.maintainExecutionMemory(roomId);
     return this.transact(roomId, tx => this.receipt(tx, input.id, input, () => {
       if (input.replyToTaskId !== undefined && !tx.room.tasks[input.replyToTaskId])
         return { ok: false, code: 'TASK_NOT_FOUND', detail: '指定的任务不存在，请重新选择任务。' };
@@ -288,6 +312,10 @@ export class TeamEngine {
         message: { id: input.id, text: input.text, author: 'user', at, taskId, kind: 'user' as const }, history,
         analyzeRequest: !input.goal && !input.mentions?.length,
         ...(sourceArtifact ? { sourceArtifact } : {}), ...(reviewTargets ? { reviewTargets } : {}) };
+      if (this.config.executionMemory && this.config.deliveryReport === 'summary')
+        Object.assign(taskInput, { executionMemory: taskExecutionMemory(tx.room.executionMemory, this.config,
+          memoryCatalog(this.executionInventory?.()), input.text,
+          id => tx.room.tasks[id] ? decode(tx.room.tasks[id]).context : undefined, goal.resourceRequirements) });
       let snapshot: TaskSnapshot, evidence: DebugEvidence | undefined;
       if (this.observe) {
         try { const inspected = inspectInitialTask(taskInput); snapshot = inspected.snapshot; evidence = inspected.evidence; }
@@ -554,6 +582,7 @@ export class TeamEngine {
   }
   tick(roomId: string): void {
     if (this.deletionRejection(roomId)) return;
+    this.maintainExecutionMemory(roomId);
     for (const taskId of Object.keys(this.store.read(roomId).tasks)) {
       const view = this.view(roomId, taskId);
       if (view) this.tickTask(roomId, view);
@@ -599,7 +628,9 @@ export class TeamEngine {
   }
   nextWake(roomId: string): number | null {
     if (this.deletionRejection(roomId)) return null;
-    const wakes = Object.keys(this.store.read(roomId).tasks).map(id => this.view(roomId, id)).filter((v): v is TaskView => v !== null)
+    const room = this.store.read(roomId);
+    if (this.config.executionMemory && Object.keys(room.executionMemory?.pending ?? {}).length) return this.clock();
+    const wakes = Object.keys(room.tasks).map(id => this.view(roomId, id)).filter((v): v is TaskView => v !== null)
       .map(view => this.nextTaskWake(roomId, view)).filter((value): value is number => value !== null);
     return wakes.length ? Math.min(...wakes) : null;
   }

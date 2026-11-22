@@ -14,6 +14,7 @@ export function createTaskContext(input: TaskInput): TaskContext {
       lastActivityAt: input.at, lastProgressAt: input.at, nextCheckAt: input.at + input.config.limits.progressIntervalMs, repeat: { fingerprint: '', count: 0 }, deferredCoordination: false, reply: { ok: true, code: 'OK', detail: 'created' } };
     c.resilience = initialResilience(c);
     if (input.history) c.history = input.history;
+    if (input.executionMemory) c.executionMemory = structuredClone(input.executionMemory);
     if (input.sourceArtifact) {
       c.sourceArtifact = structuredClone(input.sourceArtifact);
       c.goal.requiredArtifacts = Math.max(1, c.goal.requiredArtifacts);

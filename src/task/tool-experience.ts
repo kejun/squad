@@ -1,5 +1,6 @@
 import { localEnabled, type Intent, type TaskContext } from '../types.js';
 import type { ToolInventorySnapshot } from '../tool-inventory.js';
+import { recommendedReadRoute } from './execution-memory.js';
 import { mapConfigurationKey } from './map-scheduling.js';
 import { referenceToolObservation, settledToolObservation, sharedToolKnowledge } from './tool-knowledge.js';
 
@@ -111,5 +112,17 @@ export function sharedToolExperiences(c: TaskContext, work: Intent, history: Tas
     || !['owner', 'assistance', 'facilitator'].includes(work.kind) || !localEnabled(c.config, work.target)
     || (work.payload.capabilities as { localTools?: boolean } | undefined)?.localTools !== true) return [];
   const historical = inventory ? historicalCapabilities(c, history, inventory) : [];
-  return [...toolRecipes(), ...currentExperiences(c, work, inventory), ...historical];
+  const route = recommendedReadRoute(c, work, inventory);
+  const learned: ToolExperience[] = route ? [{
+    id: `learned:${route.id}:v${route.version}`.replaceAll('\$', '$'),
+    condition: { description: '当前分片的来源与以前验证过的读取路线相符。', configuration: route.configuration,
+      execution: route.execution, resourceScope: { kind: 'url_origin', origin: route.origin } },
+    action: { description: '优先使用该文档读取工具，以当前目录说明构造本次调用；按原流程取得许可并校验完整原文。',
+      template: { type: 'runCli', executable: route.executable, execution: route.execution } },
+    expectedResult: expected('跳过已知登录阻塞的路径；根据本次正文回执决定能否沿用。'),
+    evidence: { kind: 'verified_resource_method', verificationLevel: 'resource_content', sourceTaskId: route.sourceTaskId,
+      sourceOperationId: route.successOperationId, verifier: route.verifier },
+    ...observationBoundary,
+  }] : [];
+  return [...learned, ...toolRecipes(), ...currentExperiences(c, work, inventory), ...historical];
 }

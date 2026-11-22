@@ -15,6 +15,7 @@ export function createTeamConfig(env: ModelEnvironment = process.env): TeamConfi
   return configureModelsFromEnv({
   version: currentExecutionVersion, toolVersion: currentToolVersion, defaultBot: 'A',
   skillSearch: { enabled: true },
+  executionMemory: env.SQUAD_EXECUTION_MEMORY?.trim().toLowerCase() !== 'off',
   localTools: { enabled: env.SQUAD_LOCAL_TOOLS_ENABLED?.trim().toLowerCase() !== 'false' },
   webTools: { enabled: webEnabled !== 'false' },
   inputAnalysis: { enabled: intentEnabled !== 'false' },

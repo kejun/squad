@@ -54,6 +54,7 @@ function originalPartitions(c: TaskContext, round: DiscussionRound) {
     return { id: definition.id, status: part.status, resultRef: part.resultRef,
       ...(result?.artifactIds.length ? { artifactIds: result.artifactIds } : {}),
       ...(evidenceIds.length ? { evidenceIds } : {}),
+      ...(part.reusedSource ? { reusedSource: part.reusedSource } : {}),
       ...(part.reason ? { reason: compactMessage(part.reason) } : {}) };
   });
 }
