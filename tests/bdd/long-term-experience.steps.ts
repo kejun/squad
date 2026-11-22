@@ -125,6 +125,26 @@ Then('反证后的分片按普通路径继续并且下一任务不再使用旧�
   assert(fixture.pending.every(work => !work.learnedReadRoute));
 });
 
+When('首个分片取得可信登录反证后用户停止任务', async function (this: SpecWorld) {
+  const fixture = run(this).fixture!;
+  fixture.mode = 'contrary';
+  assert(await fixture.run(fixture.pending[0]));
+  assert(savedAcquisitions(fixture.context).some(receipt => receipt.source === 'runCli' && receipt.status === 'authentication_required'));
+  const stopped = fixture.engine.submit(fixture.room, { id: 'stop-contrary-route', text: '停止', replyToTaskId: fixture.task });
+  assert(stopped.ok, stopped.code);
+  fixture.engine.recover(fixture.room);
+});
+Then('经验应登记反证并停用旧路线', function (this: SpecWorld) {
+  const route = run(this).fixture!.memory!.routes[0]!;
+  assert.equal(route.disabled, true);
+  assert.equal(route.failures, 1);
+});
+Then('停止的任务不能产生新的分片复用记录', function (this: SpecWorld) {
+  const fixture = run(this).fixture!;
+  assert.equal(fixture.context.publishedDelivery, undefined);
+  assert(fixture.memory!.partitions.every(item => item.sourceTaskId !== fixture.task));
+});
+
 Given('历史读取经验在当前任务的{string}发生变化', async function (this: SpecWorld, boundary: string) {
   const fixture = await seed(this);
   fixture.engine.tick(fixture.room);

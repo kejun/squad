@@ -15,7 +15,7 @@ import { hostRetryAction, hostRetryBatchRetirable } from './host-retry.js';
 import { parseArtifactRequest, resolveArtifactSource } from './source-artifact.js';
 import type { ArtifactReference, ArtifactSource, ArtifactSourceMetadata } from './types.js';
 import type { HostAcquisition } from './resource-acquisition.js';
-import { collectExecutionMemory, rememberPublication, taskExecutionMemory } from './execution-memory.js';
+import { collectExecutionMemory, rememberFinishedExecution, taskExecutionMemory } from './execution-memory.js';
 import { memoryCatalog } from './task/execution-memory.js';
 import type { ToolInventorySnapshot } from './tool-inventory.js';
 import { processingWindow, progressCoordinationAllowed, resiliencePolicy, taskHumanGate } from './task/resilience.js';
@@ -57,7 +57,7 @@ function storeTask(tx: Transaction, snapshot: TaskSnapshot, activate = false) {
   tx.room.tasks[id] = { version: taskStorageVersion(snapshot.context.config), snapshot: persistTask(snapshot) } satisfies StoredTask;
   if (taskPhase(snapshot) === 'ended') {
     if (tx.room.activeTaskId === id) tx.room.activeTaskId = null;
-    const memory = rememberPublication(tx.room.executionMemory, snapshot.context);
+    const memory = rememberFinishedExecution(tx.room.executionMemory, snapshot.context);
     if (memory) tx.room.executionMemory = memory;
   }
   else if (activate && !tx.room.activeTaskId) tx.room.activeTaskId = id;

@@ -16,11 +16,23 @@ export interface RoomExecutionMemory {
   partitions: ReusablePartition[];
 }
 
-export function rememberPublication(memory: RoomExecutionMemory | undefined, c: TaskContext): RoomExecutionMemory | undefined {
-  const revision = c.publishedDelivery?.revision;
-  if (!c.config.executionMemory || c.config.deliveryReport !== 'summary' || c.outcome !== 'complete' || !revision || c.publishedDelivery?.goalVersion !== c.goalVersion) return memory;
+function memoryCheckpoint(c: TaskContext): { key: string; publishedAt?: number } | undefined {
+  if (!c.config.executionMemory || c.config.deliveryReport !== 'summary') return undefined;
+  const publication = c.publishedDelivery;
+  if (c.outcome === 'complete' && publication?.revision && publication.goalVersion === c.goalVersion)
+    return { key: publication.revision, publishedAt: publication.at };
+  if (c.stopped || c.outcome !== null) {
+    const tried = c.intents.some(work => work.learnedReadRoute && work.epoch === c.epoch && work.goalVersion === c.goalVersion);
+    if (tried) return { key: `feedback:${c.epoch}:${c.goalVersion}` };
+  }
+  return undefined;
+}
+
+export function rememberFinishedExecution(memory: RoomExecutionMemory | undefined, c: TaskContext): RoomExecutionMemory | undefined {
+  const checkpoint = memoryCheckpoint(c);
+  if (!checkpoint) return memory;
   memory ??= { pending: {}, processed: {}, routes: [], partitions: [] };
-  if (memory.processed[c.taskId] !== revision) memory.pending[c.taskId] = revision;
+  if (memory.processed[c.taskId] !== checkpoint.key) memory.pending[c.taskId] = checkpoint.key;
   return memory;
 }
 
@@ -92,12 +104,15 @@ function partitionSources(c: TaskContext, revision: string, receipts: HostAcquis
 }
 
 export function collectExecutionMemory(memory: RoomExecutionMemory, c: TaskContext, revision: string, inventory?: ToolInventorySnapshot): void {
-  if (!c.config.executionMemory || c.config.deliveryReport !== 'summary' || c.outcome !== 'complete' || c.publishedDelivery?.revision !== revision
-    || c.publishedDelivery.goalVersion !== c.goalVersion || memory.processed[c.taskId] === revision) return;
+  const checkpoint = memoryCheckpoint(c);
+  if (checkpoint?.key !== revision || memory.processed[c.taskId] === revision) return;
   const configuration = mapConfigurationKey(c);
-  const receipts = savedAcquisitions(c).filter(item => item.epoch === c.epoch && item.at <= c.publishedDelivery!.at
+  const receipts = savedAcquisitions(c).filter(item => item.epoch === c.epoch
+    && item.at <= (checkpoint.publishedAt ?? c.lastActivityAt)
     && item.configuration?.id === 'task-protocol' && item.configuration.version === configuration);
   updateRoutes(memory, c, receipts);
+  memory.processed[c.taskId] = revision;
+  if (checkpoint.publishedAt === undefined) return;
   const catalog = memoryCatalog(inventory);
   if (inventory && catalog && c.executionMemory?.catalog === catalog) learnRoutes(memory, c, inventory, catalog, receipts);
   memory.routes.sort((a, b) => b.observedAt - a.observedAt);
@@ -105,7 +120,6 @@ export function collectExecutionMemory(memory: RoomExecutionMemory, c: TaskConte
   const updates = partitionSources(c, revision, receipts);
   memory.partitions = [...updates, ...memory.partitions.filter(old => old.sourceTaskId !== c.taskId && !updates.some(source =>
     source.contractHash === old.contractHash && source.contentHash === old.contentHash && sameResourceIdentity(source.resource, old.resource)))].slice(0, 128);
-  memory.processed[c.taskId] = revision;
 }
 
 export function taskExecutionMemory(memory: RoomExecutionMemory | undefined, config: TeamConfig, catalog: string | undefined,
