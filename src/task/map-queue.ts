@@ -6,12 +6,13 @@ import { assignSummaryBatch } from './hierarchical-summary.js';
 import { hostRetryReservation } from '../host-retry.js';
 import { consumePartitionMethod, newPartitionMethod, partitionMayDispatch, schedulingState, sharedPrerequisiteFailures } from './map-scheduling.js';
 import { processingWindow, taskHumanGate, windowExpired } from './resilience.js';
+import { historicalRouteDispatch } from './execution-memory.js';
 import { aggregationGroupPayload } from './result-aggregation.js';
 
 const active = (part: MapPartitionRun) => ['running', 'uncertain'].includes(part.status);
 function mayDispatch(c: TaskContext, part: MapPartitionRun, target: string): boolean {
   const group = c.discussion?.mapReduce?.resultAggregation?.[part.partitionId];
-  return group ? group.inline || localEnabled(c.config, target) : partitionMayDispatch(c, part, target);
+  return group ? group.inline || localEnabled(c.config, target) : partitionMayDispatch(c, part, target) && historicalRouteDispatch(c, part.partitionId, target) !== 'wait';
 }
 export const queuedMapPartitions = (c: TaskContext) => c.discussion?.status === 'collecting'
   ? c.discussion.mapReduce?.queue?.filter(part => part.status === 'queued').length ?? 0 : 0;
@@ -189,6 +190,8 @@ export function advanceMapQueue(c: TaskContext, e: TaskEvent): void {
     if (!round.targets.includes(member.id)) round.targets.push(member.id);
     if (!group) {
       const definition = plan.partitions.find(item => item.id === part.partitionId)!;
+      const learned = !method && historicalRouteDispatch(c, part.partitionId, member.id);
+      if (learned && learned !== 'wait') work.learnedReadRoute = learned;
       Object.assign(work.payload, { question: definition.objective, expected: definition.expectedOutput, partition: structuredClone(definition), instructions: member.instructions,
         ...(method ? { verifiedReadMethod: { id: method.id, sourceOperationId: method.sourceOperationId, resource: method.resource } } : {}) });
       plan.assignments.push({ partitionId: part.partitionId, target: member.id, workId: work.id, attempt: part.attempt });

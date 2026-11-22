@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
 import { canAcquireResourceLeases, resourceLeaseBlockerOwners, unconfinedEffectsKey, type ResourceLease, type ResourceLeaseRow } from './local-resource-policy.js';
 import { restoreRoomArchive, type RoomArchive } from './room.machine.js';
+import type { RoomExecutionMemory } from './execution-memory.js';
 import type { ExecutionLease } from './coordination-view.js';
 import { initialRoomDeletion, persistRoomDeletion, restoreRoomDeletion, stepRoomDeletion,
   type RoomDeletionEvent, type SavedRoomDeletion } from './room-deletion.machine.js';
@@ -10,6 +11,7 @@ export interface RoomData {
   schemaVersion: 1; activeTaskId: string | null;
   tasks: Record<string, unknown>; notices: { id: string; text: string }[];
   archive?: RoomArchive;
+  executionMemory?: RoomExecutionMemory;
 }
 export interface Transaction {
   room: RoomData;

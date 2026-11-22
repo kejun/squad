@@ -6,7 +6,7 @@ export type ResourceIdentity =
   | { kind: 'url'; url: string }
   | { kind: 'document'; service: string; namespace: string; id: string }
   | { kind: 'file'; workspaceId: string; path: string; revision?: string };
-export interface ResourceRequirement { resource: ResourceIdentity; freshness: 'current' | 'saved' }
+export interface ResourceRequirement { resource: ResourceIdentity; freshness: 'current' | 'saved'; contentHash?: string }
 export type AcquisitionStatus = 'acquired' | 'authentication_required' | 'resource_mismatch' | 'empty' | 'incomplete' | 'unknown';
 export interface AcquisitionVerifier { id: string; version: string }
 export interface HostAcquisition {
@@ -193,15 +193,18 @@ function directText(text: string): string {
 
 function explicitRequirements(c: TaskContext): ResourceRequirement[] {
   if (c.goal.resourceRequirements) return c.goal.resourceRequirements.filter(item => !!resourceIdentity(item.resource)
-    && ['saved', 'current'].includes(item.freshness));
+    && ['saved', 'current'].includes(item.freshness) && (item.contentHash === undefined || hash(item.contentHash)));
   const texts = [c.goal.text, ...(c.inputAnalyses ?? []).filter(item => item.goalVersion === c.goalVersion
     && item.status === 'resolved' && item.action !== 'review').map(item => item.rawText)].map(directText);
   return texts.flatMap(text => {
-    if (!/(?:读取|抓取|获取|下载|访问|汇总|逐篇|逐个|\b(?:read|fetch|retrieve|download|summarize)\b)/i.test(text)) return [];
+    if (!/(?:读取|抓取|获取|下载|访问|汇总|逐篇|逐个|提取|\b(?:read|fetch|retrieve|download|summarize)\b)/i.test(text)) return [];
     const freshness = /(?:重新|最新|刷新|本次|\b(?:refresh|fresh|again|current)\b)/i.test(text) ? 'current' as const : 'saved' as const;
+    const pins = pinnedSource(text);
     return [...text.matchAll(/https?:\/\/[^\s<>"'，。；！？、)\]}]+/g)].flatMap(match => {
       const resource = resourceIdentity({ kind: 'url', url: match[0] });
-      return resource ? [{ resource, freshness }] : [];
+      if (!resource) return [];
+      const versions = [...new Set(pins.filter(pin => sameResourceIdentity(pin.resource, resource)).map(pin => pin.contentHash))];
+      return [{ resource, freshness, ...(versions.length === 1 ? { contentHash: versions[0] } : {}) }];
     });
   });
 }
@@ -229,6 +232,7 @@ export function requiredResources(c: TaskContext, work?: Intent): ResourceRequir
 
 function acquisitionMatches(c: TaskContext, receipt: HostAcquisition, requirement: ResourceRequirement, work?: Intent): boolean {
   return sameResourceIdentity(requirement.resource, receipt.resource)
+    && (!requirement.contentHash || requirement.contentHash === receipt.contentHash)
     && (requirement.freshness !== 'current' || receipt.epoch === c.epoch && (!work || receipt.workId === work.id));
 }
 
@@ -248,7 +252,12 @@ export function resourceAcquisitionSources(c: TaskContext, work?: Intent, allowe
 
 export function missingResourceAcquisitions(c: TaskContext, work?: Intent, allowedOperationIds?: readonly string[]): ResourceRequirement[] {
   const receipts = resourceAcquisitionSources(c, work, allowedOperationIds);
-  return requiredResources(c, work).filter(requirement => !receipts.some(receipt => acquisitionMatches(c, receipt, requirement, work)));
+  const round = c.discussion;
+  const reused = !work && !allowedOperationIds && round?.goalVersion === c.goalVersion && round.epoch === c.epoch
+    ? round.mapReduce?.queue?.flatMap(item => item.reusedSource ?? []) ?? [] : [];
+  return requiredResources(c, work).filter(requirement => !receipts.some(receipt => acquisitionMatches(c, receipt, requirement, work))
+    && !(requirement.freshness === 'saved' && requirement.contentHash && reused.some(source =>
+      source.contentHash === requirement.contentHash && sameResourceIdentity(source.resource, requirement.resource))));
 }
 
 export function resourceAcquisitionProblem(c: TaskContext, work?: Intent): string | null {
@@ -271,4 +280,11 @@ export function artifactVerification(c: TaskContext, artifact: Artifact): { stat
     && fixed?.artifactIds?.includes(artifact.id) && frozen?.content === artifact.content
     && check && !deliveryVerificationProblem(check, true)
     ? { status: 'verified' } : { status: 'unverified', reason: '没有通过绑定此候选及文件的独立完整检查' };
+}
+
+export function pinnedSource(text: string): { resource: ResourceIdentity; contentHash: string }[] {
+  return [...text.matchAll(/^[ \t]*(https?:\/\/[^\s<>]+)[ \t]+sha256:([a-f0-9]{64})[ \t]*\r?$/gim)].flatMap(match => {
+    const resource = resourceIdentity({ kind: 'url', url: match[1] });
+    return resource ? [{ resource, contentHash: match[2]!.toLowerCase() }] : [];
+  });
 }

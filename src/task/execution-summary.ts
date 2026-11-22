@@ -26,7 +26,8 @@ export function executionSummary(c: TaskContext, submissionGaps: readonly string
   const gaps: string[] = [];
   if (partitions.length) {
     const succeeded = partitions.filter(part => part.status === 'succeeded').length;
-    report.push(`分片 ${succeeded}/${partitions.length} 完成。`);
+    const reused = partitions.filter(part => part.reusedSource).length;
+    report.push(`分片 ${succeeded}/${partitions.length} 完成${reused ? `，其中 ${reused} 个沿用已验证版本` : ''}。`);
     for (const part of partitions.filter(item => item.status !== 'succeeded')) {
       gaps.push(`${brief(part.partitionId, 28)} ${statusLabel[part.status]}${part.reason ? `（${brief(part.reason)}）` : ''}`);
     }
