@@ -50,7 +50,7 @@ CONTROLS = {
         "if (typeof work.payload.maxPartitions === 'number') {",
         'if (true) {'),
     'skip-capacity-dispatch-guard': ('Shards', 'CapacityDispatch', 'src/task/map-reduce.ts',
-        'if (plan.partitions.length > mapReduceCapacity(c)) {', 'if (false) {'),
+        'if (remaining > mapReduceCapacity(c)) {', 'if (false) {'),
     'ignore-adapter-capacity': ('Shards', 'CapacityValidation', 'src/input-intent.ts',
         '&& (maxPartitions === undefined || !parsed.data.decomposition || parsed.data.decomposition.partitions.length <= maxPartitions)',
         '&& true /* faulty acceptance above the host ceiling */'),
