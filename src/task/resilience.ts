@@ -28,6 +28,7 @@ export interface ProcessingWindow {
   repairUsed: number;
   repairLimit: number;
   repairDeadline?: number;
+  repairCoordinatorId?: string;
   failure?: { code: 'WINDOW_EXPIRED'; at: number };
   /** The user command that explicitly authorized a replacement window. */
   authorizationId?: string;
@@ -519,9 +520,19 @@ export function applySupervision(c: TaskContext, e: TaskEvent, phase: Phase): vo
     for (const work of c.intents) if (!workInCleanup(c, work) && ['pending', 'inflight'].includes(work.status)) work.status = 'done';
     if (c.discussion) c.discussion.status = 'cancelled';
     for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight', 'failed'].includes(input.status)) input.status = 'cancelled';
-    coordinate(c, e, `监督修复：${c.reason || '当前阶段没有有效执行路径'}`);
+    const coordinator = coordinate(c, e, `监督修复：${c.reason || '当前阶段没有有效执行路径'}`);
+    if (coordinator) r.window.repairCoordinatorId = coordinator.id;
+    else delete r.window.repairCoordinatorId;
   }
   r.nextSupervisionAt = Math.min(r.window.hardDeadline, r.window.repairDeadline ?? e.at + resiliencePolicy(c).repairTimeoutMs);
+}
+
+export function settleRepairCoordination(c: TaskContext, e: Extract<TaskEvent, { type: 'COORDINATE' }>) {
+  const r = ensureResilience(c);
+  if (e.decision.action !== 'assist' || !e.workId || r.window.repairCoordinatorId !== e.workId) return;
+  delete r.window.repairCoordinatorId;
+  delete r.window.repairDeadline;
+  r.nextSupervisionAt = Math.min(r.window.hardDeadline, e.at + resiliencePolicy(c).repairTimeoutMs);
 }
 export function skipOptionalStalls(c: TaskContext, e: Pick<TaskEvent, 'id' | 'at'>): void {
   if (!resiliencePolicy(c).allowMissingContent || c.outcome !== null || taskHumanGate(c)) return;

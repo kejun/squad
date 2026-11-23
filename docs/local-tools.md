@@ -80,6 +80,8 @@ owner、assistance、facilitator 在授权范围内可使用本地工具。输�
 
 如果专用读取器能用固定错误码确认整个认证范围失效，可以用 `credentialErrorCode` 登记该值。可信失败回执须在顶层 JSON 的 `error.code` 返回相同值。单篇正文返回登录页或资源不符按文档级反证处理。经核实在读取前会触发 `/bin/ps` 边界错误的专用调用可设置 `sandboxStartupPs: true`。原生命令出现同类错误时也可保留事实。只有已有可比对条件的观察才提示跳过。
 
+普通协助成员默认可以在与负责人共享的任务工作区实现和验证具体改动。负责人用 `help` 说明改动范围和验收要求，协助成员用 `runCli` 查看、编辑和运行测试，回传相对路径、测试结果和回执标识。需要交付文件正文时，用产物提交。指定 `SQUAD_WORKSPACE_ROOT` 时使用绑定工程，否则使用任务自己的目录。
+
 ## 执行边界
 
 生产后端固定 `@anthropic-ai/sandbox-runtime@0.0.81`，支持 macOS 与 Linux。macOS 需 `/usr/bin/sandbox-exec`、`/usr/bin/python3` 和 SRT 的依赖；系统 Python 以隔离模式调用 libproc，使用微秒启动时间和开机UUID核对服务/命令身份，不读取用户 Python 配置。Linux 需 bubblewrap、socat、ripgrep 和内核命名空间能力。`npm run verify:local-sandbox` 在真实后端验证边界，不可用退出78，不降级为宿主执行。Windows 后端尚未接入。

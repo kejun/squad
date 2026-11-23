@@ -145,9 +145,10 @@ export function coordinate(c: TaskContext, e: TaskEvent, reason: string) {
   c.reason = reason;
   if (unresolvedInput(c)) { c.deferredCoordination = true; return; }
   c.deferredCoordination = false;
-  intent(c, e.at, 'facilitator', 'facilitator', { reason, goal: c.goal, board: c.board, ...deliveryArtifacts(c),
+  const work = intent(c, e.at, 'facilitator', 'facilitator', { reason, goal: c.goal, board: c.board, ...deliveryArtifacts(c),
     ...conversationInput(c), repeat: c.repeat, roster: c.config.bots, usage: c.usage, limits: c.config.limits, capabilities: capabilities(c) });
   c.nextCheckAt = e.at + c.config.limits.progressIntervalMs;
+  return work;
 }
 
 export function finish(c: TaskContext, e: TaskEvent, outcome: TaskContext['outcome'], reason: string, retainPublication = false) {
