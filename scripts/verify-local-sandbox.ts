@@ -17,8 +17,9 @@ try {
   } else {
     await new Promise<void>(resolve => network.listen(0, '127.0.0.1', resolve));
     const port = (network.address() as { port: number }).port;
-    const workspace = join(root, 'workspace'), snapshot = join(root, 'skill'); await mkdir(workspace); await mkdir(snapshot);
-    await mkdir(join(workspace, '.home')); await mkdir(join(workspace, '.tmp'));
+    const workspace = join(root, "workspace's files"), snapshot = join(root, 'skill'); await mkdir(workspace); await mkdir(snapshot);
+    const scratch = join(workspace, '.tmp');
+    await mkdir(join(workspace, '.home')); await mkdir(scratch);
     const secret = join(root, 'private.txt'); await writeFile(secret, 'must-not-read'); await writeFile(join(snapshot, 'readonly.txt'), 'skill-body');
     const runtimeRoot = dirname(createRequire(import.meta.url).resolve('@anthropic-ai/sandbox-runtime/package.json'));
     const helper = process.platform === 'linux' ? join(runtimeRoot, 'vendor', 'seccomp', process.arch, 'apply-seccomp') : undefined;
@@ -39,8 +40,14 @@ try {
     const buildOutput = join(workspace, 'dist'); await mkdir(buildOutput);
     await writeFile(join(buildOutput, '.env'), 'must-not-change');
     const readOnlyCheck = await backend.execute({ executable: process.execPath,
-      args: ['-e', `const fs=require('fs');try{fs.writeFileSync('output.txt','mutated');process.exit(21)}catch{}try{fs.writeFileSync('dist/.env','mutated');process.exit(22)}catch{}fs.writeFileSync('dist/build.txt','build-ok');`],
-      workspace, cwd: workspace, env: minimalCliEnvironment(workspace), writeRoots: [buildOutput], timeoutMs: 3000,
+      args: ['-e', `const fs=require('fs');
+        const tempDirectory=require('node:os').tmpdir();
+        require('node:assert/strict').equal(tempDirectory,${JSON.stringify(scratch)});
+        fs.mkdtempSync(require('node:path').join(tempDirectory,'build-'));
+        try{fs.writeFileSync('output.txt','mutated');process.exit(21)}catch{}
+        try{fs.writeFileSync('dist/.env','mutated');process.exit(22)}catch{}
+        fs.writeFileSync('dist/build.txt','build-ok');`],
+      workspace, cwd: workspace, env: minimalCliEnvironment(workspace), writeRoots: [buildOutput, scratch], timeoutMs: 3000,
       sessionId: 'verify-readonly-check-inputs', logPath: join(root, 'check.log') }, new AbortController().signal, async () => {});
     assert(readOnlyCheck.result.ok, JSON.stringify(readOnlyCheck.result));
     assert.equal(await readFile(join(buildOutput, 'build.txt'), 'utf8'), 'build-ok');
@@ -61,6 +68,6 @@ try {
     assert(identity, 'long command must have a recorded native process identity');
     assert(cancelled.settled); assert.equal(cancelled.result.code, 'cancelled'); assert.equal(cancelled.effectsKnown, false);
     assert.equal(await identityAlive(identity), false);
-    console.log('OS sandbox file, snapshot-write, credential, network, check-source and cancellation boundaries passed');
+    console.log('OS sandbox file, snapshot-write, credential, network, check-source, temporary directory and cancellation boundaries passed');
   }
 } finally { if (network.listening) await new Promise<void>(resolve => network.close(() => resolve())); await backend.close(); await rm(root, { recursive: true, force: true }); }

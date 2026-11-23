@@ -97,7 +97,11 @@ export class SandboxCliBackend implements CliBackend {
       if (!this.initialized) { await SandboxManager.initialize(sandboxPolicy(input)); this.initialized = true; }
       // SRT accepts shell command text internally. Every token is host-quoted from structured argv;
       // the model never supplies a shell program. Outer spawn always uses shell:false.
-      const wrapped = await SandboxManager.wrapWithSandboxArgv([input.executable, ...input.args].map(quote).join(' '), '/bin/bash',
+      const command = [input.executable, ...input.args].map(quote).join(' ');
+      // SRT replaces TMPDIR before starting Bash. Restore the supplied scratch path inside the sandbox.
+      const tempDirectory = input.env.TMPDIR;
+      const sandboxCommand = tempDirectory === undefined ? command : `TMPDIR=${quote(tempDirectory)} exec -- ${command}`;
+      const wrapped = await SandboxManager.wrapWithSandboxArgv(sandboxCommand, '/bin/bash',
         sandboxPolicy(input), signal, input.cwd, { commandId: input.sessionId });
       // On pinned SRT Linux, wrapped.env IS process.env; proxy settings are already
       // encoded in the wrapped argv. Never copy the host environment back into the child.
