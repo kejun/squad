@@ -5,7 +5,7 @@ const text = z.string().trim().min(1).max(32_000);
 const list = z.array(text).max(64);
 export const mapReduceSchema = z.strictObject({
   kind: z.literal('mapReduce'),
-  partitions: z.array(z.strictObject({ id: text, objective: text, expectedOutput: text })).min(2).max(8),
+  partitions: z.array(z.strictObject({ id: text, objective: text, expectedOutput: text, sourceIndices: z.array(z.number().int().min(1)).min(1).max(64).optional() })).min(2).max(8),
   synthesis: text,
 }).refine(plan => new Set(plan.partitions.map(part => part.id)).size === plan.partitions.length);
 export type MapReducePlan = z.infer<typeof mapReduceSchema>;

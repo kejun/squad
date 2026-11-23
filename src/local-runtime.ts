@@ -3,9 +3,11 @@ import { prepareCliStdin, type PreparedCliStdin } from './local-stdin.js';
 import { repeatedCliFailures } from './cli-failure.js';
 import { discoverHostCapabilities } from './host-capabilities.js';
 import { CliCatalogError, type CliCatalogEntry } from './cli-catalog.js';
-import { ToolInventoryStore, type ToolInventorySnapshot } from './tool-inventory.js';
+import { cliEntryVersion, ToolInventoryStore, type ToolInventorySnapshot } from './tool-inventory.js';
 import type { CliDiscoveryOptions } from './automatic-cli-catalog.js';
-import { observeCliAcquisitions, type CliAcquisitionReader } from './acquisition-readers.js';
+import { observeCliAcquisitions, readerForAction, type CliAcquisitionReader } from './acquisition-readers.js';
+import type { ReadingPattern } from './task/execution-memory.js';
+import { release } from 'node:os';
 import type { HostAcquisition } from './resource-acquisition.js';
 import { RuntimeOwnership, type ClaimedRuntimeCleanup, type RoomCleanupInput } from './runtime-ownership.js';
 import type { RuntimeCleanupInventory } from './room-deletion.machine.js';
@@ -20,7 +22,7 @@ import type { Intent } from './types.js';
 import { attachCapturedEvidence } from './evidence-reader.js';
 import type { HostApproval, HostCommandPlan, LocalOperation, LocalToolResult, SkillBinding } from './local-operation.js';
 import { digest, LocalToolError, within, type RegistryOptions, type SkillPage } from './local-skills.js';
-import { CliJournal, cliSearchPath, hostCliEnvironment, hostIdentity, identityAlive, minimalCliEnvironment, processIdentity, resolveExecutable, runProcess, SandboxCliBackend, type CliBackend, type CliCompletion } from './local-cli.js';
+import { CliJournal, cliSearchPath, executableObservation, hostCliEnvironment, hostIdentity, identityAlive, minimalCliEnvironment, processIdentity, resolveExecutable, runProcess, SandboxCliBackend, type CliBackend, type CliCompletion } from './local-cli.js';
 
 export interface LocalRuntimeOptions {
   dataRoot: string; skillRoots?: string[]; workspaceRoot?: string; commandTimeoutMs?: number;
@@ -54,6 +56,35 @@ export class LocalRuntime {
   get registry() { return this.inventory.registry; }
   private get cliCatalog() { return this.inventory.cliCatalog; }
   toolInventory(): ToolInventorySnapshot { return this.inventory.snapshot(); }
+  protectedReadingPrefixes(): string[] {
+    return [...new Set((this.options.acquisitionReaders ?? []).flatMap(reader => reader.reading?.urlPrefix ?? []))];
+  }
+  executionMemoryInventory(): ToolInventorySnapshot {
+    const inventory = this.toolInventory();
+    const readers = (this.options.acquisitionReaders ?? []).filter(reader => reader.reading);
+    if (!readers.length) return inventory;
+    const patterns = inventory.refresh.status === 'current' ? readers.flatMap(reader =>
+      (['host', 'sandbox'] as const).flatMap(execution => this.readingPattern(reader, execution, inventory) ?? [])) : [];
+    return { ...inventory, reading: { patterns, protectedPrefixes: this.protectedReadingPrefixes() } };
+  }
+  private readingPattern(reader: CliAcquisitionReader, execution: 'host' | 'sandbox', inventory: ToolInventorySnapshot,
+    executable?: string): ReadingPattern | undefined {
+    const contract = reader.reading;
+    const entry = inventory.cli.entries.find(item => item.command === reader.command);
+    const boundary = execution === 'sandbox' ? this.backend.available && this.backend.readingBoundary : 'host';
+    if (!contract || !entry || !boundary || inventory.refresh.status !== 'current') return undefined;
+    const profile = this.options.commandEnv?.[reader.command];
+    const installed = executableObservation(executable ?? reader.command, cliSearchPath(execution, profile));
+    if (!installed) return undefined;
+    const account = contract.accountEnvironment ? process.env[contract.accountEnvironment] : undefined;
+    const accountId = account && /^[a-zA-Z0-9_.-]{1,128}$/.test(account) ? account : undefined;
+    return { urlPrefix: contract.urlPrefix, executable: reader.command, execution,
+      argsPrefix: reader.argsPrefix ?? [], documentArgument: reader.resource.kind === 'document-argument',
+      separateDocumentId: reader.documentIdArgument !== undefined,
+      verifier: { id: reader.id, version: reader.version }, accountKnown: accountId !== undefined,
+      binding: digest(JSON.stringify([reader, cliEntryVersion(entry), installed, boundary, process.platform, process.arch,
+        release(), hostIdentity(), accountId ?? null, Object.entries(profile ?? {}).sort(([a], [b]) => a.localeCompare(b))])) };
+  }
   refreshToolInventory(): Promise<ToolInventorySnapshot> { return this.inventory.refresh(); }
   /** Synchronous metadata only; no filesystem, executable probes, credential reads or process launches. */
   recommendTools(objective: string) {
@@ -354,6 +385,13 @@ export class LocalRuntime {
         : minimalCliEnvironment(workspace.path, this.options.commandEnv?.[action.executable]);
       const executable = await resolveExecutable(await expand(action.executable), env);
       const args = await Promise.all(action.args.map(expand));
+      const reader = (action.cwd ?? '.') === '.' && !action.skillId && !action.stdin
+        ? readerForAction(this.options.acquisitionReaders ?? [], action) : undefined;
+      const readArgument = reader?.resource.kind === 'url-argument' || reader?.resource.kind === 'document-argument' ? reader.resource.index : undefined;
+      const boundReader = reader?.reading && readArgument === reader.argsPrefix?.length
+        && (reader.documentIdArgument === undefined || reader.documentIdArgument === readArgument! + 1)
+        && args.length === readArgument! + (reader.documentIdArgument === undefined ? 1 : 2) ? reader : undefined;
+      const readingPattern = boundReader && this.readingPattern(boundReader, host ? 'host' : 'sandbox', this.toolInventory(), executable);
       const environmentHash = digest(JSON.stringify(Object.entries(env).sort(([a], [b]) => a.localeCompare(b))));
       if (action.stdin) stdin = await prepareCliStdin(workspace.path, action.stdin, this.options.dataRoot, signal);
       invocation = { executable, args, cwd, execution: host ? 'host' : 'sandbox', environmentHash, ...(stdin ? { stdin: stdin.plan } : {}) };
@@ -397,10 +435,17 @@ export class LocalRuntime {
       let outputFiles: Awaited<ReturnType<typeof workspaceManifest>> = [], outputFilesTruncated = false;
       try { const changed = (await workspaceManifest(workspace.path)).filter(file => baseline.get(file.path) !== file.hash); outputFiles = changed.slice(0, 100); outputFilesTruncated = changed.length > 100; } catch { outputFilesTruncated = true; }
       const validationInputsChanged = work.kind === 'check' ? sourceRevision(await workspaceManifest(workspace.path)) !== workspace.revision : null;
+      const stderr = result.result.data.stderr;
+      const yuqueRead = action.executable === 'yuque' && args[0] === 'show' && args[1] === 'doc';
+      const sandboxReadFailure = !host && (yuqueRead || boundReader?.reading?.sandboxStartupPs === true)
+        && result.settled && !result.result.ok && result.result.code === 'failed' && result.result.data.truncated === false
+        && typeof result.result.data.exitCode === 'number' && result.result.data.exitCode !== 0 && !result.result.data.signal
+        && typeof stderr === 'string' && /(?:^|\s)(?:spawn(?:Sync)?\s+\/bin\/ps\s+(?:EPERM|EACCES)|\/bin\/ps:\s*(?:Operation not permitted|Permission denied))/i.test(stderr);
       // A terminated sandbox may have written files. Their bounded content fingerprint makes the effect
       // observable; it is still not a proof of arbitrary network effects (network is denied by default).
       completion = { ...result, result: attachCapturedEvidence(this.boundedResult({ ...result.result, ...(validationInputsChanged ? { ok: false, code: 'CHECK_INPUTS_CHANGED' } : {}), data: { ...result.result.data, workspaceRevision: workspace.revision, isolated: workspace.isolated,
-        outputFiles, outputFilesTruncated, validationInputsChanged, invocation, execution: host ? 'host' : 'sandbox' } })), workspaceRevision: workspace.revision, isolated: workspace.isolated };
+        outputFiles, outputFilesTruncated, validationInputsChanged, invocation, execution: host ? 'host' : 'sandbox',
+        ...(readingPattern ? { readingPattern } : {}), ...(sandboxReadFailure ? { sandboxReadFailure: true } : {}) } })), workspaceRevision: workspace.revision, isolated: workspace.isolated };
     } catch (error) {
       finishPreparation();
       completion = { result: this.boundedResult({ ok: false, code: signal.aborted ? 'cancelled' : error instanceof LocalToolError ? error.code : 'CLI_EXECUTION_FAILED',

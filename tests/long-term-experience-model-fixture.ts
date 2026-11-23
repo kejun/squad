@@ -6,7 +6,8 @@ import { CapacityModel, capacityModelIntent } from './map-capacity-model-fixture
 import { partitionUrls, ResilientPartitionModel } from './partition-resilience-model-fixture.js';
 
 export function modelReadRoute(config: { version: string; toolVersion: string }): LearnedReadRoute {
-  return { id: 'fixture-route', version: 1, origin: 'https://docs.example.com', catalog: 'fixture-catalog',
+  return { pattern: { urlPrefix: 'https://docs.example.com/', executable: 'node', execution: 'sandbox',
+    verifier: { id: 'fixture-reader', version: '1' }, binding: 'fixture-binding', accountKnown: true }, id: 'fixture-route', version: 1, origin: 'https://docs.example.com', catalog: 'fixture-catalog',
     configuration: JSON.stringify([config.version, config.toolVersion]), executable: 'node', execution: 'sandbox',
     verifier: { id: 'fixture-reader', version: '1' }, sourceTaskId: 'task:previous', successReceiptId: 'success', successOperationId: 'read-operation',
     failedReceiptId: 'failed', observedAt: 0, matched: 0, applied: 0, successes: 1, failures: 0, disabled: false };
@@ -15,7 +16,8 @@ export function modelReadRoute(config: { version: string; toolVersion: string })
 export function modelPilot(failure: boolean) {
   const fixture = new ResilientPartitionModel(input => {
     input.config.executionMemory = true;
-    input.executionMemory = { routes: [modelReadRoute(input.config)], partitions: [] };
+    const route = modelReadRoute(input.config);
+    input.executionMemory = { routes: [route], patterns: [route.pattern!], partitions: [] };
   });
   const [first] = fixture.pending('assistance');
   assert.equal(fixture.pending('assistance').length, 1);
@@ -60,4 +62,45 @@ export function modelMemoryGate() {
   assert.equal(tried.pending('assistance')[0]?.learnedReadRoute?.configuration, mapConfigurationKey(tried.context));
   modelPilot(true);
   modelReuse();
+}
+
+const protectedPrefix = 'https://docs.example.com/protected/';
+const protectedDocs = [protectedPrefix + 'first', protectedPrefix + 'second'];
+const publicDoc = 'https://docs.example.com/public/third';
+
+function matchingModel(boundary: 'matched' | 'account' | 'legacy') {
+  return new ResilientPartitionModel(input => {
+    input.config.executionMemory = true;
+    const pattern = { urlPrefix: protectedPrefix, executable: 'node', execution: 'sandbox' as const,
+      verifier: { id: 'fixture-reader', version: '1' }, binding: 'fixture-binding', accountKnown: true };
+    const route = modelReadRoute(input.config);
+    if (boundary === 'legacy') delete route.pattern;
+    else route.pattern = pattern;
+    input.goal.resourceRequirements = [...protectedDocs, publicDoc].map(url => ({ resource: { kind: 'url' as const, url }, freshness: 'saved' }));
+    input.goal.partitionResources = Object.fromEntries([...protectedDocs, publicDoc].map((url, index) =>
+      ['part-' + (index + 1), [{ kind: 'url', url }]]));
+    input.executionMemory = { routes: [route], partitions: [],
+      patterns: [boundary === 'account' ? { ...pattern, binding: 'changed-account' } : pattern] };
+  });
+}
+
+export function structuredMemoryModelGate() {
+  const fixture = matchingModel('matched');
+  const firstBatch = fixture.pending('assistance');
+  assert.deepEqual(firstBatch.map(item => ({
+    id: (item.payload.partition as { id: string }).id, suggested: !!item.learnedReadRoute,
+  })), [
+    { id: 'part-1', suggested: true }, { id: 'part-3', suggested: false },
+    { id: 'part-4', suggested: false }, { id: 'part-5', suggested: false },
+  ]);
+  const pilot = fixture.start(firstBatch[0]);
+  fixture.acquire(pilot, protectedDocs[0], '经本轮核验的文档正文', false);
+  assert(fixture.send({ type: 'DISCUSSION_RESULT', discussionId: pilot.discussionId!, workId: pilot.id,
+    attempt: pilot.attempt, fence: pilot, status: 'success', text: '本轮资料结算' }).ok);
+  assert(fixture.pending('assistance').some(item => (item.payload.partition as { id: string }).id === 'part-2' && item.learnedReadRoute));
+  for (const boundary of ['account', 'legacy'] as const) {
+    const changed = matchingModel(boundary);
+    assert.equal(changed.pending('assistance').length, 4);
+    assert(changed.pending('assistance').every(item => !item.learnedReadRoute), boundary);
+  }
 }

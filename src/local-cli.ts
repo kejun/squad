@@ -22,6 +22,7 @@ export interface CliCompletion { result: LocalToolResult; settled: boolean; effe
 export interface CliBackend {
   readonly available: boolean; readonly unavailableReason?: string | undefined;
   /** A trusted backend guarantee, independent of executable availability. */
+  readonly readingBoundary?: string;
   readonly isolation?: 'workspace' | undefined;
   execute(input: CliInvocation, signal: AbortSignal, onSpawn: (identity: ProcessIdentity) => Promise<void>): Promise<CliCompletion>;
   close?(): Promise<void>;
@@ -66,6 +67,7 @@ const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 /** Pinned native SRT; no unsandboxed fallback on either supported host. */
 export class SandboxCliBackend implements CliBackend {
   readonly isolation = 'workspace' as const;
+  readonly readingBoundary = 'native-sandbox:0.0.81';
   private constructor(readonly available: boolean, readonly unavailableReason?: string) {}
   private initialized = false;
   static async create(): Promise<SandboxCliBackend> {
@@ -256,17 +258,31 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
     clearTimeout(timer); if (killTimer) clearTimeout(killTimer); if (hardTimer) clearTimeout(hardTimer); signal.removeEventListener('abort', cancel); await log.sync(); await log.close();
   }
 }
-import { writeSync } from 'node:fs';
+import { accessSync, realpathSync, statSync, writeSync } from 'node:fs';
 const writeBounded = (fd: number, data: Buffer) => { try { writeSync(fd, data); } catch { /* Model receipt still records the exit; no unbounded retry. */ } };
 const basenameSafe = (path: string) => path.split('/').at(-1)!;
 
-export async function resolveExecutable(command: string, env: Record<string, string>): Promise<string> {
+function executableCandidates(command: string, path: string): string[] {
   if (command.includes('/') && !isAbsolute(command)) throw new LocalToolError('CLI_EXECUTABLE_INVALID');
-  const candidates = isAbsolute(command) ? [command] : env.PATH!.split(':').map(dir => join(dir, command));
-  for (const path of candidates) {
+  return isAbsolute(command) ? [command] : path.split(':').map(dir => join(dir, command));
+}
+
+export async function resolveExecutable(command: string, env: Record<string, string>): Promise<string> {
+  for (const path of executableCandidates(command, env.PATH!)) {
     try { await access(path, constants.X_OK); if ((await stat(path)).isFile()) return await realpath(path); } catch { /* Try next installed command. */ }
   }
   throw new LocalToolError('CLI_NOT_FOUND');
+}
+
+export function executableObservation(command: string, path: string): string | undefined {
+  for (const candidate of executableCandidates(command, path)) {
+    try {
+      accessSync(candidate, constants.X_OK);
+      const entry = statSync(candidate);
+      if (entry.isFile()) return JSON.stringify([realpathSync(candidate), entry.dev, entry.ino, entry.size, entry.ctimeMs, entry.mtimeMs]);
+    } catch { /* Try next installed command. */ }
+  }
+  return undefined;
 }
 
 interface SessionRecord { operationId: string; sessionId: string; phase: 'prepared' | 'spawned' | 'settled'; identity?: ProcessIdentity; completion?: CliCompletion }

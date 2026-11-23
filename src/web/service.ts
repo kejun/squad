@@ -100,7 +100,7 @@ export class WebService {
     this.debugJournal = debugEnabled ? new DebugJournal() : null;
     this.engine = new TeamEngine(this.store, config, Date.now,
       this.debugJournal ? (roomId, frame) => this.debugJournal!.append(roomId, frame) : undefined,
-      localRuntime ? () => localRuntime.toolInventory() : undefined);
+      localRuntime ? () => localRuntime.executionMemoryInventory() : undefined);
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS web_rooms(id TEXT PRIMARY KEY, title TEXT NOT NULL, createdAt INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS web_events(

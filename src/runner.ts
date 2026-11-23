@@ -4,11 +4,12 @@ import { readSavedArtifact, readSavedEvidence } from './evidence-reader.js';
 import { deliveryCheckEvidence, deliveryEvidence, evidenceIndex } from './task/evidence.js';
 import { sharedToolKnowledge } from './task/tool-knowledge.js';
 import { windowExpired } from './task/resilience.js';
+import { resourceInReadingScope } from './task/execution-memory.js';
 import { sharedToolExperiences, type ToolExperience } from './task/tool-experience.js';
 import { cliFailureGuidance, toolGuidanceAllowed } from './task/tool-guidance.js';
 import { withToolInventoryReadiness, type ToolInventoryView } from './cli-readiness.js';
 import { projectModelToolInventory } from './tool-inventory-projection.js';
-import { hostEvidenceReference, observeResourceAcquisition, resourceIdentity, savedAcquisitions, type HostAcquisition } from './resource-acquisition.js';
+import { hostEvidenceReference, observeResourceAcquisition, resourceIdentity, savedAcquisitions, yuqueLoginRedirect, type HostAcquisition } from './resource-acquisition.js';
 import { deliveryCheckMaterials } from './delivery-check-delta.js';
 import { acceptanceCriteria, checkCitationSources, judgmentsDiagnostic, validCriterionJudgments, type CheckDiagnostic, type CheckMaterials, type CriterionJudgment } from './delivery-acceptance.js';
 import { deliveryValidationOperation, deliveryVerificationEvidence, deliveryVerificationProblem, type DeliveryVerificationPlan } from './task/verification.js';
@@ -319,17 +320,20 @@ export class WorkRunner {
         const content = capture?.content ?? page.content;
         const sourceSnapshot = JSON.stringify({ input, output: page, ...(capture ? { hostCapture: capture } : {}) });
         const finalResource = resourceIdentity({ kind: 'url', url: capture?.finalUrl ?? page.finalUrl });
+        const protectedPrefix = this.localRuntime?.protectedReadingPrefixes()
+          .filter(prefix => resourceInReadingScope(requestedResource, prefix)).sort((a, b) => b.length - a.length)[0];
+        const authentication = yuqueLoginRedirect(requestedResource, finalResource, capture?.redirects ?? []) ? 'required' : 'unknown';
         const observation = { id: `${request.id}:acquisition`, operationId: request.id,
           taskId, workId: work.id, attempt: work.attempt, epoch: work.epoch, goalVersion: work.goalVersion,
           requestHash: createHash('sha256').update(sourceSnapshot).digest('hex'), source: 'webFetch' as const, requestedResource,
-          ...(finalResource ? { resource: finalResource } : {}),
+          ...(finalResource ? { resource: finalResource } : {}), ...(protectedPrefix ? { protectedPrefix } : {}),
           content: typeof content === 'string' ? content : '',
           contentHash: typeof content === 'string' ? createHash('sha256').update(content).digest('hex') : null,
           complete: capture ? capture.url === input.url.trim() && capture.totalChars === capture.content.length
             : page.offset === 0 && page.nextOffset === null,
           verifier: { id: 'squad-web-fetch', version: '1' },
           executionSucceeded: (capture?.status ?? page.status) >= 200 && (capture?.status ?? page.status) < 300, at: this.clock(), sourceSnapshot,
-          configuration: { id: 'task-protocol', version: JSON.stringify([this.engine.config.version, this.engine.config.toolVersion]), authentication: 'unknown' as const } };
+          configuration: { id: 'task-protocol', version: JSON.stringify([this.engine.config.version, this.engine.config.toolVersion]), authentication } } satisfies Parameters<typeof observeResourceAcquisition>[0];
         const receipt = observeResourceAcquisition(observation);
         const saved = this.engine.recordAcquisition(roomId, taskId, receipt);
         if (!saved.ok) throw new WorkFailure(saved.code);
@@ -360,7 +364,7 @@ export class WorkRunner {
       const current = tasks.find(task => task.taskId === taskId)!;
       const currentIntent = current.intents.find(intent => intent.id === work.id)!;
       const history = tasks.filter(task => task.taskId !== taskId);
-      return this.localRuntime!.clean(sharedToolExperiences(current, currentIntent, history, this.localRuntime!.toolInventory()));
+      return this.localRuntime!.clean(sharedToolExperiences(current, currentIntent, history, this.localRuntime!.executionMemoryInventory()));
     };
     const retryBatch = this.engine.view(roomId, taskId)?.context.hostRetryBatch;
     const hostRetry = retryBatch?.workId === work.id;

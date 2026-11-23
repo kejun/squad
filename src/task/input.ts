@@ -1,4 +1,5 @@
 import { type InputAction, type TaskContext, type TaskEvent } from '../types.js';
+import { requiredResources } from '../resource-acquisition.js';
 import { createInputAnalysis, inputReferences } from '../input-intent.js';
 import { pendingInput } from './facts.js';
 import { cancelWork, conversationInput, intent } from './operations.js';
@@ -23,6 +24,7 @@ export function prepareInterpretation(c: TaskContext, e: TaskEvent) {
     input: { id: input.id, rawText: input.rawText, action: input.action }, references: inputReferences(c) };
   const work = intent(c, e.at, 'interpretation', 'facilitator', hierarchical
     ? { ...shared, ...hierarchicalContext(c) }
-    : { ...shared, goal: c.goal, artifacts: c.artifacts, board: c.board, ...conversationInput(c) });
+    : { ...shared, goal: c.goal, artifacts: c.artifacts, board: c.board, ...conversationInput(c),
+      ...(c.config.executionMemory ? { sources: requiredResources(c).map((requirement, index) => ({ index: index + 1, ...requirement })) } : {}) });
   input.workId = work.id;
 }

@@ -1,4 +1,5 @@
 import { deliveryVerificationProblem } from './task/verification.js';
+import type { ReadingPattern } from './task/execution-memory.js';
 import type { LocalOperation } from './local-operation.js';
 import type { Artifact, Intent, TaskContext } from './types.js';
 
@@ -19,6 +20,9 @@ export interface HostAcquisition {
   /** Frozen by the trusted host, compared as data in the browser-compatible state model. */
   snapshot: string;
   configuration?: { id: string; version: string; authentication: 'satisfied' | 'required' | 'unknown' };
+  readingPattern?: ReadingPattern;
+  authenticationScope?: 'pattern';
+  protectedPrefix?: string;
 }
 export interface AcquisitionEvent { type: 'RECORD_ACQUISITION'; intentId: string; receipt: HostAcquisition }
 /** Host tool metadata: the frozen evidence reference differs from a Web request's execution id. */
@@ -70,7 +74,8 @@ function receiptSnapshot(receipt: Omit<HostAcquisition, 'snapshot'>): string {
     requestHash: receipt.requestHash, source: receipt.source, requestedResource: resourceIdentity(receipt.requestedResource),
     resource: resourceIdentity(receipt.resource), documentId: receipt.documentId, status: receipt.status, content: receipt.content,
     contentHash: receipt.contentHash, complete: receipt.complete, verifier: receipt.verifier, at: receipt.at,
-    sourceSnapshot: receipt.sourceSnapshot, configuration: receipt.configuration });
+    sourceSnapshot: receipt.sourceSnapshot, configuration: receipt.configuration, readingPattern: receipt.readingPattern,
+    authenticationScope: receipt.authenticationScope, protectedPrefix: receipt.protectedPrefix });
 }
 
 /** Conservative content classification. A host verifier still owns resource matching. */
@@ -78,6 +83,20 @@ export function authenticationPage(content: string): boolean {
   return /<(?:title|h1)[^>]*>\s*(?:log\s*in|sign\s*in|登录|登入)(?:\s|<|[-|])/i.test(content)
     || /<input[^>]+type\s*=\s*["']?password/i.test(content)
     || /^\s*(?:#\s*)?(?:authentication required|login required|please (?:log|sign) in|请先登录|需要登录)(?:\b|[，。！!\s])/i.test(content);
+}
+
+export function yuqueLoginRedirect(requested: ResourceIdentity, final: ResourceIdentity | undefined, redirects: readonly string[]): boolean {
+  if (requested.kind !== 'url') return false;
+  const initial = new URL(requested.url);
+  if (!/(?:^|\.)yuque\.com$/.test(initial.hostname)) return false;
+  const destinations = [...redirects, ...(final?.kind === 'url' ? [final.url] : [])];
+  return destinations.some(value => {
+    const resource = resourceIdentity({ kind: 'url', url: value });
+    if (resource?.kind !== 'url' || resource.url === requested.url) return false;
+    const destination = new URL(resource.url);
+    return /(?:^|\.)yuque\.com$/.test(destination.hostname)
+      && /^\/(?:login|sign[-_]?in|users\/sign_in)\/?$/i.test(destination.pathname);
+  });
 }
 
 function observedStatus(input: AcquisitionObservationInput, content: string): AcquisitionStatus {
@@ -117,6 +136,13 @@ function receiptValid(receipt: HostAcquisition): boolean {
     && receipt.snapshot === receiptSnapshot(receipt);
 }
 
+function readingBindingMatches(receipt: HostAcquisition, operation: LocalOperation): boolean {
+  if (!receipt.readingPattern) return receipt.authenticationScope === undefined;
+  return JSON.stringify(receipt.readingPattern) === JSON.stringify(operation.result?.data.readingPattern)
+    && (receipt.authenticationScope === undefined || receipt.authenticationScope === 'pattern'
+      && receipt.status === 'authentication_required' && receipt.readingPattern.accountKnown);
+}
+
 export function acquisitionEventProblem(c: TaskContext, event: AcquisitionEvent): string | null {
   const work = c.intents.find(item => item.id === event.intentId), receipt = event.receipt;
   if (!work || work.status !== 'inflight' || c.stopped || c.outcome !== null) return 'ACQUISITION_WORK_UNAVAILABLE';
@@ -129,7 +155,8 @@ export function acquisitionEventProblem(c: TaskContext, event: AcquisitionEvent)
     const op = work.localOperations?.find(item => item.id === receipt.operationId);
     if (!op || op.action.type !== 'runCli' || !['succeeded', 'failed'].includes(op.status)
       || op.parentAttempt !== receipt.attempt || op.finishedAt !== receipt.at
-      || op.requestHash !== receipt.requestHash || operationAcquisitionSnapshot(op) !== receipt.sourceSnapshot) return 'ACQUISITION_SOURCE_UNAVAILABLE';
+      || op.requestHash !== receipt.requestHash || operationAcquisitionSnapshot(op) !== receipt.sourceSnapshot
+      || !readingBindingMatches(receipt, op)) return 'ACQUISITION_SOURCE_UNAVAILABLE';
     if (receipt.attempt < work.attempt && (op.status !== 'succeeded' || !op.result?.ok
       || typeof op.result.data.stdout !== 'string' || op.result.data.truncated !== false)) return 'ACQUISITION_SOURCE_UNAVAILABLE';
     if (receipt.status === 'acquired' && (op.status !== 'succeeded' || !op.result?.ok)) return 'ACQUISITION_SOURCE_UNAVAILABLE';
@@ -150,7 +177,7 @@ export function acquisitionsForOperation(c: TaskContext, work: Intent, op: Local
     && receipt.workId === work.id && receipt.operationId === op.id && receipt.requestHash === op.requestHash
     && receipt.goalVersion === work.goalVersion && receipt.epoch === work.epoch && receipt.attempt <= work.attempt
     && receipt.attempt === op.parentAttempt && receipt.at === op.finishedAt
-    && receipt.source === 'runCli' && receipt.sourceSnapshot === operationAcquisitionSnapshot(op)
+    && receipt.source === 'runCli' && receipt.sourceSnapshot === operationAcquisitionSnapshot(op) && readingBindingMatches(receipt, op)
     && (receipt.status !== 'acquired' || op.status === 'succeeded' && op.result?.ok));
 }
 
@@ -221,13 +248,20 @@ export function requiredResources(c: TaskContext, work?: Intent): ResourceRequir
   }
   const requirements = [...byId.values()];
   if (!work?.payload.partition) return requirements;
-  const partition = work.payload.partition as { id?: string; objective?: string; expectedOutput?: string };
+  const partition = work.payload.partition as { id?: string; objective?: string; expectedOutput?: string; sourceIndices?: number[] };
   if (c.goal.partitionResources) return (c.goal.partitionResources[partition.id ?? ''] ?? []).flatMap(value => {
     const resource = resourceIdentity(value), requirement = resource && byId.get(JSON.stringify(resource));
     return requirement ? [requirement] : [];
   });
+  if (partition.sourceIndices) return (c.discussion?.mapReduce?.sourceRequirements?.[partition.id ?? ''] ?? [])
+    .flatMap(item => byId.get(JSON.stringify(resourceIdentity(item.resource))) ?? []);
   const assignment = `${partition.objective ?? ''}\n${partition.expectedOutput ?? ''}`;
   return requirements.filter(item => item.resource.kind === 'url' && assignment.includes(item.resource.url));
+}
+
+export function indexedResources(requirements: readonly ResourceRequirement[], indices: readonly number[]): ResourceRequirement[] {
+  if (new Set(indices).size !== indices.length || indices.some(index => !Number.isInteger(index) || index < 1 || index > requirements.length)) return [];
+  return indices.map(index => requirements[index - 1]!);
 }
 
 function acquisitionMatches(c: TaskContext, receipt: HostAcquisition, requirement: ResourceRequirement, work?: Intent): boolean {

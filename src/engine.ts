@@ -16,7 +16,6 @@ import { parseArtifactRequest, resolveArtifactSource } from './source-artifact.j
 import type { ArtifactReference, ArtifactSource, ArtifactSourceMetadata } from './types.js';
 import type { HostAcquisition } from './resource-acquisition.js';
 import { collectExecutionMemory, rememberFinishedExecution, taskExecutionMemory } from './execution-memory.js';
-import { memoryCatalog } from './task/execution-memory.js';
 import type { ToolInventorySnapshot } from './tool-inventory.js';
 import { processingWindow, progressCoordinationAllowed, resiliencePolicy, taskHumanGate } from './task/resilience.js';
 import { permissionProblem } from './task/policy.js';
@@ -74,7 +73,7 @@ export class TeamEngine {
   get healthy(): boolean { return !this.storageFault; }
   constructor(readonly store: Store, readonly config: TeamConfig, private readonly clock: () => number = Date.now,
     private readonly observe?: (roomId: string, frame: DebugFrame) => void,
-    private readonly executionInventory?: () => ToolInventorySnapshot) { validateConfig(config); }
+    private readonly executionInventory?: () => ToolInventorySnapshot | undefined) { validateConfig(config); }
 
   private record(snapshot: TaskSnapshot, event: DebugEvent, from: ReturnType<typeof taskPhase> | null, evidence?: DebugEvidence) {
     if (!this.observe || !this.pendingObservations) return;
@@ -185,12 +184,11 @@ export class TeamEngine {
     if (!this.config.executionMemory) return;
     try {
       if (!Object.keys(this.store.read(roomId).executionMemory?.pending ?? {}).length) return;
-      const inventory = this.executionInventory?.();
       this.store.transact(roomId, tx => {
         const memory = tx.room.executionMemory;
         if (!memory) return;
         for (const [taskId, revision] of Object.entries(memory.pending)) {
-          if (tx.room.tasks[taskId]) collectExecutionMemory(memory, decode(tx.room.tasks[taskId]).context, revision, inventory);
+          if (tx.room.tasks[taskId]) collectExecutionMemory(memory, decode(tx.room.tasks[taskId]).context, revision);
           delete memory.pending[taskId];
         }
       });
@@ -314,7 +312,7 @@ export class TeamEngine {
         ...(sourceArtifact ? { sourceArtifact } : {}), ...(reviewTargets ? { reviewTargets } : {}) };
       if (this.config.executionMemory && this.config.deliveryReport === 'summary')
         Object.assign(taskInput, { executionMemory: taskExecutionMemory(tx.room.executionMemory, this.config,
-          memoryCatalog(this.executionInventory?.()), input.text,
+          this.executionInventory?.(), input.text,
           id => tx.room.tasks[id] ? decode(tx.room.tasks[id]).context : undefined, goal.resourceRequirements) });
       let snapshot: TaskSnapshot, evidence: DebugEvidence | undefined;
       if (this.observe) {
