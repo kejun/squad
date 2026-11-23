@@ -27,6 +27,7 @@ export function partitionResources(c: TaskContext, partitionId: string): Resourc
     return mapped.flatMap(resource => resourceIdentity(resource) ?? []);
   }
   const part = c.discussion?.mapReduce?.partitions.find(item => item.id === partitionId);
+  if (part?.sourceIndices) return (c.discussion?.mapReduce?.sourceRequirements?.[partitionId] ?? []).map(item => item.resource);
   const urls = `${part?.objective ?? ''}\n${part?.expectedOutput ?? ''}`.match(/https?:\/\/[^\s<>"'`，。；、）)]+/g) ?? [];
   return [...new Set(urls)].flatMap(url => {
     try { return [{ kind: 'url' as const, url: new URL(url).href }]; } catch { return []; }

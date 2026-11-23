@@ -37,7 +37,9 @@ export class ResilientPartitionModel extends CapacityModel {
     assert(this.send({ type: 'LOCAL_CLAIM', intentId: work.id, operationId, sessionId, parentAttempt: work.attempt,
       leaseAvailable: true, fence: work }).ok);
     assert(this.send({ type: 'LOCAL_STARTED', intentId: work.id, operationId, sessionId, workspaceRevision: 'revision1', isolated: true }).ok);
-    assert(this.send({ type: 'LOCAL_RESULT', intentId: work.id, operationId, sessionId, result, settled: effectsKnown, effectsKnown }).ok);
+    const readingPattern = action.type === 'runCli' ? work.learnedReadRoute?.pattern : undefined;
+    const saved = readingPattern ? { ...result, data: { ...result.data, readingPattern } } : result;
+    assert(this.send({ type: 'LOCAL_RESULT', intentId: work.id, operationId, sessionId, result: saved, settled: effectsKnown, effectsKnown }).ok);
     return this.context.intents.find(item => item.id === work.id)!.localOperations!.find(item => item.id === operationId)!;
   }
   fail(work: Intent, trusted = true) {
@@ -69,7 +71,7 @@ export class ResilientPartitionModel extends CapacityModel {
       requestHash: operation.requestHash, source: 'runCli', requestedResource: resource, resource,
       content: body, contentHash: createHash('sha256').update(body).digest('hex'), complete: true,
       verifier: { id: 'fixture-reader', version: '1' },
-      configuration: { id: 'task-protocol', version: JSON.stringify([this.context.config.version, this.context.config.toolVersion]), authentication: 'satisfied' }, at: operation.finishedAt!,
+      ...(work.learnedReadRoute?.pattern ? { readingPattern: work.learnedReadRoute.pattern } : {}), configuration: { id: 'task-protocol', version: JSON.stringify([this.context.config.version, this.context.config.toolVersion]), authentication: 'satisfied' }, at: operation.finishedAt!,
       sourceSnapshot: operationAcquisitionSnapshot(operation), executionSucceeded: true });
     if (record) { const recorded = this.send({ type: 'RECORD_ACQUISITION', intentId: work.id, receipt }); assert(recorded.ok, recorded.code); }
     return receipt;

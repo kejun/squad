@@ -172,6 +172,7 @@ export interface ResultAggregationGroup {
 }
 export interface DiscussionRound extends Fence {
   mapReduce?: MapReducePlan & { inputId: string; assignments: { partitionId: string; target: string; workId?: string; attempt?: number }[];
+    sourceRequirements?: Record<string, ResourceRequirement[]>;
     scheduling?: import('./task/map-scheduling.js').MapSchedulingState;
     concurrency?: number; queue?: MapPartitionRun[]; summaryLayer?: SummaryLayer;
     resultAggregation?: Record<string, ResultAggregationGroup> };

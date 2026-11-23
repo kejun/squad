@@ -49,6 +49,37 @@
 
 owner、assistance、facilitator 在授权范围内可使用本地工具。输入解析、讨论汇总和独立检查模型只读已提供的材料。工程验证由宿主从用户明确给出的受支持命令生成意图，领取后在绑定工程版本的隔离副本中执行，并将回执交给检查模型。源文件只读，仅 dist/test-results/reports/coverage 及任务临时目录可写。独立检查通过后，宿主另领取一次计入 ordinary 的 `verifyWorkspace`，同时核对权威工程与副本输入。版本变化会阻止发布。后台讨论也可在副本试验，其结果留在副本中。`Bot.tools` 管理业务权限，OS 写权限由执行沙箱决定。
 
+## 长期读取经验
+
+有可核对访问策略的专用 CLI 可以在 `SQUAD_ACQUISITION_READERS_FILE` 登记 `reading`。管理员只应登记已确认需要认证的单篇文档目录。目录末尾包含斜杠，当前匹配接受该目录下单个文档 slug。混合公开和私有文档时，将无法确认统一权限的目录交给普通读取路径。
+
+下面的例子要求部署方已有 `yuque-reader document <URL>`。它输出唯一匹配文档记录，包含 `slug`、`book_id`、`body` 和布尔值 `complete`。只有确认书库、正文完整性及输出契约后才能登记。已有 CLI 的命令和响应如果不同，需要使用对应可信读取器。
+
+```json
+[
+  {
+    "id": "yuque-book-reader",
+    "version": "1",
+    "command": "yuque-reader",
+    "argsPrefix": ["document"],
+    "format": "json-document",
+    "resource": { "kind": "url-argument", "index": 1 },
+    "fields": { "ids": ["slug"], "bodies": ["body"] },
+    "reading": {
+      "urlPrefix": "https://www.yuque.com/team/book/",
+      "namespaceField": "book_id",
+      "namespaceValue": "expected-book-id",
+      "completeField": "complete",
+      "accountEnvironment": "SQUAD_YUQUE_ACCOUNT_SCOPE"
+    }
+  }
+]
+```
+
+给服务进程设置非秘密的 `SQUAD_YUQUE_ACCOUNT_SCOPE`，例如 `team-reader.g1`。该值标识管理员确认的当前账号和认证版本。切换账号或认证范围时同时更新标识，无法确认时留空，系统按普通路径读取。环境变量只用于匹配，对模型提供的工具建议仅传递本轮参数。专用工具仍走正常授权和执行。只提供 `slug` 与 `body` 的输出还需要正文完整性证据。
+
+如果专用读取器能用固定错误码确认整个认证范围失效，可以用 `credentialErrorCode` 登记该值。可信失败回执须在顶层 JSON 的 `error.code` 返回相同值。单篇正文返回登录页或资源不符按文档级反证处理。经核实在读取前会触发 `/bin/ps` 边界错误的专用调用可设置 `sandboxStartupPs: true`。原生命令出现同类错误时也可保留事实。只有已有可比对条件的观察才提示跳过。
+
 ## 执行边界
 
 生产后端固定 `@anthropic-ai/sandbox-runtime@0.0.81`，支持 macOS 与 Linux。macOS 需 `/usr/bin/sandbox-exec`、`/usr/bin/python3` 和 SRT 的依赖；系统 Python 以隔离模式调用 libproc，使用微秒启动时间和开机UUID核对服务/命令身份，不读取用户 Python 配置。Linux 需 bubblewrap、socat、ripgrep 和内核命名空间能力。`npm run verify:local-sandbox` 在真实后端验证边界，不可用退出78，不降级为宿主执行。Windows 后端尚未接入。

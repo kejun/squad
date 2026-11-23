@@ -6,6 +6,7 @@ import { assignSummaryBatch } from './hierarchical-summary.js';
 import { hostRetryReservation } from '../host-retry.js';
 import { consumePartitionMethod, newPartitionMethod, partitionMayDispatch, schedulingState, sharedPrerequisiteFailures } from './map-scheduling.js';
 import { processingWindow, taskHumanGate, windowExpired } from './resilience.js';
+import { requiredResources } from '../resource-acquisition.js';
 import { historicalRouteDispatch } from './execution-memory.js';
 import { aggregationGroupPayload } from './result-aggregation.js';
 
@@ -194,6 +195,10 @@ export function advanceMapQueue(c: TaskContext, e: TaskEvent): void {
       if (learned && learned !== 'wait') work.learnedReadRoute = learned;
       Object.assign(work.payload, { question: definition.objective, expected: definition.expectedOutput, partition: structuredClone(definition), instructions: member.instructions,
         ...(method ? { verifiedReadMethod: { id: method.id, sourceOperationId: method.sourceOperationId, resource: method.resource } } : {}) });
+      if (definition.sourceIndices || c.config.executionMemory) {
+        const resources = requiredResources(c, work);
+        if (resources.length) work.payload.resourceRequirements = resources;
+      }
       plan.assignments.push({ partitionId: part.partitionId, target: member.id, workId: work.id, attempt: part.attempt });
       if (plan.summaryLayer) assignSummaryBatch(c, work, part.partitionId);
       else work.payload.discussion = structuredClone(round);

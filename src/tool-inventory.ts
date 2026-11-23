@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { watch, type FSWatcher } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import type { ReadingEnvironment } from './task/execution-memory.js';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { CliCatalog, type CliCatalogEntry, type CliCatalogConfiguration } from './cli-catalog.js';
@@ -14,6 +15,7 @@ export interface ToolInventorySnapshot {
   metadataOnly: true;
   executionAuthority: false;
   catalogProjection?: 'progressive';
+  reading?: ReadingEnvironment;
   environment: {
     platform: string; arch: string;
     sandbox: { available: boolean; reason?: string };

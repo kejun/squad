@@ -1,6 +1,7 @@
 import { localEnabled, type Intent, type TaskContext } from '../types.js';
 import type { ToolInventorySnapshot } from '../tool-inventory.js';
-import { recommendedReadRoute } from './execution-memory.js';
+import { assignedReadingResource, readingDocumentId, recommendedReadRoute, resourceInReadingScope, taskMemory } from './execution-memory.js';
+import { sameResourceIdentity } from '../resource-acquisition.js';
 import { mapConfigurationKey } from './map-scheduling.js';
 import { referenceToolObservation, settledToolObservation, sharedToolKnowledge } from './tool-knowledge.js';
 
@@ -107,22 +108,59 @@ function historicalCapabilities(c: TaskContext, history: TaskContext[], inventor
   return [...distinct.values()];
 }
 
+function readingObservations(c: TaskContext, work: Intent, inventory?: ToolInventorySnapshot): ToolExperience[] {
+  const part = work.payload.partition as { id: string } | undefined;
+  const resource = part && assignedReadingResource(c, part.id);
+  const memory = taskMemory(c), reading = inventory?.reading;
+  if (resource?.kind !== 'url' || !memory || !reading) return [];
+  const web = memory.observations?.find(item => item.kind === 'web_login' && item.protectedPrefix
+    && reading.protectedPrefixes.includes(item.protectedPrefix) && resourceInReadingScope(resource, item.protectedPrefix));
+  const sandbox = memory.observations?.find(item => item.kind === 'sandbox_ps' && item.pattern
+    && reading.patterns.some(pattern => pattern.binding === item.pattern!.binding) && resourceInReadingScope(resource, item.pattern.urlPrefix));
+  return [web, sandbox].flatMap(item => item ? [{
+    id: `read-observation:${item.id}`,
+    condition: { description: item.kind === 'web_login' ? '当前来源属于同一受保护访问范围，匿名网页读取曾返回登录页。'
+      : '当前读取器及沙箱约束与曾触发 /bin/ps 权限错误的调用相符。' },
+    action: { description: item.kind === 'web_login' ? '优先考虑当前可用的已授权读取路径，避免重复尝试该匿名入口。'
+      : `避免重复用沙箱执行 ${item.pattern!.executable} 的已知失败读取调用。按当前能力和权限选择备选方式。` },
+    expectedResult: expected('减少已知失败的探测，仍需核对本轮来源和正文。'),
+    evidence: { kind: 'capability_observation', verificationLevel: 'capability_metadata', sourceTaskId: item.sourceTaskId,
+      sourceOperationId: item.operationId, observedAt: item.at },
+    ...observationBoundary,
+  }] satisfies ToolExperience[] : []);
+}
+
 export function sharedToolExperiences(c: TaskContext, work: Intent, history: TaskContext[] = [], inventory?: ToolInventorySnapshot): ToolExperience[] {
   if (c.stopped || c.outcome !== null || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion
     || !['owner', 'assistance', 'facilitator'].includes(work.kind) || !localEnabled(c.config, work.target)
     || (work.payload.capabilities as { localTools?: boolean } | undefined)?.localTools !== true) return [];
   const historical = inventory ? historicalCapabilities(c, history, inventory) : [];
   const route = recommendedReadRoute(c, work, inventory);
+  const part = work.payload.partition as { id: string } | undefined;
+  const target = part && assignedReadingResource(c, part.id), pattern = route?.pattern;
+  const slug = pattern && target && readingDocumentId(target, pattern.urlPrefix);
+  const args = slug && target?.kind === 'url' && pattern?.argsPrefix
+    ? [...pattern.argsPrefix, pattern.documentArgument ? slug : target.url, ...(pattern.separateDocumentId ? [slug] : [])] : undefined;
+  const prior = !route && target ? taskMemory(c)?.routes.find(item => item.resource && sameResourceIdentity(item.resource, target)) : undefined;
+  const diagnostic: ToolExperience[] = prior ? [{
+    id: `read-history:${prior.id}:v${prior.version}`,
+    condition: { description: '曾经取得此来源的完整正文，本轮尚未确认可试用历史路线。' },
+    action: { description: '继续按普通路径独立获取本轮来源。' },
+    expectedResult: expected('以本轮回执确认来源和正文。'),
+    evidence: { kind: 'capability_observation', verificationLevel: 'capability_metadata',
+      sourceTaskId: prior.sourceTaskId, sourceOperationId: prior.successOperationId, observedAt: prior.observedAt },
+    ...observationBoundary,
+  }] : [];
   const learned: ToolExperience[] = route ? [{
     id: `learned:${route.id}:v${route.version}`.replaceAll('\$', '$'),
     condition: { description: '当前分片的来源与以前验证过的读取路线相符。', configuration: route.configuration,
       execution: route.execution, resourceScope: { kind: 'url_origin', origin: route.origin } },
     action: { description: '优先使用该文档读取工具，以当前目录说明构造本次调用；按原流程取得许可并校验完整原文。',
-      template: { type: 'runCli', executable: route.executable, execution: route.execution } },
+      template: { type: 'runCli', executable: route.executable, execution: route.execution, ...(args ? { args } : {}) } },
     expectedResult: expected('跳过已知登录阻塞的路径；根据本次正文回执决定能否沿用。'),
     evidence: { kind: 'verified_resource_method', verificationLevel: 'resource_content', sourceTaskId: route.sourceTaskId,
       sourceOperationId: route.successOperationId, verifier: route.verifier },
     ...observationBoundary,
   }] : [];
-  return [...learned, ...toolRecipes(), ...currentExperiences(c, work, inventory), ...historical];
+  return [...learned, ...readingObservations(c, work, inventory), ...diagnostic, ...toolRecipes(), ...currentExperiences(c, work, inventory), ...historical];
 }
