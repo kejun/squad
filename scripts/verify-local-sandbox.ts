@@ -68,6 +68,6 @@ try {
     assert(identity, 'long command must have a recorded native process identity');
     assert(cancelled.settled); assert.equal(cancelled.result.code, 'cancelled'); assert.equal(cancelled.effectsKnown, false);
     assert.equal(await identityAlive(identity), false);
-    console.log('OS sandbox file, snapshot-write, credential, network, check-source, temporary directory and cancellation boundaries passed');
+    console.log('OS sandbox file, snapshot-write, credential, network, check-source and cancellation boundaries passed');
   }
 } finally { if (network.listening) await new Promise<void>(resolve => network.close(() => resolve())); await backend.close(); await rm(root, { recursive: true, force: true }); }
