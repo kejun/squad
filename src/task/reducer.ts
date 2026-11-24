@@ -22,7 +22,7 @@ import { deliveryVerificationPlan } from './verification.js';
 import { preserveSourceReference } from '../input-intent.js';
 import { ownerWebRecoveryExhausted, recordToolFailure } from './tool-recovery.js';
 import { ensureResilience, openHumanGate, decideHumanGate, executionNotStarted, freezeIncomplete, taskHumanGate, answerTaskGate, syncLocalApprovalGate, recordApprovalExplanation, requiredHumanFailure, modelServiceFailureCode, authorizationFailure,
-  windowExpired, requestNewWindow, archiveFrozen, replaceProcessingWindow, adoptCleanup, settleCleanup, resiliencePolicy, processingWindow, safeFailureRetry, requeueSafeWork } from './resilience.js';
+  windowExpired, requestNewWindow, archiveFrozen, replaceProcessingWindow, adoptCleanup, settleCleanup, resiliencePolicy, processingWindow, safeFailureRetry, requeueSafeWork, settleRepairCoordination } from './resilience.js';
 import { recordAcquisition } from '../resource-acquisition.js';
 
 export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
@@ -152,6 +152,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       break;
     case 'COORDINATE': {
       const d: Decision = e.decision;
+      settleRepairCoordination(c, e);
       c.trace.push({ event: 'COORDINATION_DECISION', at: e.at, detail: JSON.stringify({ decision: d,
         basis: { reason: c.reason, ...fence(c), boardRefs: c.board.map(entry => entry.id), artifactRefs: c.artifacts.map(artifact => artifact.id), repeat: c.repeat } }) });
       if (d.action === 'review') {

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { Before, Given, When, Then } from '@cucumber/cucumber';
 import { runResilienceAcceptance, assertResilienceConsequence, type ResilienceProof } from '../task-resilience-acceptance.js';
+import { processingWindow } from '../../src/task/resilience.js';
+import { prepareResilienceAssistHandoff, resilienceAssistHandoff } from '../task-resilience-model-fixture.js';
 
 interface ContractState { id: string; detail: string; premises: string[]; proof?: ResilienceProof }
 const states = new WeakMap<object, ContractState>();
@@ -144,4 +146,25 @@ const consequences = [
 for (const consequence of consequences) Then(consequence, function () {
   const state = current(this); assert(state.proof, 'the public model action must have executed');
   assertResilienceConsequence(state.id, state.proof);
+});
+
+const assistHandoff = new WeakMap<object, ReturnType<typeof prepareResilienceAssistHandoff>>();
+Given('负责人未能执行且监督已委托协调员在修复期限内安排接手', function () {
+  assistHandoff.set(this, prepareResilienceAssistHandoff());
+});
+When('协调员在{string}安排另一成员实现并验证', function (timing: string) {
+  resilienceAssistHandoff(assistHandoff.get(this)!, timing === '修复期限到达');
+});
+Then('系统应按{string}处理成员交接', function (result: string) {
+  const model = assistHandoff.get(this)!.model!;
+  if (result === '迟到决定不得建立新工作') assert.equal(model.c.assists.length, 0);
+  else assert(model.c.artifacts.some(artifact => artifact.name === 'report.js'));
+});
+Then('原任务硬期限和已用修复额度不应因交接改变', function () {
+  const { model, window, retries } = assistHandoff.get(this)!;
+  const current = processingWindow(model.c);
+  assert.equal(current.id, window.id);
+  assert.equal(current.hardDeadline, window.hardDeadline);
+  assert.equal(current.repairUsed, window.repairUsed);
+  assert.equal(model.c.usage.retries, retries);
 });

@@ -526,6 +526,8 @@ stateDiagram-v2
 
 BT_Y113 补充监督协调与上述恢复的交叉：若协调请求已经派发，原 owner 的可信核对先返回，则后续 `COORDINATE.continue [当前目标、安全pending检查点、全部效果确定、原期限有效] / 接续原owner并仅收紧期限`，不取消唯一回执持有者。原操作身份和时间不变，后续模型领取仍走原 CLAIM 额度及权限；[恢复细图](implementation/kej-113-task-resilience.md)记录该上下文流程。
 
+BT_Y202 的监督协调可用 `COORDINATE.assist [本次协调工作且期限内有效] / 结算协调期限并建立普通协助` 将具体实现交给成员。成员用现有协助路径完成并交接成果，工作期限仍受原任务硬期限约束。见[固定处理窗口与有限修复](implementation/kej-113-task-resilience.md#固定处理窗口与有限修复)。
+
 BT_G02/BT_H17 的旧流程与新监督交叉见同一[恢复细图](implementation/kej-113-task-resilience.md)：空闲主流程中的直接评审请求回应普通材料询问；partial 后明确重试先归档旧冻结版本，再允许当前身份结果保存。不改原截止时间，也不以新评审请求回答仍在执行的后台讨论问题或命令授权。
 
 BT_L14 的宿主 `local:operations` 命令读取未决会话与当前工作区清单，只有进程已退出、会话身份和审阅摘要匹配时才把操作者确认转换为 LOCAL_RECONCILE(receipt)。未退出、身份不明或摘要过期时不发事件。停止任务完成结算，活动任务由既有恢复守卫回到原工作阶段；此入口不重新执行命令。

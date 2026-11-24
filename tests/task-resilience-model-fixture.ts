@@ -130,6 +130,48 @@ export function resilienceReceiptContinuationGate() {
   assert.equal(resumed.localOperations![0]!.parentAttempt, work.attempt); assert.equal(resumed.localOperations![0]!.finishedAt, 3);
   assert.equal(m.c.intents.filter(item => item.kind === 'owner').length, 1); return m;
 }
+
+export function prepareResilienceAssistHandoff() {
+  const m = new ResilienceModel(input => { input.config.limits.workTimeoutMs = 100; });
+  const owner = m.claim();
+  assert(m.send({ type: 'WORK_FAILED', intentId: owner.id, reason: '工具请求校验失败', transient: false }).ok);
+  assert(m.supervise(10).ok);
+  const coordinator = m.claim('facilitator');
+  const window = structuredClone(processingWindow(m.c));
+  const retries = m.c.usage.retries;
+  assert.equal(coordinator.deadline, window.repairDeadline);
+  return { model: m, coordinator, window, retries };
+}
+
+export function resilienceAssistHandoff({ model: m, coordinator, window }: ReturnType<typeof prepareResilienceAssistHandoff>, late: boolean) {
+  const repairDeadline = window.repairDeadline!;
+  m.at = late ? repairDeadline : repairDeadline - 1;
+  const reply = m.send({ type: 'COORDINATE', workId: coordinator.id, fence: coordinator,
+    decision: { action: 'assist', target: 'B', question: '实现命令行报告', expected: '提交源码和测试结果', reason: '为目标补齐实现' } });
+  if (late) {
+    assert.equal(reply.code, 'WORK_EXPIRED');
+    assert(m.supervise(repairDeadline).ok);
+    assert.equal(m.c.outcome, 'failed');
+    assert.equal(m.c.assists.length, 0);
+  } else {
+    assert(reply.ok);
+    const child = m.claim('assistance');
+    assert.equal(child.deadline, window.hardDeadline);
+    assert(m.supervise(repairDeadline).ok);
+    assert.equal(m.phase, 'waitingAssistance');
+    assert.equal(m.c.outcome, null);
+    m.at++;
+    const result = { requestId: String(child.payload.requestId), resultId: 'coding-result', status: 'success', answer: '实现和验证已完成' };
+    assert(m.send({ type: 'RECORD_RESULT', ...result, workId: child.id, fence: child,
+      artifacts: [{ name: 'report.js', content: 'console.log("report");' }] }).ok);
+    assert(m.send({ type: 'HELP_RESULT', ...result }).ok);
+    assert.equal(m.phase, 'running');
+    const successor = m.claim();
+    assert.equal(successor.deadline, window.hardDeadline);
+    assert.deepEqual(successor.payload.artifacts, m.c.artifacts);
+  }
+}
+
 export function resilienceReviewReplyGate() {
   const m = new ResilienceModel(); m.artifact('review-material'); const gate = m.waiting(), deadline = processingWindow(m.c).hardDeadline;
   assert(m.send({ type: 'USER_INPUT', text: '请B评审已有方案', reviewTargets: ['B'] }).ok);
