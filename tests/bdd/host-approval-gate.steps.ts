@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { Before, Given, When, Then } from '@cucumber/cucumber';
 import type { SpecWorld } from './steps.js';
-import { approvalGateDeadline, approvalGateDecision, approvalGateSkip, approvalGateModel } from '../host-approval-gate-model-fixture.js';
+import { approvalGateDeadline, approvalGateDecision, approvalGateSkip, approvalGateModel, supersededApproval,
+  skipSupersededApproval, assertSupersededApprovalPreserved, finishAfterSupersededApproval } from '../host-approval-gate-model-fixture.js';
 import { hostApprovalGateServiceAcceptance, hostApprovalGateSkipServiceAcceptance } from '../host-approval-gate-acceptance.js';
 
 interface Case { id: string; result?: Record<string, unknown> }
@@ -42,4 +43,21 @@ for (const consequence of [
   else if (state(this).id === 'BT_Y104') { assert.equal(result.cancelled, true); assert.equal(result.unstarted, true); }
   else if (state(this).id === 'BT_Y105') { assert.equal(result.requiredGateVisible, true); assert.equal(result.processStarts, 0); assert.equal(result.outcome, null); }
   else { assert.equal(result.originalWaiters, 0); assert.equal(result.nextModelRequest, true); assert.equal(result.processStarts, 0); }
+});
+
+const successors = new WeakMap<SpecWorld, { fixture: ReturnType<typeof supersededApproval>; reply?: ReturnType<typeof skipSupersededApproval> }>();
+Given('负责人已有过期命令回执并开始{string}', function (this: SpecWorld, kind: string) {
+  successors.set(this, { fixture: supersededApproval(kind) });
+});
+When('客户端延迟提交对过期命令的跳过决定', function (this: SpecWorld) {
+  const value = successors.get(this)!;
+  value.reply = skipSupersededApproval(value.fixture);
+});
+Then('旧审批入口应已关闭且迟到决定不能取消后续工作或替换原负责人', function (this: SpecWorld) {
+  const { fixture, reply } = successors.get(this)!;
+  assert(reply);
+  assertSupersededApprovalPreserved(fixture, reply);
+});
+Then('原负责人仍可通过后续工作交付', function (this: SpecWorld) {
+  finishAfterSupersededApproval(successors.get(this)!.fixture);
 });

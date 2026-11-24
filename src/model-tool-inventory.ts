@@ -24,8 +24,8 @@ const localInterfaces: ToolInterface[] = [
   { type: 'readArtifact', description: 'Read a saved report visible to this work.',
     input: '{artifactId: string, cursor?: string}', output: 'Saved artifact content, version and continuation cursor.', environment: 'local_metadata' },
   { type: 'runCli', description: 'Execute structured argv in the explicitly selected sandbox or host environment. Host execution requires approval of the concrete call; no prior sandbox failure is required.',
-    input: '{executable: string, args: string[], execution: "sandbox"|"host", reason?: string, cwd?: string, timeoutMs?: number, skillId?: string, stdin?: {path: string (relative to workspace root)}}',
-    output: 'A persisted operation receipt, or a pending exact host approval before any process starts.', environment: 'selected' },
+    input: '{executable: string, args: string[], execution: "sandbox"|"host", reason?: string, cwd?: string, timeoutMs?: number, skillId?: string, stdin?: {path: string (relative to workspace root)}, artifactPath?: string (owner only, workspace-relative output filename)}',
+    output: 'A persisted operation receipt with the artifact ID if a declared output was captured, or a pending exact host approval before any process starts.', environment: 'selected' },
 ];
 const webInterfaces: ToolInterface[] = [
   { type: 'web_search', description: 'Search public web sources using the configured service. Provider configuration and network access are required; unknown readiness is not proof of availability.',

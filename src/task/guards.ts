@@ -65,7 +65,7 @@ export const taskGuards = {
       && !findHostRetry(args.context, args.event.sourceWorkId, args.event.sourceOperationId),
     hostRetryReady: ({ context, event }) => canStartHostRetry(context, event.at ?? context.lastActivityAt),
     hostRetryBatchRetirable: ({ context }) => hostRetryBatchRetirable(context),
-    hostRetryBoundary: ({ context }) => hostRetryBoundary(context),
+    hostRetryBoundary: ({ context, event }) => hostRetryBoundary(context, event.at ?? context.lastActivityAt),
     hostRetryHoldsFinish: args => valid(args) && d(args.event)?.action === 'finish' && pendingHostRetry(args.context),
     localResumeOwner: ({ context, event }) => ['owner', 'tool'].includes(localResumeKind(context, event) ?? ''),
     localResumeHelp: ({ context, event }) => localResumeKind(context, event) === 'assistance',

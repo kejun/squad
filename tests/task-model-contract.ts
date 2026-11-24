@@ -136,6 +136,10 @@ function resilienceTransitions(base: MachineTransition[]): MachineTransition[] {
     }
     const projected = { ...row, order: row.order + shift, id: `${row.source}:${row.event}:${row.order + shift}` };
     added.push(projected);
+    if (row.source === 'waitingHuman' && row.event === 'CONTINUE') {
+      const approvalAdvance = localResumeRules.filter(([guard]) => guard !== 'localCheckExhausted');
+      added.push(...rules(row.source, 'CONSUME', approvalAdvance), ...rules(row.source, 'LOCAL_REQUEST', approvalAdvance));
+    }
     if (row.event === 'WORK_FAILED' && row.guards.includes('retryable')) added.push({ id: `${row.source}:WORK_FAILED:${row.order + 3}`,
       source: row.source, event: row.event, order: row.order + 3, target: null, guards: ['safeFailureRetry'], actions: ['apply'] });
   }
@@ -147,6 +151,9 @@ function beforeResilienceEvidence(actual: DebugEvidence, label: string, salvage:
     'approvalBlockedFailure', 'approvalDecisionEnds', 'directHumanResponseExpired', 'humanDecisionExpired', 'recoverStopped',
     'hasTaskHumanGate', 'logicalStopped', 'safeFailureRetry', 'ownerWebRecoveryBudgetExhausted', 'ownerWebRecoveryExhausted']);
   const evaluations = actual.evaluations.flatMap(row => {
+    if (row.source === 'waitingHuman' && ['CONSUME', 'LOCAL_REQUEST'].includes(row.event)) {
+      assert.equal(row.passed, false, `${label}: approval advance changes this frozen trace`); return [];
+    }
     if (row.guard === 'recoverIncompatible' && row.passed) {
       assert(label.startsWith('不兼容恢复:') && row.event === 'RECOVER' && row.source === '*', `${label}: unexpected incompatible recovery`);
       // The explicit early recovery gate replaces the original equivalent false/false/fallback branch.

@@ -1,4 +1,4 @@
-import { humanGateProblem, windowExpired, workInCleanup, taskHumanGate } from './resilience.js';
+import { approvalGateSuperseded, humanGateProblem, taskHumanGates, windowExpired, workInCleanup, taskHumanGate } from './resilience.js';
 import { acquisitionEventProblem } from '../resource-acquisition.js';
 import { modelOutputIssues, type InputReference, type TaskContext, type TaskEvent } from '../types.js';
 import { localAwaitingApproval, localEventProblem, localPhysicalPending, localUnsettled } from '../local-operation.js';
@@ -31,7 +31,7 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
     if (!/^[a-f0-9]{64}$/.test(e.requestHash)) return 'INVALID_LOCAL_REQUEST';
     const upgraded = legacyTerminalConfig(c, e.currentConfig);
     if (e.currentConfig && taskProtocolChanged(c.config, e.currentConfig) && !upgraded) return 'INCOMPATIBLE_EXECUTION';
-    return hostRetryProblem(upgraded ? { ...c, config: upgraded } : c, e.sourceWorkId, e.sourceOperationId, e.sourceRequestHash);
+    return hostRetryProblem(upgraded ? { ...c, config: upgraded } : c, e.sourceWorkId, e.sourceOperationId, e.sourceRequestHash, e.at);
   }
   const attemptWorkId = e.workId ?? ('intentId' in e ? e.intentId : undefined);
   if (e.attempt !== undefined && c.intents.find(work => work.id === attemptWorkId)?.attempt !== e.attempt) return 'STALE_ATTEMPT';
@@ -220,6 +220,12 @@ export const valid = ({ context, event }: { context: TaskContext; event: TaskEve
 
 export function localResumeKind(c: TaskContext, e: TaskEvent): string | null {
   if (!valid({ context: c, event: e }) || c.stopped || incompatibleExecution(c) || c.outcome !== null) return null;
+  if (e.type === 'CONSUME' || e.type === 'LOCAL_REQUEST') {
+    const gates = taskHumanGates(c);
+    if (!gates.length || !gates.every(gate => approvalGateSuperseded(c, gate, e.intentId))) return null;
+    const work = c.intents.find(item => item.id === e.intentId)!;
+    return work.discussionId ? null : work.kind;
+  }
   if (e.type !== 'LOCAL_RECONCILE' && e.type !== 'LOCAL_RESULT' && e.type !== 'LOCAL_APPROVAL_DECISION') return null;
   const work = c.intents.find(i => i.id === e.intentId);
   if (e.type === 'LOCAL_RESULT' && (work?.status !== 'uncertain' || !e.settled || !e.effectsKnown)) return null;

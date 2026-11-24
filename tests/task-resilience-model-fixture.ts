@@ -3,6 +3,7 @@ import { pathToFileURL } from 'node:url';
 import { initialTask, persistTask, restoreTask, stepTask, taskPhase, executionState } from '../src/task.machine.js';
 import { processingWindow, effectiveWork, taskHumanGate } from '../src/task/resilience.js';
 import { localModelInput } from './local-model-fixture.js';
+import { failedSandbox, prepareRetry, request, retryOp, retryWork } from './host-retry-model-fixture.js';
 import { CapacityModel, capacityModelIntent } from './map-capacity-model-fixture.js';
 import { publicationIds } from '../src/task/delivery.js';
 import { fixtureCheck } from './delivery-protocol-fixture.js';
@@ -509,10 +510,66 @@ export function taskResilienceModelGate() {
   resilienceSkippedCompletionGate(); resilienceCleanupResourceGate(false); resilienceCleanupResourceGate(true); resilienceLegacyUnsafeGate(); resilienceLegacyUnsafeGate(true);
   resilienceRetryGateBinding(false); resilienceRetryGateBinding(true);
   resilienceRepeatedPartialGate();
+  for (const action of ['继续', '宿主续办']) for (const window of ['任务硬期限以内', '任务硬期限已经到期']) {
+    const model = prepareExplicitContinuation();
+    assertExplicitContinuation(model, actOnExplicitContinuation(model, window, action), action,
+      window === '任务硬期限已经到期' ? '需要明确授权新窗口' : action === '继续' ? '在原任务窗口领取新的负责人工作' : '在原任务窗口为固定命令申请新审批');
+  }
   const clarificationReplies = (['reply', 'skip', 'skipHelp', 'replyHelp'] as const).map(mode => { const m = resilienceClarificationGate(mode); return { mode, phase: m.phase, owner: m.c.owner, repairUsed: m.c.resilience!.window.repairUsed }; });
   const notStartedLifecycle = (['已请求停止', '已发布partial', '已经complete'] as const).map(logical => { const m = resilienceNotStartedLifecycleGate(logical); return { logical, outcome: m.c.outcome }; });
   const requiredFailures = (['owner', 'interpretation', 'assistance', 'facilitator', 'check'] as const).flatMap(role => [false, true].map(expired => { const m = resilienceRequiredFailureGate(role, true, expired); return { role, expired, phase: m.phase, outcome: m.c.outcome }; }));
   const directResponses = (['input', 'retry'] as const).flatMap(kind => [false, true].map(expired => { const m = resilienceDirectResponseGate(kind, expired); return { kind, expired, phase: m.phase, outcome: m.c.outcome }; }));
   return { phases, businessDeadlines, recoveredCustody, directResponses, requiredFailures, notStartedLifecycle, clarificationReplies, gates: ['fixedWindow', 'requiredHuman', 'expiredReply', 'explicitNewWindow', 'cleanupCustody', 'lateReceiptFreeze', 'stopRecoveryOrders', 'continueEpochFourStages', 'savedResultReactivation', 'deadlineOrder', 'legacyFixedWindow'], persistence: 'real taskMachine round trip after every public event' };
+}
+
+export function prepareExplicitContinuation() {
+  const model = failedSandbox();
+  assert(model.send({ type: 'SETTLE', intentId: model.work.id }).ok);
+  assert(model.send({ type: 'SUPERVISE' }).ok);
+  const repairDeadline = processingWindow(model.c).repairDeadline;
+  assert(repairDeadline);
+  model.at = repairDeadline;
+  assert(model.send({ type: 'SUPERVISE' }).ok);
+  const frozen = structuredClone(model.c.resilience!.frozen);
+  assert.equal(taskPhase(model.snapshot), 'ended'); assert(frozen);
+  return { model, frozen, before: structuredClone(processingWindow(model.c)), usage: structuredClone(model.c.usage), receipt: structuredClone(model.op) };
+}
+
+export function actOnExplicitContinuation(fixture: ReturnType<typeof prepareExplicitContinuation>, timing: string, action: string) {
+  const { model, before } = fixture;
+  if (timing === '任务硬期限已经到期') model.at = before.hardDeadline;
+  else assert.equal(timing, '任务硬期限以内');
+  return action === '继续' ? model.send({ type: 'CONTINUE' }) : request(model);
+}
+
+export function assertExplicitContinuation(fixture: ReturnType<typeof prepareExplicitContinuation>, reply: ReturnType<typeof actOnExplicitContinuation>, action: string, expected: string) {
+  const { model, frozen, before, usage, receipt } = fixture;
+  assert.deepEqual(model.op?.result, receipt?.result);
+  assert.deepEqual(model.c.usage, usage);
+  assert.equal(processingWindow(model.c).hardDeadline, before.hardDeadline);
+  assert.equal(processingWindow(model.c).repairUsed, before.repairUsed);
+  if (expected === '需要明确授权新窗口') {
+    assert.equal(reply.code, 'WINDOW_EXPIRED');
+    assert.deepEqual(model.c.resilience!.frozen, frozen);
+    assert.equal(model.c.intents.filter(work => work.status === 'pending').length, 0);
+    assert(model.send({ type: 'CONTINUE', newWindowMs: 10_000 }).ok);
+    if (action === '宿主续办') assert(request(model).ok);
+  } else {
+    assert(reply.ok);
+    assert.deepEqual(model.c.resilience!.frozenHistory!.at(-1), frozen);
+    assert.equal(model.c.resilience!.frozen, undefined);
+    assert.equal(processingWindow(model.c).repairDeadline, undefined);
+  }
+
+  const owner = action === '宿主续办' ? retryWork(model) : model.c.intents.find(work => work.kind === 'owner' && work.status === 'pending')!;
+  assert.equal(owner.deadline, Math.min(processingWindow(model.c).hardDeadline, model.at + model.c.config.limits.workTimeoutMs));
+  assert.equal(model.send({ type: 'CLAIM', intentId: owner.id }).code, 'OK');
+  if (action === '宿主续办') {
+    assert.equal(retryOp(model).approval, undefined);
+    prepareRetry(model);
+    assert.equal(retryOp(model).status, 'awaitingApproval');
+    assert.equal(retryOp(model).startedAt, undefined);
+    assert.equal(retryOp(model).hostRetryOf, receipt!.id);
+  }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) console.log(JSON.stringify(taskResilienceModelGate(), null, 2));

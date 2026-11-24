@@ -1,7 +1,7 @@
 import type { Artifact, Candidate, InputReference, Intent, TaskContext, TaskEvent } from '../types.js';
 import { checkCitationSources, judgmentsDiagnostic, type CheckDiagnostic, type CheckMaterials, type CheckReferenceSource, type CheckReviewSource } from '../delivery-acceptance.js';
 import { pendingHostRetry } from '../host-retry.js';
-import { localPhysicalPending } from '../local-operation.js';
+import { cliArtifactIds, localPhysicalPending } from '../local-operation.js';
 import { canRetryDeliveryCheck } from './budget.js';
 import { deliveryCheckEvidence } from './evidence.js';
 import { completeProblem, deliveryHandoffPending } from './facts.js';
@@ -69,11 +69,18 @@ export function checkReferenceSources(c: TaskContext): CheckReferenceSource[] {
 }
 
 export function deliverySubmissionProblem(c: TaskContext, e: Delivery): { code: string; mechanical: boolean } | null {
-  const problem = deliveryVersionProblem(c, e);
+  const problem = deliveryVersionProblem(c, includeCliArtifacts(c, e));
   if (problem) return { code: problem, mechanical: true };
   const budget = deliveryCheckBudgetProblem(c);
   if (budget) return { code: budget, mechanical: false };
   return null;
+}
+
+export function includeCliArtifacts(c: TaskContext, e: Delivery): Delivery {
+  const work = c.intents.find(intent => intent.id === e.workId);
+  const added = cliArtifactIds(work).filter(id => !e.backgroundArtifactIds?.includes(id)
+    && !e.artifacts?.some(draft => draft.replacesArtifactId === id));
+  return added.length ? { ...e, artifactIds: [...new Set([...e.artifactIds, ...added])] } : e;
 }
 
 export function deliveryInterruptionPending(c: TaskContext, settlingWorkId?: string): boolean {

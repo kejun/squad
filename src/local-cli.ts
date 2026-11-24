@@ -8,7 +8,7 @@ import { StringDecoder } from 'node:string_decoder';
 import { setTimeout as delay } from 'node:timers/promises';
 import { SandboxManager, type SandboxRuntimeConfig } from '@anthropic-ai/sandbox-runtime';
 import { digest, LocalToolError } from './local-skills.js';
-import type { LocalToolResult } from './local-operation.js';
+import type { CapturedCliArtifact, LocalToolResult } from './local-operation.js';
 import { darwinProcessIdentity } from './darwin-process.js';
 import { publishObservation } from './measurement.js';
 
@@ -18,7 +18,7 @@ export interface CliInvocation {
   env: Record<string, string>; timeoutMs: number; sessionId: string; logPath: string; redact?: string[];
   observeProcess?: (phase: 'local.processStarted' | 'local.processFinished') => void;
 }
-export interface CliCompletion { result: LocalToolResult; settled: boolean; effectsKnown: boolean }
+export interface CliCompletion { result: LocalToolResult; settled: boolean; effectsKnown: boolean; artifact?: CapturedCliArtifact }
 export interface CliBackend {
   readonly available: boolean; readonly unavailableReason?: string | undefined;
   /** A trusted backend guarantee, independent of executable availability. */
@@ -314,11 +314,12 @@ export class CliJournal {
       : record.identity ? await identityAlive(record.identity) === false ? 'exited' : 'unconfirmed' : 'unconfirmed';
     return { record, state };
   }
-  async reconcile(operationId: string, sessionId: string): Promise<{ resolution: 'notStarted' | 'receipt'; result?: LocalToolResult; detail: string } | null> {
+  async reconcile(operationId: string, sessionId: string): Promise<{ resolution: 'notStarted' | 'receipt'; result?: LocalToolResult; artifact?: CapturedCliArtifact; detail: string } | null> {
     const record = await this.read(sessionId);
     if (!record) return { resolution: 'notStarted', detail: 'Durable launch journal absent; spawn is strictly after journal fsync' };
     if (record.operationId !== operationId || record.sessionId !== sessionId) return null;
-    if (record.phase === 'settled' && record.completion?.settled && record.completion.effectsKnown) return { resolution: 'receipt', result: record.completion.result, detail: 'Durable settled process receipt' };
+    if (record.phase === 'settled' && record.completion?.settled && record.completion.effectsKnown) return { resolution: 'receipt', result: record.completion.result,
+      ...(record.completion.artifact ? { artifact: record.completion.artifact } : {}), detail: 'Durable settled process receipt' };
     if (record.identity) {
       const alive = await identityAlive(record.identity);
       if (alive === true) {

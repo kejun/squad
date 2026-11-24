@@ -529,9 +529,13 @@ export class WorkRunner {
         }
         const response = send({ type: 'LOCAL_RESULT', id: `local-result:${op.sessionId}`, at: this.clock(),
           intentId: work.id, operationId: op.id, sessionId: op.sessionId!, ...execution });
+        let result = execution.result;
         if (response.ok && execution.settled && execution.effectsKnown && op.action.type === 'runCli') {
           const current = currentWork(), finalized = current.localOperations?.find(item => item.id === op!.id);
-          if (finalized) persistCliAcquisitions(finalized);
+          if (finalized) {
+            persistCliAcquisitions(finalized);
+            if (execution.artifact && finalized.result) result = finalized.result;
+          }
         }
         if (response.ok && execution.result.ok && isSavedRead(op.action)) {
           report(op.action.type === 'readEvidence'
@@ -548,7 +552,7 @@ export class WorkRunner {
         }
         if (op.hostRetryRequestId) { controller.signal.throwIfAborted(); externalSignal.throwIfAborted(); }
         else signal.throwIfAborted();
-        return execution.result;
+        return result;
       };
       Object.defineProperty(scope, 'localTools', { value: {
         get catalog() { return runtime.catalog(); }, get checkpoint() { return currentWork().localCheckpoint; },

@@ -16,6 +16,7 @@ import { SandboxManager } from '@anthropic-ai/sandbox-runtime';
 import { SandboxCliBackend } from '../src/local-cli.js';
 import type { CliAcquisitionReader } from '../src/acquisition-readers.js';
 import type { CliCatalogEntry } from '../src/cli-catalog.js';
+import type { MeasurementSink } from '../src/measurement.js';
 
 // Isolated fixtures verify local builds, never npm's own network update check.
 export const localFixtureCommandEnv = { npm: { NPM_CONFIG_UPDATE_NOTIFIER: 'false' } };
@@ -96,13 +97,13 @@ export class LocalFixture {
   }
   actions(): LocalAction[] { return [{ type: 'loadSkill', skillId: this.skillId }, { type: 'readSkillResource', skillId: this.skillId, path: 'references/guide.md' },
     { type: 'runCli', executable: 'node', args: ['@skill/scripts/run.mjs'], skillId: this.skillId }]; }
-  runner(final?: unknown) {
+  runner(final?: unknown, observe?: MeasurementSink) {
     const adapter = new OpenAICompatibleAdapter(this.h.config, { clock: () => this.h.now, transport: async (_url, init) => {
       this.requests.push(JSON.parse(String(init?.body)) as typeof this.requests[number]);
       await this.beforeModelResponse?.(this.requests.at(-1)!, this.requests.length - 1);
       assert(this.replies.length || final, 'scripted model exhausted'); return modelResponse(withFixtureAcceptance(this.replies.length ? this.replies.shift() : final, this.requests.at(-1)));
     } });
-    return new WorkRunner(this.h.engine, adapter, () => this.h.now, globalThis.fetch, undefined, this.runtime);
+    return new WorkRunner(this.h.engine, adapter, () => this.h.now, globalThis.fetch, undefined, this.runtime, observe);
   }
   async flow() {
     const work = this.h.engine.pending(this.h.room, this.h.task).find(w => w.kind !== 'cancel')!;

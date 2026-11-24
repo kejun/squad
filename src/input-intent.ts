@@ -24,7 +24,7 @@ export const inputIntentSchema = z.strictObject({
   clarification: text.nullable(),
   decomposition: mapReduceSchema.nullable().optional(),
   okr: okrSchema.optional(),
-}).refine(spec => spec.confidence >= 0.65 || spec.clarification !== null);
+}).refine(spec => spec.confidence >= 0.65 || spec.clarification !== null, { path: ['clarification'] });
 export const inputIntentJsonSchema = z.toJSONSchema(inputIntentSchema);
 export type InputReference = z.infer<typeof inputReferenceSchema>;
 export type InputIntentSpec = z.infer<typeof inputIntentSchema>;
@@ -92,9 +92,21 @@ export function omitInvalidOkr(spec: unknown): unknown {
 
 /** Schema validity alone grants no scheduling authority or reference identity. */
 export function validInputIntent(value: unknown, action: unknown, references: readonly InputReference[], maxPartitions?: number): value is InputIntentSpec {
+  return inputIntentProblems(value, action, references, maxPartitions).length === 0;
+}
+
+/** Return only field names defined by the schema, including for nested failures. */
+export function inputIntentProblems(value: unknown, action: unknown, references: readonly InputReference[], maxPartitions?: number): string[] {
   const parsed = inputIntentSchema.safeParse(value);
-  return parsed.success && parsed.data.action === action
-    && (maxPartitions === undefined || !parsed.data.decomposition || parsed.data.decomposition.partitions.length <= maxPartitions)
-    && parsed.data.references.every(ref =>
-    references.some(allowed => allowed.kind === ref.kind && allowed.id === ref.id && allowed.taskId === ref.taskId));
+  if (!parsed.success) return [...new Set(parsed.error.issues.map(issue => {
+    const field = issue.path[0];
+    if (typeof field === 'string' && Object.hasOwn(inputIntentSchema.shape, field)) return field;
+    return issue.code === 'unrecognized_keys' ? 'additionalProperties' : 'spec';
+  }))];
+  const fields: string[] = [];
+  if (parsed.data.action !== action) fields.push('action');
+  if (maxPartitions !== undefined && parsed.data.decomposition && parsed.data.decomposition.partitions.length > maxPartitions) fields.push('decomposition');
+  if (parsed.data.references.some(ref => !references.some(allowed =>
+    allowed.kind === ref.kind && allowed.id === ref.id && allowed.taskId === ref.taskId))) fields.push('references');
+  return fields;
 }

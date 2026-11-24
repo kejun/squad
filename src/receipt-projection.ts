@@ -57,6 +57,7 @@ function localCard(operation: LocalOperation): Record<string, unknown> {
   const page = typeof data.content === 'string' ? data.content : typeof data.text === 'string' && typeof data.stdout !== 'string' ? data.text : undefined;
   return { type: 'local_tool_result', untrusted: true, bodyIncluded: false, operationId: operation.id,
     ok: result.ok, code: result.code, completeness: completeness(operation),
+    ...(data.artifact ? { artifact: data.artifact } : {}),
     ...(execution ? { execution } : {}),
     ...(typeof data.exitCode === 'number' ? { exitCode: data.exitCode } : {}),
     ...(typeof data.truncated === 'boolean' ? { truncated: data.truncated } : {}),

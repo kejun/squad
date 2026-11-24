@@ -446,7 +446,7 @@ export class TeamEngine {
       const next = this.step(current, { type: 'REQUEST_HOST_RETRY', id: commandId, at: this.clock(), sourceWorkId, sourceOperationId, sourceRequestHash,
         requestHash: fingerprint({ action: hostRetryAction(op), workspaceId: op.workspaceId, namespace: op.namespace }), currentConfig: this.config, fence: { epoch: c.epoch, goalVersion: c.goalVersion } });
       storeTask(tx, next, next.context.reply.ok); return { ...next.context.reply, taskId };
-    }));
+    }, result => result.ok || result.code !== 'WINDOW_EXPIRED'));
   }
   decideHostApproval(roomId: string, taskId: string, intentId: string, operationId: string, approvalId: string, decision: 'approve' | 'approveSession' | 'deny', commandId: string): CommandResult {
     const work = this.view(roomId, taskId)?.context.intents.find(i => i.id === intentId);

@@ -1,6 +1,12 @@
 import { supervisionDecision } from './resilience.js';
 import type { Phase, TaskContext, TaskEvent } from '../types.js';
 const superviseActions = { interpreting: 'superviseInterpreting', running: 'superviseRunning', waitingAssistance: 'superviseAssistance', coordinating: 'superviseCoordinating', waitingHuman: 'superviseHuman', checking: 'superviseChecking', stopping: 'superviseStopping', ended: 'superviseEnded' } as const;
+const resumeAfterApproval = [
+  { guard: 'localResumeOwner', target: 'running', actions: 'apply' },
+  { guard: 'localResumeHelp', target: 'waitingAssistance', actions: 'apply' },
+  { guard: 'localResumeFacilitator', target: 'coordinating', actions: 'apply' },
+  { guard: 'localResumeCheck', target: 'checking', actions: 'apply' },
+] as const;
 const supervision = (phase: Phase) => [
   { guard: function supervisionEnds({ context, event }: { context: TaskContext; event: TaskEvent }) { return ['freeze', 'stopped', 'settled', 'checkExpired'].includes(supervisionDecision(context, phase, event.at)); }, target: '#botTeamTask.ended', actions: superviseActions[phase] },
   { guard: function supervisionWaitsForHuman({ context, event }: { context: TaskContext; event: TaskEvent }) { return ['human', 'windowExpired'].includes(supervisionDecision(context, phase, event.at)); }, target: '#botTeamTask.waitingHuman', actions: superviseActions[phase] },
@@ -140,7 +146,8 @@ export const taskLifecycle = {
         WORK_FAILED: [{ guard: 'windowFailed', target: 'waitingHuman', actions: 'apply' }, { guard: 'approvalBlockedFailure', target: 'waitingHuman', actions: 'apply' }, { guard: 'failedDiscussion', actions: 'apply' }, { guard: 'retryable', actions: 'apply' }, { guard: 'safeFailureRetry', actions: 'apply' }, { guard: 'valid', target: 'waitingHuman', actions: 'apply' }],
       },
     },
-    waitingHuman: { on: { SUPERVISE: supervision('waitingHuman'), CONTINUE: { guard: 'valid', target: 'running', actions: 'apply' } } },
+    waitingHuman: { on: { SUPERVISE: supervision('waitingHuman'), CONTINUE: { guard: 'valid', target: 'running', actions: 'apply' },
+      CONSUME: resumeAfterApproval, LOCAL_REQUEST: resumeAfterApproval } },
     checking: {
       on: {
         SUPERVISE: supervision('checking'),

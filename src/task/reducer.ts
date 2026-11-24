@@ -4,15 +4,15 @@ import { startMapReduce } from './map-reduce.js';
 import { bindDeliveryCheck, deliveryCandidate, resetDeliveryMaterials, settleDeliveryCycle } from './delivery-cycle.js';
 import { mapReduceCapacity, mapReduceConcurrency } from './map-reduce-capacity.js';
 import { hostSessionActive, revokeHostSession } from '../host-session.js';
-import { artifactSourceMetadata, type BoardEntry, type Decision, type TaskContext, type TaskEvent } from '../types.js';
+import { artifactSourceMetadata, type BoardEntry, type Decision, type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
 import { canRetireDiscussionWork, capabilities, discussionActive, fence, fresh, hasOrdinary, inflight, ok, recoveryIssue, reject } from './facts.js';
 import { cancelWork, coordinate, continueOwner, finish, finishDeliveryCheck, finishIncompleteDelivery, intent, message, owner, release, saveReports } from './operations.js';
-import { applyLocalEvent, cancelLocalOperations, localEnabled, localPhysicalPending, localAwaitingApproval, recoverLocalOperations, type LocalEvent } from '../local-operation.js';
+import { applyLocalEvent, cancelLocalOperations, cliArtifactIds, localEnabled, localPhysicalPending, localAwaitingApproval, localRecoveryBlocked, recoverLocalOperations, type LocalEvent } from '../local-operation.js';
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
 import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requestReview, resetReviewAtBoundary, savedHelpResult, startHelp } from './assistance.js';
 import { recordInput } from './input.js';
-import { checkDisposition, checkReferenceSources, currentDeliveryCheck, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication, saveCheckDiagnostic, settlingDeliveryCheck } from './delivery.js';
+import { checkDisposition, checkReferenceSources, currentDeliveryCheck, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, includeCliArtifacts, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication, saveCheckDiagnostic, settlingDeliveryCheck } from './delivery.js';
 import { canRetryDeliveryCheck, canRetryWork, reserveDeliveryRetry } from './budget.js';
 import { checkReviewSources, deliveryJudgments, deliveryPreflight, deliveryGapMessage } from '../delivery-acceptance.js';
 import { adoptLegacyTerminalConfig } from './protocol.js';
@@ -22,8 +22,19 @@ import { deliveryVerificationPlan } from './verification.js';
 import { preserveSourceReference } from '../input-intent.js';
 import { ownerWebRecoveryExhausted, recordToolFailure } from './tool-recovery.js';
 import { ensureResilience, openHumanGate, decideHumanGate, executionNotStarted, freezeIncomplete, taskHumanGate, answerTaskGate, syncLocalApprovalGate, recordApprovalExplanation, requiredHumanFailure, modelServiceFailureCode, authorizationFailure,
-  windowExpired, requestNewWindow, archiveFrozen, replaceProcessingWindow, adoptCleanup, settleCleanup, resiliencePolicy, processingWindow, safeFailureRetry, requeueSafeWork, settleRepairCoordination } from './resilience.js';
+  windowExpired, requestNewWindow, archiveFrozen, beginManualContinuation, replaceProcessingWindow, adoptCleanup, settleCleanup, resiliencePolicy, processingWindow, safeFailureRetry, requeueSafeWork, settleRepairCoordination } from './resilience.js';
 import { recordAcquisition } from '../resource-acquisition.js';
+
+function saveCliArtifact(c: TaskContext, event: TaskEvent & LocalEvent, work: Intent): TaskEvent & LocalEvent {
+  if (event.type !== 'LOCAL_RESULT' && event.type !== 'LOCAL_RECONCILE' || !event.artifact || !event.result) return event;
+  if (c.stopped || c.outcome !== null || localRecoveryBlocked(c) || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion
+    || work.kind !== 'owner' || work.target !== c.owner || !['inflight', 'uncertain'].includes(work.status)
+    || !localEnabled(c.config, work.target) || !work.localOperations?.some(op => op.id === event.operationId && ['running', 'uncertain'].includes(op.status))) return event;
+  const { path, content, sha256 } = event.artifact;
+  const name = path.split('/').at(-1)!;
+  const [id] = saveReports(c, { ...event, id: event.operationId, workId: work.id }, '', work.target, [{ name, content }]);
+  return { ...event, result: { ...event.result, data: { ...event.result.data, artifact: { id, name, sha256 } } } };
+}
 
 export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
   const c = structuredClone(original);
@@ -47,14 +58,14 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     const local = e as TaskEvent & LocalEvent;
     const work = c.intents.find(item => item.id === local.intentId);
     const resumeCheck = isBoundedCheck(work) && work.status === 'uncertain';
-    applyLocalEvent(c, local);
-    syncLocalApprovalGate(c, local);
+    applyLocalEvent(c, saveCliArtifact(c, local, work!));
     if (c.resilience?.frozen && work) {
       cancelLocalOperations(work);
       if (!localPhysicalPending(work)) work.status = 'done';
     }
     settleCleanup(c, e.at);
     settleHostRetryOperation(c, local.intentId, local.operationId, e.at);
+    syncLocalApprovalGate(c, local);
     if ((e.type === 'LOCAL_RESULT' || e.type === 'LOCAL_RECONCILE') && work && canRetireDiscussionWork(c, work)) release(c, work.id);
     if (resumeCheck && taskHumanGate(c)) return c;
     if (resumeCheck && work.status === 'pending' && work.requestCount > 0 && !hasDeliveryRetryPermit(c, work)) {
@@ -230,7 +241,8 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       owner(c, e, { handoff: true, boardRefs: c.board.map(b => b.id) }); break;
     }
     case 'DELIVER': {
-      const versionProblem = deliveryVersionProblem(c, e);
+      const delivery = includeCliArtifacts(c, e);
+      const versionProblem = deliveryVersionProblem(c, delivery);
       if (versionProblem) {
         if (!deliveryInterruptionPending(c)) {
           finishIncompleteDelivery(c, e, versionProblem, versionProblem);
@@ -240,7 +252,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       }
       const summaryOnly = c.config.deliveryReport === 'summary';
       const problem = summaryOnly ? null : deliverySubmissionProblem(c, e);
-      const { acceptance, gaps: submissionGaps } = deliveryPreflight(c, e);
+      const { acceptance, gaps: submissionGaps } = deliveryPreflight(c, delivery);
       const gapDetails = submissionGaps.map(gap => deliveryGapMessage(gap.reason));
       const artifactIds = saveReports(c, e, c.sourceArtifact && !e.artifacts?.length ? '' : e.text, c.owner, e.artifacts);
       const priorFindings = summaryOnly ? [] : deliveryJudgments(c, c.candidate?.revision).filter(item => item.status !== 'passed');
@@ -249,7 +261,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         && (work.payload.candidate as TaskContext['candidate'])?.revision === c.candidate?.revision)?.id;
       const references = summaryOnly ? [] : checkReferenceSources(c);
       cancelWork(c, e);
-      const existingIds = e.artifactIds.filter(id => c.artifacts.some(a => a.id === id && a.goalVersion === c.goalVersion));
+      const existingIds = delivery.artifactIds.filter(id => c.artifacts.some(a => a.id === id && a.goalVersion === c.goalVersion));
       const submissionNote = submissionGaps.length ? '\n\n交付时尚缺少：\n' + gapDetails.map(detail => `- ${detail}`).join('\n') : '';
       c.candidate = { text: e.text + submissionNote, artifactIds: [...new Set([...existingIds, ...artifactIds])], goalVersion: c.goalVersion,
         revision: acceptance.revision, ...(e.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(e.backgroundArtifactIds)] } : {}),
@@ -354,6 +366,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         const { deliveryIssue: _issue, ...candidate } = c.candidate!;
         const evidence = c.deliveryCycle!.evidence;
         if (e.newWindowMs !== undefined) replaceProcessingWindow(c, e, e.newWindowMs);
+        else beginManualContinuation(c, e.at);
         c.epoch++; c.outcome = null; c.reason = '';
         c.deliveryCycle = { ...newDeliveryCycle(), ...(evidence ? { evidence } : {}) };
         message(c, e, 'user', e.text ?? '重试检查', 'user');
@@ -370,7 +383,8 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
           decision: 'newWindow', newWindowMs: e.newWindowMs, ...(e.text ? { text: e.text } : {}) });
         break;
       }
-      if (e.newWindowMs !== undefined) replaceProcessingWindow(c, e, e.newWindowMs); else archiveFrozen(c);
+      if (e.newWindowMs !== undefined) replaceProcessingWindow(c, e, e.newWindowMs);
+      else beginManualContinuation(c, e.at);
       if (c.discussion && !['cancelled', 'delivered'].includes(c.discussion.status)) {
         c.discussion.status = 'cancelled';
         for (const work of c.intents) if (work.discussionId && work.status === 'pending') work.status = 'cancelled';
@@ -444,6 +458,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         if (hasDeliveryRetryPermit(c, work)) c.deliveryCycle!.retry!.status = 'used';
       } else if (work.requestCount > 0 && work.bucket !== 'none') c.usage[work.bucket]++;
       work.requestCount++;
+      syncLocalApprovalGate(c, e);
       break;
     }
     case 'REGENERATE_MODEL_OUTPUT': {
@@ -458,9 +473,12 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     case 'WORK_FAILED': {
       const work = c.intents.find(i => i.id === e.intentId);
       if (!work) { reject(c, 'UNKNOWN_WORK'); break; }
+      const artifactIds = cliArtifactIds(work);
       saveCheckDiagnostic(c, work, e.checkDiagnostic);
       if (!c.stopped && c.outcome === null && windowExpired(c, e.at)) {
-        release(c, work.id); requestNewWindow(c, e); break;
+        release(c, work.id); requestNewWindow(c, e);
+        if (artifactIds.length) message(c, e, work.target, e.reason, 'notice', { artifactIds, workId: work.id });
+        break;
       }
       if (ownerWebRecoveryExhausted(c, e)) {
         release(c, work.id);
@@ -468,7 +486,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         else {
           c.reason = e.reason;
           c.deferredCoordination = true;
-          message(c, e, work.target, e.reason, 'notice');
+          message(c, e, work.target, e.reason, 'notice', artifactIds.length ? { artifactIds, workId: work.id } : {});
         }
         break;
       }
@@ -485,7 +503,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         }
         openHumanGate(c, e, { kind: 'authorization', cause: 'modelServiceError', code: modelFailure,
           decisions: ['skip', 'stop'], workId: work.id, question: `模型服务调用失败（${work.target}）：${e.reason}` });
-        message(c, e, work.target, c.reason, 'notice');
+        message(c, e, work.target, c.reason, 'notice', artifactIds.length ? { artifactIds, workId: work.id } : {});
         break;
       }
       if (work.discussionId) {
@@ -524,6 +542,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
           c.reason = `协调工作未能完成：${failureReason}。请重试或补充处理方式。`;
           message(c, e, 'facilitator', c.reason, 'notice');
         }
+        if (artifactIds.length) message(c, e, work.target, failureReason, 'notice', { artifactIds, workId: work.id });
         if (work.kind === 'interpretation') {
           const input = c.inputAnalyses!.find(input => input.workId === work.id)!;
           input.status = 'failed'; input.error = failureReason;

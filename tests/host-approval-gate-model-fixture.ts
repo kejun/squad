@@ -113,7 +113,67 @@ export function approvalGateSkip(timing: string) {
   else assert(m.c.intents.some(work => work.id !== m.work.id && work.kind === 'owner' && work.status === 'pending'));
   return { timing, cancelled: true, unstarted: true, outcome: m.c.outcome };
 }
+
+export function supersededApproval(successorKind: string) {
+  const model = approvalGateModel(), work = model.work, priorGate = taskHumanGate(model.c)!;
+  const priorApproval = model.op!.approval!;
+  assert(model.send({ type: 'CONSUME', intentId: work.id, fence: work }).ok);
+  model.at = priorApproval.expiresAt;
+  assert(model.send({ type: 'LOCAL_APPROVAL_EXPIRED', intentId: work.id, operationId: 'op1' }).ok);
+  assert.equal(taskHumanGate(model.c)?.id, priorGate.id);
+  model.at++;
+  if (successorKind === '后续模型请求') {
+    assert(model.send({ type: 'SUPERVISE' }).ok);
+    assert.equal(taskPhase(model.snapshot), 'waitingHuman');
+    assert(model.send({ type: 'CONSUME', intentId: work.id, fence: work }).ok);
+    return { model, work, priorGate };
+  }
+  assert.equal(successorKind, '新批准的宿主命令');
+
+  const operationId = 'convert-html', sessionId = 'pandoc-session', args = ['notes.md', '-o', 'notes.html'];
+  const action = { type: 'runCli', executable: 'pandoc', args, execution: 'host', reason: '读取分享稿并转换为网页' };
+  assert(model.send({ type: 'LOCAL_REQUEST', intentId: work.id, operationId, namespace: 'c'.repeat(64), requestHash: 'b'.repeat(64),
+    action, parentAttempt: work.attempt, fence: work, messages: [], workspaceId: 'project' }).ok);
+  assert(model.send({ type: 'LOCAL_CLAIM', intentId: work.id, operationId, parentAttempt: work.attempt, fence: work, sessionId, leaseAvailable: true }).ok);
+  const approval = { ...priorApproval, id: 'pandoc-approval', expiresAt: 950,
+    plan: { ...priorApproval.plan, executable: '/usr/bin/pandoc', args, reason: action.reason } };
+  assert(model.send({ type: 'LOCAL_APPROVAL_REQUIRED', intentId: work.id, operationId, sessionId, approval, fence: work }).ok);
+  assert(model.send({ type: 'LOCAL_APPROVAL_DECISION', intentId: work.id, operationId, approvalId: approval.id, decision: 'approve', fence: work }).ok);
+  const runId = 'pandoc-run';
+  assert(model.send({ type: 'LOCAL_CLAIM', intentId: work.id, operationId, parentAttempt: work.attempt, fence: work, sessionId: runId, leaseAvailable: true }).ok);
+  assert(model.send({ type: 'LOCAL_STARTED', intentId: work.id, operationId, sessionId: runId }).ok);
+  return { model, work, priorGate, successor: { operationId, runId } };
+}
+
+export function skipSupersededApproval(fixture: ReturnType<typeof supersededApproval>) {
+  const { model, priorGate } = fixture;
+  return model.send({ type: 'HUMAN_GATE_DECISION', gateId: priorGate.id, decision: 'skip' });
+}
+
+export function assertSupersededApprovalPreserved(fixture: ReturnType<typeof supersededApproval>, reply: ReturnType<typeof skipSupersededApproval>) {
+  const { model, work, priorGate, successor } = fixture;
+  assert.equal(reply.code, 'STALE_HUMAN_GATE');
+  assert.equal(model.c.resilience!.gates.find(gate => gate.id === priorGate.id)?.status, 'cancelled');
+  assert.equal(model.op?.result?.code, 'HOST_APPROVAL_EXPIRED');
+  const current = model.c.intents.find(item => item.id === work.id)!;
+  assert.equal(current.status, 'inflight');
+  if (successor) assert.equal(current.localOperations?.find(op => op.id === successor.operationId)?.status, 'running');
+  else assert.equal(current.requestCount, 2);
+  assert(!model.c.intents.some(item => item.kind === 'cancel' || item.kind === 'owner' && item.id !== work.id));
+}
+
+export function finishAfterSupersededApproval({ model, work, successor }: ReturnType<typeof supersededApproval>) {
+  if (successor) assert(model.result({ operationId: successor.operationId, sessionId: successor.runId, result: { ok: true, code: 'succeeded', data: { execution: 'host' } } }).ok);
+  assert(model.send({ type: 'DELIVER', workId: work.id, fence: work, text: '已生成网页', artifactIds: [] }).ok);
+  assert.equal(model.c.candidate?.text, '已生成网页');
+}
+
 export function verifyApprovalGates() {
+  for (const kind of ['新批准的宿主命令', '后续模型请求']) {
+    const successor = supersededApproval(kind);
+    assertSupersededApprovalPreserved(successor, skipSupersededApproval(successor));
+    finishAfterSupersededApproval(successor);
+  }
   return [
     ...['批准token到期', '父工作期限到期', '自动处理窗口到期', '到期后重复恢复', '多个并行批准等待', '已批准但未领取时恢复', '核对确认尚未启动后重新批准'].map(approvalGateDeadline),
     ...['当前精确批准', '当前精确拒绝', '错误工作身份', '错误操作身份', '错误批准身份', '普通用户补充', '门的普通回复', '过期后的批准', '过期后的精确拒绝'].map(approvalGateDecision),

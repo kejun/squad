@@ -7,6 +7,7 @@ import {
   type Candidate, type InputAction, type InputIntentSpec, type Intent, type Store, type Submission, type TaskEvent, type TeamConfig,
 } from '../src/index.js';
 import type { AcceptanceCriterion } from '../src/delivery-acceptance.js';
+import type { MeasurementSink } from '../src/measurement.js';
 import { configuration, type EventBody } from './helpers.js';
 import { modelResponse } from './model-regeneration-fixture.js';
 import { fixtureCheck, fixtureJudgments } from './delivery-protocol-fixture.js';
@@ -34,6 +35,7 @@ export class InputIntentFixture {
   replies: unknown[] = [];
   response?: ((request: IntentRequest) => Response) | undefined;
   beforeResponse?: ((request: IntentRequest) => void) | undefined;
+  observe?: MeasurementSink;
   readonly adapter: OpenAICompatibleAdapter;
   constructor(readonly config = intentConfig(), sqlite = false) {
     if (sqlite) { this.directory = mkdtempSync(join(tmpdir(), 'squad-intent-')); this.path = join(this.directory, 'team.sqlite'); }
@@ -86,7 +88,9 @@ export class InputIntentFixture {
     return this.event({ type: 'INTERPRETATION_RESULT', id, inputId: (work.payload.input as { id: string }).id,
       spec, workId: work.id, fence: { epoch: work.epoch, goalVersion: work.goalVersion } });
   }
-  run() { return new WorkRunner(this.engine, this.adapter, () => this.now).runOne(this.room, this.task); }
+  run() {
+    return new WorkRunner(this.engine, this.adapter, () => this.now, undefined, undefined, undefined, this.observe).runOne(this.room, this.task);
+  }
   async parse() { assert(this.submit().ok); assert.equal(this.view().phase, 'interpreting'); await this.run(); assert.equal(this.view().phase, 'running'); }
   prepare(kind: Intent['kind']) {
     if (kind === 'assistance') assert(this.event({ type: 'HELP', requestId: 'intent-help', caller: this.context().owner, target: 'B', question: '核对恢复风险', expected: '出处与限制' }).ok);

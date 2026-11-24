@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { Before, Given, When, Then } from '@cucumber/cucumber';
 import { runResilienceAcceptance, assertResilienceConsequence, type ResilienceProof } from '../task-resilience-acceptance.js';
 import { processingWindow } from '../../src/task/resilience.js';
-import { prepareResilienceAssistHandoff, resilienceAssistHandoff } from '../task-resilience-model-fixture.js';
+import { actOnExplicitContinuation, assertExplicitContinuation, prepareExplicitContinuation, prepareResilienceAssistHandoff, resilienceAssistHandoff } from '../task-resilience-model-fixture.js';
+import { Harness, configuration, saveEvidence } from '../helpers.js';
+import type { CommandResult } from '../../src/engine.js';
 
 interface ContractState { id: string; detail: string; premises: string[]; proof?: ResilienceProof }
 const states = new WeakMap<object, ContractState>();
@@ -167,4 +169,53 @@ Then('原任务硬期限和已用修复额度不应因交接改变', function ()
   assert.equal(current.hardDeadline, window.hardDeadline);
   assert.equal(current.repairUsed, window.repairUsed);
   assert.equal(model.c.usage.retries, retries);
+});
+
+const manualContinuation = new WeakMap<object, { fixture: ReturnType<typeof prepareExplicitContinuation>; action?: string; reply?: ReturnType<typeof actOnExplicitContinuation> }>();
+Given('自动修复已经到期且失败命令和处理报告已保存', function () {
+  manualContinuation.set(this, { fixture: prepareExplicitContinuation() });
+});
+When('用户在{string}明确选择{string}', function (window: string, action: string) {
+  const state = manualContinuation.get(this)!;
+  state.action = action;
+  state.reply = actOnExplicitContinuation(state.fixture, window, action);
+});
+Then('系统应按{string}处理新工作并保留既有执行记录和消费', function (expected: string) {
+  const { fixture, reply, action } = manualContinuation.get(this)!;
+  assert(reply); assert(action);
+  assertExplicitContinuation(fixture, reply, action, expected);
+});
+
+const windowRetry = new WeakMap<object, { harness: Harness; request: () => CommandResult; before?: CommandResult; after?: CommandResult }>();
+Given('任务硬期限已到且有可续办的失败沙箱命令', function () {
+  const config = configuration({ workTimeoutMs: 1000 });
+  config.resilience = { automaticTimeoutMs: 100 };
+  const harness = new Harness(config);
+  const owner = harness.claim('owner');
+  const operationId = saveEvidence(harness, owner, 'Operation not permitted', false);
+  const source = harness.context().intents.find(work => work.id === owner.id)!.localOperations!.find(op => op.id === operationId)!;
+  assert(harness.event({ type: 'SETTLE', intentId: owner.id }).ok);
+  harness.now = processingWindow(harness.context()).hardDeadline;
+  harness.engine.tick(harness.room);
+  windowRetry.set(this, { harness, request: () => harness.engine.requestHostRetry(harness.room, harness.task, owner.id, operationId, source.requestHash, 'host-retry-same-id') });
+});
+When('客户端在续窗前发出宿主续办请求并在用户明确续窗后以同一标识重试', function () {
+  const state = windowRetry.get(this)!, { harness, request } = state;
+  state.before = request();
+  assert.equal(harness.context().hostRetryRequests, undefined);
+  assert(harness.engine.submit(harness.room, { id: 'authorize-window', replyToTaskId: harness.task, intent: 'continue', text: '授权新窗口并继续', newWindowMs: 500 }).ok);
+  state.after = request();
+});
+Then('到期时的拒绝应允许续窗后重新受理且只保存一次待审批请求', function () {
+  const { harness, request, before, after } = windowRetry.get(this)!;
+  assert.equal(before?.code, 'WINDOW_EXPIRED');
+  assert.equal(after?.ok, true);
+  assert.deepEqual(request(), { ...after, duplicate: true });
+  const context = harness.context();
+  assert.equal(context.hostRetryRequests?.length, 1);
+  const operation = context.intents.find(work => work.id === context.hostRetryBatch?.workId)?.localOperations?.[0];
+  assert(operation);
+  assert.equal(operation.status, 'queued');
+  assert.equal(operation.approval, undefined);
+  assert.equal(operation.startedAt, undefined);
 });

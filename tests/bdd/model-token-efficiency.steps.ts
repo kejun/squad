@@ -85,6 +85,32 @@ Then('系统只请求一次局部修正并且每个合法动作只执行一次',
   assert.equal(local.h.context().usage.retries, 1);
 });
 
+Given('负责人两次返回参数列表无效的命令请求', async function (this: SpecWorld) {
+  const local = await LocalFixture.create();
+  locals.set(this, local);
+  local.replies.push({ type: 'runCli', executable: 'node', args: 'private-first-value' },
+    { type: 'runCli', executable: 'node', args: 'private-second-value' });
+});
+When('系统执行这轮模型工作', async function (this: SpecWorld) {
+  const local = locals.get(this)!;
+  const observed: ExecutionObservation[] = [];
+  observations.set(this, observed);
+  assert(await local.runner(undefined, (_context, record) => observed.push(record)).runOne(local.h.room, local.h.task));
+});
+Then('执行记录应标识两次协议错误的字段并保留未执行结果', function (this: SpecWorld) {
+  const local = locals.get(this)!;
+  const invalid = observations.get(this)!.filter(event => event.phase === 'model.protocol' && !event.valid);
+  assert.equal(invalid.length, 2);
+  assert.partialDeepStrictEqual(invalid[0], { code: 'invalid_tool_request', invalidFields: ['runCli.args'] });
+  assert.partialDeepStrictEqual(invalid[1], { code: 'invalid_tool_request', invalidFields: ['runCli.args'] });
+  assert(!JSON.stringify(invalid).includes('private-'));
+  const settlement = observations.get(this)!.find(event => event.phase === 'work.result' && event.eventType === 'WORK_FAILED');
+  assert.partialDeepStrictEqual(settlement, { code: 'INVALID_TOOL_REQUEST', accepted: false });
+  assert.equal(local.backend.calls.length, 0);
+  assert.equal(local.requests.length, 2);
+  assert.equal(local.h.context().usage.retries, 1);
+});
+
 Given('已冻结证据整体超过检查容量而交付正文和判据可容纳', function (this: SpecWorld) {
   const config = regenerationConfig();
   config.models!.services.test!.contextWindowTokens = 16_384;
