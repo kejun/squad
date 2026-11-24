@@ -28,7 +28,7 @@ import type { RuntimeCleanupInventory, SavedRoomDeletion } from '../room-deletio
 import { DebugJournal } from "./debug-journal.js";
 import type { DebugFeed } from "../task-debug.js";
 import type { InputIntentSpec, Intent, TaskContext, TeamConfig } from "../types.js";
-import { effectiveWork, processingWindow } from '../task/resilience.js';
+import { approvalGateSuperseded, effectiveWork, processingWindow } from '../task/resilience.js';
 import { coordinationView, type CoordinationView } from '../coordination-view.js';
 import type { WebTools } from "../web-tools.js";
 import type {
@@ -209,7 +209,8 @@ export class WebService {
           if (reconciliation) {
             const reply = this.engine.send(room.id, taskId, { type: 'LOCAL_RECONCILE', id: `startup-local:${randomUUID()}`, at: Date.now(),
               intentId: work.id, operationId: op.id, sessionId: op.sessionId, ...reconciliation });
-            if (reply.ok) this.append(room.id, work, 'tool-result', '已核对本地操作回执', JSON.stringify({ operationId: op.id, ...reconciliation }));
+            const { artifact: _artifact, ...receipt } = reconciliation;
+            if (reply.ok) this.append(room.id, work, 'tool-result', '已核对本地操作回执', JSON.stringify({ operationId: op.id, ...receipt }));
           } else this.append(room.id, work, 'error', '本地操作等待核对', JSON.stringify({ operationId: op.id, sessionId: op.sessionId, status: 'uncertain' }));
         }
         // Projection from committed child receipts also fills a crash between DB commit and UI append.
@@ -344,7 +345,8 @@ export class WebService {
       if (before) previousRequest = findHostRetry(before, data.workId, data.operationId)?.id ?? null;
     } catch { /* Recording the accepted request is best effort. */ }
     const reply = this.engine.requestHostRetry(roomId, data.taskId, data.workId, data.operationId, data.sourceRequestHash, data.id);
-    if (!reply.ok) throw new WebError(409, `无法从该记录申请宿主执行 (${reply.code})`);
+    if (!reply.ok) throw new WebError(409, reply.code === 'WINDOW_EXPIRED'
+      ? '原处理窗口已到期，请先授权新窗口再申请宿主执行。' : `无法从该记录申请宿主执行 (${reply.code})`, reply);
     if (previousRequest === null) {
       try {
         const after = this.engine.view(roomId, data.taskId)?.context;
@@ -391,7 +393,8 @@ export class WebService {
       const { phase, context: c } = this.engine.view(roomId, taskId)!;
       const currentArtifactIds = publicationIds(c);
       const deliveryGaps = currentDeliveryIssues(c);
-      for (const gate of c.resilience?.gates ?? []) if (['open', 'skipped'].includes(gate.status) && (gate.scope === 'cleanup' || gate.epoch === c.epoch && gate.goalVersion === c.goalVersion)) {
+      for (const gate of c.resilience?.gates ?? []) if (['open', 'skipped'].includes(gate.status) && (gate.scope === 'cleanup' || gate.epoch === c.epoch && gate.goalVersion === c.goalVersion)
+        && !(gate.status === 'open' && approvalGateSuperseded(c, gate))) {
         const actions: WebBlocker['actions'] = gate.scope === 'cleanup' || gate.status === 'skipped' ? [] : gate.approvalId
           ? [{ id: 'skip', label: '跳过此命令' }, { id: 'stop', label: '停止任务' }]
           : gate.cause === 'modelServiceError'
@@ -471,7 +474,7 @@ export class WebService {
           const request = findHostRetry(c, i.id, op.id);
           const retryOp = c.intents.find(w => w.id === request?.workId)?.localOperations?.find(child => child.id === request?.operationId);
           const status = retryOp?.status === 'awaitingApproval' || retryOp?.status === 'running' ? retryOp.status : request?.status;
-          const problem = !this.localRuntime ? 'LOCAL_RUNTIME_NOT_CONFIGURED' : currentTask !== taskId ? 'ROOM_BUSY' : hostRetryProblem(c, i.id, op.id, op.requestHash);
+          const problem = !this.localRuntime ? 'LOCAL_RUNTIME_NOT_CONFIGURED' : currentTask !== taskId ? 'ROOM_BUSY' : hostRetryProblem(c, i.id, op.id, op.requestHash, Date.now());
           const visible: WebFailedSandboxCommand = { taskId, workId: i.id, operationId: op.id, sourceRequestHash: op.requestHash, executable: op.action.executable, args: op.action.args,
             error: String(op.result.data.stderr ?? op.result.code).slice(0, 1000), canRequest: !problem && !request, unavailableReason: problem ?? '',
             ...(request && status ? { retry: { id: request.id, status, ...(request.reason ? { reason: request.reason } : {}),

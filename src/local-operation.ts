@@ -17,9 +17,12 @@ export type LocalAction =
   | { type: 'listSkills'; query?: string; cursor?: string }
   | { type: 'loadSkill'; skillId: string }
   | { type: 'readSkillResource'; skillId: string; path: string; offset?: number }
-  | { type: 'runCli'; executable: string; args: string[]; cwd?: string; timeoutMs?: number; skillId?: string; execution?: 'sandbox' | 'host'; reason?: string; stdin?: { path: string } };
+  | { type: 'runCli'; executable: string; args: string[]; cwd?: string; timeoutMs?: number; skillId?: string; execution?: 'sandbox' | 'host'; reason?: string; stdin?: { path: string }; artifactPath?: string };
 export interface LocalMessage { role: 'user' | 'assistant'; content: string }
 export interface LocalToolResult { ok: boolean; code: string; data: Record<string, unknown> }
+export interface CapturedCliArtifact { path: string; content: string; sha256: string }
+export const cliArtifactMaxBytes = 1024 * 1024;
+type CliArtifactResult = { artifact?: CapturedCliArtifact };
 export interface LocalCheckpoint { messages: LocalMessage[]; nextOperation: number; pendingOperationId?: string }
 export interface SkillBinding { skillId: string; skillVersion: string }
 export interface HostCommandPlan {
@@ -59,13 +62,13 @@ export type LocalEvent =
   | { type: 'LOCAL_APPROVAL_EXPIRED'; intentId: string; operationId: string }
   | { type: 'LOCAL_STARTED'; intentId: string; operationId: string; sessionId: string; workspaceRevision?: string; isolated?: boolean }
   | { type: 'LOCAL_PREPARED'; intentId: string; operationId: string; sessionId: string; workspaceRevision?: string; isolated?: boolean }
-  | { type: 'LOCAL_RESULT'; intentId: string; operationId: string; sessionId: string; result: LocalToolResult; settled: boolean; effectsKnown: boolean }
-  | { type: 'LOCAL_RECONCILE'; intentId: string; operationId: string; sessionId: string; resolution: 'notStarted' | 'receipt'; result?: LocalToolResult; detail: string };
+  | ({ type: 'LOCAL_RESULT'; intentId: string; operationId: string; sessionId: string; result: LocalToolResult; settled: boolean; effectsKnown: boolean } & CliArtifactResult)
+  | ({ type: 'LOCAL_RECONCILE'; intentId: string; operationId: string; sessionId: string; resolution: 'notStarted' | 'receipt'; result?: LocalToolResult; detail: string } & CliArtifactResult);
 
 export const localActionFields = {
   discoverHost: ['commands', 'query', 'terms', 'cursor'], verifyWorkspace: ['expectedRevision'], listSkills: ['query', 'cursor'],
   loadSkill: ['skillId'], readSkillResource: ['skillId', 'path', 'offset'], readEvidence: ['sourceOperationId', 'stream', 'cursor'],
-  readArtifact: ['artifactId', 'cursor'], runCli: ['executable', 'args', 'cwd', 'timeoutMs', 'skillId', 'execution', 'reason', 'stdin'],
+  readArtifact: ['artifactId', 'cursor'], runCli: ['executable', 'args', 'cwd', 'timeoutMs', 'skillId', 'execution', 'reason', 'stdin', 'artifactPath'],
 } as const satisfies Record<LocalAction['type'], readonly string[]>;
 
 export function validLocalAction(value: unknown): value is LocalAction {
@@ -100,9 +103,34 @@ export function localActionProblem(value: unknown): string | undefined {
       args: Array.isArray(a.args) && a.args.length <= 128 && a.args.every(v => typeof v === 'string' && v.length <= 8192 && !v.includes('\0')),
       cwd: optional('cwd'), skillId: optional('skillId'), reason: a.execution === 'host' ? text(a.reason, 1000) : optional('reason'),
       stdin: a.stdin === undefined || validCliStdin(a.stdin), execution: a.execution === undefined || a.execution === 'sandbox' || a.execution === 'host',
+      artifactPath: a.artifactPath === undefined || validCliArtifactPath(a.artifactPath),
       timeoutMs: a.timeoutMs === undefined || Number.isSafeInteger(a.timeoutMs) && Number(a.timeoutMs) > 0 && Number(a.timeoutMs) <= maximumTimeoutMs }); break;
   }
   return invalid ?? (unknownFields ? 'additionalProperties' : undefined);
+}
+function validCliArtifactPath(path: unknown): path is string {
+  return typeof path === 'string' && path.length <= 4096 && !/[\\:\x00-\x1f\x7f]/.test(path)
+    && path.split('/').every(part => part.trim() && part !== '.' && part !== '..');
+}
+
+function cliArtifactResultProblem(op: LocalOperation, event: Extract<LocalEvent, { type: 'LOCAL_RESULT' | 'LOCAL_RECONCILE' }>): string | null {
+  const artifact = event.artifact;
+  if (artifact === undefined) return null;
+  return op.action.type === 'runCli' && op.action.artifactPath !== undefined && op.startedAt !== undefined
+    && event.result?.ok && (event.type === 'LOCAL_RESULT' ? event.settled && event.effectsKnown : event.resolution === 'receipt')
+    && artifact && artifact.path === op.action.artifactPath && /^[a-f0-9]{64}$/.test(artifact.sha256)
+    && typeof artifact.content === 'string' && artifact.content.trim().length > 0
+    && new TextEncoder().encode(artifact.content).length <= cliArtifactMaxBytes ? null : 'INVALID_CLI_ARTIFACT';
+}
+
+export function cliArtifactIds(work: Intent | undefined): string[] {
+  const byPath = new Map<string, string>();
+  for (const op of work?.localOperations ?? []) {
+    if (op.status !== 'succeeded' || op.action.type !== 'runCli' || !op.action.artifactPath) continue;
+    const artifact = op.result?.data.artifact as { id?: string } | undefined;
+    if (artifact?.id) byPath.set(op.action.artifactPath, artifact.id);
+  }
+  return [...byPath.values()];
 }
 export function validCliStdin(value: unknown): value is { path: string } {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => key !== 'path')) return false;
@@ -199,6 +227,7 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
         || !Array.isArray(event.messages) || !event.messages.every(m => m && ['user', 'assistant'].includes(m.role) && typeof m.content === 'string')
         || !checkpointWithinLimit(work, event.messages)) return 'INVALID_LOCAL_REQUEST';
       if (op) return op.requestHash === event.requestHash ? 'LOCAL_ALREADY_REQUESTED' : 'LOCAL_REQUEST_CONFLICT';
+      if (event.action.type === 'runCli' && event.action.artifactPath && (work.kind !== 'owner' || work.target !== c.owner)) return 'CLI_ARTIFACT_NOT_ALLOWED';
       if (work.payload.resultAggregation === 'group' && event.action.type !== 'readArtifact') return 'AGGREGATION_READ_ONLY';
       if (localUnsettled(work)) return 'LOCAL_OPERATION_PENDING';
       if (event.action.type === 'runCli' && repeatedCliFailures(work, event.action) >= 2) return 'CLI_REPEAT_FAILURE_LIMIT';
@@ -286,11 +315,11 @@ export function localEventProblem(c: TaskContext, e: TaskEvent, budget: (work: I
     case 'LOCAL_RESULT':
       if (!op || op.sessionId !== event.sessionId || !['claimed', 'running', 'cancelling', 'uncertain'].includes(op.status)) return 'LOCAL_SESSION_MISMATCH';
       if (!event.result || typeof event.result.ok !== 'boolean' || typeof event.result.code !== 'string' || !event.result.data || JSON.stringify(event.result).length > 96_000 && !(event.result.ok && event.result.code === op.action.type && ['discoverHost', 'listSkills'].includes(op.action.type))) return 'INVALID_LOCAL_RESULT';
-      return null;
+      return cliArtifactResultProblem(op, event);
     case 'LOCAL_RECONCILE':
       if (!op || op.status !== 'uncertain' || op.sessionId !== event.sessionId || !event.detail.trim()) return 'LOCAL_NOT_UNCERTAIN';
       if (event.resolution === 'receipt' && (!event.result || typeof event.result.ok !== 'boolean' || JSON.stringify(event.result).length > 96_000 && !(event.result.ok && event.result.code === op.action.type && ['discoverHost', 'listSkills'].includes(op.action.type)))) return 'INVALID_LOCAL_RESULT';
-      return ['receipt', 'notStarted'].includes(event.resolution) ? null : 'INVALID_LOCAL_RESOLUTION';
+      return ['receipt', 'notStarted'].includes(event.resolution) ? cliArtifactResultProblem(op, event) : 'INVALID_LOCAL_RESOLUTION';
   }
 }
 export function isSavedRead(action: LocalAction): action is Extract<LocalAction, { type: 'readEvidence' | 'readArtifact' }> {
@@ -312,6 +341,7 @@ function finishOperation(work: Intent, op: LocalOperation, result: LocalToolResu
     const checkpointResult: LocalToolResult = op.hostRetryRequestId ? { ok: result.ok, code: result.code, data: {
       execution: 'host', ...(typeof result.data.exitCode === 'number' ? { exitCode: result.data.exitCode } : {}),
       ...(typeof result.data.truncated === 'boolean' ? { truncated: result.data.truncated } : {}),
+      ...(result.data.artifact ? { artifact: result.data.artifact } : {}),
     } } : directoryReceipt(op) ? { ok: result.ok, code: result.code, data: { persistedMetadataOperationId: op.id } } : result;
     work.localCheckpoint.messages.push({ role: 'user', content: JSON.stringify({ type: 'local_tool_result', operationId: op.id, untrusted: true, ...checkpointResult }) });
     delete work.localCheckpoint.pendingOperationId;

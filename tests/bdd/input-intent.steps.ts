@@ -12,11 +12,12 @@ import { complexInput, InputIntentFixture, intentConfig, parsedIntent } from '..
 import { modelResponse } from '../model-regeneration-fixture.js';
 import type { SpecWorld } from './steps.js';
 import { acceptanceCriteria, currentDeliveryIssues, type AcceptanceCriterion, type CheckMaterials } from '../../src/delivery-acceptance.js';
+import type { ExecutionObservation } from '../../src/measurement.js';
 
 interface IntentState {
   f: InputIntentFixture; command?: string; expected?: string; kind?: Intent['kind']; stage?: string;
   refs?: InputReference[]; old?: Intent; baseline?: string; usage?: number; failure?: unknown;
-  web?: WebService; directory?: string; room?: string;
+  web?: WebService; directory?: string; room?: string; observations?: ExecutionObservation[];
 }
 const states = new WeakMap<SpecWorld, IntentState>();
 const state = (w: SpecWorld) => { const s = states.get(w); assert(s); return s; };
@@ -169,6 +170,31 @@ Then('应按{string}结算且不应用无效解析', function(this: SpecWorld, o
   assert.equal(f.context().trace.filter(t => t.event === 'INPUT_INTERPRETED').length, success ? 1 : 0);
   assert.equal(f.context().usage.retries, outcome === '等待用户' ? 0 : 1);
   assert(!JSON.stringify(f.store.read(f.room)).includes('private-provider-body'));
+});
+Given('模型解析转换本地 Markdown 的请求时遗漏预期输出字段', function(this: SpecWorld) {
+  const f = setup(this);
+  assert(f.submit('请把本地分享稿转成 HTML；必须保留标题和目录；完成后在群聊附上网页。').ok);
+  const parsed = parsedIntent('request', { objective: '把分享稿转换为网页', expectedOutputs: ['HTML 网页'] });
+  const { expectedOutputs: _missing, ...incomplete } = parsed;
+  f.replies = [{ type: 'interpretation', spec: incomplete }, { type: 'interpretation', spec: parsed }];
+});
+When('系统请求修正输入解释', async function(this: SpecWorld) {
+  const s = state(this);
+  const observed: ExecutionObservation[] = [];
+  s.observations = observed;
+  s.f.observe = (_context, record) => observed.push(record);
+  await s.f.run();
+});
+Then('修正请求和执行记录应指明预期输出字段且保留原始请求', function(this: SpecWorld) {
+  const { f, observations } = state(this);
+  assert.equal(f.requests.length, 2);
+  const feedback = JSON.parse(f.requests[1]!.messages.at(-1)!.content);
+  assert.deepEqual(feedback.invalidFields, ['expectedOutputs']);
+  assert.deepEqual(f.requests[1]!.context.input, f.requests[0]!.context.input);
+  const invalid = observations?.find(event => event.phase === 'model.protocol' && !event.valid);
+  assert.partialDeepStrictEqual(invalid, { code: 'invalid_input_intent', invalidFields: ['expectedOutputs'] });
+  assert.deepEqual(f.context().inputAnalyses?.[0]?.spec?.expectedOutputs, ['HTML 网页']);
+  assert.equal(f.context().usage.retries, 1);
 });
 Given('复杂输入的普通执行额度为0', function(this: SpecWorld) { assert(setup(this, intentConfig({ ordinary: 0 })).submit().ok); });
 When('尝试运行意图解析', async function(this: SpecWorld) { await state(this).f.run(); });

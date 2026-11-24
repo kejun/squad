@@ -20,7 +20,7 @@ import { chmod, copyFile, lstat, mkdir, open, readFile, readdir, realpath, rm, s
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { Intent } from './types.js';
 import { attachCapturedEvidence } from './evidence-reader.js';
-import type { HostApproval, HostCommandPlan, LocalOperation, LocalToolResult, SkillBinding } from './local-operation.js';
+import { cliArtifactMaxBytes, type CapturedCliArtifact, type HostApproval, type HostCommandPlan, type LocalOperation, type LocalToolResult, type SkillBinding } from './local-operation.js';
 import { digest, LocalToolError, within, type RegistryOptions, type SkillPage } from './local-skills.js';
 import { CliJournal, cliSearchPath, executableObservation, hostCliEnvironment, hostIdentity, identityAlive, minimalCliEnvironment, processIdentity, resolveExecutable, runProcess, SandboxCliBackend, type CliBackend, type CliCompletion } from './local-cli.js';
 
@@ -432,8 +432,18 @@ export class LocalRuntime {
         ...(work.kind === 'check' ? { writeRoots: [...validationOutputs, '.home', '.tmp'].map(dir => join(workspace.path, dir)) } : {}),
         logPath: join(this.options.dataRoot, 'logs', `${digest(sessionId)}.log`) }, signal,
         async identity => { await this.journal.write({ operationId: op.id, sessionId, phase: 'spawned', identity }); }, markStarted);
-      let outputFiles: Awaited<ReturnType<typeof workspaceManifest>> = [], outputFilesTruncated = false;
-      try { const changed = (await workspaceManifest(workspace.path)).filter(file => baseline.get(file.path) !== file.hash); outputFiles = changed.slice(0, 100); outputFilesTruncated = changed.length > 100; } catch { outputFilesTruncated = true; }
+      let outputFiles: WorkspaceFile[] = [], outputFilesTruncated = false;
+      let artifact: CapturedCliArtifact | undefined;
+      try {
+        const changed = (await workspaceManifest(workspace.path)).filter(file => baseline.get(file.path) !== file.hash);
+        outputFiles = changed.slice(0, 100); outputFilesTruncated = changed.length > 100;
+        const declared = action.artifactPath && result.result.ok && result.settled && result.effectsKnown
+          ? changed.find(file => file.path === action.artifactPath) : undefined;
+        if (declared) {
+          const captured = await captureCliArtifact(workspace.path, declared, signal);
+          if (captured && captured.content === this.clean(captured.content)) artifact = captured;
+        }
+      } catch { outputFilesTruncated = true; }
       const validationInputsChanged = work.kind === 'check' ? sourceRevision(await workspaceManifest(workspace.path)) !== workspace.revision : null;
       const stderr = result.result.data.stderr;
       const yuqueRead = action.executable === 'yuque' && args[0] === 'show' && args[1] === 'doc';
@@ -443,7 +453,9 @@ export class LocalRuntime {
         && typeof stderr === 'string' && /(?:^|\s)(?:spawn(?:Sync)?\s+\/bin\/ps\s+(?:EPERM|EACCES)|\/bin\/ps:\s*(?:Operation not permitted|Permission denied))/i.test(stderr);
       // A terminated sandbox may have written files. Their bounded content fingerprint makes the effect
       // observable; it is still not a proof of arbitrary network effects (network is denied by default).
-      completion = { ...result, result: attachCapturedEvidence(this.boundedResult({ ...result.result, ...(validationInputsChanged ? { ok: false, code: 'CHECK_INPUTS_CHANGED' } : {}), data: { ...result.result.data, workspaceRevision: workspace.revision, isolated: workspace.isolated,
+      const resultCode = validationInputsChanged ? 'CHECK_INPUTS_CHANGED'
+        : action.artifactPath && result.result.ok && !artifact ? 'CLI_ARTIFACT_UNAVAILABLE' : undefined;
+      completion = { ...result, ...(artifact ? { artifact } : {}), result: attachCapturedEvidence(this.boundedResult({ ...result.result, ...(resultCode ? { ok: false, code: resultCode } : {}), data: { ...result.result.data, workspaceRevision: workspace.revision, isolated: workspace.isolated,
         outputFiles, outputFilesTruncated, validationInputsChanged, invocation, execution: host ? 'host' : 'sandbox',
         ...(readingPattern ? { readingPattern } : {}), ...(sandboxReadFailure ? { sandboxReadFailure: true } : {}) } })), workspaceRevision: workspace.revision, isolated: workspace.isolated };
     } catch (error) {
@@ -478,8 +490,11 @@ export class LocalRuntime {
     if (review.processState !== 'exited') throw new LocalToolError('LOCAL_SESSION_NOT_SETTLED');
     const result = this.clean({ ...(review.receipt ?? { ok: false, code: 'CLI_EFFECTS_RECONCILED', data: { exitCode: null } }),
       data: { ...(review.receipt?.data ?? {}), operatorConfirmed: true, reviewedWorkspaceRevision: review.workspaceRevision } });
-    await this.journal.write({ operationId: op.id, sessionId: op.sessionId!, phase: 'settled', completion: { result, settled: true, effectsKnown: true } });
-    return { resolution: 'receipt' as const, result, detail: `Operator acknowledged effects: ${review.reviewDigest}` };
+    const original = await this.journal.read(op.sessionId!);
+    const saved = original?.operationId === op.id && original.sessionId === op.sessionId && original.phase === 'settled' ? original.completion : undefined;
+    const artifact = result.ok && saved?.settled && saved.effectsKnown && saved.artifact ? { artifact: saved.artifact } : {};
+    await this.journal.write({ operationId: op.id, sessionId: op.sessionId!, phase: 'settled', completion: { result, settled: true, effectsKnown: true, ...artifact } });
+    return { resolution: 'receipt' as const, result, ...artifact, detail: `Operator acknowledged effects: ${review.reviewDigest}` };
   }
   async close() {
     await this.inventory.close();
@@ -492,6 +507,30 @@ export class LocalRuntime {
 }
 async function prepareScratch(path: string) { await mkdir(join(path, '.home'), { recursive: true, mode: 0o700 }); await mkdir(join(path, '.tmp'), { recursive: true, mode: 0o700 }); }
 interface WorkspaceFile { path: string; hash: string; bytes: number; executable: boolean; link?: string }
+async function captureCliArtifact(root: string, file: WorkspaceFile, signal: AbortSignal): Promise<CapturedCliArtifact | undefined> {
+  if (file.link !== undefined || file.bytes === 0 || file.bytes > cliArtifactMaxBytes || signal.aborted) return undefined;
+  const path = join(root, file.path);
+  try {
+    if (await realpath(path) !== path) return undefined;
+    const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    try {
+      const stat = await handle.stat();
+      if (!stat.isFile() || stat.nlink !== 1 || stat.size !== file.bytes || await realpath(path) !== path) return undefined;
+      const bytes = Buffer.alloc(file.bytes + 1);
+      let length = 0;
+      while (length < bytes.length && !signal.aborted) {
+        const { bytesRead } = await handle.read(bytes, length, bytes.length - length, length);
+        if (!bytesRead) break;
+        length += bytesRead;
+      }
+      const contentBytes = bytes.subarray(0, length);
+      if (signal.aborted || length !== file.bytes || digest(contentBytes) !== file.hash) return undefined;
+      const content = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(contentBytes);
+      return content.trim() && !content.includes('\0') ? { path: file.path, content, sha256: file.hash } : undefined;
+    } finally { await handle.close(); }
+  } catch { return undefined; }
+}
+
 async function workspaceManifest(root: string): Promise<WorkspaceFile[]> {
   const files: WorkspaceFile[] = [], visited = new Set<string>(); let bytes = 0; const deadline = Date.now() + 10_000;
   async function walk(dir: string, prefix: string, depth: number) {

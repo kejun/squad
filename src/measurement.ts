@@ -14,7 +14,7 @@ export type ModelObservation = { requestId: string } & (
   | { phase: 'model.responseBody'; durationMs: number }
   | { phase: 'model.interrupted' | 'model.transportFailed'; durationMs: number }
   | { phase: 'model.usage'; usage: Usage }
-  | { phase: 'model.protocol'; valid: boolean; terminal?: boolean; code?: string; invalidFields?: ModelOutputField[] }
+  | { phase: 'model.protocol'; valid: boolean; terminal?: boolean; code?: string; invalidFields?: readonly string[] }
 );
 
 export type LocalObservation = { operationId: string; action: string; sessionId?: string; retryRequestId?: string; batchId?: string } & (

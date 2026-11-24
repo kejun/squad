@@ -14,6 +14,8 @@ stateDiagram-v2
     answered --> waiting: RECOVER或LOCAL_RECONCILE.notStarted [可信确认未启动且需新批准] / 建立绑定新token的必需门
     waiting --> waiting: 普通输入或HUMAN_GATE_DECISION.reply / 不获得权限
     waiting --> answered: LOCAL_APPROVAL_DECISION [精确有效身份] / 回应原门
+    waiting --> superseded: LOCAL_REQUEST 或 CONSUME [同一工作已结算此前操作] / 关闭此前操作的权限门
+    superseded --> superseded: HUMAN_GATE_DECISION [迟到的旧决定] / 拒绝决定，保留后续操作
     waiting --> skipped: HUMAN_GATE_DECISION.skip [当前门且原命令未启动] / 撤销原操作和parent并记录缺失
     skipped --> continue: 原窗口仍有效 / 创建独立后继工作
     skipped --> partial: 原窗口已耗尽 / 固定不完整结果
@@ -26,6 +28,10 @@ stateDiagram-v2
 验证顺序：先补本场景和细图并从 README/state-diagrams 链接，再运行真实 task XState 的模型红轨迹，模型门槛通过后接 Engine/WebService/HTTP，最后直接执行全部新增 Gherkin。状态机门槛复用 LocalModel 的真实 persist/restore，每个外部动作必须有公开已领取的意图；不以模拟 stdout 自证权限。
 
 并行操作各自保留精确权限门；第二项申请不会取消第一项未回复决定。会话级批准只关闭真实审批模型已经覆盖的申请。恢复保留门身份并同步经过恢复更换的 approvalId，旧 token 不能复用。普通输入或门回复可留作说明，但不能关闭权限门；授权门不提供会被拒绝的新窗口按钮。
+
+BT_Y204 验证同一工作接续新操作或请求模型的情形。此前操作已有确定回执时，原权限门随新操作或模型请求关闭。用户迟到的跳过决定只接触原身份，后续执行、父工作和原失败回执均可继续使用。
+
+任务已进入 `waitingHuman` 时，`CONSUME [当前工作获准推进且其旧权限是最后的任务门] / 关闭旧权限门并恢复该工作的阶段`。独立权限门仍保持待答。
 
 BT_Y106 验证纯逻辑退休以外的实际等待：明确跳过会先撤销未启动操作与原 parent，再持久保存原 parent 的取消意图；可信 Runner 领取取消后 abort 原 controller。不能只把 parent 写成 done，令批准等待器一直睡到 token 过期。实际夹具观察原 `waitForWorkspace` 等待从 1 变 0，随后真实后继模型请求发出，原命令启动数仍为 0。
 

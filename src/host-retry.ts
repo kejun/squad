@@ -3,6 +3,7 @@ import type { Intent, TaskContext, TaskEvent } from './types.js';
 import { cancelLocalOperations, hostRetryMemberAllowed, localEnabled, localPhysicalPending, localRecoveryBlocked, localUnsettled, type LocalAction, type LocalOperation } from './local-operation.js';
 import { activeHelp, allInflight, discussionActive, ok, unresolvedInput } from './task/facts.js';
 import { finish, message, owner } from './task/operations.js';
+import { beginManualContinuation, taskHumanGate, windowExpired } from './task/resilience.js';
 
 export interface HostRetryRequest {
   id: string; sourceWorkId: string; sourceOperationId: string; sourceRequestHash: string; requestHash: string;
@@ -60,7 +61,7 @@ function minimumBudget(c: TaskContext, count: number) {
   return c.usage.ordinary + count + 1 <= c.config.limits.ordinary && c.usage.checks + 1 <= c.config.limits.checks;
 }
 
-export function hostRetryProblem(c: TaskContext, sourceWorkId: string, sourceOperationId: string, sourceRequestHash: string): string | null {
+export function hostRetryProblem(c: TaskContext, sourceWorkId: string, sourceOperationId: string, sourceRequestHash: string, at: number): string | null {
   if (c.stopped) return 'STOPPED';
   if (localRecoveryBlocked(c)) return 'INCOMPATIBLE_EXECUTION';
   const { work, op } = sourceOf(c, sourceWorkId, sourceOperationId);
@@ -69,6 +70,7 @@ export function hostRetryProblem(c: TaskContext, sourceWorkId: string, sourceOpe
   if (work.goalVersion !== c.goalVersion) return 'STALE_WORK';
   if (op.requestHash !== sourceRequestHash) return 'SOURCE_COMMAND_CHANGED';
   if (findHostRetry(c, sourceWorkId, sourceOperationId)) return null;
+  if (windowExpired(c, at)) return 'WINDOW_EXPIRED';
   if (op.hostRetryIntentId) return 'HOST_RETRY_ALREADY_REQUESTED';
   if (work.kind === 'check' || work.discussionId || op.isolated) return 'HOST_RETRY_ISOLATED_SOURCE';
   if (!op.workspaceId) return 'WORKSPACE_REQUIRED';
@@ -146,8 +148,9 @@ export function retireHostRetryBatch(c: TaskContext, e: TaskEvent) {
     detail: JSON.stringify({ batchId: batch.id, workId: batch.workId, workStatus: work?.status ?? 'missing', trigger: e.type, eventId: e.id }) });
 }
 
-export function hostRetryBoundary(c: TaskContext) {
+export function hostRetryBoundary(c: TaskContext, at: number) {
   return pendingHostRetry(c) && !c.hostRetryBatch && !c.stopped && c.outcome === null && !localRecoveryBlocked(c)
+    && !windowExpired(c, at) && !taskHumanGate(c)
     && !allInflight(c).length && !c.intents.some(w => localUnsettled(w) || w.status === 'uncertain' || w.kind === 'tool' && w.status === 'pending')
     && !activeHelp(c) && !discussionActive(c) && !unresolvedInput(c) && !c.inputs.some(note => !note.applied)
     && (!c.review || !['pending', 'reviewing'].includes(c.review.status));
@@ -159,7 +162,7 @@ function waitingRequests(c: TaskContext, at: number) {
 }
 
 export function canStartHostRetry(c: TaskContext, at: number) {
-  if (!hostRetryBoundary(c)) return false;
+  if (!hostRetryBoundary(c, at)) return false;
   const requests = waitingRequests(c, at);
   return requests.length > 0 && minimumBudget(c, requests.length);
 }
@@ -216,6 +219,7 @@ export function startHostRetryBatch(c: TaskContext, e: TaskEvent) {
     && (r.status === 'expired' || r.status === 'pending' && !requests.includes(r)));
   rejectWaiting(c, e.at, requests);
   const prior = c.intents.find(w => w.kind === 'owner' && w.status === 'pending');
+  beginManualContinuation(c, e.at);
   owner(c, e, { ...prior?.payload, manualHostRetry: true, previousReason: prior?.payload.reason ?? c.reason,
     reason: '综合已保存的宿主续办回执并继续原目标。保留已有工作及约束，区分成功、失败和未执行。' });
   const work = c.intents.at(-1)!;

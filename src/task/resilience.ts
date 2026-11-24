@@ -116,8 +116,14 @@ export function initialResilience(c: Pick<TaskContext, 'taskId' | 'config' | 'me
 }
 export function processingWindow(c: TaskContext): ProcessingWindow { return (c.resilience ?? initialResilience(c)).window; }
 export function ensureResilience(c: TaskContext): TaskResilience { return c.resilience ??= initialResilience(c); }
+export function approvalGateSuperseded(c: TaskContext, gate: HumanGate, consumingWorkId?: string): boolean {
+  if (!gate.approvalId) return false;
+  const operations = c.intents.find(work => work.id === gate.workId)?.localOperations;
+  return !!operations?.some(op => op.id === gate.operationId && op.finishedAt !== undefined
+    && (consumingWorkId === gate.workId || operations.at(-1)?.id !== op.id));
+}
 export const taskHumanGates = (c: TaskContext) => c.resilience?.gates.filter(g => g.scope === 'task' && g.required && g.status === 'open'
-  && g.epoch === c.epoch && g.goalVersion === c.goalVersion) ?? [];
+  && g.epoch === c.epoch && g.goalVersion === c.goalVersion && !approvalGateSuperseded(c, g)) ?? [];
 export const taskHumanGate = (c: TaskContext) => taskHumanGates(c)[0];
 export const otherTaskHumanGate = (c: TaskContext, id: string) => taskHumanGates(c).find(g => g.id !== id);
 export function windowExpired(c: TaskContext, at: number): boolean { return at >= processingWindow(c).hardDeadline; }
@@ -237,6 +243,12 @@ export function settleCleanup(c: TaskContext, at: number, reconciledLegacyWorkId
   if (c.outcome !== null && c.resilience?.cleanup.every(item => item.state === 'settled')) c.resilience.nextSupervisionAt = null;
 }
 export function syncLocalApprovalGate(c: TaskContext, e: TaskEvent): void {
+  const consumingWorkId = e.type === 'CONSUME' ? e.intentId : undefined;
+  let retired = false;
+  for (const gate of c.resilience?.gates ?? []) if (gate.scope === 'task' && gate.status === 'open' && approvalGateSuperseded(c, gate, consumingWorkId)) {
+    gate.status = 'cancelled'; gate.resolvedAt = e.at;
+    retired = true;
+  }
   if ((e.type === 'RECOVER' || e.type.startsWith('LOCAL_') && e.type !== 'LOCAL_APPROVAL_REQUIRED') && c.outcome === null && !c.stopped) {
     for (const work of c.intents) for (const op of work.localOperations ?? []) {
       if (!op.approval || op.approval.status !== 'pending' || op.status !== 'awaitingApproval' || work.epoch !== c.epoch || work.goalVersion !== c.goalVersion) continue;
@@ -251,12 +263,13 @@ export function syncLocalApprovalGate(c: TaskContext, e: TaskEvent): void {
     if (op?.approval?.status === 'pending') openHumanGate(c, e, { kind: 'authorization', workId: e.intentId, operationId: e.operationId, approvalId: e.approval.id,
       question: `宿主命令需要明确授权：${e.approval.plan.reason}。请批准、拒绝或明确跳过；授权令牌过期不代表已经回复。` });
   }
-  if (e.type !== 'LOCAL_APPROVAL_DECISION') return;
-  for (const gate of taskHumanGates(c).filter(g => !!g.approvalId)) {
-    const op = c.intents.find(work => work.id === gate.workId)?.localOperations?.find(op => op.id === gate.operationId);
-    if (!op?.approval || op.approval.id !== gate.approvalId || !['approved', 'denied'].includes(op.approval.status)) continue;
-    gate.status = 'answered'; gate.responseId = e.id; gate.response = e.decision; gate.resolvedAt = e.at;
-  }
+  if (e.type === 'LOCAL_APPROVAL_DECISION') {
+    for (const gate of taskHumanGates(c).filter(g => !!g.approvalId)) {
+      const op = c.intents.find(work => work.id === gate.workId)?.localOperations?.find(op => op.id === gate.operationId);
+      if (!op?.approval || op.approval.id !== gate.approvalId || !['approved', 'denied'].includes(op.approval.status)) continue;
+      gate.status = 'answered'; gate.responseId = e.id; gate.response = e.decision; gate.resolvedAt = e.at;
+    }
+  } else if (!retired || c.outcome !== null || c.stopped) return;
   if (taskHumanGate(c)) { ensureResilience(c).nextSupervisionAt = null; return; }
   if (windowExpired(c, e.at)) requestNewWindow(c, e);
   else ensureResilience(c).nextSupervisionAt = Math.min(processingWindow(c).hardDeadline, e.at + resiliencePolicy(c).repairTimeoutMs);
@@ -314,7 +327,7 @@ export function humanGateProblem(c: TaskContext, e: Extract<TaskEvent, { type: '
   const gate = c.resilience?.gates.find(g => g.id === e.gateId);
   if (!gate) return 'HUMAN_GATE_NOT_FOUND';
   if (gate.responseId === e.id) return null;
-  if (gate.status !== 'open' || gate.epoch !== c.epoch || gate.goalVersion !== c.goalVersion) return 'STALE_HUMAN_GATE';
+  if (gate.status !== 'open' || gate.epoch !== c.epoch || gate.goalVersion !== c.goalVersion || approvalGateSuperseded(c, gate)) return 'STALE_HUMAN_GATE';
   if (!['reply', 'skip', 'stop', 'newWindow'].includes(e.decision)) return 'INVALID_HUMAN_DECISION';
   if (gate.decisions && !gate.decisions.includes(e.decision)) return 'HUMAN_GATE_DECISION_NOT_ALLOWED';
   if (e.decision === 'newWindow' && (!Number.isSafeInteger(e.newWindowMs) || e.newWindowMs! <= 0 || !Number.isSafeInteger(e.at + e.newWindowMs!))) return 'INVALID_PROCESSING_WINDOW';
@@ -331,6 +344,10 @@ export function replaceProcessingWindow(c: TaskContext, e: Pick<TaskEvent, 'id' 
 export function archiveFrozen(c: TaskContext): void {
   const r = ensureResilience(c);
   if (r.frozen) { (r.frozenHistory ??= []).push(structuredClone(r.frozen)); delete r.frozen; }
+}
+export function beginManualContinuation(c: TaskContext, at: number): void {
+  archiveFrozen(c);
+  settleRepairPhase(c, at);
 }
 export function executionNotStartedEnds(c: TaskContext, e: Extract<TaskEvent, { type: 'EXECUTION_NOT_STARTED' }>): boolean {
   const work = c.intents.find(w => w.id === e.intentId), window = processingWindow(c);
@@ -406,6 +423,9 @@ export function decideHumanGate(c: TaskContext, e: Extract<TaskEvent, { type: 'H
     } else if (!taskHumanGate(c)) freezeIncomplete(c, e, `用户跳过模型失败，保留已有成果：${gate.question}`);
     return;
   }
+  const approvalWork = gate.approvalId && c.intents.find(work => work.id === gate.workId);
+  const preserveApprovalParent = approvalWork && approvalWork.status === 'inflight'
+    && approvalWork.localOperations?.some(op => op.id === gate.operationId && op.finishedAt !== undefined);
   if (e.decision === 'skip') {
     if (gate.kind === 'clarification') {
       for (const input of c.inputAnalyses ?? []) if (input.workId === gate.workId && input.status === 'clarification') {
@@ -413,24 +433,28 @@ export function decideHumanGate(c: TaskContext, e: Extract<TaskEvent, { type: 'H
         for (const note of c.inputs.filter(note => note.id === input.id)) note.applied = true;
       }
     }
-    if (gate.approvalId && gate.workId) {
-      const work = c.intents.find(item => item.id === gate.workId);
-      if (work) {
-        const wasInflight = work.status === 'inflight';
-        cancelLocalOperations(work); release(c, work.id);
-        if (wasInflight) intent(c, e.at, 'cancel', work.target, { intentId: work.id });
-        const help = c.assists.find(h => h.id === work.payload.requestId);
-        if (help && ['pending', 'running', 'answered'].includes(help.status)) { help.status = 'cancelled'; help.consumed = true; help.answer = '用户明确跳过待授权内容'; }
-        const round = c.discussion;
-        if (round && work.discussionId === round.id) {
-          round.incomplete = '用户明确跳过待授权内容';
-          if (skipCurrentPartition(c, work.id, '用户明确跳过待授权内容')) advanceMapQueue(c, e);
-          else round.skipped.push({ target: work.target, reason: '用户明确跳过待授权内容' });
-        }
-      }
-    }
     r.skips.push({ id: `${gate.id}:skip`, windowId: r.window.id, targetKind: 'gate', targetId: gate.id,
       reason: e.text ?? '用户明确跳过此内容', at: e.at, authorization: 'human', gateId: gate.id, epoch: c.epoch, goalVersion: c.goalVersion });
+    if (preserveApprovalParent) {
+      if (!taskHumanGate(c)) {
+        if (windowExpired(c, e.at)) requestNewWindow(c, e);
+        else r.nextSupervisionAt = Math.min(r.window.hardDeadline, e.at + resiliencePolicy(c).repairTimeoutMs);
+      }
+      return;
+    }
+    if (approvalWork) {
+      const wasInflight = approvalWork.status === 'inflight';
+      cancelLocalOperations(approvalWork); release(c, approvalWork.id);
+      if (wasInflight) intent(c, e.at, 'cancel', approvalWork.target, { intentId: approvalWork.id });
+      const help = c.assists.find(h => h.id === approvalWork.payload.requestId);
+      if (help && ['pending', 'running', 'answered'].includes(help.status)) { help.status = 'cancelled'; help.consumed = true; help.answer = '用户明确跳过待授权内容'; }
+      const round = c.discussion;
+      if (round && approvalWork.discussionId === round.id) {
+        round.incomplete = '用户明确跳过待授权内容';
+        if (skipCurrentPartition(c, approvalWork.id, '用户明确跳过待授权内容')) advanceMapQueue(c, e);
+        else round.skipped.push({ target: approvalWork.target, reason: '用户明确跳过待授权内容' });
+      }
+    }
     for (const work of c.intents.filter(w => w.status === 'uncertain')) adoptCleanup(c, e.at, work.id);
     skipOptionalStalls(c, e);
     if (c.discussion && !['cancelled', 'delivered'].includes(c.discussion.status)
@@ -528,11 +552,14 @@ export function applySupervision(c: TaskContext, e: TaskEvent, phase: Phase): vo
 }
 
 export function settleRepairCoordination(c: TaskContext, e: Extract<TaskEvent, { type: 'COORDINATE' }>) {
+  if (e.decision.action !== 'assist' || !e.workId || processingWindow(c).repairCoordinatorId !== e.workId) return;
+  settleRepairPhase(c, e.at);
+}
+function settleRepairPhase(c: TaskContext, at: number) {
   const r = ensureResilience(c);
-  if (e.decision.action !== 'assist' || !e.workId || r.window.repairCoordinatorId !== e.workId) return;
   delete r.window.repairCoordinatorId;
   delete r.window.repairDeadline;
-  r.nextSupervisionAt = Math.min(r.window.hardDeadline, e.at + resiliencePolicy(c).repairTimeoutMs);
+  r.nextSupervisionAt = Math.min(r.window.hardDeadline, at + resiliencePolicy(c).repairTimeoutMs);
 }
 export function skipOptionalStalls(c: TaskContext, e: Pick<TaskEvent, 'id' | 'at'>): void {
   if (!resiliencePolicy(c).allowMissingContent || c.outcome !== null || taskHumanGate(c)) return;

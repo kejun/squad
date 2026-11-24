@@ -182,11 +182,13 @@ KEJ-113/114 的持续推进与安全删除按[监督、凭证和删除模型](do
 
 所有默认模型工作共用[Agent行为规范](docs/implementation/shared-agent-behavior.md)，在原角色、能力和输出协议内约束证据、完成声明、纠错与推进。规范接入复用原状态事件；[流程与验证边界](docs/state-diagrams.md#共享-agent-行为规范)区分提示注入、宿主强制边界与真实模型效果。
 
-宿主命令授权沿用同一人类门原则：批准令牌过期只撤销执行资格，未答复的权限请求保持可见，直到精确授权决定、明确跳过或停止；[授权门模型](docs/implementation/host-approval-gates.md)覆盖令牌期限与任务窗口交错。
+宿主命令的批准令牌过期后，原命令丧失执行资格。未答复的权限请求保持可见，直到收到明确决定或同一工作已转入后续操作。迟到决定只适用于原命令，见[授权门模型](docs/implementation/host-approval-gates.md)（BT_Y204）。
 
 可信效果核对后的协调续办接续原负责人检查点，保留原操作回执、身份和执行时间，不重放已结算命令；恢复交叉边界见 BT_Y113 及[恢复细图](docs/implementation/kej-113-task-resilience.md)。
 
 监督协调在修复期限内提交有效的成员接手决定后，接手成员按正常工作时限执行并向主笔交接，仍受原任务硬期限约束。见 BT_Y202 和[固定处理窗口与有限修复](docs/implementation/kej-113-task-resilience.md#固定处理窗口与有限修复)。
+
+明确继续和宿主续办按新工作的时限派发，沿用原任务硬期限与已用额度。任务硬期限到期后，可通过网页授权新窗口再继续。见[明确续办与工作期限](docs/state-diagrams.md#明确续办与工作期限)（BT_Y203）。
 
 设计遵循 [XState 八条原则](docs/xstate-design.md)：按状态所有者和生命周期划分，区分真实机器、上下文生命周期、执行流程与 UI 投影。以下两图合起来展示 `src/task.machine.ts` 的八个真实状态与选定路径，完整公共规则见表，细节见[分层索引](docs/state-diagrams.md)。它不是新增父状态或子 actor 的实现方案。
 
@@ -226,7 +228,7 @@ stateDiagram-v2
 | CLAIM / WORK_FAILED | 优先检查当前状态的分支，未命中才回退根级讨论或取消分支；已提交意图才可执行，失败按重试、未知结果或等待用户分支处理 |
 | EXHAUSTED | `[valid] → ended`，保留真实结果与已用预算，不承诺额度外的汇总或重试 |
 | RECOVER | 配置、成员、权限、模型、版本和未决物理操作均须核对；安全恢复保留当前阶段，否则转 `waitingHuman`；`ended` 使用其局部恢复规则 |
-| LOCAL_RESULT / LOCAL_RECONCILE | 仅可信且已结算的当前结果可按父工作种类恢复阶段；旧目标和停止任务只结算旧操作 |
+| LOCAL_RESULT / LOCAL_RECONCILE | 仅可信且已结算的当前结果可按父工作种类恢复阶段或登记声明的交付文件；旧目标和停止任务只结算旧操作 |
 | REQUEST_HOST_RETRY | 活动任务在同一 epoch 登记固定续办。已正常结束的任务首次续办时进入 running。仅安全边界可固定批次并生成首条本地操作 |
 | HOST_RETRY_RECONCILE | 定时检查唤醒任务模型，按已保存的负责人工作与执行事实解除旧批次阻塞。恢复和普通事件也触发同一自动转移；可继续的待办仍经原安全边界 |
 | RETRY_ASSISTANCE | 先尝试消费已保存有效结果，否则创建关联旧尝试的新记录；分支目标由评审队列和真实守卫决定，不重置预算 |
@@ -244,7 +246,7 @@ stateDiagram-v2
 | 下游直接补救与缺口交付 | [自适应交付修订](docs/state-diagrams.md#自适应交付修订kej-110)，BT_F77–BT_F81 |
 | 成员复用能力事实与充分分片 | [任务能力事实与充分分片](docs/state-diagrams.md#任务能力事实与充分分片kej-110)，BT_L113–BT_L116、BT_Q34–BT_Q35 |
 | 文档工作项的原始来源与状态预检 | [文档工作项来源预检](docs/state-diagrams.md#文档工作项来源预检kej-110)，BT_F71–BT_F76、BT_F82 |
-| 意图领取、工具、格式修正、本地操作与宿主 | [执行与适配器](docs/state-diagrams.md#执行与适配器边界)：BT_M、BT_W、BT_L |
+| 意图领取、工具、格式修正、本地操作与宿主 | [执行与适配器](docs/state-diagrams.md#执行与适配器边界)和[模型协议字段诊断](docs/state-diagrams.md#模型输出格式修正)：BT_M、BT_W、BT_L、BT_I30 |
 | 任务内证据查读、刷新与历史观测 | [任务级证据读取](docs/state-diagrams.md#任务级证据读取)：BT_L38–BT_L43 |
 | 按次/本次任务会话批准宿主 CLI、拒绝与恢复（BT_L35–BT_L37） | [宿主命令授权](docs/state-diagrams.md#宿主命令按次授权)：BT_L23–BT_L30；默认仍为沙箱 |
 | 沙箱失败后的主动申请、用户续办和遗留批次恢复 | [失败命令的宿主续办](docs/state-diagrams.md#失败命令的宿主续办)（BT_L31–BT_L34、BT_L45–BT_L55） |
