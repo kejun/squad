@@ -18,7 +18,7 @@ import type { LocalRuntime } from './local-runtime.js';
 import type { CoordinationView } from './coordination-view.js';
 import { LocalToolError, type SkillPage } from './local-skills.js';
 import type { TeamEngine } from './engine.js';
-import type { Artifact, ArtifactDraft, Candidate, Decision, InputIntentSpec, InputReference, Intent, ModelOutputIssue, TaskContext, TaskEvent, ToolFailureFeedback, WebToolKind } from './types.js';
+import type { Artifact, ArtifactDraft, Candidate, Decision, DeliveryFinding, InputIntentSpec, InputReference, Intent, ModelOutputIssue, TaskContext, TaskEvent, ToolFailureFeedback, WebToolKind } from './types.js';
 import { inputIntentSchema, validInputIntent } from './input-intent.js';
 import { validArtifactDrafts, validSummary } from './presentation.js';
 import { findSkills, SkillSearchFailure, type FoundSkill, type SkillSearchTransport } from './skills.js';
@@ -27,8 +27,8 @@ import { CloudflareWebTools, validWebFetchInput, validWebSearchInput, type WebTo
 export type WorkOutput =
   | { type: 'interpretation'; spec: InputIntentSpec }
   | { type: 'help'; requestId: string; target: string; question: string; expected: string; refs?: string[] }
-  | { type: 'answer'; text: string; status?: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[] }
-  | { type: 'deliver'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[] }
+  | { type: 'answer'; text: string; status?: 'success' | 'partial' | 'failed'; summary?: string; artifacts?: ArtifactDraft[]; deliveryFindings?: unknown }
+  | { type: 'deliver'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[]; deliveryFindings?: unknown }
   | { type: 'decision'; decision: Decision }
   | { type: 'check'; criteriaResults: CriterionJudgment[]; repair?: { text: string; artifacts: ArtifactDraft[] } }
   | { type: 'blocked'; reason: string }
@@ -100,6 +100,24 @@ export function validWorkOutput(value: unknown): value is WorkOutput {
     case 'settled': return true;
     default: return false;
   }
+}
+
+function seriousDeliveryFindings(value: unknown): DeliveryFinding[] {
+  if (!Array.isArray(value)) return [];
+  const findings: DeliveryFinding[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object' || Object.keys(item).some(key => key !== 'kind' && key !== 'reason')) continue;
+    const { kind, reason } = item as { kind?: unknown; reason?: unknown };
+    if (kind !== 'missing_requirement' && kind !== 'unusable_output' && kind !== 'material_error') continue;
+    if (typeof reason !== 'string' || reason.includes('\0')) continue;
+    const text = reason.replace(/\s+/g, ' ').trim();
+    const characters = Array.from(text);
+    const bounded = characters.length > 120 ? characters.slice(0, 119).join('') + '…' : text;
+    if (!bounded || findings.some(finding => finding.reason === bounded)) continue;
+    findings.push({ kind, reason: bounded });
+    if (findings.length === 3) break;
+  }
+  return findings;
 }
 
 function fixedCheckMaterials(c: TaskContext, work: Intent): CheckMaterials {
@@ -675,15 +693,18 @@ export class WorkRunner {
       this.controllers.delete(executionKey);
       return true;
     }
+    const deliveryFindings = work.kind === 'owner' && (output.type === 'deliver' || output.type === 'answer' && output.status !== 'failed')
+      ? seriousDeliveryFindings(output.deliveryFindings) : [];
+    const advisory = deliveryFindings.length ? { deliveryFindings } : {};
     switch (output.type) {
       case 'interpretation': event = { ...base, type: 'INTERPRETATION_RESULT', inputId: (work.payload.input as { id: string }).id, spec: output.spec }; break;
       case 'help': event = { ...base, type: 'HELP', caller: work.target, requestId: output.requestId, target: output.target, question: output.question, expected: output.expected, ...(output.refs ? { refs: output.refs } : {}) }; break;
       case 'answer':
         event = work.kind === 'assistance'
           ? { ...base, ...presentation, type: 'RECORD_RESULT', requestId: String(work.payload.requestId), resultId: base.id, status: output.status ?? 'success', answer: output.text }
-          : { ...base, ...presentation, type: 'DELIVER', text: output.text, artifactIds: [] };
+          : { ...base, ...presentation, ...advisory, type: 'DELIVER', text: output.text, artifactIds: [] };
         break;
-      case 'deliver': event = { ...base, ...presentation, type: 'DELIVER', text: output.text, artifactIds: output.artifactIds,
+      case 'deliver': event = { ...base, ...presentation, ...advisory, type: 'DELIVER', text: output.text, artifactIds: output.artifactIds,
         ...(output.backgroundArtifactIds?.length ? { backgroundArtifactIds: output.backgroundArtifactIds } : {}) }; break;
       case 'decision': event = { ...base, type: 'COORDINATE', decision: output.decision }; break;
       case 'check': {

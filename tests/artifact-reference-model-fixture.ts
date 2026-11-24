@@ -111,3 +111,28 @@ export function verifyFixedSourceExecution() {
   assert(!m.c.artifacts.some(a => a.id === source().artifactId));
   assert(!m.c.stopped); assert(!m.c.intents.some(w => w.kind === 'tool'));
 }
+
+export function verifyFixedSourceExtraction() {
+  const frozen = { ...source(), purpose: 'extract' as const };
+  const text = '## 业务进展\n完成首批交付。\n\n## 专项成果\n验证自动导出。';
+  const m = new LocalModel(input => {
+    input.sourceArtifact = frozen;
+    input.message.text = '从上一轮 a.md 提炼业务进展和专项成果，排版从简';
+    input.goal.text = input.message.text;
+    input.config.deliveryReport = 'summary';
+  });
+
+  assert.deepEqual(m.work.payload.sourceArtifact, frozen);
+  assert.equal(m.c.goal.requiredArtifacts, 0, '固定提炼来源不应强制生成文件');
+  assert(m.send({ type: 'DELIVER', workId: m.work.id, fence: m.work, attempt: m.work.attempt,
+    text, artifactIds: [] }).ok);
+
+  assert.equal(m.c.outcome, 'complete');
+  assert.equal(m.c.candidate?.text, text);
+  assert.deepEqual(m.c.sourceArtifact, frozen);
+  assert.deepEqual(m.c.publishedDelivery?.artifactIds, []);
+  assert.deepEqual(m.c.artifacts, []);
+  const requirements = m.c.candidate?.acceptance?.criteria.map(criterion => criterion.text) ?? [];
+  assert(requirements.some(criterion => criterion.includes('提炼范围')));
+  assert(!requirements.some(criterion => criterion.includes('保留未被用户要求更改的内容')));
+}

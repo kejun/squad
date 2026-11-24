@@ -6,13 +6,13 @@ import { mapReduceCapacity, mapReduceConcurrency } from './map-reduce-capacity.j
 import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { artifactSourceMetadata, type BoardEntry, type Decision, type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
-import { canRetireDiscussionWork, capabilities, discussionActive, fence, fresh, hasOrdinary, inflight, ok, recoveryIssue, reject } from './facts.js';
+import { canRetireDiscussionWork, capabilities, completeProblem, discussionActive, fence, fresh, hasOrdinary, inflight, ok, recoveryIssue, reject } from './facts.js';
 import { cancelWork, coordinate, continueOwner, finish, finishDeliveryCheck, finishIncompleteDelivery, intent, message, owner, release, saveReports } from './operations.js';
 import { applyLocalEvent, cancelLocalOperations, cliArtifactIds, localEnabled, localPhysicalPending, localAwaitingApproval, localRecoveryBlocked, recoverLocalOperations, type LocalEvent } from '../local-operation.js';
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
 import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requestReview, resetReviewAtBoundary, savedHelpResult, startHelp } from './assistance.js';
 import { recordInput } from './input.js';
-import { checkDisposition, checkReferenceSources, currentDeliveryCheck, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, includeCliArtifacts, isBoundedCheck, newDeliveryCycle, recoveryCheckExhausted, retainLegacyPublication, saveCheckDiagnostic, settlingDeliveryCheck } from './delivery.js';
+import { checkDisposition, checkReferenceSources, currentDeliveryCheck, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, isBoundedCheck, newDeliveryCycle, normalizeDeliveryArtifacts, recoveryCheckExhausted, retainLegacyPublication, saveCheckDiagnostic, settlingDeliveryCheck } from './delivery.js';
 import { canRetryDeliveryCheck, canRetryWork, reserveDeliveryRetry } from './budget.js';
 import { checkReviewSources, deliveryJudgments, deliveryPreflight, deliveryGapMessage } from '../delivery-acceptance.js';
 import { adoptLegacyTerminalConfig } from './protocol.js';
@@ -23,7 +23,7 @@ import { preserveSourceReference } from '../input-intent.js';
 import { ownerWebRecoveryExhausted, recordToolFailure } from './tool-recovery.js';
 import { ensureResilience, openHumanGate, decideHumanGate, executionNotStarted, freezeIncomplete, taskHumanGate, answerTaskGate, syncLocalApprovalGate, recordApprovalExplanation, requiredHumanFailure, modelServiceFailureCode, authorizationFailure,
   windowExpired, requestNewWindow, archiveFrozen, beginManualContinuation, replaceProcessingWindow, adoptCleanup, settleCleanup, resiliencePolicy, processingWindow, safeFailureRetry, requeueSafeWork, settleRepairCoordination } from './resilience.js';
-import { recordAcquisition } from '../resource-acquisition.js';
+import { recordAcquisition, resourceAcquisitionProblem } from '../resource-acquisition.js';
 
 function saveCliArtifact(c: TaskContext, event: TaskEvent & LocalEvent, work: Intent): TaskEvent & LocalEvent {
   if (event.type !== 'LOCAL_RESULT' && event.type !== 'LOCAL_RECONCILE' || !event.artifact || !event.result) return event;
@@ -241,7 +241,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       owner(c, e, { handoff: true, boardRefs: c.board.map(b => b.id) }); break;
     }
     case 'DELIVER': {
-      const delivery = includeCliArtifacts(c, e);
+      const delivery = normalizeDeliveryArtifacts(c, e);
       const versionProblem = deliveryVersionProblem(c, delivery);
       if (versionProblem) {
         if (!deliveryInterruptionPending(c)) {
@@ -253,8 +253,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const summaryOnly = c.config.deliveryReport === 'summary';
       const problem = summaryOnly ? null : deliverySubmissionProblem(c, e);
       const { acceptance, gaps: submissionGaps } = deliveryPreflight(c, delivery);
-      const gapDetails = submissionGaps.map(gap => deliveryGapMessage(gap.reason));
-      const artifactIds = saveReports(c, e, c.sourceArtifact && !e.artifacts?.length ? '' : e.text, c.owner, e.artifacts);
+      const artifactIds = saveReports(c, e, c.sourceArtifact && !delivery.artifacts?.length ? '' : e.text, c.owner, delivery.artifacts);
       const priorFindings = summaryOnly ? [] : deliveryJudgments(c, c.candidate?.revision).filter(item => item.status !== 'passed');
       const baselineCheckId = summaryOnly ? undefined : [...c.intents].reverse().find(work => work.kind === 'check' && work.criteriaResults
         && work.epoch === c.epoch && work.goalVersion === c.goalVersion
@@ -262,15 +261,27 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const references = summaryOnly ? [] : checkReferenceSources(c);
       cancelWork(c, e);
       const existingIds = delivery.artifactIds.filter(id => c.artifacts.some(a => a.id === id && a.goalVersion === c.goalVersion));
-      const submissionNote = submissionGaps.length ? '\n\n交付时尚缺少：\n' + gapDetails.map(detail => `- ${detail}`).join('\n') : '';
+      const submissionNote = !summaryOnly && submissionGaps.length
+        ? '\n\n交付时尚缺少：\n' + submissionGaps.map(gap => `- ${deliveryGapMessage(gap.reason)}`).join('\n') : '';
+      const deliveryFindings = summaryOnly ? [
+        ...submissionGaps.flatMap(gap => gap.kind === 'missing_requirement' ? [{ kind: gap.kind, reason: deliveryGapMessage(gap.reason) }] : []),
+        ...(e.deliveryFindings ?? []),
+      ] : [];
       c.candidate = { text: e.text + submissionNote, artifactIds: [...new Set([...existingIds, ...artifactIds])], goalVersion: c.goalVersion,
-        revision: acceptance.revision, ...(e.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(e.backgroundArtifactIds)] } : {}),
+        revision: acceptance.revision, ...(delivery.backgroundArtifactIds?.length ? { backgroundArtifactIds: [...new Set(delivery.backgroundArtifactIds)] } : {}),
+        ...(deliveryFindings.length ? { deliveryFindings } : {}),
         ...(e.summary === undefined ? {} : { summary: e.summary }), ...(e.workId ? { workId: e.workId } : {}), acceptance };
       deliveryCandidate(c);
       if (deliveryInterruptionPending(c)) break;
       if (summaryOnly) {
-        finishDeliveryCheck(c, e);
-        if (c.outcome !== null) message(c, e, 'facilitator', executionSummary(c, gapDetails), 'notice');
+        const mechanical = completeProblem(c);
+        if (mechanical) finishIncompleteDelivery(c, e, mechanical, mechanical);
+        else {
+          const missingResource = resourceAcquisitionProblem(c);
+          if (missingResource) c.candidate.deliveryIssue = { code: missingResource, detail: '缺少必需资源的获取凭证，相关内容尚未核实。' };
+          finish(c, e, 'complete', '');
+        }
+        if (c.outcome !== null) message(c, e, 'facilitator', executionSummary(c), 'notice');
         break;
       }
       if (problem) {

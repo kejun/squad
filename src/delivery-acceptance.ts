@@ -99,6 +99,7 @@ export const deliveryRevision = (c: TaskContext, e: Delivery) => `${c.taskId}:ca
 
 type AddCriterion = (text: string, source: CriterionSource, key: string) => void;
 export const sourceRevisionRequirement = '根据固定来源原文完成本轮修改，保留未被用户要求更改的内容，并交付本任务新生成的非空 Markdown 文档。';
+const sourceExtractionRequirement = '依据固定来源原文覆盖用户指定的提炼范围，遵守本轮要求的交付格式。';
 
 function addInputCriteria(add: AddCriterion, input: InputAnalysis, initial: InputAnalysis | undefined) {
   const source: CriterionSource = { kind: 'input', id: input.id };
@@ -130,7 +131,8 @@ export function acceptanceCriteria(c: TaskContext): AcceptanceCriterion[] {
   add(initial && c.goal.text.trim() === initial.rawText.trim() && objective ? objective : c.goal.text, goalSource, 'goal:text');
   c.goal.constraints.forEach((text, i) => add(text, goalSource, `goal:constraint:${i}`));
   c.goal.criteria.forEach((text, i) => add(text, goalSource, `goal:criterion:${i}`));
-  if (c.sourceArtifact) add(sourceRevisionRequirement, goalSource, 'goal:source-revision');
+  if (c.sourceArtifact?.purpose === 'extract') add(sourceExtractionRequirement, goalSource, 'goal:source-extraction');
+  else if (c.sourceArtifact) add(sourceRevisionRequirement, goalSource, 'goal:source-revision');
   for (const input of inputs) addInputCriteria(add, input, initial);
   return [...criteria.values()];
 }
@@ -180,7 +182,7 @@ export function deliveryPreflight(c: TaskContext, e: Delivery) {
   for (const id of listed) {
     if (!available.includes(id)) gaps.push(gap(revision, 'version_conflict', 'MISSING_OR_STALE_ARTIFACT', null, [{ kind: 'artifact', id }]));
   }
-  if (c.sourceArtifact && ![
+  if (c.sourceArtifact && c.sourceArtifact.purpose !== 'extract' && ![
     ...drafts,
     ...c.artifacts.filter(artifact => available.includes(artifact.id) && artifact.id !== c.sourceArtifact!.artifactId),
   ].some(isMarkdownRevision)) gaps.push(gap(revision, 'missing_requirement', 'MISSING_MARKDOWN_REVISION'));
@@ -210,11 +212,15 @@ export function currentDeliveryIssues(c: TaskContext): DeliveryGap[] {
   const issues = judgments.flatMap(item => item.status === 'passed' ? [] : [gap(revision,
     item.status === 'unverified' ? 'missing_evidence' : 'content_error', item.reason, item.criterionId,
     item.source ? [{ kind: 'evidence', id: item.source.id }] : [])]);
+  for (const finding of candidate.deliveryFindings ?? []) {
+    issues.push(gap(revision, finding.kind === 'missing_requirement' ? 'missing_requirement' : 'content_error', finding.reason));
+  }
   if (candidate.deliveryIssue) {
     const { code, detail } = candidate.deliveryIssue;
     const kind = code === 'MISSING_ARTIFACTS' ? 'missing_requirement' : code.includes('ARTIFACT') ? 'version_conflict' : 'missing_evidence';
     issues.push(gap(revision, kind, detail ?? code));
-    if (c.outcome && kind === 'missing_evidence' && !judgments.length) issues.push(...unverifiedRequirements(candidate, revision));
+    if (c.config.deliveryReport !== 'summary' && c.outcome && kind === 'missing_evidence' && !judgments.length)
+      issues.push(...unverifiedRequirements(candidate, revision));
   }
   return issues;
 }

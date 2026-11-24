@@ -34,11 +34,11 @@ export function resolveArtifactSource(tasks: SourceTask[], reference?: ArtifactR
     ? { kind: 'rejected', code: 'SOURCE_ARTIFACT_UNAVAILABLE', detail: '来源不存在、尚未成功发布或版本已变化，请从当前群的交付清单重新选择 Markdown 产物。' }
     : { kind: 'none' };
   if (candidates.length > 1) return { kind: 'rejected', code: 'AMBIGUOUS_SOURCE_ARTIFACT',
-    detail: '有多份同名产物，请选择要修改的来源。', sourceCandidates: candidates.map(artifactSourceMetadata) };
+    detail: '有多份同名产物，请选择要使用的来源。', sourceCandidates: candidates.map(artifactSourceMetadata) };
   const sourceArtifact = candidates[0]!;
   if (typeof sourceArtifact.content !== 'string' || !sourceArtifact.content.trim()) return {
     kind: 'rejected', code: 'SOURCE_ARTIFACT_UNREADABLE', detail: '来源正文为空或不可读取，请重新选择已交付的 Markdown 产物。' };
   if (Buffer.byteLength(sourceArtifact.content, 'utf8') > 32 * 1024) return {
     kind: 'rejected', code: 'SOURCE_ARTIFACT_TOO_LARGE', detail: '来源正文超过 32 KiB，请选择更小的 Markdown 产物。' };
-  return { kind: 'resolved', sourceArtifact };
+  return { kind: 'resolved', sourceArtifact: request?.purpose === 'extract' ? { ...sourceArtifact, purpose: 'extract' } : sourceArtifact };
 }
