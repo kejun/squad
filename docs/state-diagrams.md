@@ -530,6 +530,8 @@ stateDiagram-v2
 
 类型为进程 I/O 生命周期，所有者为 `src/local-cli.ts` 的 `runProcess`。BT_L05 与 BT_L06 继续约束任务层的停止和恢复。真实子进程集成测试验证进程事件与日志写入的顺序，任务层沿用上图的 `LOCAL_RESULT` 转移。
 
+[CLI 回执状态图与 XState v5 模型](implementation/cli-receipt-statechart.md) 展示进程结算与身份日志写入的并行关系。
+
 | 需求 | 事件与条件 | 执行器响应 |
 | --- | --- | --- |
 | CLI-RECEIPT-1 | 进程先于取消和超时触发 `close`，身份记录仍在写入 | 结束该进程的执行计时与取消监听。写入返回后按已观察到的进程结果结算。 |
