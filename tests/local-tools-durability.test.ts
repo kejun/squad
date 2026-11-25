@@ -6,6 +6,62 @@ import { describe, expect, it, vi } from 'vitest';
 import { runProcess } from '../src/local-cli.js';
 import { serviceRecoveryAcceptance } from './local-tools-acceptance.js';
 
+it.skipIf(process.platform !== 'linux').each([
+  { event: 'deadline', code: 'succeeded', exitCode: 0, effectsKnown: true },
+  { event: 'abort', code: 'succeeded', exitCode: 0, effectsKnown: true },
+  { event: 'settlement deadline', code: 'cancelled', exitCode: null, effectsKnown: false },
+] as const)(
+  'keeps the exit receipt when $event follows close during the identity write',
+  async ({ event, code, exitCode, effectsKnown }) => {
+    const directory = await fs.mkdtemp(join(tmpdir(), 'squad-cli-settlement-'));
+    const release = join(directory, 'release');
+    const signal = new AbortController();
+    const timeoutMs = 1_000;
+    let markExited!: () => void;
+    const exited = new Promise<void>(resolve => { markExited = resolve; });
+    const allowExit = () => fs.writeFile(release, '');
+    const beforeClose = {
+      deadline: allowExit,
+      abort: allowExit,
+      'settlement deadline': () => signal.abort(),
+    }[event];
+    const lateEvent = {
+      deadline: () => vi.advanceTimersByTime(timeoutMs),
+      abort: () => signal.abort(),
+      'settlement deadline': () => vi.advanceTimersByTime(1_800),
+    }[event];
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const receipt = await runProcess({
+        executable: process.execPath, cwd: directory, workspace: directory, env: {}, timeoutMs, sessionId: 'closed-during-journal',
+        logPath: join(directory, 'process.log'),
+        args: ['-e', `const { existsSync } = require('node:fs');
+          const limit = setTimeout(() => process.exit(2), 3000);
+          const wait = setInterval(() => {
+            if (!existsSync(${JSON.stringify(release)})) return;
+            clearInterval(wait);
+            clearTimeout(limit);
+          }, 5);`],
+        observeProcess: phase => {
+          if (phase !== 'local.processFinished') return;
+          lateEvent();
+          markExited();
+        },
+      }, signal.signal, async () => {
+        await beforeClose();
+        await exited;
+      });
+      expect(receipt).toMatchObject({
+        settled: true, effectsKnown,
+        result: { ok: code === 'succeeded', code, data: { exitCode, processRecorded: true } },
+      });
+    } finally {
+      vi.useRealTimers();
+      await fs.rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
 // Other local-tool acceptance paths run directly through features/24_local_skills_cli.feature.
 // These startup reconciliation paths have additional WebService wiring not exercised there.
 describe('local operation boundary and recovery integration', () => {

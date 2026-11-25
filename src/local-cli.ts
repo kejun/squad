@@ -210,8 +210,9 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
   };
   let killTimer: ReturnType<typeof setTimeout> | undefined;
   let hardTimer: ReturnType<typeof setTimeout> | undefined;
-  let unconfirmed!: (value: { code: null; signal: null; closed: false }) => void;
-  const settlementDeadline = new Promise<{ code: null; signal: null; closed: false }>(resolveDeadline => { unconfirmed = resolveDeadline; });
+  type ProcessSettlement = { code: number | null; signal: NodeJS.Signals | null; closed: boolean };
+  let settle!: (value: ProcessSettlement) => void;
+  const settlement = new Promise<ProcessSettlement>(resolveSettlement => { settle = resolveSettlement; });
   const kill = (signalName: NodeJS.Signals) => {
     if (!child?.pid) return;
     try { process.kill(-child.pid, signalName); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') spawnError = true; }
@@ -219,12 +220,16 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
   const cancel = () => {
     aborted = true; kill('SIGTERM'); killTimer ??= setTimeout(() => kill('SIGKILL'), 300);
     hardTimer ??= setTimeout(() => {
-      kill('SIGKILL'); unconfirmed({ code: null, signal: null, closed: false });
+      kill('SIGKILL'); settle({ code: null, signal: null, closed: false });
       child?.stdout?.destroy(); child?.stderr?.destroy(); child?.unref();
     }, 1800);
   };
   const timer = setTimeout(() => { timedOut = true; cancel(); }, input.timeoutMs);
   signal.addEventListener('abort', cancel, { once: true });
+  const stopWatchingCancellation = () => {
+    clearTimeout(timer);
+    signal.removeEventListener('abort', cancel);
+  };
   try {
     signal.throwIfAborted(); beforeSpawn?.();
     child = spawn(input.executable, input.args, { cwd: input.cwd, env: input.env, shell: false, detached: true, stdio: [input.stdinFd ?? 'ignore', 'pipe', 'pipe'] });
@@ -233,14 +238,15 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
       spawned = true;
       publishObservation(input.observeProcess, 'local.processStarted');
     });
-    const close = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(resolveClose => {
-      child!.once('error', () => { spawnError = true; });
-      child!.once('close', (code, exitSignal) => {
-        if (spawned) publishObservation(input.observeProcess, 'local.processFinished');
-        resolveClose({ code, signal: exitSignal });
-      });
+    child.once('error', () => { spawnError = true; });
+    child.once('close', (code, exitSignal) => {
+      stopWatchingCancellation();
+      // Record the first settlement event even while the identity write is pending.
+      settle({ code, signal: exitSignal, closed: true });
+      if (spawned) publishObservation(input.observeProcess, 'local.processFinished');
     });
     child.stdout!.on('data', (data: Buffer) => write('stdout', data)); child.stderr!.on('data', (data: Buffer) => write('stderr', data));
+    if (signal.aborted) cancel();
     if (child.pid) {
       try { identity = await processIdentity(child.pid); await onSpawn(identity); spawnedRecorded = true; }
       catch (error) {
@@ -248,8 +254,7 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') { spawnError = true; cancel(); }
       }
     }
-    if (signal.aborted) cancel();
-    const exit = await Promise.race([close.then(value => ({ ...value, closed: true })), settlementDeadline]);
+    const exit = await settlement;
     write('stdout'); write('stderr');
     // No process group survives normal completion, timeout or explicit cancellation.
     kill('SIGKILL');
@@ -259,7 +264,11 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
         sessionId: input.sessionId, processRecorded: spawnedRecorded } };
     return { result, settled: exit.closed, effectsKnown: exit.closed && !aborted };
   } finally {
-    clearTimeout(timer); if (killTimer) clearTimeout(killTimer); if (hardTimer) clearTimeout(hardTimer); signal.removeEventListener('abort', cancel); await log.sync(); await log.close();
+    stopWatchingCancellation();
+    if (killTimer) clearTimeout(killTimer);
+    if (hardTimer) clearTimeout(hardTimer);
+    await log.sync();
+    await log.close();
   }
 }
 import { accessSync, realpathSync, statSync, writeSync } from 'node:fs';
