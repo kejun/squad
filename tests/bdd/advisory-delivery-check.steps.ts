@@ -7,6 +7,8 @@ import { config as appConfig } from '../../team.config.js';
 import { WebError, WebService } from '../../src/web/service.js';
 import { buildDetailDocument } from '../../web/src/detail-document.js';
 import { MapReduceFixture } from '../map-reduce-fixture.js';
+import { artifactVerification, resourceAcquisitionProblem } from '../../src/resource-acquisition.js';
+import type { Goal } from '../../src/types.js';
 import type { SpecWorld } from './steps.js';
 
 const prompt = '请按给定判据交付结果。';
@@ -144,9 +146,9 @@ function prepareSummary(world: SpecWorld) {
   return state;
 }
 
-async function publishSummary(world: SpecWorld) {
+async function publishSummary(world: SpecWorld, goal?: Goal) {
   const { web, room } = summarySessions.get(world)!;
-  web.submit(room, { id: 'summary-delivery', text: '交付正文和文件', mentions: ['A'] });
+  web.submit(room, { id: 'summary-delivery', text: '交付正文和文件', mentions: ['A'], ...(goal ? { goal } : {}) });
   for (let attempt = 0; attempt < 100; attempt++) {
     if (web.snapshot(room).tasks[0]?.outcome === 'complete') return;
     await new Promise(resolve => setTimeout(resolve, 10));
@@ -156,14 +158,18 @@ async function publishSummary(world: SpecWorld) {
 
 Given('群聊使用执行摘要且主笔准备好正文和文件', function (this: SpecWorld) { prepareSummary(this); });
 When('主笔提交最终交付', async function (this: SpecWorld) { await publishSummary(this); });
-Then('应完成任务并发布原正文和文件', function (this: SpecWorld) {
-  const { web, room } = summarySessions.get(this)!, snapshot = web.snapshot(room);
+function assertPublishedSummary(world: SpecWorld) {
+  const { fixture, web, room } = summarySessions.get(world)!, snapshot = web.snapshot(room);
   const task = snapshot.tasks[0]!, final = snapshot.messages.find(message => message.kind === 'final');
   assert.equal(task.outcome, 'complete');
   assert.equal(task.deliveryReport, 'summary');
   assert.equal(final?.detailText ?? final?.text, delivered);
   assert.deepEqual(final?.artifactIds, task.currentArtifactIds);
   assert.equal(task.artifacts.find(item => item.id === task.currentArtifactIds?.[0])?.content, content);
+  return { fixture, web, room, snapshot, task };
+}
+Then('应完成任务并发布原正文和文件', function (this: SpecWorld) {
+  assertPublishedSummary(this);
 });
 Then('应仅发送一条执行摘要且不安排核检调用', function (this: SpecWorld) {
   const { fixture, web, room } = summarySessions.get(this)!, snapshot = web.snapshot(room);
@@ -216,4 +222,81 @@ Then('应保留原交付并说明当前使用执行摘要', function (this: Spec
   assert.equal(snapshot.tasks[0]?.outcome, 'complete');
   assert.equal(snapshot.messages.filter(message => message.kind === 'final').length, 1);
   assert.equal(fixture.requests.length, 1);
+});
+
+const seriousFinding = { kind: 'material_error', reason: '第三季度收入遗漏退款，影响净收入结论' };
+const minorFinding = { kind: 'minor', reason: '可以调整页眉颜色' };
+
+Given('主笔准备好正文和文件并明确报告一个影响结果使用的缺陷', function (this: SpecWorld) {
+  prepareSummary(this);
+});
+When('主笔通过{string}提交成果并附带次要建议', async function (this: SpecWorld, form: string) {
+  assert(['最终交付', '普通答复'].includes(form));
+  const { fixture } = summarySessions.get(this)!;
+  fixture.replies[0] = { type: form === '普通答复' ? 'answer' : 'deliver', text: delivered, artifactIds: [],
+    artifacts: [{ name: 'delivery.md', content }], deliveryFindings: [minorFinding, seriousFinding, seriousFinding] };
+  await publishSummary(this);
+});
+Then('应立即发布原正文和文件并在执行摘要明确说明严重问题', function (this: SpecWorld) {
+  const { snapshot } = assertPublishedSummary(this);
+  const message = snapshot.messages.find(item => item.kind === 'notice' && item.text.startsWith('执行摘要'));
+  assert(message);
+  assert(message.text.includes(seriousFinding.reason));
+  assert(!message.text.includes(minorFinding.reason));
+});
+Then('应保存当前交付的严重发现且不安排复核或要求重试', function (this: SpecWorld) {
+  const { fixture, web, room, snapshot, task } = assertPublishedSummary(this);
+  const c = web.engine.view(room, task.id)!.context;
+  assert.deepEqual(c.candidate?.deliveryFindings, [seriousFinding]);
+  assert.deepEqual(task.deliveryGaps?.map(gap => gap.reason), [seriousFinding.reason]);
+  assert(!snapshot.messages.some(message => /重试检查|是否重试/.test(message.text)));
+  assert.deepEqual(fixture.requests.map(request => request.kind), ['owner']);
+  assert.match(fixture.requests[0]!.messages[0]!.content, /deliveryFindings.*unusable_output/s);
+  assert(!snapshot.works.some(work => work.kind === 'check'));
+});
+
+Given('主笔准备好正文和文件并只有次要的排版建议及无效验收备注', function (this: SpecWorld) {
+  const { fixture } = prepareSummary(this);
+  fixture.replies[0] = { type: 'deliver', text: delivered, artifactIds: [], artifacts: [{ name: 'delivery.md', content }],
+    deliveryFindings: [minorFinding, null, { kind: 'unusable_output', reason: 42 }, { kind: 'material_error', reason: '  ' }] };
+});
+When('主笔带着这些备注提交当前成果', async function (this: SpecWorld) { await publishSummary(this); });
+Then('应发布原正文和文件且消息里没有严重问题或重试要求', function (this: SpecWorld) {
+  const { fixture, snapshot, task } = assertPublishedSummary(this);
+  assert(!snapshot.messages.some(message => /严重问题|是否重试|页眉颜色/.test(message.text)));
+  assert.equal(task.deliveryGaps, undefined);
+  assert.deepEqual(fixture.requests.map(request => request.kind), ['owner']);
+});
+
+Given('主笔完成一份可交付文件但仍缺少必需资源的实际获取凭证', function (this: SpecWorld) { prepareSummary(this); });
+When('主笔提交当前有效的成果', async function (this: SpecWorld) {
+  await publishSummary(this, { text: '核对指定来源并交付文件', constraints: [], criteria: ['交付文件'], requiredArtifacts: 1,
+    resourceRequirements: [{ resource: { kind: 'url', url: 'https://example.invalid/required' }, freshness: 'current' }] });
+});
+Then('应发布原正文和文件并在执行摘要说明缺少必需资源凭证', function (this: SpecWorld) {
+  const { snapshot } = assertPublishedSummary(this);
+  const message = snapshot.messages.find(item => item.kind === 'notice' && item.text.startsWith('执行摘要'));
+  assert(message?.text.includes('缺少必需资源的获取凭证'));
+});
+Then('应保留未核实的状态且不声称必需资源已取得', function (this: SpecWorld) {
+  const { fixture, web, room, task } = assertPublishedSummary(this);
+  const c = web.engine.view(room, task.id)!.context;
+  assert.equal(resourceAcquisitionProblem(c), 'RESOURCE_ACQUISITION_UNVERIFIED');
+  assert.equal(c.candidate?.deliveryIssue?.code, 'RESOURCE_ACQUISITION_UNVERIFIED');
+  assert.deepEqual(artifactVerification(c, c.artifacts.find(artifact => artifact.id === task.currentArtifactIds?.[0])!),
+    { status: 'unverified', reason: '缺少必需资源的获取凭证，相关内容尚未核实。' });
+  assert.deepEqual(task.deliveryGaps?.map(gap => gap.reason), ['缺少必需资源的获取凭证，相关内容尚未核实。']);
+  assert.deepEqual(fixture.requests.map(request => request.kind), ['owner']);
+});
+
+Given('主笔已准备正文及用户要求的两个文件中的一个', function (this: SpecWorld) { prepareSummary(this); });
+When('主笔提交还可使用的成果', async function (this: SpecWorld) {
+  await publishSummary(this, { text: '交付正文和两个文件', constraints: [], criteria: ['交付正文和两个文件'], requiredArtifacts: 2 });
+});
+Then('应发布原正文和已有文件并在消息正文指出还缺少要求的文件', function (this: SpecWorld) {
+  const { snapshot, task } = assertPublishedSummary(this);
+  const message = snapshot.messages.find(item => item.kind === 'notice' && item.text.startsWith('执行摘要'));
+  assert(message);
+  assert.match(message.text, /^执行摘要。发现严重问题。尚未提供要求的全部文件/);
+  assert.deepEqual(task.deliveryGaps?.map(gap => gap.reason), ['尚未提供要求的全部文件']);
 });

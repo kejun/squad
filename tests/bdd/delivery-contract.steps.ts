@@ -24,7 +24,7 @@ Then(/^(.+)的结果应为"([^"]*)"$/, async function (this: SpecWorld, label: s
 
 import { readRevisionDirective, verifyRevisionDirective } from '../source-request-contract-fixture.js';
 const directives = new WeakMap<SpecWorld, { text: string; actual?: ReturnType<typeof readRevisionDirective>; executed: boolean }>();
-Given(/^用户本次修订输入为 ([\s\S]*)$/, function (this: SpecWorld, encoded: string) {
+Given(/^用户本次(?:修订输入|来源指令)为 ([\s\S]*)$/, function (this: SpecWorld, encoded: string) {
   // Gherkin table cells retain literal escape sequences so quoted and indented input stays observable.
   const text = encoded.replace('（四个前导空格）', '    ').replace(/\\(\\|n|t)/g, (_whole, escape: string) => escape === 'n' ? '\n' : escape === 't' ? '\t' : '\\');
   directives.set(this, { text, executed: false });
@@ -34,4 +34,8 @@ When('系统识别本次输入的旧报告目标', function (this: SpecWorld) {
 });
 Then(/^旧报告目标应为 (.*) 且显式产物标记为 (是|否)$/, function (this: SpecWorld, name: string, explicit: string) {
   const run = directives.get(this); assert(run?.executed); verifyRevisionDirective(run.actual, name, explicit === '是');
+});
+Then(/^旧报告提炼目标应为 (.*)$/, function (this: SpecWorld, name: string) {
+  const run = directives.get(this); assert(run?.executed);
+  assert.deepEqual(run.actual, name === '无' ? undefined : { name, explicit: true, purpose: 'extract' });
 });

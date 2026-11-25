@@ -17,8 +17,10 @@ export function createTaskContext(input: TaskInput): TaskContext {
     if (input.executionMemory) c.executionMemory = structuredClone(input.executionMemory);
     if (input.sourceArtifact) {
       c.sourceArtifact = structuredClone(input.sourceArtifact);
-      c.goal.requiredArtifacts = Math.max(1, c.goal.requiredArtifacts);
-      if (!c.goal.criteria.includes(sourceRevisionRequirement)) c.goal.criteria.push(sourceRevisionRequirement);
+      if (input.sourceArtifact.purpose !== 'extract') {
+        c.goal.requiredArtifacts = Math.max(1, c.goal.requiredArtifacts);
+        if (!c.goal.criteria.includes(sourceRevisionRequirement)) c.goal.criteria.push(sourceRevisionRequirement);
+      }
     }
     const planNewTask = input.analyzeRequest === true && !input.reviewTargets?.length && c.config.limits.ordinary >= 2;
     recordInput(c, input.message.id, input.message.text, input.reviewTargets?.length ? 'review' : 'request', planNewTask);

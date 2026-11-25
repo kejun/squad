@@ -69,18 +69,37 @@ export function checkReferenceSources(c: TaskContext): CheckReferenceSource[] {
 }
 
 export function deliverySubmissionProblem(c: TaskContext, e: Delivery): { code: string; mechanical: boolean } | null {
-  const problem = deliveryVersionProblem(c, includeCliArtifacts(c, e));
+  const problem = deliveryVersionProblem(c, normalizeDeliveryArtifacts(c, e));
   if (problem) return { code: problem, mechanical: true };
   const budget = deliveryCheckBudgetProblem(c);
   if (budget) return { code: budget, mechanical: false };
   return null;
 }
 
-export function includeCliArtifacts(c: TaskContext, e: Delivery): Delivery {
+function includeCliArtifacts(c: TaskContext, e: Delivery): Delivery {
   const work = c.intents.find(intent => intent.id === e.workId);
   const added = cliArtifactIds(work).filter(id => !e.backgroundArtifactIds?.includes(id)
     && !e.artifacts?.some(draft => draft.replacesArtifactId === id));
   return added.length ? { ...e, artifactIds: [...new Set([...e.artifactIds, ...added])] } : e;
+}
+
+export function normalizeDeliveryArtifacts(c: TaskContext, e: Delivery): Delivery {
+  if (c.config.deliveryReport !== 'summary') return includeCliArtifacts(c, e);
+  const { artifacts, latest, base } = deliveryArtifactVersions(c);
+  const canRevise = canReviseDeliveryArtifact(c, e);
+  const revised = new Set<string>();
+  const drafts = e.artifacts?.map(draft => {
+    const { replacesArtifactId: id, ...independent } = draft;
+    if (!id) return draft;
+    if (!canRevise || !base.has(id) || !isLatestArtifact(id, artifacts, latest) || revised.has(id)) return independent;
+    revised.add(id);
+    return draft;
+  });
+  const delivery = includeCliArtifacts(c, { ...e, ...(drafts ? { artifacts: drafts } : {}) });
+  const artifactIds = [...new Set(delivery.artifactIds)].filter(id => !revised.has(id) && isLatestArtifact(id, artifacts, latest));
+  const selected = new Set(artifactIds);
+  const backgroundArtifactIds = [...new Set(delivery.backgroundArtifactIds)].filter(id => !selected.has(id) && artifacts.has(id));
+  return { ...delivery, artifactIds, backgroundArtifactIds };
 }
 
 export function deliveryInterruptionPending(c: TaskContext, settlingWorkId?: string): boolean {
@@ -172,18 +191,33 @@ export function retainLegacyPublication(c: TaskContext, at: number) {
   };
 }
 
-export function deliveryVersionProblem(c: TaskContext, e: Delivery): string | null {
-  const artifacts = new Map(c.artifacts.map(artifact => [artifact.id, artifact]));
-  const latest = new Map(c.artifacts.filter(artifact => artifact.goalVersion === c.goalVersion).map(artifact => [documentIdentity(artifact), artifact.id]));
+function deliveryArtifactVersions(c: TaskContext) {
+  const current = c.artifacts.filter(artifact => artifact.goalVersion === c.goalVersion && artifact.id !== c.sourceArtifact?.artifactId);
+  const artifacts = new Map(current.map(artifact => [artifact.id, artifact]));
+  const latest = new Map(current.map(artifact => [documentIdentity(artifact), artifact.id]));
   const base = new Set(c.candidate?.goalVersion === c.goalVersion ? c.candidate.artifactIds
     : c.publishedDelivery?.goalVersion === c.goalVersion ? c.publishedDelivery.artifactIds : []);
+  return { artifacts, latest, base };
+}
+
+function isLatestArtifact(id: string, artifacts: Map<string, Artifact>, latest: Map<string, string>): boolean {
+  const artifact = artifacts.get(id);
+  return !!artifact && latest.get(documentIdentity(artifact)) === id;
+}
+
+function canReviseDeliveryArtifact(c: TaskContext, e: Delivery): boolean {
+  return !!e.workId && c.intents.some(work => work.id === e.workId && (work.kind === 'owner' && work.target === c.owner || isBoundedCheck(work)));
+}
+
+export function deliveryVersionProblem(c: TaskContext, e: Delivery): string | null {
+  const { artifacts, latest, base } = deliveryArtifactVersions(c);
   for (const id of e.backgroundArtifactIds ?? []) {
-    if (e.artifactIds.includes(id) || artifacts.get(id)?.goalVersion !== c.goalVersion) return 'INVALID_BACKGROUND_ARTIFACT:' + id;
+    if (e.artifactIds.includes(id) || !artifacts.has(id)) return 'INVALID_BACKGROUND_ARTIFACT:' + id;
   }
   const selected = new Set<string>();
   for (const id of new Set(e.artifactIds)) {
     const artifact = artifacts.get(id);
-    if (!artifact || artifact.goalVersion !== c.goalVersion) continue;
+    if (!artifact) continue;
     const document = documentIdentity(artifact);
     if (latest.get(document) !== id || selected.has(document)) return 'ARTIFACT_REVISION_CONFLICT:' + id;
     selected.add(document);
@@ -192,8 +226,7 @@ export function deliveryVersionProblem(c: TaskContext, e: Delivery): string | nu
     const id = draft.replacesArtifactId;
     if (!id) continue;
     const artifact = artifacts.get(id);
-    if (!artifact || artifact.goalVersion !== c.goalVersion || !base.has(id)
-      || !e.workId || !c.intents.some(work => work.id === e.workId && (work.kind === 'owner' && work.target === c.owner || isBoundedCheck(work)))) return 'INVALID_ARTIFACT_REVISION_BASE:' + id;
+    if (!artifact || !base.has(id) || !canReviseDeliveryArtifact(c, e)) return 'INVALID_ARTIFACT_REVISION_BASE:' + id;
     const document = documentIdentity(artifact);
     if (latest.get(document) !== id || selected.has(document)) return 'ARTIFACT_REVISION_CONFLICT:' + id;
     selected.add(document);

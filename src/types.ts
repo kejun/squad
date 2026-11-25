@@ -68,6 +68,7 @@ export interface ArtifactReference { sourceTaskId: string; artifactId: string }
 export interface ArtifactSource extends ArtifactReference {
   documentId: string; revision: number; name: string; owner: string; publishedAt: number;
   publicationRevision?: string; content: string; contentHash: string;
+  purpose?: 'extract';
 }
 export type ArtifactSourceMetadata = Omit<ArtifactSource, 'content'>;
 export function artifactSourceMetadata(source: ArtifactSource): ArtifactSourceMetadata {
@@ -125,10 +126,12 @@ export interface InputAnalysis extends Fence {
   spec?: InputIntentSpec; workId?: string; error?: string; decompositionApplied?: boolean;
 }
 export interface RecordedResult extends Fence { requestId: string; resultId: string; status: 'success' | 'partial' | 'failed' | 'timeout'; answer: string; consumed: boolean; summary?: string; artifactIds?: string[]; workId?: string }
+export type DeliveryFinding = { kind: 'missing_requirement' | 'unusable_output' | 'material_error'; reason: string };
 export interface Candidate {
   text: string; artifactIds: string[]; goalVersion: number; summary?: string; workId?: string;
   revision?: string; requiresBoundCheck?: boolean; backgroundArtifactIds?: string[]; acceptance?: DeliveryAcceptance;
   deliveryIssue?: { code: string; detail?: string };
+  deliveryFindings?: DeliveryFinding[];
 }
 export interface DeliveryCycle {
   stage: DeliveryStage;
@@ -252,7 +255,7 @@ export type TaskEvent = Envelope & (
   | { type: 'BOUNDARY' }
   | { type: 'HANDOFF'; owner: string }
   | { type: 'WAIT_USER'; question: string }
-  | { type: 'DELIVER'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[] }
+  | { type: 'DELIVER'; text: string; artifactIds: string[]; backgroundArtifactIds?: string[]; summary?: string; artifacts?: ArtifactDraft[]; deliveryFindings?: DeliveryFinding[] }
   | { type: 'CHECK_RESULT'; resultId: string; candidateRevision?: string; criteriaResults?: CriterionJudgment[]; repair?: { text: string; artifacts: ArtifactDraft[] }; passed?: boolean; gaps?: string[] }
   | { type: 'STOP'; text?: string }
   | { type: 'SETTLE'; intentId: string }

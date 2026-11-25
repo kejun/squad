@@ -13,12 +13,15 @@ function list(items: readonly string[], max = 2): string {
   return items.length > max ? `${shown}等 ${items.length} 项` : shown;
 }
 
-export function executionSummary(c: TaskContext, submissionGaps: readonly string[]): string {
+export function executionSummary(c: TaskContext): string {
   const files = new Set(c.publishedDelivery?.goalVersion === c.goalVersion ? c.publishedDelivery.artifactIds : []);
   const names = c.artifacts.filter(artifact => files.has(artifact.id)).map(artifact => brief(artifact.name, 32));
-  const report = [c.outcome === 'complete'
-    ? `执行摘要。已交付正文${names.length ? `及 ${names.length} 个文件（${list(names)}）` : ''}。`
-    : '执行摘要。已记录本轮执行结果。'];
+  const result = c.outcome === 'complete'
+    ? `已交付正文${names.length ? `及 ${names.length} 个文件（${list(names)}）` : ''}。`
+    : '已记录本轮执行结果。';
+  const findings = c.candidate?.deliveryFindings?.map(finding => brief(finding.reason, 42)) ?? [];
+  if (c.candidate?.deliveryIssue?.code === 'RESOURCE_ACQUISITION_UNVERIFIED') findings.unshift('缺少必需资源的获取凭证，相关内容尚未核实');
+  const report = findings.length ? [`执行摘要。发现严重问题。${[...new Set(findings)].join('。')}。`, result] : [`执行摘要。${result}`];
   const discussion = c.discussion?.goalVersion === c.goalVersion ? c.discussion : undefined;
   const plan = discussion?.mapReduce;
   const originalIds = new Set(plan?.partitions.map(part => part.id));
@@ -34,9 +37,7 @@ export function executionSummary(c: TaskContext, submissionGaps: readonly string
   } else if (discussion?.incomplete) gaps.push(brief(discussion.incomplete));
   const missedHelp = c.assists.filter(help => help.goalVersion === c.goalVersion && ['partial', 'failed', 'timeout'].includes(help.status));
   if (missedHelp.length) gaps.push(`${missedHelp.length} 项协助未完整完成`);
-  if (c.candidate?.deliveryIssue?.code === 'RESOURCE_ACQUISITION_UNVERIFIED') gaps.push('缺少必需资源的获取凭证');
-  else if (c.outcome !== 'complete' && c.reason) gaps.push(brief(c.reason));
-  gaps.push(...submissionGaps);
+  if (c.outcome !== 'complete' && c.reason) gaps.push(brief(c.reason));
   if (gaps.length) report.push(`待确认 ${list(gaps)}。`);
   return report.join('\n');
 }
