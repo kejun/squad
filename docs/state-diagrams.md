@@ -1497,14 +1497,16 @@ BT_Q25–Q26：同一冻结投影也纳入当前 goalVersion、已 delivered 的
 
 ## 跨任务产物引用（KEJ-98）
 
-类型：房间可信命令事务处理图；所有者 `src/engine.ts` 与 `src/source-artifact.ts`。验收 BT_A29–BT_A39、BT_A49–BT_A51，来源正文不授予调度或工具权限。
+类型：房间可信命令事务处理图；所有者 `src/engine.ts`、`src/artifact-request.ts` 与 `src/source-artifact.ts`。验收 BT_A29–BT_A39、BT_A49–BT_A51，来源正文不授予调度或工具权限。
 
 ```mermaid
 flowchart TD
   U[直接用户提交] --> C{明确控制或结构化冲突}
   C -->|控制无引用| O[既有停止继续重试人工决策路由]
   C -->|引用与控制互斥| E[拒绝并提交回执]
-  C -->|可信文件目标或结构化引用| B{房间空闲}
+  C -->|文本提炼指令| P[识别完整Markdown文件名]
+  P --> B{房间空闲}
+  C -->|修订文件目标或结构化引用| B
   B -->|否| E
   B -->|是| S[同事务遍历同群成功结束任务的当前发布清单]
   S -->|普通文件无匹配| N[既有新任务路由]
@@ -1522,23 +1524,28 @@ flowchart TD
 
 BT_A31 的显式发布权威约束：当已保存 `publishedDelivery` 时，只能使用该记录的当前目标文件选择；其目标与当前目标不符时来源不可用，不能回退到更早 final/candidate。只有没有显式发布记录的合法旧快照才能按原最终消息恢复发布选择。此为 R02/R31 原来源资格的细化，不新增执行状态；真实 taskMachine 的完整发布前缀及持久快照恢复先验证当前显式、失配显式、空显式和缺记录旧格式四种输入，再修纯选择函数。
 
-类型：沿用真实 XState 任务阶段的上下文与交付事实图；所有者 `src/task/context.ts`、`src/task/operations.ts`、`src/task/delivery.ts`。没有新增任务阶段或执行入口。
+类型：沿用真实 XState 任务阶段的上下文与交付事实图；所有者 `src/task/lifecycle.ts`、`src/task/reducer.ts`、`src/task/delivery.ts`。验收 BT_A49、BT_A72–BT_A74、BT_F91–BT_F95。没有新增任务阶段或执行入口。
 
 ```mermaid
 stateDiagram-v2
   [*] --> running: 初始化 [可信来源已固定] / 克隆sourceArtifact 修订要求新Markdown 提炼沿用用户格式
   running --> interpreting: 待解析输入 / 保存固定来源和原始用户要求的解析意图
   interpreting --> running: INTERPRETATION_RESULT [合法] / 保留同一可信来源
-  running --> running: HELP与回传 [合法工作] / 传递只读原文与现有作用域
-  running --> running: DELIVER [缺少本任务非空Markdown或引用旧ID] / 有界修订或失败
-  running --> checking: DELIVER [既有核检模式且候选有效] / 固定候选和同版本来源原文
-  running --> ended: DELIVER [执行摘要模式且候选有效] / 发布正文和本轮有效产物
-  checking --> ended: CHECK_RESULT [当前绑定有效] / 下游直接修正或声明缺口并交付本任务文档
+  running --> waitingAssistance: HELP [合法工作] / 传递只读原文与现有作用域
+  waitingAssistance --> running: HELP_RESULT [当前协助已结算] / 主笔接续
+  running --> waitingHuman: DELIVER [存在必需的人工决定] / 继续等待用户
+  waitingHuman --> running: CONTINUE [决定和继续有效] / 按当前版本恢复工作
+  running --> running: DELIVER [仍有交接或操作待结算] / 保留候选等待结算
+  running --> checking: DELIVER [既有核检模式且通过提交守卫] / 固定正文、候选和原文并携带交付缺口
+  running --> ended: DELIVER [执行摘要模式且候选有效] / 清理旧引用，按本轮要求发布正文和有效产物，随摘要报告缺口
+  running --> ended: DELIVER [合法事件遇到仍阻断发布的版本冲突或完成条件不满足] / 结束并记录未完成原因
+  running --> ended: DELIVER [既有核检模式仅缺核检额度且可完成] / 交付并说明未核检
+  checking --> ended: CHECK_RESULT [当前绑定有效且可结算] / 按完成条件发布或记录未完成原因
   running --> stopping: STOP / 取消工作和拒绝迟到结果
   stopping --> ended: 既有结算 / 保留固定来源
 ```
 
-sourceArtifact 为可选只读输入，旧快照缺字段维持原行为；规则和模型解析均使用同一来源，模型不能覆盖来源。UTF-8 原文上限32768字节，角色输入完整传递，历史排除同份原文；上下文超限明确失败，不截断摘要或依赖宿主CLI。独立检查固定本轮原始要求、同份来源和候选，正文作为数据而非指令。旧来源 ID 不能用作本任务修订基底或伪造新文件。需要修订文档时，新 Markdown 缺失或未保留原文要求需按既有交付规则声明；提炼只根据本轮用户要求判定交付范围和格式。停止、失败、重试、重启、迟到结果、epoch/goalVersion 与执行意图提交领取回传均沿既有边界。源任务的快照、历史、发布指针和下载内容不修改。
+sourceArtifact 为可选只读输入，旧快照缺字段维持原行为；规则和模型解析均使用同一来源，模型不能覆盖来源。UTF-8 原文上限32768字节，角色输入完整传递，历史排除同份原文；上下文超限明确失败，不截断摘要或依赖宿主CLI。独立检查固定本轮原始要求、同份来源和候选，正文作为数据而非指令。提炼任务可以按当前要求只交付正文。需要修订文档时，缺少要求的新 Markdown 在执行摘要模式随结果显示，在既有核检模式作为缺口带入核检。旧来源 ID 不能用作本任务修订基底或伪造新文件。停止、失败、重试、重启、迟到结果、epoch/goalVersion 与执行意图提交领取回传均沿既有边界。源任务的快照、历史、发布指针和下载内容不修改。
 
 
 ## MapReduce 分片容量（KEJ-99）
