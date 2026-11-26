@@ -55,8 +55,8 @@ function setup(config = configuration(), store: Store = new MemoryStore()) {
   seed(engine);
   return { engine, config, store };
 }
-function review(engine: TeamEngine, id = `review-${++sequence}`) {
-  const result = engine.submit("r", { id, text: "大家都提提意见" });
+function review(engine: TeamEngine, text = "大家都提提意见") {
+  const result = engine.submit("r", { id: `review-${++sequence}`, text });
   expect(result.ok).toBe(true);
   return result.taskId!;
 }
@@ -405,7 +405,7 @@ describe("bounded group review", () => {
 
   it("[BT_F13] allows an extra reviewer request when synthesis still has its own unit", async () => {
     const { engine } = setup(configuration({ ordinary: 4 }));
-    const task = review(engine);
+    const task = review(engine, "大家依次评审，并基于前一位的意见继续");
     const calls: Intent[] = [];
     const base = script(calls);
     let extraRequests = 0;

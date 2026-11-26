@@ -101,7 +101,9 @@ try {
   const firstRunning = feed.records.findIndex(record => record.phase === 'running' && record.snapshot.context.intents.some(i => i.kind === 'owner' && i.status === 'pending'));
   assert(firstRunning >= 0, 'Need a genuine running snapshot before owner claim');
   const readRoom = () => { const db = new DatabaseSync(database, { readOnly: true }); try { return db.prepare('SELECT data FROM rooms WHERE id=?').get(roomId).data; } finally { db.close(); } };
-  const committed = readRoom(); const beforePosts = posts.length;
+  const committed = await until(readRoom, value => Object.keys(JSON.parse(value).executionMemory?.pending ?? {}).length === 0,
+    'fixture publication memory collection');
+  const beforePosts = posts.length;
   await page.getByRole('button', { name: '打开状态机调试', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '状态机调试', exact: true });
   await dialog.getByRole('region', { name: '本次运行轨迹' }).waitFor();
@@ -152,10 +154,11 @@ try {
   assert.equal(await dialog.locator('[data-testid="debug-phase"]').textContent(), 'ended');
   await capture('selected-stop-path');
   await dialog.getByRole('button', { name: '阶段概览', exact: true }).click();
-  const aggregate = dialog.getByRole('button', { name: '执行中 到 协调中 的5条规则', exact: true });
+  const aggregate = dialog.getByRole('button', { name: '执行中 到 协调中 的6条规则', exact: true });
   await aggregate.focus(); await aggregate.press('Enter');
   const branches = dialog.getByRole('region', { name: '连线分支', exact: true });
   assert.deepEqual(await branches.getByRole('button', { name: '查看规则 ', exact: false }).evaluateAll(nodes => nodes.map(node => node.getAttribute('aria-label'))), [
+    '查看规则 running:SUPERVISE:2',
     '查看规则 running:BLOCKED:0', '查看规则 running:TICK:0', '查看规则 running:FAILURE_SIGNAL:0',
     '查看规则 running:@always:1', '查看规则 running:@always:2',
   ]);
@@ -166,7 +169,7 @@ try {
   await capture('chart-branches');
   await dialog.getByRole('button', { name: '关闭规则详情', exact: true }).click();
   await dialog.getByRole('button', { name: '查看全局进入 interpreting', exact: true }).click();
-  await branches.getByRole('button', { name: '查看规则 *:@always:0', exact: true }).click();
+  await branches.getByRole('button', { name: '查看规则 *:@always:2', exact: true }).click();
   await dialog.getByRole('region', { name: '规则详情', exact: true }).getByText('analysisReady', { exact: true }).waitFor();
   await dialog.getByRole('button', { name: '关闭规则详情', exact: true }).click();
   await dialog.getByRole('button', { name: '查看内部规则 ended', exact: true }).click();

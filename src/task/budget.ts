@@ -1,7 +1,7 @@
 import { maximumCount } from '../budget-defaults.js';
 import { hostRetryReservation } from '../host-retry.js';
 import { type Intent, type TaskContext, type TaskEvent } from '../types.js';
-import { discussionActive, hasOrdinary } from './facts.js';
+import { discussionActive, hasOrdinary, parallelReviewWork } from './facts.js';
 import { deliveryCheckBudgetProblem, hasDeliveryRetryPermit, isBoundedCheck } from './delivery.js';
 import { queuedMapPartitions } from './map-queue.js';
 
@@ -22,8 +22,10 @@ export function requestBudgetProblem(c: TaskContext, work: Intent): string | nul
   }
   if (work.kind === 'assistance' && c.assists.some(h => h.id === work.payload.requestId && h.retryOf)
     && c.usage.ordinary + 1 >= c.config.limits.ordinary) return 'ASSISTANCE_SYNTHESIS_RESERVED';
-  if (work.bucket === 'ordinary' && c.review && ['pending', 'reviewing'].includes(c.review.status)
-    && c.usage.ordinary + 1 >= c.config.limits.ordinary) return 'REVIEW_SYNTHESIS_RESERVED';
+  if (work.bucket === 'ordinary' && c.review && ['pending', 'reviewing'].includes(c.review.status)) {
+    const reserved = c.review.parallel ? c.intents.filter(peer => peer.id !== work.id && peer.status === 'pending' && parallelReviewWork(c, peer)).length + hostReserve : 0;
+    if (c.usage.ordinary + 1 + reserved >= c.config.limits.ordinary) return 'REVIEW_SYNTHESIS_RESERVED';
+  }
   return null;
 }
 

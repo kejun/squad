@@ -1,6 +1,6 @@
 # CLI 进程与回执结算状态图
 
-用项目所用的 XState 5.33.3 对 `runProcess` 建模。图按实际观察事件绘制，覆盖单次命令的进程结算和身份记录。可执行模型由调用方发送 I/O 观察事件。 [模型源码](cli-receipt.machine.ts)
+用项目所用的 XState 6.0.0-beta.5 对 `runProcess` 建模。图按实际观察事件绘制，覆盖单次命令的进程结算和身份记录。可执行模型由调用方发送 I/O 观察事件。 [模型源码](cli-receipt.machine.ts)
 
 ```mermaid
 stateDiagram-v2

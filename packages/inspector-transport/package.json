@@ -1,0 +1,11 @@
+{
+  "name": "@squad/inspector-transport",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./index.mjs",
+  "dependencies": {
+    "@statelyai/inspect": "0.7.2",
+    "xstate": "5.33.3"
+  }
+}

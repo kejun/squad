@@ -1,9 +1,9 @@
-import { createInspector } from '@statelyai/inspect';
-import { createActor, initialTransition, transition, type EventFrom, type ActorRefFrom } from 'xstate';
+import { createInspector } from '@squad/inspector-transport';
+import { initialTransition, transition, type EventFrom } from 'xstate';
 import { inspectorMachine, inspectorOrigin, inspectorUrl, type InspectorFrame } from '../../src/inspector.machine.js';
-import { restoreTask, taskMachine } from '../../src/task.machine.js';
-import { executionMachine } from '../../src/task/execution.machine.js';
-import { debugInput } from '../../src/task-debug.js';
+import { restoreTask } from '../../src/task.machine.js';
+import { executionLifecycle, isTerminalExecutionState } from '../../src/task/execution.machine.js';
+import { taskLifecycle } from '../../src/task/lifecycle.js';
 
 export interface InspectorMessage { data: unknown; source: unknown; origin: string }
 export interface InspectorPort {
@@ -13,15 +13,29 @@ export interface InspectorPort {
   navigate: (url: string) => void;
 }
 
+interface InspectorActor {
+  sessionId: string;
+  logic: { config: object };
+  _parent?: InspectorActor;
+  getSnapshot(): never;
+  send(): never;
+}
+let nextSessionId = 0;
+function metadataActor(config: object, parent?: InspectorActor): InspectorActor {
+  const unsupported = (): never => { throw new Error('Inspector metadata has no running actor'); };
+  // The SDK reads only the ID, legacy graph and parent when we supply snapshots explicitly.
+  return { sessionId: `squad-inspector:${++nextSessionId}`, logic: { config },
+    ...(parent ? { _parent: parent } : {}), getSnapshot: unsupported, send: unsupported };
+}
+
 /** The SDK's default iframe adapter gates its target on load and can lose an earlier handshake. */
 export function connectInspector(port: InspectorPort, identity: string, initial: InspectorFrame, onError: (cause: unknown) => void, onConnect?: () => void) {
   let [observer] = initialTransition(inspectorMachine, initial);
   let delivered = 0;
   let closed = false;
-  // Definition metadata only: never start this task actor or send it business events.
-  let metadata = createActor(taskMachine, { id: identity, snapshot: initial.snapshot as never, input: debugInput() });
+  let metadata = metadataActor(taskLifecycle);
   let currentIdentity = identity;
-  const childMetadata = new Map<string, ActorRefFrom<typeof executionMachine>>();
+  const childMetadata = new Map<string, InspectorActor>();
   const registeredChildren = new Set<string>();
   const inspector = createInspector({ send: message => port.post(message, inspectorOrigin) }, { autoStart: false });
 
@@ -46,11 +60,13 @@ export function connectInspector(port: InspectorPort, identity: string, initial:
       const state = child.getSnapshot();
       let ref = childMetadata.get(id);
       if (!ref) {
-        ref = createActor(executionMachine, { id, parent: metadata, input: state.context,
-          snapshot: executionMachine.getPersistedSnapshot(state) });
+        ref = metadataActor(executionLifecycle, metadata);
         childMetadata.set(id, ref);
       }
-      const childSnapshot = { status: state.status, value: state.value, context: state.context };
+      const childSnapshot = {
+        status: isTerminalExecutionState(state.value) ? 'done' as const : state.status,
+        value: state.value, context: state.context,
+      };
       if (!registeredChildren.has(id)) { inspector.actor(ref, childSnapshot); registeredChildren.add(id); }
       inspector.snapshot(ref, childSnapshot);
     }
@@ -78,7 +94,7 @@ export function connectInspector(port: InspectorPort, identity: string, initial:
       try {
         const changed = identity !== currentIdentity;
         if (changed) {
-          metadata = createActor(taskMachine, { id: identity, snapshot: frame.snapshot as never, input: debugInput() });
+          metadata = metadataActor(taskLifecycle);
           currentIdentity = identity; childMetadata.clear(); registeredChildren.clear();
         }
         dispatch({ type: changed ? 'SELECT' : 'UPDATE', frame });

@@ -1,11 +1,12 @@
 import type { Candidate, DiscussionRound, Intent, MapPartitionRun, TaskContext, TaskEvent } from '../types.js';
 import { localEnabled, localPhysicalPending } from '../local-operation.js';
-import { availableMapReduceMembers } from './map-reduce-capacity.js';
+import { availableMapReduceMembers, mapQueueWindowDeadline } from './map-reduce-capacity.js';
 import { discussionIntent, summarizeDiscussion } from './discussion.js';
 import { assignSummaryBatch } from './hierarchical-summary.js';
 import { hostRetryReservation } from '../host-retry.js';
 import { consumePartitionMethod, newPartitionMethod, partitionMayDispatch, schedulingState, sharedPrerequisiteFailures } from './map-scheduling.js';
-import { processingWindow, taskHumanGate, windowExpired } from './resilience.js';
+import { release } from './operations.js';
+import { taskHumanGate, windowExpired } from './resilience.js';
 import { requiredResources } from '../resource-acquisition.js';
 import { historicalRouteDispatch } from './execution-memory.js';
 import { aggregationGroupPayload } from './result-aggregation.js';
@@ -85,6 +86,22 @@ function current(c: TaskContext) {
     && round.epoch === c.epoch && round.goalVersion === c.goalVersion;
 }
 
+function partitionDeadline(c: TaskContext, part: MapPartitionRun, work?: Intent): number {
+  return Math.min(part.deadline, mapQueueWindowDeadline(c), work?.deadline ?? part.deadline);
+}
+
+export function mapClaimDeadline(c: TaskContext, work: Intent): number | undefined {
+  if (!work.discussionId || !current(c) || work.discussionId !== c.discussion!.id) return undefined;
+  const part = c.discussion!.mapReduce!.queue!.find(item => item.workId === work.id && active(item));
+  if (part) return partitionDeadline(c, part, work);
+}
+
+function waitingExpired(c: TaskContext, part: MapPartitionRun, at: number): boolean {
+  if (part.status === 'queued') return at >= partitionDeadline(c, part);
+  const work = c.intents.find(item => item.id === part.workId);
+  return active(part) && work?.status === 'pending' && work.attempt === 0 && at >= partitionDeadline(c, part, work);
+}
+
 function observedStatus(c: TaskContext, part: MapPartitionRun): MapPartitionRun['status'] {
   if (!active(part)) return part.status;
   const work = c.intents.find(item => item.id === part.workId);
@@ -107,9 +124,8 @@ function canReevaluate(c: TaskContext, at: number): MapPartitionRun | undefined 
   if (!plan?.queue || plan.resultAggregation || c.stopped || c.outcome !== null || round!.epoch !== c.epoch || round!.goalVersion !== c.goalVersion
     || round!.status === 'cancelled' || c.usage.retries >= c.config.limits.retries
     || c.intents.some(work => work.discussionId === round!.id && work.kind === 'discussionSummary' && work.status === 'inflight')) return undefined;
-  const window = processingWindow(c);
   return plan.queue.find(part => ['failed', 'partial', 'timeout'].includes(part.status)
-    && at < Math.min(part.deadline, window.hardDeadline, window.repairDeadline ?? Number.MAX_SAFE_INTEGER)
+    && at < partitionDeadline(c, part, c.intents.find(work => work.id === part.workId))
     && !c.intents.some(work => work.id === part.workId && (work.replay === 'unsafe' || localPhysicalPending(work)))
     && c.config.bots.some(bot => bot.id !== c.owner && !!newPartitionMethod(c, part, bot.id)) && queueBudget(c, 1));
 }
@@ -143,9 +159,11 @@ export function mapQueueNeedsProgress(c: TaskContext, at: number): boolean {
   if (JSON.stringify(c.discussion!.mapReduce!.scheduling?.blockedPrerequisites ?? []) !== JSON.stringify(sharedPrerequisiteFailures(c))) return true;
   if (queue.some(part => observedStatus(c, part) !== part.status)) return true;
   if (!current(c)) return queue.some(part => part.status === 'queued');
+  if (queue.some(part => waitingExpired(c, part, at))) return true;
+  if (at >= mapQueueWindowDeadline(c)) return false;
   const queued = queue.filter(part => part.status === 'queued');
   if (!queue.some(part => active(part) || part.status === 'queued')) return true;
-  if (queued.some(part => at >= part.deadline) || queued.length && !queueBudget(c)) return true;
+  if (queued.length && !queueBudget(c)) return true;
   return queued.length > 0 && queue.filter(active).length < c.discussion!.mapReduce!.concurrency!
     && availableMapReduceMembers(c).some(member => queued.some(part => mayDispatch(c, part, member.id)));
 }
@@ -161,17 +179,25 @@ export function advanceMapQueue(c: TaskContext, e: TaskEvent): void {
   reevaluateMapFailure(c, e.at);
   const failures = sharedPrerequisiteFailures(c);
   if (failures.length || plan.scheduling) schedulingState(c).blockedPrerequisites = failures;
+  const collecting = current(c);
   for (const part of queue) {
+    if (collecting && waitingExpired(c, part, e.at)) {
+      release(c, part.workId);
+      const hardExpired = windowExpired(c, e.at);
+      part.status = hardExpired ? 'timeout' : 'cancelled';
+      part.reason = hardExpired ? 'WINDOW_EXPIRED' : 'WORK_EXPIRED';
+      continue;
+    }
     const status = observedStatus(c, part);
     if (status !== part.status) {
       part.status = status;
       if (status === 'failed' || status === 'cancelled') part.reason = '工作已结算但没有完整分片结果';
     }
-    if (part.status === 'queued' && (!current(c) || e.at >= part.deadline)) {
-      part.status = 'cancelled'; part.reason = current(c) ? 'WORK_EXPIRED' : 'ROUND_CANCELLED';
+    if (part.status === 'queued' && !collecting) {
+      part.status = 'cancelled'; part.reason = 'ROUND_CANCELLED';
     }
   }
-  if (!current(c)) return;
+  if (!collecting || e.at >= mapQueueWindowDeadline(c)) return;
   if (!queueBudget(c)) for (const part of queue.filter(part => part.status === 'queued')) {
     part.status = 'cancelled'; part.reason = 'MAP_BUDGET_EXHAUSTED';
   }
@@ -186,7 +212,7 @@ export function advanceMapQueue(c: TaskContext, e: TaskEvent): void {
     const method = group ? undefined : consumePartitionMethod(c, part, member.id);
     const work = discussionIntent(c, e, 'assistance', member.id, group ? aggregationGroupPayload(c, group) : undefined);
     part.status = 'running'; part.attempt++; part.workId = work.id; part.target = member.id;
-    work.deadline = Math.min(work.deadline!, part.deadline);
+    work.deadline = partitionDeadline(c, part);
     work.payload.partitionAttempt = part.attempt;
     if (!round.targets.includes(member.id)) round.targets.push(member.id);
     if (!group) {
@@ -216,7 +242,7 @@ export function advanceMapQueue(c: TaskContext, e: TaskEvent): void {
 function legacySummaryReady(c: TaskContext, at: number): boolean {
   const round = c.discussion, plan = round?.mapReduce;
   if (!round || !plan?.summaryLayer || plan.summaryLayer.topId || !plan.queue?.length || c.stopped || c.outcome !== null
-    || round.epoch !== c.epoch || round.goalVersion !== c.goalVersion || windowExpired(c, at) || taskHumanGate(c)
+    || round.epoch !== c.epoch || round.goalVersion !== c.goalVersion || at >= mapQueueWindowDeadline(c) || taskHumanGate(c)
     || !['summarizing', 'ready', 'delivered'].includes(round.status)) return false;
   return plan.queue.every(part => !active(part) && part.status !== 'queued')
     && !c.intents.some(work => work.discussionId === round.id && work.kind === 'discussionSummary' && localPhysicalPending(work));
@@ -232,7 +258,7 @@ export function recordMapResult(c: TaskContext, e: TaskEvent, work: Intent, resu
   delete part.reason;
   if (result.reason) part.reason = result.reason;
   part.resultRef = id;
-  if (transient && current(c) && part.attempt < 2 && e.at < part.deadline
+  if (transient && current(c) && part.attempt < 2 && e.at < partitionDeadline(c, part, work)
     && c.usage.retries < c.config.limits.retries && queueBudget(c, 1) && !localPhysicalPending(work)) {
     part.status = 'queued'; delete part.workId; delete part.target; delete part.resultRef;
     c.usage.retries++;

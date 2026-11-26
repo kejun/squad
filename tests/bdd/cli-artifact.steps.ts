@@ -4,11 +4,14 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { After, Given, Then, When } from '@cucumber/cucumber';
 import { artifactDocument } from '../../web/src/detail-document.js';
-import { page, pageHash, pageName } from '../cli-artifact-model-fixture.js';
+import { assertFileConclusion, CliArtifactContinuation, fileConclusion, page, pageHash, pageName } from '../cli-artifact-model-fixture.js';
+import { InputIntentFixture, intentConfig, parsedIntent } from '../input-intent-fixture.js';
 import { LocalFixture } from '../local-tools-fixture.js';
 import type { SpecWorld } from './steps.js';
 
 const fixtures = new WeakMap<SpecWorld, LocalFixture>();
+const fileRequests = new WeakMap<SpecWorld, { fixture: InputIntentFixture; files: string[]; text: string }>();
+const continuations = new WeakMap<SpecWorld, CliArtifactContinuation>();
 const script = `const fs = require('node:fs');
 const heading = fs.readFileSync('share.md', 'utf8').trim().slice(2);
 fs.writeFileSync(process.argv[1], '<!DOCTYPE html>\\n<html lang="zh"><title>' + heading + '</title><h1 id="team">' + heading + '</h1></html>\\n');`;
@@ -17,6 +20,8 @@ const convert = (body = script) => ({ type: 'runCli', executable: 'node', args: 
 After(async function (this: SpecWorld) {
   await fixtures.get(this)?.close();
   fixtures.delete(this);
+  fileRequests.get(this)?.fixture.close();
+  fileRequests.delete(this);
 });
 
 Given('负责人请求将本地 Markdown 转为一个声明的网页交付文件', async function (this: SpecWorld) {
@@ -109,4 +114,46 @@ When('该命令遇到{string}', async function (this: SpecWorld, cause: string) 
 Then('群内不应出现该网页的产物入口', function (this: SpecWorld) {
   const context = fixtures.get(this)!.h.context();
   assert(!context.artifacts.some(item => item.name === pageName));
+});
+
+Given('用户直接提出{string}且主笔已准备好结论', async function (this: SpecWorld, text: string) {
+  const fixture = new InputIntentFixture({ ...intentConfig(), deliveryReport: 'summary' });
+  fileRequests.set(this, { fixture, files: [], text: fileConclusion });
+  assert(fixture.submit(text).ok);
+  assert.equal(fixture.view().phase, 'interpreting');
+  fixture.replies.push({ type: 'interpretation', spec: parsedIntent('request', {
+    objective: text, constraints: [], expectedOutputs: [text], acceptanceCriteria: [],
+  }) });
+  assert(await fixture.run());
+  assert.equal(fixture.view().phase, 'running');
+});
+
+When('主笔交付结论及{string}', async function (this: SpecWorld, name: string) {
+  const request = fileRequests.get(this)!;
+  const automatic = name === '自动保存的长结果';
+  request.files = automatic ? ['result.md'] : name === '无' ? [] : [name];
+  if (automatic) request.text = fileConclusion.repeat(100);
+  request.fixture.replies.push({ type: 'answer', text: request.text, ...(automatic ? {} : {
+    artifacts: request.files.map(file => ({ name: file, content: file.endsWith('.html') ? page : '# 可用文件' })),
+  }) });
+  assert(await request.fixture.run());
+});
+
+Then('群聊应以对应状态保留原结果和有效文件并{string}', function (this: SpecWorld, notice: string) {
+  const { fixture, files, text } = fileRequests.get(this)!;
+  assert.equal(fixture.view().phase, 'ended');
+  assertFileConclusion(fixture.context(), files, notice.startsWith('说明缺少') ? notice.slice('说明缺少'.length) : undefined, text);
+  assert.deepEqual(fixture.requests.map(request => request.kind), ['interpretation', 'owner']);
+});
+
+Given('首次主笔的获准命令已保存本轮网页', function (this: SpecWorld) {
+  continuations.set(this, new CliArtifactContinuation());
+});
+
+When('后继主笔在{string}下提交结论', function (this: SpecWorld, continuation: string) {
+  continuations.get(this)!.submit(continuation);
+});
+
+Then('群聊应按{string}发布结论和附件且不重跑转换', function (this: SpecWorld, result: string) {
+  continuations.get(this)!.verify(result);
 });

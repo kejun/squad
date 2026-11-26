@@ -219,9 +219,16 @@ function assertLegacyEvidence(actualRaw: DebugEvidence, expected: DebugEvidence,
   const comparable = (keys: string[]) => keys.filter(key => key !== 'deliveryCycle');
   const expectedKeys = (keys: string[]) => checkClaim ? keys.filter(key => key !== 'usage')
     : published && keys.includes('outcome') ? [...keys, 'publishedDelivery'] : keys;
+  const microsteps = expected.microsteps.flatMap(step => step.from === null && step.phase === 'running'
+    ? [{ ...step, phase: 'queued' as const, changed: expectedKeys(step.changed) },
+      { ...step, from: 'queued' as const, automatic: true, changed: [] }]
+    : [{ ...step, changed: expectedKeys(step.changed) }]);
+  if (expected.microsteps[0]?.from === null && expected.microsteps[0]?.phase === 'running')
+    lifecycleEvaluations.unshift({ ruleId: 'queued:@always:0', source: 'queued', event: '@always', guard: 'taskIsAdmitted', passed: true });
+  assert.equal(expected.xstate, '5.33.3', label);
   assert.deepEqual({ ...actual, changed: comparable(actual.changed), microsteps: actual.microsteps.map(step => ({ ...step, changed: comparable(step.changed) })) },
-    { ...expected, definition: extendedDefinition, evaluations: lifecycleEvaluations, changed: expectedKeys(expected.changed),
-      microsteps: expected.microsteps.map(step => ({ ...step, changed: expectedKeys(step.changed) })) }, label);
+    { ...expected, xstate: '6.0.0-beta.5', definition: extendedDefinition, evaluations: lifecycleEvaluations, changed: expectedKeys(expected.changed),
+      microsteps }, label);
 }
 
 function canonical(value: unknown): unknown {
@@ -551,8 +558,19 @@ export function verifyLegacyDiagnostics() {
       ? [...(rule.order === 0 ? lifecycleRules : []), { ...rule, id: shiftedGlobal(rule.id), order: rule.order + 2 }] : [rule])
     .flatMap(rule => rule.id === '*:REGENERATE_MODEL_OUTPUT:0' ? [rule, ...toolFailureRules] : [rule]);
   const extended = resilienceTransitions(transitions);
-  assert.deepEqual(taskGraph().transitions, extended);
-  assert.equal(taskGraph().id, graph.id); assert.equal(taskGraph().initial, graph.initial); assert.deepEqual(taskGraph().states, graph.states);
+  const queuedRules = [
+    ...rules('queued', 'START_QUEUED', [['taskIsQueued', 'running', 'startQueued']]),
+    ...rules('queued', 'STOP', [['valid', 'stopping']]),
+    ...rules('queued', '*', [[null, null, 'reject']]),
+    { id: 'queued:@always:0', order: 0, source: 'queued', event: '@always', target: 'running', guards: ['taskIsAdmitted'], actions: [] },
+  ];
+  const firstState = extended.findIndex(rule => rule.source !== '*');
+  const expected = { ...graph, initial: 'queued', states: ['queued', ...graph.states],
+    transitions: [...extended.slice(0, firstState), ...queuedRules, ...extended.slice(firstState)] };
+  assert.deepEqual(taskGraph().transitions, expected.transitions);
+  assert.equal(taskGraph().id, expected.id);
+  assert.equal(taskGraph().initial, expected.initial);
+  assert.deepEqual(taskGraph().states, expected.states);
   const comparisons: DiagnosticComparison[] = [];
   for (const trace of legacyTaskContract.traces) replayLegacyTrace(trace.name, true, comparisons);
   verifyCoordinationExtensionFaultDetection();
@@ -561,5 +579,5 @@ export function verifyLegacyDiagnostics() {
   // The full extended row structure was independently checked above. Its current
   // definition is an opaque compatibility token, not the retired fixture token.
   const checkedGraph = taskGraph();
-  return { graph: checkedGraph, expectedGraph: { ...graph, definition: checkedGraph.definition, transitions: extended }, comparisons };
+  return { graph: checkedGraph, expectedGraph: { ...expected, definition: checkedGraph.definition }, comparisons };
 }

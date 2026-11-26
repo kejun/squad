@@ -215,8 +215,13 @@ Then('受影响的分片应重新派发', function (this: SpecWorld) {
   if (['来源身份', '正文版本', '未提供正文版本'].includes(run(this).boundary!)) assert.equal(queue[1]!.status, 'succeeded');
 });
 
-Given('同批固定版本的文档在两次运行前有相同的已发布结果', async function (this: SpecWorld) { await seed(this, 8); });
-When('分别启用和关闭长期经验执行同一请求', async function (this: SpecWorld) { run(this).comparison = await memoryAB(run(this).fixture!); });
+// Seeding and comparing eight documents each drive complete model and storage flows.
+Given('同批固定版本的文档在两次运行前有相同的已发布结果', { timeout: 15_000 }, async function (this: SpecWorld) {
+  await seed(this, 8);
+});
+When('分别启用和关闭长期经验执行同一请求', { timeout: 15_000 }, async function (this: SpecWorld) {
+  run(this).comparison = await memoryAB(run(this).fixture!);
+});
 Then('两次交付的文档覆盖与来源一致', function (this: SpecWorld) {
   const { off, on } = run(this).comparison!;
   const results = (context: typeof off) => context.discussion!.results.map(item => [item.status, item.answer]).sort();

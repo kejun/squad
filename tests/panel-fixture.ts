@@ -13,6 +13,8 @@ export class PanelFixture {
   readonly window: Window;
   readonly container: HTMLElement;
   readonly requests: string[] = [];
+  readonly posts: { url: string; body: Record<string, unknown> }[] = [];
+  private acceptPosts = false;
   readonly storage: Storage;
   private readonly previous = new Map<string, PropertyDescriptor | undefined>();
   private root: Root | undefined;
@@ -56,7 +58,15 @@ export class PanelFixture {
       requestAnimationFrame: win.requestAnimationFrame.bind(win),
       cancelAnimationFrame: win.cancelAnimationFrame.bind(win),
       IS_REACT_ACT_ENVIRONMENT: true,
-      fetch: async (input: unknown) => { fixture.requests.push(String(input)); throw new Error('Unexpected business request'); },
+      fetch: async (input: unknown, init?: RequestInit) => {
+        const url = String(input);
+        fixture.requests.push(url);
+        if (fixture.acceptPosts && init?.method === 'POST' && typeof init.body === 'string') {
+          fixture.posts.push({ url, body: JSON.parse(init.body) });
+          return Response.json({ ok: true });
+        }
+        throw new Error('Unexpected business request');
+      },
     };
     for (const [key, value] of Object.entries(values)) {
       this.previous.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
@@ -95,7 +105,11 @@ export class PanelFixture {
   }
 
   private render() { this.root!.render(createElement(this.component!, { workspace: this.workspace })); }
-  async mount() {
+  async mount(roomState?: Pick<RoomSnapshot, 'tasks' | 'activeTaskId'>) {
+    if (roomState && this.workspace.snapshot) {
+      this.workspace.snapshot = { ...this.workspace.snapshot, ...roomState };
+      this.acceptPosts = true;
+    }
     const [{ createRoot }, { Workspace }] = await Promise.all([import('react-dom/client'), import('../web/src/App.js')]);
     this.component = Workspace; this.root = createRoot(this.container);
     await act(async () => { this.render(); }); return this;
@@ -113,6 +127,19 @@ export class PanelFixture {
   widthOf(side: PanelSide) { return Number(this.separator(side).getAttribute('aria-valuenow')); }
   preferences() { const raw = this.storage.getItem(PANEL_LAYOUT_STORAGE_KEY); return raw ? JSON.parse(raw) as Record<string, unknown> : null; }
   async click(label: string) { await act(async () => { this.label(label).click(); }); }
+  async typeMessage(text: string) {
+    const composer = this.label('群聊消息输入框');
+    const setter = Object.getOwnPropertyDescriptor(this.window.HTMLTextAreaElement.prototype, 'value')!.set!;
+    await act(async () => {
+      setter.call(composer, text);
+      composer.dispatchEvent(new this.window.Event('input', { bubbles: true }) as unknown as Event);
+    });
+  }
+  async setActivePhase(phase: RoomSnapshot['tasks'][number]['phase']) {
+    const task = this.workspace.snapshot?.tasks.find(task => task.id === this.workspace.snapshot?.activeTaskId);
+    assert(task);
+    await act(async () => { task.phase = phase; this.render(); });
+  }
   async openDetails() { if (!this.container.querySelector('#workspace-details')) await this.click('查看任务详情'); }
   async openNavigation() {
     if (this.width <= 720) await this.click('展开导航');

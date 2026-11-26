@@ -1,5 +1,11 @@
 # 当前单向交付对应（2026-11-12）
 
+## 同群排队与独立评审变更（2026-11-26）
+
+Handoff 和 RetryComposition 的公开入口保持普通单次协助、单任务工作位与保存结果的原子消费。初建立即可执行的任务经过 `queued` 的自动入场。模型固定时间为 0，轮次内没有第二条委托、独立成员评审、分片、附件交付或跨硬截止的工具效果，因此这些行为由各自的真实 XState 与 Gherkin 验收覆盖。
+
+Handoff 原 45 秒内回放了 848 条双存储边中的 765 条，未出现对应断言失败。基线和原版复验给两个存储各留出原先单份 45 秒的时长。单存储真实源码故障对照仍为 45 秒，边、见证、性质和独立读回保持原样。
+
 当前维护范围、逐文件分类、退休性质及版本链真实反例见 [本轮审查](../../../../docs/implementation/forward-delivery-formal.md) 与 [逐文件记录](../../../../docs/implementation/forward-delivery-formal-review.json)。精确源码和同步状态见 coverage.json。以下旧章节中的自动作者修订、MapRecovery、验证失败不交付等描述仅保留为历史；与当前流程冲突时采用本节及实际模型/配置。
 
 - Handoff：一个任务、A/B 两名角色、一个已保存 R1；epoch/goal 各 1..2，一次崩溃、一次回滚。AtomicHandoff、AtMostOnce、StopCancelsResume 和独立 Progress 保留。

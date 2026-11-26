@@ -40,7 +40,13 @@ When('两次汇总都沿容量允许的轮次完成', { timeout: 120_000 }, func
   const current = state(this);
   assert(current.smallModel && current.largeModel, 'Given 必须先保存两组文章');
   current.smaller = executeSummaryModel(current.smallModel);
-  current.larger = executeSummaryModel(current.largeModel);
+  let lastReportAt = performance.now();
+  current.larger = executeSummaryModel(current.largeModel, completed => {
+    const now = performance.now();
+    if (now - lastReportAt < 10_000) return;
+    process.stdout.write(`\nBT_Q50 千篇摘要已结算 ${completed} 个批次\n`);
+    lastReportAt = now;
+  });
 });
 Then('两次方案师请求都只含一条不超过一页的顶层摘要及其直接来源编号', function (this: SpecWorld) {
   const current = state(this);

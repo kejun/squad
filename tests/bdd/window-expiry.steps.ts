@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict';
-import { Before, Given, When, Then } from '@cucumber/cucumber';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { After, Before, Given, When, Then } from '@cucumber/cucumber';
 import { defaultWindowModel, expiredPhaseModel, expiredDecisionModel, windowFailureModel, expiryPermissionModel, expiryPhysicalCustodyModel, expiryOtherDeadlineModel, expiryMapResumeModel, expiryClaimedInputResumeModel, expiryPhaseCompletionModel } from '../window-expiry-model-fixture.js';
 import { windowFailureTransport } from '../window-failure-transport-fixture.js';
 import { processingWindow, taskHumanGate } from '../../src/task/resilience.js';
 import { ResilienceModel, stageModel } from '../task-resilience-model-fixture.js';
-import type { Phase } from '../../src/types.js';
+import type { Intent, Phase, TaskEvent } from '../../src/types.js';
+import { MemoryStore, SqliteStore, TeamEngine } from '../../src/index.js';
+import { resolveLocalResourcePolicy } from '../../src/local-resource-policy.js';
+import { localModelInput } from '../local-model-fixture.js';
 
 interface WindowContract { id: string; detail?: string; model?: ResilienceModel; transport?: Awaited<ReturnType<typeof windowFailureTransport>> }
 const cases = new WeakMap<object, WindowContract>();
@@ -64,4 +70,82 @@ Then('应区分窗口授权决定与原窗口内有限网络重试', function ()
   if (c.detail!.startsWith('WINDOW_EXPIRED')) { assert.equal(m.c.usage.retries, 0); assert.equal(taskHumanGate(m.c)?.code, 'WINDOW_EXPIRED'); }
   else assert.equal(processingWindow(m.c).failure, undefined);
   expiryOtherDeadlineModel();
+});
+
+interface LegacyDeadlineCase {
+  clock: { now: number };
+  engine: TeamEngine;
+  reopen: () => TeamEngine;
+  close: () => void;
+  task: string;
+  tool: Intent;
+  claimOther?: () => ReturnType<TeamEngine['claimLocal']>['response'];
+}
+const legacyDeadlines = new WeakMap<object, LegacyDeadlineCase>();
+const legacyDeadline = (world: object) => { const value = legacyDeadlines.get(world); assert(value); return value; };
+
+Given('{string}中没有CLI子记录的非幂等工具已启动且效果未确认', function (storage: string) {
+  assert(['SQLite', 'Memory'].includes(storage));
+  const root = storage === 'SQLite' ? mkdtempSync(join(tmpdir(), 'squad-legacy-expiry-')) : undefined;
+  const filename = root && join(root, 'team.sqlite');
+  let store = filename ? new SqliteStore(filename) : new MemoryStore();
+  const clock = { now: 0 }, config = localModelInput().config;
+  config.resilience = { automaticTimeoutMs: 100, repairTimeoutMs: 20 };
+  const engine = new TeamEngine(store, config, () => clock.now);
+  const task = engine.submit('legacy', { id: 'legacy-input', text: '执行旧工具' }).taskId!;
+  const owner = engine.claim('legacy', task, engine.pending('legacy', task)[0]!.id)!;
+  assert(engine.send('legacy', task, { type: 'TOOL', id: 'legacy-tool', at: clock.now, workId: owner.id, fence: owner, tool: 'read', replay: 'unsafe', payload: {} }).ok);
+  const tool = engine.claim('legacy', task, engine.pending('legacy', task).find(work => work.kind === 'tool')!.id)!;
+  legacyDeadlines.set(this, { clock, engine, task, tool,
+    reopen: () => {
+      if (filename) { store.close(); store = new SqliteStore(filename); }
+      return new TeamEngine(store, config, () => clock.now);
+    },
+    close: () => { store.close(); if (root) rmSync(root, { recursive: true, force: true }); },
+  });
+  assert(!tool.localOperations?.length);
+  assert(engine.beginExecution('legacy', task, tool));
+  assert.equal(engine.executionPhase('legacy', task, tool), 'running');
+});
+After({ tags: '@BT_Y206' }, function () { legacyDeadlines.get(this)?.close(); });
+
+When('原窗口硬期限收到{string}的两个事件', function (order: string) {
+  const c = legacyDeadline(this), { engine, task, tool, clock } = c;
+  clock.now = processingWindow(engine.view('legacy', task)!.context).hardDeadline;
+  const other = engine.submit('other', { id: 'other-input', text: '执行另一会话的命令' }).taskId!;
+  const work = engine.claim('other', other, engine.pending('other', other)[0]!.id)!;
+  const policy = resolveLocalResourcePolicy({ workspaceId: 'workspace:other', isolatedWork: false,
+    execution: 'sandbox', sandboxConfinesWorkspace: true, action: 'runCli' });
+  const op = engine.requestLocal('other', other, work.id, work.attempt,
+    { type: 'runCli', executable: 'node', args: ['never-executed.mjs'] }, [], 'workspace:other', policy);
+  c.claimOther = () => c.engine.claimLocal('other', other, work.id, op.id, work.attempt).response;
+  const fail: TaskEvent = { type: 'WORK_FAILED', id: 'legacy-expired', at: clock.now, intentId: tool.id, attempt: tool.attempt, fence: tool,
+    code: 'WINDOW_EXPIRED', reason: 'Processing window expired during an unsafe tool invocation', transient: false, resultUncertain: true };
+  const supervise: TaskEvent = { type: 'SUPERVISE', id: 'legacy-observe-expiry', at: clock.now, trigger: 'timer' };
+  const failureFirst = order === '失败通知先于到期监督';
+  assert(failureFirst || order === '到期监督先于失败通知');
+  assert(engine.send('legacy', task, failureFirst ? fail : supervise).ok);
+  assert.equal(c.claimOther().code, 'WORKSPACE_BUSY', 'first expiry transaction must preserve the persisted resource barrier');
+  assert.equal(engine.send('legacy', task, failureFirst ? supervise : fail).code, failureFirst ? 'OK' : 'UNKNOWN_OR_SETTLED_WORK');
+  c.engine = c.reopen();
+});
+Then('任务应等待明确续窗且其他会话仍不能领取冲突资源', function () {
+  const { engine, task, tool, claimOther } = legacyDeadline(this), view = engine.view('legacy', task)!;
+  assert.equal(view.phase, 'waitingHuman');
+  assert.equal(taskHumanGate(view.context)?.cause, 'windowExpired');
+  assert.equal(engine.executionPhase('legacy', task, tool), 'uncertain');
+  assert.deepEqual(view.context.resilience!.cleanup.map(item => [item.kind, item.workId, item.state]), [['legacyWork', tool.id, 'pending']]);
+  assert.equal(claimOther!().code, 'WORKSPACE_BUSY');
+});
+When('可信工具提供方核对原工作效果', function () {
+  const { engine, task, tool, clock } = legacyDeadline(this);
+  assert(engine.send('legacy', task, { type: 'RECONCILE', id: 'legacy-provider-receipt', at: clock.now, intentId: tool.id,
+    fence: tool, resolution: 'confirmed', detail: '可信提供方核对原工作效果' }).ok);
+});
+Then('清理责任应结算且其他会话可以领取原先冲突的资源', function () {
+  const { engine, task, tool, claimOther } = legacyDeadline(this), view = engine.view('legacy', task)!;
+  assert.equal(view.context.resilience!.cleanup[0]!.state, 'settled');
+  assert.equal(engine.executionPhase('legacy', task, tool), 'settled');
+  assert.equal(taskHumanGate(view.context)?.cause, 'windowExpired');
+  assert(claimOther!().ok);
 });

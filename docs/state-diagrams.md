@@ -307,15 +307,16 @@ stateDiagram-v2
 stateDiagram-v2
     [*] --> pending: 直接用户请求评审 / 固定成员与轮次版本
     pending --> pending: 关键材料缺失或判断无效 / 等待用户后重组
-    pending --> reviewing: COORDINATE review / 可为成员和汇总分配额度
+    pending --> reviewing: COORDINATE review / 按固定名单并行派发独立评审，或派发依赖顺序的首位成员
     pending --> summarizing: COORDINATE review / 无可派发成员
-    reviewing --> reviewing: 成员结果保存并消费 / 派发下一位
+    reviewing --> reviewing: 成员结果保存并消费 / 等待其他独立成员或派发下一位有依赖的成员
+    reviewing --> reviewing: 明确跳过独立成员的未启动权限申请 / 记录缺口并继续其余成员
     reviewing --> reviewing: 安全重启 / 接续未消费结果和剩余队列
     reviewing --> summarizing: 全部收齐 / 协助额度不足 / 仅剩汇总额度
     reviewing --> summarizing: 后续请求或恢复领取触及汇总保留额度 / 记录失败
     summarizing --> complete: 负责人汇总并经检查 / 记录实际完成结果
     summarizing --> summarizing: 检查有缺口且可修正 / 促进者协调修正
-    reviewing --> pending: 用户补充在安全边界生效 / 取消旧协助并重组
+    reviewing --> pending: 用户补充在在途成员安全结算后生效 / 取消未领取的旧协助并重组
     summarizing --> pending: 用户补充在安全边界生效 / 重组
     pending --> cancelled: STOP
     reviewing --> cancelled: STOP
@@ -326,6 +327,8 @@ stateDiagram-v2
 
 - `complete` 表示评审轮次结算，任务是否成功仍以 `outcome` 为准；成员失败、超时或队列未收齐会标记缺口，最终为 partial。
 - 评审组织与收集阶段必须保留一次普通请求供负责人汇总。首次领取、额外模型请求、技能搜索、重试与恢复重新领取都检查这条限制；首次模型请求已由领取预占，不重复扣款。触及保留额度的成员操作按失败结算，推进汇总，不能直接耗尽该额度或继续重试。
+- 独立成员使用同一评审问题、材料和目标版本，互相之间没有结算依赖。任务阶段在这些成员独立结算期间保持等待协助，最后一次消费才安排一次负责人汇总。顺序评审在前一项结算后派发下一位，并携带已有意见。旧快照中已保存的顺序评审按原队列继续。
+- 用户更新评审要求时暂停未开始的旧轮派发，先保存和消费已开始成员的结果；仍有效的意见进入新一轮组织上下文。
 - 完成检查使用独立 checks 额度；若用户配置的总额度连组织和汇总都不足，或停止、故障、检查额度不足，则可直接结束或等待用户，不能承诺完成汇总。
 - 结果必须先 RECORD_RESULT 持久化，再以 HELP_RESULT 消费；结果 ID 防止重复消费，epoch/goalVersion 隔离迟到结果。用户补充在 HELP_RESULT 消费边界应用，已保存的成员意见保留为重新组织的上下文。配置撤销成员或权限时暂停恢复。初次评审直接进入组织阶段，避免负责人先回答一次才拉人。
 
@@ -427,18 +430,19 @@ stateDiagram-v2
 
 ### 普通交付的文件清单
 
-图型为事务处理流程。所有者为 `taskMachine` 的 `DELIVER`，对应 BT_A72–A74。
+图型为事务处理流程。所有者为 `taskMachine` 的 `DELIVER`，对应 BT_A72–A76。
 
 ```mermaid
 flowchart LR
     D[负责人提交 DELIVER] --> W{工作身份与版本有效}
     W -->|否| X[拒绝旧工作或无权限操作]
-    W -->|是| A[整理文件清单及本轮文档关系]
-    A --> F[保存当前结果与实际缺口]
+    W -->|是| A[整理文件清单及本轮已结算命令文件]
+    A --> Q[对照本轮直接输入的附件要求]
+    Q --> F[保存原结果与实际文件缺口]
     F --> R[发布候选文件和群消息]
 ```
 
-普通交付的清单只接纳当前目标的有效文件。固定原文和跨任务历史仍保留在各自的来源记录。整理后缺少用户要求的文件才记录缺口。新稿只接续当前允许修订的原稿，其他新稿以独立文档保存。既有绑定检查协议继续校验显式产物关系。
+普通交付使用同一任务当前目标的有效文件，包括由已结算的授权命令登记且仍有效的文件。复用保留原文件身份和正文，遵守显式背景用途及替换关系。固定原文和跨任务历史仍作为来源。明确的附件、文件名或文件格式由保存的直接输入约束，预检对照将要发布的真实附件。缺少明确要求的文件时以部分交付状态发布可用成果，并把缺口写入摘要。既有绑定检查协议继续校验显式产物关系。
 
 ### 候选版本与当前交付
 
@@ -925,10 +929,12 @@ flowchart TD
     I -->|同ID不同内容| N["拒绝"]
     I -->|新请求| R{"可信路由与活动任务"}
     R -->|空闲的新请求| T["初始化新任务，附同群有界历史"]
+    R -->|已有主任务，明确新委托| Q["登记独立任务为 queued，保存回执"]
     R -->|活动任务补充| S["USER_INPUT 或 HUMAN_DECISION，等待安全边界"]
     R -->|明确继续或重试| G["原任务的 CONTINUE 或 RETRY_ASSISTANCE 守卫"]
     R -->|不符合路由条件| N
     T --> C["原子提交任务、消息、意图和回执"]
+    Q --> C
     S --> C
     G -->|允许| C
     G -->|拒绝| N
@@ -937,6 +943,21 @@ flowchart TD
 ```
 
 历史仅来自同群其他任务，保留来源 taskId，限制消息、产物、黑板和目标摘要数量及总文本量。历史只作为模型上下文，不计为本轮交付产物，不复活已结束任务，不从历史中的指令发起调度。成员评审识别仅处理直接用户文本及编辑器实际选中的点名；代码、引用和 Bot 消息不触发全员评审。
+
+### 同群独立委托
+
+**图型：真实 XState 任务转移及其房间事务条件；所有者：`src/task/lifecycle.ts`、`src/engine.ts`。验收：BT_R06、BT_R13–BT_R16。**
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued: 初始化任务
+    queued --> running: always [立即可开始] / 使用已初始化的目的与意图
+    queued --> running: START_QUEUED [最早排队，主任务工作位空闲] / 初始化执行窗口与意图
+    queued --> stopping: STOP / 记录停止，不创建工作
+    stopping --> ended: always [已停止且无工作] / 结算
+```
+
+队列顺序来自持久任务登记顺序。当前任务结算和启动下一条等待任务在同一房间事务内完成。排队项没有执行意图和执行计时，恢复原样读取，执行器继续基于已保存意图和同一领取校验工作。群聊输入区明确选择新委托时发送 `intent: new`，补充和答复都保留用户当前看到的任务标识。界面滞后时，旧任务的消息不会落入已经开始的新任务。显式停止排队项不会改变原任务的执行工作位，恢复已结束任务也必须取得同一个工作位。
 
 HANDOFF 沿用 running 的状态内转移：先确认边界和新成员权限，再记录原负责人、新负责人、目标版本及产物/黑板引用，取消旧待执行意图并准备新负责人输入。群提示与持久记录必须能还原交接双方，不能只保存接任者。
 
@@ -1210,7 +1231,7 @@ stateDiagram-v2
 
 #### 官方 Inspector 观察通道
 
-BT_V27–BT_V31 使用官方 [Inspector 手动发送接口](https://stately.ai/docs/inspector)和独立标签页。401 来自托管 `machines.getDigraphConfigs` 的认证检查，实测响应为 `Sign in to view hosted work`；新标签页允许顶层登录和第一方会话，不声称匿名请求因此获得权限。沿用现有 SDK 与官方实际可用的 `/inspect` 地址，不引入 API 密钥、代理或 SDK 迁移。观察模型位于 `src/inspector.machine.ts`，业务 `src/task.machine.ts` 不增加状态或改变转移。
+BT_V27–BT_V31 使用官方 Inspector 手动发送接口和独立标签页。托管 `machines.getDigraphConfigs` 对匿名访问返回 `401 Sign in to view hosted work`。顶层标签页保留登录与第一方会话。观察和窗口模型位于 `src/inspector.machine.ts`，运行于 XState v6。工作区包 `@squad/inspector-transport` 单独锁定现有发送 SDK 及其 v5 peer，沿用 `/inspect` 地址和窗口消息协议。 [Inspector 手动发送接口](https://stately.ai/docs/inspector)
 
 **图型：真实 XState；所有者：`inspectorWindowMachine（inspector-window）`。**
 
@@ -1253,13 +1274,13 @@ stateDiagram-v2
 
 重复点击只聚焦，不覆盖正在登录的页面；切换实时任务或沙箱身份沿用同一观察连接，在新身份首帧前注册新元数据actor，不重载标签页。窗口关闭检测只停止旧通道，下次点击创建新窗口；被阻止时没有发送、导航或业务副作用，重试使用最新选择。关闭面板或卸载组件解除监听和关闭检测，迟到握手或异步加载均不得再发送。已打开的官方标签页保留给用户，不强制关闭。
 
-两层模型只产生瞬时观察/窗口意图，由浏览器适配器执行，不写业务SQLite、不领取任务工作，不调用WorkRunner。观察只读取持久化快照或纯内存沙箱结果，元数据业务actor从不start或send。停止、失败、额度耗尽、任务版本与重启恢复沿用原业务机器；打开或重连不会重放业务I/O或修改预算。模型层先验证打开/被阻止/重试/聚焦/关闭/释放、身份切换前注册与来源拒绝，再接入网页。真实登录需要用户在官方页面完成，匿名401与协议验证单独报告。
+两层模型只产生瞬时观察和窗口意图，由浏览器适配器执行。注册元数据从任务与执行模型的规则表生成，观察状态来自持久化快照或纯内存沙箱结果。观测子项保留父子关系与终态回执。浏览器在打开、重连或切换观察时只读这些数据。模型层检查打开、被阻止、重试、聚焦、关闭、释放、注册顺序与来源拒绝。真实登录在官方页面完成，匿名 401 与协议验证分别记录。
 
 标签页模型版本、门槛轨迹与真实官方协议证据见[Inspector 验收记录](inspector-verification.md)。
 
 #### 当前运行与可信解释
 
-BT_V16–BT_V26 沿用八个业务状态，只增加调试证据契约和本地交互状态。模型层先验证同一真实机器定义的诊断投影：每次纯转换只计算一次，命名守卫复用原函数，保留分支顺序，自动微步来自 XState 的 getMicrosteps/getInitialMicrosteps。诊断使用独立 collector 及正确绑定的快照，不向业务上下文注入字段；返回的业务快照重新绑定原机器。与原 initialTransition/transition 的持久化结果等价后才接入引擎与 UI。采集不启动 actor 或执行外部动作；诊断失败降级为原转换和未采集证据，不能改变提交结果。
+BT_V16–BT_V26 沿用任务业务状态，增加调试证据契约和本地交互状态。模型层先验证同一真实机器定义的诊断投影：每次纯转换只计算一次，命名守卫复用原函数，保留分支顺序，自动微步来自 XState 的 getMicrosteps/getInitialMicrosteps。诊断使用独立 collector 及正确绑定的快照，不向业务上下文注入字段；返回的业务快照重新绑定原机器。与原 initialTransition/transition 的持久化结果等价后才接入引擎与 UI。采集不启动 actor 或执行外部动作；诊断失败降级为原转换和未采集证据，不能改变提交结果。
 
 **图型：UI 投影；所有者：`当前运行的执行头与历史选择`。**
 
@@ -1528,7 +1549,8 @@ BT_A31 的显式发布权威约束：当已保存 `publishedDelivery` 时，只�
 
 ```mermaid
 stateDiagram-v2
-  [*] --> running: 初始化 [可信来源已固定] / 克隆sourceArtifact 修订要求新Markdown 提炼沿用用户格式
+  [*] --> queued: 初始化 [可信来源已固定] / 克隆sourceArtifact 修订要求新Markdown 提炼沿用用户格式
+  queued --> running: 自动开始或START_QUEUED / 按固定来源启动
   running --> interpreting: 待解析输入 / 保存固定来源和原始用户要求的解析意图
   interpreting --> running: INTERPRETATION_RESULT [合法] / 保留同一可信来源
   running --> waitingAssistance: HELP [合法工作] / 传递只读原文与现有作用域
@@ -1626,7 +1648,8 @@ stateDiagram-v2
     running --> running: DELIVER [交接或未决效果] / 保留候选
     running --> waitingHuman: DELIVER [尚待必需决定] / 原决定门
     running --> ended: DELIVER [有效候选且使用执行摘要] / 原子发布正文、文件与执行摘要
-    running --> ended: DELIVER [有效候选但有严重发现或必需资源凭证缺口] / 原样发布并在执行摘要记录实际缺口
+    running --> ended: DELIVER [缺少直接要求的文件] / 原样发布为部分交付，并在执行摘要记录缺口
+    running --> ended: DELIVER [有效候选但有其他严重发现或凭证缺口] / 原样发布并在执行摘要记录实际缺口
     ended --> ended: 旧重试命令 [摘要模式] / 保留已发布交付
 ```
 
@@ -2115,24 +2138,28 @@ stateDiagram-v2
 
 ### 独立分片队列（BT_Q27–BT_Q33）
 
-BT_Q32 保留单次分片期限早于任务总窗口的边界：到期队列取消且不再执行；任务总窗口到期另走 WINDOW_EXPIRED 人类续窗门，不把两种期限混为一谈。
+BT_Q32、BT_Q63–Q65 验证分片的排队、领取、超时和历史恢复。分片等待空位或等待执行器领取时受生成分片时的总窗口、修复窗口及当前窗口约束。首次领取在同一事务计算单次执行期限，且不得超过这些窗口；恢复已领取的同一工作沿用其期限。只有符合现有安全重试条件的新尝试可再计算单次期限。
 
 类型：taskMachine 同事务上下文生命周期，所有者 `src/task/map-queue.ts`。总分片上限仍为八且须预留全部首轮分片、归并和负责人额度；并发上限单独固定为启动时可用非负责人成员数。先持久化意图，再由原 runner 领取和取得执行许可。
 
 ```mermaid
 stateDiagram-v2
-    queued --> running: 空位 [当前权限与额度足够] / 分配成员与新工作
+    queued --> running: 空位 [所属窗口有效且有当前权限与额度] / 持久化待领取工作
+    running --> running: CLAIM [所属窗口有效且首次领取] / 保存领取后的单次执行期限
     running --> succeeded: 成功结果 [当前工作身份] / 保存原始结果引用
     running --> failed: 确定失败或超时 / 保存原始失败
     failed --> queued: 瞬时技术失败 [每片首次且共享重试和预留允许] / 新尝试
     running --> uncertain: 未知效果 / 保留占用与屏障
     uncertain --> running: 可信核对 [原执行器允许恢复] / 重新领取原工作
-    queued --> cancelled: 停止、目标变化、单次分片期限或额度耗尽 / 保存未执行原因
+    queued --> cancelled: 停止、目标变化、修复或旧快照绝对期限、额度耗尽 / 保存未执行原因
+    running --> cancelled: 修复或旧快照绝对期限到期 [分配的工作尚未领取] / 拒绝领取并保留缺口
+    queued --> timeout: 总窗口到期 / 保留未执行缺口
+    running --> timeout: 总窗口到期 [没有未决物理效果] / 保留未完成缺口
 ```
 
 成功、部分完成、失败、超时和取消分别保留。确定终止的失败立即标记本轮不完整，尚可技术重试的失败仅保留尝试记录；后续归并不得抹掉未完成标记。只对确定无未知效果的瞬时技术失败自动重试一次；语义失败和部分完成不自动重跑。旧尝试按工作 ID、attempt 和 fence 拒绝。归并等待全部分片结算，收到各分片及各尝试原始结果；一位成员执行多片时，证据必须用 partitionId 关联，不能再只用成员查找。目标变更、停止与不兼容恢复不得继续派发旧轮次；物理效果未核清仍保留占用。
 
-旧 map 快照由原 assignments、intent 和已保存 results 推导队列，不新增工作或付费。原合并分组计划仍合法；总数与并发数不再相等。工作请求的额外工具调用和重试必须让出尚未派发分片、归并与负责人额度。
+旧 map 快照由原 assignments、intent 和已保存 results 推导队列，已有的绝对期限继续生效。总窗口到期仍由 WINDOW_EXPIRED 人类续窗门处理；修复窗口到期仍由监督收敛。旧工作不因恢复获得新授权。原合并分组计划仍合法。工作请求的额外工具调用和重试必须让出尚未派发分片、归并与负责人额度。
 
 ## 任务能力事实与充分分片（KEJ-110）
 
@@ -2233,6 +2260,8 @@ stateDiagram-v2
 | taskMachine权限门context：宿主批准期限与固定任务窗口独立，沉默不代答 | [宿主授权门](implementation/host-approval-gates.md)，BT_Y102–Y106 |
 | 配置恢复门context：不兼容执行配置只接受可执行的跳过/停止，内容包与独立清理保留 | [配置恢复门](implementation/configuration-recovery-gate.md)，BT_Y108–Y110 |
 
+#### 固定处理窗口与独立清理
+
 类型：任务拥有的上下文生命周期；所有者 `taskMachine` / `src/task/resilience.ts`。默认三小时窗口由初次授权固定，普通恢复、重试、心跳不能续期。`SUPERVISE` 由可信宿主提交，模型不能自行生成授权。到期码 `WINDOW_EXPIRED` 绑定原窗口，独立于网络 transient；任务沿用真实 `waitingHuman`。可信宿主即使在原必需门待答期间，也必须为尚未记录到期的窗口保留一次硬期限唤醒；到期保存后不再把旧硬期限或被冻结业务工作期限作为唤醒来源，只保留独立清理和技术补试所需监督。配置不兼容的宿主早返回路径同样记录首次到期，恢复不得重复唤醒。BT_Y154通过真实Engine/Memory/SQLite验证该接线，沿用现有XState SUPERVISE转移。到期时取消新增业务、保存取消意图和独立清理责任；旧必需门优先保留，明确答复后再请求续窗。仅明确 `newWindow` 更新期限，不能批准宿主命令或释放未知效果。活动任务的 `CONTINUE(newWindowMs)` 复用同一个人类门决定，保留 epoch 与原分片身份；原必需问题尚未答复时拒绝该通用续窗入口。原命令门的skip只省略该命令并转续窗待答；只有到期窗口门skip代表结束。未完成协助取消业务等待但保留问题和答复，已保存结果沿原HELP_RESULT唯一消费，不因续窗重放提供方。过期的安全输入解析回到待解析事实；分片保留成功与旧执行身份，未开工或未完成的安全分片标为 `timeout/WINDOW_EXPIRED`。讨论的已有材料转为 `ready`，续窗后通过原 `DISCUSSION_HANDOFF` 交给负责人，按原任务要求普通交付，不再申报补救；物理未决仍独立清理，不能重放。对应 [WIN-01–WIN-04](requirements/window-expiry.md)、BT_Y131–Y134。
 
 ```mermaid
@@ -2246,6 +2275,7 @@ stateDiagram-v2
     human --> frozen: HUMAN_GATE_DECISION [到期窗口门明确skip或任务stop] / 记录缺失或停止
     automatic --> human: SUPERVISE [原自动窗口耗尽且无必需任务门] / 保存WINDOW_EXPIRED及newWindow门
     repairing --> human: SUPERVISE [原自动窗口耗尽且无必需任务门] / 保存WINDOW_EXPIRED及newWindow门
+    automatic --> human: WORK_FAILED [原窗口到期、非幂等工具仍在途且没有原必需任务门] / 先接管旧工作再保存到期与续窗门
     repairing --> frozen: SUPERVISE [仅修复耗尽且原自动窗口有效且无必需任务门] / 冻结缺失清单
     human --> human: SUPERVISE [原门未回复且首次固定到期或清理到期] / 保存到期码且保留原门与UI入口
     human --> human: 明确回复原问题 [原窗口已耗尽且非明确结束] / 保存答复并请求newWindow
@@ -2254,11 +2284,15 @@ stateDiagram-v2
 
 类型：独立清理责任的 context 生命周期；所有者 `TaskResilience.cleanup`，与活动任务指针和归档展示独立。冻结交付与建立接管责任必须同事务保存。未知效果只保留实际受影响资源，不凭截止时间冒充已退出。
 
+BT_Y206 覆盖没有 CLI 子记录的在途非幂等工具。`WORK_FAILED` 先处理时，在工作结算前保存同一清理责任；`SUPERVISE` 先处理时，迟到失败保持原责任。可信 `RECONCILE` 结算原工作并释放冲突资源，续窗仍由用户决定。见 [WIN-06](requirements/window-expiry.md)。
+
 ```mermaid
 stateDiagram-v2
     none --> pending: 冻结或停止或恢复 [仍有物理未决] / 保存operation和session及资源身份
+    none --> pending: 窗口到期事件 [旧非幂等工具仍在途] / 保存原工作和冲突资源身份
     pending --> pending: SUPERVISE [未知效果] / 保存下一核对时间或明确cleanup门
     pending --> settled: LOCAL_RESULT或LOCAL_RECONCILE [可信且物理结算] / 原子结算并释放所属资源
+    pending --> settled: RECONCILE [可信且匹配旧工作] / 原子结算旧工具并释放冲突资源
     settled --> settled: 重复或迟到事件 / 幂等且不改冻结交付
 ```
 

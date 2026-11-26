@@ -614,8 +614,12 @@ svg {
   padding: 5px 2px;
   border-radius: 4px;
 }
-.mention-trigger:hover {
+.mention-trigger:hover,
+.mention-trigger[aria-pressed="true"] {
   color: #5d7868;
+}
+.mention-trigger[aria-pressed="true"] {
+  background: #e9f2ed;
 }
 .mention-trigger:disabled {
   opacity: 0.5;

@@ -416,12 +416,12 @@ export class WebService {
       const resourceWaiting = taskResourceWaiting(c);
       const resourceOnly = resourceWaiting && effectiveWork(c, phase, Date.now()).length === 0;
       tasks.push({
-        supervision: { status: this.failedRooms.has(roomId) ? 'faulted' : cleanup ? 'cleaning' : c.resilience?.gates.some(g => g.scope === 'task' && g.status === 'open') ? 'waitingHuman'
+        ...(phase === 'queued' ? {} : { supervision: { status: this.failedRooms.has(roomId) ? 'faulted' : cleanup ? 'cleaning' : c.resilience?.gates.some(g => g.scope === 'task' && g.status === 'open') ? 'waitingHuman'
           : c.outcome !== null ? 'settled' : resourceOnly ? 'waitingResources' : c.resilience?.window.repairUsed ? 'repairing' : 'running',
           reason: this.failedRooms.has(roomId) ? '执行服务发生错误，正在自动核查与恢复。'
             : resourceWaiting ? resourceOnly ? '命令正在等待其他执行释放资源。' : '部分命令正在等待执行资源，其他工作仍可推进。' : c.reason,
           nextWakeAt: c.resilience?.nextSupervisionAt ?? null, hardDeadlineAt: processingWindow(c).hardDeadline,
-          ...(c.resilience?.window.failure ? { failureCode: c.resilience.window.failure.code } : {}) },
+          ...(c.resilience?.window.failure ? { failureCode: c.resilience.window.failure.code } : {}) } }),
         ...(frozen ? { delivery: { epoch: frozen.epoch, goalVersion: frozen.goalVersion, revision: frozen.id, status: frozen.verification,
           currentArtifactIds: [...frozen.artifactIds], reportArtifactId: frozen.reportArtifactId } } : {}),
         id: taskId,
@@ -647,6 +647,7 @@ export class WebService {
     if (!result.ok) throw new WebError(409, result.detail);
     // Cancellation must be dispatched while execute() is still awaiting the model.
     this.scheduleCancellation(roomId, taskId);
+    this.kick(roomId);
     return result;
   }
   decideBlocker(roomId: string, data: { id: string; taskId: string; blockerId: string; blockerVersion: number;

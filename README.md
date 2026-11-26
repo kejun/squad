@@ -8,7 +8,7 @@ squad 是一个群聊协作工作台，依据中文 Gherkin 规格以 TypeScript
 
 ## 运行
 
-需要 Node.js 22.18+（22.x）或 24.11+，以满足 Agents SDK 的依赖要求。本轮使用 Node.js 24.22.1。XState 固定为 v5，依赖版本和完整性由 package-lock.json 记录。完整检查还需要 Python 3、Playwright、Chromium 和可显示中文的字体，安装方式见[浏览器验收技能](.agents/skills/verify-squad/SKILL.md#launch)；CI 已固定准备这些依赖。
+需要 Node.js 22.18+（22.x）或 24.11+，以满足 Agents SDK 的依赖要求。本轮使用 Node.js 24.22.1。应用状态机固定为 XState `6.0.0-beta.5`，依赖版本和完整性由 package-lock.json 记录。完整检查还需要 Python 3、Playwright、Chromium 和可显示中文的字体，CI 已固定准备这些依赖。 [迁移契约](docs/requirements/xstate-v6.md) · [浏览器验收环境](.agents/skills/verify-squad/SKILL.md#launch)
 
 ```sh
 npm ci
@@ -38,7 +38,7 @@ npm run dev
 - 点击成员列表、群聊头像或「查看执行过程」，在右侧查看该成员的执行请求、协助、模型输出、技能搜索、错误和取消记录。原始输出默认折叠；空闲成员显示空状态。
 - 点击底部任务状态查看目标、额度、调度记录和已有产物；「停止」会取消正在等待的模型请求，已停止任务可明确继续。连接中断时暂停发送并显示重连提示。
 - 同一群的新任务会带上有来源标识的历史发言、方案与产物。已结束的任务保持结束；历史文件作为参考材料，不会直接冒充本轮交付。既有的等待任务在收到下一条用户消息时，也会补齐群历史。
-- 直接说「大家都提提意见」「其他人评审一下方案」会启动成员评审：促进者先根据群里已有方案形成评审问题，再依次收集其他成员的意见，由负责人汇总共识、分歧与改进项。执行中的单独点名评审限定于选中的成员；简单请求仍由负责人直接处理。引用、代码和 Bot 发言不会触发全员调度。
+- 直接说「大家都提提意见」「其他人评审一下方案」会启动成员评审。促进者根据现有方案形成评审问题，成员在额度内并行提出独立意见，负责人汇总一次。要求成员基于前序意见时按顺序派发。执行中的单独点名评审限定于选中的成员。引用、代码和 Bot 发言不会触发全员调度。
 - 成员正在工作时，直接说「所有人都参与讨论一下」会由协调员立即组织当时空闲的成员并行提供一轮意见，再汇总给原负责人。原请求继续执行，返回的草稿与讨论汇总都保存后才安排负责人续办；忙碌、失败或额度不足的成员会明确列出。
 - 评审队列与结果一同持久化；重启后接续剩余成员。停止会取消本轮队列，明确继续才开始新轮次；评审失败或额度不足会如实记录缺口，并以部分完成交付。普通额度会为最终汇总保留一次请求。
 
@@ -105,6 +105,8 @@ npm start
 
 群聊新任务在主笔交付时发布正文和文件，并依据已保存的结果生成[执行摘要](docs/state-diagrams.md#交付完成与执行摘要)。影响成果使用的严重问题随交付写入群聊消息（BT_F88–F94）。
 
+明确要求的附件、文件名或格式会在发布前对照本轮实际文件。同一目标的后继工作复用已结算的命令交付文件，保留背景选择、替换关系和目标版本隔离。缺少文件时群聊以部分交付状态提供已有成果，并在执行摘要中说明缺口（BT_A75–A76）。
+
 独立分片的工具参数修正失败后，可用已取得的材料完成一次有界续办。见[模型请求的上下文与工具修正](docs/state-diagrams.md#模型请求的上下文与工具修正)（BT_M70–M72）。
 
 输入理解、子 Agent 分工、归并和下游检查共享当前交付目标。角色使用已保存的范围和材料，在现有协议中约定可合并的产物。验收见 [目标与分工](docs/requirements/goal-aligned-handoffs.md)及[模型交接](docs/state-diagrams.md#围绕最终交付的模型交接)。
@@ -152,7 +154,7 @@ CLI 外部效果后的真实宿主终止沿用已领取操作 → uncertain → 
 
 讨论取消后的恢复沿用父任务的事务上下文，区分可退休的旧安全模型工作与必须核对的物理效果；恢复及可信效果结算不能重新排队已废弃轮次，结束任务清理后须由用户继续，见[讨论取消与恢复](docs/state-diagrams.md#讨论取消与恢复kej-106)。
 
-[MapReduce 分片容量](docs/state-diagrams.md#mapreduce-分片容量kej-99)让输入理解与派发共用总分片与额度上限；[独立分片队列](docs/state-diagrams.md#独立分片队列bt_q27bt_q33)将总数和并发人数分开，支持八片由四名成员轮转处理，每片保留身份、尝试和结果。放不进一页的当前文章改由[分层摘要](docs/state-diagrams.md#分层摘要)沿同一容量和队列逐层收成一条顶层摘要，方案师请求只带这条摘要及其直接来源索引（BT_Q50–BT_Q54）。八份文档的一次归并不改道。
+[MapReduce 分片容量](docs/state-diagrams.md#mapreduce-分片容量kej-99)让输入理解与派发共用总分片与额度上限。[独立分片队列](docs/state-diagrams.md#独立分片队列bt_q27bt_q33)支持八片由四名成员轮转处理，每片保留身份、尝试和结果。排队遵守任务及修复窗口，单次执行期限从领取起算。放不进一页的当前文章改由[分层摘要](docs/state-diagrams.md#分层摘要)沿同一容量和队列逐层收成一条顶层摘要，方案师请求只带这条摘要及其直接来源索引（BT_Q50–BT_Q54）。八份文档的一次归并不改道。
 
 [长期执行经验](docs/state-diagrams.md#长期执行经验)在同会话保存失败观察、可信读取路线和已发布分片。已确认适用的路线先在一个分片验证，可信反证只影响对应范围。固定正文版本和提取要求匹配时，已完成的分片可直接进入交接。
 
@@ -192,13 +194,17 @@ KEJ-113/114 的持续推进与安全删除按[监督、凭证和删除模型](do
 
 明确继续和宿主续办按新工作的时限派发，沿用原任务硬期限与已用额度。任务硬期限到期后，可通过网页授权新窗口再继续。见[明确续办与工作期限](docs/state-diagrams.md#明确续办与工作期限)（BT_Y203）。
 
-设计遵循 [XState 八条原则](docs/xstate-design.md)：按状态所有者和生命周期划分，区分真实机器、上下文生命周期、执行流程与 UI 投影。以下两图合起来展示 `src/task.machine.ts` 的八个真实状态与选定路径，完整公共规则见表，细节见[分层索引](docs/state-diagrams.md)。它不是新增父状态或子 actor 的实现方案。
+当旧工具在窗口到期时仍有效果未决，失败通知与监督均保留原工作的清理责任。冲突资源在可信回执结算后释放。见[固定处理窗口与独立清理](docs/state-diagrams.md#固定处理窗口与独立清理)（BT_Y206）。
+
+设计遵循 [XState 八条原则](docs/xstate-design.md)：按状态所有者和生命周期划分，区分真实机器、上下文生命周期、执行流程与 UI 投影。以下两图合起来展示 `src/task.machine.ts` 的九个真实状态与选定路径，完整公共规则见表，细节见[分层索引](docs/state-diagrams.md)。
 
 成功路径（解析和协助按需发生）：
 
 ```mermaid
 stateDiagram-v2
-    [*] --> running
+    [*] --> queued
+    queued --> running: always [可立即开始]
+    queued --> running: START_QUEUED [取得工作位] / 开始窗口与执行意图
     running --> interpreting: always [analysisReady] / beginInterpretation
     interpreting --> running: INTERPRETATION_RESULT [valid且无需澄清] / apply
     running --> waitingAssistance: HELP [valid] / apply
@@ -216,6 +222,7 @@ stateDiagram-v2
     coordinating --> running: COORDINATE [decisionRun] / apply
     coordinating --> waitingHuman: COORDINATE [decisionAsk] / apply
     waitingHuman --> running: CONTINUE [valid] / apply
+    queued --> stopping: STOP [valid] / 取消等待中的委托
     running --> stopping: STOP [valid] / apply
     stopping --> ended: always [stoppedSettled] / stopped
     ended --> running: CONTINUE [valid] / apply
@@ -255,7 +262,7 @@ stateDiagram-v2
 | 成功交付后收起输入区的失败提示 | [沙箱失败提示](docs/state-diagrams.md#沙箱失败提示)（BT_L59） |
 | 模型请求、实际本地执行与耗时 | [执行测量](docs/state-diagrams.md#执行测量)：BT_Z01–BT_Z05；原业务状态不变 |
 | 工具与交付协议升级及旧任务续办 | [任务快照协议与回退](docs/state-diagrams.md#任务快照协议与回退)：BT_A27–BT_A28 |
-| 群历史、可信路由、归档 | [房间与命令](docs/state-diagrams.md#房间与可信命令)：BT_R、BT_G15–G22；归档不打断在途任务 |
+| 群历史、可信路由、归档 | [房间与命令](docs/state-diagrams.md#房间与可信命令)、[同群独立委托](docs/state-diagrams.md#同群独立委托)：BT_R、BT_G15–G22；归档不打断在途任务 |
 | 草稿、详情、导出、布局、调试与 Inspector | [网页与观察](docs/state-diagrams.md#网页与观察)：BT_U、BT_P、BT_A12–A21、BT_V；UI 仅读取快照或提交可信命令 |
 
 调试默认关闭；`npm run dev` 默认开启，或使用 `SQUAD_DEBUG=1 npm start`。宿主允许后从顶栏或 `?debug=1` 打开，本地运行视图和沙箱复用真实机器，不能向真实任务写入任意事件。官方 Inspector 在独立标签页打开，需要的托管认证仍在 Stately 完成；详见[观察通道](docs/state-diagrams.md#官方-inspector-观察通道)及[验收记录](docs/inspector-verification.md)。
@@ -307,7 +314,7 @@ CLOUDFLARE_API_TOKEN=你的API令牌
 
 ## 输入意图
 
-保留 XState 5、SQLite、预算及执行回执，以 Zod 作为唯一新增运行时依赖。明确的点名、停止、继续和协助重试使用 TypeScript 规则；开启模型意图识别后，有足够额度且只发送普通消息的新任务、含关键结果修订的消息，以及带多个要求、条件、约束或含糊指代的输入进入模型解析。规则与模型结果都形成相同契约：输入动作、目标、约束、交付要求、验收标准、引用和澄清问题。模型结果只是对用户输入的解释，不能改写可信命令、指定负责人、扩大评审或授予工具权限。
+意图识别使用 XState、SQLite、预算及执行回执，Zod 负责运行时验证。明确的点名、停止、继续和协助重试使用 TypeScript 规则；开启模型意图识别后，有足够额度且只发送普通消息的新任务、含关键结果修订的消息，以及带多个要求、条件、约束或含糊指代的输入进入模型解析。规则与模型结果都形成相同契约：输入动作、目标、约束、交付要求、验收标准、引用和澄清问题。模型结果只是对用户输入的解释，不能改写可信命令、指定负责人、扩大评审或授予工具权限。
 
 解析复用 OpenAICompatibleAdapter 和普通预算，不添加模型 SDK 或第二套执行框架。默认使用促进者模型，可用 `INTENT_MODEL_*` 单独配置，继承与跨服务密钥隔离规则同其他角色。`SQUAD_INTENT_ANALYSIS_ENABLED=false` 关闭深度解析；未配置模型时保留规则规范化和原有离线执行方式。该策略按需调用，不保证规则能理解任意自然语言。
 
@@ -455,7 +462,7 @@ BT_U01、U02、U03、U09 的原网页契约与 BT_U20、U21 的跨群回执、�
 - https://api-docs.deepseek.com/api/create-chat-completion/
 - https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions
 
-本地依赖及类型声明以 package-lock.json 固定的 XState v5 为准；文档站点可能同时包含 v6 alpha 内容。
+状态机 API 以锁定版 XState 随包文档为准。运行 `npx xstate docs` 查看安装版本的文档位置。
 
 原生沙箱运行时的最小只读文件视图见[状态模型细化](docs/state-diagrams.md#原生沙箱运行时可见性bt_l22)，沿用本地操作领取与回传模型。
 

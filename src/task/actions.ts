@@ -2,7 +2,6 @@ import { applySupervision } from './resilience.js';
 import type { Phase } from '../types.js';
 import { failHostRetryBoundary, retireHostRetryBatch, startHostRetryBatch, synchronizeHostRetryBatch } from '../host-retry.js';
 import { type TaskContext, type TaskEvent } from '../types.js';
-import { assign } from 'xstate';
 import { reduce } from './reducer.js';
 import { discussionActive, fresh, reject } from './facts.js';
 import { permissionProblem } from './policy.js';
@@ -10,9 +9,10 @@ import { discussionFailed } from './discussion.js';
 import { cancelWork, coordinate, message, release } from './operations.js';
 import { prepareInterpretation } from './input.js';
 import { advanceMapQueue } from './map-queue.js';
+import { startInitialWork } from './context.js';
 
 // The root machine remains the sole owner of the context returned by each pure action.
-const taskAssign = assign<TaskContext, TaskEvent, undefined, TaskEvent, never>;
+export type TaskContextAction = (args: { context: TaskContext; event: TaskEvent }) => Partial<TaskContext>;
 const coordinationProblems: Record<string, string> = {
   SELF_DEPENDENCY: '协调员不能向当前负责人本人请求协助',
   UNKNOWN_BOT: '指定的协助成员不存在',
@@ -28,45 +28,51 @@ const coordinationProblems: Record<string, string> = {
   MISSING_QUESTION: '缺少需要用户回答的问题',
 };
 
-const supervise = (phase: Phase) => taskAssign(({ context, event }) => {
+const supervise = (phase: Phase): TaskContextAction => ({ context, event }) => {
   const c = structuredClone(context); applySupervision(c, event, phase); return c;
-});
+};
 
 export const taskActions = {
     superviseInterpreting: supervise('interpreting'), superviseRunning: supervise('running'),
     superviseAssistance: supervise('waitingAssistance'), superviseCoordinating: supervise('coordinating'),
     superviseHuman: supervise('waitingHuman'), superviseChecking: supervise('checking'),
     superviseStopping: supervise('stopping'), superviseEnded: supervise('ended'),
-    advanceMapQueue: taskAssign(({ context, event }) => {
+    advanceMapQueue: ({ context, event }) => {
       const c = structuredClone(context); advanceMapQueue(c, { ...event, at: event.at ?? c.lastActivityAt }); return c;
-    }),
-    syncHostRetryBatch: taskAssign(({ context }) => {
+    },
+    syncHostRetryBatch: ({ context }) => {
       const c = structuredClone(context); synchronizeHostRetryBatch(c); return c;
-    }),
-    apply: taskAssign(({ context, event }) => reduce(context, event)),
-    failCheckClaim: taskAssign(({ context, event }) => {
+    },
+    apply: ({ context, event }) => reduce(context, event),
+    startQueued: ({ context, event }) => {
+      const c = structuredClone(context);
+      startInitialWork(c, c.queuedStartup!, event.at);
+      c.reply = { ok: true, code: 'OK', detail: 'started' };
+      return c;
+    },
+    failCheckClaim: ({ context, event }) => {
       if (event.type !== 'CLAIM') return {};
       const code = permissionProblem(context, event)!;
       const c = reduce(context, { ...event, type: 'WORK_FAILED', transient: false, reason: code });
       reject(c, code);
       return c;
-    }),
-    retireHostRetry: taskAssign(({ context, event }) => {
+    },
+    retireHostRetry: ({ context, event }) => {
       const c = structuredClone(context);
       retireHostRetryBatch(c, { ...event, at: event.at ?? c.lastActivityAt });
       return c;
-    }),
-    startHostRetry: taskAssign(({ context, event }) => {
+    },
+    startHostRetry: ({ context, event }) => {
       const c = structuredClone(context);
       startHostRetryBatch(c, { ...event, at: event.at ?? c.lastActivityAt });
       return c;
-    }),
-    failHostRetry: taskAssign(({ context, event }) => {
+    },
+    failHostRetry: ({ context, event }) => {
       const c = structuredClone(context);
       failHostRetryBoundary(c, { ...event, at: event.at ?? c.lastActivityAt });
       return c;
-    }),
-    reject: taskAssign(({ context, event }) => {
+    },
+    reject: ({ context, event }) => {
       const c = structuredClone(context); reject(c, permissionProblem(c, event) ?? 'INVALID_STATE');
       if (event.type === 'LOCAL_CLAIM' && c.reply.code === 'WORKSPACE_BUSY') {
         const operation = c.intents.find(work => work.id === event.intentId)!.localOperations!.find(op => op.id === event.operationId)!;
@@ -99,36 +105,36 @@ export const taskActions = {
       }
       c.trace.push({ event: 'REJECTED', detail: `${event.id}:${c.reply.code}`, at: event.at });
       return c;
-    }),
+    },
     // Only the current coordinating fallback owns this durable human-wait explanation.
     // Generic rejection in another phase or from an old fence must preserve its question.
-    explainCoordinationRejection: taskAssign(({ context, event }) => {
+    explainCoordinationRejection: ({ context, event }) => {
       if (event.type !== 'COORDINATE' || context.reply.ok) return {};
       const c = structuredClone(context), code = c.reply.code;
       if (['INVALID_DECISION', 'REVIEW_PLAN_REQUIRED', 'REVIEW_NOT_REQUESTED'].includes(code)) cancelWork(c, event);
       c.reason = `协调决策未被接受：${coordinationProblems[code] ?? '决策未通过当前任务规则校验'}（${code}）。请补充处理方式或重试当前任务。`;
       message(c, event, 'facilitator', c.reason, 'notice');
       return c;
-    }),
-    boundary: taskAssign(({ context, event }) => {
+    },
+    boundary: ({ context, event }) => {
       const next = reduce(context, { id: `${event.id}:boundary`, at: event.at, type: 'BOUNDARY' });
       next.reply = context.reply; // An internal transition must not overwrite the initiating command's rejection.
       return next;
-    }),
-    stopped: taskAssign(({ context }) => ({ outcome: 'stopped' as const, reason: context.reason || 'Stopped' })),
-    deferred: taskAssign(({ context, event }) => {
+    },
+    stopped: ({ context }) => ({ outcome: 'stopped' as const, reason: context.reason || 'Stopped' }),
+    deferred: ({ context, event }) => {
       const c = structuredClone(context); coordinate(c, event, c.reason); return c;
-    }),
-    beginReview: taskAssign(({ context, event }) => {
+    },
+    beginReview: ({ context, event }) => {
       const c = structuredClone(context);
       // The initial XState transition has no event timestamp; retain the persisted input clock.
       coordinate(c, { type: 'BOUNDARY', id: event.id ?? 'initial-review', at: event.at ?? c.lastActivityAt }, `用户请求成员评审：${c.review!.request}`);
       return c;
-    }),
-    beginInterpretation: taskAssign(({ context, event }) => {
+    },
+    beginInterpretation: ({ context, event }) => {
       const c = structuredClone(context);
       prepareInterpretation(c, { type: 'BOUNDARY', id: event.id ?? 'initial-interpretation', at: event.at ?? c.lastActivityAt });
       return c;
-    }),
-    handoffDiscussion: taskAssign(({ context, event }) => reduce(context, { type: 'DISCUSSION_HANDOFF', id: `${event.id}:discussion-handoff`, at: event.at })),
-  };
+    },
+    handoffDiscussion: ({ context, event }) => reduce(context, { type: 'DISCUSSION_HANDOFF', id: `${event.id}:discussion-handoff`, at: event.at }),
+  } satisfies Record<string, TaskContextAction>;

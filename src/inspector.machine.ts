@@ -1,4 +1,4 @@
-import { assign, setup } from 'xstate';
+import { setup, types } from 'xstate';
 import type { DebugEvent } from './task-debug.js';
 
 export const inspectorOrigin = 'https://stately.ai';
@@ -10,37 +10,23 @@ export interface InspectorDelivery {
   frame: InspectorFrame;
 }
 interface InspectorContext { latest: InspectorFrame; delivery: InspectorDelivery | null }
-type InspectorEvent =
-  | { type: 'UPDATE'; frame: InspectorFrame }
-  | { type: 'SELECT'; frame: InspectorFrame }
-  | { type: 'CONNECT'; origin: string; fromTarget: boolean }
-  | { type: 'CLOSE' };
+interface InspectorHandshake { origin: string; fromTarget: boolean }
+const trusted = ({ origin, fromTarget }: InspectorHandshake) => fromTarget && origin === inspectorOrigin;
+const delivery = (context: InspectorContext, kind: InspectorDelivery['kind'], frame = context.latest) => ({
+  sequence: (context.delivery?.sequence ?? 0) + 1, kind, frame,
+});
 
 // Ephemeral observation only. No task events, work claims or external actions run here.
 export const inspectorMachine = setup({
-  types: {
-    context: {} as InspectorContext,
-    events: {} as InspectorEvent,
-    input: {} as InspectorFrame,
-  },
-  guards: {
-    trusted: ({ event }) => event.type === 'CONNECT' && event.fromTarget && event.origin === inspectorOrigin,
-  },
-  actions: {
-    remember: assign(({ event }) => event.type === 'UPDATE' || event.type === 'SELECT' ? { latest: structuredClone(event.frame) } : {}),
-    register: assign(({ context }) => ({ delivery: {
-      sequence: (context.delivery?.sequence ?? 0) + 1, kind: 'register' as const, frame: context.latest,
-    } })),
-    update: assign(({ context, event }) => {
-      if (event.type !== 'UPDATE') return {};
-      const frame = structuredClone(event.frame);
-      return { latest: frame, delivery: {
-        sequence: (context.delivery?.sequence ?? 0) + 1, kind: 'update' as const, frame,
-      } };
-    }),
-    disconnect: assign(({ context }) => ({ delivery: {
-      sequence: (context.delivery?.sequence ?? 0) + 1, kind: 'disconnect' as const, frame: context.latest,
-    } })),
+  schemas: {
+    context: types<InspectorContext>(),
+    events: {
+      UPDATE: types<{ frame: InspectorFrame }>(),
+      SELECT: types<{ frame: InspectorFrame }>(),
+      CONNECT: types<InspectorHandshake>(),
+      CLOSE: types<{}>(),
+    },
+    input: types<InspectorFrame>(),
   },
 }).createMachine({
   id: 'inspector-observer',
@@ -48,41 +34,50 @@ export const inspectorMachine = setup({
   initial: 'waiting',
   states: {
     waiting: { on: {
-      UPDATE: { actions: 'remember' },
-      SELECT: { actions: 'remember' },
-      CONNECT: { guard: 'trusted', target: 'connected', actions: 'register' },
-      CLOSE: 'closed',
+      UPDATE: ({ event }) => ({ context: { latest: structuredClone(event.frame) } }),
+      SELECT: ({ event }) => ({ context: { latest: structuredClone(event.frame) } }),
+      CONNECT: ({ context, event }) => trusted(event)
+        ? { target: 'connected', context: { delivery: delivery(context, 'register') } }
+        : undefined,
+      CLOSE: { target: 'closed' },
     } },
     connected: { on: {
-      UPDATE: { actions: 'update' },
-      SELECT: { actions: ['remember', 'register'] },
-      CONNECT: { guard: 'trusted', actions: 'register' },
-      CLOSE: { target: 'closed', actions: 'disconnect' },
+      UPDATE: ({ context, event }) => {
+        const frame = structuredClone(event.frame);
+        return { context: { latest: frame, delivery: delivery(context, 'update', frame) } };
+      },
+      SELECT: ({ context, event }) => {
+        const frame = structuredClone(event.frame);
+        return { context: { latest: frame, delivery: delivery(context, 'register', frame) } };
+      },
+      CONNECT: ({ context, event }) => trusted(event) ? { context: { delivery: delivery(context, 'register') } } : undefined,
+      CLOSE: ({ context }) => ({ target: 'closed', context: { delivery: delivery(context, 'disconnect') } }),
     } },
     closed: { type: 'final' },
   },
 });
 
-type WindowEvent = { type: 'OPEN' | 'OPENED' | 'BLOCKED' | 'WINDOW_CLOSED' | 'DISPOSE' };
-interface WindowContext { effect: { sequence: number; kind: 'open' | 'focus' | 'disconnect' } | null }
+interface WindowEffect { sequence: number; kind: 'open' | 'focus' | 'disconnect' }
+interface WindowContext { effect: WindowEffect | null }
+const windowEffect = (context: WindowContext, kind: WindowEffect['kind']): WindowEffect => ({
+  sequence: (context.effect?.sequence ?? 0) + 1, kind,
+});
 // Browser effects are consumed synchronously by the click controller, not by a React effect.
 export const inspectorWindowMachine = setup({
-  types: { context: {} as WindowContext, events: {} as WindowEvent },
-  actions: {
-    open: assign(({ context }) => ({ effect: { sequence: (context.effect?.sequence ?? 0) + 1, kind: 'open' as const } })),
-    focus: assign(({ context }) => ({ effect: { sequence: (context.effect?.sequence ?? 0) + 1, kind: 'focus' as const } })),
-    disconnect: assign(({ context }) => ({ effect: { sequence: (context.effect?.sequence ?? 0) + 1, kind: 'disconnect' as const } })),
+  schemas: {
+    context: types<WindowContext>(),
+    events: { OPEN: types<{}>(), OPENED: types<{}>(), BLOCKED: types<{}>(), WINDOW_CLOSED: types<{}>(), DISPOSE: types<{}>() },
   },
 }).createMachine({
   id: 'inspector-window', context: { effect: null }, initial: 'closed',
-  on: { DISPOSE: { target: '.disposed', actions: 'disconnect' } },
+  on: { DISPOSE: ({ context }) => ({ target: '.disposed', context: { effect: windowEffect(context, 'disconnect') } }) },
   states: {
-    closed: { on: { OPEN: { target: 'opening', actions: 'open' } } },
-    opening: { on: { OPENED: 'open', BLOCKED: 'blocked' } },
-    blocked: { on: { OPEN: { target: 'opening', actions: 'open' } } },
+    closed: { on: { OPEN: ({ context }) => ({ target: 'opening', context: { effect: windowEffect(context, 'open') } }) } },
+    opening: { on: { OPENED: { target: 'open' }, BLOCKED: { target: 'blocked' } } },
+    blocked: { on: { OPEN: ({ context }) => ({ target: 'opening', context: { effect: windowEffect(context, 'open') } }) } },
     open: { on: {
-      OPEN: { actions: 'focus' },
-      WINDOW_CLOSED: { target: 'closed', actions: 'disconnect' },
+      OPEN: ({ context }) => ({ context: { effect: windowEffect(context, 'focus') } }),
+      WINDOW_CLOSED: ({ context }) => ({ target: 'closed', context: { effect: windowEffect(context, 'disconnect') } }),
     } },
     disposed: { type: 'final' },
   },

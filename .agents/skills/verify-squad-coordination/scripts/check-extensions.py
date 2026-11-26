@@ -82,7 +82,7 @@ CONTROLS = {
         "if (inflight(c).length || discussionActive(c)) { c.deferredCoordination = true; c.reason = e.reason; }",
         "if (discussionActive(c)) { c.deferredCoordination = true; c.reason = e.reason; }"),
     'erase-review-failure': ('ReviewQueue', 'PreserveReviewFailure', 'src/task/assistance.ts',
-        '    refreshReviewFailures(c);\n  }\n  const target = nextReviewer(c);', '    /* faulty loss of failed reviewer status */\n  }\n  const target = nextReviewer(c);'),
+        '    refreshReviewFailures(c);', '    /* faulty loss of failed reviewer status */'),
     'lose-deferred-coordination': ('DeferredCoordination', 'DeferredProgress', 'src/task/guards.ts',
         "deferredReady: ({ context }) => context.deferredCoordination && !discussionActive(context) && !unresolvedInput(context) && inflight(context).length === 0 && !context.intents.some(work => localPhysicalPending(work) && !workInCleanup(context, work)),", 'deferredReady: () => false,'),
     'cancel-claimable-progress-work': ('DeferredCoordination', 'RetainClaimableWork', 'src/task/resilience.ts',

@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
-import { mock } from 'node:test';
-import { Actor } from 'xstate';
 import { After, Given, When, Then } from '@cucumber/cucumber';
 import { ActorModel, prepareConcurrentActors, prepareStopActor, prepareActorRecovery, prepareDeniedActor, prepareStaleAttemptMessage, oldExecutionCleanup } from '../task-actor-model-fixture.js';
 import { ActorIntegration, LateAttemptRace } from '../task-actor-integration-fixture.js';
 import { ActorInspector } from '../task-actor-inspector-fixture.js';
+import { observeActorCalls } from '../inspector-fixture.js';
 import type { SpecWorld } from './steps.js';
 interface Case {
   model?: ActorModel; test?: ActorIntegration; inspector?: ActorInspector;
@@ -47,13 +46,17 @@ When('真实执行器处理协助交接并在适用时重试', async function (t
 Then('每次适配器调用都应对应已保存且正在执行的唯一 actor', function (this: SpecWorld) { const test = state(this).test!; assert.equal(test.calls.length, 5); assert.equal(new Set(test.calls.map(work => `${work.id}:${work.attempt}`)).size, 5); for (const work of test.calls) assert(['settled', 'interrupted'].includes(test.engine.executionPhase(test.room, test.task, work)!)); });
 Then('任务应完成且原有结果去重预算停止和版本边界保持有效', function (this: SpecWorld) { assert.equal(state(this).test!.context().outcome, 'complete'); });
 Given('一个任务已经创建多个执行 actor', function (this: SpecWorld) { cases.set(this, { inspector: new ActorInspector() }); });
-When('读取诊断快照并连接 Inspector 观察器', function (this: SpecWorld) { const start = mock.method(Actor.prototype, 'start'), send = mock.method(Actor.prototype, 'send'); try { state(this).inspectorResult = state(this).inspector!.verify(); state(this).observerCalls = { starts: start.mock.calls.length, sends: send.mock.calls.length }; } finally { start.mock.restore(); send.mock.restore(); } });
+When('读取诊断快照并连接 Inspector 观察器', function (this: SpecWorld) {
+  const observed = observeActorCalls();
+  try { state(this).inspectorResult = state(this).inspector!.verify(); state(this).observerCalls = observed.counts(); }
+  finally { observed.restore(); }
+});
 Then('应提供真实父子关系以及各 actor 的模型身份和当前状态', function (this: SpecWorld) {
   const registrations = state(this).inspectorResult!.registrations;
   const parent = registrations.find(message => JSON.parse(message.definition!).id === 'botTeamTask'); assert(parent);
   const children = registrations.filter(message => JSON.parse(message.definition!).id === 'taskExecution'); assert(children.length >= 4);
   for (const child of children) assert.equal(child.parentId, parent.sessionId);
-  assert(children.some(child => child.snapshot?.value === 'settled'));
+  assert(children.some(child => child.snapshot?.value === 'settled' && child.snapshot.status === 'done'));
 });
 Then('观察与快照恢复不得启动执行或向业务存储写入', function (this: SpecWorld) {
   const s = state(this); assert.deepEqual(s.observerCalls, { starts: 0, sends: 0 });

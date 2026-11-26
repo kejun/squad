@@ -1,19 +1,36 @@
 import assert from 'node:assert/strict';
+import { mock } from 'node:test';
+import { Actor, type EventObject } from 'xstate';
 import { connectInspector, type InspectorMessage, type InspectorPort } from '../web/src/inspector-bridge.js';
 import { debugInput } from '../src/task-debug.js';
 import { inspectorOrigin, type InspectorFrame } from '../src/inspector.machine.js';
-import { initialTask, persistTask, stepTask, taskMachine } from '../src/task.machine.js';
+import { initialTask, persistTask, stepTask, taskMachine, type TaskSnapshot } from '../src/task.machine.js';
 
-interface Message {
-  type: string; sessionId?: string; definition?: string;
+export function observeActorCalls() {
+  const originalSend = Object.getOwnPropertyDescriptor(Actor.prototype, 'send')?.get;
+  assert(originalSend, 'XState exposes a bound send getter');
+  const start = mock.method(Actor.prototype, 'start');
+  const send = mock.fn((dispatch: (event: EventObject) => void, event: EventObject) => dispatch(event));
+  const getter = mock.getter(Actor.prototype, 'send', function (this: object) {
+    const dispatch: (event: EventObject) => void = originalSend.call(this);
+    return (event: EventObject) => send(dispatch, event);
+  });
+  return {
+    counts: () => ({ starts: start.mock.calls.length, sends: send.mock.calls.length }),
+    restore() { getter.mock.restore(); start.mock.restore(); },
+  };
+}
+
+export interface InspectorFixtureMessage {
+  type: string; sessionId?: string; parentId?: string; definition?: string;
   snapshot?: { value: string; status: string; context: unknown };
 }
 export class InspectorFixture {
-  readonly task = initialTask(debugInput());
+  readonly task: TaskSnapshot = initialTask(debugInput());
   readonly before = structuredClone(persistTask(this.task));
   readonly event = { type: 'STOP' as const, id: 'inspect-stop', at: 1 };
-  readonly next = stepTask(this.task, this.event);
-  readonly messages: Message[] = [];
+  readonly next: TaskSnapshot = stepTask(this.task, this.event);
+  readonly messages: InspectorFixtureMessage[] = [];
   readonly source = {};
   readonly errors: unknown[] = [];
   listener: ((message: InspectorMessage) => void) | undefined;
@@ -32,7 +49,7 @@ export class InspectorFixture {
         this.listener = receive; this.staleListener = receive;
         return () => { this.listener = undefined; this.closedCount++; };
       },
-      post: (message, origin) => { assert.equal(origin, inspectorOrigin); this.messages.push(structuredClone(message) as Message); },
+      post: (message, origin) => { assert.equal(origin, inspectorOrigin); this.messages.push(structuredClone(message) as InspectorFixtureMessage); },
       navigate: url => {
         assert.equal(url, inspectorOrigin + '/inspect');
         assert(this.listener, 'Listener must exist before target navigation');

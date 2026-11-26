@@ -28,7 +28,11 @@ const controls = [
     args: ['--input-type=module', '-e', "import('./tests/local-resource-policy-acceptance.ts').then(m=>m.resourceLeaseStoreAcceptance(true))"],
     mutate: text => replaceOnce(text, 'return resourceLeaseBlockerOwners(rows, requests, owner, legacyRows).length === 0;', 'return true;') },
   { id: 'guardian-does-not-restart', file: 'src/process-supervisor.machine.ts', args: ['tests/process-supervisor-model-gate.ts'],
-    mutate: text => { const old = "EXIT: { guard: 'current', target: 'restarting', actions: 'retry' }"; assert(text.includes(old)); return text.replaceAll(old, "EXIT: { guard: 'current', target: 'stopped', actions: 'retry' }"); } },
+    mutate: text => {
+      const restartOnCurrentExit = "EXIT: ({ context, event }) => current(context, event) ? { target: 'restarting', context: retry(context, event.at) } : undefined";
+      assert.equal(text.split(restartOnCurrentExit).length - 1, 3, 'Expected restart transitions in starting, healthy and terminating');
+      return text.replaceAll(restartOnCurrentExit, restartOnCurrentExit.replace("'restarting'", "'stopped'"));
+    } },
   { id: 'delete-while-physical-preparation-is-running', file: 'src/runtime-ownership.ts',
     args: ['--input-type=module', '-e', "import('./tests/room-deletion-acceptance.ts').then(m=>m.deletionPhysicalPreparationAcceptance())"],
     mutate: text => replaceOnce(text, 'if (!input.quiescent)', 'if (false)') },

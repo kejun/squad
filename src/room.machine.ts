@@ -1,4 +1,4 @@
-import { assign, initialTransition, setup, transition } from 'xstate';
+import { createMachine, initialTransition, transition, types } from 'xstate';
 
 export interface RoomArchive {
   version: 1;
@@ -8,17 +8,28 @@ export interface RoomArchive {
 }
 type RoomEvent = { type: 'ARCHIVE' | 'RESTORE'; at: number };
 interface RoomContext { revision: number; changedAt: number | null }
+function archiveChange(context: RoomContext, at: number): RoomContext | undefined {
+  if (Number.isSafeInteger(at) && at >= 0 && context.revision < Number.MAX_SAFE_INTEGER) {
+    return { revision: context.revision + 1, changedAt: at };
+  }
+}
 
 // Room organization is independent of all task states, intent eligibility and budgets.
-export const roomMachine = setup({
-  types: { context: {} as RoomContext, events: {} as RoomEvent },
-  guards: { valid: ({ context, event }) => Number.isSafeInteger(event.at) && event.at >= 0 && context.revision < Number.MAX_SAFE_INTEGER },
-  actions: { changed: assign(({ context, event }) => ({ revision: context.revision + 1, changedAt: event.at })) },
-}).createMachine({
+export const roomMachine = createMachine({
+  schemas: {
+    context: types<RoomContext>(),
+    events: { ARCHIVE: types<{ at: number }>(), RESTORE: types<{ at: number }>() },
+  },
   id: 'room-organization', initial: 'active', context: { revision: 0, changedAt: null },
   states: {
-    active: { on: { ARCHIVE: { guard: 'valid', target: 'archived', actions: 'changed' } } },
-    archived: { on: { RESTORE: { guard: 'valid', target: 'active', actions: 'changed' } } },
+    active: { on: { ARCHIVE: ({ context, event }) => {
+      const change = archiveChange(context, event.at);
+      if (change) return { target: 'archived', context: change };
+    } } },
+    archived: { on: { RESTORE: ({ context, event }) => {
+      const change = archiveChange(context, event.at);
+      if (change) return { target: 'active', context: change };
+    } } },
   },
 });
 

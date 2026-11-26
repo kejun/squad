@@ -24,10 +24,11 @@ describe('routing and ownership', () => {
     const h = new Harness(); h.event({ type: 'WAIT_USER', question: 'Who is the audience?' });
     expect(h.view().phase).toBe('waitingHuman'); expect(h.engine.pending(h.room, h.task)).toEqual([]);
   });
-  it('[BT_R06][BT_R13] refuses a second independent task in an occupied room', () => {
+  it('[BT_R06][BT_R13] queues a second independent task in an occupied room', () => {
     const h = new Harness();
-    expect(h.engine.submit(h.room, { id: 'M2', text: 'independent', intent: 'new' }).code).toBe('ROOM_BUSY');
-    expect(Object.keys(h.store.read(h.room).tasks)).toEqual([h.task]);
+    expect(h.engine.submit(h.room, { id: 'M2', text: 'independent', intent: 'new' }).code).toBe('QUEUED');
+    expect(h.engine.view(h.room, 'task:M2')?.phase).toBe('queued');
+    expect(h.engine.pending(h.room, 'task:M2')).toEqual([]);
     expect(h.context().goal.text).toBe('Write a plan');
   });
   it('[BT_R07] associates supplements with their explicit task', () => {

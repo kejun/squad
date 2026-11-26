@@ -123,9 +123,9 @@ function cliArtifactResultProblem(op: LocalOperation, event: Extract<LocalEvent,
     && new TextEncoder().encode(artifact.content).length <= cliArtifactMaxBytes ? null : 'INVALID_CLI_ARTIFACT';
 }
 
-export function cliArtifactIds(work: Intent | undefined): string[] {
+export function cliArtifactIds(...works: (Intent | undefined)[]): string[] {
   const byPath = new Map<string, string>();
-  for (const op of work?.localOperations ?? []) {
+  for (const work of works) for (const op of work?.localOperations ?? []) {
     if (op.status !== 'succeeded' || op.action.type !== 'runCli' || !op.action.artifactPath) continue;
     const artifact = op.result?.data.artifact as { id?: string } | undefined;
     if (artifact?.id) byPath.set(op.action.artifactPath, artifact.id);

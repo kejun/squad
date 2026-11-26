@@ -18,9 +18,9 @@ export function resetDeliveryMaterials(c: TaskContext): void {
   c.deliveryCycle.stage = { kind: 'drafting' };
 }
 
-export function settleDeliveryCycle(c: TaskContext, outcome: TaskContext['outcome'], reason: string): void {
+export function settleDeliveryCycle(c: TaskContext, outcome: TaskContext['outcome'], reason: string, published = outcome === 'complete'): void {
   if (!c.deliveryCycle) return;
-  c.deliveryCycle.stage = outcome === 'complete' && c.candidate?.revision
+  c.deliveryCycle.stage = published && c.candidate?.revision
     ? { kind: 'published', candidateRevision: c.candidate.revision }
     : { kind: 'incomplete', candidateRevision: c.candidate?.revision ?? null, reason };
 }

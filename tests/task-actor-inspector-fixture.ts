@@ -13,8 +13,7 @@ export class ActorInspector {
     const bridge = fixture.open(false, 'actor-observer', frame);
     try {
       fixture.handshake();
-      const messages = fixture.messages as unknown as { type: string; sessionId: string; parentId?: string; definition?: string; snapshot?: { value: string } }[];
-      const registrations = messages.filter(message => message.type === '@xstate.actor');
+      const registrations = fixture.messages.filter(message => message.type === '@xstate.actor');
       const root = registrations.find(message => JSON.parse(message.definition!).id === 'botTeamTask')!; assert(root);
       const children = registrations.filter(message => JSON.parse(message.definition!).id === 'taskExecution');
       assert(children.length >= 4); for (const child of children) assert.equal(child.parentId, root.sessionId);

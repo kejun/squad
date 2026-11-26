@@ -165,7 +165,10 @@ export function retryBoundaryGate(boundary: string) {
   });
   const source = initial.find(work => work.target === 'C')!;
   const receipt = model.acquire(source, model.url(source), '可信新方法正文', true, false);
-  if (boundary === '原截止时间已到') model.sequence = model.queue[0]!.deadline;
+  if (boundary === '原截止时间已到') {
+    const failed = model.queue.filter(part => part.status === 'failed').map(part => model.context.intents.find(work => work.id === part.workId)!);
+    model.sequence = Math.max(...failed.map(work => work.deadline!)) - 1;
+  }
   if (boundary === '用户已停止任务') assert(model.send({ type: 'STOP' }).ok);
   if (boundary === '目标版本已变化') assert(model.send({ type: 'USER_INPUT', text: '新目标',
     goal: { ...model.context.goal, text: '新的目标与来源' } }).ok);

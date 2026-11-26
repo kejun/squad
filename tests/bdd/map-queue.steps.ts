@@ -106,16 +106,94 @@ Then('应保留明确未执行状态且不得把部分结果发布为完整交�
   assert.notEqual(value.context().outcome, 'complete'); assert.equal(value.pending('discussionSummary').length, 0);
 });
 
-Given('分片队列仍有未派发分片且已到单次工作截止时间而任务窗口仍有效', async function (this: SpecWorld) {
-  const value = await prepare(this, 1000); value.old = value.claimMap();
-  assert(value.queue[0]!.deadline < value.context().resilience!.window.hardDeadline);
-  value.now = value.queue[0]!.deadline;
+Given('分片队列已满且首批分片已领取', async function (this: SpecWorld) {
+  const value = await prepare(this, 1000);
+  const first = value.pending('assistance').map(work => value.engine.claim(value.room, value.task, work.id));
+  assert(first.every(work => work));
+  value.old = first[0]!;
 });
-When('服务恢复并核对队列期限', function (this: SpecWorld) { const value = fixture(this); value.fail(value.old!); value.reopen(); });
-Then('截止时的失败不得再消耗重试额度', function (this: SpecWorld) { assert.equal(fixture(this).context().usage.retries, 0); });
-Then('过期待办应明确取消且不得增加成员执行或宣告完成', function (this: SpecWorld) {
-  const value = fixture(this); assert.equal(value.queue.filter(part => part.status === 'cancelled' && part.reason === 'WORK_EXPIRED').length, 4);
-  assert.equal(value.context().discussion!.mapReduce!.assignments.length, 4); assert.notEqual(value.context().outcome, 'complete');
+When('首批分片到达单次执行期限后报告超时且任务窗口仍有效', function (this: SpecWorld) {
+  const value = fixture(this), first = value.old!;
+  value.now = first.deadline!;
+  assert(value.now < value.context().resilience!.window.hardDeadline);
+  assert(value.event({ type: 'WORK_FAILED', intentId: first.id, attempt: first.attempt, transient: true, reason: 'transport deadline' }).ok);
+});
+Then('未领取分片仍可领取并从各自领取时计算单次执行期限', function (this: SpecWorld) {
+  const value = fixture(this), work = value.claimMap();
+  assert.equal(value.queue.find(part => part.workId === work.id)!.partitionId, 'group-5');
+  assert.equal(work.deadline, value.now + 1000);
+});
+Then('原尝试的迟到结果应被拒绝且不消耗自动重试额度', function (this: SpecWorld) {
+  const value = fixture(this), work = value.old!;
+  assert.equal(value.event({ type: 'DISCUSSION_RESULT', workId: work.id, discussionId: work.discussionId!, attempt: work.attempt,
+    fence: work, status: 'success', text: '迟到结果' }).ok, false);
+  assert.equal(value.context().usage.retries, 0);
+});
+
+Given('已分配分片等待领取的时间超过单次执行时限而任务窗口仍有效', async function (this: SpecWorld) {
+  const value = await prepare(this, 1000);
+  value.old = value.pending('assistance')[0]!;
+  value.now += 1050;
+  assert(value.now < value.context().resilience!.window.hardDeadline);
+});
+When('服务恢复后首次领取并执行该分片', async function (this: SpecWorld) {
+  const value = fixture(this); value.reopen();
+  assert.equal(value.pending('assistance')[0]?.id, value.old!.id);
+  assert.equal(await value.run(), true);
+});
+Then('执行器应取得从本次领取开始的完整执行时间', function (this: SpecWorld) {
+  const value = fixture(this), work = value.context().intents.find(item => item.id === value.old!.id)!;
+  assert.equal(work.deadline, value.now + 1000);
+  assert.equal(work.attempt, 1);
+  assert(value.requests.some(request => request.kind === 'assistance'));
+  assert.equal(value.queue.find(part => part.workId === work.id)?.status, 'succeeded');
+});
+
+Given('分片队列有已分配和未分配的分片等待领取', async function (this: SpecWorld) {
+  const value = await prepare(this, 1000); value.old = value.pending('assistance')[0]!;
+  assert.equal(value.queue.filter(part => part.status === 'queued').length, 4);
+});
+When('{string}到期后尝试领取并核对调度', async function (this: SpecWorld, label: string) {
+  const value = fixture(this); value.now += 500;
+  const hard = label === '任务总窗口';
+  updateMapContext(value, c => { c.resilience!.window[hard ? 'hardDeadline' : 'repairDeadline'] = value.now; });
+  assert.equal(value.event({ type: 'CLAIM', intentId: value.old!.id }).code, hard ? 'WINDOW_EXPIRED' : 'WORK_EXPIRED');
+  assert(value.event({ type: 'SUPERVISE' }).ok);
+  assert.equal(await value.run(), false);
+});
+Then('已分配和未分配分片应保留未完成记录且不得启动或增加自动重试', function (this: SpecWorld) {
+  const value = fixture(this), context = value.context();
+  assert.equal(value.queue.length, 8);
+  assert(value.queue.every(part => ['timeout', 'cancelled'].includes(part.status) && part.reason));
+  assert.equal(context.intents.filter(work => work.kind === 'assistance' && work.attempt > 0).length, 0);
+  assert.equal(value.requests.filter(request => request.kind === 'assistance').length, 0);
+  assert.equal(context.usage.retries, 0);
+  assert.notEqual(context.outcome, 'complete');
+});
+
+Given('历史分片保存了自己的绝对期限且有已领取的执行', async function (this: SpecWorld) {
+  const value = await prepare(this, 1000); value.old = value.claimMap();
+  const other = value.pending('assistance')[0]!;
+  value.now += 100;
+  updateMapContext(value, c => {
+    const cap = value.now - 1;
+    c.discussion!.mapReduce!.queue!.find(part => part.workId === other.id)!.deadline = cap;
+    c.intents.find(work => work.id === other.id)!.deadline = cap;
+  });
+});
+When('服务恢复历史分片并重领仍可执行的原尝试', function (this: SpecWorld) {
+  const value = fixture(this); value.reopen();
+  const resumed = value.engine.claim(value.room, value.task, value.old!.id);
+  assert(resumed);
+  assert.equal(resumed.attempt, value.old!.attempt + 1);
+});
+Then('已领取工作的原期限应保持且过期的历史待办不能启动', function (this: SpecWorld) {
+  const value = fixture(this), context = value.context();
+  assert.equal(context.intents.find(work => work.id === value.old!.id)!.deadline, value.old!.deadline);
+  const expired = value.queue.find(part => part.reason === 'WORK_EXPIRED');
+  assert(expired && expired.workId);
+  assert.equal(expired.status, 'cancelled');
+  assert.equal(value.engine.claim(value.room, value.task, expired.workId), null);
 });
 
 interface LegacyQueueState { fixture: MapCapacityFixture; ordinary: number; assists: number; reads: string[] }

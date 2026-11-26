@@ -3,9 +3,8 @@ import type { TaskContext, TaskEvent } from '../types.js';
 import { discussionActive, fence, unresolvedInput } from './facts.js';
 import { advanceMapQueue } from './map-queue.js';
 import { message } from './operations.js';
-import { availableMapReduceMembers, mapReduceCapacity } from './map-reduce-capacity.js';
+import { availableMapReduceMembers, mapQueueWindowDeadline, mapReduceCapacity } from './map-reduce-capacity.js';
 import { reusablePartition } from './execution-memory.js';
-import { processingWindow } from './resilience.js';
 
 /** Pure task transition: the host, never the interpretation, owns member assignment. */
 export function startMapReduce(c: TaskContext, e: TaskEvent): boolean {
@@ -25,7 +24,7 @@ export function startMapReduce(c: TaskContext, e: TaskEvent): boolean {
   const round: NonNullable<TaskContext['discussion']> = { id: `map-reduce:${input.id}`, request: input.rawText, targets: targets.map(bot => bot.id),
     status: 'collecting', results: [], skipped: [], mapReduce: { ...structuredClone(plan), inputId: input.id,
       assignments: [], concurrency: targets.length, ...(Object.keys(sourceRequirements).length ? { sourceRequirements } : {}),
-      queue: plan.partitions.map(part => ({ partitionId: part.id, attempt: 0, status: 'queued', deadline: Math.min(e.at + c.config.limits.workTimeoutMs, processingWindow(c).hardDeadline, processingWindow(c).repairDeadline ?? Number.MAX_SAFE_INTEGER) })) }, ...fence(c) };
+      queue: plan.partitions.map(part => ({ partitionId: part.id, attempt: 0, status: 'queued', deadline: mapQueueWindowDeadline(c) })) }, ...fence(c) };
   const matches = plan.partitions.map(part => reusablePartition({ ...c, discussion: round }, part));
   const remaining = matches.filter(match => !match).length;
   if (remaining > mapReduceCapacity(c)) {

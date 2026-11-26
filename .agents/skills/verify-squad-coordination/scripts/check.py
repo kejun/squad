@@ -132,8 +132,10 @@ def tlc(jar, model, area, witness=None):
 
 
 def replay(target, model, graph, output, backend='both'):
+    # The dual-store Shards and CheckBudget replays exceed 180 seconds under local contention.
+    timeout = {'Shards': 360, 'CheckBudget': 240}.get(model, 180) if backend == 'both' else 180
     run = execute(['node', '--import', str(ROOT / 'node_modules/tsx/dist/loader.mjs'),
-        str(SKILL / 'scripts/replay.mjs'), str(target), model, str(graph), str(output), backend], target, output.with_suffix('.log'))
+        str(SKILL / 'scripts/replay.mjs'), str(target), model, str(graph), str(output), backend], target, output.with_suffix('.log'), timeout=timeout)
     assert output.exists(), 'Replay failed before writing report (not a behavioral negative control)'
     run.update(json.loads(output.read_text()))
     return run

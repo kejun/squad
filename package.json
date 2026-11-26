@@ -7,6 +7,7 @@
   "engines": {
     "node": "^22.18.0 || >=24.11.0"
   },
+  "workspaces": ["packages/inspector-transport"],
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:web": "tsc -p web/tsconfig.json && vite build --config web/vite.config.ts",
@@ -29,7 +30,7 @@
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.81",
     "@base-ui/react": "^1.9.0",
-    "@statelyai/inspect": "0.7.2",
+    "@squad/inspector-transport": "0.0.0",
     "agents": "0.30.0",
     "lucide-react": "^1.61.0",
     "react": "^19.3.1",
@@ -37,7 +38,7 @@
     "react-markdown": "^10.1.0",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
-    "xstate": "5.33.3",
+    "xstate": "6.0.0-beta.5",
     "yaml": "2.9.1",
     "zod": "^4.6.7"
   },

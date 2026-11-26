@@ -174,10 +174,16 @@ Given('任务{string}具有明确的目标、硬约束和完成标准', function
 });
 Given('模型输出与语义检查结果由测试替身控制', function (this: SpecWorld) { assert.equal(this.h.config.models, undefined); });
 Given('所有数字额度均为本场景的测试配置', function (this: SpecWorld) { assert(Number.isSafeInteger(this.h.config.limits.ordinary)); });
+function budgetedReview(world: SpecWorld, limit: number, text: string) {
+  world.h = new Harness(configuration({ ordinary: limit }));
+  assert(world.h.config.limits.checks > 0);
+  assert(world.h.engine.submit(world.h.room, { id: 'group-review', text }).ok);
+}
 Given('群评审的普通执行额度为 {int} 次且完成检查额度单独预留', function (this: SpecWorld, limit: number) {
-  this.h = new Harness(configuration({ ordinary: limit }));
-  assert(this.h.config.limits.checks > 0);
-  assert(this.h.engine.submit(this.h.room, { id: 'group-review', text: '大家都提提意见：方案为离线缓存并在联网后同步。' }).ok);
+  budgetedReview(this, limit, '大家都提提意见：方案为离线缓存并在联网后同步。');
+});
+Given('顺序群评审的普通执行额度为 {int} 次且完成检查额度单独预留', function (this: SpecWorld, limit: number) {
+  budgetedReview(this, limit, '大家依次评审，参考上一位的意见。方案为离线缓存并在联网后同步。');
 });
 Given('促进者已完成评审组织且首位成员等待执行', async function (this: SpecWorld) {
   const runner = new WorkRunner(this.h.engine, this.reviewAdapter(), () => this.h.now);
