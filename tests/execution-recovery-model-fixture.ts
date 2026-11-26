@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { executionState, initialTask, persistTask, restoreTask, startTaskExecution, stepTask, taskPhase, type TaskSnapshot } from '../src/task.machine.js';
-import type { Intent, TaskEvent } from '../src/types.js';
+import type { Intent, Phase, TaskEvent } from '../src/types.js';
 import { LocalModel, localModelInput } from './local-model-fixture.js';
 import { CapacityModel } from './map-capacity-model-fixture.js';
 import { MapQueueModel } from './map-queue-fixture.js';
@@ -38,7 +38,10 @@ function hasExecutableSuccessor(snapshot: TaskSnapshot, at: number): boolean {
   });
 }
 
-export function notStartedRecoveryModel(role: RecoveryRole, lateBy = 0) {
+export function notStartedRecoveryModel(role: RecoveryRole, lateBy = 0): {
+  snapshot: TaskSnapshot;
+  result: { role: RecoveryRole; lateBy: number; phase: Phase; outcome: TaskSnapshot['context']['outcome']; executableSuccessor: boolean; reason: string };
+} {
   let snapshot = executionRecoverySeed(role);
   const pending = snapshot.context.intents.find(work => work.kind === kinds[role] && work.status === 'pending')!;
   assert(pending && pending.deadline !== null, `${role}: expected deadline-bound pending work`);

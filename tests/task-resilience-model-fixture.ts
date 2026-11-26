@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
-import { initialTask, persistTask, restoreTask, stepTask, taskPhase, executionState } from '../src/task.machine.js';
+import { initialTask, persistTask, restoreTask, stepTask, taskPhase, executionState, type TaskSnapshot } from '../src/task.machine.js';
 import { processingWindow, effectiveWork, taskHumanGate } from '../src/task/resilience.js';
 import { localModelInput } from './local-model-fixture.js';
 import { failedSandbox, prepareRetry, request, retryOp, retryWork } from './host-retry-model-fixture.js';
@@ -10,7 +10,7 @@ import { fixtureCheck } from './delivery-protocol-fixture.js';
 import type { Intent, Phase, TaskEvent } from '../src/types.js';
 
 export class ResilienceModel {
-  snapshot; seq = 0; at = 1;
+  snapshot: TaskSnapshot; seq = 0; at = 1;
   constructor(configure: (input: ReturnType<typeof localModelInput>) => void = () => {}) {
     const input = localModelInput(); input.config.resilience = { automaticTimeoutMs: 100, repairTimeoutMs: 20, repairLimit: 2, cancelGraceMs: 5, allowMissingContent: true };
     configure(input); this.snapshot = initialTask(input);

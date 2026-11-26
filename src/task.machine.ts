@@ -1,4 +1,5 @@
-import { createActor, setup, types, type ActorRefFrom, type InspectionEvent, type SnapshotFrom, type StateValue, type TypeSchema } from 'xstate';
+import { createActor, setup, types, type ActorRefFrom, type SnapshotFrom, type StateValue, type TypeSchema } from 'xstate';
+import { restoreActor } from 'xstate/persist';
 import type { Phase, TaskContext, TaskEvent, TaskInput } from './types.js';
 import { taskActions } from './task/actions.js';
 import { createTaskContext } from './task/context.js';
@@ -132,25 +133,29 @@ export function restoreTask(value: unknown, machine: typeof taskMachine = taskMa
 }
 export function taskPhase(snapshot: TaskSnapshot): Phase { return snapshot.value as Phase; }
 
-/** Transaction-local actor system: no promises/timers/I/O actors; persist only after its mailbox drains. */
-export function evaluateTask(machine: typeof taskMachine, seed: { input: TaskInput } | { snapshot: unknown; event: TaskEvent }, inspect?: (event: InspectionEvent) => void): TaskSnapshot {
-  const actor = 'input' in seed ? createActor(machine, { input: seed.input, ...(inspect ? { inspect } : {}) }) : restorePersistedTaskActor(machine, seed.snapshot, inspect);
+/** Drain a transaction-local mailbox before detaching the result from its actor system. */
+export function evaluateTask(seed: { input: TaskInput } | { snapshot: TaskSnapshot; event: TaskEvent }): TaskSnapshot {
+  // Snapshots produced by the machine or checked at storage ingress are already canonical.
+  const actor = 'input' in seed
+    ? createActor(taskMachine, { input: seed.input })
+    : restoreActor(taskMachine, taskMachine.getPersistedSnapshot(seed.snapshot));
   let failure: unknown;
   actor.subscribe({ error: error => { failure = error; } });
   try {
     actor.start();
     if ('event' in seed) actor.send(seed.event);
     if (failure) throw failure;
-    const saved = persistTaskWire(actor.getPersistedSnapshot());
-    return restoreTask(saved);
+    const detached = restoreActor(taskMachine, actor.getPersistedSnapshot()).getSnapshot();
+    if (detached.status !== 'active') throw new Error('Task snapshot must remain resumable');
+    return detached;
   } finally { actor.stop(); }
 }
-export function initialTask(input: TaskInput): TaskSnapshot { return evaluateTask(taskMachine, { input }); }
+export function initialTask(input: TaskInput): TaskSnapshot { return evaluateTask({ input }); }
 export function stepTask(snapshot: TaskSnapshot, event: TaskEvent): TaskSnapshot {
   // A check already in flight before removal may still include retired per-partition judgments.
   const current = event.type === 'CHECK_RESULT' && Array.isArray(event.criteriaResults)
     ? { ...event, criteriaResults: event.criteriaResults.filter(item => typeof item?.criterionId !== 'string' || !item.criterionId.startsWith('map-recovery:')) } : event;
-  return evaluateTask(taskMachine, { snapshot: persistTask(snapshot), event: current });
+  return evaluateTask({ snapshot, event: current });
 }
 export function executionState(snapshot: TaskSnapshot, intentId: string, attempt: number) {
   return snapshot.children[executionId(intentId, attempt)]?.getSnapshot().value;

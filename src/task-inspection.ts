@@ -1,5 +1,5 @@
 import { getInitialMicrosteps, getMicrosteps } from 'xstate';
-import { createTaskMachine, evaluateTask, persistTask, restoreTask, taskMachine, type TaskSnapshot } from './task.machine.js';
+import { createTaskMachine, evaluateTask, persistTask, restoreTask, type taskMachine, type TaskSnapshot } from './task.machine.js';
 import { ruleId, taskGraph } from './task-structure.js';
 import type { TaskContext, TaskEvent, TaskInput, Phase } from './types.js';
 
@@ -48,7 +48,7 @@ export function inspectTask(snapshot: TaskSnapshot, event: TaskEvent): Inspected
   const persisted = persistTask(snapshot);
   const steps = getMicrosteps(machine, restoreTask(persisted, machine), event).map(([next]) => activeStep(next));
   // The pure trace observes business branches. The transaction also drains internal actor messages.
-  const final = evaluateTask(taskMachine, { snapshot: persisted, event });
+  const final = evaluateTask({ snapshot, event });
   const observed = result(steps.length ? steps : [final], snapshot, evaluations);
   return { ...observed, snapshot: final };
 }

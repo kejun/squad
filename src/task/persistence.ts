@@ -1,4 +1,4 @@
-import { isMachineSnapshot, type AnyStateMachine, type InspectionEvent, type Snapshot } from 'xstate';
+import { isMachineSnapshot, type AnyStateMachine, type Snapshot } from 'xstate';
 import { restoreActor } from 'xstate/persist';
 import type { Intent, TaskContext } from '../types.js';
 import { restoreDeliveryStage } from './delivery-cycle.js';
@@ -59,9 +59,7 @@ function executionCheckpoints(saved: ReturnType<typeof taskCheckpoint>, native =
     [id, executionCheckpoint(child, id, saved.context.taskId, intents, native)] as const);
 }
 
-export function restorePersistedTaskActor<TMachine extends AnyStateMachine>(
-  machine: TMachine, value: unknown, inspect?: (event: InspectionEvent) => void,
-) {
+export function restorePersistedTaskActor<TMachine extends AnyStateMachine>(machine: TMachine, value: unknown) {
   const saved = taskCheckpoint(value);
   const children = executionCheckpoints(saved);
   // Existing read migrations must run before XState takes ownership of the context.
@@ -69,7 +67,7 @@ export function restorePersistedTaskActor<TMachine extends AnyStateMachine>(
   restoreDeliveryStage(context);
   restoreMapQueue(context);
   const checkpoint = { ...saved, context };
-  const actor = restoreActor(machine, checkpoint, inspect ? { inspect } : undefined);
+  const actor = restoreActor(machine, checkpoint);
   const snapshot: unknown = actor.getSnapshot();
   if (!isMachineSnapshot(snapshot)) throw new Error('Incompatible task snapshot');
   if (snapshot.status === 'error') throw new Error('Incompatible task snapshot', { cause: snapshot.error });
