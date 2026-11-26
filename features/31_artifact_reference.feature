@@ -240,6 +240,8 @@
       | 从上一轮 a.md总结.md 提炼结论 | a.md总结.md |
       | 从上一轮 a.markdown提炼.markdown中总结成果 | a.markdown提炼.markdown |
       | 从上一轮 a.md 提炼成果并输出到 b.md | a.md |
+      | 从上一轮 a.md中提炼并写入b.md | a.md |
+      | 请从上一轮a.md中提炼b.md的成果 | a.md |
       | 从上一轮 a.md:总结b.md提炼结果 | a.md |
       | 从上一轮 a.md：总结b.md提炼结果 | a.md |
       | 从上一轮 发布：月报.md 提炼成果 | 发布：月报.md |

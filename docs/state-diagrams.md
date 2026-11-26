@@ -1517,7 +1517,8 @@ stateDiagram-v2
   [*] --> running: 初始化 [可信来源已固定] / 克隆sourceArtifact 修订要求新Markdown 提炼沿用用户格式
   running --> interpreting: 待解析输入 / 保存固定来源和原始用户要求的解析意图
   interpreting --> running: INTERPRETATION_RESULT [合法] / 保留同一可信来源
-  running --> running: HELP与回传 [合法工作] / 传递只读原文与现有作用域
+  running --> waitingAssistance: HELP [合法工作] / 传递只读原文与现有作用域
+  waitingAssistance --> running: HELP_RESULT [当前协助已结算] / 主笔接续
   running --> waitingHuman: DELIVER [存在必需的人工决定] / 继续等待用户
   waitingHuman --> running: CONTINUE [决定和继续有效] / 按当前版本恢复工作
   running --> running: DELIVER [仍有交接或操作待结算] / 保留候选等待结算
@@ -1525,7 +1526,7 @@ stateDiagram-v2
   running --> ended: DELIVER [执行摘要模式且候选有效] / 清理旧引用，按本轮要求发布正文和有效产物，随摘要报告缺口
   running --> ended: DELIVER [合法事件遇到仍阻断发布的版本冲突或完成条件不满足] / 结束并记录未完成原因
   running --> ended: DELIVER [既有核检模式仅缺核检额度且可完成] / 交付并说明未核检
-  checking --> ended: CHECK_RESULT [当前绑定有效且可结算] / 发布有效交付并保存核检结论
+  checking --> ended: CHECK_RESULT [当前绑定有效且可结算] / 按完成条件发布或记录未完成原因
   running --> stopping: STOP / 取消工作和拒绝迟到结果
   stopping --> ended: 既有结算 / 保留固定来源
 ```
