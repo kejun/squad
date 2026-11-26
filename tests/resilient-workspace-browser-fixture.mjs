@@ -49,7 +49,7 @@ export class ResilientWorkspaceBrowserFixture {
     this.serviceRestarts = [];
   }
 
-  async open() {
+  async open(signal) {
     this.build = verifyBuild(root);
     this.source = captureSource(root);
     this.evidence = resolve(this.options.evidence ?? join(root, 'reports/resilient-workspace-ui', `${Date.now()}-${process.pid}-${this.scenario}`));
@@ -76,7 +76,9 @@ export class ResilientWorkspaceBrowserFixture {
     this.url = `http://127.0.0.1:${this.server.address().port}`;
     const { chromium } = await import(browserModule());
     const executablePath = process.env.SQUAD_CHROMIUM ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
-    this.browser = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
+    signal?.throwIfAborted();
+    this.browser = await chromium.launch({ headless: true, signal, ...(executablePath ? { executablePath } : {}) });
+    signal?.throwIfAborted();
     this.context = await this.browser.newContext({ viewport: { width: 1440, height: 980 }, acceptDownloads: true });
     await this.context.tracing.start({ screenshots: true, snapshots: true, sources: true });
     this.page = await this.context.newPage();
@@ -96,8 +98,8 @@ export class ResilientWorkspaceBrowserFixture {
     });
     await this.page.route('https://fonts.googleapis.com/**', route => route.abort());
     await this.page.route('https://fonts.gstatic.com/**', route => route.abort());
-    await this.page.goto(this.url);
-    await this.page.getByRole('button', { name: '新建群聊', exact: false }).waitFor();
+    await this.page.goto(this.url, { signal });
+    await this.page.getByRole('button', { name: '新建群聊', exact: false }).waitFor({ signal });
     await this.log('opened', { chromium: this.browser.version(), source: this.source.source, modelBoundary: 'controlled adapter' });
     return this;
   }
