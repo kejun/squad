@@ -219,8 +219,9 @@ function assertLegacyEvidence(actualRaw: DebugEvidence, expected: DebugEvidence,
   const comparable = (keys: string[]) => keys.filter(key => key !== 'deliveryCycle');
   const expectedKeys = (keys: string[]) => checkClaim ? keys.filter(key => key !== 'usage')
     : published && keys.includes('outcome') ? [...keys, 'publishedDelivery'] : keys;
+  assert.equal(expected.xstate, '5.33.3', label);
   assert.deepEqual({ ...actual, changed: comparable(actual.changed), microsteps: actual.microsteps.map(step => ({ ...step, changed: comparable(step.changed) })) },
-    { ...expected, definition: extendedDefinition, evaluations: lifecycleEvaluations, changed: expectedKeys(expected.changed),
+    { ...expected, xstate: '6.0.0-beta.5', definition: extendedDefinition, evaluations: lifecycleEvaluations, changed: expectedKeys(expected.changed),
       microsteps: expected.microsteps.map(step => ({ ...step, changed: expectedKeys(step.changed) })) }, label);
 }
 

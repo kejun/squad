@@ -1,9 +1,7 @@
 import assert from 'node:assert/strict';
-import { mock } from 'node:test';
-import { Actor } from 'xstate';
 import { disposedImportContract } from '../inspector-contract-fixture.js';
 import { Given, When, Then, After } from '@cucumber/cucumber';
-import { InspectorFixture } from '../inspector-fixture.js';
+import { InspectorFixture, observeActorCalls } from '../inspector-fixture.js';
 import { inspectorOrigin } from '../../src/inspector.machine.js';
 import type { SpecWorld } from './steps.js';
 import { InspectorTabFixture } from '../inspector-tab-fixture.js';
@@ -18,7 +16,7 @@ Given('官方Inspector的握手在页面加载事件{string}到达', function (t
 });
 When('打开官方Inspector并在握手前后更新所选真实模型快照', function (this: SpecWorld) {
   const { test, order } = state(this);
-  const start = mock.method(Actor.prototype, 'start'), send = mock.method(Actor.prototype, 'send');
+  const observed = observeActorCalls();
   try {
   if (order === '之前') {
     // A synchronous navigation handshake arrives before open() even returns.
@@ -28,8 +26,8 @@ When('打开官方Inspector并在握手前后更新所选真实模型快照', fu
     test.open(false); test.observer!.update(test.latest()); test.handshake();
   }
   test.observer!.update(test.initial());
-  assert.equal(start.mock.calls.length, 0); assert.equal(send.mock.calls.length, 0);
-  } finally { start.mock.restore(); send.mock.restore(); }
+  assert.deepEqual(observed.counts(), { starts: 0, sends: 0 });
+  } finally { observed.restore(); }
 });
 Then('该连接的首条消息应包含真实机器定义和最新所选快照', function (this: SpecWorld) {
   state(this).test.assertRegistration();

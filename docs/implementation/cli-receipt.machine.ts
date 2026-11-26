@@ -1,7 +1,8 @@
-import { assertEvent, assign, setup } from 'xstate';
+import { createMachine, types } from 'xstate';
 
+type CloseResult = { exitCode: number | null; signal: string | null };
 type ProcessSettlement =
-  | { kind: 'closed'; exitCode: number | null; signal: string | null }
+  | ({ kind: 'closed' } & CloseResult)
   | { kind: 'unconfirmed' };
 
 type Context = {
@@ -10,20 +11,6 @@ type Context = {
   processError: boolean;
   processRecorded: boolean;
 };
-
-type Event =
-  | { type: 'process.opened' }
-  | { type: 'process.closed'; exitCode: number | null; signal: string | null }
-  | { type: 'process.error' }
-  | { type: 'process.aborted' }
-  | { type: 'process.timedOut' }
-  | { type: 'process.hardDeadline' }
-  | { type: 'identity.recorded' }
-  | { type: 'identity.skipped' }
-  | { type: 'identity.failed' }
-  | { type: 'cleanup.groupKillFailed' }
-  | { type: 'io.finished' }
-  | { type: 'io.failed' };
 
 type Completion = {
   ok: boolean;
@@ -60,37 +47,35 @@ function completion(context: Context): Completion {
 }
 
 const source = 'src/local-cli.ts';
+const close = ({ event: { exitCode, signal } }: { event: CloseResult }) => ({
+  target: 'closed' as const,
+  context: { settlement: { kind: 'closed' as const, exitCode, signal } },
+});
 
 // Documentation model. The caller sends observed events from I/O and timer boundaries.
-export const cliReceiptMachine = setup({
-  types: {
-    context: {} as Context,
-    events: {} as Event,
-    output: {} as Output,
+export const cliReceiptMachine = createMachine({
+  schemas: {
+    context: types<Context>(),
+    events: {
+      'process.opened': types<{}>(),
+      'process.closed': types<CloseResult>(),
+      'process.error': types<{}>(),
+      'process.aborted': types<{}>(),
+      'process.timedOut': types<{}>(),
+      'process.hardDeadline': types<{}>(),
+      'identity.recorded': types<{}>(),
+      'identity.skipped': types<{}>(),
+      'identity.failed': types<{}>(),
+      'cleanup.groupKillFailed': types<{}>(),
+      'io.finished': types<{}>(),
+      'io.failed': types<{}>(),
+    },
+    output: types<Output>(),
+    meta: types<{ label: string; source?: string }>(),
   },
-  actions: {
-    recordClose: assign(({ event }) => {
-      assertEvent(event, 'process.closed');
-      return {
-        settlement: { kind: 'closed' as const, exitCode: event.exitCode, signal: event.signal },
-      };
-    }),
-    recordUnconfirmed: assign({ settlement: { kind: 'unconfirmed' } as const }),
-    recordAbort: assign({ cancellation: 'abort' as const }),
-    recordTimeout: assign({ cancellation: 'timeout' as const }),
-    recordProcessError: assign({ processError: true }),
-    recordIdentity: assign({ processRecorded: true }),
-    recordIdentityError: assign(({ context }) => ({
-      processError: true,
-      cancellation: context.cancellation ?? 'abort',
-    })),
-  },
-}).createMachine({
   id: 'cliReceiptV5',
   initial: 'preparing',
   context: { settlement: null, cancellation: null, processError: false, processRecorded: false },
-  // XState types done-state output as unknown. Both terminal nodes emit Output.
-  output: ({ event }) => event.output as Output,
   states: {
     preparing: {
       meta: { label: '准备日志并启动', source: source + ':180–249' },
@@ -102,8 +87,8 @@ export const cliReceiptMachine = setup({
     active: {
       type: 'parallel',
       on: {
-        'process.error': { actions: ['recordProcessError'] },
-        'cleanup.groupKillFailed': { actions: ['recordProcessError'] },
+        'process.error': () => ({ context: { processError: true } }),
+        'cleanup.groupKillFailed': () => ({ context: { processError: true } }),
       },
       states: {
         process: {
@@ -112,18 +97,18 @@ export const cliReceiptMachine = setup({
             running: {
               meta: { label: '等待进程关闭', source: source + ':231–259' },
               on: {
-                'process.closed': { target: 'closed', actions: ['recordClose'] },
-                'process.aborted': { target: 'cancelling', actions: ['recordAbort'] },
-                'process.timedOut': { target: 'cancelling', actions: ['recordTimeout'] },
+                'process.closed': close,
+                'process.aborted': () => ({ target: 'cancelling', context: { cancellation: 'abort' as const } }),
+                'process.timedOut': () => ({ target: 'cancelling', context: { cancellation: 'timeout' as const } }),
                 'identity.failed': { target: 'cancelling' },
               },
             },
             cancelling: {
               meta: { label: '清理进程组', source: source + ':221–229' },
               on: {
-                'process.closed': { target: 'closed', actions: ['recordClose'] },
-                'process.timedOut': { actions: ['recordTimeout'] },
-                'process.hardDeadline': { target: 'unconfirmed', actions: ['recordUnconfirmed'] },
+                'process.closed': close,
+                'process.timedOut': () => ({ context: { cancellation: 'timeout' as const } }),
+                'process.hardDeadline': () => ({ target: 'unconfirmed', context: { settlement: { kind: 'unconfirmed' as const } } }),
               },
             },
             closed: {
@@ -142,9 +127,11 @@ export const cliReceiptMachine = setup({
             pending: {
               meta: { label: '读取身份并等待日志写入', source: source + ':262–267' },
               on: {
-                'identity.recorded': { target: 'finished', actions: ['recordIdentity'] },
+                'identity.recorded': () => ({ target: 'finished', context: { processRecorded: true } }),
                 'identity.skipped': { target: 'finished' },
-                'identity.failed': { target: 'finished', actions: ['recordIdentityError'] },
+                'identity.failed': ({ context }) => ({
+                  target: 'finished', context: { processError: true, cancellation: context.cancellation ?? ('abort' as const) },
+                }),
               },
             },
             finished: { type: 'final', meta: { label: '身份处理结束' } },

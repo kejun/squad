@@ -12,7 +12,9 @@ function files(root, path) {
   return readdirSync(join(root, path)).sort().flatMap(name => files(root, join(path, name)));
 }
 function sourceInputs(root) {
-  const paths = ['src', 'web/src', 'web/public', 'web/index.html', 'web/vite.config.ts', 'web/tsconfig.json', 'scripts/web.ts', 'team.config.ts', 'tsconfig.json', 'package.json', 'package-lock.json', 'scripts/build.mjs', '.agents/skills/verify-squad/scripts/build-proof.mjs'];
+  const paths = ['src', 'web/src', 'web/public', 'web/index.html', 'web/vite.config.ts', 'web/tsconfig.json', 'scripts/web.ts',
+    'packages/inspector-transport/index.mjs', 'packages/inspector-transport/index.d.mts', 'packages/inspector-transport/package.json',
+    'team.config.ts', 'tsconfig.json', 'package.json', 'package-lock.json', 'scripts/build.mjs', '.agents/skills/verify-squad/scripts/build-proof.mjs'];
   return paths.flatMap(path => files(root, path)).map(path => ({ path, sha256: hash(readFileSync(join(root, path))) }));
 }
 function bundles(root) {

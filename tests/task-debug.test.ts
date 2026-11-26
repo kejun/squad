@@ -3,15 +3,14 @@ import * as inspection from '../src/task-inspection.js';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createActor } from 'xstate';
-import { createInspector } from '@statelyai/inspect';
 import { debugEventTemplate, debugFrame, debugInput, taskGraph, TaskSandbox, type DebugFeed, type DebugFrame } from '../src/task-debug.js';
-import { initialTask, persistTask, stepTask, taskMachine } from '../src/task.machine.js';
+import { initialTask } from '../src/task.machine.js';
 import { TeamEngine } from '../src/engine.js';
 import { MemoryStore, SqliteStore } from '../src/store.js';
 import { DebugJournal } from '../src/web/debug-journal.js';
 import { debugHost } from './task-debug-fixture.js';
 import { DebugUIFixture } from './task-debug-ui-fixture.js';
+import { InspectorFixture } from './inspector-fixture.js';
 
 const cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
@@ -24,19 +23,16 @@ describe('browser state-machine debug', () => {
 
   });
   it('[BT_V02] registers an actual machine definition with Inspector without running a shadow actor', () => {
-    const sent: { type: string; definition?: string | undefined }[] = [];
-    const inspector = createInspector({ send: event => sent.push(event) }, { autoStart: false });
-    const snapshot = initialTask(debugInput());
-    const metadata = createActor(taskMachine, { snapshot, input: debugInput(), id: 'metadata-only' });
-    inspector.actor(metadata, { status: 'active', value: snapshot.value, context: snapshot.context });
-    const registration = sent.find(event => event.type === '@xstate.actor')!;
-    const definition = JSON.parse(registration.definition!);
-    expect(Object.keys(definition.states).sort()).toEqual(taskGraph().states.sort());
-    expect(definition.initial).toBe('running'); expect(definition.on.STOP.target).toBe('.stopping');
-    const next = stepTask(snapshot, { type: 'STOP', id: 'stop', at: 1 });
-    inspector.snapshot(metadata, { status: 'active', value: next.value, context: next.context });
-    expect(next.value).toBe('ended'); expect(metadata.getSnapshot().value).toBe('running');
-    inspector.stop();
+    const fixture = new InspectorFixture();
+    const bridge = fixture.open();
+    try {
+      const definition = JSON.parse(fixture.messages[0]!.definition!);
+      expect(Object.keys(definition.states).sort()).toEqual(taskGraph().states.sort());
+      expect(definition.initial).toBe('running'); expect(definition.on.STOP.target).toBe('.stopping');
+      bridge.update(fixture.latest());
+      expect(fixture.messages.at(-1)?.snapshot?.value).toBe('ended');
+      fixture.assertOrdered();
+    } finally { bridge.stop(); }
   });
   it('[BT_V06] never publishes a rolled-back transition and observer errors do not poison commits', () => {
     const config = debugInput().config, store = new MemoryStore(), observed: DebugFrame[] = [];

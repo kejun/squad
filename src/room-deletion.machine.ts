@@ -1,4 +1,4 @@
-import { assign, initialTransition, setup, transition, type SnapshotFrom } from 'xstate';
+import { createMachine, initialTransition, transition, types, type SnapshotFrom } from 'xstate';
 import type { Outcome, Phase, Reply } from './types.js';
 
 export type DeletionPhase = 'idle' | 'preparing' | 'waiting' | 'deleting' | 'paused' | 'deleted';
@@ -235,70 +235,121 @@ function reduceDeletion(context: RoomDeletionContext, event: RoomDeletionEvent):
   }
   return c;
 }
-const valid = ({ context, event }: { context: RoomDeletionContext; event: RoomDeletionEvent }) => !deletionEventProblem(context, event);
-const prepared = ({ context, event }: { context: RoomDeletionContext; event: RoomDeletionEvent }) => event.type === 'PREPARED' && !!currentIntent(context, event, 'prepare');
-const blocked = ({ context, event }: { context: RoomDeletionContext; event: RoomDeletionEvent }) => event.type === 'PREPARED'
-  && !deletionEventProblem(context, event) && (!event.inventory.complete || !context.force && !event.inventory.executionsSettled || !!event.inventory.blockers.length);
+type DeletionTransition = { context: RoomDeletionContext; event: RoomDeletionEvent };
+type DeletionPayload<T extends RoomDeletionEvent['type']> = Omit<RoomDeletionEvent & { type: T }, 'type'>;
 
-export const roomDeletionMachine = setup({
-  types: { context: {} as RoomDeletionContext, events: {} as RoomDeletionEvent, input: {} as { roomId: string } },
-  guards: {
-    valid, prepared, blocked,
-    forceRequest: args => args.event.type === 'REQUEST' && args.event.force === true && !args.context.force && valid(args),
-    forceErasure: args => args.context.force === true && valid(args),
-    ready: args => prepared(args) && valid(args) && !blocked(args),
-    due: ({ context, event }) => valid({ context, event }) && context.nextWake !== null && event.at >= context.nextWake,
-    claimed: ({ context, event }) => valid({ context, event }) && !!currentIntent(context, event),
-    currentAsset: ({ context, event }) => event.type === 'ASSET_REMOVED' && !!currentIntent(context, event, 'removeAsset'),
-    currentVerification: ({ context, event }) => event.type === 'VERIFIED' && !!currentIntent(context, event, 'verify'),
+const valid = ({ context, event }: DeletionTransition) => !deletionEventProblem(context, event);
+const due = ({ context, event }: DeletionTransition) => context.nextWake !== null && event.at >= context.nextWake;
+const apply = ({ context, event }: DeletionTransition) => ({ context: reduceDeletion(context, event) });
+const retry = ({ context, event }: DeletionTransition) => ({
+  context: reduceDeletion(context, { ...event, type: 'RETRY', deletionId: context.deletionId! }),
+});
+const reject = ({ context, event }: DeletionTransition) => {
+  const reason = deletionEventProblem(context, event) ?? 'INVALID_DELETION_STATE';
+  return { context: { reply: { ok: false, code: reason, detail: reason } } };
+};
+const invalidResult = ({ context, event }: DeletionTransition) => {
+  const c = structuredClone(context), intent = currentIntent(c, event);
+  if (intent) intent.status = 'failed';
+  c.reason = deletionEventProblem(c, event) ?? 'INVALID_DELETION_RESULT'; c.nextWake = event.at + 5000; c.revision++;
+  c.reply = { ok: false, code: c.reason, detail: c.reason };
+  return { context: c };
+};
+const existing = ({ context }: DeletionTransition) => ({ context: {
+  reply: { ok: true, code: context.completedAt === null ? 'DELETION_ALREADY_REQUESTED' : 'ROOM_DELETED', detail: context.deletionId! },
+} });
+
+export const roomDeletionMachine = createMachine({
+  schemas: {
+    context: types<RoomDeletionContext>(),
+    input: types<{ roomId: string }>(),
+    events: {
+      REQUEST: types<DeletionPayload<'REQUEST'>>(),
+      CLAIM: types<DeletionPayload<'CLAIM'>>(),
+      PREPARED: types<DeletionPayload<'PREPARED'>>(),
+      ASSET_REMOVED: types<DeletionPayload<'ASSET_REMOVED'>>(),
+      DATA_ERASED: types<DeletionPayload<'DATA_ERASED'>>(),
+      VERIFIED: types<DeletionPayload<'VERIFIED'>>(),
+      FAILED: types<DeletionPayload<'FAILED'>>(),
+      RETRY: types<DeletionPayload<'RETRY'>>(),
+      RECOVER: types<DeletionPayload<'RECOVER'>>(),
+      TICK: types<DeletionPayload<'TICK'>>(),
+    },
   },
-  actions: {
-    apply: assign(({ context, event }) => reduceDeletion(context, event)),
-    retry: assign(({ context, event }) => reduceDeletion(context, { ...event, type: 'RETRY', deletionId: context.deletionId! })),
-    reject: assign(({ context, event }) => ({ ...context, reply: { ok: false,
-      code: deletionEventProblem(context, event) ?? 'INVALID_DELETION_STATE', detail: deletionEventProblem(context, event) ?? 'INVALID_DELETION_STATE' } })),
-    invalidResult: assign(({ context, event }) => {
-      const c = structuredClone(context), intent = currentIntent(c, event);
-      if (intent) intent.status = 'failed';
-      c.reason = deletionEventProblem(c, event) ?? 'INVALID_DELETION_RESULT'; c.nextWake = event.at + 5000; c.revision++;
-      c.reply = { ok: false, code: c.reason, detail: c.reason }; return c;
-    }),
-    existing: assign(({ context }) => ({ ...context, reply: { ok: true, code: context.completedAt === null ? 'DELETION_ALREADY_REQUESTED' : 'ROOM_DELETED', detail: context.deletionId! } })),
-  },
-}).createMachine({
   id: 'room-deletion', initial: 'idle', context: ({ input }) => initialContext(input.roomId),
   on: {
-    REQUEST: [{ guard: 'forceRequest', target: '.deleting', actions: 'apply' }, { guard: 'valid', actions: 'existing' }, { actions: 'reject' }],
-    CLAIM: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
-    FAILED: [{ guard: 'claimed', target: '.paused', actions: 'apply' }, { actions: 'reject' }],
-    '*': { actions: 'reject' },
+    REQUEST: args => {
+      if (!valid(args)) return reject(args);
+      if (args.event.force === true && !args.context.force) return { target: '.deleting', ...apply(args) };
+      return existing(args);
+    },
+    CLAIM: args => valid(args) ? apply(args) : reject(args),
+    FAILED: args => valid(args) ? { target: '.paused', ...apply(args) } : reject(args),
+    '*': reject,
   },
   states: {
-    idle: { on: { REQUEST: [{ guard: 'forceRequest', target: 'deleting', actions: 'apply' }, { guard: 'valid', target: 'preparing', actions: 'apply' }, { actions: 'reject' }] } },
+    idle: { on: {
+      REQUEST: args => {
+        if (!valid(args)) return reject(args);
+        if (args.event.force === true && !args.context.force) return { target: 'deleting', ...apply(args) };
+        return { target: 'preparing', ...apply(args) };
+      },
+    } },
     preparing: { on: {
-      RETRY: [{ guard: 'valid', actions: 'existing' }, { actions: 'reject' }],
-      PREPARED: [{ guard: 'blocked', target: 'waiting', actions: 'apply' }, { guard: 'ready', target: 'deleting', actions: 'apply' },
-        { guard: 'prepared', target: 'paused', actions: 'invalidResult' }, { actions: 'reject' }],
-      RECOVER: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+      RETRY: args => valid(args) ? existing(args) : reject(args),
+      PREPARED: args => {
+        const { context, event } = args;
+        if (valid(args)) {
+          const { complete, executionsSettled, blockers } = event.inventory;
+          if (!complete || !context.force && !executionsSettled || blockers.length > 0) return { target: 'waiting', ...apply(args) };
+          return { target: 'deleting', ...apply(args) };
+        }
+        if (currentIntent(context, event, 'prepare')) return { target: 'paused', ...invalidResult(args) };
+        return reject(args);
+      },
+      RECOVER: args => valid(args) ? apply(args) : reject(args),
     } },
     waiting: { on: {
-      RETRY: [{ guard: 'valid', target: 'preparing', actions: 'apply' }, { actions: 'reject' }],
-      TICK: [{ guard: 'due', target: 'preparing', actions: 'apply' }, { actions: 'reject' }],
-      RECOVER: [{ guard: 'due', target: 'preparing', actions: 'retry' }, { guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+      RETRY: args => valid(args) ? { target: 'preparing', ...apply(args) } : reject(args),
+      TICK: args => valid(args) && due(args) ? { target: 'preparing', ...apply(args) } : reject(args),
+      RECOVER: args => {
+        if (!valid(args)) return reject(args);
+        if (due(args)) return { target: 'preparing', ...retry(args) };
+        return apply(args);
+      },
     } },
     deleting: { on: {
-      RETRY: [{ guard: 'valid', actions: 'existing' }, { actions: 'reject' }],
-      ASSET_REMOVED: [{ guard: 'valid', actions: 'apply' }, { guard: 'currentAsset', target: 'paused', actions: 'invalidResult' }, { actions: 'reject' }],
-      DATA_ERASED: [{ guard: 'forceErasure', target: 'preparing', actions: 'apply' }, { guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
-      VERIFIED: [{ guard: 'valid', target: 'deleted', actions: 'apply' }, { guard: 'currentVerification', target: 'paused', actions: 'invalidResult' }, { actions: 'reject' }],
-      RECOVER: [{ guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
+      RETRY: args => valid(args) ? existing(args) : reject(args),
+      ASSET_REMOVED: args => {
+        if (valid(args)) return apply(args);
+        if (currentIntent(args.context, args.event, 'removeAsset')) return { target: 'paused', ...invalidResult(args) };
+        return reject(args);
+      },
+      DATA_ERASED: args => {
+        if (!valid(args)) return reject(args);
+        if (args.context.force === true) return { target: 'preparing', ...apply(args) };
+        return apply(args);
+      },
+      VERIFIED: args => {
+        if (valid(args)) return { target: 'deleted', ...apply(args) };
+        if (currentIntent(args.context, args.event, 'verify')) return { target: 'paused', ...invalidResult(args) };
+        return reject(args);
+      },
+      RECOVER: args => valid(args) ? apply(args) : reject(args),
     } },
     paused: { on: {
-      RETRY: [{ guard: 'valid', target: 'preparing', actions: 'apply' }, { actions: 'reject' }],
-      RECOVER: [{ guard: 'due', target: 'preparing', actions: 'retry' }, { guard: 'valid', actions: 'apply' }, { actions: 'reject' }],
-      TICK: [{ guard: 'due', target: 'preparing', actions: 'apply' }, { actions: 'reject' }],
+      RETRY: args => valid(args) ? { target: 'preparing', ...apply(args) } : reject(args),
+      RECOVER: args => {
+        if (!valid(args)) return reject(args);
+        if (due(args)) return { target: 'preparing', ...retry(args) };
+        return apply(args);
+      },
+      TICK: args => valid(args) && due(args) ? { target: 'preparing', ...apply(args) } : reject(args),
     } },
-    deleted: { on: { REQUEST: [{ guard: 'valid', actions: 'existing' }, { actions: 'reject' }], '*': { actions: 'reject' } } },
+    deleted: { on: {
+      REQUEST: args => valid(args) ? existing(args) : reject(args),
+      '*': reject,
+    } },
   },
 });
 export type RoomDeletionSnapshot = SnapshotFrom<typeof roomDeletionMachine>;

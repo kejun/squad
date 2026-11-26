@@ -1,10 +1,10 @@
-import { taskMachine } from './task.machine.js';
+import { taskLifecycle } from './task/lifecycle.js';
 
 export interface MachineTransition {
   id: string; order: number; source: string; target: string | null; event: string;
   guards: string[]; actions: string[];
 }
-export interface ConfigNode {
+interface ConfigNode {
   on?: Record<string, unknown>; always?: unknown; states?: Record<string, ConfigNode>;
 }
 export interface MachineGraph {
@@ -23,7 +23,7 @@ function fingerprint(text: string) {
   return (value >>> 0).toString(16).padStart(8, '0');
 }
 export function taskGraph(): MachineGraph {
-  const config = taskMachine.config as ConfigNode;
+  const config: ConfigNode = taskLifecycle;
   const transitions: MachineTransition[] = [];
   const collect = (node: ConfigNode, source: string) => {
     const entries = [...Object.entries(node.on ?? {}), ...(node.always ? [['@always', node.always] as const] : [])];
@@ -41,8 +41,8 @@ export function taskGraph(): MachineGraph {
   };
   collect(config, '*');
   for (const [state, node] of Object.entries(config.states ?? {})) collect(node, state);
-  return { id: taskMachine.id, definition: fingerprint(JSON.stringify(transitions)),
-    initial: String(taskMachine.config.initial), states: Object.keys(config.states ?? {}), transitions };
+  return { id: taskLifecycle.id, definition: fingerprint(JSON.stringify(transitions)),
+    initial: taskLifecycle.initial, states: Object.keys(config.states ?? {}), transitions };
 }
 export function stateTransitions(graph: MachineGraph, state: string): MachineTransition[] {
   const local = graph.transitions.filter(t => t.source === state);

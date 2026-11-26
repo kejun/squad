@@ -1,11 +1,28 @@
 import assert from 'node:assert/strict';
+import { mock } from 'node:test';
+import { Actor, type EventObject } from 'xstate';
 import { connectInspector, type InspectorMessage, type InspectorPort } from '../web/src/inspector-bridge.js';
 import { debugInput } from '../src/task-debug.js';
 import { inspectorOrigin, type InspectorFrame } from '../src/inspector.machine.js';
 import { initialTask, persistTask, stepTask, taskMachine } from '../src/task.machine.js';
 
+export function observeActorCalls() {
+  const originalSend = Object.getOwnPropertyDescriptor(Actor.prototype, 'send')?.get;
+  assert(originalSend, 'XState exposes a bound send getter');
+  const start = mock.method(Actor.prototype, 'start');
+  const send = mock.fn((dispatch: (event: EventObject) => void, event: EventObject) => dispatch(event));
+  const getter = mock.getter(Actor.prototype, 'send', function (this: object) {
+    const dispatch: (event: EventObject) => void = originalSend.call(this);
+    return (event: EventObject) => send(dispatch, event);
+  });
+  return {
+    counts: () => ({ starts: start.mock.calls.length, sends: send.mock.calls.length }),
+    restore() { getter.mock.restore(); start.mock.restore(); },
+  };
+}
+
 interface Message {
-  type: string; sessionId?: string; definition?: string;
+  type: string; sessionId?: string; parentId?: string; definition?: string;
   snapshot?: { value: string; status: string; context: unknown };
 }
 export class InspectorFixture {

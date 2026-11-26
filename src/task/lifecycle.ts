@@ -1,5 +1,18 @@
 import { supervisionDecision } from './resilience.js';
 import type { Phase, TaskContext, TaskEvent } from '../types.js';
+import type { taskActions } from './actions.js';
+import type { taskGuards } from './guards.js';
+
+export interface TaskRule {
+  guard?: keyof typeof taskGuards | ((args: { context: TaskContext; event: TaskEvent }) => boolean);
+  target?: string;
+  actions?: keyof typeof taskActions | readonly (keyof typeof taskActions)[];
+}
+export type TaskRules = TaskRule | readonly TaskRule[];
+export interface TaskRuleState {
+  on?: Partial<Record<TaskEvent['type'] | '*', TaskRules>>;
+  always?: TaskRules;
+}
 const superviseActions = { interpreting: 'superviseInterpreting', running: 'superviseRunning', waitingAssistance: 'superviseAssistance', coordinating: 'superviseCoordinating', waitingHuman: 'superviseHuman', checking: 'superviseChecking', stopping: 'superviseStopping', ended: 'superviseEnded' } as const;
 const resumeAfterApproval = [
   { guard: 'localResumeOwner', target: 'running', actions: 'apply' },
@@ -13,7 +26,7 @@ const supervision = (phase: Phase) => [
   { guard: function supervisionRepairs({ context, event }: { context: TaskContext; event: TaskEvent }) { return supervisionDecision(context, phase, event.at) === 'repair'; }, target: '#botTeamTask.coordinating', actions: superviseActions[phase] },
   { actions: superviseActions[phase] },
 ];
-// Ordered transition arrays are part of the persisted/debugging contract.
+// Preserve the ordered rule data used by runtime selection and the debug graph.
 // `ended` remains resumable; only the execution epoch has ended.
 export const taskLifecycle = {
   id: 'botTeamTask',
@@ -176,4 +189,4 @@ export const taskLifecycle = {
       },
     },
   }
-} as const;
+} as const satisfies TaskRuleState & { id: string; initial: Phase; states: Record<Phase, TaskRuleState> };

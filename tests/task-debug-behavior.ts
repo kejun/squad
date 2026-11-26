@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { debugEventTemplate, debugFrame, debugInput, taskGraph, TaskSandbox } from '../src/task-debug.js';
 import { branchStatus, contextChanges, frameSummary, selectDebugFrame, waitingItems } from '../src/task-debug-view.js';
 import { inspectInitialTask, inspectTask } from '../src/task-inspection.js';
-import { initialTask, persistTask, stepTask } from '../src/task.machine.js';
+import { initialTask, persistTask, restoreTask, stepTask } from '../src/task.machine.js';
 import type { TaskEvent } from '../src/types.js';
 import { plannedSandbox } from './discussion-debug-fixture.js';
 import type { DebugUIFixture } from './task-debug-ui-fixture.js';
@@ -40,8 +40,10 @@ export function verifyRetryAndEmpty() {
   assert.deepEqual(frame.evidence!.evaluations.filter(e => e.event === 'RETRY_ASSISTANCE').map(e => [e.ruleId, e.guard, e.passed]),
     branches.slice(0, matched + 1).map((rule, index) => [rule.id, rule.guards[0] ?? null, index === matched]));
   assert.equal(branchStatus(branches[matched + 1]!, frame, graph), '前一分支已命中，未评估');
-  const initial = initialTask(debugInput()), ended = stepTask(initial, { type: 'STOP', id: 'stop', at: 1 });
-  ended.context.reply = { ok: false, code: 'OLD_REJECTION', detail: 'old' };
+  const initial = initialTask(debugInput()), stopped = stepTask(initial, { type: 'STOP', id: 'stop', at: 1 });
+  const ended = restoreTask({ ...(persistTask(stopped) as object), context: {
+    ...stopped.context, reply: { ok: false, code: 'OLD_REJECTION', detail: 'old' },
+  } });
   const emptyEvent: TaskEvent = { type: 'STOP', id: 'again', at: 2 };
   const empty = inspectTask(ended, emptyEvent);
   assert.deepEqual(persistTask(empty.snapshot), persistTask(stepTask(ended, emptyEvent)));

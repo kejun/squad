@@ -1210,7 +1210,7 @@ stateDiagram-v2
 
 #### 官方 Inspector 观察通道
 
-BT_V27–BT_V31 使用官方 [Inspector 手动发送接口](https://stately.ai/docs/inspector)和独立标签页。401 来自托管 `machines.getDigraphConfigs` 的认证检查，实测响应为 `Sign in to view hosted work`；新标签页允许顶层登录和第一方会话，不声称匿名请求因此获得权限。沿用现有 SDK 与官方实际可用的 `/inspect` 地址，不引入 API 密钥、代理或 SDK 迁移。观察模型位于 `src/inspector.machine.ts`，业务 `src/task.machine.ts` 不增加状态或改变转移。
+BT_V27–BT_V31 使用官方 Inspector 手动发送接口和独立标签页。托管 `machines.getDigraphConfigs` 对匿名访问返回 `401 Sign in to view hosted work`。顶层标签页保留登录与第一方会话。观察和窗口模型位于 `src/inspector.machine.ts`，运行于 XState v6。工作区包 `@squad/inspector-transport` 单独锁定现有发送 SDK 及其 v5 peer，沿用 `/inspect` 地址和窗口消息协议。 [Inspector 手动发送接口](https://stately.ai/docs/inspector)
 
 **图型：真实 XState；所有者：`inspectorWindowMachine（inspector-window）`。**
 
@@ -1253,7 +1253,7 @@ stateDiagram-v2
 
 重复点击只聚焦，不覆盖正在登录的页面；切换实时任务或沙箱身份沿用同一观察连接，在新身份首帧前注册新元数据actor，不重载标签页。窗口关闭检测只停止旧通道，下次点击创建新窗口；被阻止时没有发送、导航或业务副作用，重试使用最新选择。关闭面板或卸载组件解除监听和关闭检测，迟到握手或异步加载均不得再发送。已打开的官方标签页保留给用户，不强制关闭。
 
-两层模型只产生瞬时观察/窗口意图，由浏览器适配器执行，不写业务SQLite、不领取任务工作，不调用WorkRunner。观察只读取持久化快照或纯内存沙箱结果，元数据业务actor从不start或send。停止、失败、额度耗尽、任务版本与重启恢复沿用原业务机器；打开或重连不会重放业务I/O或修改预算。模型层先验证打开/被阻止/重试/聚焦/关闭/释放、身份切换前注册与来源拒绝，再接入网页。真实登录需要用户在官方页面完成，匿名401与协议验证单独报告。
+两层模型只产生瞬时观察和窗口意图，由浏览器适配器执行。注册元数据从任务与执行模型的规则表生成，观察状态来自持久化快照或纯内存沙箱结果。观测子项保留父子关系与终态回执。浏览器在打开、重连或切换观察时只读这些数据。模型层检查打开、被阻止、重试、聚焦、关闭、释放、注册顺序与来源拒绝。真实登录在官方页面完成，匿名 401 与协议验证分别记录。
 
 标签页模型版本、门槛轨迹与真实官方协议证据见[Inspector 验收记录](inspector-verification.md)。
 

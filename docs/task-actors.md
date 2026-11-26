@@ -8,7 +8,7 @@
 
 任务内协助交接和预算仍属于一个状态所有者；将这些事务拆为异步领域 actor 需要额外提交协议，无法仅靠 sendParent 保证原子性。因此本次按实际可独立启动、取消、结算和恢复的执行实体拆分，而非按文件名建立 actor。既有八个任务阶段与业务上下文保留。
 
-依据：[官方 actor 生命周期](https://stately.ai/docs/actors)、[深度持久化与恢复](https://stately.ai/docs/persistence)、[纯转换边界](https://stately.ai/docs/pure-transitions)。仓库维持 XState 5.33.3；原生 spawn/sendTo 的内部消息在确定性模型宿主中处理，不包含文件、网络、进程或适配器 I/O。
+应用使用 XState 6。确定性模型宿主处理 `enq.spawn` 和 `enq.sendTo` 的内部消息，文件、网络、进程与适配器由事务外的执行器负责。 [v6 迁移契约](requirements/xstate-v6.md)
 
 ## Actor 所有权图
 
@@ -17,9 +17,9 @@
 ```mermaid
 flowchart TD
   T["botTeamTask：阶段 / 目标 / 预算 / 结果交接"]
-  T -->|"成功 CLAIM / spawnChild"| A["execution：负责人，本次尝试"]
-  T -->|"成功 CLAIM / spawnChild"| B["execution：协助或讨论成员，本次尝试"]
-  T -->|"成功 CLAIM / spawnChild"| C["execution：协调、检查、解释、工具或取消"]
+  T -->|"成功 CLAIM / enq.spawn"| A["execution：负责人，本次尝试"]
+  T -->|"成功 CLAIM / enq.spawn"| B["execution：协助或讨论成员，本次尝试"]
+  T -->|"成功 CLAIM / enq.spawn"| C["execution：协调、检查、解释、工具或取消"]
   T -->|"START / 任务状态事实"| B
   B --> P["准备、执行、取消、未知、结算状态"]
   S["TeamEngine：同一事务保存父及全部子快照"] --> T
@@ -48,10 +48,9 @@ stateDiagram-v2
   cancelling --> settled: PARENT_FACTS [可信结果已结算]
   uncertain --> settled: PARENT_FACTS [核对确认已完成]
   uncertain --> interrupted: PARENT_FACTS [核对确认未执行]
-  settled --> [*]
-  cancelled --> [*]
-  interrupted --> [*]
 ```
+
+`settled`、`cancelled` 和 `interrupted` 是没有出边的执行终态。v6 父模型保留这些尝试的引用供持久化和调试读取，任务快照继续使用已有的终态表示。
 
 执行器发出的结果、失败、结算和额外请求必须携带 attempt；父任务先校验本次工作尝试，再判断其他权限。旧 attempt 消息拒绝后不得释放新尝试的 work 或本地锁，也不得把新解析标记失败或把当前协调推进到等待人工。结果回执身份也包含 attempt；旧 schema 的可信历史事件没有该字段时仍按原版本协议处理。对应 BT_N14。执行器的取消通道和清理也按 intentId + attempt 隔离；旧尝试返回时不能覆盖或删除新尝试的通道，对应 BT_N15。
 
@@ -62,7 +61,7 @@ stateDiagram-v2
 - 每次模型转换创建隔离的原生 actor 系统，恢复父子快照、处理一个命令并同步排空内部消息；获取深度持久化快照后关闭本次宿主。没有 timer、promise 或外部 I/O actor。任务的业务 ended 可继续；单次执行的终态不可继续。
 - 成功领取创建 authorized 子 actor，与预算和意图一起保存。启动许可再用一个事务将子 actor 推进 running；提交成功后 WorkRunner 才调用适配器。失败回滚整个快照树，不能把未保存许可当作可执行凭据。
 - 结果及父任务事实通过内部消息推进子 actor。结果消费标记、一次负责人续办和公开答复仍在原任务事务内提交；不依赖子 actor 异步回信提交半份业务状态。
-- 旧 schema 1 快照允许 children 为空；恢复时不授权重新启动旧 inflight 尝试。RECOVER 沿用安全/非幂等/本地未知效果规则，下一次 CLAIM 创建新 attempt。新快照使用 XState 原生 children 深度序列化，不保存函数或运行时引用。
+- 旧 schema 1 快照允许 children 为空，已有 inflight 尝试需先走 RECOVER，下一次 CLAIM 创建新 attempt。任务快照编解码器从原生 children 保存可序列化的执行身份和状态，并在 v6 恢复前整理旧版数据。
 - 诊断保留既有业务规则身份与八阶段微步，新增执行子 actor 的真实快照和父子关系。Inspector 仅注册观察元数据，不启动业务 actor。BT_N01–N05 的冻结业务内容继续比较；旧快照本来没有的子树作为此次显式新增结构独立验证，冻结基线不更新。
 
 ## 验收
