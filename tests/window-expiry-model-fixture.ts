@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
-import { initialTask, persistTask, restoreTask, startTaskExecution } from '../src/task.machine.js';
+import { executionState, initialTask, persistTask, restoreTask, startTaskExecution } from '../src/task.machine.js';
 import { processingWindow, taskHumanGate, effectiveWork } from '../src/task/resilience.js';
 import { localModelInput } from './local-model-fixture.js';
 import { ResilienceModel, stageModel } from './task-resilience-model-fixture.js';
@@ -103,6 +103,42 @@ export function expiryPhysicalCustodyModel() {
   assert(m.c.resilience!.gates.some(g => g.scope === 'cleanup' && g.status === 'open'));
   assert.equal(startTaskExecution(m.snapshot, work.id, work.attempt, 100).allowed, false);
   return m;
+}
+function expiryLegacyFailureModel(failureFirst: boolean) {
+  const m = new ResilienceModel(), owner = m.claim();
+  assert(m.send({ type: 'TOOL', workId: owner.id, fence: owner, tool: 'read', replay: 'unsafe', payload: {} }).ok);
+  const tool = m.claim('tool');
+  const start = startTaskExecution(m.snapshot, tool.id, tool.attempt, m.at);
+  assert(start.allowed);
+  m.snapshot = restoreTask(structuredClone(persistTask(start.snapshot)));
+  assert.equal(executionState(m.snapshot, tool.id, tool.attempt), 'running');
+  const window = processingWindow(m.c), usage = structuredClone(m.c.usage);
+  const failure = { type: 'WORK_FAILED', intentId: tool.id, attempt: tool.attempt, fence: tool, code: 'WINDOW_EXPIRED',
+    reason: 'Processing window expired during an unsafe tool invocation', transient: false, resultUncertain: true };
+  m.at = window.hardDeadline;
+  if (failureFirst) assert(m.send(failure).ok);
+  else assert(m.supervise().ok);
+
+  const cleanup = m.c.resilience!.cleanup[0];
+  assert.equal(cleanup?.kind, 'legacyWork', 'the first expiry event must retain the original tool custody');
+  assert.equal(cleanup.workId, tool.id);
+  assert.equal(cleanup.state, 'pending');
+  assert.equal(executionState(m.snapshot, tool.id, tool.attempt), 'uncertain');
+  assert.deepEqual(cleanup.resourceKeys, ['squad:unconfined-external-effects']);
+  assert.equal(m.phase, 'waitingHuman');
+  const gate = taskHumanGate(m.c);
+  assert.equal(gate?.cause, 'windowExpired');
+  assert.equal(processingWindow(m.c).failure?.at, m.at);
+
+  if (failureFirst) assert(m.supervise().ok);
+  else assert.equal(m.send(failure).code, 'UNKNOWN_OR_SETTLED_WORK');
+  assert.deepEqual(m.c.resilience!.cleanup, [cleanup]);
+  assert.deepEqual(m.c.usage, usage);
+  assert.equal(effectiveWork(m.c, m.phase, m.at).length, 0);
+  assert(m.send({ type: 'RECONCILE', intentId: tool.id, fence: tool, resolution: 'confirmed', detail: '可信提供方核对原效果' }).ok);
+  assert.equal(m.c.resilience!.cleanup[0]!.state, 'settled');
+  assert.equal(executionState(m.snapshot, tool.id, tool.attempt), 'settled');
+  assert.equal(taskHumanGate(m.c)?.id, gate.id);
 }
 export function expiryPermissionModel() {
   const approval = approvalModel(), prior = taskHumanGate(approval.c)!;
@@ -215,11 +251,12 @@ export function windowExpiryModelGate() {
   for (const decision of ['普通回复', '关闭提示后恢复', '明确授权三小时新窗口', '通过继续入口明确授权三小时新窗口', '明确结束并交付现有成果', '明确停止', '解决旧必需门但未授权新窗口']) expiredDecisionModel(decision);
   for (const failure of ['WINDOW_EXPIRED', 'WINDOW_EXPIRED附带transient', '窗口内网络transient', '单次工作期限早于窗口']) windowFailureModel(failure);
   expiryPhysicalCustodyModel();
+  for (const failureFirst of [false, true]) expiryLegacyFailureModel(failureFirst);
   expiryPermissionModel(); expiryOtherDeadlineModel();
   expiryClaimedInputResumeModel();
   expiryMapResumeModel(); expiryMapResumeModel(true);
   for (const phase of ['interpreting', 'running', 'waitingAssistance', 'coordinating', 'waitingHuman', 'checking'] as Phase[]) expiryPhaseCompletionModel(phase);
   expiryPhaseCompletionModel('waitingAssistance', true); expiredDecisionModel('跳过旧宿主命令后请求续窗');
-  return { status: 'passed', phases, persistence: 'real XState round trip after each event', contracts: ['BT_Y131', 'BT_Y132', 'BT_Y133', 'BT_Y134'] };
+  return { status: 'passed', phases, persistence: 'real XState round trip after each event', contracts: ['BT_Y131', 'BT_Y132', 'BT_Y133', 'BT_Y134', 'BT_Y206'] };
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) console.log(JSON.stringify(windowExpiryModelGate()));

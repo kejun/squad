@@ -2,7 +2,7 @@ import { heldLocalResourceLeases, localAwaitingApproval, localEnabled, localPhys
 import { createHash, randomUUID } from 'node:crypto';
 import { initialTask, persistTask, restoreTask, stepTask, taskPhase, startTaskExecution, executionState, workLaneAvailable, type TaskSnapshot } from './task.machine.js';
 import { deletionStore, RoomDeletionError, type Store, type Transaction, type DeletionSettlementProof } from './store.js';
-import { conversationHistory, requestedReviewTargets } from './conversation.js';
+import { conversationHistory, requestedReview } from './conversation.js';
 import { requestedRetryTarget, retryableAssistance, retryProblemText } from './assistance-retry.js';
 import { inputControl, leadingInputMention } from './input-intent.js';
 import { debugFrame, type DebugEvent, type DebugFrame } from './task-debug.js';
@@ -51,6 +51,9 @@ function decode(value: unknown): TaskSnapshot {
   if (result.context.schemaVersion !== 1) throw new Error('Incompatible task context');
   return result;
 }
+function queuedTask(value: unknown): boolean {
+  return (value as { snapshot?: { value?: unknown } } | undefined)?.snapshot?.value === 'queued';
+}
 function storeTask(tx: Transaction, snapshot: TaskSnapshot, activate = false) {
   const id = snapshot.context.taskId;
   tx.room.tasks[id] = { version: taskStorageVersion(snapshot.context.config), snapshot: persistTask(snapshot) } satisfies StoredTask;
@@ -90,13 +93,28 @@ export class TeamEngine {
     return next;
   }
 
+  private startNextQueuedTask(tx: Transaction) {
+    const value = Object.values(tx.room.tasks).find(queuedTask);
+    if (!value) return;
+    const snapshot = decode(value);
+    const next = this.step(snapshot, { type: 'START_QUEUED', id: `start:${snapshot.context.taskId}`, at: this.clock() });
+    storeTask(tx, next, true);
+  }
+
   private transact<T>(roomId: string, fn: (tx: Transaction) => T, proof?: DeletionSettlementProof): T {
     if (this.storageFault) throw new Error('Storage fault: reopen engine before dispatching more work');
     const observations: DebugFrame[] = [];
     this.pendingObservations = this.observe ? observations : null;
     this.observationTransaction = this.observe ? randomUUID() : null;
     let result: T;
-    try { result = proof ? deletionStore(this.store).transactDeletionSettlement(roomId, proof, fn) : this.store.transact(roomId, fn); }
+    try {
+      result = proof ? deletionStore(this.store).transactDeletionSettlement(roomId, proof, fn) : this.store.transact(roomId, tx => {
+        const activity = tx.room.activeTaskId;
+        const value = fn(tx);
+        if (activity && !tx.room.activeTaskId) this.startNextQueuedTask(tx);
+        return value;
+      });
+    }
     catch (error) {
       // Domain rejections are values; thrown errors at this seam are storage/program faults.
       if (!(error instanceof RoomDeletionError)) this.storageFault = true;
@@ -200,6 +218,8 @@ export class TeamEngine {
     return this.transact(roomId, tx => this.receipt(tx, input.id, input, () => {
       if (input.replyToTaskId !== undefined && !tx.room.tasks[input.replyToTaskId])
         return { ok: false, code: 'TASK_NOT_FOUND', detail: '指定的任务不存在，请重新选择任务。' };
+      if (input.intent === 'new' && input.replyToTaskId !== undefined)
+        return { ok: false, code: 'CONFLICTING_TASK_REQUEST', detail: '新委托不能同时回复原任务。' };
       if (input.sourceArtifact && (input.intent !== undefined && input.intent !== 'new'
         || input.replyToTaskId !== undefined || input.retryAssistanceId !== undefined || input.extraOrdinary !== undefined
         || inputControl(input.text) || requestedRetryTarget(input.text, this.config.bots))) {
@@ -244,7 +264,7 @@ export class TeamEngine {
           const snapshot = decode(task); return { phase: taskPhase(snapshot), context: snapshot.context };
         });
         const resolution = resolveArtifactSource(sources, input.sourceArtifact, artifactRequest);
-        if (resolution.kind !== 'none' && tx.room.activeTaskId) return {
+        if (resolution.kind !== 'none' && tx.room.activeTaskId && input.intent !== 'new') return {
           ok: false, code: 'ROOM_BUSY', detail: '请等待当前任务结束后重新发送，输入和产物引用会保留。' };
         if (resolution.kind === 'rejected') return { ok: false, code: resolution.code, detail: resolution.detail,
           ...(resolution.sourceCandidates ? { sourceCandidates: resolution.sourceCandidates } : {}) };
@@ -253,9 +273,10 @@ export class TeamEngine {
         }
       }
       if (input.intent === 'retry' && (!input.replyToTaskId || !input.retryAssistanceId)) return retryReject('RETRY_REFERENCE_REQUIRED');
-      const existingId = sourceArtifact ? null : input.replyToTaskId ?? tx.room.activeTaskId ?? (['decision', 'continue'].includes(input.intent ?? '') || retryRequested ? Object.keys(tx.room.tasks).at(-1) : null);
+      const existingId = sourceArtifact || input.intent === 'new' ? null : input.replyToTaskId ?? tx.room.activeTaskId ?? (['decision', 'continue'].includes(input.intent ?? '') || retryRequested ? Object.keys(tx.room.tasks).at(-1) : null);
       if (existingId && tx.room.tasks[existingId]) {
         const current = decode(tx.room.tasks[existingId]);
+        if (taskPhase(current) === 'queued') return { ok: false, code: 'TASK_QUEUED', detail: '这条委托已在等待，开始后可以补充。', taskId: existingId };
         if (tx.room.activeTaskId && tx.room.activeTaskId !== existingId)
           return { ok: false, code: 'ROOM_BUSY', detail: '另一任务正在执行，请等待结束后再继续原任务。' };
         if (retryRequested) {
@@ -270,8 +291,7 @@ export class TeamEngine {
           return { ...next.context.reply, detail: next.context.reply.ok ? '协助重试已受理' : retryProblemText(next.context.reply.code), taskId: existingId };
         }
         const history = conversationHistory(Object.entries(tx.room.tasks).filter(([id]) => id !== existingId).map(([, task]) => decode(task).context), current.context.sourceArtifact);
-        const reviewTargets = requestedReviewTargets(input.text, input.mentions ?? [], this.config.bots, current.context.owner);
-        const conversation = { history, ...(reviewTargets ? { reviewTargets } : {}) };
+        const conversation = { history, ...requestedReview(input.text, input.mentions ?? [], this.config.bots, current.context.owner) };
         if (input.intent === 'decision') {
           const next = this.step(current, { type: 'HUMAN_DECISION', id: input.id, at, text: input.text, ...conversation }); storeTask(tx, next);
           return { ...next.context.reply, taskId: existingId };
@@ -285,10 +305,6 @@ export class TeamEngine {
           return { ...next.context.reply, taskId: existingId };
         }
         if (taskPhase(current) === 'ended') return { ok: false, code: 'EXPLICIT_CONTINUATION_REQUIRED', detail: 'Explicitly continue the referenced ended task' };
-        if (input.intent === 'new') {
-          tx.room.notices.push({ id: input.id, text: '另开群或等待当前工作结束' });
-          return { ok: false, code: 'ROOM_BUSY', detail: '另开群或等待当前工作结束' };
-        }
         const next = this.step(current, { type: 'USER_INPUT', id: input.id, at, text: input.text, ...conversation, ...(input.goal ? { goal: input.goal } : {}) });
         storeTask(tx, next);
         return { ...next.context.reply, taskId: existingId };
@@ -297,7 +313,7 @@ export class TeamEngine {
       if (input.intent === 'continue') return { ok: false, code: 'TASK_NOT_FOUND', detail: 'Provide an existing task to continue' };
       if (input.intent === 'decision' || input.intent === 'supplement')
         return { ok: false, code: 'TASK_NOT_FOUND', detail: '没有可接收本次输入的任务。' };
-      if (tx.room.activeTaskId) return { ok: false, code: 'ROOM_BUSY', detail: '当前任务仍在执行。' };
+      const queued = !!tx.room.activeTaskId;
       const owner = input.mentions?.[0] ?? sourceArtifact?.owner ?? this.config.defaultBot;
       if (!this.config.bots.some(bot => bot.id === owner)) return sourceArtifact && !input.mentions?.length
         ? { ok: false, code: 'SOURCE_OWNER_UNAVAILABLE', detail: '原负责人已不在当前配置中，请直接 @ 一位现有成员后重新发送。' }
@@ -305,11 +321,10 @@ export class TeamEngine {
       const taskId = `task:${input.id}`;
       const goal = input.goal ?? { text: input.text, constraints: [], criteria: ['Answer the user request'], requiredArtifacts: 0 };
       const history = conversationHistory(Object.values(tx.room.tasks).map(task => decode(task).context), sourceArtifact);
-      const reviewTargets = requestedReviewTargets(input.text, input.mentions ?? [], this.config.bots, owner);
       const taskInput = { taskId, owner, goal, config: this.config, at,
         message: { id: input.id, text: input.text, author: 'user', at, taskId, kind: 'user' as const }, history,
-        analyzeRequest: !input.goal && !input.mentions?.length,
-        ...(sourceArtifact ? { sourceArtifact } : {}), ...(reviewTargets ? { reviewTargets } : {}) };
+        analyzeRequest: !input.goal && !input.mentions?.length, queued,
+        ...(sourceArtifact ? { sourceArtifact } : {}), ...requestedReview(input.text, input.mentions ?? [], this.config.bots, owner) };
       if (this.config.executionMemory && this.config.deliveryReport === 'summary')
         Object.assign(taskInput, { executionMemory: taskExecutionMemory(tx.room.executionMemory, this.config,
           this.executionInventory?.(), input.text,
@@ -320,12 +335,14 @@ export class TeamEngine {
         catch { snapshot = initialTask(taskInput); }
       } else snapshot = initialTask(taskInput);
       this.record(snapshot, { type: '@init', id: input.id, at }, null, evidence);
-      storeTask(tx, snapshot, true);
-      return { ok: true, code: 'OK', detail: 'created', taskId };
+      storeTask(tx, snapshot, !queued);
+      return queued ? { ok: true, code: 'QUEUED', detail: snapshot.context.reason, taskId }
+        : { ok: true, code: 'OK', detail: 'created', taskId };
     }));
   }
   send(roomId: string, taskId: string, event: TaskEvent): CommandResult {
-    if (event.type.startsWith('EXECUTION_') || event.type === 'RECORD_ACQUISITION') return { ok: false, code: 'HOST_ONLY_EVENT', detail: 'Execution protocol requires the trusted runner' };
+    if (event.type.startsWith('EXECUTION_') || event.type === 'RECORD_ACQUISITION' || event.type === 'START_QUEUED')
+      return { ok: false, code: 'HOST_ONLY_EVENT', detail: 'This event requires the trusted engine' };
     return this.dispatch(roomId, taskId, event);
   }
   executionNotStarted(roomId: string, taskId: string, work: Intent, reason: string): CommandResult {
@@ -369,6 +386,10 @@ export class TeamEngine {
       return this.receipt(tx, event.id, { taskId, event: identity }, () => {
         if (!value) return { ok: false, code: 'TASK_NOT_FOUND', detail: taskId };
         const current = checked ?? decode(value);
+        const reactivating = taskPhase(current) === 'ended'
+          && (event.type === 'CONTINUE' || event.type === 'RETRY_ASSISTANCE' || event.type === 'REQUEST_HOST_RETRY');
+        if (reactivating && tx.room.activeTaskId && tx.room.activeTaskId !== taskId)
+          return { ok: false, code: 'ROOM_BUSY', detail: '另一任务正在执行，请等待结束后再继续原任务。', taskId };
         if (event.type === 'CLAIM') {
           const work = current.context.intents.find(work => work.id === (event as Extract<TaskEvent, { type: 'CLAIM' }>).intentId);
           if (work?.replay === 'unsafe' && work.kind !== 'cancel' && work.status === 'pending' && !permissionProblem(current.context, event)) {
@@ -422,7 +443,7 @@ export class TeamEngine {
           next = this.step(next, { type: 'WORK_FAILED', id: `${event.id}:reserved`, at: event.at, intentId: event.intentId,
             reason: `${reply.code}: 已保留负责人续办额度，当前协助工作无法继续`, transient: false });
         }
-        storeTask(tx, next);
+        storeTask(tx, next, reactivating && reply.ok);
         return reply;
       }, result => {
         if (!result.ok && event.type === 'RECORD_ACQUISITION' && result.code === 'ACQUISITION_WORK_UNAVAILABLE') return false;
@@ -569,6 +590,7 @@ export class TeamEngine {
     if (this.deletionRejection(roomId)) return;
     const room = this.store.read(roomId);
     for (const [id, value] of Object.entries(room.tasks)) {
+      if (queuedTask(value)) continue;
       const snapshot = decode(value);
       if (taskPhase(snapshot) === 'ended' && !snapshot.context.resilience?.cleanup.some(item => item.state === 'pending')
         && !snapshot.context.intents.some(work => canRetireDiscussionWork(snapshot.context, work) || localPhysicalPending(work)
@@ -581,7 +603,12 @@ export class TeamEngine {
   tick(roomId: string): void {
     if (this.deletionRejection(roomId)) return;
     this.maintainExecutionMemory(roomId);
-    for (const taskId of Object.keys(this.store.read(roomId).tasks)) {
+    const room = this.store.read(roomId);
+    if (!room.activeTaskId && Object.values(room.tasks).some(queuedTask)) this.transact(roomId, tx => {
+      if (!tx.room.activeTaskId) this.startNextQueuedTask(tx);
+    });
+    for (const [taskId, value] of Object.entries(room.tasks)) {
+      if (queuedTask(value)) continue;
       const view = this.view(roomId, taskId);
       if (view) this.tickTask(roomId, view);
     }
@@ -628,11 +655,13 @@ export class TeamEngine {
     if (this.deletionRejection(roomId)) return null;
     const room = this.store.read(roomId);
     if (this.config.executionMemory && Object.keys(room.executionMemory?.pending ?? {}).length) return this.clock();
+    if (!room.activeTaskId && Object.values(room.tasks).some(queuedTask)) return this.clock();
     const wakes = Object.keys(room.tasks).map(id => this.view(roomId, id)).filter((v): v is TaskView => v !== null)
       .map(view => this.nextTaskWake(roomId, view)).filter((value): value is number => value !== null);
     return wakes.length ? Math.min(...wakes) : null;
   }
   private nextTaskWake(roomId: string, view: TaskView): number | null {
+    if (view.phase === 'queued') return null;
     if (view.phase === 'ended' && !view.context.resilience?.cleanup.some(item => item.state === 'pending')
       && !view.context.intents.some(work => localPhysicalPending(work) || work.replay === 'unsafe' && ['inflight', 'uncertain'].includes(work.status))) return null;
     if (taskProtocolChanged(view.context.config, this.config) && !taskHumanGate(view.context)) return this.clock();

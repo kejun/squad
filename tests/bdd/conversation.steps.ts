@@ -8,11 +8,18 @@ import { TeamEngine, MemoryStore, SqliteStore, WorkRunner, initialTask, persistT
 import { Harness, configuration, passFixtureCheck } from '../helpers.js';
 import { processingWindow } from '../../src/task/resilience.js';
 import { resilienceReviewReplyGate } from '../task-resilience-model-fixture.js';
+import { approvalModel, hostAction } from '../host-approval-model-fixture.js';
 import type { SpecWorld } from './steps.js';
 
 const proposal = 'ESP32 同步方案：缓存文档增量并在联网后同步，墨水屏按区域刷新。';
 const reviewers = ['B', 'builder-1', 'builder-2', 'builder-3'];
-interface State { oldTask: string; before: number; calls: Intent[]; seq: number; selected?: string; fail?: string; decision?: string; work?: Intent; directory?: string; store: Store }
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>(done => { resolve = done; });
+  return { promise, resolve };
+}
+interface MemberRun { started: ReturnType<typeof deferred>; release: ReturnType<typeof deferred>; job?: Promise<boolean> }
+interface State { oldTask: string; before: number; calls: Intent[]; seq: number; selected?: string; fail?: string; decision?: string; work?: Intent; second?: Intent; directory?: string; store: Store; members?: Map<string, MemberRun>; budgetCode?: string }
 const states = new WeakMap<SpecWorld, State>();
 const s = (w: SpecWorld) => { const value = states.get(w); assert(value); return value; };
 function fresh(w: SpecWorld, seeded = true, sqlite = false) {
@@ -39,14 +46,25 @@ function adapter(w: SpecWorld): WorkAdapter {
       if (state.decision && state.decision !== 'review') return { type: 'decision', decision: { action: state.decision, target: 'B', question: '评审', expected: '意见', plan: '跳过评审', reason: '尝试跳过' } as never };
       return { type: 'decision', decision: { action: 'review', question: '评审已有同步方案的风险与改进', expected: '带依据的具体意见', reason: '用户要求成员评审' } };
     }
-    if (work.kind === 'assistance') { if (work.target === state.fail) throw new Error('核查服务不可用'); return { type: 'answer', text: `${work.target}：建议验证离线恢复。` }; }
+    if (work.kind === 'assistance') {
+      const member = state.members?.get(work.target);
+      if (member) { member.started.resolve(); await member.release.promise; }
+      if (work.target === state.fail) throw new Error('核查服务不可用');
+      return { type: 'answer', text: `${work.target}：建议验证离线恢复。` };
+    }
     if (work.kind === 'check') return fixtureCheck(work.payload.candidate);
     assert.equal(work.kind, 'owner'); return { type: 'deliver', text: '共识为增量同步；分歧与失败成员已列入缺口；下一步验证离线恢复。', artifactIds: [] };
   } };
 }
 async function drain(w: SpecWorld) { const runner = new WorkRunner(w.h.engine, adapter(w), () => 0); for (let n = 0; n < 30; n++) if (!(await runner.runOne(w.h.room, w.h.task))) return; assert.fail('评审没有在有限步骤内结束'); }
 async function startMember(w: SpecWorld) { request(w); await new WorkRunner(w.h.engine, adapter(w), () => 0).runOne(w.h.room, w.h.task); const work = w.h.engine.pending(w.h.room, w.h.task)[0]!; s(w).work = w.h.engine.claim(w.h.room, w.h.task, work.id)!; assert.equal(s(w).work!.kind, 'assistance'); }
-After(function (this: SpecWorld) { const state = states.get(this); if (state?.directory) { (state.store as SqliteStore).close(); rmSync(state.directory, { recursive: true, force: true }); } });
+After(async function (this: SpecWorld) {
+  const state = states.get(this);
+  const members = [...(state?.members?.values() ?? [])];
+  for (const member of members) member.release.resolve();
+  await Promise.allSettled(members.map(member => member.job));
+  if (state?.directory) { (state.store as SqliteStore).close(); rmSync(state.directory, { recursive: true, force: true }); }
+});
 
 Given('同群已经交付一份方案且另一群有私有资料', function (this: SpecWorld) { fresh(this); this.h.engine.submit('private-room', { id: 'secret', text: '不可外泄的其他群资料' }); });
 When('用户在原群提出关于上述方案的后续问题', function (this: SpecWorld) { request(this, '请说明上述方案的边界'); });
@@ -67,9 +85,143 @@ When('尝试将旧产物作为本轮交付', function (this: SpecWorld) { this.h
 Then('历史输入应有界并说明发生截断', function (this: SpecWorld) { const history = this.h.context().history!; assert(history.truncated); assert(history.messages.length <= 100); assert(history.messages.reduce((n, message) => n + message.text.length, 0) <= 96000); });
 Then('旧产物只应作为参考且不能通过本轮产物检查', function (this: SpecWorld) { assert(this.h.context().history?.artifacts.some(artifact => artifact.id === 'old-plan')); assert(!this.h.context().candidate!.artifactIds.includes('old-plan')); assert.equal(this.h.context().outcome, 'complete'); assert(this.h.context().candidate!.text.includes('交付时尚缺少')); });
 Given('群内已有待评审方案与五位有效成员', function (this: SpecWorld) { fresh(this); assert.equal(this.h.config.bots.length, 5); });
+When('用户要求大家对现有方案分别提意见', async function (this: SpecWorld) {
+  request(this, '大家对现有方案分别提意见');
+  await new WorkRunner(this.h.engine, adapter(this), () => 0).runOne(this.h.room, this.h.task);
+});
+Then('促进者完成组织后所有评审成员应在首份意见返回前开始', async function (this: SpecWorld) {
+  const state = s(this);
+  assert.deepEqual(state.calls.map(work => work.kind), ['facilitator']);
+  const pending = this.h.engine.pending(this.h.room, this.h.task);
+  assert.deepEqual(pending.map(work => work.target), reviewers);
+  state.members = new Map(reviewers.map(target => [target, { started: deferred(), release: deferred() }]));
+  const runner = new WorkRunner(this.h.engine, adapter(this), () => 0);
+  for (const work of pending) {
+    const member = state.members.get(work.target)!;
+    member.job = runner.runOne(this.h.room, this.h.task, work.id);
+    await Promise.race([member.started.promise, member.job.then(() => assert.fail(`成员未开始：${work.target}`))]);
+  }
+  assert.equal(this.h.context().results.length, 0);
+  assert.equal(this.h.context().intents.filter(work => work.kind === 'assistance' && work.status === 'inflight').length, reviewers.length);
+  const reviewWork = state.calls.filter(work => work.kind === 'assistance');
+  assert(reviewWork.every(work => work.goalVersion === reviewWork[0]!.goalVersion));
+  assert(reviewWork.every(work => JSON.stringify(work.payload.conversation).includes(proposal)));
+});
+When('成员按与派发相反的顺序返回意见', async function (this: SpecWorld) {
+  for (const target of [...reviewers].reverse()) {
+    const member = s(this).members!.get(target)!;
+    assert(!this.h.engine.pending(this.h.room, this.h.task).some(work => work.kind === 'owner'));
+    member.release.resolve();
+    assert(await member.job);
+  }
+  assert.deepEqual(this.h.context().results.map(result => this.h.context().assists.find(help => help.id === result.requestId)?.target), [...reviewers].reverse());
+  await drain(this);
+});
 When('用户直接说{string}', async function (this: SpecWorld, text: string) { request(this, text); await drain(this); });
 Then('应先由促进者组织评审且依次收集其余四位成员意见', function (this: SpecWorld) { assert.deepEqual(s(this).calls.map(work => `${work.kind}:${work.target}`), ['facilitator:facilitator', ...reviewers.map(id => `assistance:${id}`), 'owner:A', 'check:facilitator']); });
-Then('负责人应在所有成员结算后汇总一次并接受完成检查', function (this: SpecWorld) { const owner = s(this).calls.filter(work => work.kind === 'owner'); assert.equal(owner.length, 1); assert.deepEqual((owner[0]!.payload.review as { completed: string[] }).completed, reviewers); assert.equal(this.h.context().outcome, 'complete'); });
+Then('后续评审成员应收到已经结算的前序意见', function (this: SpecWorld) {
+  const reviews = s(this).calls.filter(work => work.kind === 'assistance');
+  for (const [index, work] of reviews.entries()) {
+    const previous = (work.payload.review as { results: { target: string; answer?: string }[] }).results.filter(result => result.answer);
+    assert.deepEqual(previous.map(result => result.target), reviewers.slice(0, index));
+  }
+});
+Then('负责人应在所有成员结算后汇总一次并接受完成检查', function (this: SpecWorld) { const owner = s(this).calls.filter(work => work.kind === 'owner'); assert.equal(owner.length, 1); assert.deepEqual([...(owner[0]!.payload.review as { completed: string[] }).completed].sort(), [...reviewers].sort()); assert.equal(this.h.context().outcome, 'complete'); });
+Given('本轮额度仅够组织、两位成员和负责人汇总', function (this: SpecWorld) { this.h.config.limits.ordinary = 4; });
+When('两位成员已派发且首位成员尝试额外请求', async function (this: SpecWorld) {
+  request(this);
+  assert(await new WorkRunner(this.h.engine, adapter(this), () => 0).runOne(this.h.room, this.h.task));
+  assert.deepEqual(this.h.engine.pending(this.h.room, this.h.task).map(work => work.target), reviewers.slice(0, 2));
+  const first = this.h.claim('assistance'); s(this).work = first;
+  const event = { type: 'CONSUME' as const, intentId: first.id, attempt: first.attempt, fence: first };
+  assert(this.h.event(event).ok);
+  s(this).budgetCode = this.h.event(event).code;
+});
+Then('应拒绝占用其他成员或负责人预留的额度', function (this: SpecWorld) {
+  assert.equal(s(this).budgetCode, 'REVIEW_SYNTHESIS_RESERVED');
+  assert.equal(this.h.context().usage.ordinary, 2);
+  assert.deepEqual(this.h.engine.pending(this.h.room, this.h.task).map(work => work.target), reviewers.slice(1, 2));
+});
+When('首位成员失败且另一位正常返回', async function (this: SpecWorld) {
+  const first = s(this).work!, second = this.h.claim('assistance');
+  assert(this.h.event({ type: 'WORK_FAILED', intentId: first.id, attempt: first.attempt, fence: first, transient: false, reason: '首位成员无法完成' }).ok);
+  assert.equal(this.h.view().phase, 'waitingAssistance');
+  assert(!this.h.engine.pending(this.h.room, this.h.task).some(work => work.kind === 'owner'));
+  assert(this.h.event({ type: 'CONSUME', intentId: second.id, attempt: second.attempt, fence: second }).ok);
+  assert(this.h.event({ type: 'RECORD_RESULT', workId: second.id, requestId: String(second.payload.requestId), resultId: 'second-opinion',
+    attempt: second.attempt, fence: second, status: 'success', answer: '第二位成员的独立意见' }).ok);
+  await drain(this);
+});
+Then('负责人应收到已取得的意见和未完成项并汇总一次', function (this: SpecWorld) {
+  const followup = s(this).calls.filter(work => work.kind === 'owner');
+  assert.equal(followup.length, 1);
+  const review = followup[0]!.payload.review as { incomplete: string; results: { status: string; answer?: string }[] };
+  assert(review.results.some(result => result.status === 'success' && result.answer === '第二位成员的独立意见'));
+  for (const target of ['B', 'builder-2', 'builder-3']) assert(review.incomplete.includes(target));
+  assert.equal(this.h.context().usage.ordinary, 4);
+  assert.equal(this.h.context().outcome, 'complete');
+});
+Given('有一位独立评审成员需要宿主授权才能继续', async function (this: SpecWorld) {
+  request(this);
+  assert(await new WorkRunner(this.h.engine, adapter(this), () => 0).runOne(this.h.room, this.h.task));
+  const work = this.h.claim('assistance'); s(this).work = work;
+  const operationId = 'review-host-operation', sessionId = 'review-host-session';
+  const approval = approvalModel().op!.approval!;
+  const identity = { intentId: work.id, operationId, fence: work };
+  assert(this.h.event({ type: 'LOCAL_REQUEST', ...identity, namespace: 'c'.repeat(64), requestHash: '1'.repeat(64),
+    action: hostAction, parentAttempt: work.attempt, workspaceId: 'project', messages: [] }).ok);
+  assert(this.h.event({ type: 'LOCAL_CLAIM', ...identity, sessionId, parentAttempt: work.attempt, leaseAvailable: true }).ok);
+  assert(this.h.event({ type: 'LOCAL_APPROVAL_REQUIRED', ...identity, sessionId, approval }).ok);
+});
+When('用户明确跳过该成员尚未启动的宿主操作', function (this: SpecWorld) {
+  const gate = this.h.context().resilience!.gates.find(candidate => candidate.workId === s(this).work!.id && candidate.approvalId);
+  assert(gate);
+  assert(this.h.event({ type: 'HUMAN_GATE_DECISION', gateId: gate.id, decision: 'skip' }).ok);
+});
+Then('该操作不应启动且其余成员可以继续评审', function (this: SpecWorld) {
+  const work = this.h.context().intents.find(candidate => candidate.id === s(this).work!.id)!;
+  assert.equal(work.localOperations![0]!.startedAt, undefined);
+  assert.equal(work.localOperations![0]!.status, 'cancelled');
+  const pending = this.h.engine.pending(this.h.room, this.h.task).filter(item => item.kind !== 'cancel');
+  assert(pending.every(item => item.kind === 'assistance'));
+  assert.deepEqual(pending.map(item => item.target), reviewers.slice(1));
+});
+When('其余成员意见全部返回', async function (this: SpecWorld) { await drain(this); });
+Then('负责人应汇总其余意见并保留已跳过的成员缺口', function (this: SpecWorld) {
+  const followup = s(this).calls.filter(work => work.kind === 'owner');
+  assert.equal(followup.length, 1);
+  const review = followup[0]!.payload.review as { incomplete: string; results: { target: string; status: string }[] };
+  assert.deepEqual(review.results.filter(result => result.status === 'success').map(result => result.target), reviewers.slice(1));
+  assert(review.incomplete.includes(reviewers[0]!));
+  assert.equal(this.h.context().outcome, 'complete');
+});
+Given('已有两位独立评审成员在执行', async function (this: SpecWorld) {
+  request(this);
+  assert(await new WorkRunner(this.h.engine, adapter(this), () => 0).runOne(this.h.room, this.h.task));
+  s(this).work = this.h.claim('assistance');
+  s(this).second = this.h.claim('assistance');
+});
+When('用户改为要求依次评审', function (this: SpecWorld) {
+  assert(this.h.engine.submit(this.h.room, { id: 'replacement-review', intent: 'supplement', text: '大家依次评审，并基于上一位的意见提出补充' }).ok);
+});
+When('已开始的两位成员先后报告一项失败和一份可用意见', function (this: SpecWorld) {
+  const first = s(this).work!, second = s(this).second!;
+  assert(this.h.event({ type: 'WORK_FAILED', intentId: first.id, attempt: first.attempt, fence: first, transient: false, reason: '旧轮首位成员失败' }).ok);
+  assert(this.h.event({ type: 'RECORD_RESULT', workId: second.id, requestId: String(second.payload.requestId), resultId: 'useful-prior-review',
+    attempt: second.attempt, fence: second, status: 'success', answer: '已开始成员的可用意见' }).ok);
+  assert(this.h.engine.flushResults(this.h.room, this.h.task));
+});
+Then('应保存已有可用意见并用当前要求重新组织评审', function (this: SpecWorld) {
+  assert(this.h.context().results.some(result => result.resultId === 'useful-prior-review' && result.consumed));
+  const pending = this.h.engine.pending(this.h.room, this.h.task);
+  assert.deepEqual(pending.map(work => work.kind), ['facilitator']);
+  assert(JSON.stringify(pending[0]!.payload.messages).includes('已开始成员的可用意见'));
+  assert.equal(this.h.context().review?.parallel, undefined);
+});
+Then('不应派发尚未开始的旧轮成员', function (this: SpecWorld) {
+  assert(this.h.context().intents.filter(work => work.kind === 'assistance' && reviewers.slice(2).includes(work.target))
+    .every(work => work.status === 'cancelled' && work.attempt === 0));
+});
 Given('当前任务由{string}负责且尚未结束', function (this: SpecWorld, owner: string) { request(this, '请处理上述方案'); assert.equal(this.h.context().owner, owner); assert.equal(this.h.context().outcome, null); });
 When('用户仅选择{string}评审方案', async function (this: SpecWorld, id: string) { request(this, `@${id} 评审方案`, [id]); s(this).selected = id; await drain(this); });
 Then('只应收集该成员意见并由原负责人汇总', function (this: SpecWorld) { assert.deepEqual(s(this).calls.filter(work => work.kind === 'assistance').map(work => work.target), [s(this).selected]); assert.equal(s(this).calls.filter(work => work.kind === 'owner').length, 1); assert.equal(this.h.context().owner, 'A'); });

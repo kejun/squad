@@ -101,6 +101,7 @@ export function Workspace({
     Record<string, string[]>
   >({});
   const [sourcesByRoom, setSourcesByRoom] = useState<Record<string, (ArtifactReference & { name: string }) | undefined>>({});
+  const [newTaskByRoom, setNewTaskByRoom] = useState<Record<string, boolean>>({});
   const [candidatesByRoom, setCandidatesByRoom] = useState<Record<string, ArtifactSourceMetadata[]>>({});
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionIndex, setMentionIndex] = useState(0);
@@ -131,13 +132,14 @@ export function Workspace({
     if (!removed.length) return;
     for (const id of removed) { clearedRooms.current.add(id); delete sendIdentities.current[id]; }
     const omit = <T,>(values: Record<string, T>) => Object.fromEntries(Object.entries(values).filter(([id]) => !clearedRooms.current.has(id)));
-    setDrafts(omit); setMentionsByRoom(omit); setSourcesByRoom(omit); setCandidatesByRoom(omit);
+    setDrafts(omit); setMentionsByRoom(omit); setSourcesByRoom(omit); setCandidatesByRoom(omit); setNewTaskByRoom(omit);
     if (roomId && removed.includes(roomId)) { setDetailOpen(false); setDetailTarget(null); setSelectedAgent(null); setDebugOpen(false); }
   }, [workspace.deletedRooms, roomId]);
   const draftKey = roomId ?? "new";
   const text = drafts[draftKey] ?? "";
   const sourceArtifact = sourcesByRoom[draftKey];
   const sourceCandidates = candidatesByRoom[draftKey] ?? [];
+  const newTask = newTaskByRoom[draftKey] === true;
   const agents = snapshot?.agents ?? [];
   const task = snapshot?.tasks.find(
     (task) => task.id === snapshot.activeTaskId,
@@ -301,8 +303,10 @@ export function Workspace({
         ...(continueTask
           ? { intent: "continue", replyToTaskId: latestTask?.id, ...(addedOrdinary !== undefined ? { extraOrdinary: addedOrdinary } : {}),
             ...(newWindowMs !== undefined ? { newWindowMs } : {}) }
-          : !isRevision && task?.phase === "waitingHuman"
-            ? { intent: "decision", replyToTaskId: task.id }
+          : newTask
+            ? { intent: "new" }
+          : !isRevision && task
+            ? { intent: task.phase === "waitingHuman" ? "decision" : "supplement", replyToTaskId: task.id }
             : {}),
       };
       const serialized = JSON.stringify(payload);
@@ -315,6 +319,7 @@ export function Workspace({
       if (continueTask) setContinueOpen(false);
       if (addedOrdinary !== undefined) setExtraOrdinary('');
       if (!continueTask) {
+        setNewTaskByRoom(previous => ({ ...previous, [draftKey]: false }));
         setSourcesByRoom(previous => ({ ...previous, [draftKey]: undefined, [targetRoom]: undefined }));
         setCandidatesByRoom(previous => ({ ...previous, [draftKey]: [], [targetRoom]: [] }));
         setDrafts((previous) => ({
@@ -344,13 +349,13 @@ export function Workspace({
       setSending(false);
     }
   };
-  const stop = async () => {
-    if (!roomId || !task || stopping) return;
+  const stop = async (taskId = task?.id) => {
+    if (!roomId || !taskId || stopping) return;
     setStopping(true);
     try {
       await api(`/rooms/${roomId}/stop`, {
         id: crypto.randomUUID(),
-        taskId: task.id,
+        taskId,
       });
     } catch (error) {
       setError((error as Error).message);
@@ -748,6 +753,12 @@ export function Workspace({
                           />
                         </Suspense>
                         <ResultLinks snapshot={snapshot} message={message} onOpen={openResult} />
+                        {message.kind === "notice" && messageTask?.phase === "queued" && (
+                          <Button className="result-link" disabled={stopping || !connected || deleting}
+                            onClick={() => { void stop(message.taskId); }}>
+                            取消排队
+                          </Button>
+                        )}
                         {help && <AssistanceRetry help={help} connected={connected} sending={sending}
                           onRetry={(item) => { void retryAssistance(item); }} />}
                       </div>
@@ -885,7 +896,7 @@ export function Workspace({
                 onKeyDown={onKeyDown}
                 disabled={!connected || sending || deleting}
                 placeholder={
-                  task
+                  newTask ? "输入独立的新委托…" : task
                     ? task.phase === "waitingHuman"
                       ? "回复成员，帮助团队继续…"
                       : "补充当前工作…"
@@ -957,6 +968,11 @@ export function Workspace({
                   </Popover.Portal>
                 </Popover.Root>
                 <div className="composer-right">
+                  {(task || newTask) && <Button className="mention-trigger" aria-label="新委托"
+                    aria-pressed={newTask} disabled={sending || !connected || deleting} onClick={() => {
+                      setNewTaskByRoom(previous => ({ ...previous, [draftKey]: !newTask }));
+                      textarea.current?.focus();
+                    }}>新委托</Button>}
                   <span className="send-hint">
                     Enter 发送 <span>·</span> Shift + Enter 换行
                   </span>

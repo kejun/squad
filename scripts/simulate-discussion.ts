@@ -37,6 +37,7 @@ class Simulation {
   }
   get c() { return this.current.context; }
   get phase() { return String(this.current.value); }
+  queue() { this.current = TaskSandbox.fromInput(JSON.stringify({ ...debugInput(), queued: true })).snapshot; }
   send(body: SimulationEvent, expected = 'OK') {
     this.at = Math.max(this.at + 1, typeof body.at === 'number' ? body.at : 0);
     const event: SimulationEvent & { id: string; at: number } = { id: `simulation:${++this.sequence}`, ...body, at: this.at };
@@ -156,6 +157,17 @@ export function runDiscussionSimulations(responseOrdersOnly = false): Simulation
   }
   assert.equal(responseOrders, 144);
   if (!responseOrdersOnly) {
+    run('排队委托从获准开始时计时', '主流程兼容', s => {
+      s.queue();
+      s.send({ type: 'SUPERVISE', trigger: 'timer', at: 2 * s.c.config.limits.workTimeoutMs }, 'INVALID_STATE');
+      assert.equal(s.phase, 'queued');
+      assert.equal(s.c.intents.length, 0);
+      assert.equal(s.c.resilience, undefined);
+      s.restore();
+      s.send({ type: 'START_QUEUED' });
+      assert.equal(s.c.resilience!.window.openedAt, s.at);
+      assert.equal(s.work('owner').deadline, s.at + s.c.config.limits.workTimeoutMs);
+    });
     for (const stage of ['planning', 'collecting', 'one-result', 'summarizing', 'ready']) {
       run(`停止：${stage}`, '停止与迟到结果', s => {
         s.prepare(stage);

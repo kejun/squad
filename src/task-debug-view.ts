@@ -3,11 +3,14 @@ import type { MachineGraph, MachineTransition } from './task-structure.js';
 import type { TaskContext, Phase } from './types.js';
 
 export const phaseNames: Record<Phase, string> = {
+  queued: '等待开始',
   interpreting: '理解输入', running: '执行中', waitingAssistance: '等待协助', coordinating: '协调中',
   waitingHuman: '等待人工', checking: '检查交付', stopping: '停止中', ended: '本轮已结束',
 };
 export const guardDescriptions: Record<string, string> = {
   valid: '事件身份、版本、权限和额度有效',
+  taskIsAdmitted: '新委托可以立即开始',
+  taskIsQueued: '委托已登记并等待开始',
   retryReviewContinues: '已保存的协助结果用于继续本轮评审', retryHasResult: '有本轮尚未消费的协助结果',
   claimOwner: '领取主工作或工具请求', claimDiscussion: '领取本轮讨论工作', claimCancel: '领取取消确认',
   stoppedSettled: '在途工作已结算且没有不确定结果', discussionHandoffReady: '讨论汇总就绪且主工作已结算',

@@ -60,7 +60,7 @@ function stamp(at: number): string {
 }
 function taskStatus(task: WebTask): string {
   if (task.phase === "ended") return ({ complete: "已完成", partial: "部分完成", failed: "执行失败", stopped: "已停止" })[task.outcome ?? "failed"];
-  return ({ interpreting: "正在理解输入", running: "正在执行", waitingAssistance: "等待协助", coordinating: "正在协调", waitingHuman: "等待回复", checking: "检查交付", stopping: "正在停止" })[task.phase];
+  return ({ queued: "已排队", interpreting: "正在理解输入", running: "正在执行", waitingAssistance: "等待协助", coordinating: "正在协调", waitingHuman: "等待回复", checking: "检查交付", stopping: "正在停止" })[task.phase];
 }
 function nameOf(snapshot: RoomSnapshot, id: string): string {
   return snapshot.agents.find((agent) => agent.id === id)?.name ?? id;

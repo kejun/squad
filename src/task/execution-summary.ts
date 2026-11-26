@@ -14,9 +14,10 @@ function list(items: readonly string[], max = 2): string {
 }
 
 export function executionSummary(c: TaskContext): string {
-  const files = new Set(c.publishedDelivery?.goalVersion === c.goalVersion ? c.publishedDelivery.artifactIds : []);
+  const publication = c.publishedDelivery?.goalVersion === c.goalVersion ? c.publishedDelivery : undefined;
+  const files = new Set(publication?.artifactIds);
   const names = c.artifacts.filter(artifact => files.has(artifact.id)).map(artifact => brief(artifact.name, 32));
-  const result = c.outcome === 'complete'
+  const result = c.outcome === 'complete' || c.outcome === 'partial' && publication
     ? `已交付正文${names.length ? `及 ${names.length} 个文件（${list(names)}）` : ''}。`
     : '已记录本轮执行结果。';
   const findings = c.candidate?.deliveryFindings?.map(finding => brief(finding.reason, 42)) ?? [];

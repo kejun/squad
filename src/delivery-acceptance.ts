@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { requestedFiles, type RequestedFile } from './artifact-request.js';
 import { isLongResult } from './presentation.js';
 import type { DeliveryEvidenceSource } from './task/evidence.js';
 import type { ArtifactSourceMetadata, Candidate, InputAnalysis, InputReference, TaskContext, TaskEvent } from './types.js';
@@ -171,22 +172,50 @@ export function judgmentsDiagnostic(criteria: readonly AcceptanceCriterion[], re
 const gap = (candidateRevision: string, kind: DeliveryGapKind, reason: string, criterionId: string | null = null, refs: DeliveryReference[] = []): DeliveryGap =>
   ({ candidateRevision, criterionId, kind, reason, refs });
 
+const fileFormats = {
+  html: { label: 'HTML 文件', name: /\.html?$/i },
+  markdown: { label: 'Markdown 文件', name: /\.(?:md|markdown)$/i },
+};
+
+function fileRequirementLabel(requirement: RequestedFile): string {
+  switch (requirement.kind) {
+    case 'attachment': return '附件';
+    case 'name': return requirement.name;
+    case 'format': return fileFormats[requirement.format].label;
+  }
+}
+
+function matchesRequestedFile(requirement: RequestedFile, name: string): boolean {
+  switch (requirement.kind) {
+    case 'attachment': return true;
+    case 'name': return name === requirement.name;
+    case 'format': return fileFormats[requirement.format].name.test(name);
+  }
+}
+
 export function deliveryPreflight(c: TaskContext, e: Delivery) {
   const revision = deliveryRevision(c, e);
   const drafts = e.artifacts?.length ? e.artifacts : !c.sourceArtifact && isLongResult(e.text) ? [{ name: 'result.md', content: e.text }] : [];
-  const listed = [...new Set(e.artifactIds)];
+  const listed = new Set(e.artifactIds);
   const gaps: DeliveryGap[] = [];
-  const available = listed.filter(id => c.artifacts.some(artifact => artifact.id === id && artifact.goalVersion === c.goalVersion && !!artifact.content.trim()));
-  if (available.length + drafts.filter(draft => !!draft.content.trim()).length < c.goal.requiredArtifacts)
+  const available = c.artifacts.filter(artifact => listed.has(artifact.id) && artifact.goalVersion === c.goalVersion
+    && artifact.id !== c.sourceArtifact?.artifactId && !!artifact.content.trim());
+  const inputs = c.inputAnalyses?.filter(input => input.goalVersion === c.goalVersion && input.status === 'resolved' && input.action !== 'review')
+    .map(input => input.rawText) ?? [c.goal.text];
+  const required = inputs.flatMap(requestedFiles);
+  const deliverableFiles = [...available, ...drafts.filter(draft => !!draft.content.trim())];
+  const missing = new Set(required.filter(requirement => !deliverableFiles.some(file => matchesRequestedFile(requirement, file.name)))
+    .map(fileRequirementLabel));
+  for (const label of missing) gaps.push(gap(revision, 'missing_requirement', `缺少 ${label}`));
+  if (deliverableFiles.length < c.goal.requiredArtifacts && (!missing.size || c.goal.requiredArtifacts > required.length))
     gaps.push(gap(revision, 'missing_requirement', 'MISSING_ARTIFACTS'));
+  const availableIds = new Set(available.map(artifact => artifact.id));
   for (const id of listed) {
-    if (!available.includes(id)) gaps.push(gap(revision, 'version_conflict', 'MISSING_OR_STALE_ARTIFACT', null, [{ kind: 'artifact', id }]));
+    if (!availableIds.has(id)) gaps.push(gap(revision, 'version_conflict', 'MISSING_OR_STALE_ARTIFACT', null, [{ kind: 'artifact', id }]));
   }
-  if (c.sourceArtifact && c.sourceArtifact.purpose !== 'extract' && ![
-    ...drafts,
-    ...c.artifacts.filter(artifact => available.includes(artifact.id) && artifact.id !== c.sourceArtifact!.artifactId),
-  ].some(isMarkdownRevision)) gaps.push(gap(revision, 'missing_requirement', 'MISSING_MARKDOWN_REVISION'));
-  return { gaps, acceptance: { revision, criteria: acceptanceCriteria(c) } satisfies DeliveryAcceptance };
+  if (c.sourceArtifact && c.sourceArtifact.purpose !== 'extract' && ![...drafts, ...available].some(isMarkdownRevision))
+    gaps.push(gap(revision, 'missing_requirement', 'MISSING_MARKDOWN_REVISION'));
+  return { gaps, missingRequestedFiles: missing.size > 0, acceptance: { revision, criteria: acceptanceCriteria(c) } satisfies DeliveryAcceptance };
 }
 
 export function isMarkdownRevision(artifact: { name: string; content: string }): boolean {

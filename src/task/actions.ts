@@ -9,6 +9,7 @@ import { discussionFailed } from './discussion.js';
 import { cancelWork, coordinate, message, release } from './operations.js';
 import { prepareInterpretation } from './input.js';
 import { advanceMapQueue } from './map-queue.js';
+import { startInitialWork } from './context.js';
 
 // The root machine remains the sole owner of the context returned by each pure action.
 export type TaskContextAction = (args: { context: TaskContext; event: TaskEvent }) => Partial<TaskContext>;
@@ -43,6 +44,12 @@ export const taskActions = {
       const c = structuredClone(context); synchronizeHostRetryBatch(c); return c;
     },
     apply: ({ context, event }) => reduce(context, event),
+    startQueued: ({ context, event }) => {
+      const c = structuredClone(context);
+      startInitialWork(c, c.queuedStartup!, event.at);
+      c.reply = { ok: true, code: 'OK', detail: 'started' };
+      return c;
+    },
     failCheckClaim: ({ context, event }) => {
       if (event.type !== 'CLAIM') return {};
       const code = permissionProblem(context, event)!;

@@ -133,7 +133,7 @@ describe('durable result artifacts and concise messages', () => {
   it('[BT_A02] carries earlier report bodies to later reviewers instead of only their summaries', async () => {
     const h = new Harness(); h.engine.send(h.room, h.task, delivery(h, h.claim('owner')));
     h.event({ type: 'CHECK_RESULT', resultId: 'seed-check', passed: true, gaps: [] });
-    const reviewTask = h.engine.submit(h.room, { id: 'review-report', text: '大家都提提意见' }).taskId!;
+    const reviewTask = h.engine.submit(h.room, { id: 'review-report', text: '大家依次评审，后续成员阅读前一位的报告再提出意见' }).taskId!;
     const runner = new WorkRunner(h.engine, { async execute(work) {
       if (work.kind === 'facilitator') return { type: 'decision', decision: { action: 'review', question: '核查已保存的方案', expected: '具体依据', reason: '用户要求全员评审' } };
       if (work.kind === 'assistance') return { type: 'answer', text: HELPER_REPORT, summary: HELPER_SUMMARY, artifacts: [{ name: '核查报告.md', content: HELPER_REPORT }] };

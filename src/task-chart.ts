@@ -19,6 +19,7 @@ export interface ChartStep {
 
 const eventNames: Record<string, string> = {
   '@init': '任务创建', '@baseline': '复制基线', '@always': '自动处理', '*': '其他事件',
+  START_QUEUED: '开始排队委托',
   HELP: '请求协助', HELP_RESULT: '协助结果返回', RECORD_RESULT: '保存协助结果', RETRY_ASSISTANCE: '重试协助',
   CLAIM: '领取工作', CONSUME: '授权一次请求', WORK_FAILED: '工作执行失败',
   WAIT_USER: '请求人工补充', CONTINUE: '继续执行', STOP: '停止任务', SETTLE: '确认在途工作已结算',
@@ -36,6 +37,7 @@ const eventNames: Record<string, string> = {
 };
 const actionNames: Record<string, string> = {
   apply: '更新任务与操作意图', reject: '拒绝事件', explainCoordinationRejection: '说明协调决策拒绝原因', beginInterpretation: '开始理解输入',
+  startQueued: '开始计时并创建执行意图',
   boundary: '应用执行边界输入', handoffDiscussion: '交接讨论汇总', beginReview: '开始评审协调',
   deferred: '处理延后协调', stopped: '记录本轮已停止', retireHostRetry: '解除旧批次占用并记录原因',
 };

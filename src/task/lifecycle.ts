@@ -20,7 +20,7 @@ const resumeAfterApproval = [
   { guard: 'localResumeFacilitator', target: 'coordinating', actions: 'apply' },
   { guard: 'localResumeCheck', target: 'checking', actions: 'apply' },
 ] as const;
-const supervision = (phase: Phase) => [
+const supervision = (phase: keyof typeof superviseActions) => [
   { guard: function supervisionEnds({ context, event }: { context: TaskContext; event: TaskEvent }) { return ['freeze', 'stopped', 'settled', 'checkExpired'].includes(supervisionDecision(context, phase, event.at)); }, target: '#botTeamTask.ended', actions: superviseActions[phase] },
   { guard: function supervisionWaitsForHuman({ context, event }: { context: TaskContext; event: TaskEvent }) { return ['human', 'windowExpired'].includes(supervisionDecision(context, phase, event.at)); }, target: '#botTeamTask.waitingHuman', actions: superviseActions[phase] },
   { guard: function supervisionRepairs({ context, event }: { context: TaskContext; event: TaskEvent }) { return supervisionDecision(context, phase, event.at) === 'repair'; }, target: '#botTeamTask.coordinating', actions: superviseActions[phase] },
@@ -30,7 +30,7 @@ const supervision = (phase: Phase) => [
 // `ended` remains resumable; only the execution epoch has ended.
 export const taskLifecycle = {
   id: 'botTeamTask',
-  initial: 'running',
+  initial: 'queued',
   always: [
     { guard: 'hostRetryBatchNeedsSync', actions: 'syncHostRetryBatch' },
     { guard: 'mapQueueNeedsProgress', actions: 'advanceMapQueue' },
@@ -90,6 +90,15 @@ export const taskLifecycle = {
     '*': { actions: 'reject' },
   },
   states: {
+    queued: {
+      always: { guard: 'taskIsAdmitted', target: 'running' },
+      on: {
+        START_QUEUED: { guard: 'taskIsQueued', target: 'running', actions: 'startQueued' },
+        STOP: { guard: 'valid', target: 'stopping', actions: 'apply' },
+        EXECUTION_RECONCILE: {},
+        '*': { actions: 'reject' },
+      },
+    },
     interpreting: {
       on: {
         SUPERVISE: supervision('interpreting'),

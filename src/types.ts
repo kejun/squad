@@ -45,7 +45,7 @@ export interface Goal { text: string; constraints: string[]; criteria: string[];
   /** Direct user/host obligations by stable partition id; never inferred authority from model prose. */
   partitionResources?: Record<string, ResourceIdentity[]>;
 }
-export type Phase = 'interpreting' | 'running' | 'waitingAssistance' | 'coordinating' | 'waitingHuman' | 'checking' | 'stopping' | 'ended';
+export type Phase = 'queued' | 'interpreting' | 'running' | 'waitingAssistance' | 'coordinating' | 'waitingHuman' | 'checking' | 'stopping' | 'ended';
 export type Outcome = 'complete' | 'partial' | 'failed' | 'stopped';
 export interface Message {
   id: string; author: string; text: string; kind: 'user' | 'help' | 'answer' | 'notice' | 'final';
@@ -156,6 +156,7 @@ export interface ConversationHistory {
 export interface ReviewRound extends Fence {
   id: string; request: string; targets: string[]; completed: string[];
   status: 'pending' | 'reviewing' | 'summarizing' | 'complete' | 'cancelled';
+  parallel?: true;
   question?: string; expected?: string; incomplete?: string;
 }
 export interface SummarySourceFailure { id: string; status: string; reason?: string }
@@ -189,7 +190,9 @@ export interface DiscussionRound extends Fence {
 }
 export interface MapPartitionRun {
   reusedSource?: ReusedPartitionSource;
-  partitionId: string; attempt: number; deadline: number;
+  partitionId: string; attempt: number;
+  /** Absolute queue bound. The linked work records the execution deadline after CLAIM. */
+  deadline: number;
   status: 'queued' | 'running' | 'uncertain' | 'succeeded' | 'partial' | 'failed' | 'timeout' | 'cancelled';
   workId?: string; target?: string; resultRef?: string; reason?: string;
 }
@@ -211,6 +214,7 @@ export interface TaskContext extends Fence {
   stopped: boolean; nextSeq: number; lastActivityAt: number; lastProgressAt: number;
   nextCheckAt: number; repeat: { fingerprint: string; count: number };
   deferredCoordination: boolean; reply: Reply;
+  queuedStartup?: { reviewTargets?: string[]; reviewParallel?: true; analyzeRequest?: boolean };
   history?: ConversationHistory;
   sourceArtifact?: ArtifactSource;
   review?: ReviewRound;
@@ -221,7 +225,7 @@ export interface TaskContext extends Fence {
   hostRetryRequests?: HostRetryRequest[];
   hostRetryBatch?: HostRetryBatch | undefined;
 }
-export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[]; sourceArtifact?: ArtifactSource; analyzeRequest?: boolean; executionMemory?: TaskExecutionMemory }
+export interface TaskInput { taskId: string; owner: string; config: TeamConfig; goal: Goal; at: number; message: Message; history?: ConversationHistory; reviewTargets?: string[]; reviewParallel?: true; sourceArtifact?: ArtifactSource; analyzeRequest?: boolean; executionMemory?: TaskExecutionMemory; queued?: boolean }
 export interface Envelope { id: string; at: number; fence?: Fence; workId?: string; attempt?: number }
 export type Decision =
   | { action: 'continue'; reason: string }
@@ -233,6 +237,7 @@ export type Decision =
 export type TaskEvent = Envelope & (
   | AcquisitionEvent
   | ResilienceEvent
+  | { type: 'START_QUEUED' }
   | { type: 'REVOKE_HOST_SESSION'; grantId: string }
   | { type: 'HOST_RETRY_EXPIRE' }
   | { type: 'HOST_RETRY_RECONCILE' }
@@ -250,8 +255,8 @@ export type TaskEvent = Envelope & (
   | { type: 'RETRY_ASSISTANCE'; requestId: string; text: string; config?: TeamConfig }
   | { type: 'BLOCKED'; reason: string }
   | { type: 'COORDINATE'; decision: Decision }
-  | { type: 'USER_INPUT'; text: string; goal?: Goal; decision?: boolean; history?: ConversationHistory; reviewTargets?: string[] }
-  | { type: 'HUMAN_DECISION'; text: string; history?: ConversationHistory; reviewTargets?: string[] }
+  | { type: 'USER_INPUT'; text: string; goal?: Goal; decision?: boolean; history?: ConversationHistory; reviewTargets?: string[]; reviewParallel?: true }
+  | { type: 'HUMAN_DECISION'; text: string; history?: ConversationHistory; reviewTargets?: string[]; reviewParallel?: true }
   | { type: 'BOUNDARY' }
   | { type: 'HANDOFF'; owner: string }
   | { type: 'WAIT_USER'; question: string }

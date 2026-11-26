@@ -6,9 +6,8 @@ import { codePointLength, savedPageCodePoints } from '../saved-page.js';
 import type { AggregationSource, Artifact, DiscussionRound, ModelService, ResultAggregationGroup, TaskContext, TaskEvent } from '../types.js';
 import { workEvidenceIds } from './evidence.js';
 import { artifactIndex } from './hierarchical-summary.js';
-import { availableMapReduceMembers, mapReduceCapacity } from './map-reduce-capacity.js';
+import { availableMapReduceMembers, mapQueueWindowDeadline, mapReduceCapacity } from './map-reduce-capacity.js';
 import { saveReports } from './operations.js';
-import { processingWindow } from './resilience.js';
 
 type Result = DiscussionRound['results'][number];
 type Material = { source: AggregationSource; target: string; textDraft?: { eventId: string; content: string };
@@ -130,7 +129,7 @@ export function beginResultAggregation(c: TaskContext, e: TaskEvent): boolean {
   if (!selected) return false;
 
   const groups: Record<string, ResultAggregationGroup> = {};
-  const deadline = Math.min(e.at + c.config.limits.workTimeoutMs, processingWindow(c).hardDeadline, processingWindow(c).repairDeadline ?? Number.MAX_SAFE_INTEGER);
+  const deadline = mapQueueWindowDeadline(c);
   let sequence = 0;
   for (const group of selected.sort((a, b) => Number(a.inline) - Number(b.inline))) {
     let id = `aggregate:${++sequence}`;

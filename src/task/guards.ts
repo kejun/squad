@@ -3,7 +3,7 @@ import { mapQueueNeedsProgress } from './map-queue.js';
 import { canStartHostRetry, findHostRetry, hostRetryBatchNeedsSync, hostRetryBatchRetirable, hostRetryBoundary, pendingHostRetry } from '../host-retry.js';
 import { type TaskContext, type TaskEvent } from '../types.js';
 import { localResumeKind, permissionProblem, valid } from './policy.js';
-import { activeHelp, allInflight, d, discussionActive, fresh, hasOrdinary, incompatibleExecution, inflight, isBot, pendingInput, recoveryIssue, remainingInflight, unresolvedInput } from './facts.js';
+import { activeHelp, allInflight, d, discussionActive, fresh, hasOrdinary, incompatibleExecution, inflight, isBot, parallelReviewWork, pendingInput, recoveryIssue, remainingInflight, unresolvedInput } from './facts.js';
 import { localPhysicalPending } from '../local-operation.js';
 import { ownerWebRecoveryExhausted } from './tool-recovery.js';
 import { helpResultContinuesReview, nextReviewer, reviewCanDispatch, savedHelpResult } from './assistance.js';
@@ -17,6 +17,8 @@ const settlingCheck = ({ context, event }: TaskGuardArgs) => event.type === 'SET
   && settlingDeliveryCheck(context, context.intents.find(work => work.id === event.intentId));
 
 export const taskGuards = {
+    taskIsAdmitted: ({ context }) => !context.queuedStartup,
+    taskIsQueued: ({ context }) => !!context.queuedStartup,
     safeFailureRetry: args => valid(args) && safeFailureRetry(args.context, args.event),
     activeWindowExpired: args => valid(args) && !args.context.stopped && args.context.outcome === null && windowExpired(args.context, args.event.at),
     windowFailed: args => args.event.type === 'WORK_FAILED' && valid(args) && !args.context.stopped && args.context.outcome === null && windowExpired(args.context, args.event.at),
@@ -49,9 +51,13 @@ export const taskGuards = {
       return gate.cause === 'windowExpired' && windowExpired(context, event.at)
         || gate.cause === 'modelServiceError' && !context.discussion?.mapReduce?.queue?.some(p => p.workId === gate.workId);
     },
-    gateDecisionHelp: args => args.event.type === 'HUMAN_GATE_DECISION' && valid(args) && args.event.decision === 'skip'
-      && args.context.resilience?.gates.find(g => g.id === (args.event as Extract<TaskEvent, { type: 'HUMAN_GATE_DECISION' }>).gateId)?.kind === 'clarification'
-      && !!activeHelp(args.context),
+    gateDecisionHelp: ({ context, event }) => {
+      if (event.type !== 'HUMAN_GATE_DECISION' || event.decision !== 'skip' || !valid({ context, event })) return false;
+      const gate = context.resilience?.gates.find(item => item.id === event.gateId);
+      if (gate?.kind === 'clarification') return !!activeHelp(context);
+      const work = gate?.approvalId && context.intents.find(item => item.id === gate.workId);
+      return !!work && parallelReviewWork(context, work) && helpResultContinuesReview(context, String(work.payload.requestId));
+    },
     gateDecisionTask: ({ context, event }) => event.type === 'HUMAN_GATE_DECISION' && valid({ context, event }) && context.resilience?.gates.find(g => g.id === event.gateId)?.scope === 'task'
       && !(context.resilience.gates.find(g => g.id === event.gateId)?.approvalId && event.decision === 'reply')
       && !(context.resilience.gates.find(g => g.id === event.gateId)?.cause === 'modelServiceError' && otherTaskHumanGate(context, event.gateId)),
@@ -113,6 +119,8 @@ export const taskGuards = {
       const event = args.event;
       const work = args.context.intents.find(i => i.id === event.intentId);
       const help = args.context.assists.find(h => h.id === work?.payload.requestId);
+      if (work?.kind === 'assistance' && help && helpResultContinuesReview(args.context, help.id)) return true;
+      if (args.context.review?.parallel) return false;
       const next = help ? nextReviewer(args.context, help.target) : undefined;
       return work?.kind === 'assistance' && !!help?.reviewId && help.reviewId === args.context.review?.id
         && !!next && isBot(args.context, next) && reviewCanDispatch(args.context);

@@ -76,7 +76,7 @@ function initialContext(roomId: string): RoomDeletionContext {
 const text = (value: unknown): value is string => typeof value === 'string' && !!value.trim() && value.length <= 2048 && !value.includes('\0');
 const time = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0;
 const hash = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
-const phases = new Set<Phase>(['interpreting', 'running', 'waitingAssistance', 'coordinating', 'waitingHuman', 'checking', 'stopping', 'ended']);
+const phases = new Set<Phase>(['queued', 'interpreting', 'running', 'waitingAssistance', 'coordinating', 'waitingHuman', 'checking', 'stopping', 'ended']);
 const outcomes = new Set<Outcome>(['complete', 'partial', 'failed', 'stopped']);
 const unique = (values: string[]) => new Set(values).size === values.length;
 function currentIntent(c: RoomDeletionContext, event: RoomDeletionEvent, kind?: DeletionIntentKind) {

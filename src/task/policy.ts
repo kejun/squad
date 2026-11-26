@@ -11,6 +11,7 @@ import { assistanceRetryProblem, helpProblem } from './assistance.js';
 import { hostRetryProblem } from '../host-retry.js';
 import { legacyTerminalConfig, taskProtocolChanged } from './protocol.js';
 import { toolFailureProblem } from './tool-recovery.js';
+import { mapClaimDeadline } from './map-queue.js';
 
 export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
   if (e.type === 'SUPERVISE') return null;
@@ -121,7 +122,8 @@ export function permissionProblem(c: TaskContext, e: TaskEvent): string | null {
       if (i.kind === 'assistance' && ((i.payload.requiredTools as string[] | undefined) ?? []).some(t => !c.config.bots.find(b => b.id === i.target)?.tools.includes(t))) return 'TOOL_PERMISSION';
       if (!workLaneAvailable(c, i)) return 'WORK_BUSY';
       if (windowExpired(c, e.at)) return 'WINDOW_EXPIRED';
-      if (i.deadline !== null && e.at >= i.deadline) return 'WORK_EXPIRED';
+      const deadline = mapClaimDeadline(c, i) ?? i.deadline;
+      if (deadline !== null && e.at >= deadline) return 'WORK_EXPIRED';
       if (i.kind === 'tool' && !c.config.bots.find(b => b.id === i.target)?.tools.includes(String(i.payload.tool))) return 'TOOL_PERMISSION';
       if (i.kind === 'check' && !isBoundedCheck(i)) return 'CHECK_PROTOCOL_CHANGED';
       // Recovery can reuse the claim only until the batch has authorized its first model request.

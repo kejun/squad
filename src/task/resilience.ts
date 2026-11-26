@@ -1,5 +1,5 @@
 /** Pure task supervision, durable human gates, frozen delivery and physical custody. */
-import type { Fence, Intent, Outcome, Phase, TaskContext, TaskEvent } from '../types.js';
+import type { Assistance, Fence, Intent, Outcome, Phase, TaskContext, TaskEvent } from '../types.js';
 import { cancelLocalOperations, heldLocalResourceLeases, localAwaitingApproval, localPhysicalPending, localWorkspaceWaiting, taskResourceWaiting } from '../local-operation.js';
 import { cancelWork, coordinate, finishDeliveryCheck, message, owner, release, intent } from './operations.js';
 import { cancelHostRetries } from '../host-retry.js';
@@ -7,7 +7,8 @@ import { settleDeliveryCycle } from './delivery-cycle.js';
 import { currentDeliveryCheck, deliveryInterruptionPending } from './delivery.js';
 import { permissionProblem } from './policy.js';
 import { recordInput } from './input.js';
-import { activeHelp, discussionActive, inflight } from './facts.js';
+import { activeHelp, discussionActive, inflight, parallelReviewWork } from './facts.js';
+import { advanceReview } from './assistance.js';
 import { requestBudgetProblem } from './budget.js';
 import { artifactVerification, savedResourceAcquisitions } from '../resource-acquisition.js';
 import { unconfinedEffectsKey } from '../local-resource-policy.js';
@@ -108,8 +109,7 @@ export type ResilienceEvent =
 export const defaultResiliencePolicy = { automaticTimeoutMs: 3 * 60 * 60_000, repairTimeoutMs: 30_000,
   repairLimit: 2, cancelGraceMs: 5_000, allowMissingContent: true } as const;
 export const resiliencePolicy = (c: Pick<TaskContext, 'config'>) => ({ ...defaultResiliencePolicy, ...c.config.resilience });
-export function initialResilience(c: Pick<TaskContext, 'taskId' | 'config' | 'messages' | 'lastActivityAt'>): TaskResilience {
-  const openedAt = c.messages[0]?.at ?? c.lastActivityAt;
+export function initialResilience(c: Pick<TaskContext, 'taskId' | 'config' | 'messages' | 'lastActivityAt'>, openedAt = c.messages[0]?.at ?? c.lastActivityAt): TaskResilience {
   const policy = resiliencePolicy(c);
   return { window: { id: `${c.taskId}:window:initial`, openedAt, hardDeadline: openedAt + policy.automaticTimeoutMs,
     repairUsed: 0, repairLimit: policy.repairLimit }, gates: [], skips: [], cleanup: [], nextSupervisionAt: openedAt + policy.repairTimeoutMs };
@@ -426,6 +426,7 @@ export function decideHumanGate(c: TaskContext, e: Extract<TaskEvent, { type: 'H
   const approvalWork = gate.approvalId && c.intents.find(work => work.id === gate.workId);
   const preserveApprovalParent = approvalWork && approvalWork.status === 'inflight'
     && approvalWork.localOperations?.some(op => op.id === gate.operationId && op.finishedAt !== undefined);
+  let skippedReviewer: Assistance | undefined;
   if (e.decision === 'skip') {
     if (gate.kind === 'clarification') {
       for (const input of c.inputAnalyses ?? []) if (input.workId === gate.workId && input.status === 'clarification') {
@@ -447,7 +448,10 @@ export function decideHumanGate(c: TaskContext, e: Extract<TaskEvent, { type: 'H
       cancelLocalOperations(approvalWork); release(c, approvalWork.id);
       if (wasInflight) intent(c, e.at, 'cancel', approvalWork.target, { intentId: approvalWork.id });
       const help = c.assists.find(h => h.id === approvalWork.payload.requestId);
-      if (help && ['pending', 'running', 'answered'].includes(help.status)) { help.status = 'cancelled'; help.consumed = true; help.answer = '用户明确跳过待授权内容'; }
+      if (help && ['pending', 'running', 'answered'].includes(help.status)) {
+        help.status = 'cancelled'; help.consumed = true; help.answer = '用户明确跳过待授权内容';
+        if (parallelReviewWork(c, approvalWork)) skippedReviewer = help;
+      }
       const round = c.discussion;
       if (round && approvalWork.discussionId === round.id) {
         round.incomplete = '用户明确跳过待授权内容';
@@ -478,6 +482,7 @@ export function decideHumanGate(c: TaskContext, e: Extract<TaskEvent, { type: 'H
   }
   c.reason = ''; c.stopped = false; c.outcome = null;
   r.nextSupervisionAt = Math.min(r.window.hardDeadline, e.at + resiliencePolicy(c).repairTimeoutMs);
+  if (skippedReviewer) { advanceReview(c, e, skippedReviewer); return; }
   if (gate.kind === 'clarification' && (e.decision !== 'skip' || activeHelp(c))) return;
   owner(c, { ...e, type: 'BOUNDARY' }, { humanGateId: gate.id, humanResponse: gate.response, skippedContent: structuredClone(r.skips) });
 }

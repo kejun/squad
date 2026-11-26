@@ -53,14 +53,18 @@ export function queueWaveGate() {
 }
 
 export function queueRetryGate() {
-  const model = new MapQueueModel(), success = model.start(); assert(model.answer(success).ok);
+  const model = new MapQueueModel(input => { input.config.limits.workTimeoutMs = 1000; });
+  const success = model.start(); assert(model.answer(success).ok);
   const failed = model.start();
   assert(model.send({ type: 'WORK_FAILED', intentId: failed.id, transient: true, reason: 'temporary transport failure' }).ok);
   const retry = model.pending('assistance').find(work => work.payload.partitionAttempt === 2)!;
   assert(retry); assert.equal(model.context.usage.retries, 1);
   assert.equal(model.answer(failed).ok, false);
   assert.equal(model.context.discussion!.results.filter(result => result.workId === success.id).length, 1);
+  model.sequence = failed.deadline! + 10;
+  const claimAt = model.sequence + 1;
   const second = model.start(retry);
+  assert.equal(second.deadline, claimAt + 1000);
   assert(model.send({ type: 'WORK_FAILED', intentId: second.id, transient: true, reason: 'temporary transport failure again' }).ok);
   assert(model.context.discussion!.incomplete?.includes('未完整完成'));
   model.drain();
@@ -100,18 +104,67 @@ export function queueBudgetGate() {
 }
 
 export function verifyMapQueueModel() {
-  queueWaveGate(); queueRetryGate(); queueStopGate(); queueUnknownGate(); queueBudgetGate(); queueDeadlineGate(); queueLegacyGate();
+  queueWaveGate(); queueRetryGate(); queueStopGate(); queueUnknownGate(); queueBudgetGate(); queueDeadlineGate();
+  queuePendingClaimDeadlineGate(); queueWindowDeadlineGate('hardDeadline'); queueWindowDeadlineGate('repairDeadline');
+  queueRestoredDeadlineGate(); queueLegacyGate();
 }
 
 export function queueDeadlineGate() {
-  const model = new MapQueueModel();
-  const work = model.start(); model.sequence = model.queue[0]!.deadline - 1;
+  const model = new MapQueueModel(input => { input.config.limits.workTimeoutMs = 1000; });
+  const first = model.pending('assistance').map(work => model.start(work));
+  const work = first[0]!;
+  model.sequence = work.deadline! - 1;
   assert(model.send({ type: 'WORK_FAILED', intentId: work.id, transient: true, reason: 'deadline transport failure' }).ok);
   assert.equal(model.context.usage.retries, 0);
+  assert.equal(model.answer(work).ok, false);
+  const next = model.pending('assistance')[0];
+  assert(next, 'one of the unassigned shards should refill the freed slot');
+  assert.equal(next.payload.partitionAttempt, 1);
+  const claimAt = model.sequence + 1;
+  assert.equal(model.start(next).deadline, claimAt + 1000);
+  assert.equal(model.queue.filter(part => part.status === 'queued').length, 3);
+}
+
+export function queuePendingClaimDeadlineGate() {
+  const model = new MapQueueModel(input => { input.config.limits.workTimeoutMs = 1000; });
+  const pending = model.pending('assistance')[0]!;
+  model.sequence += 1050;
   model.recover();
-  assert.equal(model.queue.filter(part => part.status === 'cancelled' && part.reason === 'WORK_EXPIRED').length, 4);
-  assert.equal(model.context.discussion!.mapReduce!.assignments.length, 4);
-  assert.notEqual(model.context.outcome, 'complete');
+  const claimAt = model.sequence + 1;
+  assert.equal(model.start(pending).deadline, claimAt + 1000);
+}
+
+export function queueWindowDeadlineGate(kind: 'hardDeadline' | 'repairDeadline') {
+  const model = new MapQueueModel(input => { input.config.limits.workTimeoutMs = 1000; });
+  const work = model.pending('assistance')[0]!;
+  const used = model.context.usage.ordinary;
+  const deadline = model.sequence + 500;
+  model.context.resilience!.window[kind] = deadline;
+  model.sequence = deadline - 1;
+  assert.equal(model.send({ type: 'CLAIM', intentId: work.id }).code, kind === 'hardDeadline' ? 'WINDOW_EXPIRED' : 'WORK_EXPIRED');
+  assert.equal(model.send({ type: 'SUPERVISE' }).ok, true);
+  assert.equal(model.context.intents.find(item => item.id === work.id)!.attempt, 0);
+  assert.equal(model.context.usage.ordinary, used);
+  assert.equal(model.context.usage.retries, 0);
+  assert.equal(model.pending('discussionSummary').length, 0);
+  assert(model.queue.every(part => ['timeout', 'cancelled'].includes(part.status)));
+}
+
+export function queueRestoredDeadlineGate() {
+  const model = new MapQueueModel(input => { input.config.limits.workTimeoutMs = 1000; });
+  const existing = model.start();
+  const old = model.pending('assistance')[0]!;
+  const expired = model.queue.find(part => part.workId === old.id)!;
+  const unallocated = model.queue.find(part => part.status === 'queued')!;
+  expired.deadline = model.sequence + 5;
+  unallocated.deadline = expired.deadline;
+  old.deadline = expired.deadline;
+  model.sequence = expired.deadline;
+  model.recover();
+  assert.equal(model.start(existing).deadline, existing.deadline);
+  assert.equal(model.send({ type: 'CLAIM', intentId: old.id }).ok, false);
+  assert.equal(model.queue.find(part => part.partitionId === expired.partitionId)!.reason, 'WORK_EXPIRED');
+  assert.equal(model.queue.find(part => part.partitionId === unallocated.partitionId)!.reason, 'WORK_EXPIRED');
 }
 
 export function queueLegacyGate() {

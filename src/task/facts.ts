@@ -42,11 +42,25 @@ export const pendingInput = (c: TaskContext) => c.inputAnalyses?.find(input =>
 
 export const incompatibleExecution = localRecoveryBlocked;
 
+function reviewWorkRound(c: TaskContext, work: Intent): string | undefined {
+  if (work.kind !== 'assistance' || work.discussionId) return undefined;
+  return c.assists.find(help => help.id === work.payload.requestId && help.epoch === c.epoch && help.goalVersion === c.goalVersion)?.reviewId;
+}
+
+export function parallelReviewWork(c: TaskContext, work: Intent): boolean {
+  return c.review?.parallel === true && c.review.status === 'reviewing' && reviewWorkRound(c, work) === c.review.id;
+}
+
 /** Lane and member locks are shared by the read projection and transactional claim guard. */
 export function workLaneAvailable(c: TaskContext, work: Intent): boolean {
   if (allInflight(c).some(item => item.target === work.target)
     || c.intents.some(item => item.status === 'uncertain' && item.target === work.target && !workInCleanup(c, item))) return false;
-  return work.discussionId ? discussionActive(c) && work.discussionId === c.discussion?.id : inflight(c).length === 0;
+  if (work.discussionId) return discussionActive(c) && work.discussionId === c.discussion?.id;
+  const updating = c.inputs.some(input => !input.applied);
+  const round = reviewWorkRound(c, work);
+  if (round && (parallelReviewWork(c, work) || updating && c.review?.status === 'pending' && c.review.id !== round))
+    return (!updating || work.attempt > 0) && inflight(c).every(item => reviewWorkRound(c, item) === round);
+  return inflight(c).length === 0;
 }
 
 export function deliveryHandoffPending(c: TaskContext): boolean {

@@ -1,5 +1,10 @@
 import type { TaskContext } from '../types.js';
-import { workInCleanup } from './resilience.js';
+import { processingWindow, workInCleanup } from './resilience.js';
+
+export function mapQueueWindowDeadline(c: TaskContext): number {
+  const { hardDeadline, repairDeadline } = processingWindow(c);
+  return Math.min(hardDeadline, repairDeadline ?? hardDeadline);
+}
 
 /** Only the host selects members; this is the shared planning and dispatch resource view. */
 export function availableMapReduceMembers(c: TaskContext) {

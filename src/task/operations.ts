@@ -154,27 +154,30 @@ export function coordinate(c: TaskContext, e: TaskEvent, reason: string) {
 export function finish(c: TaskContext, e: TaskEvent, outcome: TaskContext['outcome'], reason: string, retainPublication = false) {
   if (taskHumanGate(c) && outcome !== 'stopped') return;
   if (outcome !== 'complete') { freezeIncomplete(c, e, reason, outcome === 'stopped' ? 'stopped' : undefined); return; }
+  publishDelivery(c, e, 'complete', reason, retainPublication);
+}
+
+export function publishDelivery(c: TaskContext, e: TaskEvent, outcome: 'complete' | 'partial', reason: string, retainPublication = false) {
+  if (taskHumanGate(c)) return;
   adoptCleanup(c, e.at);
   if (c.resilience?.cleanup.some(item => item.state === 'pending')) { freezeIncomplete(c, e, '存在未决物理效果，不能完整完成'); return; }
   c.hostSession = undefined;
   cancelWork(c, e, true); cancelHostRetries(c, reason || 'TASK_ENDED'); c.outcome = outcome; c.reason = reason;
-  settleDeliveryCycle(c, outcome, reason);
+  settleDeliveryCycle(c, outcome, reason, true);
   for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight'].includes(input.status)) {
     input.status = 'failed'; input.error = reason;
   }
   if (c.review) c.review.status = 'complete';
   if (retainPublication) return;
-  if (outcome === 'complete' && c.candidate) {
+  if (c.candidate) {
     c.publishedDelivery = { ...(c.candidate.revision ? { revision: c.candidate.revision } : {}), goalVersion: c.goalVersion, artifactIds: [...c.candidate.artifactIds], at: e.at };
   }
-  {
-    const full = `${c.candidate?.text ?? ''}${reason ? `\n${reason}` : ''}`.trim();
-    const summary = reason ? `${reason}\n${c.candidate?.summary ?? compactMessage(c.candidate?.text ?? '')}`.trim() : c.candidate?.summary;
-    message(c, e, c.owner, full, 'final', {
-      artifactIds: c.candidate?.artifactIds.filter(id => c.artifacts.some(artifact => artifact.id === id && artifact.goalVersion === c.goalVersion)) ?? [],
-      ...(c.candidate?.workId ? { workId: c.candidate.workId } : {}),
-    }, summary);
-  }
+  const full = `${c.candidate?.text ?? ''}${reason ? `\n${reason}` : ''}`.trim();
+  const summary = reason ? `${reason}\n${c.candidate?.summary ?? compactMessage(c.candidate?.text ?? '')}`.trim() : c.candidate?.summary;
+  message(c, e, c.owner, full, 'final', {
+    artifactIds: c.candidate?.artifactIds.filter(id => c.artifacts.some(artifact => artifact.id === id && artifact.goalVersion === c.goalVersion)) ?? [],
+    ...(c.candidate?.workId ? { workId: c.candidate.workId } : {}),
+  }, summary);
 }
 
 export function finishIncompleteDelivery(c: TaskContext, e: TaskEvent, detail: string, code?: string) {

@@ -2,9 +2,8 @@ import { codePointLength, savedPageCodePoints } from '../saved-page.js';
 import type { Artifact, DiscussionRound, Intent, SummaryLayer, TaskContext, TaskEvent } from '../types.js';
 import { documentIdentity } from './delivery.js';
 import { capabilities, discussionActive, fence } from './facts.js';
-import { availableMapReduceMembers, mapReduceCapacity } from './map-reduce-capacity.js';
+import { availableMapReduceMembers, mapQueueWindowDeadline, mapReduceCapacity } from './map-reduce-capacity.js';
 import { message } from './operations.js';
-import { processingWindow } from './resilience.js';
 
 export interface ArtifactIndex {
   id: string; documentId: string; revision: number; goalVersion: number;
@@ -143,7 +142,7 @@ export function openSummaryRound(c: TaskContext, e: TaskEvent): boolean {
     return { id, objective: '把本批直接来源编号和要点写成一条不超过一页的短产物', expectedOutput: '直接来源编号与要点' };
   });
   plan.concurrency = Math.min(availableMapReduceMembers(c).length, plan.partitions.length);
-  const deadline = Math.min(e.at + c.config.limits.workTimeoutMs, processingWindow(c).hardDeadline, processingWindow(c).repairDeadline ?? Number.MAX_SAFE_INTEGER);
+  const deadline = mapQueueWindowDeadline(c);
   plan.queue = plan.partitions.map(part => ({ partitionId: part.id, attempt: 0, status: 'queued' as const, deadline }));
   round.status = 'collecting';
   c.trace.push({ event: 'SUMMARY_ROUND', at: e.at, detail: JSON.stringify({ layer: layer.layer, batches: plan.partitions.length, pending: layer.pendingSourceIds.length }) });

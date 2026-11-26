@@ -3,14 +3,15 @@ import { executionSummary } from './execution-summary.js';
 import { startMapReduce } from './map-reduce.js';
 import { bindDeliveryCheck, deliveryCandidate, resetDeliveryMaterials, settleDeliveryCycle } from './delivery-cycle.js';
 import { mapReduceCapacity, mapReduceConcurrency } from './map-reduce-capacity.js';
+import { mapClaimDeadline } from './map-queue.js';
 import { hostSessionActive, revokeHostSession } from '../host-session.js';
 import { artifactSourceMetadata, type BoardEntry, type Decision, type Intent, type TaskContext, type TaskEvent } from '../types.js';
 import { permissionProblem } from './policy.js';
 import { canRetireDiscussionWork, capabilities, completeProblem, discussionActive, fence, fresh, hasOrdinary, inflight, ok, recoveryIssue, reject } from './facts.js';
-import { cancelWork, coordinate, continueOwner, finish, finishDeliveryCheck, finishIncompleteDelivery, intent, message, owner, release, saveReports } from './operations.js';
+import { cancelWork, coordinate, continueOwner, finish, finishDeliveryCheck, finishIncompleteDelivery, intent, message, owner, publishDelivery, release, saveReports } from './operations.js';
 import { applyLocalEvent, cancelLocalOperations, cliArtifactIds, localEnabled, localPhysicalPending, localAwaitingApproval, localRecoveryBlocked, recoverLocalOperations, type LocalEvent } from '../local-operation.js';
 import { acceptDiscussion, discussionFailed, planDiscussion, startDiscussion } from './discussion.js';
-import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requestReview, resetReviewAtBoundary, savedHelpResult, startHelp } from './assistance.js';
+import { acceptHelpResult, advanceReview, helpTools, refreshReviewFailures, requestReview, resetReviewAtBoundary, savedHelpResult, settleReplacedReviewHelp, startHelp } from './assistance.js';
 import { recordInput } from './input.js';
 import { checkDisposition, checkReferenceSources, currentDeliveryCheck, deliveryInterruptionPending, deliverySubmissionProblem, deliveryVersionProblem, hasDeliveryRetryPermit, isBoundedCheck, newDeliveryCycle, normalizeDeliveryArtifacts, recoveryCheckExhausted, retainLegacyPublication, saveCheckDiagnostic, settlingDeliveryCheck } from './delivery.js';
 import { canRetryDeliveryCheck, canRetryWork, reserveDeliveryRetry } from './budget.js';
@@ -204,7 +205,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         }
       }
       recordInput(c, e.id, e.text, e.reviewTargets?.length ? 'review' : e.decision ? 'decision' : 'supplement');
-      if (e.reviewTargets) requestReview(c, e.id, e.text, e.reviewTargets);
+      if (e.reviewTargets) requestReview(c, e.id, e.text, e.reviewTargets, e.reviewParallel);
       if (gate && windowExpired(c, e.at) && !taskHumanGate(c)) requestNewWindow(c, e);
       break;
     }
@@ -220,7 +221,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         for (const input of c.inputAnalyses ?? []) if (['pending', 'inflight'].includes(input.status)) input.status = 'cancelled';
         c.inputs.push({ id: e.id, text: e.text, applied: false }); cancelWork(c, e, true); cancelHostRetries(c, 'STALE_WORK');
         for (const h of c.assists.filter(h => ['pending', 'running', 'answered'].includes(h.status))) h.status = 'cancelled';
-        if (e.reviewTargets) requestReview(c, e.id, e.text, e.reviewTargets);
+        if (e.reviewTargets) requestReview(c, e.id, e.text, e.reviewTargets, e.reviewParallel);
         recordInput(c, e.id, e.text, e.reviewTargets?.length ? 'review' : 'decision');
       }
       if (gate && windowExpired(c, e.at) && !taskHumanGate(c)) requestNewWindow(c, e);
@@ -252,7 +253,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       }
       const summaryOnly = c.config.deliveryReport === 'summary';
       const problem = summaryOnly ? null : deliverySubmissionProblem(c, e);
-      const { acceptance, gaps: submissionGaps } = deliveryPreflight(c, delivery);
+      const { acceptance, gaps: submissionGaps, missingRequestedFiles } = deliveryPreflight(c, delivery);
       const artifactIds = saveReports(c, e, c.sourceArtifact && !delivery.artifacts?.length ? '' : e.text, c.owner, delivery.artifacts);
       const priorFindings = summaryOnly ? [] : deliveryJudgments(c, c.candidate?.revision).filter(item => item.status !== 'passed');
       const baselineCheckId = summaryOnly ? undefined : [...c.intents].reverse().find(work => work.kind === 'check' && work.criteriaResults
@@ -279,7 +280,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
         else {
           const missingResource = resourceAcquisitionProblem(c);
           if (missingResource) c.candidate.deliveryIssue = { code: missingResource, detail: '缺少必需资源的获取凭证，相关内容尚未核实。' };
-          finish(c, e, 'complete', '');
+          publishDelivery(c, e, missingRequestedFiles ? 'partial' : 'complete', '');
         }
         if (c.outcome !== null) message(c, e, 'facilitator', executionSummary(c), 'notice');
         break;
@@ -354,6 +355,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     }
     case 'STOP':
       if (e.text) message(c, e, 'user', e.text, 'user');
+      delete c.queuedStartup;
       for (const gate of ensureResilience(c).gates.filter(g => g.scope === 'task' && g.status === 'open')) { gate.status = 'cancelled'; gate.resolvedAt = e.at; }
       c.stopped = true; c.reason = 'User requested stop'; cancelWork(c, e, true); cancelHostRetries(c, 'STOPPED');
       settleDeliveryCycle(c, 'stopped', c.reason);
@@ -414,7 +416,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       }
       for (const h of c.assists) if (['pending', 'running', 'answered'].includes(h.status)) h.status = 'cancelled';
       if (c.review && ['pending', 'reviewing', 'cancelled'].includes(c.review.status)) {
-        requestReview(c, e.id, c.review.request, c.review.targets); c.candidate = null;
+        requestReview(c, e.id, c.review.request, c.review.targets, c.review.parallel === true); c.candidate = null;
       } else owner(c, e, { continued: true });
       break;
     case 'TICK': c.processedSignals.push(e.id); coordinate(c, e, 'No evidenced progress by deadline'); break;
@@ -445,6 +447,9 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
     }
     case 'CLAIM': {
       const work = c.intents.find(i => i.id === e.intentId)!;
+      const mapDeadline = mapClaimDeadline(c, work);
+      if (mapDeadline !== undefined) work.deadline = work.attempt
+        ? mapDeadline : Math.min(mapDeadline, e.at + c.config.limits.workTimeoutMs);
       // Legacy work receives trusted identity in the same pure transition as its claim.
       if (work.kind === 'facilitator' && work.payload.owner === undefined) work.payload.owner = c.owner;
       work.localSkills = [...(work.localSkills ?? []).filter(s => !c.localSkillVersions?.some(p => p.skillId === s.skillId)), ...(c.localSkillVersions ?? [])];
@@ -487,7 +492,9 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
       const artifactIds = cliArtifactIds(work);
       saveCheckDiagnostic(c, work, e.checkDiagnostic);
       if (!c.stopped && c.outcome === null && windowExpired(c, e.at)) {
-        release(c, work.id); requestNewWindow(c, e);
+        if (work.replay === 'unsafe') adoptCleanup(c, e.at, work.id);
+        release(c, work.id);
+        requestNewWindow(c, e);
         if (artifactIds.length) message(c, e, work.target, e.reason, 'notice', { artifactIds, workId: work.id });
         break;
       }
@@ -564,7 +571,7 @@ export function reduce(original: TaskContext, e: TaskEvent): TaskContext {
           h.status = 'failed'; h.answer = ''; h.artifactIds = []; h.reason = failureReason; h.consumed = true;
           message(c, e, h.target, failureReason, 'notice', { requestId: h.id });
           if (h.reviewId && h.reviewId === c.review?.id) advanceReview(c, e, h);
-          else {
+          else if (!settleReplacedReviewHelp(c, e, h)) {
             for (const note of c.inputs) note.applied = true;
             owner(c, e, { requestId: h.id, status: 'failed', answer: '', artifactIds: [], reason: failureReason });
           }

@@ -78,9 +78,21 @@ export function deliverySubmissionProblem(c: TaskContext, e: Delivery): { code: 
 
 function includeCliArtifacts(c: TaskContext, e: Delivery): Delivery {
   const work = c.intents.find(intent => intent.id === e.workId);
-  const added = cliArtifactIds(work).filter(id => !e.backgroundArtifactIds?.includes(id)
-    && !e.artifacts?.some(draft => draft.replacesArtifactId === id));
-  return added.length ? { ...e, artifactIds: [...new Set([...e.artifactIds, ...added])] } : e;
+  if (!work || work.kind !== 'owner' || work.target !== c.owner || work.goalVersion !== c.goalVersion || work.epoch !== c.epoch) return e;
+  const savedIds = new Set(cliArtifactIds(...c.intents.filter(intent => intent.kind === 'owner'
+    && intent.goalVersion === c.goalVersion && intent.epoch <= c.epoch)));
+  if (!savedIds.size) return e;
+  const current = c.artifacts.filter(artifact => artifact.goalVersion === c.goalVersion && artifact.id !== c.sourceArtifact?.artifactId);
+  const replaced = new Set([...current.map(artifact => artifact.replacesArtifactId), ...(e.artifacts ?? []).map(draft => draft.replacesArtifactId)]);
+  const background = new Set(e.backgroundArtifactIds);
+  if (c.candidate?.goalVersion === c.goalVersion) {
+    for (const id of c.candidate.backgroundArtifactIds ?? []) {
+      if (savedIds.has(id) && !e.artifactIds.includes(id) && !replaced.has(id)) background.add(id);
+    }
+  }
+  const added = current.filter(artifact => savedIds.has(artifact.id) && !background.has(artifact.id) && !replaced.has(artifact.id))
+    .map(artifact => artifact.id);
+  return { ...e, artifactIds: [...new Set([...e.artifactIds, ...added])], backgroundArtifactIds: [...background] };
 }
 
 export function normalizeDeliveryArtifacts(c: TaskContext, e: Delivery): Delivery {

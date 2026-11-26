@@ -59,6 +59,16 @@ export function conversationHistory(tasks: TaskContext[], sourceArtifact?: Artif
   return { messages, artifacts, board, tasks: summaries, truncated };
 }
 
+function directReviewText(text: string): string {
+  return text
+    .replace(/```[\s\S]*?(?:```|$)/g, "")
+    .replace(/`[^`\n]*`/g, "")
+    .split("\n")
+    .filter((line) => !/^\s*>/.test(line))
+    .join("\n")
+    .trim();
+}
+
 /** Only inspect a direct user request, never Bot messages, quoted material, code or tool output. */
 export function requestedReviewTargets(
   text: string,
@@ -66,20 +76,14 @@ export function requestedReviewTargets(
   bots: Bot[],
   owner: string,
 ): string[] | undefined {
-  const direct = text
-    .replace(/```[\s\S]*?(?:```|$)/g, "")
-    .replace(/`[^`\n]*`/g, "")
-    .split("\n")
-    .filter((line) => !/^\s*>/.test(line))
-    .join("\n")
-    .trim();
+  const direct = directReviewText(text);
   if (
     !direct ||
     /^(?:不要|不用|无需|先别|暂不|不需要|do not\b|don't\b)/i.test(direct)
   )
     return undefined;
   if (
-    /^(?:请|麻烦|让|请让)?\s*(?:大家|各位|其他人|全体|全员|所有人)[^。！？!?\n]{0,30}(?:不要|不用|无需|先别|暂不|不需要|别|不参与|不讨论)/.test(
+    /^(?:请|麻烦|让|请让)?\s*(?:大家|各位|其他人|全体|全员|所有人)[^。！？!?\n]{0,30}(?:不要|不用|无需|先别|暂不|不需要|(?<!分)别|不参与|不讨论)/.test(
       direct,
     ) || /^(?:please\s+)?(?:everyone|everybody|all (?:agents|members))[^.!?\n]{0,30}(?:\bnot\b|don't)/i.test(direct)
   )
@@ -101,4 +105,16 @@ export function requestedReviewTargets(
     )
     .map((bot) => bot.id);
   return targets.length ? targets : undefined;
+}
+
+function sequentialReviewRequested(text: string): boolean {
+  const direct = directReviewText(text);
+  return /依次|逐一|逐个|轮流|串行|按(?:照)?[^。！？!?\n]{0,8}顺序|(?:不要|不得|禁止|不能|不可)并行|(?:前一|上一|前面)(?:位|名|个|成员)?[^。！？!?\n]{0,12}(?:意见|评审|结果)/.test(direct)
+    || /\b(?:sequentially|in sequence|in order|one at a time|one by one|previous (?:member|reviewer|review)|build on (?:each other's|prior|previous) (?:reviews?|feedback|opinions?))\b/i.test(direct);
+}
+
+export function requestedReview(text: string, mentions: string[], bots: Bot[], owner: string): { reviewTargets?: string[]; reviewParallel?: true } {
+  const reviewTargets = requestedReviewTargets(text, mentions, bots, owner);
+  if (!reviewTargets) return {};
+  return { reviewTargets, ...(reviewTargets.length > 1 && !sequentialReviewRequested(text) ? { reviewParallel: true } : {}) };
 }

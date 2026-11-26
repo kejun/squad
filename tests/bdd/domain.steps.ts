@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { Given, When, Then } from '@cucumber/cucumber';
-import { TeamEngine, MemoryStore, WorkRunner, validateConfig, type Decision, type Submission } from '../../src/index.js';
+import { TeamEngine, MemoryStore, WorkRunner, validateConfig, type CommandResult, type Decision, type Submission } from '../../src/index.js';
 import { Harness, configuration } from '../helpers.js';
 import type { SpecWorld } from './steps.js';
 
-interface Facts { before?: string; deadline?: number; issue?: string; condition?: string; limit?: string; text?: string; config?: ReturnType<typeof configuration> }
+interface Facts { before?: string; deadline?: number; issue?: string; condition?: string; limit?: string; text?: string; config?: ReturnType<typeof configuration>; queued?: CommandResult }
 const facts = new WeakMap<SpecWorld, Facts>();
 const f = (w: SpecWorld) => { let value = facts.get(w); if (!value) { value = {}; facts.set(w, value); } return value; };
 function submit(w: SpecWorld, text: string, id = 'M1', extra: Partial<Submission> = {}) {
@@ -40,10 +40,26 @@ When('负责人提交澄清问题', function (this: SpecWorld) { this.h.event({ 
 Then('任务应进入{string}并显示缺少的信息', function (this: SpecWorld, state: string) { assert.equal(state, '等待人类'); assert.equal(this.h.view().phase, 'waitingHuman'); assert.equal(this.h.context().reason, f(this).text); });
 Then('在用户答复前不应自行补造目标受众', function (this: SpecWorld) { assert.equal(this.h.engine.pending(this.h.room, this.h.task).length, 0); assert(!this.h.context().goal.text.includes('受众')); });
 Given('群内已有负责人为{string}的活动任务{string}', function (this: SpecWorld, owner: string, _capture1: string) { submit(this, '原任务', 'existing', { mentions: [owner] }); f(this).before = JSON.stringify(this.h.context().goal); });
-When('用户明确提出与{string}无关的新委托', function (this: SpecWorld, _capture0: string) { submit(this, '无关的新任务', 'second', { intent: 'new' }); });
-Then('应提示另开群或等待当前工作结束', function (this: SpecWorld) { assert.equal(this.result.code, 'ROOM_BUSY'); assert(this.h.store.read(this.h.room).notices.at(-1)?.text.includes('另开群')); });
+When('用户明确提出与{string}无关的新委托', function (this: SpecWorld, _capture0: string) {
+  f(this).queued = this.h.engine.submit(this.h.room, { id: 'second', text: '@B 无关的新任务', intent: 'new' });
+});
+Then('应返回另一任务的标识和排队回执', function (this: SpecWorld) {
+  const queued = f(this).queued!;
+  assert(queued.ok);
+  assert.equal(queued.code, 'QUEUED');
+  assert.equal(queued.taskId, 'task:second');
+  const messages = this.h.engine.timeline(this.h.room).filter(message => message.taskId === queued.taskId);
+  assert(messages.some(message => message.kind === 'notice' && message.text === queued.detail));
+});
 Then('{string}的目标不应改变', function (this: SpecWorld, _capture0: string) { assert.equal(JSON.stringify(this.h.context().goal), f(this).before); });
-Then('不应创建业务排队任务或启动第二项主任务', function (this: SpecWorld) { assert.equal(Object.keys(this.h.store.read(this.h.room).tasks).length, 1); });
+Then('新委托在等待时没有可领取的工作', function (this: SpecWorld) {
+  const taskId = f(this).queued!.taskId!;
+  const queued = this.h.engine.view(this.h.room, taskId)!;
+  assert.equal(queued.phase, 'queued');
+  assert.equal(queued.context.owner, 'B');
+  assert.equal(this.h.store.read(this.h.room).activeTaskId, this.h.task);
+  assert.deepEqual(this.h.engine.pending(this.h.room, taskId), []);
+});
 Given('群内已有活动任务{string}', function (this: SpecWorld, _capture0: string) { submit(this, '原任务'); });
 Given('消息{string}属于{string}', function (this: SpecWorld, id: string, _capture1: string) { assert(this.h.context().messages.some(message => message.id === id)); });
 When('用户回复{string}补充资料', function (this: SpecWorld, _capture0: string) { submit(this, '补充资料', 'supplement', { replyToTaskId: this.h.task, intent: 'supplement' }); });
@@ -69,10 +85,91 @@ Then('应记录从{string}到{string}的交接及其依据', function (this: Spe
 Then('交接记录应明确保留原负责人和新负责人而非仅显示接任者', function (this: SpecWorld) { const trace = this.h.context().trace.find(trace => trace.event === 'OWNERSHIP_HANDOFF'); assert(trace); const record = JSON.parse(trace.detail); assert.equal(record.from, 'A'); assert.equal(record.to, 'B'); assert.deepEqual(record.boardRefs, ['D1']); assert.deepEqual(record.artifactRefs, ['draft']); });
 Then('{string}应收到当前目标、产物引用、失败经验和未决问题', function (this: SpecWorld, owner: string) { const work = this.h.engine.pending(this.h.room, this.h.task)[0]!; assert.equal(work.target, owner); for (const text of ['已有方案', '失败经验和未决问题', '原任务']) assert(JSON.stringify(work.payload).includes(text)); });
 Then('不应同时保留两个主任务负责人', function (this: SpecWorld) { assert.deepEqual(this.h.engine.pending(this.h.room, this.h.task).map(work => work.target), ['B']); });
-When('两条不同的新委托在同一空闲群竞争开始执行', async function (this: SpecWorld) { const results = await Promise.all(['one', 'two'].map(id => Promise.resolve().then(() => this.h.engine.submit(this.h.room, { id, text: id, intent: 'new' })))); assert.equal(results.filter(result => result.ok).length, 1); this.h.task = results.find(result => result.ok)!.taskId!; this.result = results.find(result => !result.ok)!; });
-Then('应只有一个委托成为活动主任务', function (this: SpecWorld) { assert.equal(Object.keys(this.h.store.read(this.h.room).tasks).length, 1); assert.equal(this.h.store.read(this.h.room).activeTaskId, this.h.task); });
-Then('另一条应得到另开群或等待结束的明确提示', function (this: SpecWorld) { assert.equal(this.result.code, 'ROOM_BUSY'); });
+When('两条不同的新委托在同一空闲群竞争开始执行', async function (this: SpecWorld) {
+  const [first, second] = await Promise.all([Promise.resolve().then(() => this.h.engine.submit(this.h.room, { id: 'one', text: 'one', intent: 'new' })),
+    Promise.resolve().then(() => this.h.engine.submit(this.h.room, { id: 'second', text: '@B 无关的新任务', intent: 'new' }))]);
+  assert(first.ok);
+  this.h.task = first.taskId!;
+  f(this).queued = second;
+});
+Then('应只有一个委托成为活动主任务', function (this: SpecWorld) {
+  assert.deepEqual(this.h.engine.viewTasks(this.h.room).map(task => task.phase), ['running', 'queued']);
+  assert.equal(this.h.store.read(this.h.room).activeTaskId, this.h.task);
+});
 Then('不应静默覆盖先接收任务的归属或目标', function (this: SpecWorld) { assert.equal(this.h.context().goal.text, 'one'); });
+Then('重发排队委托应返回原任务标识', function (this: SpecWorld) {
+  const duplicate = this.h.engine.submit(this.h.room, { id: 'second', text: '@B 无关的新任务', intent: 'new' });
+  assert.deepEqual(duplicate, { ...f(this).queued, duplicate: true });
+  assert.equal(this.h.engine.viewTasks(this.h.room).length, 2);
+});
+Given('同群已登记两条等待的独立委托', function (this: SpecWorld) {
+  const first = this.h.engine.submit(this.h.room, { id: 'queued-first', text: '@B 核对文档', intent: 'new' });
+  const second = this.h.engine.submit(this.h.room, { id: 'queued-last', text: '@A 整理独立清单', intent: 'new' });
+  assert.equal(first.code, 'QUEUED');
+  assert.equal(second.code, 'QUEUED');
+});
+When('等待时间超过单次工作时限后服务重启并停止原主任务', function (this: SpecWorld) {
+  this.h.now = this.h.config.limits.workTimeoutMs + 1;
+  this.h.reopen();
+  assert.equal(this.h.engine.view(this.h.room, 'task:queued-first')?.phase, 'queued');
+  assert(this.h.event({ type: 'STOP' }).ok);
+});
+Then('最先登记的委托应开始并取得完整执行时间', function (this: SpecWorld) {
+  const { room, engine, now, config } = this.h;
+  assert.equal(engine.view(room)?.context.taskId, 'task:queued-first');
+  const [work] = engine.pending(room, 'task:queued-first');
+  assert.equal(work?.kind, 'owner');
+  assert.equal(work.target, 'B');
+  assert.equal(work.deadline, now + config.limits.workTimeoutMs);
+  assert.equal(engine.view(room)?.context.resilience?.window.openedAt, now);
+});
+Then('下一条委托应继续等待', function (this: SpecWorld) {
+  assert.equal(this.h.engine.view(this.h.room, 'task:queued-last')?.phase, 'queued');
+  assert.deepEqual(this.h.engine.pending(this.h.room, 'task:queued-last'), []);
+});
+When('用户从未刷新界面向已停止的原主任务发出补充', function (this: SpecWorld) {
+  const { room, engine, task } = this.h;
+  this.result = engine.submit(room, { id: 'late-supplement', text: '原任务的补充', intent: 'supplement', replyToTaskId: task });
+});
+Then('补充不得进入新的主任务', function (this: SpecWorld) {
+  assert.equal(this.result.ok, false);
+  const next = this.h.engine.view(this.h.room)!.context;
+  assert(!next.messages.some(message => message.text === '原任务的补充'));
+  assert(!next.inputs.some(input => input.id === 'late-supplement'));
+});
+When('用户在下一项已开始时尝试继续原主任务', function (this: SpecWorld) {
+  this.result = this.h.event({ type: 'CONTINUE', text: '继续原主任务' });
+});
+Then('应保持原主任务停止且仅新任务可领取主工作', function (this: SpecWorld) {
+  const { room, engine, task } = this.h;
+  assert.equal(this.result.code, 'ROOM_BUSY');
+  assert.equal(this.h.context().outcome, 'stopped');
+  assert(!engine.pending(room, task).some(work => work.kind === 'owner'));
+  assert(engine.pending(room, 'task:queued-first').some(work => work.kind === 'owner'));
+});
+When('用户停止刚开始的委托', function (this: SpecWorld) {
+  const { engine, room, now } = this.h;
+  assert(engine.send(room, 'task:queued-first', { type: 'STOP', id: 'stop-first', at: now }).ok);
+});
+When('用户明确停止第一条排队委托', function (this: SpecWorld) {
+  const { engine, room } = this.h;
+  const stop = engine.submit(room, { id: 'cancel-queued', text: '停止', replyToTaskId: 'task:queued-first' });
+  assert(stop.ok);
+  assert.equal(stop.taskId, 'task:queued-first');
+});
+Then('已停止的委托没有派发工作且当前主任务继续', function (this: SpecWorld) {
+  const { room, engine, task } = this.h;
+  const stopped = engine.view(room, 'task:queued-first')!;
+  assert.equal(stopped.context.outcome, 'stopped');
+  assert.deepEqual(stopped.context.intents, []);
+  assert.equal(engine.view(room)?.context.taskId, task);
+  assert.equal(engine.view(room)?.phase, 'running');
+});
+When('用户停止当前主任务', function (this: SpecWorld) { assert(this.h.event({ type: 'STOP' }).ok); });
+Then('最后一条委托应自动开始', function (this: SpecWorld) {
+  assert.equal(this.h.engine.view(this.h.room)?.context.taskId, 'task:queued-last');
+  assert.equal(this.h.engine.pending(this.h.room, 'task:queued-last')[0]?.target, 'A');
+});
 
 Given('任务{string}由{string}负责，当前目标版本为{string}，执行轮次为{string}', function (this: SpecWorld, _task: string, owner: string, _capture2: string, _capture3: string) { assert.equal(this.h.context().owner, owner); });
 Given('有限的监督与重规划预算已经配置', function (this: SpecWorld) { assert(this.h.config.limits.replans > 0); });

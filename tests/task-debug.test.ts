@@ -28,7 +28,9 @@ describe('browser state-machine debug', () => {
     try {
       const definition = JSON.parse(fixture.messages[0]!.definition!);
       expect(Object.keys(definition.states).sort()).toEqual(taskGraph().states.sort());
-      expect(definition.initial).toBe('running'); expect(definition.on.STOP.target).toBe('.stopping');
+      expect(definition.initial).toBe('queued');
+      expect(definition.states.queued.on.START_QUEUED.target).toBe('running');
+      expect(definition.on.STOP.target).toBe('.stopping');
       bridge.update(fixture.latest());
       expect(fixture.messages.at(-1)?.snapshot?.value).toBe('ended');
       fixture.assertOrdered();
