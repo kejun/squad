@@ -5,13 +5,15 @@ const revisionCommand = new RegExp(/^(?:修改|修订|更新|改写)\s*(产物\s
   + `(?:${quotedFilename.source}|${/([^\s，,。；;！!？?]+)/.source})`);
 const bareFilenameCharacter = /[^\s，,。；;！!？?`"'“”「」《》:]/.source;
 const markdownSuffix = /\.(?:markdown|md)/.source;
-// A locative or full-width colon can mark the end of a compact filename.
-const markedFilename = `(${bareFilenameCharacter}+?${markdownSuffix})${/(?=\s*[中里内：])/.source}`;
+const unquotedMarkdown = `${bareFilenameCharacter}+${markdownSuffix}`;
+// Prefer a complete filename followed by punctuation or whitespace.
+const separatedFilename = `(${unquotedMarkdown})${/(?=\s|[，,:：])/.source}`;
+const locativeFilename = `(${bareFilenameCharacter}+?${markdownSuffix})${/(?=[中里内])/.source}`;
 // The lookahead fixes the longest Markdown prefix before matching the operation.
-const bareFilename = `(?=(?<filename>${bareFilenameCharacter}+${markdownSuffix}))\\k<filename>`;
+const bareFilename = `(?=(?<filename>${unquotedMarkdown}))\\k<filename>`;
 const extractionCommand = new RegExp(
   /^(?:从|基于|根据)\s*(?:上一轮|上轮|上一次|上次|前一轮)(?:\s*(?:已交付|交付)?的)?\s*(?:(?:Markdown(?:\s+产物)?|产物)\s+)?/.source
-  + `(?:${quotedFilename.source}|${/《([^》\n]+)》/.source}|${markedFilename}|${bareFilename})`
+  + `(?:${quotedFilename.source}|${/《([^》\n]+)》/.source}|${separatedFilename}|${locativeFilename}|${bareFilename})`
   + /\s*(?:[中里内]\s*)?[，,:：]?\s*(?:提炼|提取|摘录|归纳|总结|概括)/.source, 'i');
 
 /** Only the target of a direct user command can select a delivered artifact. */
