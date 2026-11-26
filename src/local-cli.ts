@@ -210,21 +210,40 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
   };
   let killTimer: ReturnType<typeof setTimeout> | undefined;
   let hardTimer: ReturnType<typeof setTimeout> | undefined;
-  let unconfirmed!: (value: { code: null; signal: null; closed: false }) => void;
-  const settlementDeadline = new Promise<{ code: null; signal: null; closed: false }>(resolveDeadline => { unconfirmed = resolveDeadline; });
+  let processSettled = false;
+  type ProcessSettlement = { code: number | null; signal: NodeJS.Signals | null; closed: boolean };
+  let settle!: (value: ProcessSettlement) => void;
+  const settlement = new Promise<ProcessSettlement>(resolveSettlement => { settle = resolveSettlement; });
   const kill = (signalName: NodeJS.Signals) => {
     if (!child?.pid) return;
     try { process.kill(-child.pid, signalName); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') spawnError = true; }
   };
   const cancel = () => {
-    aborted = true; kill('SIGTERM'); killTimer ??= setTimeout(() => kill('SIGKILL'), 300);
+    aborted = true;
+    if (processSettled) return;
+    kill('SIGTERM');
+    killTimer ??= setTimeout(() => kill('SIGKILL'), 300);
     hardTimer ??= setTimeout(() => {
-      kill('SIGKILL'); unconfirmed({ code: null, signal: null, closed: false });
+      finishProcess({ code: null, signal: null, closed: false });
       child?.stdout?.destroy(); child?.stderr?.destroy(); child?.unref();
     }, 1800);
   };
   const timer = setTimeout(() => { timedOut = true; cancel(); }, input.timeoutMs);
   signal.addEventListener('abort', cancel, { once: true });
+  const stopCancellation = () => {
+    clearTimeout(timer);
+    signal.removeEventListener('abort', cancel);
+    if (killTimer) clearTimeout(killTimer);
+    if (hardTimer) clearTimeout(hardTimer);
+  };
+  const finishProcess = (outcome: ProcessSettlement) => {
+    if (processSettled) return;
+    processSettled = true;
+    stopCancellation();
+    // The leader may close while same-group descendants that closed stdio are still alive.
+    kill('SIGKILL');
+    settle(outcome);
+  };
   try {
     signal.throwIfAborted(); beforeSpawn?.();
     child = spawn(input.executable, input.args, { cwd: input.cwd, env: input.env, shell: false, detached: true, stdio: [input.stdinFd ?? 'ignore', 'pipe', 'pipe'] });
@@ -233,14 +252,13 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
       spawned = true;
       publishObservation(input.observeProcess, 'local.processStarted');
     });
-    const close = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(resolveClose => {
-      child!.once('error', () => { spawnError = true; });
-      child!.once('close', (code, exitSignal) => {
-        if (spawned) publishObservation(input.observeProcess, 'local.processFinished');
-        resolveClose({ code, signal: exitSignal });
-      });
+    child.once('error', () => { spawnError = true; });
+    child.once('close', (code, exitSignal) => {
+      finishProcess({ code, signal: exitSignal, closed: true });
+      if (spawned) publishObservation(input.observeProcess, 'local.processFinished');
     });
     child.stdout!.on('data', (data: Buffer) => write('stdout', data)); child.stderr!.on('data', (data: Buffer) => write('stderr', data));
+    if (signal.aborted) cancel();
     if (child.pid) {
       try { identity = await processIdentity(child.pid); await onSpawn(identity); spawnedRecorded = true; }
       catch (error) {
@@ -248,18 +266,17 @@ export async function runProcess(input: CliInvocation, signal: AbortSignal, onSp
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') { spawnError = true; cancel(); }
       }
     }
-    if (signal.aborted) cancel();
-    const exit = await Promise.race([close.then(value => ({ ...value, closed: true })), settlementDeadline]);
+    const exit = await settlement;
     write('stdout'); write('stderr');
-    // No process group survives normal completion, timeout or explicit cancellation.
-    kill('SIGKILL');
     const result: LocalToolResult = { ok: !spawnError && !aborted && exit.code === 0,
       code: !exit.closed ? 'CLI_SESSION_UNCERTAIN' : spawnError ? 'CLI_NOT_FOUND' : timedOut ? 'timeout' : aborted ? 'cancelled' : exit.code === 0 ? 'succeeded' : 'failed',
       data: { exitCode: exit.code, signal: exit.signal, stdout, stderr, truncated, logBytes, logId: basenameSafe(input.logPath),
         sessionId: input.sessionId, processRecorded: spawnedRecorded } };
     return { result, settled: exit.closed, effectsKnown: exit.closed && !aborted };
   } finally {
-    clearTimeout(timer); if (killTimer) clearTimeout(killTimer); if (hardTimer) clearTimeout(hardTimer); signal.removeEventListener('abort', cancel); await log.sync(); await log.close();
+    stopCancellation();
+    await log.sync();
+    await log.close();
   }
 }
 import { accessSync, realpathSync, statSync, writeSync } from 'node:fs';

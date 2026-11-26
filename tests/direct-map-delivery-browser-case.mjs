@@ -4,13 +4,26 @@ import { OpenAICompatibleAdapter } from '../src/model-adapter.ts';
 import { ResilientWorkspaceBrowserFixture } from './resilient-workspace-browser-fixture.mjs';
 
 export class DirectMapDeliveryBrowserCase {
-  async open() {
-    this.provider = await new DirectMapProvider(true).open();
+  startupAbort = new AbortController();
+
+  open() {
+    this.startup = this.#start();
+    return this.startup;
+  }
+
+  async #start() {
+    const signal = this.startupAbort.signal;
+    this.provider = new DirectMapProvider(true);
+    await this.provider.open();
+    signal.throwIfAborted();
     const config = this.provider.config();
-    this.host = await new ResilientWorkspaceBrowserFixture('BT_Q49', { config, adapter: new OpenAICompatibleAdapter(config) }).open();
+    this.host = new ResilientWorkspaceBrowserFixture('BT_Q49', { config, adapter: new OpenAICompatibleAdapter(config) });
+    await this.host.open(signal);
+    signal.throwIfAborted();
     // This scenario exercises actual interpretation; the generic fixture defaults it off for unrelated UI cases.
     config.inputAnalysis = { enabled: true };
     this.page = this.host.page; this.room = await this.host.createRoom();
+    signal.throwIfAborted();
     await this.host.capture('ready');
   }
   async act() {
@@ -35,6 +48,20 @@ export class DirectMapDeliveryBrowserCase {
     await this.host.capture('completed');
     if (!this.host.completed.includes('BT_Q49')) this.host.completed.push('BT_Q49');
   }
-  markFailed(message) { if (this.host) { this.host.failed = true; this.host.failureReason = message; } }
-  async close() { await this.host?.close(); await this.provider?.close(); }
+  markFailed(message) { this.failure = { message }; }
+
+  async close() {
+    // Cucumber stops waiting on timeout while the startup promise is still running.
+    this.startupAbort.abort();
+    try {
+      await this.startup?.catch(() => {});
+      if (this.host && this.failure) {
+        this.host.failed = true;
+        this.host.failureReason = this.failure.message;
+      }
+      await this.host?.close();
+    } finally {
+      await this.provider?.close();
+    }
+  }
 }
