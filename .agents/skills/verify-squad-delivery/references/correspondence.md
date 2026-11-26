@@ -10,6 +10,19 @@
 
 实现连接仍是 TLC 全图与真实 TeamEngine 公开事务的一边一代表前缀对照；冻结原文、版本、授权、停止和未决效果保护分别保留。CHECK_RESULT 中直接修正、结论保存及 finish 是同一事务；工具请求/领取/启动/结果各自是独立事务。验证输出为信息，不能让 failed/unverified 自动变为 verified。
 
+## 附件交付与任务排队审查
+
+本轮以覆盖清单逐项同字节的 `3c7cbe0` 为对照，审查工作树中 30 个变化路径。同步提交记录保留，运行证据按逐文件指纹绑定受测工作树。
+
+| 改动 | 对应关系与范围 |
+| --- | --- |
+| `artifact-request.ts`、`delivery-acceptance.ts`、`local-operation.ts`、`task/delivery.ts` | 技能资源读取与工作区验证回执都不带 CLI 交付文件。普通回放已有 `report.md`；SourceLineage 回放提交明确要求的 `b.md`，冻结的来源文件始终只作输入。当前回放未覆盖同目标 CLI 文件延续、替换与排除。 |
+| `task/operations.ts`、`task/reducer.ts`、`task/delivery-cycle.ts`、`task/execution-summary.ts` | 核验后的 `finish` 同步调用 `publishDelivery`，在一次 `Store.transact` 写入结论、当前版本及最终消息。保留人工复查不重发、未决物理效果拦截、版本守卫和冻结回执。`drop-final` 隔离变异定位到该函数的同一最终消息写入点。明确请求的附件缺失时，执行摘要分支可以持久发布 `partial`；本技能的检查模式仍断言 `complete`，新分支另见 BT_A75–A76。 |
+| `engine.ts`、`task/context.ts`、`task/lifecycle.ts`、`task/actions.ts`、`task/guards.ts`、`types.ts`、`task-chart.ts`、`task-debug-view.ts`、`room-deletion.machine.ts`、`web/service.ts` | 回放只在群内无活动任务时新建委托。初始队列守卫自动进入原运行状态，创建同一工作意图；事务结束时没有等待委托可启动。SourceLineage 仍在原事务冻结真实发布版本，旧稿不可变。显式排队、群删除与网页投影在本技能范围之外。 |
+| `conversation.ts`、`model-adapter.ts`、`task/assistance.ts`、`task/facts.ts`、`task/budget.ts`、`task/resilience.ts`、`task/policy.ts`、`task/map-queue.ts`、`task/map-reduce.ts`、`task/map-reduce-capacity.ts`、`task/hierarchical-summary.ts`、`task/result-aggregation.ts` | 回放禁用意图理解，没有请求群评审、并行分片、调度过期流水或调用模型提供方；受控时钟为 0，任务在同一处理窗口内启动。分片时限与领取、并行评审合成、真实运行时与硬截止未决效果移交使用独立验收。 |
+
+SourceLineage 双存储回放在并行检查负载下接近 90 秒，复验曾在写入 447/452 条回放结果后超时。该回放的进程限时调到 150 秒，保留全部边、工作路径、断言、单存储变异限时和 CI 作业限时。
+
 ## 历史对应与原始证据
 
 BT_F31冻结原始输入引用的来源链修复见[对应审查](drift-review-raw-input-citation.json)；保留精确ID/逐字引用、原子边界和预算性质。

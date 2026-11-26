@@ -39,11 +39,22 @@ function session(backend, directory, kind) {
   if (kind === 'CheckBudget') config.limits.checks = 5;
   if (kind === 'Shards') config.models = { default: 'test', services: { test: { baseUrl: 'https://invalid.example/v1', model: 'test' } } };
   const path = join(directory, 'store.sqlite');
-  let store = backend === 'memory' ? new MemoryStore() : new SqliteStore(path);
+  let cachedContext;
+  const openStore = () => {
+    const opened = backend === 'memory' ? new MemoryStore() : new SqliteStore(path);
+    const transact = opened.transact.bind(opened);
+    opened.transact = (...args) => {
+      try { return transact(...args); }
+      finally { cachedContext = undefined; }
+    };
+    return opened;
+  };
+  let store = openStore();
   let engine = new TeamEngine(store, config, () => 0), seq = 0;
   const room = 'formal-coordination', task = 'task:start';
   const context = () => {
-    const c = engine.view(room, task).context;
+    // Read-only projections within one transaction boundary describe the same committed state.
+    const c = cachedContext ??= engine.view(room, task).context;
     assert.equal(c.sourceArtifact, undefined, 'Scope: all three TLC slices require a source-free public prefix');
     if (kind !== 'Shards') {
       assert.equal(c.discussion, undefined, 'Scope: budget/check slices exclude discussion rounds');
@@ -55,7 +66,8 @@ function session(backend, directory, kind) {
   const submit = engine.submit(room, { id: 'start', text: kind !== 'Shards' ? '形成可核查方案' : '分别研究甲乙两个来源，必须仅使用公开资料并汇总',
     ...(kind !== 'Shards' ? { goal: { text: '形成可核查方案', constraints: [], criteria: kind === 'CheckBudget' ? ['检查一', '检查二', '检查三'] : ['完整'], requiredArtifacts: 0 } } : {}) });
   assert(submit.ok, 'Public submission must initialize task');
-  const reopen = () => { if (backend === 'sqlite') { store.close(); store = new SqliteStore(path); }
+  const reopen = () => { if (backend === 'sqlite') { store.close(); store = openStore(); }
+    cachedContext = undefined;
     engine = new TeamEngine(store, config, () => 0); engine.recover(room); };
   const rewriteSavedWork = (id, change) => store.transact(room, tx => change(tx.room.tasks[task].snapshot.context.intents.find(work => work.id === id)));
   return { context, send, reopen, engine: () => engine, close: () => store.close(), room, task, config, rewriteSavedWork };

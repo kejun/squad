@@ -250,7 +250,8 @@ jobs:
     name: Formal checks (${{ matrix.slice }})
     if: github.event_name != 'workflow_dispatch' || inputs.formal_only || (inputs.vitest_files == '' && inputs.bdd_tags == '')
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    # Coordination replays the complete shard and check-budget graphs twice on both stores.
+    timeout-minutes: ${{ matrix.slice == 'coordination' && 25 || 15 }}
     strategy:
       fail-fast: false
       matrix:
@@ -297,7 +298,8 @@ jobs:
     name: Formal composition (${{ matrix.slice }})
     if: github.event_name != 'workflow_dispatch' || inputs.formal_only || (inputs.vitest_files == '' && inputs.bdd_tags == '')
     runs-on: ubuntu-22.04
-    timeout-minutes: 25
+    # Coordination also restores all extension graphs after the code mutation controls.
+    timeout-minutes: ${{ matrix.slice == 'coordination' && 35 || 25 }}
     strategy:
       fail-fast: false
       matrix:

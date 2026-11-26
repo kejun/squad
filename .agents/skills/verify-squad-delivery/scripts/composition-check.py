@@ -105,7 +105,9 @@ def check_model(name, jar, area, witness=None, mutation='none', violation=None):
 def replay(name, root, graph, output, scratch, backend='both'):
     command = ['node', '--import', str(ROOT / 'node_modules/tsx/dist/loader.mjs'), str(SKILL / 'scripts/composition-replay.mjs'),
                str(root), str(graph), str(output), backend, name]
-    code, seconds = helpers.execute(command, output.with_suffix('.log'), scratch, timeout=90)
+    # SourceLineage rebuilds three task histories for 226 edges in each store.
+    timeout = 150 if name == 'SourceLineage' and backend == 'both' else 90
+    code, seconds = helpers.execute(command, output.with_suffix('.log'), scratch, timeout=timeout)
     assert output.exists(), f'{name}: code replay did not produce evidence'
     value = json.loads(output.read_text())
     value.update(command=command, exitCode=code, seconds=seconds)

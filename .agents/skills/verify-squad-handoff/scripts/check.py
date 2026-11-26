@@ -113,7 +113,8 @@ def check_model(jar, area, mutation='none', witness=None):
 def compare(target, graph, output, scratch, backend='both'):
     command = ['node', '--import', str(ROOT / 'node_modules/tsx/dist/loader.mjs'),
                str(SKILL / 'scripts/compare.mjs'), str(target), str(graph), str(output), backend]
-    code, duration = execute(command, output.with_suffix('.log'), scratch)
+    # The baseline and restored run each replay the graph on both stores.
+    code, duration = execute(command, output.with_suffix('.log'), scratch, timeout=90 if backend == 'both' else 45)
     assert output.exists(), f'Code replay did not execute: {output}'
     value = json.loads(output.read_text())
     value['exitCode'], value['seconds'] = code, round(duration, 3)
