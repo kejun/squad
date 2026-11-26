@@ -79,8 +79,8 @@ export async function verifyInspector({ page, context, dialog, evidence, capture
     await dialog.getByRole('button', { name: '重置', exact: true }).click();
     await until(messages, events => events.length > count, 'official snapshot after reset');
     const afterReset = await registered('official reset');
-    assert.equal(afterReset.at(-1).snapshot.value, 'running');
-    assert.equal(afterReset.at(-1).sessionId, first[0].sessionId);
+    const resetRoot = afterReset.findLast(event => event.type === '@xstate.snapshot' && event.sessionId === first[0].sessionId);
+    assert.equal(resetRoot?.snapshot?.value, 'running');
     writeFileSync(join(evidence, 'inspector-messages.json'), JSON.stringify(afterReset, null, 2));
 
     await popup.reload({ waitUntil: 'domcontentloaded', timeout: 45000 });
