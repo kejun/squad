@@ -3,7 +3,7 @@ import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { runProcess } from '../src/local-cli.js';
+import { identityAlive, processIdentity, runProcess, type ProcessIdentity } from '../src/local-cli.js';
 import { serviceRecoveryAcceptance } from './local-tools-acceptance.js';
 
 it.skipIf(process.platform !== 'linux').each([
@@ -61,6 +61,61 @@ it.skipIf(process.platform !== 'linux').each([
     }
   },
 );
+
+it.skipIf(process.platform !== 'linux')('cleans up a same-group descendant at close while the identity write is pending', async () => {
+  const directory = await fs.mkdtemp(join(tmpdir(), 'squad-cli-descendant-'));
+  const release = join(directory, 'release');
+  const descendantPid = join(directory, 'descendant.pid');
+  const signal = new AbortController();
+  let leader: ProcessIdentity | undefined;
+  let closed = false;
+  let finishIdentity!: () => void;
+  const identityWrite = new Promise<void>(resolve => { finishIdentity = resolve; });
+  const execution = runProcess({
+    executable: process.execPath, cwd: directory, workspace: directory, env: {}, timeoutMs: 2_500, sessionId: 'close-with-descendant',
+    logPath: join(directory, 'process.log'),
+    args: ['-e', `const { spawn } = require('node:child_process');
+      const { existsSync, writeFileSync } = require('node:fs');
+      const descendant = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 3000)'], { stdio: 'ignore' });
+      descendant.unref();
+      writeFileSync(${JSON.stringify(descendantPid)}, String(descendant.pid));
+      const limit = setTimeout(() => process.exit(2), 3000);
+      const wait = setInterval(() => {
+        if (!existsSync(${JSON.stringify(release)})) return;
+        clearInterval(wait);
+        clearTimeout(limit);
+      }, 5);`],
+    observeProcess: phase => { if (phase === 'local.processFinished') closed = true; },
+  }, signal.signal, async identity => {
+    leader = identity;
+    await identityWrite;
+  });
+  void execution.catch(() => {});
+  try {
+    const descendant = await vi.waitFor(async () => {
+      expect(leader).toBeDefined();
+      return processIdentity(Number(await fs.readFile(descendantPid, 'utf8')));
+    });
+    const stat = await fs.readFile(`/proc/${descendant.procPid}/stat`, 'utf8');
+    expect(stat.slice(stat.lastIndexOf(')') + 2).split(' ')[2]).toBe(leader!.procPid);
+    expect(await identityAlive(descendant)).toBe(true);
+
+    await fs.writeFile(release, '');
+    await vi.waitFor(() => expect(closed).toBe(true));
+    await vi.waitFor(async () => expect(await identityAlive(descendant)).toBe(false), { timeout: 350, interval: 10 });
+
+    finishIdentity();
+    expect(await execution).toMatchObject({
+      settled: true, effectsKnown: true,
+      result: { ok: true, code: 'succeeded', data: { exitCode: 0, processRecorded: true } },
+    });
+  } finally {
+    signal.abort();
+    finishIdentity();
+    await execution.catch(() => {});
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});
 
 // Other local-tool acceptance paths run directly through features/24_local_skills_cli.feature.
 // These startup reconciliation paths have additional WebService wiring not exercised there.

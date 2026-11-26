@@ -1,6 +1,6 @@
 # CLI 进程与回执结算状态图
 
-对照 Squad PR #83 的提交 `ab0406b`，用项目所用的 XState 5.33.3 建模。图按 `runProcess` 观察到的事件绘制，覆盖单次命令的进程结算和身份记录。可执行模型由调用方发送 I/O 观察事件。 [模型源码](cli-receipt.machine.ts)
+用项目所用的 XState 5.33.3 对 `runProcess` 建模。图按实际观察事件绘制，覆盖单次命令的进程结算和身份记录。可执行模型由调用方发送 I/O 观察事件。 [模型源码](cli-receipt.machine.ts)
 
 ```mermaid
 stateDiagram-v2
@@ -21,9 +21,9 @@ stateDiagram-v2
         state "关闭未确认" as unconfirmed
 
         [*] --> running
-        running --> closed: close / 记录退出并撤下普通超时和外部中止监听
+        running --> closed: close / 清理进程组并记录退出
         running --> cancelling: 超时、中止或身份处理失败
-        cancelling --> closed: close 先到 / 保留关闭前取消原因
+        cancelling --> closed: close 先到 / 清理进程组并保留取消原因
         cancelling --> unconfirmed: 强制结算期限先到
         closed --> [*]
         unconfirmed --> [*]
@@ -52,6 +52,6 @@ stateDiagram-v2
 | 外部中止 → 强制结算期限 → 迟到的 `close` | `CLI_SESSION_UNCERTAIN`，`settled: false`、`effectsKnown: false` |
 | `close` → 身份处理遇到非 ENOENT 错误 | 内部取消，`CLI_NOT_FOUND`，`settled: true`、`effectsKnown: false` |
 
-`close` 停止普通超时计时及外部中止监听。关闭前已经启动的进程组清理仍会继续，强制结算回调无法覆盖已写入共享 Promise 的关闭结果。取消分支先发 TERM，300 ms 后尝试 KILL，1800 ms 后执行强制结算。 [结算与取消源码](https://github.com/kejun/squad/blob/ab0406bcb2993d7edd9a3b5ccba2cd5b8e6a8b9c/src/local-cli.ts#L211)
+`close` 停止普通超时、外部中止监听和已预约的取消计时，并立即向同组剩余进程发送 KILL。身份日志独立完成。关闭前的取消先发 TERM，300 ms 后尝试 KILL，1800 ms 后在关闭仍未确认时执行强制结算。发送进程组信号失败时，除进程组已不存在以外，模型记录执行错误并沿用先到的结算结果。 [结算与取消源码](../../src/local-cli.ts#L211)
 
-XState 模型将日志同步、关闭与执行异常汇总为 I/O 完成或失败事件，并保留退出码、信号和结果分类。后续交付物捕获及持久结算回执由 `LocalRuntime` 负责。 [退出分类](https://github.com/kejun/squad/blob/ab0406bcb2993d7edd9a3b5ccba2cd5b8e6a8b9c/src/local-cli.ts#L250) · [外层回执保存](https://github.com/kejun/squad/blob/ab0406bcb2993d7edd9a3b5ccba2cd5b8e6a8b9c/src/local-runtime.ts#L430) · [真实进程回归](https://github.com/kejun/squad/blob/ab0406bcb2993d7edd9a3b5ccba2cd5b8e6a8b9c/tests/local-tools-durability.test.ts#L9)
+XState 模型将日志同步、关闭与执行异常汇总为 I/O 完成或失败事件，并保留退出码、信号和结果分类。后续交付物捕获及持久结算回执由 `LocalRuntime` 负责。 [退出分类](../../src/local-cli.ts#L258) · [外层回执保存](../../src/local-runtime.ts#L430) · [真实进程回归](../../tests/local-tools-durability.test.ts#L9)

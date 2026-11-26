@@ -59,7 +59,7 @@ function completion(context: Context): Completion {
   };
 }
 
-const source = 'kejun/squad@ab0406bcb2993d7edd9a3b5ccba2cd5b8e6a8b9c/src/local-cli.ts';
+const source = 'src/local-cli.ts';
 
 // Documentation model. The caller sends observed events from I/O and timer boundaries.
 export const cliReceiptMachine = setup({
@@ -93,7 +93,7 @@ export const cliReceiptMachine = setup({
   output: ({ event }) => event.output as Output,
   states: {
     preparing: {
-      meta: { label: '准备日志并启动', source: source + ':180–235' },
+      meta: { label: '准备日志并启动', source: source + ':180–249' },
       on: {
         'process.opened': { target: 'active' },
         'io.failed': { target: 'ioFailed' },
@@ -103,13 +103,14 @@ export const cliReceiptMachine = setup({
       type: 'parallel',
       on: {
         'process.error': { actions: ['recordProcessError'] },
+        'cleanup.groupKillFailed': { actions: ['recordProcessError'] },
       },
       states: {
         process: {
           initial: 'running',
           states: {
             running: {
-              meta: { label: '等待进程关闭', source: source + ':227–247' },
+              meta: { label: '等待进程关闭', source: source + ':231–259' },
               on: {
                 'process.closed': { target: 'closed', actions: ['recordClose'] },
                 'process.aborted': { target: 'cancelling', actions: ['recordAbort'] },
@@ -118,7 +119,7 @@ export const cliReceiptMachine = setup({
               },
             },
             cancelling: {
-              meta: { label: '清理进程组', source: source + ':220–225' },
+              meta: { label: '清理进程组', source: source + ':221–229' },
               on: {
                 'process.closed': { target: 'closed', actions: ['recordClose'] },
                 'process.timedOut': { actions: ['recordTimeout'] },
@@ -127,11 +128,11 @@ export const cliReceiptMachine = setup({
             },
             closed: {
               type: 'final',
-              meta: { label: '已收到 close', source: source + ':242–247' },
+              meta: { label: '已收到 close', source: source + ':239–259' },
             },
             unconfirmed: {
               type: 'final',
-              meta: { label: '关闭未确认', source: source + ':222–224' },
+              meta: { label: '关闭未确认', source: source + ':226–229' },
             },
           },
         },
@@ -139,7 +140,7 @@ export const cliReceiptMachine = setup({
           initial: 'pending',
           states: {
             pending: {
-              meta: { label: '读取身份并等待日志写入', source: source + ':250–255' },
+              meta: { label: '读取身份并等待日志写入', source: source + ':262–267' },
               on: {
                 'identity.recorded': { target: 'finished', actions: ['recordIdentity'] },
                 'identity.skipped': { target: 'finished' },
@@ -153,9 +154,8 @@ export const cliReceiptMachine = setup({
       onDone: { target: 'finalizing' },
     },
     finalizing: {
-      meta: { label: '整理回执与清理日志', source: source + ':257–271' },
+      meta: { label: '整理回执与清理日志', source: source + ':269–279' },
       on: {
-        'cleanup.groupKillFailed': { actions: ['recordProcessError'] },
         'io.finished': { target: 'returned' },
         'io.failed': { target: 'ioFailed' },
       },
