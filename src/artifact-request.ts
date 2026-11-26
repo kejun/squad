@@ -3,9 +3,15 @@ export interface ArtifactRequest { name: string; explicit: boolean; purpose?: 'e
 const quotedFilename = /`([^`\n]+)`|"([^"\n]+)"|'([^'\n]+)'|“([^”\n]+)”|「([^」\n]+)」/;
 const revisionCommand = new RegExp(/^(?:修改|修订|更新|改写)\s*(产物\s*)?/.source
   + `(?:${quotedFilename.source}|${/([^\s，,。；;！!？?]+)/.source})`);
+const bareFilenameCharacter = /[^\s，,。；;！!？?`"'“”「」《》:]/.source;
+const markdownSuffix = /\.(?:markdown|md)/.source;
+// Prefer an explicit full-width colon separator while allowing it inside a filename.
+const colonSeparatedFilename = `(${bareFilenameCharacter}+?${markdownSuffix})${/(?=\s*(?:[中里内]\s*)?：)/.source}`;
+// The lookahead fixes the longest Markdown prefix before matching the operation.
+const bareFilename = `(?=(?<filename>${bareFilenameCharacter}+${markdownSuffix}))\\k<filename>`;
 const extractionCommand = new RegExp(
   /^(?:从|基于|根据)\s*(?:上一轮|上轮|上一次|上次|前一轮)(?:\s*(?:已交付|交付)?的)?\s*(?:(?:Markdown(?:\s+产物)?|产物)\s+)?/.source
-  + `(?:${quotedFilename.source}|${/《([^》\n]+)》|([^\s，,。；;！!？?`"'“”「」《》]+?\.(?:markdown|md))/.source})`
+  + `(?:${quotedFilename.source}|${/《([^》\n]+)》/.source}|${colonSeparatedFilename}|${bareFilename})`
   + /\s*(?:[中里内]\s*)?[，,:：]?\s*(?:提炼|提取|摘录|归纳|总结|概括)/.source, 'i');
 
 /** Only the target of a direct user command can select a delivered artifact. */

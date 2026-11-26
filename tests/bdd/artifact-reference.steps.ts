@@ -72,7 +72,6 @@ Then('每个任务应只指向自己的直接来源且无引用旧快照行为�
 
 const monthlyName = '2026-11-monthly-report.md';
 const monthlyText = '# 月报\n\n## 业务进展\n完成首批交付。\n\n## 专项成果\n验证自动导出。\n\n## 其他\n另行安排。';
-const extractRequest = `从上一轮 \`${monthlyName}\` 提炼业务进展和专项成果，排版从简`;
 const extractText = '## 业务进展\n完成首批交付。\n\n## 专项成果\n验证自动导出。';
 type MonthlyState = { store: MemoryStore; engine: TeamEngine; original?: ArtifactReference;
   earlier?: ReturnType<MemoryStore['read']>; submitted?: CommandResult };
@@ -88,9 +87,13 @@ function monthlyRoom(world: SpecWorld) {
   return run;
 }
 
-Given('本群已成功发布含业务进展专项成果和其他章节的月报', function (this: SpecWorld) {
+Given('本群已成功发布名为{string}的月报', function (this: SpecWorld, name: string) {
   const run = monthlyRoom(this);
-  run.original = publish(run.engine, 'monthly', monthlyName, monthlyText);
+  run.original = publish(run.engine, 'monthly', name, monthlyText);
+});
+
+Given('本群也已成功发布内容不同的 a.md', function (this: SpecWorld) {
+  publish(monthly.get(this)!.engine, 'shorter-source', 'a.md', '# 另一份报告');
 });
 
 Given('明确指定的月报来源为{string}', function (this: SpecWorld, condition: string) {
@@ -109,17 +112,17 @@ Given('明确指定的月报来源为{string}', function (this: SpecWorld, condi
   }
 });
 
-When('用户明确要求从上一轮月报提炼业务进展和专项成果', function (this: SpecWorld) {
+When('用户从上一轮 {string} 提炼业务进展和专项成果', function (this: SpecWorld, reference: string) {
   const run = monthly.get(this)!;
   run.earlier = run.store.read('r');
-  run.submitted = run.engine.submit('r', { id: 'extract-monthly', text: extractRequest });
+  run.submitted = run.engine.submit('r', { id: 'extract-monthly', text: `从上一轮 ${reference} 提炼业务进展和专项成果，排版从简` });
 });
 
-Then('新任务应固定这份原文且模型只按本轮要求提炼', function (this: SpecWorld) {
+Then('新任务应固定名为{string}的月报原文且模型只按本轮要求提炼', function (this: SpecWorld, name: string) {
   const { engine, original, submitted } = monthly.get(this)!;
   assert(submitted?.ok && submitted.taskId);
   const c = engine.view('r', submitted.taskId)!.context;
-  assert.partialDeepStrictEqual(c.sourceArtifact, { ...original, purpose: 'extract', name: monthlyName, content: monthlyText,
+  assert.partialDeepStrictEqual(c.sourceArtifact, { ...original, purpose: 'extract', name, content: monthlyText,
     contentHash: createHash('sha256').update(monthlyText).digest('hex') });
   assert.equal(c.goal.requiredArtifacts, 0);
   assert.deepEqual(engine.pending('r', submitted.taskId).map(work => work.kind), ['interpretation']);

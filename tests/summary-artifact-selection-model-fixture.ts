@@ -8,6 +8,7 @@ const fixedSource: ArtifactSource = { sourceTaskId: oldArtifact.taskId, artifact
   name: oldArtifact.name, content: oldArtifact.content, owner: 'A', publishedAt: 0, contentHash: 'a'.repeat(64) };
 const currentId = 'this-month:artifact:report';
 const deliveredText = '当前任务的文字结果。';
+const missingFileWarning = '尚未提供要求的全部文件';
 
 export const referenceVariants = {
   '背景里的跨任务旧文件': { artifactIds: [currentId], backgroundArtifactIds: [oldArtifact.id] },
@@ -21,12 +22,12 @@ export class SummaryArtifactSelectionCase {
   readonly model: LocalModel;
   previousId?: string;
 
-  constructor(fixed = false) {
+  constructor(private readonly usesFixedSource = false) {
     this.model = new LocalModel(input => {
       input.config.deliveryReport = 'summary';
       input.goal.requiredArtifacts = 1;
       input.history = { messages: [], artifacts: [oldArtifact], board: [], truncated: false };
-      if (fixed) input.sourceArtifact = fixedSource;
+      if (usesFixedSource) input.sourceArtifact = fixedSource;
     });
   }
 
@@ -55,11 +56,16 @@ export class SummaryArtifactSelectionCase {
     assert.deepEqual(c.candidate?.artifactIds, [currentId]);
     assert.deepEqual(c.candidate?.backgroundArtifactIds ?? [], []);
     assert.deepEqual(c.publishedDelivery?.artifactIds, [currentId]);
+    assert(!c.candidate?.deliveryFindings?.some(finding => finding.kind === 'missing_requirement'), '本轮成果应满足所需文件要求');
+    const summary = c.messages.filter(message => message.kind === 'notice'
+      && (message.detailText ?? message.text).startsWith('执行摘要。')).at(-1);
+    assert(summary, '交付应保存执行摘要');
+    assert(!(summary.detailText ?? summary.text).includes(missingFileWarning), '执行摘要不应显示缺少文件');
     const final = c.messages.filter(message => message.kind === 'final').at(-1);
     assert.equal(final?.detailText ?? final?.text, deliveredText);
     assert.deepEqual(final?.artifactIds, [currentId]);
     assert(!c.artifacts.some(artifact => artifact.id === oldArtifact.id));
-    if (c.sourceArtifact) assert.deepEqual(c.sourceArtifact, fixedSource);
+    if (this.usesFixedSource) assert.deepEqual(c.sourceArtifact, fixedSource);
     else assert.deepEqual(c.history?.artifacts, [oldArtifact]);
   }
 
@@ -71,8 +77,8 @@ export class SummaryArtifactSelectionCase {
     assert.deepEqual(final?.artifactIds, []);
     assert.equal(final?.detailText ?? final?.text, deliveredText);
     assert.equal(c.candidate?.text, deliveredText);
-    assert(c.candidate?.deliveryFindings?.some(finding => finding.kind === 'missing_requirement' && finding.reason === '尚未提供要求的全部文件'));
-    assert(c.messages.some(message => message.kind === 'notice' && (message.detailText ?? message.text).includes('尚未提供要求的全部文件')));
+    assert(c.candidate?.deliveryFindings?.some(finding => finding.kind === 'missing_requirement' && finding.reason === missingFileWarning));
+    assert(c.messages.some(message => message.kind === 'notice' && (message.detailText ?? message.text).includes(missingFileWarning)));
   }
 
   preparePublishedRevision() {
