@@ -90,7 +90,7 @@
     "src/task/map-reduce.ts": "30b5fedc0d72923e7cd5b3df38b9b7d1f7c82f9df66d7603131c30cd667dfb94",
     "src/task/map-scheduling.ts": "6070c9efc80b4814926d1ea340a390b8e8e0efbce30eaf81acd3aa8a09d5ffd5",
     "src/task/operations.ts": "8fe86f249c9e7c28a0a1ea69031a41113498fe78fda1a2d08eaa3c88d3edb14e",
-    "src/task/persistence.ts": "9aebd4cad2187fe3d2a9accb0e9315a1f67850a493292d9f523276d38d6af517",
+    "src/task/persistence.ts": "f405580e44ad0f2f64c4d72a618b0a3397e49c60a4292a0f6fa6341c7ba8bd17",
     "src/task/policy.ts": "22b864d5a76331f8c64b9a52fc7767e3cd307c87560d6f3686e6af47f2723564",
     "src/task/protocol.ts": "1708d6db214f9332b9268406ebf0c245751415d2a96760d9bd75b64a64692936",
     "src/task/execution-summary.ts": "a188468a5abcca91b8eb4874273d6fd54cb4743a7c55716bc913e02d8583ef4f",

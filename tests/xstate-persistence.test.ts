@@ -127,7 +127,6 @@ it.each([
   { damage: 'missing snapshot', corrupt: (child: SavedExecution) => { delete child.snapshot; } },
   { damage: 'unknown phase', corrupt: (child: SavedExecution) => { child.snapshot!.value = 'unknown'; } },
   { damage: 'completed status on an authorized phase', corrupt: (child: SavedExecution) => { child.snapshot!.status = 'done'; } },
-  { damage: 'mismatched target', corrupt: (child: SavedExecution) => { child.snapshot!.context.target = 'B'; } },
   ...(['taskId', 'intentId', 'attempt', 'epoch', 'goalVersion', 'target', 'kind'] as const).map(field => ({
     damage: `missing ticket ${field}`,
     corrupt: (child: SavedExecution) => { delete child.snapshot!.context[field]; },
@@ -141,6 +140,21 @@ it.each([
 
     expect(() => engine.beginExecution(room, task, oldAttempt)).toThrow('Incompatible task execution snapshot');
     expect(store.read(room).tasks[task]).toEqual(malformed.record);
+  });
+});
+
+it.each([
+  { target: 'B' }, { kind: 'interpretation' as const }, { epoch: 2 }, { goalVersion: 2 },
+])('[X6-02][BT_N11] reads a stale ticket %o but refuses to start it', patch => {
+  const stale = structuredClone(authorized);
+  const { room, task, work } = stale;
+  Object.assign(stale.record.snapshot.children[executionId(work.id, work.attempt)]!.snapshot!.context, patch);
+  withReopenedTask(stale, (store, engine) => {
+    const oldAttempt = stale.record.snapshot.context.intents[0]!;
+
+    expect(engine.executionPhase(room, task, work)).toBe('authorized');
+    expect(engine.beginExecution(room, task, oldAttempt)).toBe(false);
+    expect(store.read(room).tasks[task]).toEqual(stale.record);
   });
 });
 

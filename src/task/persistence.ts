@@ -2,7 +2,7 @@ import { isMachineSnapshot, type AnyStateMachine, type Snapshot } from 'xstate';
 import { restoreActor } from 'xstate/persist';
 import type { Intent, TaskContext } from '../types.js';
 import { restoreDeliveryStage } from './delivery-cycle.js';
-import { executionId, executionLifecycle, executionTicket, isTerminalExecutionState } from './execution.machine.js';
+import { executionId, executionLifecycle, isTerminalExecutionState } from './execution.machine.js';
 import { restoreMapQueue } from './map-queue.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -26,15 +26,14 @@ function positiveInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 }
 
-function validExecutionTicket(ticket: Record<string, unknown>, id: string, taskId: string, intents: Map<string, Intent>, terminal: boolean) {
+function validExecutionTicket(ticket: Record<string, unknown>, id: string, taskId: string, intents: Map<string, Intent>) {
   const work = typeof ticket.intentId === 'string' ? intents.get(ticket.intentId) : undefined;
   const attempt = ticket.attempt;
-  if (!work || !positiveInteger(attempt) || !positiveInteger(work.attempt) || attempt > work.attempt
-    || (!terminal && attempt !== work.attempt) || id !== executionId(work.id, attempt)
-    || typeof ticket.target !== 'string' || !ticket.target || typeof ticket.kind !== 'string'
-    || !positiveInteger(ticket.epoch) || !positiveInteger(ticket.goalVersion)) return false;
-  const expected = executionTicket(taskId, { ...work, attempt });
-  return Object.entries(expected).every(([key, value]) => ticket[key] === value);
+  // A saved ticket can be stale. Only START compares it with the current assignment.
+  return !!work && ticket.taskId === taskId && positiveInteger(attempt) && positiveInteger(work.attempt)
+    && attempt <= work.attempt && id === executionId(work.id, attempt)
+    && typeof ticket.target === 'string' && !!ticket.target && typeof ticket.kind === 'string' && !!ticket.kind
+    && positiveInteger(ticket.epoch) && positiveInteger(ticket.goalVersion);
 }
 
 function executionCheckpoint(child: unknown, id: string, taskId: string, intents: Map<string, Intent>, native: boolean) {
@@ -48,7 +47,7 @@ function executionCheckpoint(child: unknown, id: string, taskId: string, intents
   const expectedStatus = terminal ? 'done' : 'active';
   // XState v6 keeps terminal children inert so their completed state is still addressable.
   const validStatus = snapshot.status === expectedStatus || (native && terminal && snapshot.status === 'active');
-  if (!validStatus || !validExecutionTicket(child.snapshot.context, id, taskId, intents, terminal))
+  if (!validStatus || !validExecutionTicket(child.snapshot.context, id, taskId, intents))
     throw new Error(`Incompatible task execution snapshot: ${id}`);
   return snapshot;
 }
