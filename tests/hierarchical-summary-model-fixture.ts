@@ -81,12 +81,17 @@ export class SummaryModel {
     assert(this.send({ type: 'DISCUSSION_RESULT', discussionId: work.discussionId!, workId: work.id, fence: work,
       text: draft(ids), status: 'success' }).ok);
   }
-  settle(draft: (ids: readonly string[]) => string = shortDraft) {
+  settle(draft: (ids: readonly string[]) => string = shortDraft, onBatchSettled?: (completed: number) => void) {
+    let completed = 0;
     for (let guard = 0; guard < 5000 && !this.pending('owner').length && this.context.discussion?.status !== 'cancelled'; guard += 1) {
       const assistance = [...this.pending('assistance')];
       assert.equal(this.pending('discussionSummary').length, 0);
       if (!assistance.length) throw new Error(`汇总停住：${this.context.discussion?.incomplete ?? this.context.reason}`);
-      for (const pending of assistance) this.settleBatch(pending, draft);
+      for (const pending of assistance) {
+        this.settleBatch(pending, draft);
+        completed += 1;
+        onBatchSettled?.(completed);
+      }
     }
   }
 }
@@ -122,9 +127,9 @@ export function prepareSummaryModel(count: number, assists = 800): SummaryModel 
   return model;
 }
 
-export function executeSummaryModel(model: SummaryModel, draft?: (ids: readonly string[]) => string): SummaryRun {
+export function executeSummaryModel(model: SummaryModel, onBatchSettled?: (completed: number) => void): SummaryRun {
   model.requestSummary();
-  model.settle(draft);
+  model.settle(undefined, onBatchSettled);
   return ownerMaterial(model);
 }
 
