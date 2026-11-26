@@ -16,7 +16,7 @@
     "package.json": "e809edfebb43fbfd77f200e6afec11e6109c7d7e8549efb8ee45536d6278df21",
     "src/acquisition-readers.ts": "57bd457c918ef30aeccf579564eaa8d7f9b03562a9a614877c1ce4399019c985",
     "src/agent-behavior.ts": "beb9035c1894c6953e3bd811d4600da865bc7f9831c6c6ffd22efdb617b537d7",
-    "src/artifact-request.ts": "1d78a3d7a81675984ef679ff384eb6407396b17929ea4dbf2ae0e928d56baac7",
+    "src/artifact-request.ts": "dbd7bb8a817b48addb9b40dde359544e7a145d30f69454001c8efbdd68852f09",
     "src/assistance-retry.ts": "6ce57d14e5b40ec99d56f248216e8d33138dd96ee32a2eb47cde9991e74d05d2",
     "src/automatic-cli-catalog.ts": "51912aee4691520072a111e9b8850bf91e9c988be88bb758394c7a74e087ec75",
     "src/budget-defaults.ts": "7b3ddd66ca771f70769e50ab2dc356cb5927019b8e744cdb37550af99f8bdc32",
